@@ -89,6 +89,7 @@ export default function PlannerSurface({
   // "Show feelings" toggles). Only explicitly-set keys win; unset keys
   // keep following the page's shared pills.
   overlaysOverride = null,
+  onSetPref = null,
   // Widget host: a plain tap on empty time opens the full page (the widget
   // is a window onto the planner, so tapping its body should go there).
   // Hold-to-create and tap-a-block still work exactly as on the page.
@@ -830,6 +831,7 @@ export default function PlannerSurface({
         <WeekCanvas
           anchor={anchor}
           onOpenPage={onOpenPage}
+          onSetPref={onSetPref}
           prefsOverride={prefsOverride}
           dayCount={dayCount}
           maxHeight={maxHeight}

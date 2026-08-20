@@ -538,6 +538,10 @@ export default function WeekCanvas({
   onOpenBand,
   prefsOverride = null,
   onOpenPage = null,
+  // Widget hosts: route pinch-zoom writes into the WIDGET's own config
+  // instead of the shared preference — pinching one widget must not
+  // resize every other planner surface (owner report).
+  onSetPref = null,
 }) {  const terms = useTerms();
 
   // Display prefs: row height (pinch or popover), clock format, week start.
@@ -574,8 +578,9 @@ export default function WeekCanvas({
     const dy = Math.max(24, Math.abs(a.clientY - b.clientY));
     const nextH = Math.round(Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, p.h0 * (dy / p.dy0))));
     const nextW = Math.round(Math.max(DAY_PX_MIN, Math.min(DAY_PX_MAX, p.w0 * (dx / p.dx0))));
-    if (nextH !== hourPx) setPref("hourPx", nextH);
-    if (nextW !== dayPx) setPref("dayPx", nextW);
+    const apply = onSetPref || setPref;
+    if (nextH !== hourPx) apply("hourPx", nextH);
+    if (nextW !== dayPx) apply("dayPx", nextW);
   };
   const onPinchEnd = () => { pinchRef.current = null; };
 

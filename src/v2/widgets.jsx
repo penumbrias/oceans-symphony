@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
+import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import { statusFor as statusForActivity } from "@/lib/activityStatus";
 import { applyLogCommands } from "@/lib/logCommands";
 import {
@@ -2570,7 +2571,7 @@ export const V2_WIDGETS = {
   activity_week: {
     label: "Week grid", description: "The activity tracker's week, on your home screen. Minimal is a per-day readout; normal draws the grid; expanded gives you the tracker's own gestures \u2014 drag a time range to log or plan it.",
     icon: CalendarRange, category: "activities",
-    render: ({ mode, settings }) => <ActivityWeekWidget mode={mode} settings={settings} />,
+    render: ({ mode, settings, updateSettings }) => <ActivityWeekWidget mode={mode} settings={settings} updateSettings={updateSettings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "showEmotions", type: "toggle", label: "Show feelings on the grid", default: false },
@@ -2607,7 +2608,7 @@ export const V2_WIDGETS = {
   activity_dayview: {
     label: "Day view", description: "The activity tracker's day view itself \u2014 quick plans on top, quiet stretches folded away, each hour's entries as pills. Expanded lets you add to the day from here.",
     icon: CalendarClock, category: "activities",
-    render: ({ mode, settings }) => <ActivityDayViewWidget mode={mode} settings={settings} />,
+    render: ({ mode, settings, updateSettings }) => <ActivityDayViewWidget mode={mode} settings={settings} updateSettings={updateSettings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "showAlters", type: "toggle", label: "Show who was {{fronting}}", default: false },
@@ -3072,6 +3073,19 @@ export const V2_WIDGETS = {
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8 },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  plan_tracker: {
+    label: "Plan tracker", description: "The plan-completion tracker — how many plans got done, partly done, or skipped.",
+    icon: ListChecks, category: "activities",
+    render: sized(() => (
+      <Section label="Plan tracker">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <PlanCompletionTracker />
+        </div>
+      </Section>
+    )),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
   recent_activities: {
     label: "Recent activities", description: "The most recently logged activities, with durations.",

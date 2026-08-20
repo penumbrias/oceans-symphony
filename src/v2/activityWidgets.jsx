@@ -13,7 +13,7 @@
 //
 // One data hook + one modal host serves all four so the widgets stay thin.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PlannerSurface from "@/components/planner/PlannerSurface";
 import { useQuery } from "@tanstack/react-query";
@@ -54,6 +54,24 @@ function displayFromSettings(settings = {}) {
 
 // Overlay toggles for the PlannerSurface render paths — same only-if-set
 // rule, so an untouched widget keeps following the planner page's pills.
+// Pinch writes arrive per-frame; SystemSettings writes shouldn't. One
+// trailing write per 400ms, latest values win.
+function useWidgetPrefWriter(updateSettings) {
+  const buf = useRef({});
+  const timer = useRef(null);
+  return (key, value) => {
+    const field = key === "hourPx" ? "rowH" : key === "dayPx" ? "dayPx" : null;
+    if (!field || !updateSettings) return;
+    buf.current[field] = value;
+    if (timer.current) return;
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      const patch = buf.current; buf.current = {};
+      updateSettings(patch);
+    }, 400);
+  };
+}
+
 function overlaysFromSettings(settings = {}) {
   const out = {};
   if (typeof settings.showAlters === "boolean") out.alters = settings.showAlters;
@@ -304,7 +322,8 @@ function WindowNav({ label, onPrev, onNext, onToday, atNow }) {
 }
 
 // ── Week grid ──────────────────────────────────────────────────────
-export function ActivityWeekWidget({ mode = "normal", settings }) {
+export function ActivityWeekWidget({ mode = "normal", settings, updateSettings }) {
+  const writePref = useWidgetPrefWriter(updateSettings);
   const navigate = useNavigate();
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
@@ -359,7 +378,8 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
         <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
           overlaysOverride={overlaysFromSettings(settings)}
-          prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH, laneOpacity: settings?.laneOpacity }} />
+          onSetPref={writePref}
+          prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH, dayPx: settings?.dayPx, laneOpacity: settings?.laneOpacity }} />
       </Section>
     );
   }
@@ -468,7 +488,8 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
 // Not the grid with one column — this is the Activity Tracker's actual day
 // view (quick plans at the top, empty stretches collapsed into bands, each
 // hour's entries as pills), rendered inline instead of full-screen.
-export function ActivityDayViewWidget({ mode = "normal", settings }) {
+export function ActivityDayViewWidget({ mode = "normal", settings, updateSettings }) {
+  const writePref = useWidgetPrefWriter(updateSettings);
   const navigate = useNavigate();
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
@@ -514,6 +535,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
         <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
           overlaysOverride={overlaysFromSettings(settings)}
+          onSetPref={writePref}
           prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH, laneOpacity: settings?.laneOpacity }} />
       </Section>
     );

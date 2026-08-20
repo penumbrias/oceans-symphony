@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "New \"Plan tracker\" widget — the plan-completion tracker on your home screen. (The Planned list already lives in the \"Plans\" and \"Coming up\" widgets.)" },
+      { type: "fix", text: "Pinch-zooming one planner widget resizes only that widget now — it used to change every planner surface, including the Day view and the planner page." },
       { type: "improve", text: "Active-now shows each symptom's current severity (\u201cFog \u00b7 4\u201d) in the popup and the Active widget." },
       { type: "feature", text: "The Planner gained the Activity tracker's Planned list and plan-completion tracker — the new checklist button in its header; tapping a plan opens the planner's edit sheet." },
       { type: "fix", text: "Active-now popup: tapping inside the severity/end menu no longer dismisses everything with nothing happening — the tap lands." },
