@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Planner: tap a {{fronting}} lane to see who it is — {{alter}}, times, and shortcuts to their profile and {{front}} history." },
       { type: "fix", text: "Moving a widget past the screen edge works now — the page keeps scrolling and the widget travels with it instead of getting stuck." },
       { type: "improve", text: "New widgets land in the next empty space on the board instead of pushing your arrangement around." },
       { type: "improve", text: "Planner: the {{fronting}} overlay now shows real {{front}} history — one thin lane per {{alter}}, sessions as solid bars on the time scale, like the Timeline." },

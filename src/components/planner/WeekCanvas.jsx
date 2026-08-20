@@ -23,6 +23,7 @@ import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
+import { useTerms } from "@/lib/useTerms";
 import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
@@ -57,7 +58,7 @@ export function formatDuration(min) {
 // days, and reports minutes rather than pixels so the parent never deals in
 // geometry.
 function DayColumn({
-  day, blocks, untimed, overlayBands, overlayMarks,
+  day, blocks, untimed, overlayBands, overlayMarks, onOpenBand, terms,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
   onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
 }) {
@@ -379,13 +380,17 @@ function DayColumn({
           </div>
         )}
 
+        {/* Tappable — a bar you can't identify is decoration on a phone.
+            The visible bar stays thin; the touch target is wider. */}
         {showOverlays.alters && overlayBands.map((b, i) => (
-          <div key={`band-${i}`} className="absolute pointer-events-none" title={b.name}
-            style={{
-              top: pct(b.startMin), height: pct(b.endMin - b.startMin),
-              left: 2 + (b.lane % 6) * 5, width: 3.5,
-              background: b.color, opacity: 0.9, borderRadius: 2,
-            }} />
+          <button key={`band-${i}`} type="button"
+            aria-label={`${b.name} — ${terms?.fronting || "fronting"}`}
+            onClick={(e) => { e.stopPropagation(); onOpenBand?.(b, e.currentTarget.getBoundingClientRect()); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute"
+            style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), left: (b.lane % 6) * 5, width: 8, zIndex: 4, background: "transparent" }}>
+            <span className="block h-full" style={{ width: 3.5, marginLeft: 2, background: b.color, opacity: 0.9, borderRadius: 2 }} />
+          </button>
         ))}
         {/* Check-in marks — tappable, so the log entry behind a dot is one
             tap away (a dot you can only hover is decoration on a phone). */}
@@ -526,9 +531,11 @@ export default function WeekCanvas({
   maxHeight,
   fill = false,
   onOpenMark,
+  onOpenBand,
   prefsOverride = null,
   onOpenPage = null,
-}) {
+}) {  const terms = useTerms();
+
   // Display prefs: row height (pinch or popover), clock format, week start.
   // Read live so a change anywhere re-renders every planner instance; a
   // widget's own config (prefsOverride) wins over the shared value.
@@ -641,6 +648,8 @@ export default function WeekCanvas({
           color: alter?.color || "#94a3b8",
           lane: laneOf.get(aid),
           name: alter?.name || "?",
+          alterId: aid,
+          session: s,
         };
       })
       .filter((b) => b.endMin > b.startMin);
@@ -745,6 +754,8 @@ export default function WeekCanvas({
                 onOpenUntimed={onOpenUntimed}
                 hourPx={hourPx}
                 onOpenMark={onOpenMark}
+                onOpenBand={onOpenBand}
+                terms={terms}
                 onOpenPage={onOpenPage}
               />
             ))}

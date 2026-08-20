@@ -106,7 +106,9 @@ export default function PlannerSurface({
   };
   const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
-  const [timing, setTiming] = useState(null);          // { item, day } being scheduled
+  const [timing, setTiming] = useState(null);
+  // Tapped fronting-lane bar → who/when card (bars alone are anonymous).
+  const [bandInfo, setBandInfo] = useState(null);          // { item, day } being scheduled
   const [timeValue, setTimeValue] = useState("09:00");
   const [durValue, setDurValue] = useState(60);
   const [noteValue, setNoteValue] = useState("");
@@ -807,6 +809,7 @@ export default function PlannerSurface({
           onResize={handleResize}
           // A tapped check-in dot lands on that entry in the log, highlighted.
           onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
+          onOpenBand={(b, rect) => setBandInfo({ band: b, rect })}
           onAddToDay={(day) => setPlanDay(day)}
           onOpenUntimed={(item, day) => {
             setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); setNoteValue(item.notes || "");
@@ -821,6 +824,38 @@ export default function PlannerSurface({
           re-anchors `position: fixed` to the board instead of the viewport —
           so an un-portaled sheet renders inside the widget and gets clipped
           by it, which is why its buttons did nothing. */}
+      {bandInfo && createPortal((
+        <div className="fixed inset-0 z-[85]" onClick={() => setBandInfo(null)}>
+          <div className="fixed bg-card border border-border rounded-xl shadow-xl p-3 w-56"
+            style={{
+              left: Math.max(8, Math.min(bandInfo.rect.left + 10, window.innerWidth - 232)),
+              top: Math.max(8, Math.min(bandInfo.rect.top + 8, window.innerHeight - 140)),
+            }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: bandInfo.band.color }} />
+              <span className="text-sm font-medium truncate">{bandInfo.band.name}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {new Date(bandInfo.band.session.start_time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {" — "}
+              {bandInfo.band.session.end_time
+                ? new Date(bandInfo.band.session.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : tr("planner.stillFronting")}
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button type="button" onClick={() => { setBandInfo(null); navigate(`/alter/${bandInfo.band.alterId}`); }}
+                className="text-xs px-2.5 py-1 rounded-full border border-border/50 hover:text-foreground text-muted-foreground">
+                {tr("planner.openProfile")}
+              </button>
+              <button type="button" onClick={() => { setBandInfo(null); navigate("/analytics"); }}
+                className="text-xs px-2.5 py-1 rounded-full border border-border/50 hover:text-foreground text-muted-foreground">
+                {tr("planner.frontHistory", { Front: t.Front })}
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
       {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
           style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
