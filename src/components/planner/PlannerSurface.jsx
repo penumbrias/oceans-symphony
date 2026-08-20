@@ -83,6 +83,10 @@ export default function PlannerSurface({
   // Per-instance display overrides (a widget's own weekStartsOn / timeFmt /
   // rowH config). Beat the shared preference when set.
   prefsOverride = null,
+  // Per-instance overlay overrides (a widget's "Show who was fronting" /
+  // "Show feelings" toggles). Only explicitly-set keys win; unset keys
+  // keep following the page's shared pills.
+  overlaysOverride = null,
   // Widget host: a plain tap on empty time opens the full page (the widget
   // is a window onto the planner, so tapping its body should go there).
   // Hold-to-create and tap-a-block still work exactly as on the page.
@@ -104,7 +108,8 @@ export default function PlannerSurface({
     const next = typeof v === "function" ? v(anchor) : v;
     if (onAnchorChange) onAnchorChange(next); else setOwnAnchor(next);
   };
-  const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
+  const [ownOverlays, setOwnOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
+  const overlays = { ...ownOverlays, ...(overlaysOverride || {}) };
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
   const [timing, setTiming] = useState(null);
   // Tapped fronting-lane bar → who/when card (bars alone are anonymous).
@@ -283,8 +288,8 @@ export default function PlannerSurface({
   }, [categories]);
 
   const setOverlay = (key, on) => {
-    const next = { ...overlays, [key]: on };
-    setOverlays(next);
+    const next = { ...ownOverlays, [key]: on };
+    setOwnOverlays(next);
     lsSet("symphony_planner_overlays_v1", next);
   };
 

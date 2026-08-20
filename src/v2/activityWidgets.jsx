@@ -52,6 +52,15 @@ function displayFromSettings(settings = {}) {
   return Object.keys(out).length ? out : null;
 }
 
+// Overlay toggles for the PlannerSurface render paths — same only-if-set
+// rule, so an untouched widget keeps following the planner page's pills.
+function overlaysFromSettings(settings = {}) {
+  const out = {};
+  if (typeof settings.showAlters === "boolean") out.alters = settings.showAlters;
+  if (typeof settings.showEmotions === "boolean") out.emotions = settings.showEmotions;
+  return Object.keys(out).length ? out : null;
+}
+
 const lsGet = (key, fallback) => {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
@@ -349,6 +358,7 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
       <Section label="Week" action={<span className="flex items-center gap-2">{nav}<TextAction onClick={() => navigate("/planner")}>Open</TextAction></span>}>
         <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
+          overlaysOverride={overlaysFromSettings(settings)}
           prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );
@@ -503,6 +513,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
       <Section label="Day" action={<span className="flex items-center gap-2">{nav}<TextAction onClick={() => navigate("/planner")}>Open</TextAction></span>}>
         <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
+          overlaysOverride={overlaysFromSettings(settings)}
           prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );

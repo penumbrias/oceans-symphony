@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "improve", text: "Week and Day planner widgets: the \"Show who was {{fronting}}\" and check-in overlay toggles in the widget config now actually control the widget \u2014 each widget can differ from the planner page." },
+      { type: "improve", text: "The Day view widget gained its own config: overlays, row height and clock format." },
+      { type: "feature", text: "Notebook widget: a \"Formatting & images\" option swaps in the journal's full editor \u2014 headings, colours, image uploads and asset inserts, right on the home screen." },
       { type: "improve", text: "The quick actions row now floats as its own card, visually separate from the top/bottom bars — same treatment as the pinned {{alters}} bar. When both share an edge they stack neatly." },
       { type: "fix", text: "No more stray chevron floating above the pinned {{alters}} bar when the quick actions bar sits on the other edge." },
       { type: "fix", text: "Dragging inside a colour picker no longer swipes the home screen to the next page." },

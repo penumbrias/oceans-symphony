@@ -1319,6 +1319,8 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
 // Saving CREATES a JournalEntry in the chosen journal (never updates one:
 // journals are a log). Half-written text survives closing the app via the
 // shared draft hook, per instance so two notebooks never share a draft.
+const WysiwygEditorLazy = React.lazy(() => import("@/components/shared/WysiwygEditor"));
+
 function NotebookWidget({ settings, updateSettings, instanceId }) {
   const notebookAlters = useList("alters", "Alter");
   const tr = useT();
@@ -1389,7 +1391,17 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         placeholder={tr("widget.notebook.titlePlaceholder")}
         className="w-full h-8 px-2 text-sm font-medium bg-transparent border-0 border-b border-border/40 focus:outline-none focus:border-primary/50"
       />
-      {/* The page itself: grows with the widget, scrolls when it outgrows it. */}
+      {/* The page itself: grows with the widget, scrolls when it outgrows it.
+          "Formatting & images" (widget config) swaps in the journal's own
+          rich editor — the SAME WysiwygEditor + MiniToolbar the journal
+          page uses, so images, colours and headings work identically. */}
+      {settings?.rich ? (
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <React.Suspense fallback={<Muted>…</Muted>}>
+            <WysiwygEditorLazy value={text} onChange={setText} placeholder={tr("widget.notebook.placeholder")} />
+          </React.Suspense>
+        </div>
+      ) : (
       <MentionTextarea
         value={text}
         onChange={setText}
@@ -1398,6 +1410,7 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         placeholder={tr("widget.notebook.placeholder")}
         className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
       />
+      )}
     </Section>
   );
 }
@@ -2545,6 +2558,13 @@ export const V2_WIDGETS = {
     icon: CalendarClock, category: "activities",
     render: ({ mode, settings }) => <ActivityDayViewWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "showAlters", type: "toggle", label: "Show who was {{fronting}}", default: false },
+      { key: "showEmotions", type: "toggle", label: "Show check-ins", default: false },
+      { key: "rowH", type: "number", label: "Row height", min: 6, max: 80, default: 40 },
+      { key: "timeFmt", type: "select", label: "Clock", default: "24",
+        options: [{ value: "24", label: "24-hour" }, { value: "12", label: "12-hour" }] },
+    ],
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   activity_month: {
@@ -2786,6 +2806,7 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
       { key: "journal", type: "dynamicSelect", source: "journalFolders", label: "Journal", emptyLabel: "All journals" },
+      { key: "rich", type: "toggle", label: "Formatting & images", default: false },
     ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
