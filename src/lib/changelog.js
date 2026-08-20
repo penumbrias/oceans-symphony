@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "improve", text: "Free text in ~commands now uses square brackets — ~activity:eating:note[having cereal]:15m. A closed ] lets you keep writing after the command; leaving it open means the rest of the line is the note." },
+      { type: "feature", text: "New ~journal command: ~journal:folder:title[…]:body[…] writes a journal entry inline from any text box." },
       { type: "fix", text: "Notes added with ~activity are readable now — the logged line shows the note text instead of a bare \ud83d\udcdd icon, and an apostrophe inside a quoted note no longer cuts it short." },
       { type: "improve", text: "Check-In Log: activity pills are colour-coded by their activity colour and show the note." },
       { type: "feature", text: "~activity commands take optional extras in any order: a duration that ends now (~activity:reading:45m), note=… (quotes let it contain colons), and urgent — the autocomplete offers them after the name." },

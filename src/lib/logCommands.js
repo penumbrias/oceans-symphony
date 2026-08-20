@@ -27,18 +27,28 @@
 //                the rest as prose. A trailing keyword (…:active) needs a
 //                newline or a closing ~ to separate it from following prose.
 //
+// FREE TEXT inside a command uses square brackets: key[the text]. The
+// bracket bounds it cleanly against prose after the command, and the text
+// can contain colons and quotes. A missing "]" means "everything to the
+// end of the line belongs to this entry". (note=… without brackets still
+// works, greedy to its segment's end.)
+//
 // Activity extras (any order, each its own :segment, after the name):
-//   duration   45 / 45m / 1h / 1h30m — logs that many minutes ENDING now
-//   note=…     free-text note (n=… works too; runs to the end of the segment).
-//              Wrap it in quotes to include colons or to bound it against
-//              following prose: note="tea: chamomile" worked wonders
-//   urgent     marks it urgent (critical ⚡) — also: critical / important
+//   duration     45 / 45m / 1h / 1h30m — logs that many minutes ENDING now
+//   note[…]      free-text note (n[…] works too)
+//   urgent       marks it urgent (critical ⚡) — also: critical / important
+//
+// Journal entries: ~journal:folder:title[…]:body[…] — folder optional
+// (matched against your journal folders), title[] optional, body[] is the
+// entry text.
 //
 // Examples:
 //   ~symptom:amnesia:4            ~symptom:anxiety:3:active     ~symptom:anxiety:inactive
 //   ~feeling:good:happy:cheerful  ~feeling:body:flight:on edge  ~feeling:on edge
 //   ~company:emma:active          ~activity:reading:active      ~activity:reading
-//   ~activity:reading:45m:note=couldn't focus   ~activity:chores:1h30m:urgent
+//   ~activity:eating:note[having cereal]:15m
+//   ~activity:work:3h:note[covering for jase] lalala   ← "lalala" stays prose
+//   ~journal:dreams:title[flying again]:body[it was the ocean one]
 
 import { base44 } from "@/api/base44Client";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
@@ -55,6 +65,7 @@ export const COMMAND_TYPES = [
   { key: "feeling",  aliases: ["feeling", "feelings", "emotion", "emotions", "mood", "feel"], label: "Feeling", icon: "💗", hint: "Log an emotion" },
   { key: "company",  aliases: ["company", "with", "contact", "contacts"],     label: "Company",  icon: "👤", hint: "Log who you're with" },
   { key: "activity", aliases: ["activity", "activities", "act"],              label: "Activity", icon: "🎯", hint: "Log an activity" },
+  { key: "journal",  aliases: ["journal", "journals", "entry", "j"],          label: "Journal",  icon: "📓", hint: "Write a journal entry" },
 ];
 
 const ICON = Object.fromEntries(COMMAND_TYPES.map((t) => [t.key, t.icon]));
@@ -88,6 +99,20 @@ function parseDurationLead(text) {
   }
   return null;
 }
+// key[free text] — the standard wrapper for free text inside a command.
+// Returns { key, value, len } for a token at position `pos` (relative to
+// text) whose key is in `keys`, or null. The value runs to the matching
+// "]" or, when unclosed, to `bodyEnd` (everything until the end belongs
+// to the entry — the user's rule).
+function readBracketArg(text, pos, bodyEnd, keys) {
+  const m = /^\s*([a-zA-Z]+)\[/.exec(text.slice(pos, bodyEnd));
+  if (!m || !keys.includes(m[1].toLowerCase())) return null;
+  const contentStart = pos + m[0].length;
+  const close = text.indexOf("]", contentStart);
+  const end = close > -1 && close < bodyEnd ? close : bodyEnd;
+  return { key: m[1].toLowerCase(), value: text.slice(contentStart, end).trim(), len: (close > -1 && close < bodyEnd ? close + 1 : bodyEnd) - pos };
+}
+
 function fmtDur(min) {
   const h = Math.floor(min / 60), m = min % 60;
   return h ? (m ? `${h}h${m}m` : `${h}h`) : `${m}m`;
@@ -153,8 +178,14 @@ function buildEmotionLabels(customEmotions = []) {
   return out.map((label) => ({ label }));
 }
 
-export function buildCatalogues({ symptoms = [], contacts = [], activityCategories = [], customEmotions = [] } = {}) {
+export function buildCatalogues({ symptoms = [], contacts = [], activityCategories = [], customEmotions = [], journalEntries = [] } = {}) {
+  // Journal folders: the user's saved folder list plus every folder any
+  // entry actually lives in (same union the journal widgets use).
+  const folderSet = new Set();
+  try { JSON.parse(localStorage.getItem("os_journal_folders") || "[]").forEach((f) => f && folderSet.add(f)); } catch { /* storage off */ }
+  journalEntries.forEach((e) => { if (e?.folder) folderSet.add(e.folder); });
   return {
+    journalFolders: [...folderSet],
     symptoms: symptoms
       .filter((s) => s && !s.is_archived)
       .map((s) => ({ id: s.id, label: s.label || "", category: s.category, type: s.type })),
@@ -171,13 +202,14 @@ async function safeList(entity) {
 }
 
 export async function fetchCatalogues() {
-  const [symptoms, contacts, activityCategories, customEmotions] = await Promise.all([
+  const [symptoms, contacts, activityCategories, customEmotions, journalEntries] = await Promise.all([
     safeList(base44.entities.Symptom),
     safeList(base44.entities.Contact),
     safeList(base44.entities.ActivityCategory),
     safeList(base44.entities.CustomEmotion),
+    safeList(base44.entities.JournalEntry),
   ]);
-  return buildCatalogues({ symptoms, contacts, activityCategories, customEmotions });
+  return buildCatalogues({ symptoms, contacts, activityCategories, customEmotions, journalEntries });
 }
 
 // per-type match helpers on a built catalogue
@@ -364,23 +396,15 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     for (let k = 1; k < rest.length; k++) {
       const segX = rest[k];
       const isLastUnbounded = !bounded && k === rest.length - 1;
-      // Quoted note first — scanned against the RAW text so it can span
-      // colons and stops exactly at the closing quote (prose after it
-      // stays prose). The closer must PAIR with the opener — an apostrophe
-      // inside "couldn't" must not close a double quote.
-      const rawFrom = text.slice(segX.absStart);
-      const qOpen = /^\s*(?:note|n)=\s*(["'\u201c\u201e])/.exec(rawFrom);
-      if (qOpen) {
-        const closer = qOpen[1] === '"' ? '"' : qOpen[1] === "'" ? "'" : "\u201d";
-        const bodyStart = qOpen[0].length;
-        const closeIdx = rawFrom.indexOf(closer, bodyStart);
-        if (closeIdx > -1) {
-          note = rawFrom.slice(bodyStart, closeIdx).trim() || null;
-          consumedEnd = segX.absStart + closeIdx + 1;
-          while (k + 1 < rest.length && rest[k + 1].absStart < consumedEnd) k++;
-          continue;
-        }
-        // No closer: fall through — the unquoted form takes the segment.
+      // note[…] — scanned against the RAW text so it can span colons and
+      // stops exactly at the closing bracket (prose after it stays prose).
+      // Unclosed = everything to the end of the command body is the note.
+      const br = readBracketArg(text, segX.absStart, bodyEnd, ["note", "n"]);
+      if (br) {
+        note = br.value || null;
+        consumedEnd = segX.absStart + br.len;
+        while (k + 1 < rest.length && rest[k + 1].absStart < consumedEnd) k++;
+        continue;
       }
       const nm = NOTE_RE.exec(segX.text);
       if (nm) { note = nm[1].trim() || null; consumedEnd = segX.absEnd; continue; }
@@ -398,6 +422,43 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     if (isActive === true) return finish(consumedEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color, note, critical }, `${cat.name}${extras} · started`);
     if (isActive === false) return finish(consumedEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name, note, critical, duration }, `${cat.name}${extras} · ended`);
     return finish(consumedEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, duration }, `${cat.name}${extras}`);
+  }
+
+  if (type === "journal") {
+    // ~journal[:folder]:title[…]:body[…] — folder is a plain segment
+    // matched against the user's journal folders; title[]/body[] are
+    // bracket args in any order. At least one of title/body must be
+    // present (safe-fail otherwise).
+    let folder = null, title = null, body = null;
+    let pos = segs[0].absEnd; // after "journal"
+    let consumedEnd = segs[0].absEnd;
+    while (pos < bodyEnd && text[pos] === ":") {
+      const argStart = pos + 1;
+      const arg = readBracketArg(text, argStart, bodyEnd, ["title", "body", "note", "text"]);
+      if (arg) {
+        if (arg.key === "title") title = arg.value || null;
+        else body = arg.value || null; // body / note / text
+        pos = argStart + arg.len;
+        consumedEnd = pos;
+        continue;
+      }
+      // plain segment → folder candidate (first one only)
+      let segEnd = argStart;
+      while (segEnd < bodyEnd && text[segEnd] !== ":") segEnd++;
+      const raw = text.slice(argStart, segEnd).trim();
+      const match = folder === null && raw ? bestMatch(catalogues.journalFolders, raw, (f) => f) : null;
+      if (match) { folder = match; pos = segEnd; consumedEnd = segEnd; continue; }
+      break; // unknown plain segment → prose from here
+    }
+    if (title === null && body === null) return null;
+    const label = `${folder ? `${folder} · ` : ""}${title || (body ? (body.length > 30 ? `${body.slice(0, 27)}\u2026` : body) : "entry")}`;
+    return {
+      start: tildeIndex,
+      end: hadClose && bodyEnd + 1 >= consumedEnd ? bodyEnd + 1 : consumedEnd,
+      type, isActive: undefined,
+      plan: { kind: "journalEntry", folder, title, body },
+      label, icon,
+    };
   }
 
   return null;
@@ -486,6 +547,15 @@ async function executePlan(plan, ctx) {
         notes: plan.note || null,
         ...(plan.critical ? { is_critical: true } : {}),
         fronting_alter_ids: ctx.fronting_alter_ids, is_planned: false, status: ACTIVITY_STATUSES.LOGGED,
+      });
+      return r?.id || null;
+    }
+    case "journalEntry": {
+      const r = await base44.entities.JournalEntry.create({
+        title: plan.title || null,
+        content: plan.body || "",
+        folder: plan.folder || null,
+        timestamp: now,
       });
       return r?.id || null;
     }
@@ -647,10 +717,23 @@ export function buildCommandSuggestions({ segments, catalogues }) {
       { insert: "active", terminal: true },
       { insert: "15m", terminal: false }, { insert: "30m", terminal: false },
       { insert: "1h", terminal: false }, { insert: "2h", terminal: false },
-      { insert: "note=", terminal: true },
+      { insert: "note[", terminal: true },
       { insert: "urgent", terminal: false },
     ].filter((it) => !q || it.insert.startsWith(q));
     return { header: "Extras", icon, canFinish: true, items };
+  }
+
+  if (type === "journal") {
+    if (segments.length === 2) {
+      const folders = filterByLabel(catalogues.journalFolders.map((f) => ({ name: f })), query, (f) => f.name)
+        .slice(0, 6).map((f) => ({ insert: f.name, terminal: false }));
+      const args = [{ insert: "title[", terminal: true }, { insert: "body[", terminal: true }]
+        .filter((it) => !q || it.insert.startsWith(q));
+      return { header: "Journal", icon, canFinish: false, items: [...folders, ...args].slice(0, 8) };
+    }
+    const items = [{ insert: "title[", terminal: true }, { insert: "body[", terminal: true }]
+      .filter((it) => !q || it.insert.startsWith(q));
+    return { header: "Entry", icon, canFinish: false, items };
   }
 
   if (type === "feeling") return feelingSuggestions(segments, catalogues, icon, query);
