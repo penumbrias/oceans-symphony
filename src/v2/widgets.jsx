@@ -741,7 +741,7 @@ function AppTileWidget({ mode, settings }) {
       style={boxStyle({ borderFallback: false })}>
       {iconEl}
       {display !== "plain" && mode !== "minimal" && (
-        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
+        <span className="os-tile-label text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
       )}
     </button>
   );
@@ -1153,7 +1153,7 @@ function FolderWidget({ settings, mode }) {
           {apps.length === 0 && <FolderOpen className="w-3.5 h-3.5 text-muted-foreground col-span-2" />}
         </span>
         {mode !== "minimal" && (
-          <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
+          <span className="os-tile-label text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
             {label}
           </span>
         )}
@@ -1183,7 +1183,7 @@ function FolderWidget({ settings, mode }) {
                     }}>
                     <Icon className="w-4 h-4" />
                   </span>
-                  <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
+                  <span className="os-tile-label text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
                     {a.label}
                   </span>
                 </button>
@@ -1716,7 +1716,7 @@ function AlterLinkTile({ alter, mode }) {
             {(formatAlter(alter) || "?")[0]}
           </span>}
       {mode !== "minimal" && (
-        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
+        <span className="os-tile-label text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
           {formatAlter(alter)}
         </span>
       )}
@@ -1746,7 +1746,7 @@ function QuickLinksWidget({ settings, mode, api }) {
       style={{ borderRadius: "var(--v2-radius, 8px)" }}>
       {icon}
       {mode !== "minimal" && (
-        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">{label}</span>
+        <span className="os-tile-label text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">{label}</span>
       )}
     </button>
   );

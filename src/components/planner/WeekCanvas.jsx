@@ -388,7 +388,10 @@ function DayColumn({
             onClick={(e) => { e.stopPropagation(); onOpenBand?.(b, e.currentTarget.getBoundingClientRect()); }}
             onPointerDown={(e) => e.stopPropagation()}
             className="absolute"
-            style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), left: (b.lane % 6) * 5, width: 8, zIndex: 4, background: "transparent" }}>
+            // zIndex 0: the lanes sit UNDER the activity blocks (owner report — a
+            // lane bar was drawn over a plan and read as covering it). Bands
+            // render before blocks in the DOM, so equal stacking keeps blocks on top.
+            style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), left: (b.lane % 6) * 5, width: 8, zIndex: 0, background: "transparent" }}>
             <span className="block h-full" style={{ width: 3.5, marginLeft: 2, background: b.color, opacity: 0.9, borderRadius: 2 }} />
           </button>
         ))}

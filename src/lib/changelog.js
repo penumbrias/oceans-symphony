@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "fix", text: "Planner: {{fronting}} lanes draw under activity blocks now, not over them." },
+      { type: "fix", text: "App shortcut and quick-link labels no longer break words in half (\"Chec / k-In\u2026\")." },
       { type: "improve", text: "Week and Day planner widgets: the \"Show who was {{fronting}}\" and check-in overlay toggles in the widget config now actually control the widget \u2014 each widget can differ from the planner page." },
       { type: "improve", text: "The Day view widget gained its own config: overlays, row height and clock format." },
       { type: "feature", text: "Notebook widget: a \"Formatting & images\" option swaps in the journal's full editor \u2014 headings, colours, image uploads and asset inserts, right on the home screen." },

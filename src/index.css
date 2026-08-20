@@ -293,6 +293,14 @@ button, [role="button"] {
   word-break: break-word;
 }
 
+/* App-tile / quick-link labels: the rule above let the browser split words
+   at any letter ("Check-In" rendered "Chec / k-In…"). Labels break only at
+   spaces and hyphens; a single over-long word still wraps as a last resort. */
+.os-tile-label {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
 /* ── Page content width ──
    Shared wrapper width for most pages. Comfortable single-column reading
    width on phones (matches the old `max-w-2xl mx-auto`), then progressively
