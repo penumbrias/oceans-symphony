@@ -660,7 +660,13 @@ body:has([role="dialog"][data-state="open"]) .os-setup-chip {
 /* Peeking at the app while Display options is open: the sheet shrinks to
    the sample, and the dimming overlay steps aside so what you're adjusting
    is actually visible behind it. */
-html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important; }
+/* While a live-adjust sheet is open the page stays fully USABLE — the
+   overlay must neither dim nor eat taps/scrolls. */
+html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important; pointer-events: none !important; }
+/* vaul puts pointer-events:none on <body> even for non-modal drawers,
+   which froze every tap and scroll on the page behind the options sheets
+   ("I should be able to scroll the home screen"). */
+html[data-v2-peek="1"] body { pointer-events: auto !important; }
 
 /* Corner radius, for real. Tailwind's rounded-* utilities hardcode their
    own px values — only `rounded-lg/md/sm` were ever wired to --radius —
