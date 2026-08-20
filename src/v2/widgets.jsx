@@ -22,6 +22,8 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
+import { statusFor as statusForActivity } from "@/lib/activityStatus";
 import { applyLogCommands } from "@/lib/logCommands";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
@@ -1625,28 +1627,33 @@ function PlansWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const activities = useList("activities", "Activity");
+  const alters = useList("alters", "Alter");
   const days = parseInt(settings?.days, 10) || 7;
   const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 8);
   const now = Date.now();
-  const upcoming = activities
-    .filter((a) => a.status === "scheduled" && a.timestamp
-      && new Date(a.timestamp).getTime() > now - 3600000
-      && new Date(a.timestamp).getTime() < now + days * 86400000)
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-    .slice(0, limit);
-  const fmtDay = (d) => new Date(d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  // The SAME renderer the classic "Coming up" uses (PlannedActivitiesList)
+  // — critical ⚡ pins, relative times, who/where, recurrence-aware rows.
+  // The old hand-rolled list checked `a.status === "scheduled"` directly,
+  // which dropped every legacy plan whose status is derived (statusFor) —
+  // that was "the plans widget displays way less".
+  const upcoming = activities.filter((a) => {
+    if (statusForActivity(a) !== "scheduled" || !a.timestamp) return false;
+    const ts = new Date(a.timestamp).getTime();
+    return ts > now - 3600000 && ts < now + days * 86400000;
+  });
   return (
     <Section label={tr("widget.plans.label")}
       action={<TextAction onClick={() => navigate("/activities?tab=planned")}>{tr("widget.today.open")}</TextAction>}>
       {upcoming.length === 0 && <Muted>{tr("widget.plans.empty")}</Muted>}
-      {upcoming.map((a) => (
-        <Row key={a.id}
-          left={<CalendarCheck className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
-          primary={a.activity_name}
-          secondary={sameDay(a.timestamp, now) ? undefined : fmtDay(a.timestamp)}
-          right={fmtTime(a.timestamp)}
-          onClick={() => navigate(`/activities?activityId=${a.id}`)} />
-      ))}
+      {upcoming.length > 0 && (
+        <PlannedActivitiesList
+          activities={upcoming}
+          alters={alters}
+          compact
+          limit={limit}
+          onClick={(activity) => navigate(activity?.id ? `/activities?activityId=${activity.id}` : "/activities")}
+        />
+      )}
     </Section>
   );
 }

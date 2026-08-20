@@ -145,6 +145,26 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
     setPlanRemindersOn(true);
     toast.success("Plan reminders on");
   };
+  // Cloud push (reminders reach you with the app closed) — the same
+  // registration Settings → Reminders uses. Opt-in, clearly labelled.
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    import("@/lib/pushRegistration").then(({ isPushEnabled }) => isPushEnabled()).then((v) => { if (alive) setPushOn(!!v); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const enablePush = async () => {
+    setPushBusy(true);
+    try {
+      const { registerPush } = await import("@/lib/pushRegistration");
+      await registerPush();
+      setPushOn(true);
+      toast.success("Push reminders on");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't set up push on this device");
+    } finally { setPushBusy(false); }
+  };
   const [showTaskManager, setShowTaskManager] = useState(false);
   const [taskSelection, setTaskSelection] = useState({});
   const [taskSelectionInit, setTaskSelectionInit] = useState(false);
@@ -503,7 +523,10 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
           <p className="text-xs text-muted-foreground">
             Two pieces: your device has to <strong>allow notifications</strong> from the app, and the
             reminders you want have to be turned on. Plan reminders nudge you before a scheduled
-            activity; the Reminders page lets you build your own one-off and recurring ones.
+            activity; the Reminders page lets you build your own one-off and recurring ones. Push
+            reminders are optional: they send your reminder <em>times</em> to a relay so nudges reach
+            you even with the app closed. The reminder wording stays on your device unless you allow
+            it in Settings &rarr; Reminders.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -523,6 +546,15 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
               className="text-xs gap-1.5"
             >
               {planRemindersOn ? "Plan reminders on ✓" : "Turn on plan reminders"}
+            </Button>
+            <Button
+              size="sm"
+              variant={pushOn ? "outline" : "default"}
+              onClick={enablePush}
+              disabled={pushOn || pushBusy}
+              className="text-xs gap-1.5"
+            >
+              {pushOn ? "Push reminders on ✓" : pushBusy ? "Setting up…" : "Turn on push reminders"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/reminders"); }} className="text-xs gap-1">
               Open Reminders <ExternalLink className="w-3 h-3" />

@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "August 19, 2026",
+    changes: [
+      { type: "fix", text: "The Plans widget matches the classic Coming Up card: recurring and older plans show again, urgent plans keep their \u26a1 pin, and each row shows how soon it starts." },
+      { type: "improve", text: "The setup guide's reminders step can now turn on push reminders too, so notification setup happens in one place during onboarding." },
+    ],
+  },
+  {
     date: "August 18, 2026",
+    version: "0.197.5",
     changes: [
       { type: "fix", text: "Dragging a widget no longer shoots it to the top of the screen — grabbing one near the top edge used to start auto-scrolling by itself and threw the position off." },
       { type: "fix", text: "The page behind Display options / Home screen settings / widget options scrolls and taps normally while the sheet is open — it was silently frozen." },
