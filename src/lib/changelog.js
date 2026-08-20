@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: reworded the v0.180.0 backup note — it read scarier than it was (it's about your phone's own Google backup, not data going anywhere public)." },
       { type: "feature", text: "~activity can take explicit times: ~activity:work:start:0500:active (military time), start:yesterday:0500:0700 for a range, or date[02/25/2026] for any day. A future start saves as a plan." },
       { type: "improve", text: "Free text in ~commands now uses square brackets — ~activity:eating:note[having cereal]:15m. A closed ] lets you keep writing after the command; leaving it open means the rest of the line is the note." },
       { type: "feature", text: "New ~journal command: ~journal:folder:title[…]:body[…] writes a journal entry inline from any text box." },
@@ -149,7 +150,7 @@ export const CHANGELOG = [
       { type: "fix", text: "Unlock screen: a corrupted or unreadable data file goes straight to recovery instead of being reported as a wrong password." },
       { type: "fix", text: "Importing on a nearly-full phone can no longer hang forever on images/fonts — a storage-full failure is reported instead." },
       { type: "improve", text: "More of your settings survive a phone \u201cclear cache\u201d: accessibility mode, language, plan reminders, notification toggles, pinned daily tasks, grounding button, planner/timeline view preferences — and your unlocked grocery lists." },
-      { type: "fix", text: "Security: the push self-test could be triggered by anyone who knew a device's push address; it now requires the device's own credentials and can only notify that device. Android will no longer copy your app data into cloud backups or device transfers — the app's own backup is the one way data leaves your phone." },
+      { type: "fix", text: "Security: the push self-test could be triggered by anyone who knew a device's push address; it now requires the device's own credentials and can only notify that device. Also, Android's built-in phone backup (your own Google account backup / new-phone transfer) is no longer allowed to include this app's data — nothing ever left your device except to your own Google backup, but the app's own backup should be the only way data leaves your phone, and an OS restore could plant stale data over fresh." },
       { type: "hotfix", text: "Hotfix: dependency security updates and Capacitor aligned to one version." },
       { type: "feature", text: "Backup health: if your data has never been backed up, the last backup is stale, or automatic backups are failing, a small card on the home screen says so with a one-tap \u201cBack up now\u201d. Settings \u2192 Auto-backup shows the verdict and the last few attempts. Silent when all is well." },
       { type: "fix", text: "Auto-backup mode, destination and last-backup time now survive a phone \u201cclear cache\u201d — a wipe used to silently switch automatic backups off." },
