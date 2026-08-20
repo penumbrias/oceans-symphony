@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "improve", text: "~activity times work without the start keyword too: ~activity:sing:1630:30m or :1630:1730 — a 4-digit military time reads as the start." },
       { type: "hotfix", text: "Hotfix: reworded the v0.180.0 backup note — it read scarier than it was (it's about your phone's own Google backup, not data going anywhere public)." },
       { type: "feature", text: "~activity can take explicit times: ~activity:work:start:0500:active (military time), start:yesterday:0500:0700 for a range, or date[02/25/2026] for any day. A future start saves as a plan." },
       { type: "improve", text: "Free text in ~commands now uses square brackets — ~activity:eating:note[having cereal]:15m. A closed ] lets you keep writing after the command; leaving it open means the rest of the line is the note." },

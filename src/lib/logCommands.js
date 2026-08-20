@@ -439,35 +439,54 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     let duration = null, note = null, critical = false;
     let startSpec = null; // { startDate?, startOffset?, startMin, endDate?, endOffset?, endMin? }
     let consumedEnd = nameEnd;
+    // Consume consecutive time-spec segments starting AFTER rest[fromK].
+    // Returns { spec, kEnd, lastEnd }; spec is null-ish startMin when no
+    // actual clock time appeared (caller rolls back — safe-fail).
+    const consumeTimeSpec = (fromK) => {
+      const spec = {};
+      let kk = fromK, lastEnd = null;
+      while (kk + 1 < rest.length) {
+        const nxt = rest[kk + 1];
+        const lastUnb = !bounded && kk + 1 === rest.length - 1;
+        const tk = parseTimeSpecLead(nxt.text);
+        if (!tk) break;
+        const beforeStart = spec.startMin == null;
+        if (tk.date) { if (beforeStart) spec.startDate = tk.date; else spec.endDate = tk.date; }
+        if (tk.dayOffset !== undefined) { if (beforeStart) spec.startOffset = tk.dayOffset; else spec.endOffset = tk.dayOffset; }
+        if (tk.min != null) {
+          if (tk.date && !beforeStart) spec.endMin = tk.min; // glued end date+time
+          else if (beforeStart) spec.startMin = tk.min;
+          else spec.endMin = tk.min;
+        }
+        kk += 1;
+        lastEnd = lastUnb ? nxt.absStart + tk.len : nxt.absEnd;
+      }
+      return { spec, kEnd: kk, lastEnd };
+    };
     for (let k = 1; k < rest.length; k++) {
       const segX = rest[k];
       const isLastUnbounded = !bounded && k === rest.length - 1;
-      // start:… — explicit times. Consumes following time-spec segments
-      // (day words / date brackets / HHMM) until one doesn't parse.
+      // start:… — explicit times (the keyword form).
       if (/^\s*start\s*$/i.test(segX.text)) {
-        const spec = {};
-        let kk = k, lastEnd = segX.absEnd;
-        while (kk + 1 < rest.length) {
-          const nxt = rest[kk + 1];
-          const lastUnb = !bounded && kk + 1 === rest.length - 1;
-          const tk = parseTimeSpecLead(nxt.text);
-          if (!tk) break;
-          const beforeStart = spec.startMin == null;
-          if (tk.date) { if (beforeStart) spec.startDate = tk.date; else spec.endDate = tk.date; }
-          if (tk.dayOffset !== undefined) { if (beforeStart) spec.startOffset = tk.dayOffset; else spec.endOffset = tk.dayOffset; }
-          if (tk.min != null) {
-            if (tk.date && !beforeStart) spec.endMin = tk.min; // glued end date+time
-            else if (beforeStart) spec.startMin = tk.min;
-            else spec.endMin = tk.min;
-          }
-          kk += 1;
-          lastEnd = lastUnb ? nxt.absStart + tk.len : nxt.absEnd;
-        }
-        if (spec.startMin == null) break; // no time → "start" stays prose (safe-fail)
-        startSpec = spec;
-        consumedEnd = lastEnd;
-        k = kk;
+        const res = consumeTimeSpec(k);
+        if (res.spec.startMin == null) break; // no time → "start" stays prose (safe-fail)
+        startSpec = res.spec;
+        consumedEnd = res.lastEnd ?? segX.absEnd;
+        k = res.kEnd;
         continue;
+      }
+      // Bare time spec, no keyword needed: ~activity:sing:1630:30m — a
+      // 4-digit HHMM (or a day word / date bracket leading to one) reads
+      // as the start time (owner report: the intuitive form did nothing).
+      if (!startSpec && parseTimeSpecLead(segX.text)) {
+        const res = consumeTimeSpec(k - 1); // consume from THIS segment
+        if (res.spec.startMin != null) {
+          startSpec = res.spec;
+          consumedEnd = res.lastEnd ?? segX.absEnd;
+          k = res.kEnd;
+          continue;
+        }
+        break; // day/date with no clock time → prose
       }
       // note[…] — scanned against the RAW text so it can span colons and
       // stops exactly at the closing bracket (prose after it stays prose).
