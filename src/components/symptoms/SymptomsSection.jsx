@@ -285,7 +285,7 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all"
-      style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? `${color}15` : "hsl(var(--card))" }}
+      style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? `${color}15` : "var(--v2-widget-bg, hsl(var(--card)))" }}
       onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
 
         {/* Checkbox */}

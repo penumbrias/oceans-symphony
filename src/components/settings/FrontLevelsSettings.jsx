@@ -18,6 +18,7 @@ import { useTerms } from "@/lib/useTerms";
 import {
   useFrontLevels, DEFAULT_FRONT_LEVELS, newFrontLevelId, frontLevelLabel,
 } from "@/lib/frontLevels";
+import FrontLevelStylesEditor from "@/components/fronting/FrontLevelStylesEditor";
 
 export default function FrontLevelsSettings() {
   const terms = useTerms();
@@ -126,6 +127,10 @@ export default function FrontLevelsSettings() {
             Currently {terms.Fronting}, or (new UI) press-and-hold an {terms.alter} in
             the who's-here widget and drag along the spectrum.
           </p>
+
+          {/* Per-level display styles — the ONE editor (also reached from
+              the pinned bar's panel via this same component). */}
+          <FrontLevelStylesEditor />
 
           {/* The rail's sideways "sole" gesture — while holding and picking
               a level, sliding sideways commits the alter as the only one. */}

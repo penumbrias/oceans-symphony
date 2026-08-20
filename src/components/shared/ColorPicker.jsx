@@ -115,9 +115,12 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
             className={inModal
               ? 'absolute z-[90] mt-2 p-3 bg-card border border-border rounded-xl shadow-xl'
               : 'fixed z-[90] p-3 bg-card border border-border rounded-xl shadow-xl'}
+            // touchAction none: the browser (and the page-swipe/scroll
+            // machinery) must never contest a drag that starts in the
+            // picker — contested drags stuttered and froze mid-slide.
             style={inModal
-              ? { width: popWidth, left: 0 }
-              : { top: pos.top, left: pos.left, width: popWidth }}>
+              ? { width: popWidth, left: 0, touchAction: "none" }
+              : { top: pos.top, left: pos.left, width: popWidth, touchAction: "none" }}>
             {compact && label && (
               <p className='text-xs font-medium mb-2'>{label}</p>
             )}

@@ -18,6 +18,8 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
+import { createPortal } from "react-dom";
+import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -520,6 +522,12 @@ export default function ExperimentalDashboard({
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
+  // Draft semantics for the edit bar: entering edit snapshots the board;
+  // "Discard changes" restores it, "Save & close" keeps the live writes.
+  const editSnapshot = useRef(null);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  const [packSheetOpen, setPackSheetOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Which tab the NEXT drawer open should land on (null = drawer default).
   const [drawerTabRequest, setDrawerTabRequest] = useState(null);
@@ -720,6 +728,20 @@ export default function ExperimentalDashboard({
     }, { undoLabel: `Removed ${label}` });
   };
   const pageIsFree = page.layoutMode === "free";
+  useEffect(() => {
+    if (editMode && !editSnapshot.current) {
+      try { editSnapshot.current = JSON.parse(JSON.stringify(home)); } catch { editSnapshot.current = null; }
+    }
+    if (!editMode) { editSnapshot.current = null; setSaveMenuOpen(false); setExitMenuOpen(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode]);
+  const exitSave = () => { editSnapshot.current = null; setEditMode(false); };
+  const exitDiscard = async () => {
+    const snap = editSnapshot.current;
+    editSnapshot.current = null;
+    setEditMode(false);
+    if (snap) { try { await persist(snap); } catch { /* board keeps live state */ } }
+  };
   const handleSpan = (instanceId, patch, opts = {}) =>
     updatePageWidgets((ws) => {
       const next = ws.map((w) => (w.instanceId === instanceId
@@ -1304,39 +1326,8 @@ export default function ExperimentalDashboard({
           Turning it off (Settings → Accessibility) brings back free placement and resizing.
         </p>
       )}
-      {/* Edit-mode toolbar */}
-      {editMode && (
-      <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">
-        {/* One menu instead of a row of pills — every home-screen setting
-            now lives in the sheet below, so the bar stays a bar. */}
-        <button type="button" onClick={() => setHomeSettingsOpen(true)}
-          aria-label="Home screen settings" title="Home screen settings"
-          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-          <Settings2 className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open app drawer"
-          title="Apps & widgets"
-          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <LayoutGrid className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setEditMode((v) => !v)}
-          aria-pressed={editMode}
-          aria-label={editMode ? "Done editing" : "Edit homescreen"}
-          title={editMode ? "Done" : "Edit homescreen"}
-          className={`min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl transition-colors ${
-            editMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Check className="w-4 h-4" />
-        </button>
-      </div>
-      )}
+      {/* Edit-mode chrome moved to the BOTTOM EDIT BAR (owner) — the
+          corner buttons are gone; see the fixed bar rendered below. */}
 
       {/* Home screen settings — what used to be the toolbar pills. */}
       <Drawer key={homeDock} direction={homeDock} open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
@@ -1890,6 +1881,78 @@ export default function ExperimentalDashboard({
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* ── EDIT BAR — replaces the bottom nav while editing (owner spec).
+          z-[70]: above the vaul sheets (z-50) so Display options / widget
+          options never cover it. ── */}
+      {editMode && createPortal(
+        <div className="fixed bottom-0 left-0 right-0 z-[70] border-t backdrop-blur-xl"
+          style={{
+            background: "var(--color-bg)",
+            borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          }}>
+          <div className="flex items-stretch justify-around" style={{ height: 52 }}>
+            <button type="button" aria-label="Add widgets" title="Add widgets"
+              onClick={() => { setDrawerTabRequest("widgets"); setDrawerOpen(true); }}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-[0.5625rem]">Widgets</span>
+            </button>
+            <button type="button" aria-label="Close gaps" title="Close gaps" disabled={!pageIsFree}
+              onClick={collapseGaps}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
+              <ArrowUpToLine className="w-4 h-4" />
+              <span className="text-[0.5625rem]">Close gaps</span>
+            </button>
+            <button type="button" aria-label="Display options" title="Display options"
+              onClick={() => setHomeSettingsOpen(true)}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
+              <Settings2 className="w-4 h-4" />
+              <span className="text-[0.5625rem]">Display</span>
+            </button>
+            <div className="flex-1 relative">
+              <button type="button" aria-label="Save" title="Save" aria-expanded={saveMenuOpen}
+                onClick={() => { setSaveMenuOpen((v) => !v); setExitMenuOpen(false); }}
+                className={`w-full h-full flex flex-col items-center justify-center gap-0.5 ${saveMenuOpen ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
+                <Check className="w-4 h-4" />
+                <span className="text-[0.5625rem]">Save</span>
+              </button>
+              {saveMenuOpen && (
+                <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
+                  <button type="button" onClick={exitSave}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
+                  <button type="button" onClick={() => { setSaveMenuOpen(false); setPackSheetOpen(true); }}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
+                  <button type="button" onClick={() => { setSaveMenuOpen(false); setPackSheetOpen(true); }}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 relative">
+              <button type="button" aria-label="Exit edit mode" title="Exit edit mode" aria-expanded={exitMenuOpen}
+                onClick={() => { setExitMenuOpen((v) => !v); setSaveMenuOpen(false); }}
+                className={`w-full h-full flex flex-col items-center justify-center gap-0.5 ${exitMenuOpen ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
+                <X className="w-4 h-4" />
+                <span className="text-[0.5625rem]">Exit</span>
+              </button>
+              {exitMenuOpen && (
+                <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
+                  <button type="button" onClick={exitSave}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
+                  <button type="button" onClick={exitDiscard}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Discard changes</button>
+                  <button type="button" onClick={() => setExitMenuOpen(false)}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Keep editing</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)}
+        home={home} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
     </div>
   );
 }

@@ -18,7 +18,6 @@ import { PinPickerRow } from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
-import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 
 function Pills({ value, options, onChange }) {
   return (
@@ -145,20 +144,6 @@ export default function PinnedAltersConfigPanel() {
   const iconShape = typeof config.iconShape === "string" ? config.iconShape : "circle";
   const frontingShape = typeof config.frontingShape === "string" ? config.frontingShape : "square";
   const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
-  // Per-front-level chip styling: { [levelId]: { shape?, scale?, ringW? } }
-  // — a specific level can carry its own shape / size / ring thickness,
-  // over the general "when fronting" behaviour.
-  const levelStyles = (config.levelStyles && typeof config.levelStyles === "object") ? config.levelStyles : {};
-  const levelCfg = useFrontLevels();
-  const [levelStyleOpen, setLevelStyleOpen] = useState(false);
-  const setLevelStyle = (levelId, patch) => {
-    const cur = levelStyles[levelId] || {};
-    const next = { ...cur, ...patch };
-    for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === "") delete next[k];
-    const all = { ...levelStyles };
-    if (Object.keys(next).length) all[levelId] = next; else delete all[levelId];
-    persist({ levelStyles: all });
-  };
   const avatarAlter = avatarFor ? live.find((a) => a.id === avatarFor) : null;
 
   return (
@@ -249,61 +234,8 @@ export default function PinnedAltersConfigPanel() {
         )}
       </div>
 
-      {/* Per-level styling: a level can override shape / size / ring. */}
-      {levelCfg?.enabled && levelCfg.levels.length > 0 && display !== "names" && (
-        <div>
-          <button type="button" onClick={() => setLevelStyleOpen((v) => !v)} aria-expanded={levelStyleOpen}
-            className="w-full flex items-center justify-between text-xs px-2 py-1.5 rounded-lg border border-border/40 text-muted-foreground hover:text-foreground">
-            <span>{`Per-${terms.front}-level styling`}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${levelStyleOpen ? "rotate-180" : ""}`} />
-          </button>
-          {levelStyleOpen && (
-            <div className="mt-1.5 space-y-2.5 max-h-72 overflow-y-auto overscroll-contain pr-0.5">
-              {levelCfg.levels.map((lv) => {
-                const ls = levelStyles[lv.id] || {};
-                return (
-                  <div key={lv.id} className="rounded-lg border border-border/40 p-2 space-y-1.5">
-                    <p className="text-xs font-medium">{frontLevelLabel(lv, terms)}</p>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <button type="button" aria-pressed={!ls.shape} title="Same shape as the bar"
-                        onClick={() => setLevelStyle(lv.id, { shape: "" })}
-                        className={`text-[0.6875rem] px-2 py-1 rounded-full border ${!ls.shape ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>—</button>
-                      {AVATAR_SHAPES.map((sh) => {
-                        const layers = shapeLayerStyles(sh.id);
-                        const on = ls.shape === sh.id;
-                        return (
-                          <button key={sh.id} type="button" aria-pressed={on} aria-label={sh.label} title={sh.label}
-                            onClick={() => setLevelStyle(lv.id, { shape: sh.id })}
-                            className={`w-7 h-7 rounded-md border flex items-center justify-center ${on ? "border-primary/60 bg-primary/10" : "border-border/50"}`}>
-                            <span className="w-4 h-4 block" style={{ background: on ? "var(--color-primary)" : "var(--color-text-secondary)", ...layers.inner }} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[0.6875rem] text-muted-foreground w-8">Size</span>
-                      {[["", "—"], [100, "100%"], [115, "115%"], [133, "133%"], [155, "155%"]].map(([v, lab]) => (
-                        <button key={lab} type="button" aria-pressed={(ls.scale ?? "") === v}
-                          onClick={() => setLevelStyle(lv.id, { scale: v })}
-                          className={`text-[0.6875rem] px-2 py-1 rounded-full border ${(ls.scale ?? "") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>{lab}</button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[0.6875rem] text-muted-foreground w-8">Ring</span>
-                      {[["", "—"], [2, "2px"], [3, "3px"], [4, "4px"], [6, "6px"]].map(([v, lab]) => (
-                        <button key={lab} type="button" aria-pressed={(ls.ringW ?? "") === v}
-                          onClick={() => setLevelStyle(lv.id, { ringW: v })}
-                          className={`text-[0.6875rem] px-2 py-1 rounded-full border ${(ls.ringW ?? "") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>{lab}</button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Per-level styling moved INTO the Front-levels section below (one
+          editor everywhere — Settings, the guide, and here). */}
       {/* Front levels — the catalogue the hold-rail uses, right here. */}
       <div>
         <button type="button" onClick={() => setLevelsOpen((v) => !v)} aria-expanded={levelsOpen}

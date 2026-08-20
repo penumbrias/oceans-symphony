@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Editing the home screen now has its own bottom bar — Widgets, Close gaps, Display options, Save (with save/share/import), and Exit (asking save or discard). The corner buttons are gone, and edit sheets no longer cover the bar." },
+      { type: "feature", text: "Setup packs: share or import home layouts, widget styles and UI themes as a file — pick which parts to include, review the exact contents first, and save imports as presets. Personal data is stripped automatically, always." },
+      { type: "improve", text: "Per-{{front}}-level display styles now live inside the {{Fronting}}-levels section (Settings, guide, and the pinned bar's panel) — one editor, no duplicates." },
+      { type: "fix", text: "Symptom widget rows follow the widget's background now, and dragging inside a colour picker no longer stutters." },
       { type: "improve", text: "Per-{{front}}-level display styles (shape, size, ring) now reach the {{alters}} page list too, not just the pinned bar." },
       { type: "feature", text: "{{Alter}} lists can show each {{alter}}'s profile header image as their card background — the image toggle in the {{alters}} page toolbar." },
       { type: "feature", text: "{{Front}}-level rail: while holding and picking a level, slide sideways to make that {{alter}} the sole one — clearing just that level, or everyone else (direction and behaviour configurable under {{Fronting}} levels, in Settings and the setup guide)." },
