@@ -845,6 +845,18 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let fontResult = null;
     if (localImages) imageResult = await restoreLocalImages(localImages);
     if (localFonts) fontResult = await restoreLocalFonts(localFonts);
+    // The records reference local images but the file carries none — the
+    // export was made without the Images category (or via the data-only
+    // export). Silence here read as "import broke my images" (tester);
+    // say it, with the fix.
+    let missingImagesNote = "";
+    if (!localImages) {
+      try {
+        if (JSON.stringify(data || {}).includes("local-image://")) {
+          missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Images & Assets\u201d ticked, then import that file here (records won't duplicate).";
+        }
+      } catch { /* size — skip the check */ }
+    }
 
     // Friends identity adoption — NEVER automatic. The bundle (or a
     // FriendIdentity found inside an old raw file) is offered through an
@@ -865,6 +877,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // re-attempts what's missing (existing images just overwrite).
       showStatus("error", `${base} But ${failures.join(" and ")} could not be saved (likely storage space). Free some space and import the same file again — records won't duplicate. Reloading shortly…`);
       setTimeout(() => window.location.reload(), 6000);
+    } else if (missingImagesNote) {
+      showStatus("error", `${base}${missingImagesNote} Reloading shortly\u2026`);
+      setTimeout(() => window.location.reload(), 8000);
+      traceEnd("done (missing images note)");
+      return;
     } else {
       const media = imageResult?.total ? ` ${imageResult.restored} images restored.` : "";
       showStatus("success", `${base}${media} The app will reload.`);

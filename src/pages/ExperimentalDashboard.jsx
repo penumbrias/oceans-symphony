@@ -655,6 +655,9 @@ export default function ExperimentalDashboard({
   const undoRef = useRef(null);
   const persist = useCallback(async (nextHome, opts = {}) => {
     const previous = home;
+    // First real edit claims the board — the _seeded marker only belongs
+    // to an untouched starter layout (see seedV2Home).
+    if (nextHome && nextHome._seeded) { nextHome = { ...nextHome }; delete nextHome._seeded; }
     try {
       if (settingsRow?.id) {
         await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });

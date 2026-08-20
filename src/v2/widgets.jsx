@@ -3179,6 +3179,12 @@ export function seedV2Home() {
     widgetId, span: { cols, rows }, mode: "normal", settings: {},
   });
   return {
+    // _seeded marks a starter board the user has never touched — the
+    // backup-import singleton merge lets a REAL imported board replace it
+    // (a fresh install's auto-seeded layout was "newer" by timestamp and
+    // silently beat the user's imported home screen). The board's persist
+    // strips the marker on the first real edit.
+    _seeded: true,
     version: 2, enabled: true, defaultPageId: "p1", styleMode: "current",
     actionBar: { enabled: false, buttonIds: [] },
     altersBar: { enabled: false, position: "bottom" },

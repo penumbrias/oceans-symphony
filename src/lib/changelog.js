@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Importing a backup on a fresh install brings your widget home screen with it — the new device's starter board used to silently win over the imported one. Real differences in settings now show in the import review." },
+      { type: "improve", text: "Importing a file that references images but carries none now says so — with how to export them from the source device — instead of silently restoring without them." },
       { type: "feature", text: "The planner's Plans tab is now its own view, built for the new UI: repeating plans collapse to one row (cadence + next time + how many ahead), and a series can be edited for this-and-future occurrences \u2014 time shifts keep each occurrence on its own day." },
       { type: "improve", text: "Uncategorized plans get a filter and a \"no category\" badge in the Plans tab, so the mystery bucket in the plan tracker finally has names." },
       { type: "feature", text: "New \"Plan tracker\" widget — the plan-completion tracker on your home screen. (The Planned list already lives in the \"Plans\" and \"Coming up\" widgets.)" },

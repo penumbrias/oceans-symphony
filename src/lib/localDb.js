@@ -1028,10 +1028,22 @@ export async function mergeDbDump(dump, options = {}) {
       // second record alongside.
       if (localIds.length > 0 && incomingIds.length > 0) {
         const targetId = localIds[0];
-        let target = { ..._db[entityName][targetId] };
+        const before = { ..._db[entityName][targetId] };
+        let target = { ...before };
         for (const incomingId of incomingIds) {
           const incoming = records[incomingId];
           if (!incoming || typeof incoming !== "object") continue;
+          // A fresh install auto-seeds a starter home board (marked
+          // _seeded) whose row is NEWER by timestamp than the backup —
+          // so the user's real imported board silently lost the fold
+          // (tester: "import works except widget page"). An untouched
+          // starter always yields to a real board.
+          for (const f of ["ui_v2_home", "ui_v2_home_desktop"]) {
+            const loc = target[f], inc = incoming[f];
+            if (loc && typeof loc === "object" && loc._seeded && inc && typeof inc === "object" && !inc._seeded) {
+              target[f] = inc;
+            }
+          }
           // v0.95.3: newer-wins fold (was blank-fill-only, which meant
           // settings changed on another device could NEVER arrive here —
           // system name/bio/terms edits silently lost on sync). The
@@ -1040,6 +1052,18 @@ export async function mergeDbDump(dump, options = {}) {
           target = mergeExistingRecord(target, incoming);
         }
         _db[entityName][targetId] = target;
+        // The fold is invisible when it rejects real differences — surface
+        // them in the same conflict review the regular merge gets. The
+        // incoming copy is re-keyed to the singleton's LOCAL id so choosing
+        // it overwrites the one row instead of minting a second singleton.
+        const firstIncoming = records[incomingIds[0]];
+        if (firstIncoming && recordsMateriallyDiffer(target, firstIncoming)) {
+          conflicts.push({
+            entity: entityName, id: targetId,
+            local: target, incoming: { ...firstIncoming, id: targetId },
+            kept: "local", reason: "edit",
+          });
+        }
         continue;
       }
       // No local record yet — fall through to the regular add path.
