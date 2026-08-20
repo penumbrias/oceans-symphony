@@ -37,6 +37,14 @@
 //   duration     45 / 45m / 1h / 1h30m — logs that many minutes ENDING now
 //   note[…]      free-text note (n[…] works too)
 //   urgent       marks it urgent (critical ⚡) — also: critical / important
+//   start:…      explicit times instead of a duration. Military time (HHMM).
+//                No date = today; day words and date[MM/DD/YYYY] (or a bare
+//                [MM/DD/YYYY], YYYY-MM-DD works too) set the day. The first
+//                HHMM is the start, a second is the end; an end date with no
+//                time keeps the start's time. A future start saves as a PLAN.
+//                  ~activity:work:start:0500:active            running since 5am
+//                  ~activity:work:start:yesterday:0500:0700    5–7am yesterday
+//                  ~activity:work:start:date[02/25/2026]0630:[02/27/2026]:note[work trip]
 //
 // Journal entries: ~journal:folder:title[…]:body[…] — folder optional
 // (matched against your journal folders), title[] optional, body[] is the
@@ -112,6 +120,43 @@ function readBracketArg(text, pos, bodyEnd, keys) {
   const end = close > -1 && close < bodyEnd ? close : bodyEnd;
   return { key: m[1].toLowerCase(), value: text.slice(contentStart, end).trim(), len: (close > -1 && close < bodyEnd ? close + 1 : bodyEnd) - pos };
 }
+
+// "start" time-spec tokens: HHMM military time, day words, date brackets.
+const DAY_WORDS = { today: 0, yesterday: -1, tomorrow: 1 };
+function hhmmToMin(t) {
+  const h = parseInt(t.slice(0, 2), 10), mi = parseInt(t.slice(2), 10);
+  return h <= 23 && mi <= 59 ? h * 60 + mi : null;
+}
+// Leading-match one token of a start-spec segment. Returns
+// { date?, dayOffset?, min?, len } or null. A date bracket may have an
+// HHMM glued straight after it (date[02/25/2026]0630).
+function parseTimeSpecLead(txt) {
+  let m = /^\s*(?:date)?\[(\d{1,2})\/(\d{1,2})\/(\d{4})\]\s*(\d{4})?/.exec(txt);
+  if (m) {
+    const d = new Date(parseInt(m[3], 10), parseInt(m[1], 10) - 1, parseInt(m[2], 10));
+    if (!Number.isNaN(d.getTime())) {
+      const min = m[4] != null ? hhmmToMin(m[4]) : null;
+      return { date: d, min, len: m[0].length };
+    }
+  }
+  m = /^\s*(?:date)?\[(\d{4})-(\d{1,2})-(\d{1,2})\]\s*(\d{4})?/.exec(txt);
+  if (m) {
+    const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    if (!Number.isNaN(d.getTime())) {
+      const min = m[4] != null ? hhmmToMin(m[4]) : null;
+      return { date: d, min, len: m[0].length };
+    }
+  }
+  m = /^\s*(today|yesterday|tomorrow)\b/i.exec(txt);
+  if (m) return { dayOffset: DAY_WORDS[m[1].toLowerCase()], len: m[0].length };
+  m = /^\s*(\d{4})\b/.exec(txt);
+  if (m) {
+    const min = hhmmToMin(m[1]);
+    if (min != null) return { min, len: m[0].length };
+  }
+  return null;
+}
+const clk = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 
 function fmtDur(min) {
   const h = Math.floor(min / 60), m = min % 60;
@@ -392,10 +437,38 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     // a duration, a note=…, an urgency word. Stop at the first segment
     // that's none of those — it stays literal prose (safe-fail).
     let duration = null, note = null, critical = false;
+    let startSpec = null; // { startDate?, startOffset?, startMin, endDate?, endOffset?, endMin? }
     let consumedEnd = nameEnd;
     for (let k = 1; k < rest.length; k++) {
       const segX = rest[k];
       const isLastUnbounded = !bounded && k === rest.length - 1;
+      // start:… — explicit times. Consumes following time-spec segments
+      // (day words / date brackets / HHMM) until one doesn't parse.
+      if (/^\s*start\s*$/i.test(segX.text)) {
+        const spec = {};
+        let kk = k, lastEnd = segX.absEnd;
+        while (kk + 1 < rest.length) {
+          const nxt = rest[kk + 1];
+          const lastUnb = !bounded && kk + 1 === rest.length - 1;
+          const tk = parseTimeSpecLead(nxt.text);
+          if (!tk) break;
+          const beforeStart = spec.startMin == null;
+          if (tk.date) { if (beforeStart) spec.startDate = tk.date; else spec.endDate = tk.date; }
+          if (tk.dayOffset !== undefined) { if (beforeStart) spec.startOffset = tk.dayOffset; else spec.endOffset = tk.dayOffset; }
+          if (tk.min != null) {
+            if (tk.date && !beforeStart) spec.endMin = tk.min; // glued end date+time
+            else if (beforeStart) spec.startMin = tk.min;
+            else spec.endMin = tk.min;
+          }
+          kk += 1;
+          lastEnd = lastUnb ? nxt.absStart + tk.len : nxt.absEnd;
+        }
+        if (spec.startMin == null) break; // no time → "start" stays prose (safe-fail)
+        startSpec = spec;
+        consumedEnd = lastEnd;
+        k = kk;
+        continue;
+      }
       // note[…] — scanned against the RAW text so it can span colons and
       // stops exactly at the closing bracket (prose after it stays prose).
       // Unclosed = everything to the end of the command body is the note.
@@ -414,14 +487,38 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
       if (u) { critical = true; consumedEnd = isLastUnbounded ? segX.absStart + u[0].length : segX.absEnd; continue; }
       break;
     }
+    // Explicit start/end → an ISO start plus a computed duration.
+    let startIso = null, whenTxt = "";
+    if (startSpec) {
+      const nowD = new Date();
+      const dayFor = (date, offset) => date
+        ? new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        : new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() + (offset || 0));
+      const sDay = dayFor(startSpec.startDate, startSpec.startOffset);
+      const start = new Date(sDay.getTime() + startSpec.startMin * 60000);
+      let end = null;
+      if (startSpec.endMin != null || startSpec.endDate || startSpec.endOffset !== undefined) {
+        const eDay = (startSpec.endDate || startSpec.endOffset !== undefined)
+          ? dayFor(startSpec.endDate, startSpec.endOffset) : sDay;
+        const eMin = startSpec.endMin != null ? startSpec.endMin : startSpec.startMin;
+        end = new Date(eDay.getTime() + eMin * 60000);
+        // 2300–0100 with no end date crosses midnight
+        if (end <= start && !startSpec.endDate && startSpec.endOffset === undefined) end = new Date(end.getTime() + 24 * 3600000);
+      }
+      if (end && end > start) duration = Math.round((end - start) / 60000);
+      startIso = start.toISOString();
+      const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      const dayTag = sameDay(start, nowD) ? "" : ` · ${start.getMonth() + 1}/${start.getDate()}`;
+      whenTxt = ` · ${clk(startSpec.startMin)}${startSpec.endMin != null || end ? `\u2013${clk(startSpec.endMin != null ? startSpec.endMin : startSpec.startMin)}` : ""}${dayTag}`;
+    }
     // The note rides IN the label (quoted, truncated) — a bare 📝 marker
     // left the note unreadable everywhere the token renders (check-in log,
     // status history — owner report).
     const noteTxt = note ? ` · \u201c${note.length > 60 ? `${note.slice(0, 57)}\u2026` : note}\u201d` : "";
-    const extras = `${duration ? ` · ${fmtDur(duration)}` : ""}${critical ? " · ⚡" : ""}${noteTxt}`;
-    if (isActive === true) return finish(consumedEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color, note, critical }, `${cat.name}${extras} · started`);
-    if (isActive === false) return finish(consumedEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name, note, critical, duration }, `${cat.name}${extras} · ended`);
-    return finish(consumedEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, duration }, `${cat.name}${extras}`);
+    const extras = `${whenTxt}${duration && !startSpec ? ` · ${fmtDur(duration)}` : duration && startSpec ? ` (${fmtDur(duration)})` : ""}${critical ? " · ⚡" : ""}${noteTxt}`;
+    if (isActive === true) return finish(consumedEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, startIso }, `${cat.name}${extras} · started`);
+    if (isActive === false) return finish(consumedEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name, note, critical, duration, startIso }, `${cat.name}${extras} · ended`);
+    return finish(consumedEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, duration, startIso }, `${cat.name}${extras}`);
   }
 
   if (type === "journal") {
@@ -518,13 +615,19 @@ async function executePlan(plan, ctx) {
     case "companyEnd": { const r = await endEncounterForContact(plan.contact_id); return r?.id || null; }
     case "companyVisit": { const r = await logVisit(plan.contact_id); return r?.id || null; }
     case "activityStart": {
-      const item = addActiveActivity({ categoryId: plan.categoryId, name: plan.name, color: plan.color || null, startTime: now, alterIds: ctx.fronting_alter_ids, notes: plan.note || "" });
+      const item = addActiveActivity({ categoryId: plan.categoryId, name: plan.name, color: plan.color || null, startTime: plan.startIso || now, alterIds: ctx.fronting_alter_ids, notes: plan.note || "" });
       return item?.id || null;
     }
     case "activityLog": {
-      // A duration means "this many minutes, ENDING now" — same reading as
-      // the log modal's quick-duration presets anchored on the end.
-      const start = plan.duration ? new Date(Date.parse(now) - plan.duration * 60000).toISOString() : now;
+      // start:… gives an explicit start (duration, if any, runs FROM it).
+      // A bare duration keeps the old reading: that many minutes ENDING
+      // now, like the log modal's end-anchored presets.
+      const start = plan.startIso
+        ? plan.startIso
+        : plan.duration ? new Date(Date.parse(now) - plan.duration * 60000).toISOString() : now;
+      // A future start is a plan, not history — save it as scheduled so
+      // the tally never counts something that hasn't happened.
+      const isFuture = Date.parse(start) > Date.parse(now);
       const r = await base44.entities.Activity.create({
         timestamp: start, activity_name: plan.name,
         activity_category_ids: plan.categoryId ? [plan.categoryId] : [],
@@ -532,7 +635,8 @@ async function executePlan(plan, ctx) {
         duration_minutes: plan.duration || null,
         notes: plan.note || null,
         ...(plan.critical ? { is_critical: true } : {}),
-        fronting_alter_ids: ctx.fronting_alter_ids, is_planned: false, status: ACTIVITY_STATUSES.LOGGED,
+        fronting_alter_ids: ctx.fronting_alter_ids,
+        is_planned: isFuture, status: isFuture ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
       });
       return r?.id || null;
     }
@@ -711,10 +815,21 @@ export function buildCommandSuggestions({ segments, catalogues }) {
       const items = filterByLabel(catalogues.activityCategories, query, (c) => c.name).slice(0, 8).map((c) => ({ insert: c.name, terminal: false }));
       return { header: "Activity", icon, canFinish: false, items };
     }
-    // Extras, any order: a duration (ends now), note=…, urgent, or "active"
-    // to start a running session. Each is its own :segment.
+    // After "start" (or mid time-spec): day words, a date, military times.
+    const prev = lc(segments[segments.length - 2] || "");
+    const midSpec = prev === "start" || prev in DAY_WORDS || /^\d{4}$/.test(prev) || /\[.*\]\s*\d{0,4}$/.test(prev);
+    if (midSpec) {
+      const items = [
+        { insert: "today", terminal: false }, { insert: "yesterday", terminal: false }, { insert: "tomorrow", terminal: false },
+        { insert: "date[", terminal: true },
+      ].filter((it) => !q || it.insert.startsWith(q));
+      return { header: "When (HHMM \u00b7 start, then end)", icon, canFinish: true, items };
+    }
+    // Extras, any order: a duration (ends now), start:… times, note[…],
+    // urgent, or "active" to start a running session.
     const items = [
       { insert: "active", terminal: true },
+      { insert: "start", terminal: false },
       { insert: "15m", terminal: false }, { insert: "30m", terminal: false },
       { insert: "1h", terminal: false }, { insert: "2h", terminal: false },
       { insert: "note[", terminal: true },
