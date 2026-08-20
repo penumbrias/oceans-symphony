@@ -2525,6 +2525,7 @@ export const V2_WIDGETS = {
     configFields: [
       { key: "showEmotions", type: "toggle", label: "Show feelings on the grid", default: false },
       { key: "showAlters", type: "toggle", label: "Show who was {{fronting}}", default: false },
+      { key: "laneOpacity", type: "range", section: "ui", label: "{{Fronting}} lane strength", min: 10, max: 100, default: 90, unit: "%" },
       { key: "showQuickPlans", type: "toggle", label: "Show plans with no set time", default: true },
       { key: "rowH", type: "number", label: "Row height", min: 6, max: 80, default: 40 },
       { key: "interval", type: "select", label: "Time steps", default: "60",
@@ -2561,6 +2562,7 @@ export const V2_WIDGETS = {
     configFields: [
       { key: "showAlters", type: "toggle", label: "Show who was {{fronting}}", default: false },
       { key: "showEmotions", type: "toggle", label: "Show check-ins", default: false },
+      { key: "laneOpacity", type: "range", section: "ui", label: "{{Fronting}} lane strength", min: 10, max: 100, default: 90, unit: "%" },
       { key: "rowH", type: "number", label: "Row height", min: 6, max: 80, default: 40 },
       { key: "timeFmt", type: "select", label: "Clock", default: "24",
         options: [{ value: "24", label: "24-hour" }, { value: "12", label: "12-hour" }] },

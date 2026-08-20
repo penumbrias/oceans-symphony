@@ -359,7 +359,7 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
         <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
           overlaysOverride={overlaysFromSettings(settings)}
-          prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
+          prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH, laneOpacity: settings?.laneOpacity }} />
       </Section>
     );
   }
@@ -514,7 +514,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
         <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
           applyPageLook={false} onOpenPage={() => navigate("/planner")}
           overlaysOverride={overlaysFromSettings(settings)}
-          prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
+          prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH, laneOpacity: settings?.laneOpacity }} />
       </Section>
     );
   }

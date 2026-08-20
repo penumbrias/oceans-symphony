@@ -8,6 +8,7 @@ export const LS_ROW_H = "symphony_act_row_h";          // px per hour
 export const LS_TIME_FMT = "symphony_act_time_fmt";     // "24" | "ampm"
 export const LS_WEEK_START = "symphony_act_week_start"; // 0 = Sunday, 1 = Monday
 export const LS_DAY_W = "symphony_act_col_w";           // px per day column (classic key)
+export const LS_LANE_OPACITY = "symphony_planner_lane_opacity"; // % strength of the fronting lanes
 
 export const HOUR_PX_DEFAULT = 44;
 export const HOUR_PX_MIN = 20;
@@ -35,6 +36,10 @@ export function getPlannerPrefs() {
     dayPx: Number.isFinite(colW) && colW > 0 ? Math.max(DAY_PX_MIN, Math.min(DAY_PX_MAX, colW)) : DAY_PX_DEFAULT,
     timeFmt: read(LS_TIME_FMT, "24") === "ampm" ? "ampm" : "24",
     weekStartsOn: ws === 0 ? 0 : 1,
+    laneOpacity: (() => {
+      const v = Number(read(LS_LANE_OPACITY, 90));
+      return Number.isFinite(v) ? Math.max(10, Math.min(100, v)) : 90;
+    })(),
   };
 }
 
@@ -43,6 +48,7 @@ export function setPlannerPref(key, value) {
   else if (key === "dayPx") write(LS_DAY_W, Math.round(Math.max(DAY_PX_MIN, Math.min(DAY_PX_MAX, Number(value) || DAY_PX_DEFAULT))));
   else if (key === "timeFmt") write(LS_TIME_FMT, value === "ampm" ? "ampm" : "24");
   else if (key === "weekStartsOn") write(LS_WEEK_START, Number(value) === 0 ? 0 : 1);
+  else if (key === "laneOpacity") write(LS_LANE_OPACITY, Math.round(Math.max(10, Math.min(100, Number(value) || 90))));
 }
 
 // Live-updating hook: every planner instance (page + widgets) re-renders
@@ -79,6 +85,8 @@ export function applyOverrides(prefs, o) {
   if (Number.isFinite(h) && h > 0) out.hourPx = Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, h));
   const w = Number(o.dayPx ?? o.colW);
   if (Number.isFinite(w) && w > 0) out.dayPx = Math.max(DAY_PX_MIN, Math.min(DAY_PX_MAX, w));
+  const lo = Number(o.laneOpacity);
+  if (Number.isFinite(lo) && lo > 0) out.laneOpacity = Math.max(10, Math.min(100, lo));
   return out;
 }
 

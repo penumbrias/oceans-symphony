@@ -61,6 +61,7 @@ function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks, onOpenBand, terms,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
   onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
+  laneOpacity = 90,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -392,7 +393,7 @@ function DayColumn({
             // lane bar was drawn over a plan and read as covering it). Bands
             // render before blocks in the DOM, so equal stacking keeps blocks on top.
             style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), left: (b.lane % 6) * 5, width: 8, zIndex: 0, background: "transparent" }}>
-            <span className="block h-full" style={{ width: 3.5, marginLeft: 2, background: b.color, opacity: 0.9, borderRadius: 2 }} />
+            <span className="block h-full" style={{ width: 3.5, marginLeft: 2, background: b.color, opacity: (laneOpacity ?? 90) / 100, borderRadius: 2 }} />
           </button>
         ))}
         {/* Check-in marks — tappable, so the log entry behind a dot is one
@@ -760,6 +761,7 @@ export default function WeekCanvas({
                 onOpenBand={onOpenBand}
                 terms={terms}
                 onOpenPage={onOpenPage}
+                laneOpacity={prefs.laneOpacity}
               />
             ))}
           </div>

@@ -785,6 +785,13 @@ export default function PlannerSurface({
                 <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.dayPx}px</span>
               </label>
             )}
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.laneOpacity", { term: t.Fronting })}</span>
+              <input type="range" min={10} max={100} step={5} value={prefs.laneOpacity}
+                onChange={(e) => setPref("laneOpacity", Number(e.target.value))}
+                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.laneOpacity", { term: t.Fronting })} />
+              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.laneOpacity}%</span>
+            </label>
             <p className="text-[0.6875em] text-muted-foreground">{tr("planner.pinchHint")}</p>
           </div>
         )}

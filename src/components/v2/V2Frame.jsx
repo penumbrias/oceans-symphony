@@ -35,6 +35,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
+import { barLookStyle } from "@/lib/widgetLook";
 import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
@@ -124,16 +125,7 @@ export function CommandKeyButton({ onTap, label, className, style, children, onH
 // paints the theme Background color — WITH whatever opacity the user gave
 // it in Colors (stored #rrggbbaa), so bar translucency is governed by the
 // background color's own opacity rather than a hardcoded wash.
-export function barLookStyle(uiV2, barId, { veil = true } = {}) {
-  const look = uiV2.barLooks?.[barId] || {};
-  const style = {};
-  if (veil) style.background = "var(--color-bg)";
-  if (look.borderW !== undefined) style["--v2-border-w"] = `${look.borderW}px`;
-  if (look.radius !== undefined) { style["--v2-radius"] = `${look.radius}px`; style["--radius"] = `${look.radius}px`; }
-  if (look.fontScale !== undefined) style.fontSize = `${look.fontScale}%`;
-  if (look.font) style.fontFamily = look.font;
-  return style;
-}
+export { barLookStyle } from "@/lib/widgetLook";
 
 export function requestHomeAction(navigate, pathname, action) {
   if (pathname === "/") {
@@ -372,7 +364,8 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingLeft: "max(env(safe-area-inset-left, 0px), 8px)",
         paddingRight: "max(env(safe-area-inset-right, 0px), 8px)",
-        borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+        borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
+        borderBottomStyle: "var(--v2-border-style, solid)",
         borderBottomWidth: "var(--v2-border-w)",
       }}
     >
@@ -607,16 +600,18 @@ export function V2SideRail({ uiV2, settingsRow }) {
   return (
     <nav
       aria-label={t("nav.appNav")}
-      style={barLookStyle(uiV2, "rail")}
       data-widget-content
       className={`hidden lg:flex flex-col fixed bottom-0 z-40 backdrop-blur-xl overflow-y-auto overscroll-contain ${
         onRight ? "right-0 border-l" : "left-0 border-r"
       }`}
+      // ONE style prop: this used to be two, and JSX keeps only the last —
+      // the rail's per-bar look was silently dead.
       style={{
+        ...barLookStyle(uiV2, "rail"),
         top: uiV2.bars.top ? "calc(var(--v2-status-h) + env(safe-area-inset-top, 0px))" : 0,
         width: "var(--v2-rail-w)",
         [onRight ? "paddingRight" : "paddingLeft"]: "env(safe-area-inset-left, 0px)",
-        borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+        borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
         [onRight ? "borderLeftWidth" : "borderRightWidth"]: "var(--v2-border-w)",
       }}
     >
@@ -829,7 +824,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     const varName = `--v2-qa-float-${edge}-h`;
     const root = document.documentElement;
     const el = floatRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    if (!el || typeof ResizeObserver === "undefined") { root.style.setProperty(varName, "0px"); return undefined; }
     const publish = () => {
       const h = Math.ceil(el.getBoundingClientRect().height);
       root.style.setProperty(varName, h > 0 ? `${h + 8}px` : "0px");
@@ -862,7 +857,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
               icon toggles): swipe up (or tap) on the LEFT half for the
               pinned {alters} bar, on the RIGHT half for the quick
               actions. Both halves swipe down to close their own thing. */}
-          <div className="w-full flex" style={{ height: 18 }}>
+          <div className="w-full flex" style={{ height: 13 }}>
             {/* Each half is the same glyph — dash · chevron · dash — centred
                 in its half (the lone off-centre chevron looked broken). The
                 halves swap with the Handle-halves option. */}
@@ -886,9 +881,9 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
               }}
               className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-3 h-3" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-2.5 h-2.5" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
             </button>
             )}
             <button
@@ -917,13 +912,16 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
               }}
               className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? openRot : closedRot, transition: "transform .18s" }} />
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-2.5 h-2.5" style={{ transform: qaOpen ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
             </button>
           </div>
           </div>
   );
+  // Floating card (default) or attached flat row — the user's call
+  // (Display options → Quick action bar → Quick actions row).
+  const attached = (uiV2.tokens.actionsAttach || "float") === "attached";
   const row = (
     <div className={`fixed left-0 right-0 z-40 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={edge === "top"
@@ -945,40 +943,13 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                     gap: "calc(var(--v2-space) * 1.5)",
                     padding: "var(--v2-space) 0.5rem",
                     ...barLookStyle(uiV2, "actions", { veil: false }),
-                    backgroundColor: "color-mix(in srgb, var(--color-surface) 90%, transparent)",
+                    backgroundColor: "var(--v2-widget-bg, color-mix(in srgb, var(--color-surface) 90%, transparent))",
                     borderRadius: "var(--v2-radius, 1rem)",
-                    border: "var(--v2-border-w, 1px) solid color-mix(in srgb, var(--v2-accent) 30%, transparent)",
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    border: "var(--v2-border-w, 1px) var(--v2-border-style, solid) var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
+                    boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
                   }}>
-                  {keys.map((k) => {
-                    const Icon = KEY_ICONS[k.id] || Heart;
-                    const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
-                    return (
-                      <CommandKeyButton key={k.id} label={label}
-                        onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
-                        holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
-                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : k.id === "active_now" ? setActiveOpen((v) => !v) : navigate(k.target))}
-                        className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
-                        style={{
-                          width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
-                          borderRadius: "var(--v2-radius)",
-                          border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
-                        }}>
-                        {k.id === "active_now" ? <ActiveNowKeyFace /> : <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: "45%", height: "45%" }} />}
-                      </CommandKeyButton>
-                    );
-                  })}
-                  <button type="button" onClick={() => navigate("/grounding")}
-                    aria-label={t("capture.support")} title={t("capture.support")}
-                    className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
-                    style={{
-                      width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
-                      borderRadius: "var(--v2-radius)",
-                      border: "var(--v2-border-w) solid var(--v2-accent)",
-                      color: "var(--v2-accent)",
-                    }}>
-                    <LifeBuoy style={{ width: "45%", height: "45%" }} />
-                  </button>
+                  <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
+                    onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />
                 </div>
               </motion.div>
             )}
@@ -986,12 +957,69 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
       </div>
     </div>
   );
+  // The attached row: the pre-card look — a flat strip inside the hosting
+  // bar, no card chrome, height animated the same way.
+  const attachedRow = (
+    <AnimatePresence initial={false}>
+      {qaOpen && (
+        <motion.div key="qa-attached"
+          initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }} className="overflow-hidden">
+          <div className="flex items-center justify-center overflow-x-auto px-2"
+            style={{ gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)", ...barLookStyle(uiV2, "actions", { veil: false }) }}>
+            <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
+              onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
   return (
     <>
+      {attached && edge === "top" && attachedRow}
       {handle}
-      {createPortal(row, document.body)}
+      {attached && edge !== "top" && attachedRow}
+      {!attached && createPortal(row, document.body)}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
       <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
+    </>
+  );
+}
+
+// The quick-action key row's contents — one implementation for the
+// floating card AND the attached in-bar row (rule: reuse, don't fork).
+function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
+  return (
+    <>
+      {keys.map((k) => {
+        const Icon = KEY_ICONS[k.id] || Heart;
+        const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+        return (
+          <CommandKeyButton key={k.id} label={label}
+            onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
+            holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
+            onTap={() => (k.id === "quick_note" ? onNote() : k.id === "active_now" ? onActive() : navigate(k.target))}
+            className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
+            style={{
+              width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+              borderRadius: "var(--v2-radius)",
+              border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+            }}>
+            {k.id === "active_now" ? <ActiveNowKeyFace /> : <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: "45%", height: "45%" }} />}
+          </CommandKeyButton>
+        );
+      })}
+      <button type="button" onClick={() => navigate("/grounding")}
+        aria-label={t("capture.support")} title={t("capture.support")}
+        className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+        style={{
+          width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+          borderRadius: "var(--v2-radius)",
+          border: "var(--v2-border-w) solid var(--v2-accent)",
+          color: "var(--v2-accent)",
+        }}>
+        <LifeBuoy style={{ width: "45%", height: "45%" }} />
+      </button>
     </>
   );
 }
@@ -1007,13 +1035,13 @@ function AltersEdgeTab({ edge, open, onToggle, terms }) {
       aria-label={open ? `Hide the pinned ${terms.alters} bar` : `Show the pinned ${terms.alters} bar`}
       className="pointer-events-auto flex items-center justify-center text-muted-foreground hover:text-foreground backdrop-blur"
       style={{
-        width: edge === "left" || edge === "right" ? 18 : 34,
-        height: edge === "left" || edge === "right" ? 34 : 18,
+        width: edge === "left" || edge === "right" ? 15 : 28,
+        height: edge === "left" || edge === "right" ? 28 : 15,
         borderRadius: "var(--v2-radius, 8px)",
         border: "var(--v2-border-w, 1px) solid color-mix(in srgb, var(--v2-accent) 35%, transparent)",
         background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
       }}>
-      <Icon className="w-3.5 h-3.5" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+      <Icon className="w-3 h-3" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
     </button>
   );
 }
@@ -1137,9 +1165,15 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     {altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "bottom" || altersPos === "top") && (
       <div
         className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+        // Attached: flush against the chrome, edge to edge — "included in
+        // the bar" rather than a floating card (per-user choice).
         style={altersPos === "bottom"
-          ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
-          : { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
+          ? { bottom: altersBarCfg.attached
+              ? "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + var(--v2-qa-float-bottom-h, 0px))"
+              : "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
+          : { top: altersBarCfg.attached
+              ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
+              : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
       >
           {/* Its toggle rides the QA strip's split handle when that strip
               shares this edge, and the bottom nav's own fold handle when
@@ -1162,11 +1196,12 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 className="pointer-events-auto w-full min-w-0"
                 style={{ order: altersPos === "top" ? -1 : 0 }}
               >
-                <div className="mx-3">
+                <div className={altersBarCfg.attached ? "mx-0" : "mx-3"}>
                   {/* The SAME card the home board draws — look, SET 5,
                       swipe-to-hide, options gear. The gear opens the
                       board's bar options (navigating home first if needed). */}
                   <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+                    attached={!!altersBarCfg.attached}
                     onCollapse={() => setNavAlters(true)}
                     onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
                 </div>
@@ -1207,7 +1242,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
-        borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+        borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
+        borderTopStyle: "var(--v2-border-style, solid)",
         borderTopWidth: "var(--v2-border-w)",
       }}
       aria-label={t("nav.appNav")}
@@ -1245,11 +1281,11 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 else if (Math.abs(dy) > 14) { swiped.current = true; }
               }}
               className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-              style={{ height: 18, touchAction: "none" }}
+              style={{ height: 13, touchAction: "none" }}
             >
-              <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-3 h-3" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-              <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <span className="w-6 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-2.5 h-2.5" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+              <span className="w-6 h-[2px] rounded-full bg-border" aria-hidden="true" />
             </button>
           )}
         </div>

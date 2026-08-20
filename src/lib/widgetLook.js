@@ -253,3 +253,22 @@ export function themeToLook(preset, isDark = true) {
   if (preset.font) look.font = preset.font;
   return look;
 }
+
+
+// ── Bar looks ──────────────────────────────────────────────────────
+// The same look object, applied to a CHROME BAR (top bar, tab strip,
+// quick-action row, sidebar rail, active bubble, pinned bar). Bars paint
+// their own background/border directly (they aren't widget boxes), so on
+// top of the CSS variables this also sets the paint properties, with the
+// bar's default veil when the user hasn't chosen a background.
+export function barLookStyle(uiV2, barId, { veil = true } = {}) {
+  const look = (uiV2 && uiV2.barLooks && uiV2.barLooks[barId]) || {};
+  const s = lookToStyle(look);
+  const bg = s["--v2-widget-bg"];
+  if (bg) s.backgroundColor = bg;
+  else if (veil) s.background = "var(--color-bg)";
+  const grad = s["--v2-widget-gradient"];
+  if (grad && grad !== "none" && !s.backgroundImage) s.backgroundImage = grad;
+  if (s["--v2-shadow"]) s.boxShadow = s["--v2-shadow"];
+  return s;
+}

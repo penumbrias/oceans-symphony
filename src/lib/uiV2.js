@@ -171,6 +171,10 @@ export const V2_TOKEN_DEFS = [
   // Bar mode: which chrome hosts the strip. Not a CSS var — V2Frame reads it.
   { id: "actionsEdge", group: "bars", label: "Quick actions edge", type: "select", cssVar: "--v2-actions-edge-noop", default: "bottom",
     options: [{ v: "bottom", label: "Bottom bar", css: "bottom" }, { v: "top", label: "Top bar", css: "top" }] },
+  // Floating card (own rounded card off the chrome) vs attached (a flat
+  // row inside the hosting bar, the pre-0.198.2 look). The user's call.
+  { id: "actionsAttach", group: "bars", label: "Quick actions row", type: "select", cssVar: "--v2-actions-attach-noop", default: "float",
+    options: [{ v: "float", label: "Floating card", css: "float" }, { v: "attached", label: "Inside the bar", css: "attached" }] },
   // The "active now" bubble: off / only while something is active / always.
   { id: "activeBubble", group: "bars", label: "Active-now bubble", type: "select", cssVar: "--v2-active-bubble-noop", default: "off",
     options: [
@@ -237,17 +241,30 @@ export function resolveUiV2(stored) {
     // bar): each bar can depart from the global border width, corner
     // radius, font and text size. Applied as inline CSS vars on the
     // bar's root, shadowing the global tokens.
-    barLooks: Object.fromEntries(["top", "tabs", "rail", "actions", "alters"].map((barId) => {
+    barLooks: Object.fromEntries(["top", "tabs", "rail", "actions", "alters", "active"].map((barId) => {
       const b = src.barLooks?.[barId] || {};
       const num = (v, min, max) => {
         const n = parseInt(v, 10);
         return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : undefined;
       };
+      const str = (v) => (typeof v === "string" && v ? v : undefined);
       return [barId, {
         borderW: num(b.borderW, 0, 6),
         radius: num(b.radius, 0, 24),
         fontScale: num(b.fontScale, 70, 160),
-        font: typeof b.font === "string" && b.font ? b.font : undefined,
+        font: str(b.font),
+        // Full widget-style look (owner ask: the same jazz the widgets
+        // get — colours, gradient, shadow, spacing — on every bar).
+        accent: str(b.accent), accentOpacity: num(b.accentOpacity, 0, 100),
+        bg: str(b.bg), bgOpacity: num(b.bgOpacity, 0, 100),
+        textColor: str(b.textColor), textOpacity: num(b.textOpacity, 0, 100),
+        borderColor: str(b.borderColor), borderOpacity: num(b.borderOpacity, 0, 100),
+        borderStyle: str(b.borderStyle),
+        gradFrom: str(b.gradFrom), gradFromOpacity: num(b.gradFromOpacity, 0, 100),
+        gradTo: str(b.gradTo), gradToOpacity: num(b.gradToOpacity, 0, 100),
+        gradAngle: num(b.gradAngle, 0, 360),
+        shadow: str(b.shadow),
+        padding: num(b.padding, 0, 32),
       }];
     })),
     // Top-bar arrangement: stored order first (unknown ids dropped),

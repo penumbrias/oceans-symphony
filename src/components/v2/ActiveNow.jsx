@@ -16,6 +16,7 @@ import { base44 } from "@/api/base44Client";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useT } from "@/lib/i18n";
 import { EdgeDock } from "@/components/v2/EdgeDock";
+import { barLookStyle } from "@/lib/widgetLook";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 import { getActiveActivities } from "@/lib/activitySession";
 
@@ -169,13 +170,16 @@ export function ActiveNowBubble({ uiV2, settingsRow }) {
             aria-haspopup="dialog" aria-expanded={open} aria-label={`${tr("active.title")}: ${items.length}`}
             title={`${tr("active.title")} · hold and drag to move`}
             className="relative flex items-center justify-center active:scale-95 transition-transform backdrop-blur"
+            // Per-bar look ("active" in Display options) rides the same
+            // variables every other bar uses.
             style={{
-              background: "var(--color-bg)",
+              ...barLookStyle(uiV2, "active", { veil: false }),
+              background: "var(--v2-widget-bg, var(--color-bg))",
               width: "calc(var(--v2-cmd-size, 44px) + 6px)", height: "calc(var(--v2-cmd-size, 44px) + 6px)",
               borderRadius: "9999px",
-              border: "var(--v2-border-w, 1px) solid var(--v2-accent)",
-              color: "var(--v2-accent)",
-              boxShadow: "0 2px 10px rgb(0 0 0 / 0.3)",
+              border: "var(--v2-border-w, 1px) var(--v2-border-style, solid) var(--v2-border-color, var(--v2-accent))",
+              color: "var(--v2-text, var(--v2-accent))",
+              boxShadow: "var(--v2-shadow, 0 2px 10px rgb(0 0 0 / 0.3))",
               touchAction: "none",
             }}>
             <Timer style={{ width: "42%", height: "42%" }} />

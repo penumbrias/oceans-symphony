@@ -26,7 +26,7 @@ export function altersBarLook(look = {}, settingsRow, pageStyleId = "current") {
   return mergeLook(mergeLook(getStyleLook(builtinId), saved?.look || {}), pickLook(look));
 }
 
-export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, className = "", orientation = "horizontal" }) {
+export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, className = "", orientation = "horizontal", attached = false }) {
   const look = (home && home.altersBar && home.altersBar.look) || {};
   const valign = look.valign || "center";
   const justify = valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center";
@@ -77,9 +77,11 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
         ...(barLooks.font ? { fontFamily: barLooks.font } : {}),
         // Real tokens only: this app has no --background / --border vars.
         backgroundColor: "var(--v2-widget-bg, color-mix(in srgb, var(--color-surface) 90%, transparent))",
-        borderRadius: "var(--v2-radius, 1rem)",
+        // Attached: square, shadowless, edge to edge — it reads as part of
+        // the chrome band instead of a floating card.
+        borderRadius: attached ? 0 : "var(--v2-radius, 1rem)",
         padding: "var(--v2-pad, 0.25rem 0.5rem)",
-        boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
+        boxShadow: attached ? "none" : "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
         alignItems: justify,
       }}>
       <div className={orientation === "vertical" ? "min-h-0 overflow-y-auto" : "min-w-0 overflow-x-auto flex-1"}>

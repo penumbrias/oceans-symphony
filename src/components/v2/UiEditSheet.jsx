@@ -38,7 +38,7 @@ import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/wave
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
-import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook } from "@/lib/widgetLook";
+import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { Star as StarIcon } from "lucide-react";
@@ -303,11 +303,35 @@ function BarLookRows({ v2, barId, alignX }) {
       </div>
     </SetRow>
   );
+  // Colour rows share the widget sheet's grammar: compact swatch, opacity
+  // inside the popover, Clear = back to inherit.
+  const colorRow = (key, opKey, labelKey, fallback) => (
+    <ColorPicker compact label={tr(labelKey)}
+      value={look[key] || fallback}
+      onChange={(v) => write({ [key]: v })}
+      opacity={{ value: look[opKey], onChange: (v) => write({ [opKey]: v, ...(look[key] ? {} : { [key]: fallback }) }) }}
+      onClear={() => write({ [key]: undefined, [opKey]: undefined })} />
+  );
+  const chips = (key, labelKey, values) => (
+    <div className="py-1">
+      <p className="text-xs font-medium mb-1">{tr(labelKey)}</p>
+      <div className="flex flex-wrap gap-1">
+        {values.map((v) => (
+          <button key={v} type="button"
+            onClick={() => write({ [key]: look[key] === v ? undefined : v })}
+            className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
+              look[key] === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+            }`}>{v}</button>
+        ))}
+      </div>
+    </div>
+  );
   return (
     <>
       {slider("borderW", "editSheet.borderW", 0, 6, 1, "px")}
       {slider("radius", "editSheet.radius", 0, 24, 12, "px")}
       {slider("fontScale", "editSheet.textSize", 70, 160, 100, "%")}
+      {slider("padding", "editSheet.innerSpacing", 0, 32, 8, "px")}
       <div className="py-1">
         <p className="text-xs font-medium mb-1">{tr("editSheet.font")}</p>
         <div className="flex items-center gap-2">
@@ -322,6 +346,35 @@ function BarLookRows({ v2, barId, alignX }) {
           <FontUploadButton onUploaded={(family) => write({ font: family })} />
         </div>
       </div>
+      {/* The same colour set every widget gets — highlight / background /
+          text / border, each with its own opacity — plus gradient, shadow
+          and border style. Unset = inherit the app look. */}
+      <div className="py-1">
+        <p className="text-xs font-medium mb-1.5">{tr("editSheet.barColors")}</p>
+        <div className="flex items-center gap-3">
+          {colorRow("accent", "accentOpacity", "editSheet.highlight", "#8b5cf6")}
+          {colorRow("bg", "bgOpacity", "editSheet.background", "#111827")}
+          {colorRow("textColor", "textOpacity", "editSheet.textColor", "#e5e7eb")}
+          {colorRow("borderColor", "borderOpacity", "editSheet.borderColor", "#8b5cf6")}
+        </div>
+      </div>
+      <div className="py-1">
+        <p className="text-xs font-medium mb-1.5">{tr("editSheet.gradient")}</p>
+        <div className="flex items-center gap-3">
+          {colorRow("gradFrom", "gradFromOpacity", "editSheet.background", "#312e81")}
+          {colorRow("gradTo", "gradToOpacity", "editSheet.background", "#831843")}
+          {(look.gradFrom || look.gradTo) && (
+            <button type="button"
+              onClick={() => write({ gradFrom: undefined, gradTo: undefined, gradAngle: undefined, gradFromOpacity: undefined, gradToOpacity: undefined })}
+              className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">
+              {tr("editSheet.gradientClear")}
+            </button>
+          )}
+        </div>
+        {look.gradFrom && look.gradTo && slider("gradAngle", "editSheet.gradAngle", 0, 360, 135, "\u00b0")}
+      </div>
+      {chips("shadow", "editSheet.shadow", Object.keys(SHADOW_PRESETS))}
+      {chips("borderStyle", "editSheet.borderStyle", BORDER_STYLES)}
     </>
   );
 }
@@ -551,10 +604,20 @@ function BarsSection({ v2, alignX }) {
             { v: "when-active", label: tr("editSheet.activeWhen") },
             { v: "always", label: tr("editSheet.activeAlways") },
           ]} />
+        {(v2.uiV2.tokens.activeBubble ?? "off") !== "off" && (
+          <div className="pl-2 border-l border-border/30">
+            <BarLookRows v2={v2} barId="active" alignX={alignX} />
+          </div>
+        )}
         {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
           <PillRow label={tr("editSheet.actionsEdge")} value={v2.uiV2.tokens.actionsEdge ?? "bottom"}
             onChange={(val) => v2.setToken("actionsEdge", val)} alignX={alignX}
             options={[{ v: "bottom", label: tr("editSheet.edgeBottom") }, { v: "top", label: tr("editSheet.edgeTop") }]} />
+        )}
+        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
+          <PillRow label={tr("editSheet.actionsAttach")} value={v2.uiV2.tokens.actionsAttach ?? "float"}
+            onChange={(val) => v2.setToken("actionsAttach", val)} alignX={alignX}
+            options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
         )}
         {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
           <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
@@ -617,6 +680,11 @@ function BarsSection({ v2, alignX }) {
                 { v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") },
                 { v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") },
               ]} />
+            {["top", "bottom", undefined].includes(altersBar.position) && (
+              <PillRow label={tr("editSheet.altersAttach")} value={altersBar.attached ? "attached" : "float"}
+                onChange={(val) => writeAltersBar({ attached: val === "attached" })} alignX={alignX}
+                options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
+            )}
             {/* SET A (bar height, icon size, labels) + SET 5 (border,
                 radius, text size, font) — the same groups every other bar
                 gets, on the SAME pinned-bar config the gear writes. */}

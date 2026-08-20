@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "feature", text: "Every bar — top, bottom, quick actions, sidebar, pinned {{alters}} bar, active bubble — now takes the same styling the widgets get: colours, gradients, borders, shadows, text, spacing. All in Display options, per bar." },
+      { type: "feature", text: "The quick actions row and the pinned {{alters}} bar can each be a floating card or sit inside the top/bottom bar — your choice, in Display options." },
+      { type: "improve", text: "Planner: a \"{{Fronting}} lane strength\" slider (page Display menu and widget config) fades or strengthens the {{fronting}} lanes." },
+      { type: "improve", text: "The fold handles above the bars are slimmer." },
+      { type: "fix", text: "The sidebar's per-bar style settings actually apply now — they were silently ignored." },
       { type: "fix", text: "Planner: {{fronting}} lanes draw under activity blocks now, not over them." },
       { type: "fix", text: "App shortcut and quick-link labels no longer break words in half (\"Chec / k-In\u2026\")." },
       { type: "improve", text: "Week and Day planner widgets: the \"Show who was {{fronting}}\" and check-in overlay toggles in the widget config now actually control the widget \u2014 each widget can differ from the planner page." },
