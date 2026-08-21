@@ -14,7 +14,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
-  parsePack, summarizePack, packLooksSafe,
+  parsePack, summarizePack, packLooksSafe, buildApplyPatch,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { useTerms } from "@/lib/useTerms";
@@ -183,7 +183,7 @@ function RawReview({ json }) {
   );
 }
 
-export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyles, settingsRow }) {
+export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyles, settingsRow, initialTab = null }) {
   const qc = useQueryClient();
   const fileRef = useRef(null);
   const [tab, setTab] = useState("export"); // export | import
@@ -192,6 +192,9 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
   const [imported, setImported] = useState(null); // parsed pack
   const [apply, setApply] = useState({ layout: true, widgetStyles: true, uiTheme: true });
   const [saveAsPreset, setSaveAsPreset] = useState(true);
+  // The Presets section (and the edit bar's Save menu) open straight to a
+  // specific tab.
+  React.useEffect(() => { if (open && initialTab) setTab(initialTab); }, [open, initialTab]);
 
   const pack = useMemo(() => {
     if (tab !== "export") return null;
@@ -237,45 +240,8 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
 
   const applyImport = async () => {
     if (!imported || !settingsRow?.id) return;
-    const t = imported.types;
-    const patch = {};
     try {
-      if (apply.layout && t.layout) {
-        // Imported layouts land as NEW pages — never overwriting the
-        // user's own arrangement.
-        const cur = JSON.parse(JSON.stringify(home || { pages: [] }));
-        for (const p of t.layout.pages || []) {
-          cur.pages.push({
-            layoutMode: p.layoutMode || "flow",
-            widgets: (p.widgets || []).map((w, i) => ({
-              instanceId: `imp_${Date.now().toString(36)}_${i}`,
-              widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
-              pos: w.pos || null, mode: w.mode || "normal", settings: w.settings || {},
-            })),
-          });
-        }
-        patch.ui_v2_home = cur;
-      }
-      if (apply.widgetStyles && t.widgetStyles) {
-        const existing = Array.isArray(settingsRow.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
-        const have = new Set(existing.map((s) => s.label));
-        const merged = [...existing];
-        for (const s of t.widgetStyles) {
-          if (have.has(s.label)) continue;
-          merged.push({ id: `s_${Date.now().toString(36)}_${merged.length}`, label: s.label, look: s.look || {} });
-        }
-        patch.ui_v2_styles = merged;
-      }
-      if (apply.uiTheme && t.uiTheme) {
-        patch.ui_v2 = { ...t.uiTheme };
-      }
-      if (saveAsPreset) {
-        const packs = Array.isArray(settingsRow.ui_v2_setup_packs) ? settingsRow.ui_v2_setup_packs : [];
-        patch.ui_v2_setup_packs = [
-          ...packs,
-          { id: `p_${Date.now().toString(36)}`, title: imported.title || "Imported pack", created: imported.created || null, types: t },
-        ].slice(-24);
-      }
+      const patch = buildApplyPatch({ pack: imported, which: apply, savePreset: saveAsPreset, settingsRow });
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       toast.success("Pack applied");

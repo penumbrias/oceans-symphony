@@ -86,6 +86,7 @@ export function buildUiThemeType(uiV2Raw = {}) {
     }
   }
   delete clone.activeDockPos;
+  delete clone.enabled;
   return clone;
 }
 
@@ -129,4 +130,59 @@ export function summarizePack(pack) {
 export function packLooksSafe(pack) {
   const raw = JSON.stringify(pack.types || {});
   return !/local-image:\/\/|data:image|"secret"|"userId"/.test(raw);
+}
+
+// ── Applying a pack ────────────────────────────────────────────────
+// ONE implementation for the import sheet AND the Presets section's
+// saved-pack rows (rule: reuse, don't fork). Layout lands as NEW pages,
+// styles merge by label (clashes skipped), uiTheme REPLACES ui_v2.
+export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow }) {
+  const t = pack?.types || {};
+  const patch = {};
+  if (which.layout && t.layout) {
+    const cur = JSON.parse(JSON.stringify(settingsRow?.ui_v2_home || {}));
+    if (!Array.isArray(cur.pages)) cur.pages = [];
+    for (const p of t.layout.pages || []) {
+      cur.pages.push({
+        layoutMode: p.layoutMode || "flow",
+        widgets: (p.widgets || []).map((w, i) => ({
+          instanceId: `imp_${Date.now().toString(36)}_${cur.pages.length}_${i}`,
+          widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
+          pos: w.pos || null, mode: w.mode || "normal", settings: w.settings || {},
+        })),
+      });
+    }
+    patch.ui_v2_home = cur;
+  }
+  if (which.widgetStyles && t.widgetStyles) {
+    const existing = Array.isArray(settingsRow?.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
+    const have = new Set(existing.map((s) => s.label));
+    const merged = [...existing];
+    for (const s of t.widgetStyles) {
+      if (have.has(s.label)) continue;
+      merged.push({ id: `s_${Date.now().toString(36)}_${merged.length}`, label: s.label, look: s.look || {} });
+    }
+    patch.ui_v2_styles = merged;
+  }
+  if (which.uiTheme && t.uiTheme) {
+    const cur = settingsRow?.ui_v2 || {};
+    patch.ui_v2 = { ...t.uiTheme, enabled: cur.enabled === true };
+    if (cur.activeDockPos !== undefined) patch.ui_v2.activeDockPos = cur.activeDockPos;
+  }
+  if (savePreset) {
+    const packs = Array.isArray(settingsRow?.ui_v2_setup_packs) ? settingsRow.ui_v2_setup_packs : [];
+    patch.ui_v2_setup_packs = [
+      ...packs,
+      { id: `p_${Date.now().toString(36)}`, title: pack.title || "Imported pack", created: pack.created || null, types: t },
+    ].slice(-24);
+  }
+  return patch;
+}
+
+// A stored pack row back into a shareable file body.
+export function packToJson(stored) {
+  return JSON.stringify({
+    __format: PACK_FORMAT, __version: PACK_VERSION,
+    title: stored.title || "My setup", created: stored.created || null, types: stored.types || {},
+  }, null, 2);
 }

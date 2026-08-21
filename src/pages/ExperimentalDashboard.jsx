@@ -530,6 +530,7 @@ export default function ExperimentalDashboard({
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [packSheetOpen, setPackSheetOpen] = useState(false);
+  const [packSheetTab, setPackSheetTab] = useState("export");
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Which tab the NEXT drawer open should land on (null = drawer default).
   const [drawerTabRequest, setDrawerTabRequest] = useState(null);
@@ -551,6 +552,8 @@ export default function ExperimentalDashboard({
     const editHome = () => { setEditMode(true); };
     const homeSettings = () => { openHomeSettings(); };
     const barOptions = () => { openConfig(BAR_CONFIG_ID); };
+    const packSheet = (e) => { openPackSheet(e?.detail?.tab); };
+    window.addEventListener("os-v2-pack-sheet", packSheet);
     window.addEventListener("os-v2-bar-options", barOptions);
     window.addEventListener("os-v2-open-apps", openApps);
     window.addEventListener("os-v2-edit-home", editHome);
@@ -568,8 +571,13 @@ export default function ExperimentalDashboard({
       if (sessionStorage.getItem("symphony_v2_bar-options") === "1") {
         sessionStorage.removeItem("symphony_v2_bar-options"); openConfig(BAR_CONFIG_ID);
       }
+      const packTab = sessionStorage.getItem("symphony_v2_pack-sheet");
+      if (packTab) {
+        sessionStorage.removeItem("symphony_v2_pack-sheet"); openPackSheet(packTab);
+      }
     } catch { /* storage off */ }
     return () => {
+      window.removeEventListener("os-v2-pack-sheet", packSheet);
       window.removeEventListener("os-v2-bar-options", barOptions);
       window.removeEventListener("os-v2-open-apps", openApps);
       window.removeEventListener("os-v2-edit-home", editHome);
@@ -621,7 +629,7 @@ export default function ExperimentalDashboard({
   };
   const openConfig = (id) => { closeEditSurfaces(); setConfigId(id); };
   const openHomeSettings = () => { closeEditSurfaces(); setHomeSettingsNonce((n) => n + 1); setHomeSettingsOpen(true); };
-  const openPackSheet = () => { closeEditSurfaces(); setPackSheetOpen(true); };
+  const openPackSheet = (tab = "export") => { closeEditSurfaces(); setPackSheetTab(tab === "import" ? "import" : "export"); setPackSheetOpen(true); };
   const openWidgetDrawer = (tab = null) => { closeEditSurfaces(); setDrawerTabRequest(tab); setDrawerOpen(true); };
   // Open Display options directly on Bars → Quick actions (the edit bar's
   // chip): SubSection reads its open state from sessionStorage on mount.
@@ -1992,9 +2000,9 @@ export default function ExperimentalDashboard({
                 <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
                   <button type="button" onClick={exitSave}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
-                  <button type="button" onClick={openPackSheet}
+                  <button type="button" onClick={() => openPackSheet("export")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
-                  <button type="button" onClick={openPackSheet}
+                  <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
                 </div>
               )}
@@ -2021,7 +2029,7 @@ export default function ExperimentalDashboard({
         </div>,
         document.body
       )}
-      <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)}
+      <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)} initialTab={packSheetTab}
         home={home} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
     </div>
   );

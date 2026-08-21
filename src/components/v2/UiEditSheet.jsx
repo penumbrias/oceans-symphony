@@ -20,7 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2 } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -38,6 +38,8 @@ import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/wave
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
+import { useNavigate, useLocation } from "react-router-dom";
+import { buildApplyPatch, packToJson } from "@/lib/setupPacks";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
@@ -795,7 +797,6 @@ function ColorsSection({ children, v2 }) {
                 onChange={(h) => write(key, joinHexAlpha(h, alpha))}
                 opacity={{ value: alpha, onChange: (a) => write(key, joinHexAlpha(hex || readCss(key), a)) }}
               />
-              <span className="text-[0.625rem] text-muted-foreground text-center leading-tight">{tr(labelKey)}</span>
             </div>
           );
         })}
@@ -811,23 +812,18 @@ function ColorsSection({ children, v2 }) {
           const { hex, alpha } = splitHexAlpha(shown);
           return (
             <div key="v2-highlight" className="flex flex-col items-center gap-1">
-              <span className="relative">
-                <ColorPicker compact
-                  label={tr("editSheet.colorHighlight")}
-                  value={hex || "#888888"}
-                  onChange={(h) => v2.setToken("accent", joinHexAlpha(h, alpha))}
-                  opacity={{ value: alpha, onChange: (a) => v2.setToken("accent", joinHexAlpha(hex || readCss("primary"), a)) }}
-                  extraAction={following ? null : { label: tr("editSheet.followPrimary"), onClick: () => v2.setToken("accent", "") }}
-                />
-                {following && (
+              <ColorPicker compact
+                label={tr("editSheet.colorHighlight")}
+                value={hex || "#888888"}
+                onChange={(h) => v2.setToken("accent", joinHexAlpha(h, alpha))}
+                opacity={{ value: alpha, onChange: (a) => v2.setToken("accent", joinHexAlpha(hex || readCss("primary"), a)) }}
+                extraAction={following ? null : { label: tr("editSheet.followPrimary"), onClick: () => v2.setToken("accent", "") }}
+                swatchBadge={following ? (
                   <span aria-hidden="true" title={tr("editSheet.followsPrimary")}
                     className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-background flex items-center justify-center text-[0.5rem] leading-none"
                     style={{ background: "var(--color-primary)", color: "hsl(var(--primary-foreground))" }}>=</span>
-                )}
-              </span>
-              <span className="text-[0.625rem] text-muted-foreground text-center leading-tight">
-                {tr("editSheet.colorHighlight")}
-              </span>
+                ) : null}
+              />
             </div>
           );
         })()}
@@ -1038,6 +1034,8 @@ function PresetsSection({ v2 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     themeMode, selectedTheme, customColors, allPresets,
     userCustomPresets, saveCustomPreset, deleteUserPreset,
@@ -1077,6 +1075,43 @@ function PresetsSection({ v2 }) {
 
   const isDark = themeMode === "dark" ||
     (themeMode === "system" && typeof document !== "undefined" && document.documentElement.classList.contains("dark"));
+
+  // Setup packs saved from previous imports (SystemSettings.ui_v2_setup_packs).
+  const savedPacks = Array.isArray(settingsRow?.ui_v2_setup_packs) ? settingsRow.ui_v2_setup_packs : [];
+  const openPackSheet = (packTab) => {
+    if (location.pathname === "/") {
+      window.dispatchEvent(new CustomEvent("os-v2-pack-sheet", { detail: { tab: packTab } }));
+    } else {
+      try { sessionStorage.setItem("symphony_v2_pack-sheet", packTab); } catch { /* storage off */ }
+      navigate("/");
+    }
+  };
+  const applySavedPack = async (pk) => {
+    if (!settingsRow?.id) return;
+    try {
+      const patch = buildApplyPatch({ pack: pk, which: { layout: true, widgetStyles: true, uiTheme: true }, settingsRow });
+      await base44.entities.SystemSettings.update(settingsRow.id, patch);
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(`${pk.title || "Pack"} applied`);
+    } catch (e) { toast.error(e?.message || "Couldn't apply the pack"); }
+  };
+  const downloadSavedPack = (pk) => {
+    const blob = new Blob([packToJson(pk)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(pk.title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const deleteSavedPack = async (pk) => {
+    if (!settingsRow?.id) return;
+    try {
+      await base44.entities.SystemSettings.update(settingsRow.id, {
+        ui_v2_setup_packs: savedPacks.filter((x) => x.id !== pk.id),
+      });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) { toast.error(e?.message || "Couldn't delete"); }
+  };
 
   const snapshotColors = () => {
     const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme] || {};
@@ -1481,6 +1516,52 @@ function PresetsSection({ v2 }) {
               options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
           </div>
         </div>
+      </div>
+
+      {/* ── Setup packs — whole-setup share/import (the "texture pack"
+          flow), plus the packs saved from previous imports. The sheet
+          itself lives on the home board, so off-home these navigate
+          there first (same pattern as the bar-options deep link). */}
+      <div className="pt-2 mt-2 border-t border-border/40 space-y-1.5">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Setup packs</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => openPackSheet("export")}
+            className="text-xs px-2.5 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Download className="w-3 h-3" /> Share as a pack…
+          </button>
+          <button type="button" onClick={() => openPackSheet("import")}
+            className="text-xs px-2.5 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Import a pack…
+          </button>
+        </div>
+        {savedPacks.length > 0 && (
+          <div className="space-y-1">
+            {savedPacks.map((pk) => (
+              <div key={pk.id} className="flex items-center gap-1.5 rounded-lg border border-border/40 px-2 py-1.5">
+                <span className="flex-1 min-w-0">
+                  <span className="text-xs font-medium truncate block">{pk.title || "Untitled pack"}</span>
+                  <span className="text-[0.625rem] text-muted-foreground">
+                    {["layout", "widgetStyles", "uiTheme"].filter((k) => pk.types?.[k]).map((k) => (
+                      { layout: "layout", widgetStyles: "widget styles", uiTheme: "UI theme" }[k]
+                    )).join(" · ") || "empty"}
+                  </span>
+                </span>
+                <button type="button" onClick={() => applySavedPack(pk)}
+                  className="text-[0.6875rem] px-2 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex-shrink-0">
+                  Apply
+                </button>
+                <button type="button" onClick={() => downloadSavedPack(pk)} aria-label={`Download ${pk.title || "pack"}`} title="Download"
+                  className="w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+                  <Download className="w-3 h-3" />
+                </button>
+                <button type="button" onClick={() => deleteSavedPack(pk)} aria-label={`Delete ${pk.title || "pack"}`} title="Delete"
+                  className="w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-destructive flex items-center justify-center flex-shrink-0">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </SubSection>
   );

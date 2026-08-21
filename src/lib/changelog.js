@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Setup packs live in the Presets section now too: share or import from there, and packs you saved on import are listed with Apply, Download and Delete." },
+      { type: "fix", text: "Applying a setup pack's UI theme no longer knocks the app back to the classic interface." },
+      { type: "fix", text: "Colour swatches in Display options showed their labels twice; now once, untruncated." },
       { type: "fix", text: "While editing the home screen, options menus no longer have their bottom rows hidden behind the edit bar — every bottom sheet now keeps clear of it." },
       { type: "fix", text: "Colour pickers no longer wiggle to stale colours right after you lift your finger." },
       { type: "fix", text: "The pinned {{alters}} bar got its chevron toggle back on the bottom handle, so it can be swiped open again. Swiping down on either open bar — pinned {{alters}} or quick actions — now tucks it away." },
