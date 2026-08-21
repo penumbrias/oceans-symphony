@@ -32,6 +32,23 @@ const PERSONAL_SETTING_KEYS = new Set([
 
 const isLocalRef = (v) => typeof v === "string" && (v.startsWith("local-image://") || v.startsWith("folder://") || v.startsWith("data:"));
 
+// Deep-scrub: drop any local-image:// / folder:// / data: string anywhere
+// in a nested look object (board background layers etc.) while keeping
+// plain colours/numbers.
+function scrubLocalRefs(value) {
+  if (isLocalRef(value)) return undefined;
+  if (Array.isArray(value)) return value.map(scrubLocalRefs).filter((v) => v !== undefined);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const c = scrubLocalRefs(v);
+      if (c !== undefined) out[k] = c;
+    }
+    return out;
+  }
+  return value;
+}
+
 // Per-widget appearance keys (colours, fonts, borders…) plus the saved-style
 // reference. A LAYOUT export carries them only when the user opts in — "my
 // widget layout export included colours I never asked to share" (owner).
@@ -70,14 +87,25 @@ export function buildLayoutType(home, { includeLook = false } = {}) {
       settings: sanitizeSettings(w.settings || {}, { includeLook }),
     })),
   }));
-  return { pages, grid: home?.grid || null };
+  const out = { pages, grid: home?.grid || null };
+  // Board-level surface: the page background (gradient layers — image
+  // urls scrubbed) and the board style, carried only with appearance —
+  // without them a themed board arrived as bare widgets on a default
+  // ground (owner screenshots).
+  if (includeLook) {
+    out.look = scrubLocalRefs({
+      styleMode: home?.styleMode || null,
+      background: home?.background || null,
+    });
+  }
+  return out;
 }
 
 export function buildWidgetStylesType(userStyles = []) {
   return userStyles.map((s) => ({ id: s.id, label: s.label, look: sanitizeLook(s.look || {}) }));
 }
 
-export function buildUiThemeType(uiV2Raw = {}) {
+export function buildUiThemeType(uiV2Raw = {}, appTheme = null) {
   // The stored ui_v2 object minus anything device/personal: icon image
   // overrides (local images) are stripped; named lucide icons survive.
   const clone = JSON.parse(JSON.stringify(uiV2Raw || {}));
@@ -96,6 +124,15 @@ export function buildUiThemeType(uiV2Raw = {}) {
   }
   delete clone.activeDockPos;
   delete clone.enabled;
+  // The base colour scheme (theme mode + selected theme + custom colour
+  // overrides) — plain hex values, applied via ThemeContext on import.
+  if (appTheme) {
+    clone.appTheme = scrubLocalRefs({
+      selectedTheme: appTheme.selectedTheme || null,
+      themeMode: appTheme.themeMode || null,
+      customColors: appTheme.customColors || null,
+    });
+  }
   return clone;
 }
 
@@ -148,6 +185,23 @@ export function packLooksSafe(pack) {
 export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow }) {
   const t = pack?.types || {};
   const patch = {};
+  // Styles first: layout widgets reference saved styles BY ID, and the
+  // merge assigns new ids — the map lets the layout rewrite its refs
+  // (unmapped refs used to dangle, so styled widgets fell back to
+  // default on import — owner screenshots).
+  const styleIdMap = {};
+  if (which.widgetStyles && t.widgetStyles) {
+    const existing = Array.isArray(settingsRow?.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
+    const byLabel = Object.fromEntries(existing.map((s) => [s.label, s.id]));
+    const merged = [...existing];
+    for (const st of t.widgetStyles) {
+      if (byLabel[st.label]) { styleIdMap[st.id] = byLabel[st.label]; continue; }
+      const id = `s_${Date.now().toString(36)}_${merged.length}`;
+      styleIdMap[st.id] = id;
+      merged.push({ id, label: st.label, look: st.look || {} });
+    }
+    patch.ui_v2_styles = merged;
+  }
   if (which.layout && t.layout) {
     const cur = JSON.parse(JSON.stringify(settingsRow?.ui_v2_home || {}));
     if (!Array.isArray(cur.pages)) cur.pages = [];
@@ -162,8 +216,16 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     // stripLayoutLook: the importer wants the ARRANGEMENT but not the
     // pack's baked-in widget appearance — keep their own styling.
     const cleanSettings = (settings = {}) => {
-      if (!which.stripLayoutLook) return settings;
-      return Object.fromEntries(Object.entries(settings).filter(([k]) => !LOOK_SETTING_KEYS.has(k)));
+      let out = settings;
+      if (which.stripLayoutLook) {
+        out = Object.fromEntries(Object.entries(out).filter(([k]) => !LOOK_SETTING_KEYS.has(k)));
+      } else if (typeof out.style === "string" && out.style.startsWith("user:")) {
+        const mapped = styleIdMap[out.style.slice(5)];
+        out = { ...out };
+        if (mapped) out.style = `user:${mapped}`;
+        else delete out.style; // unresolvable foreign ref — don't dangle
+      }
+      return out;
     };
     const mkWidgets = (p, pi, { dropPos = false } = {}) => (p.widgets || []).map((w, i) => ({
       instanceId: `imp_${Date.now().toString(36)}_${pi}_${i}`,
@@ -227,21 +289,20 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
         cur.pages.push({ layoutMode: p.layoutMode || "free", widgets: mkWidgets(p, pi + 1) });
       }
     }
-    patch.ui_v2_home = cur;
-  }
-  if (which.widgetStyles && t.widgetStyles) {
-    const existing = Array.isArray(settingsRow?.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
-    const have = new Set(existing.map((s) => s.label));
-    const merged = [...existing];
-    for (const s of t.widgetStyles) {
-      if (have.has(s.label)) continue;
-      merged.push({ id: `s_${Date.now().toString(36)}_${merged.length}`, label: s.label, look: s.look || {} });
+    // Board-level surface from the pack (background layers, board style)
+    // — only when appearance is wanted.
+    if (t.layout.look && !which.stripLayoutLook) {
+      if (t.layout.look.background && typeof t.layout.look.background === "object") cur.background = t.layout.look.background;
+      if (typeof t.layout.look.styleMode === "string") cur.styleMode = t.layout.look.styleMode;
     }
-    patch.ui_v2_styles = merged;
+    patch.ui_v2_home = cur;
   }
   if (which.uiTheme && t.uiTheme) {
     const cur = settingsRow?.ui_v2 || {};
     patch.ui_v2 = { ...t.uiTheme, enabled: cur.enabled === true };
+    // appTheme is transport-only: it belongs to ThemeContext, which the
+    // importing component applies itself (see SetupPackSheet/Presets).
+    delete patch.ui_v2.appTheme;
     if (cur.activeDockPos !== undefined) patch.ui_v2.activeDockPos = cur.activeDockPos;
   }
   if (savePreset) {
@@ -263,6 +324,26 @@ export function layoutHasLook(layoutType) {
     }
   }
   return false;
+}
+
+// Apply a pack's app theme via the documented EXTERNAL-UPDATE path:
+// write the theme keys to localStorage, then fire the reload event
+// ThemeContext listens for. Calling the context setters raced the
+// ui_v2 effect's own reload dispatch (AppLayout cleanup) — the reload
+// re-read the OLD localStorage values and reverted the change.
+export function applyAppTheme(at) {
+  if (!at) return false;
+  try {
+    if (at.selectedTheme) localStorage.setItem("symphony_selectedTheme", at.selectedTheme);
+    if (at.themeMode) localStorage.setItem("symphony_themeMode", at.themeMode);
+    if (at.customColors?.light && at.customColors?.dark) {
+      localStorage.setItem("symphony_customColors", JSON.stringify(at.customColors));
+    } else {
+      localStorage.removeItem("symphony_customColors");
+    }
+    window.dispatchEvent(new CustomEvent("symphony-theme-storage-change"));
+    return true;
+  } catch { return false; }
 }
 
 // A stored pack row back into a shareable file body.

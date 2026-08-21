@@ -14,7 +14,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
-  parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook,
+  parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook, applyAppTheme,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -27,6 +27,7 @@ import { V2_WIDGETS } from "@/v2/widgets";
 let _allDefs = null;
 const allWidgetDefs = () => (_allDefs ||= { ...WIDGET_REGISTRY, ...V2_WIDGETS });
 import { useTerms } from "@/lib/useTerms";
+import { useTheme } from "@/lib/ThemeContext";
 import { shareFile } from "@/lib/shareFile";
 import { isNative } from "@/lib/platform";
 
@@ -197,6 +198,10 @@ function RawReview({ json }) {
 export default function SetupPackSheet({ open, onClose, home, currentPageId = null, uiV2Raw, userStyles, settingsRow, initialTab = null }) {
   const qc = useQueryClient();
   const sheetTerms = useTerms();
+  // The base colour scheme rides the UI-theme type (it lives in
+  // ThemeContext, not ui_v2 — without it a themed board arrived washed
+  // out on the default palette).
+  const { selectedTheme, themeMode, customColors } = useTheme();
   const fileRef = useRef(null);
   const [tab, setTab] = useState("export"); // export | import
   const [title, setTitle] = useState("");
@@ -255,9 +260,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
       title: title || "My setup",
       layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook }) : null,
       widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
-      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw) : null,
+      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors }) : null,
     });
-  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw]);
+  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw, selectedTheme, themeMode, customColors]);
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
 
   const download = async () => {
@@ -310,6 +315,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
       });
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      if (apply.uiTheme) applyAppTheme(imported.types.uiTheme?.appTheme);
       toast.success("Pack applied");
       setImported(null);
       onClose?.();

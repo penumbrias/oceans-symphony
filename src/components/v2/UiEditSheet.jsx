@@ -39,7 +39,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildApplyPatch, packToJson } from "@/lib/setupPacks";
+import { buildApplyPatch, packToJson, applyAppTheme } from "@/lib/setupPacks";
 import { shareFile } from "@/lib/shareFile";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
@@ -1093,6 +1093,7 @@ function PresetsSection({ v2 }) {
       const patch = buildApplyPatch({ pack: pk, which: { layout: true, widgetStyles: true, uiTheme: true }, settingsRow });
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      applyAppTheme(pk.types?.uiTheme?.appTheme);
       toast.success(`${pk.title || "Pack"} applied`);
     } catch (e) { toast.error(e?.message || "Couldn't apply the pack"); }
   };
