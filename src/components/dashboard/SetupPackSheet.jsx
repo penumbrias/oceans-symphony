@@ -14,15 +14,18 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
-  parsePack, summarizePack, packLooksSafe, buildApplyPatch,
+  parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
 
 // The v2 board renders V2_WIDGETS; classic-derived boards use
 // WIDGET_REGISTRY — name lookups must cover both or v2-native widgets
-// print as raw ids ("presence").
-const ALL_WIDGET_DEFS = { ...WIDGET_REGISTRY, ...V2_WIDGETS };
+// print as raw ids ("presence"). LAZY: spreading at module scope hit a
+// TDZ crash once the import graph grew a cycle (V2_WIDGETS not yet
+// initialised when this module evaluated).
+let _allDefs = null;
+const allWidgetDefs = () => (_allDefs ||= { ...WIDGET_REGISTRY, ...V2_WIDGETS });
 import { useTerms } from "@/lib/useTerms";
 import { shareFile } from "@/lib/shareFile";
 import { isNative } from "@/lib/platform";
@@ -126,7 +129,7 @@ function FriendlyReview({ pack }) {
                 <div key={pi} className="space-y-1">
                   <p className="text-[0.6875rem] text-muted-foreground">Page {pi + 1} · {pg.layoutMode === "free" ? "free placement" : "flowing"} · {(pg.widgets || []).length} widget(s)</p>
                   {(pg.widgets || []).map((w, wi) => {
-                    const def = ALL_WIDGET_DEFS[w.widgetId];
+                    const def = allWidgetDefs()[w.widgetId];
                     const st = Object.fromEntries(Object.entries(w.settings || {}).filter(([, v]) => v !== "" && v != null));
                     return (
                       <div key={wi} className="rounded-md border border-border/40 px-2 py-1.5">
@@ -202,6 +205,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const [apply, setApply] = useState({ layout: true, widgetStyles: true, uiTheme: true });
   const [saveAsPreset, setSaveAsPreset] = useState(true);
   const [placement, setPlacement] = useState("new"); // new | merge | replace
+  // Take the pack's widget appearance along with its arrangement, or keep
+  // your own styling — the pack's look is a choice, not a rider.
+  const [applyLook, setApplyLook] = useState(true);
   // The Presets section (and the edit bar's Save menu) open straight to a
   // specific tab.
   React.useEffect(() => { if (open && initialTab) setTab(initialTab); }, [open, initialTab]);
@@ -299,7 +305,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     try {
       const patch = buildApplyPatch({
         pack: imported,
-        which: { ...apply, layoutPlacement: placement, currentPageId },
+        which: { ...apply, layoutPlacement: placement, currentPageId, stripLayoutLook: !applyLook },
         savePreset: saveAsPreset, settingsRow,
       });
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
@@ -374,7 +380,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                                   <input type="checkbox" className="w-3 h-3 rounded accent-primary"
                                     checked={!drop.has(w.instanceId)} onChange={() => toggleWidget(p.id, w.instanceId)} />
                                   <span className="truncate text-muted-foreground">
-                                    {w.settings?.label || widgetLabel(ALL_WIDGET_DEFS[w.widgetId], sheetTerms) || w.widgetId}
+                                    {w.settings?.label || widgetLabel(allWidgetDefs()[w.widgetId], sheetTerms) || w.widgetId}
                                   </span>
                                 </label>
                               ))}
@@ -467,15 +473,24 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                     <TypeCheck label="Widget layout" desc="Where should it land? Pick below."
                       checked={apply.layout} onChange={(v) => setApply((s) => ({ ...s, layout: v }))} />
                     {apply.layout && (
-                      <div className="pl-6 flex flex-wrap gap-1">
-                        {[["new", "As a new page"], ["merge", "Add to my current page"], ["replace", "Replace my current page"]].map(([id, label]) => (
-                          <button key={id} type="button" aria-pressed={placement === id} onClick={() => setPlacement(id)}
-                            className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${placement === id
-                              ? "border-primary/60 bg-primary/10 text-primary"
-                              : "border-border/50 text-muted-foreground"}`}>
-                            {label}
-                          </button>
-                        ))}
+                      <div className="pl-6 space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {[["new", "As a new page"], ["merge", "Add to my current page"], ["replace", "Replace my current page"]].map(([id, label]) => (
+                            <button key={id} type="button" aria-pressed={placement === id} onClick={() => setPlacement(id)}
+                              className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${placement === id
+                                ? "border-primary/60 bg-primary/10 text-primary"
+                                : "border-border/50 text-muted-foreground"}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        {layoutHasLook(imported.types.layout) && (
+                          <label className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
+                              checked={applyLook} onChange={(e) => setApplyLook(e.target.checked)} />
+                            <span className="text-muted-foreground">Apply the pack's widget appearance (colours, fonts, borders) — untick to keep your own styling</span>
+                          </label>
+                        )}
                       </div>
                     )}
                   </>

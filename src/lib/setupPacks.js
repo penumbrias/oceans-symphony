@@ -159,10 +159,16 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     const placement = which.layoutPlacement === "merge" || which.layoutPlacement === "replace"
       ? which.layoutPlacement : "new";
     const packPages = t.layout.pages || [];
+    // stripLayoutLook: the importer wants the ARRANGEMENT but not the
+    // pack's baked-in widget appearance — keep their own styling.
+    const cleanSettings = (settings = {}) => {
+      if (!which.stripLayoutLook) return settings;
+      return Object.fromEntries(Object.entries(settings).filter(([k]) => !LOOK_SETTING_KEYS.has(k)));
+    };
     const mkWidgets = (p, pi, { dropPos = false } = {}) => (p.widgets || []).map((w, i) => ({
       instanceId: `imp_${Date.now().toString(36)}_${pi}_${i}`,
       widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
-      pos: dropPos ? null : (w.pos || null), mode: w.mode || "normal", settings: w.settings || {},
+      pos: dropPos ? null : (w.pos || null), mode: w.mode || "normal", settings: cleanSettings(w.settings || {}),
     }));
     const targetIdx = Math.max(0, cur.pages.findIndex((p) => p.id === which.currentPageId));
     if (placement === "new" || !cur.pages.length) {
@@ -246,6 +252,17 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     ].slice(-24);
   }
   return patch;
+}
+
+// Does a layout type carry per-widget appearance (exported with
+// "Include widget appearance")? Drives the import-side choice.
+export function layoutHasLook(layoutType) {
+  for (const p of layoutType?.pages || []) {
+    for (const w of p.widgets || []) {
+      for (const k of Object.keys(w.settings || {})) if (LOOK_SETTING_KEYS.has(k)) return true;
+    }
+  }
+  return false;
 }
 
 // A stored pack row back into a shareable file body.
