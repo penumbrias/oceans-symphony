@@ -936,19 +936,18 @@ export default function ExperimentalDashboard({
   const handleDeletePage = () => {
     if (home.pages.length <= 1) return;
     const remaining = home.pages.filter((p) => p.id !== page.id);
-    // Never drop widgets with the page — move them to the first remaining
-    // page so nothing the user configured silently disappears.
-    if (page.widgets.length > 0) {
-      remaining[0] = { ...remaining[0], widgets: [...remaining[0].widgets, ...page.widgets] };
-      toast.info(`Widgets moved to "${remaining[0].label || "Page 1"}"`);
-    }
+    // Deleting a page deletes its widgets WITH it (owner: "I'm tryna
+    // delete em all!") — they used to hop to the next page, which made
+    // clearing a board impossible. The 12s Undo toast restores the whole
+    // board, widgets included, so nothing is lost without recourse.
     const deletedId = page.id;
     const deletedName = page.label || "Page";
+    const n = page.widgets.length;
     persist({
       ...home,
       pages: remaining,
       defaultPageId: home.defaultPageId === page.id ? remaining[0].id : home.defaultPageId,
-    }, { undoLabel: `Deleted "${deletedName}"`, restorePageId: deletedId });
+    }, { undoLabel: n ? `Deleted "${deletedName}" and its ${n} widget${n === 1 ? "" : "s"}` : `Deleted "${deletedName}"`, restorePageId: deletedId });
     setSwipeDir(-1);
     setActivePageId(remaining[0].id);
   };
@@ -1557,7 +1556,7 @@ export default function ExperimentalDashboard({
               type="button"
               onClick={handleDeletePage}
               aria-label="Delete this page"
-              title="Delete this page (widgets move to the first page)"
+              title="Delete this page and its widgets (Undo available)"
               className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
