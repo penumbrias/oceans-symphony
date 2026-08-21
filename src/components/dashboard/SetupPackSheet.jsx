@@ -226,9 +226,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const [widgetDrop, setWidgetDrop] = useState({}); // pageId -> Set of EXCLUDED instanceIds
   const [pageOpen, setPageOpen] = useState(null);   // pageId with the widget list expanded
   const [styleSel, setStyleSel] = useState(() => new Set());
-  // Widget appearance rides a layout export ONLY on request (owner report:
-  // colours were coming along uninvited).
-  const [incLook, setIncLook] = useState(false);
+  // Widget appearance rides a layout export BY DEFAULT — the opt-out
+  // survives for bare-layout shares, but three exports in a row went out
+  // stripped because the tick was easy to miss, and "looks like mine" is
+  // the dominant intent of sharing a board.
+  const [incLook, setIncLook] = useState(true);
   useEffect(() => {
     if (!open) return;
     const startPage = pages.find((p) => p.id === currentPageId) || pages[0];
@@ -236,7 +238,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     setWidgetDrop({});
     setPageOpen(null);
     setStyleSel(new Set((userStyles || []).map((st) => st.id)));
-    setIncLook(false);
+    setIncLook(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const togglePage = (id) => setPageSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -357,7 +359,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                       <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
                         checked={incLook} onChange={(e) => setIncLook(e.target.checked)} />
-                      <span className="text-muted-foreground">Include widget appearance (colours, fonts, borders)</span>
+                      <span className="text-muted-foreground">Include widget appearance (colours, fonts, borders, styles) — untick for a bare layout</span>
                     </label>
                     {pages.map((p, i) => {
                       const on = pageSel.has(p.id);

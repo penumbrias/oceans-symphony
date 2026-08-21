@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Sharing a layout includes its appearance by default now — untick \"Include widget appearance\" only when you want a bare layout. No more styled boards arriving plain because the tick was missed." },
       { type: "fix", text: "On the app, pack files save straight into Downloads/Oceans Symphony instead of only offering the share sheet. App-shortcut tiles in shared layouts keep which app they point to." },
       { type: "feature", text: "Setup packs share as a compact one-line code now — copy it, paste it in any chat, and the other person pastes it into Import. Files are still there as the backup option." },
       { type: "fix", text: "Sharing a layout with appearance now bundles the saved styles its widgets use, so the frost/borders/fonts actually arrive instead of pointing at a style that stayed home." },
