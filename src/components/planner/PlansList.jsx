@@ -16,6 +16,7 @@ import React, { useMemo, useState } from "react";
 import { Repeat, Zap, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { CheckSquare } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 
 const dayMs = 86400000;
@@ -36,6 +37,16 @@ function cadenceLabel(members, tr) {
   return tr("planner.everyNDays", { n: g });
 }
 
+// An entry with no time is an intention for its DAY — say the day, not a
+// made-up clock time.
+function dayOnlyLabel(planned, tr) {
+  const d = new Date(planned);
+  const now = new Date();
+  if (isSameDay(d, now)) return tr("planner.anytimeToday");
+  if (d.getFullYear() === now.getFullYear()) return `${format(d, "EEE d MMM")} · ${tr("planner.anytime")}`;
+  return `${format(d, "d MMM yyyy")} · ${tr("planner.anytime")}`;
+}
+
 function whenLabel(ts) {
   const d = new Date(ts);
   const now = new Date();
@@ -54,8 +65,16 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
 
   const rows = useMemo(() => {
     const now = Date.now();
-    const scheduled = activities.filter((a) =>
-      a?.timestamp && statusFor(a) === ACTIVITY_STATUSES.SCHEDULED && new Date(a.timestamp).getTime() > now - dayMs);
+    // Untimed plans (the day "+" writes planned_date with no timestamp)
+    // belong in this list too — they were invisible here, which is half
+    // of why a resolved one seemed to disappear (owner report).
+    const whenOf = (a) => (a.timestamp ? new Date(a.timestamp).getTime()
+      : a.planned_date ? new Date(a.planned_date).getTime() : null);
+    const scheduled = activities.filter((a) => {
+      if (!a || statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
+      const w = whenOf(a);
+      return w != null && w > now - dayMs;
+    });
     const byGroup = new Map();
     const singles = [];
     for (const a of scheduled) {
@@ -64,18 +83,39 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
         arr.push(a); byGroup.set(a.recurrence_group_id, arr);
       } else singles.push(a);
     }
-    const out = singles.map((a) => ({ kind: "single", key: a.id, item: a, next: new Date(a.timestamp).getTime() }));
+    const out = singles.map((a) => ({ kind: "single", key: a.id, item: a, next: whenOf(a) }));
     for (const [gid, arr] of byGroup) {
-      const members = arr.sort((x, y) => new Date(x.timestamp) - new Date(y.timestamp));
-      const future = members.filter((m) => new Date(m.timestamp).getTime() > now);
+      const members = arr.sort((x, y) => whenOf(x) - whenOf(y));
+      const future = members.filter((m) => whenOf(m) > now);
       const next = future[0] || members[members.length - 1];
-      out.push({ kind: "series", key: gid, item: next, members, remaining: future.length, next: new Date(next.timestamp).getTime() });
+      out.push({ kind: "series", key: gid, item: next, members, remaining: future.length, next: whenOf(next) });
     }
     return out.sort((a, b) => a.next - b.next);
   }, [activities]);
 
+  // Resolved plans stay findable: an outcome shouldn't make an entry
+  // vanish from the only list that shows plans. Newest first, recent
+  // window only so this never becomes a second activity log.
+  const resolvedRows = useMemo(() => {
+    const cutoff = Date.now() - 30 * dayMs;
+    const whenOf = (a) => (a.timestamp ? new Date(a.timestamp).getTime()
+      : a.planned_date ? new Date(a.planned_date).getTime() : 0);
+    return activities
+      .filter((a) => {
+        const st = statusFor(a);
+        return (st === ACTIVITY_STATUSES.DONE || st === ACTIVITY_STATUSES.PARTIAL
+          || st === ACTIVITY_STATUSES.SKIPPED || st === ACTIVITY_STATUSES.CANCELLED)
+          && whenOf(a) > cutoff;
+      })
+      .map((a) => ({ kind: "single", key: a.id, item: a, next: whenOf(a), resolved: statusFor(a) }))
+      .sort((a, b) => b.next - a.next)
+      .slice(0, 60);
+  }, [activities]);
+
   const uncategorized = rows.filter((r) => !(r.item.activity_category_ids || []).length);
-  const visible = filter === "uncategorized" ? uncategorized : rows;
+  const visible = filter === "uncategorized" ? uncategorized
+    : filter === "resolved" ? resolvedRows
+    : rows;
 
   const colorFor = (item) => item.color
     || catById[(item.activity_category_ids || [])[0]]?.color
@@ -83,9 +123,12 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-1.5 pr-0.5" data-own-hold>
-      {uncategorized.length > 0 && (
-        <div className="flex items-center gap-1 pb-0.5">
-          {[["all", tr("planner.allPlans")], ["uncategorized", `${tr("planner.uncategorized")} · ${uncategorized.length}`]].map(([id, label]) => (
+      {(uncategorized.length > 0 || resolvedRows.length > 0) && (
+        <div className="flex items-center gap-1 pb-0.5 flex-wrap">
+          {[["all", tr("planner.allPlans")],
+            ...(uncategorized.length ? [["uncategorized", `${tr("planner.uncategorized")} · ${uncategorized.length}`]] : []),
+            ...(resolvedRows.length ? [["resolved", `${tr("planner.resolvedTab")} · ${resolvedRows.length}`]] : []),
+          ].map(([id, label]) => (
             <button key={id} type="button" onClick={() => setFilter(id)} aria-pressed={filter === id}
               className={`text-xs px-2.5 py-1 rounded-full border ${filter === id
                 ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]"
@@ -118,6 +161,9 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
                       <Repeat className="w-2.5 h-2.5" />{cadenceLabel(r.members, tr)}
                     </span>
                   )}
+                  {r.item.task_id && (
+                    <CheckSquare className="w-3 h-3 flex-shrink-0 text-muted-foreground" aria-label={tr("planner.linkedTodo")} />
+                  )}
                   {noCat && (
                     <span className="text-[0.6875em] text-amber-500 border border-amber-500/40 rounded-full px-1.5 flex-shrink-0">
                       {tr("planner.noCategory")}
@@ -125,7 +171,8 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
                   )}
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums block">
-                  {whenLabel(r.item.timestamp)}
+                  {r.item.timestamp ? whenLabel(r.item.timestamp) : dayOnlyLabel(r.item.planned_date, tr)}
+                  {r.resolved && ` · ${tr(`planner.${r.resolved}`)}`}
                   {r.kind === "series" && r.remaining > 1 && ` · ×${r.remaining}`}
                 </span>
               </span>

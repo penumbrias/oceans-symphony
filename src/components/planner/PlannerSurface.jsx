@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
+import { X, Pencil, CheckSquare, Zap, ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal, ListChecks } from 
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
+import { statusFor } from "@/lib/activityStatus";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -120,6 +121,9 @@ export default function PlannerSurface({
   const [timing, setTiming] = useState(null);
   // Tapped fronting-lane bar → who/when card (bars alone are anonymous).
   const [bandInfo, setBandInfo] = useState(null);          // { item, day } being scheduled
+  // Tapping an entry OPENS ITS DETAILS — a readable summary — rather than
+  // dropping straight into the editor (owner spec). Edit is one tap away.
+  const [details, setDetails] = useState(null);
   const [timeValue, setTimeValue] = useState("09:00");
   const [durValue, setDurValue] = useState(60);
   const [noteValue, setNoteValue] = useState("");
@@ -191,13 +195,14 @@ export default function PlannerSurface({
   // the sheet fills a phone screen, so there's an X too (title row).
   useEffect(() => {
     if (!timing) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") setTiming(null); };
+    const onKey = (e) => { if (e.key === "Escape") { setTiming(null); setDetails(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [timing]);
   const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list() });
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),
     enabled: overlays.alters,
@@ -331,6 +336,20 @@ export default function PlannerSurface({
     setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
     setWhatOpen(false);
   };
+  // Opening the EDITOR for an existing entry — one seeding path for every
+  // caller (details sheet, plans list, untimed strip).
+  const openEditor = (item, { day = null, series = false } = {}) => {
+    const start = item.timestamp ? new Date(item.timestamp) : null;
+    setDetails(null);
+    setTiming({
+      item, day: day || start || (item.planned_date ? new Date(item.planned_date) : anchor),
+      seriesBranch: series ? RECURRENCE_BRANCHES.THIS_AND_FUTURE : null,
+    });
+    setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
+    setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
+    setNoteValue(item.notes || "");
+    seedExtras(item);
+  };
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
   // whole hour today, and every field is adjustable in the sheet.
@@ -360,6 +379,9 @@ export default function PlannerSurface({
           activity_name: name,
           activity_category_ids: timing.item.activity_category_ids || [],
           ...(cat?.color ? { color: cat.color } : {}),
+          // A to-do linked while creating must ride along, or ticking one
+          // off could never find the other.
+          ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
         }],
         timestamp: when,
         durationMinutes: Math.max(5, Number(durValue) || 60),
@@ -665,6 +687,34 @@ export default function PlannerSurface({
   }, [timing?.item?.activity_name, categories]);
 
 
+  // "What is it?" also looks at the OPEN TO-DOS: typing "clean my car"
+  // offers the to-do of that name to link, so logging the plan ticks the
+  // to-do off too (owner spec). Offered, never auto-applied.
+  const openTasks = useMemo(() => tasks.filter((x) => !(x.completed || x.is_complete)), [tasks]);
+  const todoMatches = useMemo(() => {
+    if (timing?.item?.task_id) return [];
+    const q = (timing?.item?.activity_name || "").trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+    const exact = [], starts = [], contains = [];
+    for (const x of openTasks) {
+      const n = (x.title || "").toLowerCase();
+      if (!n) continue;
+      if (n === q) exact.push(x); else if (n.startsWith(q)) starts.push(x); else if (n.includes(q)) contains.push(x);
+    }
+    return [...exact, ...starts, ...contains].slice(0, 4);
+  }, [timing?.item?.activity_name, timing?.item?.task_id, openTasks]);
+  const [todoPickerOpen, setTodoPickerOpen] = useState(false);
+  const [todoQuery, setTodoQuery] = useState("");
+  const todoCandidates = useMemo(() => {
+    const q = todoQuery.trim().toLowerCase();
+    const list = q ? openTasks.filter((x) => (x.title || "").toLowerCase().includes(q)) : openTasks;
+    return list.slice(0, 40);
+  }, [openTasks, todoQuery]);
+  const linkTodo = (task) => {
+    saveField({ task_id: task.id, ...(timing?.item?.activity_name ? {} : { activity_name: task.title }) });
+    setTodoPickerOpen(false); setTodoQuery("");
+  };
+
   // Plain range rather than "w/c" — that's British shorthand for "week
   // commencing" and means nothing to most people.
   const weekLabel = useMemo(() => {
@@ -857,17 +907,7 @@ export default function PlannerSurface({
           <PlansList
             activities={activities}
             categories={categories}
-            onOpen={(item, { series } = {}) => {
-              const start = item.timestamp ? new Date(item.timestamp) : null;
-              setTiming({
-                item, day: start || anchor,
-                seriesBranch: series ? RECURRENCE_BRANCHES.THIS_AND_FUTURE : null,
-              });
-              setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
-              setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
-              setNoteValue(item.notes || "");
-              seedExtras(item);
-            }}
+            onOpen={(item, { series } = {}) => (series ? openEditor(item, { series: true }) : setDetails(item))}
             onDeleteSeries={(item) => setBranchAsk({ item })}
           />
         ) : (
@@ -886,23 +926,13 @@ export default function PlannerSurface({
           categoryColor={catColor}
           overlays={overlays}
           onCreate={handleCreate}
-          onOpenBlock={(item) => {
-            const start = item.timestamp ? new Date(item.timestamp) : null;
-            setTiming({ item, day: start || anchor });
-            setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
-            setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
-            setNoteValue(item.notes || "");
-            seedExtras(item);
-          }}
+          onOpenBlock={(item) => setDetails(item)}
           onResize={handleResize}
           // A tapped check-in dot lands on that entry in the log, highlighted.
           onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
           onOpenBand={(b, rect) => setBandInfo({ band: b, rect })}
           onAddToDay={(day) => setPlanDay(day)}
-          onOpenUntimed={(item, day) => {
-            setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); setNoteValue(item.notes || "");
-            seedExtras(item);
-          }}
+          onOpenUntimed={(item, day) => setDetails({ ...item, _day: day })}
         />
         )}
       </div>
@@ -942,6 +972,114 @@ export default function PlannerSurface({
                 {tr("planner.frontHistory", { Front: t.Front })}
               </button>
             </div>
+          </div>
+        </div>
+      ), document.body)}
+      {/* DETAILS — what this entry IS, in plain reading form. Tapping a
+          block lands here; Edit opens the editor (owner spec: "a little
+          details view ... in a non-edit, easy to read form"). */}
+      {details && createPortal((
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDetails(null); }}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2.5 max-h-full overflow-y-auto overscroll-contain"
+            style={{ borderRadius: "var(--v2-radius, 16px)" }}>
+            {(() => {
+              const it = details;
+              const st = statusFor(it);
+              const cat = categories.find((c) => c.id === categoryIdOf(it));
+              const color = it.color || cat?.color || "var(--v2-accent)";
+              const start = it.timestamp ? new Date(it.timestamp) : null;
+              const mins = Number(it.actual_duration_minutes) || Number(it.duration_minutes) || 0;
+              const end = start && mins ? new Date(start.getTime() + mins * 60000) : null;
+              const who = (it.fronting_alter_ids || []).map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+              const task = it.task_id ? tasks.find((x) => x.id === it.task_id) : null;
+              const Line = ({ label, children }) => (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[0.6875em] uppercase tracking-wide text-muted-foreground w-16 flex-shrink-0">{label}</span>
+                  <span className="text-sm flex-1 min-w-0">{children}</span>
+                </div>
+              );
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 20 }} />
+                      <span className="text-base font-semibold truncate">{it.activity_name || tr("planner.untitled")}</span>
+                    </span>
+                    <button type="button" onClick={() => setDetails(null)} aria-label={tr("planner.close")}
+                      className="p-1 -mr-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="text-[0.6875em] px-2 py-0.5 rounded-full border"
+                      style={st === "scheduled"
+                        ? { borderColor: "var(--v2-accent)", color: "var(--v2-accent)" }
+                        : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                      {tr(`planner.${st}`)}
+                    </span>
+                    {it.is_critical && (
+                      <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-500 flex items-center gap-1">
+                        <Zap className="w-3 h-3" />{tr("planner.critical")}
+                      </span>
+                    )}
+                    {it.recurrence_group_id && (
+                      <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
+                        <Repeat className="w-3 h-3" />{tr("planner.series")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 pt-0.5">
+                    <Line label={tr("planner.whenLabel")}>
+                      {start
+                        ? `${format(start, "EEE d MMM")} · ${format(start, "HH:mm")}${end ? `–${format(end, "HH:mm")}` : ""}`
+                        : it.planned_date
+                          ? `${format(new Date(it.planned_date), "EEE d MMM")} · ${tr("planner.anytime")}`
+                          : tr("planner.noTimeSet")}
+                    </Line>
+                    {mins > 0 && <Line label={tr("planner.durLabel")}>{fmt(mins)}</Line>}
+                    {cat && (
+                      <Line label={tr("planner.whatLabel")}>
+                        <span className="inline-flex items-center gap-1.5">
+                          {cat.color && <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />}
+                          {cat.name}
+                        </span>
+                      </Line>
+                    )}
+                    {who.length > 0 && <Line label={tr("planner.who")}>{who.map((a) => formatAlter(a)).join(", ")}</Line>}
+                    {it.location && <Line label={tr("planner.location")}>{it.location}</Line>}
+                    {task && (
+                      <Line label={tr("planner.todoLabel")}>
+                        <span className="inline-flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                          <span className={task.completed || task.is_complete ? "line-through text-muted-foreground" : ""}>{task.title}</span>
+                        </span>
+                      </Line>
+                    )}
+                    {it.notes && (
+                      <div className="pt-1">
+                        <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground">{tr("planner.notes")}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words">{it.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+                    <button type="button" onClick={() => openEditor(it, { day: it._day || null })}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
+                      <Pencil className="w-3 h-3" />{tr("planner.edit")}
+                    </button>
+                    {st === "scheduled" && !getActiveActivities().some((a) => a.planActivityId === it.id) && (
+                      <button type="button"
+                        onClick={() => { const item = it; setDetails(null); setTiming({ item, day: item.timestamp ? new Date(item.timestamp) : anchor }); setTimeout(startNow, 0); }}
+                        className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <Play className="w-3 h-3" />{tr("planner.startNow")}
+                      </button>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       ), document.body)}
@@ -1059,6 +1197,65 @@ export default function PlannerSurface({
                 the classic Log Activity modal uses (ActivityPillSelector),
                 so choosing an activity/category here IS choosing it there.
                 Above "who": what it is comes before who did it. */}
+            {/* TO-DO — link this entry to a to-do so finishing one finishes
+                the other. Auto-detected from the title; the picker is
+                searchable because a to-do list is unbounded. */}
+            <div className="space-y-1">
+              {(() => {
+                const linked = timing.item.task_id ? tasks.find((x) => x.id === timing.item.task_id) : null;
+                if (linked) {
+                  return (
+                    <div className="flex items-center gap-2 text-xs">
+                      <CheckSquare className="w-3.5 h-3.5 text-[var(--v2-accent)] flex-shrink-0" />
+                      <span className="flex-1 min-w-0 truncate">{linked.title}</span>
+                      <button type="button" onClick={() => saveField({ task_id: null })}
+                        className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+                        {tr("planner.unlinkTodo")}
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    {todoMatches.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[0.6875em] text-muted-foreground">{tr("planner.todoMatchHint")}</span>
+                        {todoMatches.map((x) => (
+                          <button key={x.id} type="button" onClick={() => linkTodo(x)}
+                            className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 hover:text-foreground flex items-center gap-1">
+                            <CheckSquare className="w-2.5 h-2.5" />{x.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <button type="button" onClick={() => setTodoPickerOpen((v) => !v)}
+                      aria-expanded={todoPickerOpen}
+                      className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                      <CheckSquare className="w-2.5 h-2.5" />{tr("planner.linkTodo")}
+                    </button>
+                    {todoPickerOpen && (
+                      <div className="space-y-1 pt-0.5">
+                        <input value={todoQuery} onChange={(e) => setTodoQuery(e.target.value)}
+                          placeholder={tr("planner.linkTodo")}
+                          className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs" />
+                        <div className="max-h-32 overflow-y-auto overscroll-contain space-y-0.5">
+                          {todoCandidates.length === 0 && (
+                            <p className="text-[0.6875em] text-muted-foreground px-1 py-1">{tr("planner.noPlans")}</p>
+                          )}
+                          {todoCandidates.map((x) => (
+                            <button key={x.id} type="button" onClick={() => linkTodo(x)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40 text-left text-xs hover:bg-muted/30">
+                              <CheckSquare className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                              <span className="flex-1 truncate">{x.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
             {nameMatches.length > 0 && !categoryIdOf(timing.item) && (
               <div className="flex flex-wrap items-center gap-1">
                 <span className="text-[0.6875em] text-muted-foreground">{tr("planner.matchHint")}</span>

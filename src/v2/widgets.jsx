@@ -483,11 +483,23 @@ function TodayWidget() {
   const [addOpen, setAddOpen] = React.useState(false);
   const activities = useList("activities", "Activity");
   const tasks = useList("tasks", "Task");
+  // Plans for today: timed ones AND the day's untimed intentions (the
+  // planner's day "+" writes planned_date with no timestamp) — those used
+  // to be missing here entirely, so a plan made that way only appeared via
+  // its linked to-do under "Due today" (owner report).
   const plans = activities
-    .filter((a) => a.status === "scheduled" && a.timestamp && sameDay(a.timestamp, now))
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    .filter((a) => a.status === "scheduled"
+      && ((a.timestamp && sameDay(a.timestamp, now)) || (!a.timestamp && a.planned_date && sameDay(a.planned_date, now))))
+    .sort((a, b) => {
+      if (!a.timestamp) return 1;      // untimed sink below the timed ones
+      if (!b.timestamp) return -1;
+      return new Date(a.timestamp) - new Date(b.timestamp);
+    });
+  // A to-do already shown as a plan (the plan links it) isn't repeated in
+  // the due list — one thing, one row.
+  const plannedTaskIds = new Set(plans.map((a) => a.task_id).filter(Boolean));
   const due = tasks
-    .filter((x) => !x.completed && x.due_date && new Date(x.due_date).getTime() <= endOfToday())
+    .filter((x) => !x.completed && !plannedTaskIds.has(x.id) && x.due_date && new Date(x.due_date).getTime() <= endOfToday())
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
   const unresolved = activities.filter(
     (a) => a.status === "scheduled" && a.timestamp && new Date(a.timestamp).getTime() < now - 3600000
@@ -514,12 +526,12 @@ function TodayWidget() {
           one-column tile a "task" label just eats the title. Overdue plans
           take the accent colour. */}
       {plans.map((a) => {
-        const late = new Date(a.timestamp).getTime() < now;
+        const late = !!a.timestamp && new Date(a.timestamp).getTime() < now;
         return (
           <Row key={a.id}
             left={<CalendarCheck className="w-3.5 h-3.5 flex-shrink-0"
               style={{ color: late ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />}
-            primary={a.activity_name} right={fmtTime(a.timestamp)}
+            primary={a.activity_name} right={a.timestamp ? fmtTime(a.timestamp) : tr("widget.today.anytime")}
             title={late ? tr("widget.today.unresolved") : undefined}
             onClick={() => navigate(`/activities?activityId=${a.id}`)} />
         );

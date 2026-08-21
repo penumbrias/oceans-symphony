@@ -57,10 +57,13 @@ export async function resolveOutcome(item, status) {
   // session — "Partly" used to set the status while the activity stayed
   // active (owner report). The elapsed time (plus anything banked by
   // earlier pauses) lands as the plan's actual duration.
-  const patch = {
-    status,
-    timestamp: item.timestamp || new Date().toISOString(),
-  };
+  const patch = { status };
+  // An entry with NO time is an intention for its day (planned_date) and
+  // must stay there: stamping "now" on it moved a skipped plan out of the
+  // day's untimed strip to the moment it was resolved — it read as having
+  // vanished (owner report). Only a plan with neither a time nor a day
+  // needs somewhere to sit.
+  if (!item.timestamp && !item.planned_date) patch.timestamp = new Date().toISOString();
   try {
     const { getActiveActivities, removeActiveActivity } = await import("@/lib/activitySession");
     const sess = getActiveActivities().find((a) => a.planActivityId === item.id);

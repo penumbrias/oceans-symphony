@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Tapping something in the planner now opens a readable details view — what it is, when, how long, who, notes — with Edit one tap away instead of dropping you straight into the editor." },
+      { type: "feature", text: "Plans can be linked to a to-do: type the to-do's name and it's offered right there, or pick one from the list. Finishing the plan ticks the to-do off." },
+      { type: "fix", text: "Resolving a plan that had no set time no longer moves it to the moment you resolved it — it stays on its day. Resolved plans are also findable again under a \"Resolved\" tab in the planner's Plans list, which now shows untimed plans too." },
+      { type: "fix", text: "A plan made with the day's + button shows under \"Planned\" in the Today widget instead of only appearing as its linked to-do under \"Due today\"." },
       { type: "improve", text: "Sharing a layout includes its appearance by default now — untick \"Include widget appearance\" only when you want a bare layout. No more styled boards arriving plain because the tick was missed." },
       { type: "fix", text: "On the app, pack files save straight into Downloads/Oceans Symphony instead of only offering the share sheet. App-shortcut tiles in shared layouts keep which app they point to." },
       { type: "feature", text: "Setup packs share as a compact one-line code now — copy it, paste it in any chat, and the other person pastes it into Import. Files are still there as the backup option." },
