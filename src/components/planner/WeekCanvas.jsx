@@ -26,6 +26,7 @@ import { useT } from "@/lib/i18n";
 import { useTerms } from "@/lib/useTerms";
 import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/lib/activitySession";
+import { getActiveSystemId } from "@/lib/systems";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -622,6 +623,8 @@ export default function WeekCanvas({
     [categoryColor]
   );
 
+  let activeSystemIdRef = null;
+  try { activeSystemIdRef = getActiveSystemId() || null; } catch { /* registry not up yet */ }
   const perDay = useMemo(() => days.map((day) => {
     const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
     const sameDay = (t) => t && isSameDay(new Date(t), day);
@@ -659,7 +662,8 @@ export default function WeekCanvas({
       const start = sess.startTime ? new Date(sess.startTime) : null;
       if (!start || Number.isNaN(start.getTime()) || start > now) continue;
       const plan = sess.planActivityId ? activities.find((a) => a.id === sess.planActivityId) : null;
-      const name = sess.name || plan?.activity_name || "Activity";
+      const foreign = sess.systemId && activeSystemIdRef && sess.systemId !== activeSystemIdRef;
+      const name = (sess.name || plan?.activity_name || "Activity") + (foreign ? ` · ${sess.systemName || "another system"}` : "");
       const color = sess.color || plan?.color || null;
       const endMs = plannedEndMsFor(sess, plan);
       // Elapsed: solid, start → now (grows with the now line).

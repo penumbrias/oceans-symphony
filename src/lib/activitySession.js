@@ -18,6 +18,7 @@ import { base44 } from "@/api/base44Client";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isNative } from "@/lib/platform";
 import { toast } from "sonner";
+import { getActiveSystemId, getActiveSystem } from "@/lib/systems";
 
 const KEY = "symphony_active_activities_v1";
 // Pre-multi single-session key (one object). Migrated into the array on read.
@@ -155,8 +156,13 @@ async function cancelActiveEndReminder(session) {
 }
 
 // Start a new running session. Returns the stored item (with its id).
+// Stamped with the OWNING system: the store is device-wide localStorage
+// (unlike the per-system DB blobs), so without the stamp a session started
+// in one system reads as everyone's (owner report — surfaces label it).
 export function addActiveActivity(obj) {
-  const item = { id: genId(), ...obj };
+  let systemId = null, systemName = null;
+  try { systemId = getActiveSystemId() || null; systemName = getActiveSystem()?.name || null; } catch { /* registry not up yet */ }
+  const item = { id: genId(), systemId, systemName, ...obj };
   writeArr([item, ...getActiveActivities()]);
   scheduleActiveEndReminder(item);
   return item;

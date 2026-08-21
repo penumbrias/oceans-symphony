@@ -15,6 +15,8 @@
 //
 // Saved packs live in SystemSettings.ui_v2_setup_packs (rides backups).
 
+import { LOOK_KEYS } from "@/lib/widgetLook";
+
 export const PACK_FORMAT = "symphony_setup_pack";
 export const PACK_VERSION = 1;
 
@@ -29,10 +31,16 @@ const PERSONAL_SETTING_KEYS = new Set([
 
 const isLocalRef = (v) => typeof v === "string" && (v.startsWith("local-image://") || v.startsWith("folder://") || v.startsWith("data:"));
 
-function sanitizeSettings(settings = {}) {
+// Per-widget appearance keys (colours, fonts, borders…) plus the saved-style
+// reference. A LAYOUT export carries them only when the user opts in — "my
+// widget layout export included colours I never asked to share" (owner).
+const LOOK_SETTING_KEYS = new Set([...LOOK_KEYS, "style"]);
+
+function sanitizeSettings(settings = {}, { includeLook = false } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(settings)) {
     if (PERSONAL_SETTING_KEYS.has(k)) continue;
+    if (!includeLook && LOOK_SETTING_KEYS.has(k)) continue;
     if (isLocalRef(v)) continue;
     if (v && typeof v === "object") continue; // nested structures are where ids hide
     out[k] = v;
@@ -50,7 +58,7 @@ function sanitizeLook(look = {}) {
 }
 
 // ── Builders ───────────────────────────────────────────────────────
-export function buildLayoutType(home) {
+export function buildLayoutType(home, { includeLook = false } = {}) {
   const pages = (home?.pages || []).map((p) => ({
     layoutMode: p.layoutMode || "flow",
     widgets: (p.widgets || []).map((w) => ({
@@ -58,7 +66,7 @@ export function buildLayoutType(home) {
       span: w.span || null,
       pos: w.pos || null,
       mode: w.mode || "normal",
-      settings: sanitizeSettings(w.settings || {}),
+      settings: sanitizeSettings(w.settings || {}, { includeLook }),
     })),
   }));
   return { pages, grid: home?.grid || null };
@@ -142,15 +150,39 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
   if (which.layout && t.layout) {
     const cur = JSON.parse(JSON.stringify(settingsRow?.ui_v2_home || {}));
     if (!Array.isArray(cur.pages)) cur.pages = [];
-    for (const p of t.layout.pages || []) {
-      cur.pages.push({
-        layoutMode: p.layoutMode || "free",
-        widgets: (p.widgets || []).map((w, i) => ({
-          instanceId: `imp_${Date.now().toString(36)}_${cur.pages.length}_${i}`,
-          widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
-          pos: w.pos || null, mode: w.mode || "normal", settings: w.settings || {},
-        })),
-      });
+    // Placement (owner spec): "new" appends the pack's pages as NEW pages
+    // (the safe default); "merge" pours the widgets into the current page
+    // (positions dropped so the untangle pass seats them); "replace" swaps
+    // the current page's widgets for the pack's first page (extra pack
+    // pages still append as new).
+    const placement = which.layoutPlacement === "merge" || which.layoutPlacement === "replace"
+      ? which.layoutPlacement : "new";
+    const packPages = t.layout.pages || [];
+    const mkWidgets = (p, pi, { dropPos = false } = {}) => (p.widgets || []).map((w, i) => ({
+      instanceId: `imp_${Date.now().toString(36)}_${pi}_${i}`,
+      widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
+      pos: dropPos ? null : (w.pos || null), mode: w.mode || "normal", settings: w.settings || {},
+    }));
+    const targetIdx = Math.max(0, cur.pages.findIndex((p) => p.id === which.currentPageId));
+    if (placement === "new" || !cur.pages.length) {
+      for (const [pi, p] of packPages.entries()) {
+        cur.pages.push({ layoutMode: p.layoutMode || "free", widgets: mkWidgets(p, pi) });
+      }
+    } else if (placement === "merge") {
+      const target = cur.pages[targetIdx];
+      target.widgets = [...(target.widgets || []), ...packPages.flatMap((p, pi) => mkWidgets(p, pi, { dropPos: true }))];
+    } else {
+      const first = packPages[0];
+      if (first) {
+        cur.pages[targetIdx] = {
+          ...cur.pages[targetIdx],
+          layoutMode: first.layoutMode || "free",
+          widgets: mkWidgets(first, 0),
+        };
+      }
+      for (const [pi, p] of packPages.slice(1).entries()) {
+        cur.pages.push({ layoutMode: p.layoutMode || "free", widgets: mkWidgets(p, pi + 1) });
+      }
     }
     patch.ui_v2_home = cur;
   }

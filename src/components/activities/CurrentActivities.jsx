@@ -14,6 +14,7 @@ import {
   pauseActiveActivity,
   ACTIVE_ACTIVITY_EVENT,
 } from "@/lib/activitySession";
+import { getActiveSystemId } from "@/lib/systems";
 
 function toLocalDatetimeValue(iso) {
   if (!iso) return "";
@@ -164,6 +165,8 @@ export function ActivityActionMenu({ activity, onClose }) {
 export default function CurrentActivities() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState(() => getActiveActivities());
+  let activeSystemId = null;
+  try { activeSystemId = getActiveSystemId() || null; } catch { /* registry not up yet */ }
   const [activeMenu, setActiveMenu] = useState(null);
 
   // An in-progress sleep (bedtime set, not yet woken) is treated as an active
@@ -209,6 +212,9 @@ export default function CurrentActivities() {
         )}
         {activities.map((a) => {
           const color = a.color || "#6366f1";
+          // Sessions are device-wide; one stamped with another system's id
+          // is named so it never reads as this system's own.
+          const foreign = a.systemId && activeSystemId && a.systemId !== activeSystemId;
           return (
             <button
               key={a.id}
@@ -219,6 +225,11 @@ export default function CurrentActivities() {
             >
               <Timer className="w-3 h-3 flex-shrink-0" />
               {a.name}
+              {foreign && (
+                <span className="opacity-70 font-normal border border-current/40 rounded-full px-1.5 text-[0.625rem]">
+                  {a.systemName || "another system"}
+                </span>
+              )}
               <span className="opacity-60 font-normal">· {formatDistanceToNow(new Date(a.startTime))}</span>
             </button>
           );

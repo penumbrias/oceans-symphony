@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "The \"Continue setup\" banner sits above the bottom bar and quick-actions bar instead of covering them." },
+      { type: "improve", text: "An active activity started in a different {{system}} is labelled with that {{system}}'s name wherever it shows, instead of blending in everywhere." },
+      { type: "improve", text: "Layout exports only include widget colours/fonts/borders when you tick \"Include widget appearance\". Importing a layout now asks where it lands: new page, added to your current page, or replacing it." },
       { type: "improve", text: "Tap your {{system}}'s name in the top bar — or the app icon at the top of the sidebar — to switch {{systems}}, open a side {{system}}, or create a new one." },
       { type: "feature", text: "Active plans can be PAUSED — step away without marking them done. The time so far is saved on the plan and counts toward the total when it finally resolves." },
       { type: "fix", text: "Choosing an outcome (like Partly) for a plan that's still running now also ends the running session — it used to stay active." },

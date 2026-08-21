@@ -123,6 +123,11 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
               className="flex-1 min-w-0 flex items-center gap-2 px-2 py-2 text-left text-sm">
               <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--v2-accent)" }} />
               <span className="truncate flex-1">{it.label}</span>
+              {it.fromSystem && (
+                <span className="text-[0.625em] text-muted-foreground border border-border/50 rounded-full px-1.5 flex-shrink-0">
+                  {it.fromSystem}
+                </span>
+              )}
               {it.since && <span className="text-[0.6875rem] tabular-nums text-muted-foreground flex-shrink-0">{fmtElapsed(it.since)}</span>}
             </button>
             {it.type === "company" && (

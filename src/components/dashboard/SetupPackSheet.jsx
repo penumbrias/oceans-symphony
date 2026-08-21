@@ -201,6 +201,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const [imported, setImported] = useState(null); // parsed pack
   const [apply, setApply] = useState({ layout: true, widgetStyles: true, uiTheme: true });
   const [saveAsPreset, setSaveAsPreset] = useState(true);
+  const [placement, setPlacement] = useState("new"); // new | merge | replace
   // The Presets section (and the edit bar's Save menu) open straight to a
   // specific tab.
   React.useEffect(() => { if (open && initialTab) setTab(initialTab); }, [open, initialTab]);
@@ -214,6 +215,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const [widgetDrop, setWidgetDrop] = useState({}); // pageId -> Set of EXCLUDED instanceIds
   const [pageOpen, setPageOpen] = useState(null);   // pageId with the widget list expanded
   const [styleSel, setStyleSel] = useState(() => new Set());
+  // Widget appearance rides a layout export ONLY on request (owner report:
+  // colours were coming along uninvited).
+  const [incLook, setIncLook] = useState(false);
   useEffect(() => {
     if (!open) return;
     const startPage = pages.find((p) => p.id === currentPageId) || pages[0];
@@ -221,6 +225,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     setWidgetDrop({});
     setPageOpen(null);
     setStyleSel(new Set((userStyles || []).map((st) => st.id)));
+    setIncLook(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const togglePage = (id) => setPageSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -242,11 +247,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     if (tab !== "export") return null;
     return buildPack({
       title: title || "My setup",
-      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome) : null,
+      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook }) : null,
       widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
       uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw) : null,
     });
-  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, uiV2Raw]);
+  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw]);
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
 
   const download = async () => {
@@ -292,7 +297,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const applyImport = async () => {
     if (!imported || !settingsRow?.id) return;
     try {
-      const patch = buildApplyPatch({ pack: imported, which: apply, savePreset: saveAsPreset, settingsRow });
+      const patch = buildApplyPatch({
+        pack: imported,
+        which: { ...apply, layoutPlacement: placement, currentPageId },
+        savePreset: saveAsPreset, settingsRow,
+      });
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       toast.success("Pack applied");
@@ -329,6 +338,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                   checked={inc.layout} onChange={(v) => setInc((s) => ({ ...s, layout: v }))} />
                 {inc.layout && (
                   <div className="pl-6 space-y-1">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
+                        checked={incLook} onChange={(e) => setIncLook(e.target.checked)} />
+                      <span className="text-muted-foreground">Include widget appearance (colours, fonts, borders)</span>
+                    </label>
                     {pages.map((p, i) => {
                       const on = pageSel.has(p.id);
                       const drop = widgetDrop[p.id] || new Set();
@@ -449,8 +463,22 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
               </ul>
               <div className={box}>
                 {imported.types.layout && (
-                  <TypeCheck label="Widget layout" desc="Added as a NEW page — your own pages stay untouched."
-                    checked={apply.layout} onChange={(v) => setApply((s) => ({ ...s, layout: v }))} />
+                  <>
+                    <TypeCheck label="Widget layout" desc="Where should it land? Pick below."
+                      checked={apply.layout} onChange={(v) => setApply((s) => ({ ...s, layout: v }))} />
+                    {apply.layout && (
+                      <div className="pl-6 flex flex-wrap gap-1">
+                        {[["new", "As a new page"], ["merge", "Add to my current page"], ["replace", "Replace my current page"]].map(([id, label]) => (
+                          <button key={id} type="button" aria-pressed={placement === id} onClick={() => setPlacement(id)}
+                            className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${placement === id
+                              ? "border-primary/60 bg-primary/10 text-primary"
+                              : "border-border/50 text-muted-foreground"}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
                 {imported.types.widgetStyles && (
                   <TypeCheck label="Widget styles" desc="Added to your saved styles (name clashes skipped)."

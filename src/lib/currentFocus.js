@@ -14,6 +14,7 @@ import { base44 } from "@/api/base44Client";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { getActiveActivities } from "@/lib/activitySession";
+import { getActiveSystemId } from "@/lib/systems";
 import { contactDisplayName } from "@/lib/contacts";
 
 // Items: [{ type: "fronting"|"activity"|"sleep"|"symptom"|"company"|"status", label, path }]
@@ -86,8 +87,19 @@ export function useCurrentFocus() {
   }
 
   // Running activity timers (localStorage store, same as CurrentActivities).
+  // The store is device-wide; a session stamped with ANOTHER system's id is
+  // labelled with that system's name (legacy unstamped sessions read as the
+  // current system's).
+  let activeSystemId = null;
+  try { activeSystemId = getActiveSystemId() || null; } catch { /* registry not up yet */ }
   for (const act of getActiveActivities()) {
-    items.push({ type: "activity", id: act.id, label: act.name || act.activity_name || "Activity in progress", path: "/activities", since: act.startTime || null });
+    const foreign = act.systemId && activeSystemId && act.systemId !== activeSystemId;
+    items.push({
+      type: "activity", id: act.id,
+      label: act.name || act.activity_name || "Activity in progress",
+      fromSystem: foreign ? (act.systemName || "another system") : null,
+      path: "/activities", since: act.startTime || null,
+    });
   }
 
   // Active company — "I'm with X" sessions (~company:X:active or the
