@@ -816,6 +816,24 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   const dragStart = useRef(null);
   const altersDragStart = useRef(null);
   const swiped = useRef(false);
+  // Swipe-to-close on the open card itself (owner): start anywhere on the
+  // card, swipe toward its screen edge (down for a bottom bar, up for a
+  // top one). Mostly-vertical + quick, so sideways key scrolling and slow
+  // presses never trigger it; the trailing click is eaten.
+  const cardDrag = useRef(null);
+  const cardSwiped = useRef(false);
+  const cardDragProps = (closeDir) => ({
+    onPointerDownCapture: (e) => { cardDrag.current = { x: e.clientX, y: e.clientY, at: Date.now(), last: { x: e.clientX, y: e.clientY } }; cardSwiped.current = false; },
+    onPointerMoveCapture: (e) => { if (cardDrag.current) cardDrag.current.last = { x: e.clientX, y: e.clientY }; },
+    onPointerUpCapture: () => {
+      const d = cardDrag.current; cardDrag.current = null;
+      if (!d) return;
+      const dy = d.last.y - d.y, dx = Math.abs(d.last.x - d.x), dt = Date.now() - d.at;
+      if (closeDir * dy > 32 && closeDir * dy > dx && dt < 600) { cardSwiped.current = true; toggleQa(false); }
+    },
+    onPointerCancelCapture: () => { cardDrag.current = null; },
+    onClickCapture: (e) => { if (cardSwiped.current) { cardSwiped.current = false; e.preventDefault(); e.stopPropagation(); } },
+  });
   // The key row floats as its own card (the user's call — same visual
   // separation as the pinned bar, so the chrome band stays slim). The
   // pinned-bar stack on this edge sits ABOVE the card via this published
@@ -858,10 +876,12 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   // The alters half of the split handle lives ONLY on the edge the alters
   // bar is actually on (the user's rule) — a top strip must not carry a
   // toggle for a bar sitting at the bottom.
-  // The alters half of the split handle is RETIRED (owner: show/hide
-  // lives in Display options + the bar's own gear; the extra chevron was
-  // clutter). The strip's handle now only folds the quick actions.
-  const withAltersHalf = false;
+  // The alters half of the split handle: back by owner request (it was
+  // briefly retired, which left a collapsed bar with no swipe-open). It
+  // lives ONLY on the edge the alters bar is actually on, and only while
+  // the bar is enabled — Display options still owns enabling it at all.
+  const altersEdge = ["top", "bottom"].includes(altersBarCfg.position) ? altersBarCfg.position : "bottom";
+  const withAltersHalf = altersInNav && altersBarCfg.mode !== "bubble" && altersEdge === edge;
   // Top edge: "open" is a swipe DOWN; the chevrons flip to match.
   const dir = edge === "top" ? -1 : 1;
   const openRot = edge === "top" ? "none" : "rotate(180deg)";
@@ -957,7 +977,9 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                 className="overflow-hidden pointer-events-auto"
               >
                 <div className="flex items-center justify-center overflow-x-auto px-2 backdrop-blur-xl"
+                  {...cardDragProps(dir)}
                   style={{
+                    touchAction: "pan-x",
                     gap: "calc(var(--v2-space) * 1.5)",
                     padding: "var(--v2-space) 0.5rem",
                     ...barLookStyle(uiV2, "actions", { veil: false }),
@@ -984,7 +1006,8 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
           initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.18, ease: "easeOut" }} className="overflow-hidden">
           <div className="flex items-center justify-center overflow-x-auto px-2"
-            style={{ gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)", ...barLookStyle(uiV2, "actions", { veil: false }) }}>
+            {...cardDragProps(dir)}
+            style={{ touchAction: "pan-x", gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)", ...barLookStyle(uiV2, "actions", { veil: false }) }}>
             <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
               onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />
           </div>
