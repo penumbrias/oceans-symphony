@@ -169,8 +169,25 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
         cur.pages.push({ layoutMode: p.layoutMode || "free", widgets: mkWidgets(p, pi) });
       }
     } else if (placement === "merge") {
+      // Incoming widgets are SEATED below the page's existing content —
+      // dropping their positions and hoping the board's untangle pass
+      // fixes it left them all stacked at the origin (that pass runs
+      // once per page, before the import). Sequential full-rows: no
+      // overlap, easy to rearrange. Flow pages ignore pos anyway.
       const target = cur.pages[targetIdx];
-      target.widgets = [...(target.widgets || []), ...packPages.flatMap((p, pi) => mkWidgets(p, pi, { dropPos: true }))];
+      const incoming = packPages.flatMap((p, pi) => mkWidgets(p, pi, { dropPos: true }));
+      if (target.layoutMode === "free") {
+        let cursor = 0;
+        for (const w of target.widgets || []) {
+          const row = (w.pos && Number.isFinite(w.pos.row) ? w.pos.row : 0) + (w.span?.rows || 1);
+          if (row > cursor) cursor = row;
+        }
+        for (const w of incoming) {
+          w.pos = { col: 0, row: cursor };
+          cursor += w.span?.rows || 1;
+        }
+      }
+      target.widgets = [...(target.widgets || []), ...incoming];
     } else {
       const first = packPages[0];
       if (first) {

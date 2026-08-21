@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Adding an imported layout to your current page places its widgets below what's already there, instead of piling them on top of each other." },
       { type: "fix", text: "The \"Continue setup\" banner sits above the bottom bar and quick-actions bar instead of covering them." },
       { type: "improve", text: "An active activity started in a different {{system}} is labelled with that {{system}}'s name wherever it shows, instead of blending in everywhere." },
       { type: "improve", text: "Layout exports only include widget colours/fonts/borders when you tick \"Include widget appearance\". Importing a layout now asks where it lands: new page, added to your current page, or replacing it." },
