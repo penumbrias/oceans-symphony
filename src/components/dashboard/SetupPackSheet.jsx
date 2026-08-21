@@ -15,7 +15,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
   parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook, applyAppTheme,
-  encodePackCompact, decodePackText,
+  encodePackCompact, decodePackText, savePackFile,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -29,7 +29,6 @@ let _allDefs = null;
 const allWidgetDefs = () => (_allDefs ||= { ...WIDGET_REGISTRY, ...V2_WIDGETS });
 import { useTerms } from "@/lib/useTerms";
 import { useTheme } from "@/lib/ThemeContext";
-import { shareFile } from "@/lib/shareFile";
 import { isNative } from "@/lib/platform";
 
 const box = "rounded-xl border border-border/50 p-2.5 space-y-2";
@@ -269,8 +268,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const download = async () => {
     const blob = new Blob([packJson], { type: "application/json" });
     const filename = `${(title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
-    const res = await shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
+    const res = await savePackFile(blob, filename);
     if (res?.result === "failed") toast.error("Couldn't save the file — try Copy instead");
+    else if (res?.result === "downloaded") toast.success(res.location ? `Saved to ${res.location}` : "Saved");
     else if (res?.result && res.result !== "cancelled") toast.success(isNative() ? "Saved" : "Downloading…");
   };
   const copy = async () => {

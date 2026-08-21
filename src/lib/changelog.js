@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "On the app, pack files save straight into Downloads/Oceans Symphony instead of only offering the share sheet. App-shortcut tiles in shared layouts keep which app they point to." },
       { type: "feature", text: "Setup packs share as a compact one-line code now — copy it, paste it in any chat, and the other person pastes it into Import. Files are still there as the backup option." },
       { type: "fix", text: "Sharing a layout with appearance now bundles the saved styles its widgets use, so the frost/borders/fonts actually arrive instead of pointing at a style that stayed home." },
       { type: "fix", text: "Setup packs now carry your fonts (body, headings and the theme font — names only, not files). The pack summary also says plainly whether widget appearance is included, so it's clear when \"Include widget appearance\" wasn't ticked on export." },

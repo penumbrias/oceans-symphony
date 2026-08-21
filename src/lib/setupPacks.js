@@ -55,9 +55,14 @@ function scrubLocalRefs(value) {
 // widget layout export included colours I never asked to share" (owner).
 const LOOK_SETTING_KEYS = new Set([...LOOK_KEYS, "style"]);
 
-function sanitizeSettings(settings = {}, { includeLook = false } = {}) {
+function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(settings)) {
+    // App shortcuts: targetId names an APP PAGE (nav-catalogue slug),
+    // not a user record — stripping it shipped dead "Missing shortcut"
+    // tiles. Every other widget's targetId stays stripped (could be a
+    // record id).
+    if (k === "targetId" && widgetId === "app_shortcut" && typeof v === "string" && !/^[0-9a-f-]{30,}$/i.test(v)) { out[k] = v; continue; }
     if (PERSONAL_SETTING_KEYS.has(k)) continue;
     if (!includeLook && LOOK_SETTING_KEYS.has(k)) continue;
     if (isLocalRef(v)) continue;
@@ -85,7 +90,7 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [] } =
       span: w.span || null,
       pos: w.pos || null,
       mode: w.mode || "normal",
-      settings: sanitizeSettings(w.settings || {}, { includeLook }),
+      settings: sanitizeSettings(w.settings || {}, { includeLook, widgetId: w.widgetId }),
     })),
   }));
   const out = { pages, grid: home?.grid || null };
@@ -386,6 +391,23 @@ export function applyAppTheme(at) {
     } catch { /* non-fatal */ }
     return true;
   } catch { return false; }
+}
+
+// Save a pack file: native → silent MediaStore save into
+// Downloads/Oceans Symphony (the backup exporter's path — the owner
+// wanted device storage, not a share-to-Drive sheet); anything else →
+// the shared shareFile chain (Save As / anchor / share sheet).
+export async function savePackFile(blob, filename) {
+  const { isNative } = await import("@/lib/platform");
+  if (isNative()) {
+    try {
+      const { saveBlobToPublicDownloads } = await import("@/lib/nativeMediaStoreSave");
+      const res = await saveBlobToPublicDownloads({ blob, filename, mimeType: "application/json", subdir: "Oceans Symphony" });
+      if (res?.result === "filesystem") return { result: "downloaded", location: res.location || "Downloads/Oceans Symphony" };
+    } catch { /* fall through to the share chain */ }
+  }
+  const { shareFile } = await import("@/lib/shareFile");
+  return shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
 }
 
 // ── Compact share code ─────────────────────────────────────────────

@@ -39,8 +39,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildApplyPatch, packToJson, applyAppTheme } from "@/lib/setupPacks";
-import { shareFile } from "@/lib/shareFile";
+import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/setupPacks";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
@@ -1100,8 +1099,9 @@ function PresetsSection({ v2 }) {
   const downloadSavedPack = async (pk) => {
     const blob = new Blob([packToJson(pk)], { type: "application/json" });
     const filename = `${(pk.title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
-    const res = await shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
+    const res = await savePackFile(blob, filename);
     if (res?.result === "failed") toast.error("Couldn't save the file");
+    else if (res?.result === "downloaded" && res.location) toast.success(`Saved to ${res.location}`);
   };
   const deleteSavedPack = async (pk) => {
     if (!settingsRow?.id) return;
