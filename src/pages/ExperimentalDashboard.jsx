@@ -40,7 +40,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, packPositions, resolveOverlaps, hasOverlaps,
+  HOME_STYLE_IDS, resolveOverlaps, hasOverlaps,
   compactVertically, findFreeCell,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
@@ -976,29 +976,6 @@ export default function ExperimentalDashboard({
     });
     toast.success("Gaps closed up");
   };
-  // Switching a page to free placement seeds every widget with the cell it
-  // already occupies, so the switch itself never rearranges anything.
-  const toggleLayoutMode = () => {
-    const next = page.layoutMode === "free" ? "flow" : "free";
-    // Measure what's actually on screen before packing, so a widget that
-    // grew past its declared rows keeps the space it was using.
-    const measured = {};
-    if (next === "free" && gridRef.current) {
-      for (const node of gridRef.current.querySelectorAll("[data-widget-id]")) {
-        const h = node.getBoundingClientRect().height;
-        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / (rowPx + 12)));
-      }
-    }
-    persist({
-      ...home,
-      pages: home.pages.map((p) => (p.id !== page.id ? p : {
-        ...p,
-        layoutMode: next,
-        widgets: next === "free" ? packPositions(p.widgets, gridCols, measured) : p.widgets,
-      })),
-    });
-  };
-
   const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...home, enabled: false }));
   // Hold-still-to-lift (owner spec): 0.3s stationary hold starts a move;
   // tolerance cancels activation if the pointer moves during the delay, so
@@ -1440,18 +1417,6 @@ export default function ExperimentalDashboard({
                 Close gaps
               </button>
             )}
-            <button
-              type="button"
-              onClick={toggleLayoutMode}
-              title="Flow packs widgets in order; Free lets you put each one where you want, gaps and all"
-              className={`text-[0.625rem] px-2 py-1 rounded-full border whitespace-nowrap transition-all ${
-                page.layoutMode === "free"
-                  ? "border-primary/60 bg-primary/10 text-primary"
-                  : "border-border/40 text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Layout: {page.layoutMode === "free" ? "Free" : "Flow"}
-            </button>
             <button
               type="button"
               onClick={() => {

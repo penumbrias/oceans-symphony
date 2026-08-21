@@ -179,17 +179,33 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
       const gridCols = cur.grid?.phoneCols || 4;
       const hasPos = (w) => w.pos && Number.isFinite(parseInt(w.pos.x, 10)) && Number.isFinite(parseInt(w.pos.y, 10));
       // Existing widgets WITHOUT positions (seeded/flow-era pages) are
-      // seated first in their flow order — findFreeCell only respects
-      // positioned widgets, so leaving them null would let newcomers
-      // land on the cells they visually occupy.
+      // seated first in their flow order so the block lands below what
+      // the user actually sees.
       const seated = [];
       for (const w of target.widgets || []) {
         seated.push(hasPos(w) ? w : { ...w, pos: findFreeCell(seated, gridCols, w.span || { cols: 1, rows: 1 }) });
       }
-      const incoming = packPages.flatMap((p, pi) => mkWidgets(p, pi, { dropPos: true }));
-      for (const w of incoming) {
-        w.pos = findFreeCell(seated, gridCols, w.span || { cols: 1, rows: 1 });
-        seated.push(w);
+      // The imported layout is a RIGID BLOCK (owner spec): its internal
+      // arrangement — including deliberate gaps — is preserved exactly;
+      // only the whole block's vertical offset changes, landing below
+      // the page's existing content. Pack widgets without positions get
+      // seated within the block first (relative space), never scattered.
+      let baseY = 0;
+      for (const w of seated) baseY = Math.max(baseY, (w.pos?.y || 0) + (w.span?.rows || 1));
+      for (const [pi, p] of packPages.entries()) {
+        const block = mkWidgets(p, pi); // keep the pack's own positions
+        const placed = block.filter(hasPos);
+        for (const w of block) {
+          if (!hasPos(w)) { w.pos = findFreeCell(placed, gridCols, w.span || { cols: 1, rows: 1 }); placed.push(w); }
+        }
+        const minY = block.length ? Math.min(...block.map((w) => w.pos.y)) : 0;
+        let blockBottom = baseY;
+        for (const w of block) {
+          w.pos = { x: w.pos.x, y: w.pos.y - minY + baseY };
+          blockBottom = Math.max(blockBottom, w.pos.y + (w.span?.rows || 1));
+          seated.push(w);
+        }
+        baseY = blockBottom; // multi-page packs stack block after block
       }
       target.widgets = seated;
     } else {

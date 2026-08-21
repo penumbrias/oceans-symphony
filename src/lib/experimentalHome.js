@@ -188,13 +188,11 @@ export function resolveExperimentalHome(stored, registry = {}) {
     out.pages.push({
       id: pageId,
       label: typeof p.label === "string" ? p.label : "",
-      // "flow": widgets pack in order (the original behaviour). "free":
-      // each widget sits at the cell the user put it in, gaps and all.
-      // NEW pages default to free (owner call, v0.207.1) — but stored
-      // pages that never wrote a layoutMode were arranged under flow and
-      // must stay flow, so the missing-value fallback stays "flow" and
-      // every creation site writes "free" explicitly.
-      layoutMode: p.layoutMode === "free" ? "free" : "flow",
+      // Flow mode is RETIRED (owner, v0.209.0): every page is the free
+      // grid. Stored layoutMode is ignored on read (never rewritten —
+      // data preservation); legacy flow pages' pos-less widgets flow in
+      // order until the board's fit pass seats them.
+      layoutMode: "free",
       // Who this page is for. Empty = everyone. Non-empty = only shown
       // while one of these alters is fronting (soft hiding, not a lock).
       visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.filter((x) => typeof x === "string" && x) : [],
