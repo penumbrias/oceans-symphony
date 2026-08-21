@@ -17,6 +17,7 @@
 
 import { LOOK_KEYS } from "@/lib/widgetLook";
 import { findFreeCell } from "@/lib/experimentalHome";
+import { getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 
 export const PACK_FORMAT = "symphony_setup_pack";
 export const PACK_VERSION = 1;
@@ -127,10 +128,20 @@ export function buildUiThemeType(uiV2Raw = {}, appTheme = null) {
   // The base colour scheme (theme mode + selected theme + custom colour
   // overrides) — plain hex values, applied via ThemeContext on import.
   if (appTheme) {
+    // Fonts: the app-wide text faces live in the accessibility store
+    // (font family + heading font) and ThemeContext (selectedFont) —
+    // font NAMES only, never font files, so an uploaded custom font
+    // falls back on the importing device. Sizes/contrast stay home:
+    // accessibility settings belong to the user, not the theme.
+    let a11y = {};
+    try { a11y = getAccessibilitySettings() || {}; } catch { /* SSR */ }
     clone.appTheme = scrubLocalRefs({
       selectedTheme: appTheme.selectedTheme || null,
       themeMode: appTheme.themeMode || null,
       customColors: appTheme.customColors || null,
+      selectedFont: appTheme.selectedFont || null,
+      fontFamily: a11y.fontFamily || null,
+      headingFont: a11y.headingFont || null,
     });
   }
   return clone;
@@ -165,7 +176,8 @@ export function summarizePack(pack) {
   const parts = [];
   if (t.layout) {
     const n = (t.layout.pages || []).reduce((s, p) => s + (p.widgets?.length || 0), 0);
-    parts.push(`Layout: ${t.layout.pages?.length || 0} page(s), ${n} widget(s)`);
+    const styled = layoutHasLook(t.layout) || !!t.layout.look;
+    parts.push(`Layout: ${t.layout.pages?.length || 0} page(s), ${n} widget(s)${styled ? " · appearance included" : " · appearance NOT included (tick \"Include widget appearance\" when sharing)"}`);
   }
   if (t.widgetStyles) parts.push(`Widget styles: ${t.widgetStyles.length} (${t.widgetStyles.map((s) => s.label).join(", ").slice(0, 80)})`);
   if (t.uiTheme) parts.push("UI theme: Display-options state (bars, tokens, looks)");
@@ -341,7 +353,13 @@ export function applyAppTheme(at) {
     } else {
       localStorage.removeItem("symphony_customColors");
     }
+    if (at.selectedFont) localStorage.setItem("symphony_selectedFont", at.selectedFont);
     window.dispatchEvent(new CustomEvent("symphony-theme-storage-change"));
+    // Accessibility-store fonts apply live through their own setters.
+    try {
+      if (at.fontFamily) setAccessibilityFontFamily(at.fontFamily);
+      if (at.headingFont) setAccessibilityHeadingFont(at.headingFont);
+    } catch { /* non-fatal */ }
     return true;
   } catch { return false; }
 }

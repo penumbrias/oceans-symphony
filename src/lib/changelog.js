@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Setup packs now carry your fonts (body, headings and the theme font — names only, not files). The pack summary also says plainly whether widget appearance is included, so it's clear when \"Include widget appearance\" wasn't ticked on export." },
       { type: "fix", text: "Setup packs now carry a themed board properly: the app colour theme rides the UI-theme type, the home screen's background colours and board style travel with appearance, and widgets styled with a saved style keep that style on import. (Background images still can't travel — they're local files.)" },
       { type: "improve", text: "Importing a styled layout pack now asks whether to take the pack's widget appearance or keep your own styling — so you can mix one pack's arrangement with another pack's theme." },
       { type: "fix", text: "Deleting a home page deletes its widgets with it instead of dumping them onto the next page — the toast's Undo restores everything if it was a slip." },

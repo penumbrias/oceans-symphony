@@ -201,7 +201,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   // The base colour scheme rides the UI-theme type (it lives in
   // ThemeContext, not ui_v2 — without it a themed board arrived washed
   // out on the default palette).
-  const { selectedTheme, themeMode, customColors } = useTheme();
+  const { selectedTheme, themeMode, customColors, selectedFont } = useTheme();
   const fileRef = useRef(null);
   const [tab, setTab] = useState("export"); // export | import
   const [title, setTitle] = useState("");
@@ -260,9 +260,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
       title: title || "My setup",
       layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook }) : null,
       widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
-      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors }) : null,
+      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors, selectedFont }) : null,
     });
-  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw, selectedTheme, themeMode, customColors]);
+  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw, selectedTheme, themeMode, customColors, selectedFont]);
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
 
   const download = async () => {
