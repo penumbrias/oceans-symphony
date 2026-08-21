@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Adding an imported layout to a page with widgets on it now slots each widget into the next empty space — they were still piling on top of each other." },
       { type: "fix", text: "The Add widgets menu no longer has its bottom rows hidden behind the edit bar." },
       { type: "fix", text: "Adding an imported layout to your current page places its widgets below what's already there, instead of piling them on top of each other." },
       { type: "fix", text: "The \"Continue setup\" banner sits above the bottom bar and quick-actions bar instead of covering them." },
