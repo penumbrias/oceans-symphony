@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Home-screen edit mode: the Quick actions chip opens that bar's own options, previewed bars stack cleanly above the edit bar instead of overlapping, and opening one options menu closes the others." },
+      { type: "improve", text: "Setup packs: \"Review what's included\" now lists the pack's contents in plain language, the way the app names them — the raw code stays viewable below it. The sheet also no longer hides behind the edit bar." },
       { type: "improve", text: "Editing the home screen tucks the quick-actions and pinned {{alters}} bars away — the edit bar's eye previews them, and each has its own options chip there. The cog on the pinned bar itself is gone (its options live in Display options and its config sheet)." },
       { type: "fix", text: "The widget edit buttons sit inside the widget now, so they can't get clipped at the screen edges." },
       { type: "feature", text: "Editing the home screen now has its own bottom bar — Widgets, Close gaps, Display options, Save (with save/share/import), and Exit (asking save or discard). The corner buttons are gone, and edit sheets no longer cover the bar." },

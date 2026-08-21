@@ -549,8 +549,8 @@ export default function ExperimentalDashboard({
   React.useEffect(() => {
     const openApps = () => { setDrawerOpen(true); };
     const editHome = () => { setEditMode(true); };
-    const homeSettings = () => { setHomeSettingsOpen(true); };
-    const barOptions = () => { setConfigId(BAR_CONFIG_ID); };
+    const homeSettings = () => { openHomeSettings(); };
+    const barOptions = () => { openConfig(BAR_CONFIG_ID); };
     window.addEventListener("os-v2-bar-options", barOptions);
     window.addEventListener("os-v2-open-apps", openApps);
     window.addEventListener("os-v2-edit-home", editHome);
@@ -563,10 +563,10 @@ export default function ExperimentalDashboard({
         sessionStorage.removeItem("symphony_v2_edit-home"); setEditMode(true);
       }
       if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
-        sessionStorage.removeItem("symphony_v2_home-settings"); setHomeSettingsOpen(true);
+        sessionStorage.removeItem("symphony_v2_home-settings"); openHomeSettings();
       }
       if (sessionStorage.getItem("symphony_v2_bar-options") === "1") {
-        sessionStorage.removeItem("symphony_v2_bar-options"); setConfigId(BAR_CONFIG_ID);
+        sessionStorage.removeItem("symphony_v2_bar-options"); openConfig(BAR_CONFIG_ID);
       }
     } catch { /* storage off */ }
     return () => {
@@ -611,6 +611,45 @@ export default function ExperimentalDashboard({
     document.documentElement.setAttribute("data-v2-peek", "1");
     return () => document.documentElement.removeAttribute("data-v2-peek");
   }, [homeSettingsOpen]);
+  // ONE edit surface at a time (owner): opening any of the widget/bar
+  // config sheet, Display options, the pack sheet or the widget drawer
+  // closes the others — stacked half-open menus were unusable.
+  const [homeSettingsNonce, setHomeSettingsNonce] = useState(0);
+  const closeEditSurfaces = () => {
+    setConfigId(null); setHomeSettingsOpen(false); setPackSheetOpen(false);
+    setDrawerOpen(false); setSaveMenuOpen(false); setExitMenuOpen(false);
+  };
+  const openConfig = (id) => { closeEditSurfaces(); setConfigId(id); };
+  const openHomeSettings = () => { closeEditSurfaces(); setHomeSettingsNonce((n) => n + 1); setHomeSettingsOpen(true); };
+  const openPackSheet = () => { closeEditSurfaces(); setPackSheetOpen(true); };
+  const openWidgetDrawer = (tab = null) => { closeEditSurfaces(); setDrawerTabRequest(tab); setDrawerOpen(true); };
+  // Open Display options directly on Bars → Quick actions (the edit bar's
+  // chip): SubSection reads its open state from sessionStorage on mount.
+  const openQuickActionsOptions = () => {
+    try {
+      const set = (k, v) => sessionStorage.setItem(`os_sub_${k}`, v);
+      set("edit-bars", "1"); set("edit-bar-actions", "1");
+      for (const k of ["edit-size", "edit-colors", "edit-presets", "edit-bar-top", "edit-bar-bottom", "edit-bar-side", "edit-bar-alters"]) set(k, "0");
+    } catch { /* storage off */ }
+    openHomeSettings();
+  };
+  // Publish the edit bar's height so the chrome can lift previewed bars
+  // (and open sheets can pad) clear of it. 0/absent outside edit mode.
+  const editBarRef = React.useRef(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!editMode) { root.style.removeProperty("--home-edit-bar-h"); return undefined; }
+    const el = editBarRef.current;
+    const publish = () => {
+      const box = editBarRef.current?.getBoundingClientRect();
+      if (box) root.style.setProperty("--home-edit-bar-h", `${Math.ceil(box.height)}px`);
+    };
+    publish();
+    if (!el || typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--home-edit-bar-h");
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty("--home-edit-bar-h"); };
+  }, [editMode]);
   const [styleQuery, setStyleQuery] = useState("");
   const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
@@ -1292,7 +1331,7 @@ export default function ExperimentalDashboard({
           onMode={handleMode}
           onSettings={handleSettings}
           onMove={handleMove}
-          onConfigure={setConfigId}
+          onConfigure={openConfig}
           pickLookMode={!!pickLookFrom}
           pickLookSelected={pickLookIds.includes(w.instanceId)}
           pickLookIsSource={pickLookFrom === w.instanceId}
@@ -1423,7 +1462,7 @@ export default function ExperimentalDashboard({
                 action keys and the {alters} bar live in its Bars section. */}
             <div className="mt-4 pt-3 border-t border-border/40">
               {homeSettingsOpen && (
-                <React.Suspense fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
+                <React.Suspense key={homeSettingsNonce} fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
                   <UiEditSheetBody />
                 </React.Suspense>
               )}
@@ -1448,7 +1487,7 @@ export default function ExperimentalDashboard({
                 className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-              <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} valign={altersValign} />
+              <PinnedAltersGallery showHeader={false} showGear onGear={() => openConfig(BAR_CONFIG_ID)} valign={altersValign} />
             </div>
           )}
         </div>
@@ -1671,7 +1710,7 @@ export default function ExperimentalDashboard({
               className="pointer-events-auto w-full min-w-0">
             <AltersBarCard settingsRow={settingsRow} home={home} className="mx-3"
               onCollapse={() => persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } })}
-              onGear={() => setConfigId(BAR_CONFIG_ID)} />
+              onGear={() => openConfig(BAR_CONFIG_ID)} />
             </motion.div>
           )}
           </AnimatePresence>
@@ -1897,7 +1936,7 @@ export default function ExperimentalDashboard({
           z-[70]: above the vaul sheets (z-50) so Display options / widget
           options never cover it. ── */}
       {editMode && createPortal(
-        <div className="fixed bottom-0 left-0 right-0 z-[70] border-t backdrop-blur-xl"
+        <div ref={editBarRef} className="fixed bottom-0 left-0 right-0 z-[70] border-t backdrop-blur-xl"
           style={{
             background: "var(--color-bg)",
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
@@ -1913,19 +1952,19 @@ export default function ExperimentalDashboard({
               {barsPreview ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             </button>
             <button type="button" aria-label="Quick actions bar options" title="Quick actions bar options"
-              onClick={() => setHomeSettingsOpen(true)}
+              onClick={openQuickActionsOptions}
               className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
               <Settings2 className="w-3 h-3" /> Quick actions
             </button>
             <button type="button" aria-label="Pinned bar options" title="Pinned bar options"
-              onClick={() => setConfigId(BAR_CONFIG_ID)}
+              onClick={() => openConfig(BAR_CONFIG_ID)}
               className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
               <Settings2 className="w-3 h-3" /> Pinned bar
             </button>
           </div>
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>
             <button type="button" aria-label="Add widgets" title="Add widgets"
-              onClick={() => { setDrawerTabRequest("widgets"); setDrawerOpen(true); }}
+              onClick={() => openWidgetDrawer("widgets")}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
               <LayoutGrid className="w-4 h-4" />
               <span className="text-[0.5625rem]">Widgets</span>
@@ -1937,7 +1976,7 @@ export default function ExperimentalDashboard({
               <span className="text-[0.5625rem]">Close gaps</span>
             </button>
             <button type="button" aria-label="Display options" title="Display options"
-              onClick={() => setHomeSettingsOpen(true)}
+              onClick={() => openHomeSettings()}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
               <Settings2 className="w-4 h-4" />
               <span className="text-[0.5625rem]">Display</span>
@@ -1953,9 +1992,9 @@ export default function ExperimentalDashboard({
                 <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
                   <button type="button" onClick={exitSave}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
-                  <button type="button" onClick={() => { setSaveMenuOpen(false); setPackSheetOpen(true); }}
+                  <button type="button" onClick={openPackSheet}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
-                  <button type="button" onClick={() => { setSaveMenuOpen(false); setPackSheetOpen(true); }}
+                  <button type="button" onClick={openPackSheet}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
                 </div>
               )}

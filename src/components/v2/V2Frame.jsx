@@ -827,7 +827,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   // on [edge] alone never re-observed the new element — the published
   // height stayed 0 and the pinned bar sat ON TOP of the card (owner
   // screenshot, "the bars are overlapping").
-  const attached = (uiV2.tokens.actionsAttach || "float") === "attached";
+  // Previewing from board edit mode always uses the floating card and
+  // forces the row open — the attached row lives inside the nav, which
+  // the edit bar covers, so an attached preview would be invisible.
+  const previewLift = homeEdit.editing && homeEdit.preview;
+  const attached = (uiV2.tokens.actionsAttach || "float") === "attached" && !previewLift;
   useEffect(() => {
     const varName = `--v2-qa-float-${edge}-h`;
     const root = document.documentElement;
@@ -841,7 +845,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     ro.observe(el);
     publish();
     return () => { ro.disconnect(); root.style.setProperty(varName, "0px"); };
-  }, [edge, attached]);
+    // homeEdit in the deps: entering/leaving edit mode (and the preview
+    // eye) swaps the portal node in and out — the observer must re-bind
+    // to the NEW node or the published height sticks at 0 and the pinned
+    // bar lands ON the card (the "bars overlap" bug).
+  }, [edge, attached, homeEdit.editing, homeEdit.preview]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
@@ -936,10 +944,10 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     <div className={`fixed left-0 right-0 z-40 ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={edge === "top"
         ? { pointerEvents: "none", top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }
-        : { pointerEvents: "none", bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
+        : { pointerEvents: "none", bottom: "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + 8px)" }}>
       <div ref={floatRef} className="mx-3">
           <AnimatePresence initial={false}>
-            {qaOpen && (
+            {(qaOpen || previewLift) && (
               <motion.div
                 key="qa"
                 initial={{ height: 0, opacity: 0 }}
@@ -1100,6 +1108,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   useBodyPointerWatchdog();
   const homeEdit = useHomeEditMode();
   const barsHidden = homeEdit.editing && !homeEdit.preview;
+  // Preview means "show me the bars" — a collapsed bar still previews.
+  const previewLift = homeEdit.editing && homeEdit.preview;
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -1221,8 +1231,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         // the bar" rather than a floating card (per-user choice).
         style={altersPos === "bottom"
           ? { bottom: altersBarCfg.attached
-              ? "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + var(--v2-qa-float-bottom-h, 0px))"
-              : "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
+              ? "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + var(--v2-qa-float-bottom-h, 0px))"
+              : "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
           : { top: altersBarCfg.attached
               ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
               : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
@@ -1232,7 +1242,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               set_front key's hold. Left/right keep their edge tab (it is
               the vertical bar's only access). */}
           <AnimatePresence initial={false}>
-            {!altersBarCfg.collapsed && (
+            {(!altersBarCfg.collapsed || previewLift) && (
               <motion.div
                 key="alters-bar"
                 initial={{ y: altersPos === "top" ? -24 : 24, opacity: 0 }}
@@ -1266,7 +1276,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         }}
       >
         <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
-        {!altersBarCfg.collapsed && (
+        {(!altersBarCfg.collapsed || previewLift) && (
           <div className="pointer-events-auto">
             <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
               orientation="vertical"

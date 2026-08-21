@@ -16,6 +16,8 @@ import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
   parsePack, summarizePack, packLooksSafe,
 } from "@/lib/setupPacks";
+import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
+import { useTerms } from "@/lib/useTerms";
 
 const box = "rounded-xl border border-border/50 p-2.5 space-y-2";
 
@@ -32,13 +34,144 @@ function TypeCheck({ label, desc, checked, onChange, disabled = false }) {
   );
 }
 
+// ── Friendly review — the pack's contents the way the app names them,
+// not the code behind them. The raw JSON stays available below it.
+const KEY_LABELS = {
+  font: "Font", fontScale: "Text size", radius: "Corner radius",
+  borderW: "Border width", borderColor: "Border colour", borderStyle: "Border style",
+  accent: "Accent colour", bg: "Background", bgOpacity: "Background opacity",
+  bgImage: "Background image", bgSize: "Background image fit",
+  textColor: "Text colour", padding: "Padding", shadow: "Shadow", css: "Custom CSS",
+  padTop: "Top padding", padRight: "Right padding", padBottom: "Bottom padding", padLeft: "Left padding",
+  gradFrom: "Gradient from", gradTo: "Gradient to", gradAngle: "Gradient angle", blur: "Blur",
+  accentOpacity: "Accent opacity", textOpacity: "Text opacity", borderOpacity: "Border opacity",
+  gradFromOpacity: "Gradient-from opacity", gradToOpacity: "Gradient-to opacity",
+  alignX: "Horizontal alignment", actionsMode: "Quick actions mode", actionsEdge: "Quick actions edge",
+  actionsAttach: "Quick actions attach", handleSides: "Handle halves",
+};
+const TOP_LABELS = {
+  tokens: "Size & layout", bars: "Bars shown", barLooks: "Per-bar looks",
+  icons: "Icon choices", commandKeys: "Quick-action keys", background: "Background",
+};
+const keyLabel = (k) => KEY_LABELS[k] || String(k).replace(/[_-]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+const isColor = (v) => typeof v === "string" && /^#[0-9a-fA-F]{3,8}$/.test(v.trim());
+
+function Val({ v }) {
+  if (typeof v === "boolean") return <span className="text-foreground">{v ? "On" : "Off"}</span>;
+  if (isColor(v)) return (
+    <span className="inline-flex items-center gap-1 text-foreground">
+      <span className="w-3 h-3 rounded-sm border border-border/60 inline-block flex-shrink-0" style={{ background: v }} aria-hidden="true" />
+      {v}
+    </span>
+  );
+  return <span className="text-foreground break-all">{String(v)}</span>;
+}
+
+// One key/value line — or, for a nested object, an indented block of them.
+function KVRows({ obj, depth = 0 }) {
+  const entries = Object.entries(obj || {}).filter(([, v]) => v !== undefined && v !== null && v !== "");
+  if (!entries.length) return <p className="text-[0.6875rem] text-muted-foreground">Nothing set — app defaults.</p>;
+  return (
+    <div className="space-y-0.5">
+      {entries.map(([k, v]) => {
+        const label = depth === 0 ? (TOP_LABELS[k] || keyLabel(k)) : keyLabel(k);
+        if (Array.isArray(v)) return (
+          <p key={k} className="text-[0.6875rem]"><span className="text-muted-foreground">{label}:</span>{" "}
+            <span className="text-foreground break-all">{v.map((x) => (typeof x === "object" ? "(complex)" : String(x))).join(", ") || "none"}</span></p>
+        );
+        if (v && typeof v === "object") {
+          if (depth >= 2) return null;
+          return (
+            <div key={k} className="pt-0.5">
+              <p className="text-[0.6875rem] font-medium">{label}</p>
+              <div className="pl-2.5 border-l border-border/40 ml-0.5"><KVRows obj={v} depth={depth + 1} /></div>
+            </div>
+          );
+        }
+        return (
+          <p key={k} className="text-[0.6875rem] flex items-baseline gap-1">
+            <span className="text-muted-foreground flex-shrink-0">{label}:</span> <Val v={v} />
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function FriendlyReview({ pack }) {
+  const terms = useTerms();
+  const [open, setOpen] = useState(false);
+  const t = pack?.types || {};
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+        className="w-full flex items-center justify-between text-xs font-medium py-1">
+        <span>Review what's included</span>
+        <ChevronDown className="w-3.5 h-3.5" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+      </button>
+      {open && (
+        <div className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-border/40 bg-muted/20 p-2 space-y-2.5">
+          {t.layout && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold">Widget layout</p>
+              {(t.layout.pages || []).map((pg, pi) => (
+                <div key={pi} className="space-y-1">
+                  <p className="text-[0.6875rem] text-muted-foreground">Page {pi + 1} · {pg.layoutMode === "free" ? "free placement" : "flowing"} · {(pg.widgets || []).length} widget(s)</p>
+                  {(pg.widgets || []).map((w, wi) => {
+                    const def = WIDGET_REGISTRY[w.widgetId];
+                    const st = Object.fromEntries(Object.entries(w.settings || {}).filter(([, v]) => v !== "" && v != null));
+                    return (
+                      <div key={wi} className="rounded-md border border-border/40 px-2 py-1.5">
+                        <p className="text-[0.6875rem] font-medium">
+                          {def ? widgetLabel(def, terms) : w.widgetId}
+                          <span className="text-muted-foreground font-normal">
+                            {w.span ? ` · ${w.span.cols}×${w.span.rows}` : ""}{w.mode && w.mode !== "normal" ? ` · ${w.mode}` : ""}
+                          </span>
+                        </p>
+                        {Object.keys(st).length > 0 && <div className="pt-0.5"><KVRows obj={st} depth={1} /></div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          {t.widgetStyles && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold">Widget styles</p>
+              {t.widgetStyles.map((sty, si) => (
+                <div key={si} className="rounded-md border border-border/40 px-2 py-1.5">
+                  <p className="text-[0.6875rem] font-medium">{sty.label}</p>
+                  <div className="pt-0.5"><KVRows obj={sty.look} depth={1} /></div>
+                </div>
+              ))}
+            </div>
+          )}
+          {t.uiTheme && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold">UI theme</p>
+              <KVRows obj={t.uiTheme} />
+            </div>
+          )}
+          {!t.layout && !t.widgetStyles && !t.uiTheme && (
+            <p className="text-[0.6875rem] text-muted-foreground">Nothing selected yet.</p>
+          )}
+          <p className="text-[0.625rem] text-muted-foreground border-t border-border/40 pt-1.5">
+            This is everything in the pack — there is nothing beyond what's listed here and in the raw code below.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RawReview({ json }) {
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button type="button" onClick={() => setOpen((v) => !v)}
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
         className="w-full flex items-center justify-between text-xs font-medium py-1">
-        <span>Review the exact contents</span>
+        <span>View the raw code</span>
         <ChevronDown className="w-3.5 h-3.5" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
       </button>
       {open && (
@@ -159,7 +292,7 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
           <DrawerDescription className="sr-only">Share or import home-screen layouts, widget styles and UI themes.</DrawerDescription>
         </DrawerHeader>
         <div className="px-4 pb-6 overflow-y-auto overscroll-contain space-y-3"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px + var(--home-edit-bar-h, 0px))" }}>
           <div className="flex gap-1">
             {[["export", "Share"], ["import", "Import"]].map(([id, label]) => (
               <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
@@ -186,6 +319,7 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
               <p className="text-[0.6875rem] text-muted-foreground">
                 Personal data never rides along: journals, groups, images and every record reference are stripped automatically. Review below before sharing.
               </p>
+              <FriendlyReview pack={pack} />
               <RawReview json={packJson} />
               <div className="flex gap-2">
                 <button type="button" onClick={download} disabled={!Object.values(inc).some(Boolean)}
@@ -236,6 +370,7 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
                 <TypeCheck label="Save to my app as a preset" desc="Keeps the whole pack under Setup packs for later."
                   checked={saveAsPreset} onChange={setSaveAsPreset} />
               </div>
+              <FriendlyReview pack={imported} />
               <RawReview json={JSON.stringify(imported, null, 2)} />
               <div className="flex gap-2">
                 <button type="button" onClick={applyImport}
