@@ -40,6 +40,7 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildApplyPatch, packToJson } from "@/lib/setupPacks";
+import { shareFile } from "@/lib/shareFile";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
@@ -1095,13 +1096,11 @@ function PresetsSection({ v2 }) {
       toast.success(`${pk.title || "Pack"} applied`);
     } catch (e) { toast.error(e?.message || "Couldn't apply the pack"); }
   };
-  const downloadSavedPack = (pk) => {
+  const downloadSavedPack = async (pk) => {
     const blob = new Blob([packToJson(pk)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${(pk.title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const filename = `${(pk.title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
+    const res = await shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
+    if (res?.result === "failed") toast.error("Couldn't save the file");
   };
   const deleteSavedPack = async (pk) => {
     if (!settingsRow?.id) return;

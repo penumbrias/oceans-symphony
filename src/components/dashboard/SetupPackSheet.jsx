@@ -18,6 +18,8 @@ import {
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { useTerms } from "@/lib/useTerms";
+import { shareFile } from "@/lib/shareFile";
+import { isNative } from "@/lib/platform";
 
 const box = "rounded-xl border border-border/50 p-2.5 space-y-2";
 
@@ -207,13 +209,12 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
   }, [tab, title, inc, home, userStyles, uiV2Raw]);
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
 
-  const download = () => {
+  const download = async () => {
     const blob = new Blob([packJson], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${(title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const filename = `${(title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
+    const res = await shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
+    if (res?.result === "failed") toast.error("Couldn't save the file — try Copy instead");
+    else if (res?.result && res.result !== "cancelled") toast.success(isNative() ? "Saved" : "Downloading…");
   };
   const copy = async () => {
     try { await navigator.clipboard.writeText(packJson); toast.success("Copied"); }
@@ -233,9 +234,19 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
     e.target.value = "";
     if (f) readText(await f.text());
   };
+  const [manualPaste, setManualPaste] = useState(false);
+  const [manualText, setManualText] = useState("");
   const paste = async () => {
-    try { readText(await navigator.clipboard.readText()); }
-    catch { toast.error("Couldn't read the clipboard — use the file picker"); }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) throw new Error("empty");
+      readText(text);
+    } catch {
+      // Reading the clipboard is blocked far more often than writing it
+      // (Firefox, most WebViews) — hand the user a box to paste into.
+      setManualPaste(true);
+      toast.info("Couldn't read the clipboard directly — paste into the box below.");
+    }
   };
 
   const applyImport = async () => {
@@ -301,17 +312,38 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
           )}
 
           {tab === "import" && !imported && (
-            <div className="flex gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()}
-                className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
-                <Upload className="w-3.5 h-3.5" /> Pick a file
-              </button>
-              <button type="button" onClick={paste}
-                className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
-                <ClipboardPaste className="w-3.5 h-3.5" /> Paste
-              </button>
-              <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} />
-            </div>
+            <>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5" /> Pick a file
+                </button>
+                <button type="button" onClick={paste}
+                  className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
+                  <ClipboardPaste className="w-3.5 h-3.5" /> Paste
+                </button>
+                <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} />
+              </div>
+              {!manualPaste && (
+                <button type="button" onClick={() => setManualPaste(true)}
+                  className="text-[0.6875rem] text-muted-foreground underline underline-offset-2">
+                  Paste manually instead
+                </button>
+              )}
+              {manualPaste && (
+                <div className="space-y-1.5">
+                  <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
+                    placeholder='Long-press → Paste the pack text here ({"__format":"symphony_setup_pack"…)'
+                    rows={4}
+                    className="w-full px-2.5 py-2 rounded-lg border border-border/50 bg-transparent text-[0.6875rem] font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <button type="button" disabled={!manualText.trim()}
+                    onClick={() => { readText(manualText.trim()); }}
+                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40">
+                    Read it
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {tab === "import" && imported && (

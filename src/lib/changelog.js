@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Setup packs: Download actually saves the file now (it silently did nothing in the app), and when the clipboard can't be read, Import offers a box to paste the pack into." },
       { type: "fix", text: "The edit history no longer fills with phantom \"Widgets & layout\" entries just from opening a widget's options — only your own changes are recorded." },
       { type: "fix", text: "Undo now reverses a whole slider drag in one step instead of walking back through every value it passed." },
       { type: "improve", text: "New home screens and pages start in Free layout (existing pages keep whatever they use)." },
