@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
+import { readActiveEndReminderEnabled, writeActiveEndReminderEnabled } from "@/lib/activitySession";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,7 @@ export default function RemindersSettings() {
   // reads localStorage directly (no React Query round-trip on every
   // render). Default ON — see UnresolvedPlansCard.
   const [unresolvedNagOn, setUnresolvedNagOn] = useState(isUnresolvedNagEnabled);
+  const [endCheckinOn, setEndCheckinOn] = useState(() => readActiveEndReminderEnabled());
   // Upcoming-plan reminders. Stored in localStorage (device-specific —
   // intentionally not in SystemSettings, like the unresolved nag
   // above). Writes dispatch a custom event so usePlanReminderSync
@@ -267,6 +269,24 @@ export default function RemindersSettings() {
             try { localStorage.setItem(UNRESOLVED_NAG_KEY, v ? "1" : "0"); } catch {}
             try { window.dispatchEvent(new Event("activity-unresolved-nag-changed")); } catch {}
             toast(v ? "Unresolved-plan reminder enabled" : "Unresolved-plan reminder disabled");
+          }}
+        />
+      </div>
+
+      {/* End-of-plan check-in — a started plan that runs past its
+          scheduled end asks to be wrapped up (it keeps running either
+          way; the planner keeps drawing it to the now line). */}
+      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+        <div>
+          <p className="font-semibold text-sm">Check in when a started plan runs long</p>
+          <p className="text-xs text-muted-foreground">When an active plan passes its scheduled end time, remind me to end or extend it. It stays active until you end it.</p>
+        </div>
+        <Switch
+          checked={endCheckinOn}
+          onCheckedChange={(v) => {
+            setEndCheckinOn(v);
+            writeActiveEndReminderEnabled(v);
+            toast(v ? "End-of-plan check-in enabled" : "End-of-plan check-in disabled");
           }}
         />
       </div>

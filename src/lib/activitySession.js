@@ -16,6 +16,8 @@
 
 import { base44 } from "@/api/base44Client";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { isNative } from "@/lib/platform";
+import { toast } from "sonner";
 
 const KEY = "symphony_active_activities_v1";
 // Pre-multi single-session key (one object). Migrated into the array on read.
@@ -58,14 +60,111 @@ export function getActiveActivities() {
   return arr.map((a) => (a && a.id ? a : { ...a, id: genId() }));
 }
 
+// ── End-of-plan check-in (owner spec) ──────────────────────────────
+// A session started FROM a plan has a scheduled end (plan timestamp +
+// duration). If it's still running when that moment passes, an optional
+// reminder asks whether to wrap it up or let it run — the session keeps
+// running either way (the planner keeps drawing it to the now line).
+const END_REMINDER_KEY = "symphony_active_end_reminder_v1";
+export function readActiveEndReminderEnabled() {
+  try { return localStorage.getItem(END_REMINDER_KEY) !== "0"; } catch { return true; }
+}
+export function writeActiveEndReminderEnabled(on) {
+  try { localStorage.setItem(END_REMINDER_KEY, on ? "1" : "0"); } catch { /* storage off */ }
+}
+
+// The scheduled end for a running session, from its linked plan. Null when
+// there's no plan or no duration. Exported so the planner can draw the
+// dashed "remaining" piece from the same definition.
+export function plannedEndMsFor(session, plan) {
+  if (!session?.planActivityId || !plan?.timestamp) return null;
+  const dur = Number(plan.duration_minutes) || 0;
+  if (!dur) return null;
+  const ms = new Date(plan.timestamp).getTime() + dur * 60000;
+  return Number.isFinite(ms) ? ms : null;
+}
+
+// Native ids live in [1.0e9, 1.4e9): disjoint from the user-reminder
+// scheduler's [1, 1e9) AND the plan scheduler's [1.5e9, 2.1e9) — a
+// collision would let one scheduler cancel another's notification.
+function endNativeIdFor(sessionId) {
+  const seed = `active-end|${sessionId}`;
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) | 0;
+  return 1_000_000_000 + (Math.abs(h) % 400_000_000);
+}
+
+const endWebTimers = new Map();
+
+async function scheduleActiveEndReminder(session) {
+  try {
+    if (!readActiveEndReminderEnabled() || !session?.planActivityId) return;
+    const rows = await base44.entities.Activity.filter({ id: session.planActivityId });
+    const plan = rows?.[0];
+    const endMs = plannedEndMsFor(session, plan);
+    if (!endMs || endMs <= Date.now()) return;
+    const name = plan?.activity_name || session.name || "Activity";
+    const timeLabel = new Date(endMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const title = `${name} was scheduled to end at ${timeLabel}`;
+    const body = "Still going? End it when you're done — it keeps running until you do.";
+    if (isNative()) {
+      const { isNativeNotificationsEnabled, ensureRemindersChannel, REMINDERS_CHANNEL_ID } = await import("@/lib/nativeNotifications");
+      if (!(await isNativeNotificationsEnabled())) return;
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      await ensureRemindersChannel();
+      const nativeId = endNativeIdFor(session.id);
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: nativeId,
+          title,
+          body,
+          channelId: REMINDERS_CHANNEL_ID,
+          largeIcon: "ic_notif_large",
+          schedule: { at: new Date(endMs), allowWhileIdle: true },
+          extra: { kind: "active_end_checkin", sessionId: session.id, activityId: session.planActivityId },
+        }],
+      });
+      updateActiveActivity(session.id, { endReminderNativeId: nativeId });
+      return;
+    }
+    // Web: best-effort while the app is open — in-app toast, plus a
+    // system notification when the user already granted permission.
+    const delay = endMs - Date.now();
+    endWebTimers.set(session.id, setTimeout(() => {
+      endWebTimers.delete(session.id);
+      if (!getActiveActivities().some((a) => a.id === session.id)) return; // already ended
+      toast(title, { description: body, duration: 12000 });
+      try {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification(title, { body });
+        }
+      } catch { /* blocked */ }
+    }, delay));
+  } catch { /* never block starting an activity on reminder plumbing */ }
+}
+
+async function cancelActiveEndReminder(session) {
+  try {
+    const t = endWebTimers.get(session?.id);
+    if (t) { clearTimeout(t); endWebTimers.delete(session.id); }
+    if (session?.endReminderNativeId && isNative()) {
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      await LocalNotifications.cancel({ notifications: [{ id: session.endReminderNativeId }] });
+    }
+  } catch { /* non-fatal */ }
+}
+
 // Start a new running session. Returns the stored item (with its id).
 export function addActiveActivity(obj) {
   const item = { id: genId(), ...obj };
   writeArr([item, ...getActiveActivities()]);
+  scheduleActiveEndReminder(item);
   return item;
 }
 
 export function removeActiveActivity(id) {
+  const gone = getActiveActivities().find((a) => a.id === id);
+  if (gone) cancelActiveEndReminder(gone);
   writeArr(getActiveActivities().filter((a) => a.id !== id));
 }
 

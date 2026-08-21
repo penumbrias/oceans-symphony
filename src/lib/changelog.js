@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Active activities draw on the planner: solid from their start to the now line, and a started plan keeps its remaining scheduled time dashed ahead of the line. Running past the scheduled end just keeps the block growing until you end it." },
+      { type: "feature", text: "Optional check-in when a started plan runs past its scheduled end — a reminder asks whether to wrap it up or keep going (Settings → Reminders)." },
       { type: "improve", text: "Sharing a setup pack is granular now: pick which pages ride along (just your current page by default), untick individual widgets on a page, and choose exactly which saved styles to include." },
       { type: "fix", text: "Setup packs: Download actually saves the file now (it silently did nothing in the app), and when the clipboard can't be read, Import offers a box to paste the pack into." },
       { type: "fix", text: "The edit history no longer fills with phantom \"Widgets & layout\" entries just from opening a widget's options — only your own changes are recorded." },

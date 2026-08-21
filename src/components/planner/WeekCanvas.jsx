@@ -25,6 +25,7 @@ import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
 import { useTerms } from "@/lib/useTerms";
 import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
+import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/lib/activitySession";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -439,7 +440,8 @@ function DayColumn({
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
                 background: isLive ? `${colorFor(b)}55` : `${colorFor(b)}2e`,
                 borderLeft: `2px solid ${colorFor(b)}`,
-                opacity: isLive ? 1 : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
+                opacity: isLive ? 1 : b._live && b.status !== "scheduled" ? 1
+                  : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
                 borderStyle: b.status === "scheduled" ? "dashed" : "solid",
                 // ARMED for resize: unmistakable "you're now editing this
                 // block's time" — accent ring, richer fill, a hair of scale,
@@ -464,7 +466,7 @@ function DayColumn({
                   instantly on pointerdown meant a thumb landing near an
                   edge resized the entry instead of opening it — silently
                   changing logged data by trying to LOOK at it. */}
-              {bottom - top >= 30 && !spansDays && (
+              {bottom - top >= 30 && !spansDays && !b._live && (
                 <>
                   <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
                     onPointerDown={(e) => armResize(e, { id: b.id, edge: "top", startMin: b.startMin, endMin: b.endMin }, b)} />
@@ -472,11 +474,12 @@ function DayColumn({
                     onPointerDown={(e) => armResize(e, { id: b.id, edge: "bottom", startMin: b.startMin, endMin: b.endMin }, b)} />
                 </>
               )}
-              <button type="button" onClick={() => onOpenBlock(b)}
+              <button type="button"
+                onClick={() => (b._live ? (b._planRecord && onOpenBlock(b._planRecord)) : onOpenBlock(b))}
                 className="w-full h-full text-left px-1 py-0.5"
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
-                  {b.continuesBefore ? "↰ " : ""}{b.activity_name || tr("planner.untitled")}
+                  {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>
                 {isLive && (
                   <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
@@ -597,6 +600,22 @@ export default function WeekCanvas({
     return () => clearInterval(id);
   }, []);
 
+  // Running sessions (the Active-now store) draw ON the canvas: solid from
+  // their start to the now line, and — when started from a plan with a
+  // scheduled end — dashed with plan opacity from the now line to that end
+  // (the unresolved-plan grammar). Past the scheduled end the solid piece
+  // simply keeps following the now line until the session is ended.
+  const [sessions, setSessions] = useState(() => getActiveActivities());
+  React.useEffect(() => {
+    const sync = () => setSessions(getActiveActivities());
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(ACTIVE_ACTIVITY_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const colorFor = useCallback(
     (a) => a?.color || categoryColor(categoryIdOf(a)) || "#6366f1",
@@ -617,8 +636,11 @@ export default function WeekCanvas({
     // layout engine (toSpan) already clips a block at midnight and marks
     // continuesBefore/After; it just never received the block on the
     // second day because bucketing was by start date alone.
+    // A plan that's been STARTED is rendered live (below) — its stored
+    // block would double up with the live pieces.
+    const livePlanIds = new Set(sessions.map((x) => x.planActivityId).filter(Boolean));
     const timed = activities
-      .filter((a) => a.timestamp)
+      .filter((a) => a.timestamp && !livePlanIds.has(a.id))
       .map((a) => {
         const start = new Date(a.timestamp);
         const mins = Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0;
@@ -630,6 +652,35 @@ export default function WeekCanvas({
         if (!a.end) return a.start >= dayStart && a.start < dayEnd;
         return a.start < dayEnd && a.end > dayStart;
       });
+
+    // Live pieces for each running session.
+    const now = nowTick;
+    for (const sess of sessions) {
+      const start = sess.startTime ? new Date(sess.startTime) : null;
+      if (!start || Number.isNaN(start.getTime()) || start > now) continue;
+      const plan = sess.planActivityId ? activities.find((a) => a.id === sess.planActivityId) : null;
+      const name = sess.name || plan?.activity_name || "Activity";
+      const color = sess.color || plan?.color || null;
+      const endMs = plannedEndMsFor(sess, plan);
+      // Elapsed: solid, start → now (grows with the now line).
+      if (now > dayStart && start < dayEnd) {
+        timed.push({
+          id: `live_${sess.id}`, activity_name: name, color,
+          status: "logged", start, end: now,
+          _live: true, _planRecord: plan || null,
+          activity_category_ids: plan?.activity_category_ids || (sess.categoryId ? [sess.categoryId] : []),
+        });
+      }
+      // Remaining scheduled time: dashed plan grammar, now → scheduled end.
+      if (endMs && endMs > now.getTime()) {
+        timed.push({
+          id: `live_${sess.id}_rest`, activity_name: name, color,
+          status: "scheduled", start: now, end: new Date(endMs),
+          _live: true, _planRecord: plan || null,
+          activity_category_ids: plan?.activity_category_ids || [],
+        });
+      }
+    }
 
     const laid = layoutDay(timed, dayStart);
     // Front history exactly like the Timeline's alters column: one thin
@@ -676,7 +727,7 @@ export default function WeekCanvas({
       });
 
     return { day, blocks: laid, untimed, bands, marks, total: occupiedMinutes(laid) };
-  }), [days, activities, frontingHistory, emotionCheckIns, alterById]);
+  }), [days, activities, frontingHistory, emotionCheckIns, alterById, sessions, nowTick]);
 
   const weekTotal = perDay.reduce((n, d) => n + d.total, 0);
 
