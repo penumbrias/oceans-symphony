@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Tap your {{system}}'s name in the top bar — or the app icon at the top of the sidebar — to switch {{systems}}, open a side {{system}}, or create a new one." },
       { type: "feature", text: "Active plans can be PAUSED — step away without marking them done. The time so far is saved on the plan and counts toward the total when it finally resolves." },
       { type: "fix", text: "Choosing an outcome (like Partly) for a plan that's still running now also ends the running session — it used to stay active." },
       { type: "feature", text: "Active activities draw on the planner: solid from their start to the now line, and a started plan keeps its remaining scheduled time dashed ahead of the line. Running past the scheduled end just keeps the block growing until you end it." },

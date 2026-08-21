@@ -1,3 +1,4 @@
+import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
@@ -129,18 +130,28 @@ export default function SidebarNav({ open, onClose }) {
         {/* Safe-area + header */}
         <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between px-4 h-14">
-            {/* Tappable logo + title — closes the drawer and goes back to
-                the Dashboard. Gives users a quick way home without
-                hunting for the Dashboard nav row. */}
-            <Link
-              to="/"
-              onClick={onClose}
-              className="flex items-center gap-2 select-none min-h-[44px] px-1 -ml-1 rounded-xl hover:bg-muted/50 transition-colors"
-              aria-label="Go to dashboard"
-            >
-              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
-              <span className="font-display text-base font-semibold text-foreground">Navigation</span>
-            </Link>
+            {/* App icon → the system switcher (switch / side systems /
+                create — owner spec); the title text stays the quick way
+                home. */}
+            <span className="flex items-center gap-1 select-none min-h-[44px] -ml-1">
+              <button
+                type="button"
+                onClick={() => { onClose?.(); openSystemSwitcher(); }}
+                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
+                aria-label="Switch or manage systems"
+                title="Switch or manage systems"
+              >
+                <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
+              </button>
+              <Link
+                to="/"
+                onClick={onClose}
+                className="px-1 rounded-xl hover:bg-muted/50 transition-colors"
+                aria-label="Go to dashboard"
+              >
+                <span className="font-display text-base font-semibold text-foreground">Navigation</span>
+              </Link>
+            </span>
             <div className="flex items-center gap-1">
               {/* Grocery list / privacy cover — relocated from the
                   dashboard header. Still openable via triple-tap or

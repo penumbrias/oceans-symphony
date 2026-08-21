@@ -52,6 +52,7 @@ import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
+import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { EdgeDock } from "@/components/v2/EdgeDock";
@@ -393,9 +394,12 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         {uiV2.topBar.order.filter((id) => !uiV2.topBar.hidden.includes(id)).map((id) => {
           if (id === "spacer") return <span key={id} className="flex-1 min-w-2" />;
           if (id === "name") return (
-            <button key={id} type="button" onClick={() => navigate("/")}
+            // The name opens the SYSTEM SWITCHER (owner spec) — switch,
+            // side systems, create. Home stays a tab/gesture away.
+            <button key={id} type="button" onClick={() => openSystemSwitcher()}
               className="font-semibold text-sm truncate max-w-[34%] text-left flex-shrink"
-              title={settingsRow?.system_name || terms.System}>
+              aria-label={`${settingsRow?.system_name || terms.System} — switch or manage ${terms.systems || "systems"}`}
+              title={`Switch or manage ${terms.systems || "systems"}`}>
               {settingsRow?.system_name || terms.System}
             </button>
           );
