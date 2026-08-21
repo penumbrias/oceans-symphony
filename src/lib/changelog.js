@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Active plans can be PAUSED — step away without marking them done. The time so far is saved on the plan and counts toward the total when it finally resolves." },
+      { type: "fix", text: "Choosing an outcome (like Partly) for a plan that's still running now also ends the running session — it used to stay active." },
       { type: "feature", text: "Active activities draw on the planner: solid from their start to the now line, and a started plan keeps its remaining scheduled time dashed ahead of the line. Running past the scheduled end just keeps the block growing until you end it." },
       { type: "feature", text: "Optional check-in when a started plan runs past its scheduled end — a reminder asks whether to wrap it up or keep going (Settings → Reminders)." },
       { type: "improve", text: "Sharing a setup pack is granular now: pick which pages ride along (just your current page by default), untick individual widgets on a page, and choose exactly which saved styles to include." },

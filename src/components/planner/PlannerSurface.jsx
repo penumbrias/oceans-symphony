@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -505,6 +505,19 @@ export default function PlannerSurface({
   // tracker's lifecycle popover. The plan record stays scheduled until the
   // session ends and logs itself.
   const alreadyActive = !!timing && !timing.create && getActiveActivities().some((a) => a.planActivityId === timing.item.id);
+  // Pause the running session without resolving the plan — elapsed time is
+  // banked on it (see activitySession.pauseActiveActivity).
+  const pauseNow = async () => {
+    const sess = getActiveActivities().find((a) => a.planActivityId === timing?.item?.id);
+    if (!sess) return;
+    try {
+      const { pauseActiveActivity } = await import("@/lib/activitySession");
+      const res = await pauseActiveActivity(sess.id);
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      if (res) toast.success(`⏸ ${res.name} — ${res.total ?? res.minutes}m saved`);
+      setTiming(null);
+    } catch (e) { toast.error(e?.message || "Couldn't pause"); }
+  };
   const startNow = () => {
     if (!timing || timing.create) return;
     const it = timing.item;
@@ -985,9 +998,15 @@ export default function PlannerSurface({
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
               <div className="flex flex-wrap gap-1">
                 {timing.item.status === "scheduled" && (alreadyActive ? (
+                  <>
                   <span className="text-xs px-2.5 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
                     <Play className="w-3 h-3" />{tr("planner.inProgress")}
                   </span>
+                  <button type="button" onClick={pauseNow}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Pause className="w-3 h-3" />{tr("planner.pause")}
+                  </button>
+                  </>
                 ) : (
                   <button type="button" onClick={startNow}
                     className="text-xs px-2.5 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">

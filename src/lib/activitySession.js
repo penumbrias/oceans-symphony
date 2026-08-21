@@ -194,12 +194,20 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
     // Started from an existing PLAN — resolve that plan to "done" rather than
     // creating a duplicate record. Keep its categories/name; stamp the real
     // elapsed time + when it actually happened, and carry over the note +
-    // fronting alters captured during the session.
+    // fronting alters captured during the session. Time banked by earlier
+    // PAUSES (progress_minutes) counts toward the total and is cleared.
+    let banked = 0;
+    try {
+      const rows = await base44.entities.Activity.filter({ id: active.planActivityId });
+      banked = Number(rows?.[0]?.progress_minutes) || 0;
+    } catch { /* no banked time */ }
+    const total = minutes + banked;
     record = await base44.entities.Activity.update(active.planActivityId, {
       status: ACTIVITY_STATUSES.DONE,
       timestamp: start.toISOString(),
-      duration_minutes: minutes,
-      actual_duration_minutes: minutes,
+      duration_minutes: total,
+      actual_duration_minutes: total,
+      progress_minutes: null,
       fronting_alter_ids: alterIds,
       contact_ids: contactIds,
       notes: noteVal,
@@ -224,5 +232,28 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
     });
   }
   removeActiveActivity(active.id);
-  return { record, minutes, name: active.name || "Activity", resolvedPlan: !!active.planActivityId };
+  const total = Number(record?.actual_duration_minutes) || minutes;
+  return { record, minutes: total, name: active.name || "Activity", resolvedPlan: !!active.planActivityId };
+}
+
+// PAUSE a running plan session (owner spec): "I'm not actively engaged in
+// it any more — but it isn't done." The elapsed minutes are BANKED on the
+// plan (progress_minutes accumulates across pauses; folded into the total
+// when the plan finally resolves), the plan's status is untouched, and the
+// session leaves the Active-now store. Plan-less sessions have nothing to
+// keep un-done, so pausing one just ends and logs it.
+export async function pauseActiveActivity(id) {
+  const arr = getActiveActivities();
+  const active = id ? arr.find((a) => a.id === id) : (arr.length === 1 ? arr[0] : null);
+  if (!active) return null;
+  if (!active.planActivityId) return endAndLogActiveActivity(active.id);
+  const minutes = Math.max(1, Math.round((Date.now() - new Date(active.startTime).getTime()) / 60000));
+  let banked = 0;
+  try {
+    const rows = await base44.entities.Activity.filter({ id: active.planActivityId });
+    banked = Number(rows?.[0]?.progress_minutes) || 0;
+  } catch { /* start from this session alone */ }
+  await base44.entities.Activity.update(active.planActivityId, { progress_minutes: banked + minutes });
+  removeActiveActivity(active.id);
+  return { minutes, total: banked + minutes, name: active.name || "Activity", paused: true };
 }

@@ -4,13 +4,14 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow, format } from "date-fns";
-import { X, Clock, Square, Loader2, Timer, Moon } from "lucide-react";
+import { Pause, X, Clock, Square, Loader2, Timer, Moon } from "lucide-react";
 import { toast } from "sonner";
 import {
   getActiveActivities,
   removeActiveActivity,
   updateActiveActivity,
   endAndLogActiveActivity,
+  pauseActiveActivity,
   ACTIVE_ACTIVITY_EVENT,
 } from "@/lib/activitySession";
 
@@ -55,6 +56,19 @@ export function ActivityActionMenu({ activity, onClose }) {
       qc.invalidateQueries({ queryKey: ["activities"] });
       if (res) toast.success(res.resolvedPlan ? `✅ Completed ${res.name} (${res.minutes}m)` : `✅ Logged ${res.name} (${res.minutes}m)`);
     } catch (e) { toast.error(e?.message || "Couldn't save the activity"); }
+    finally { setBusy(false); onClose(); }
+  };
+
+  // Pause: step away WITHOUT completing the plan — elapsed time is banked
+  // on it (accumulates across pauses) and counts when it finally resolves.
+  const handlePause = async () => {
+    setBusy(true);
+    try {
+      if ((noteDraft || "") !== (activity.notes || "")) updateActiveActivity(activity.id, { notes: noteDraft });
+      const res = await pauseActiveActivity(activity.id);
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      if (res) toast.success(`⏸ Paused ${res.name} — ${res.total ?? res.minutes}m saved toward the plan`);
+    } catch (e) { toast.error(e?.message || "Couldn't pause"); }
     finally { setBusy(false); onClose(); }
   };
 
@@ -121,13 +135,19 @@ export function ActivityActionMenu({ activity, onClose }) {
         </div>
 
         {activity.planActivityId && (
-          <p className="text-[11px] text-primary px-0.5">Ending this marks the linked plan as done.</p>
+          <p className="text-[11px] text-primary px-0.5">Ending marks the linked plan done. Pausing steps away without finishing it — the time so far still counts.</p>
         )}
 
         <button type="button" onClick={handleEnd} disabled={busy}
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />} {activity.planActivityId ? "End & complete plan" : "End & log"}
         </button>
+        {activity.planActivityId && (
+          <button type="button" onClick={handlePause} disabled={busy}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-border/60 text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors">
+            <Pause className="w-3.5 h-3.5" /> Pause — not done yet
+          </button>
+        )}
         <button type="button" onClick={handleDiscard}
           className="w-full py-2 rounded-lg text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">Discard</button>
         <button type="button" onClick={onClose}

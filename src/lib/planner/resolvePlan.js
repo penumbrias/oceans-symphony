@@ -53,10 +53,29 @@ export async function startPlanActive(item, { startedAt = new Date(), categories
 }
 
 export async function resolveOutcome(item, status) {
-  await base44.entities.Activity.update(item.id, {
+  // Resolving a plan whose session is still RUNNING must also end that
+  // session — "Partly" used to set the status while the activity stayed
+  // active (owner report). The elapsed time (plus anything banked by
+  // earlier pauses) lands as the plan's actual duration.
+  const patch = {
     status,
     timestamp: item.timestamp || new Date().toISOString(),
-  });
+  };
+  try {
+    const { getActiveActivities, removeActiveActivity } = await import("@/lib/activitySession");
+    const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
+    const banked = Number(item.progress_minutes) || 0;
+    if (sess) {
+      const elapsed = Math.max(1, Math.round((Date.now() - new Date(sess.startTime).getTime()) / 60000));
+      patch.actual_duration_minutes = banked + elapsed;
+      patch.progress_minutes = null;
+      removeActiveActivity(sess.id);
+    } else if (banked && !Number(item.actual_duration_minutes)) {
+      patch.actual_duration_minutes = banked;
+      patch.progress_minutes = null;
+    }
+  } catch { /* resolution still happens without session bookkeeping */ }
+  await base44.entities.Activity.update(item.id, patch);
   if (item.task_id && status === "done") {
     await base44.entities.Task.update(item.task_id, {
       completed: true, is_complete: true, completed_date: new Date().toISOString(),

@@ -346,6 +346,7 @@ export default {
   "planner.whatNone": "No activity linked",
   "planner.startNow": "Start now",
   "planner.inProgress": "In progress",
+  "planner.pause": "Pause",
   "planner.startedToast": "Started — it's now in your Active Activities",
   "planner.close": "Close",
   "planner.modeDuration": "Start + length",
