@@ -62,7 +62,7 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   grid: { phoneCols: 4, rowPx: 80 },
   // App-drawer folders: [{ id, label, appIds: [navCatalogue ids] }].
   drawer: { order: [], folders: [] },
-  pages: [{ id: "p1", label: "Home", layoutMode: "flow", widgets: [] }],
+  pages: [{ id: "p1", label: "Home", layoutMode: "free", widgets: [] }],
 };
 
 let _idCounter = 0;
@@ -188,9 +188,12 @@ export function resolveExperimentalHome(stored, registry = {}) {
     out.pages.push({
       id: pageId,
       label: typeof p.label === "string" ? p.label : "",
-      // "flow": widgets pack in order (the original behaviour, and still the
-      // default). "free": each widget sits at the cell the user put it in,
-      // gaps and all.
+      // "flow": widgets pack in order (the original behaviour). "free":
+      // each widget sits at the cell the user put it in, gaps and all.
+      // NEW pages default to free (owner call, v0.207.1) — but stored
+      // pages that never wrote a layoutMode were arranged under flow and
+      // must stay flow, so the missing-value fallback stays "flow" and
+      // every creation site writes "free" explicitly.
       layoutMode: p.layoutMode === "free" ? "free" : "flow",
       // Who this page is for. Empty = everyone. Non-empty = only shown
       // while one of these alters is fronting (soft hiding, not a lock).
@@ -202,7 +205,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
       widgets,
     });
   }
-  if (out.pages.length === 0) out.pages.push({ id: "p1", label: "Home", layoutMode: "flow", widgets: [] });
+  if (out.pages.length === 0) out.pages.push({ id: "p1", label: "Home", layoutMode: "free", widgets: [] });
   out.defaultPageId = out.pages.some((p) => p.id === src.defaultPageId) ? src.defaultPageId : out.pages[0].id;
   return out;
 }

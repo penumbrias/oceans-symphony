@@ -144,7 +144,7 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     if (!Array.isArray(cur.pages)) cur.pages = [];
     for (const p of t.layout.pages || []) {
       cur.pages.push({
-        layoutMode: p.layoutMode || "flow",
+        layoutMode: p.layoutMode || "free",
         widgets: (p.widgets || []).map((w, i) => ({
           instanceId: `imp_${Date.now().toString(36)}_${cur.pages.length}_${i}`,
           widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },

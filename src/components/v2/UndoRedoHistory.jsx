@@ -62,6 +62,29 @@ function diffLabel(prev, next) {
 
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+// The exact key-paths a change touched (two levels deep) — the identity
+// used to COALESCE a continuous adjustment. Dragging a slider 0→100
+// lands as several throttled writes; without this each write became its
+// own entry and undo walked back through 60, 30, 12… instead of jumping
+// to the value before the drag (owner report).
+function changedPaths(prev, next) {
+  const out = [];
+  const walk = (a, b, path, depth) => {
+    const objs = a && b && typeof a === "object" && typeof b === "object" && !Array.isArray(a) && !Array.isArray(b);
+    if (depth === 0 || !objs) { out.push(path); return; }
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) {
+      if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) walk(a[k], b[k], `${path}.${k}`, depth - 1);
+    }
+  };
+  for (const f of SETTINGS_FIELDS) {
+    if (JSON.stringify(prev.settings[f]) !== JSON.stringify(next.settings[f])) walk(prev.settings[f], next.settings[f], f, 2);
+  }
+  if (JSON.stringify(prev.theme) !== JSON.stringify(next.theme)) walk(prev.theme, next.theme, "theme", 1);
+  return out.sort().join("|");
+}
+const COALESCE_MS = 2500;
+
 export default function UndoRedoButtons() {
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -96,8 +119,20 @@ export default function UndoRedoButtons() {
     if (Date.now() < hist.restoringUntil) return;
     const snap = JSON.parse(snapJson);
     const label = cur ? diffLabel(cur.snap, snap) : "Opened";
+    const paths = cur ? changedPaths(cur.snap, snap) : "";
+    const now = Date.now();
+    // Coalesce: the same knob still moving (same paths, within the
+    // window, cursor at the top, and not the baseline) updates the top
+    // entry in place — one drag, one history step. `ts` refreshes each
+    // write, so a long continuous drag keeps riding the same entry.
+    if (cur && hist.cursor === hist.entries.length - 1 && hist.cursor > 0
+        && paths && paths === cur.paths && now - cur.ts < COALESCE_MS) {
+      hist.entries[hist.cursor] = { ts: now, label, snap, json: snapJson, paths };
+      emit();
+      return;
+    }
     const kept = hist.entries.slice(0, hist.cursor + 1);
-    hist.entries = [...kept, { ts: Date.now(), label, snap, json: snapJson }].slice(-MAX);
+    hist.entries = [...kept, { ts: now, label, snap, json: snapJson, paths }].slice(-MAX);
     hist.cursor = hist.entries.length - 1;
     emit();
   }, [snapJson]);

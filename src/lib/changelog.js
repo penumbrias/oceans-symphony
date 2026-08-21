@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Undo now reverses a whole slider drag in one step instead of walking back through every value it passed." },
+      { type: "improve", text: "New home screens and pages start in Free layout (existing pages keep whatever they use)." },
+      { type: "fix", text: "The edit bar's Quick actions / Pinned bar chips are bigger and spaced off the row below, so taps stop landing on Close gaps." },
       { type: "feature", text: "Undo and redo buttons in the edit menus' headers — tap to step, hold either for a Photoshop-style history list and jump to any earlier state." },
       { type: "improve", text: "{{Alter}} picker dropdowns gained a tree-view toggle that lists {{alters}} under their groups and subsystems." },
       { type: "improve", text: "Setup packs live in the Presets section now too: share or import from there, and packs you saved on import are listed with Apply, Download and Delete." },

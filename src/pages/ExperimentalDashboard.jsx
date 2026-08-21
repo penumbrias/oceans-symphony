@@ -925,7 +925,7 @@ export default function ExperimentalDashboard({
   // ── Page operations (Phase 2) ──────────────────────────────────
   const handleAddPage = () => {
     const id = newPageId();
-    persist({ ...home, pages: [...home.pages, { id, label: `Page ${home.pages.length + 1}`, widgets: [] }] });
+    persist({ ...home, pages: [...home.pages, { id, label: `Page ${home.pages.length + 1}`, layoutMode: "free", widgets: [] }] });
     setSwipeDir(1);
     setActivePageId(id);
   };
@@ -1952,24 +1952,24 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
           }}>
-          <div className="flex items-center gap-1.5 px-3 pt-1.5">
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/30">
             <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground">Bars</span>
             <button type="button" aria-pressed={barsPreview}
               aria-label={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
               title={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
               onClick={() => setBarsPreview((v) => !v)}
-              className={`w-6 h-6 rounded-full border flex items-center justify-center ${barsPreview ? "border-[var(--v2-accent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"}`}>
-              {barsPreview ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              className={`w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 ${barsPreview ? "border-[var(--v2-accent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"}`}>
+              {barsPreview ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" aria-label="Quick actions bar options" title="Quick actions bar options"
               onClick={openQuickActionsOptions}
-              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Settings2 className="w-3 h-3" /> Quick actions
+              className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+              <Settings2 className="w-3.5 h-3.5" /> Quick actions
             </button>
             <button type="button" aria-label="Pinned bar options" title="Pinned bar options"
               onClick={() => openConfig(BAR_CONFIG_ID)}
-              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Settings2 className="w-3 h-3" /> Pinned bar
+              className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+              <Settings2 className="w-3.5 h-3.5" /> Pinned bar
             </button>
           </div>
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>

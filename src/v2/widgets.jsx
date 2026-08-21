@@ -3192,7 +3192,7 @@ export function seedV2Home() {
     // big jumps between sizes were the complaint, not the fine steps.
     wallpaper: { url: "" }, grid: { phoneCols: 8, rowPx: 40 }, drawer: { folders: [] },
     pages: [{
-      id: "p1", label: "Home",
+      id: "p1", label: "Home", layoutMode: "free",
       widgets: [mk("presence", 4, 1), mk("today", 4, 2), mk("running", 4, 1), mk("status", 4, 1)],
     }],
   };
