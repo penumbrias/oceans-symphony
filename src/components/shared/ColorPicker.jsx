@@ -31,7 +31,17 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   const POP_W = 236;
   const popWidth = `min(${POP_W}px, calc(100vw - 16px))`;
 
-  useEffect(() => { setHex(value || '#6366f1'); }, [value]);
+  // Echo guard: dragging emits many onChange values whose (throttled,
+  // async) persists come back through the `value` prop one by one — each
+  // arrival used to snap the knob to a stale colour, so it "wiggled" for
+  // a second after the finger lifted. While the user is the one editing,
+  // local state is the truth; external changes still sync once idle.
+  const lastEditAt = useRef(0);
+  const markEdit = () => { lastEditAt.current = Date.now(); };
+  useEffect(() => {
+    if (Date.now() - lastEditAt.current < 1500) return;
+    setHex(value || '#6366f1');
+  }, [value]);
 
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
@@ -58,11 +68,13 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
 
   const handleHexInput = (e) => {
     const v = e.target.value;
+    markEdit();
     setHex(v);
     if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v);
   };
 
   const handlePickerChange = (color) => {
+    markEdit();
     setHex(color);
     onChange(color);
   };

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Colour pickers no longer wiggle to stale colours right after you lift your finger." },
       { type: "fix", text: "The pinned {{alters}} bar got its chevron toggle back on the bottom handle, so it can be swiped open again. Swiping down on either open bar — pinned {{alters}} or quick actions — now tucks it away." },
       { type: "fix", text: "Home-screen edit mode: the Quick actions chip opens that bar's own options, previewed bars stack cleanly above the edit bar instead of overlapping, and opening one options menu closes the others." },
       { type: "improve", text: "Setup packs: \"Review what's included\" now lists the pack's contents in plain language, the way the app names them — the raw code stays viewable below it. The sheet also no longer hides behind the edit bar." },
