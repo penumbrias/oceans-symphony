@@ -292,7 +292,7 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
           <DrawerDescription className="sr-only">Share or import home-screen layouts, widget styles and UI themes.</DrawerDescription>
         </DrawerHeader>
         <div className="px-4 pb-6 overflow-y-auto overscroll-contain space-y-3"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px + var(--home-edit-bar-h, 0px))" }}>
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
           <div className="flex gap-1">
             {[["export", "Share"], ["import", "Import"]].map(([id, label]) => (
               <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}

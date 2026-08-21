@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "While editing the home screen, options menus no longer have their bottom rows hidden behind the edit bar — every bottom sheet now keeps clear of it." },
       { type: "fix", text: "Colour pickers no longer wiggle to stale colours right after you lift your finger." },
       { type: "fix", text: "The pinned {{alters}} bar got its chevron toggle back on the bottom handle, so it can be swiped open again. Swiping down on either open bar — pinned {{alters}} or quick actions — now tucks it away." },
       { type: "fix", text: "Home-screen edit mode: the Quick actions chip opens that bar's own options, previewed bars stack cleanly above the edit bar instead of overlapping, and opening one options menu closes the others." },

@@ -893,3 +893,13 @@ body > .fixed { pointer-events: auto; }
     font-size: 0.5625rem;
   }
 }
+
+/* Home-board edit mode: the edit bar (z-70) sits ABOVE the vaul sheets
+   (z-50) by design — so every bottom-docked sheet pads itself clear of
+   the bar's published height, keeping its last rows reachable. The var
+   only exists while editing, so this is a no-op everywhere else. */
+html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
+  /* !important: DrawerContent sets its safe-area padding INLINE, which
+     would silently win over this rule. The inset is folded back in. */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-edit-bar-h, 0px)) !important;
+}
