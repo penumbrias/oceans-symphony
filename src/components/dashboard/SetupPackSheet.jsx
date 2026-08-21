@@ -15,6 +15,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
   parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook, applyAppTheme,
+  encodePackCompact, decodePackText,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -258,7 +259,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     if (tab !== "export") return null;
     return buildPack({
       title: title || "My setup",
-      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook }) : null,
+      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook, userStyles }) : null,
       widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
       uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors, selectedFont }) : null,
     });
@@ -273,13 +274,16 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     else if (res?.result && res.result !== "cancelled") toast.success(isNative() ? "Saved" : "Downloading…");
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(packJson); toast.success("Copied"); }
-    catch { toast.error("Couldn't copy — use Download instead"); }
+    try {
+      const code = await encodePackCompact(pack);
+      await navigator.clipboard.writeText(code);
+      toast.success(code.startsWith("OSPACK1.") ? "Copied as a share code — paste it anywhere" : "Copied");
+    } catch { toast.error("Couldn't copy — use Download instead"); }
   };
 
-  const readText = (text) => {
+  const readText = async (text) => {
     try {
-      const p = parsePack(text);
+      const p = parsePack(await decodePackText(text));
       if (!packLooksSafe(p)) { toast.error("This pack contains personal-looking data — refusing to import it."); return; }
       setImported(p);
       setApply({ layout: !!p.types.layout, widgetStyles: !!p.types.widgetStyles, uiTheme: !!p.types.uiTheme });
@@ -419,29 +423,35 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
               </p>
               <FriendlyReview pack={pack} />
               <RawReview json={packJson} />
+              {/* Share code FIRST (owner: "files feel suspicious") — one
+                  compact line that pastes into any chat. The file is the
+                  secondary path. */}
               <div className="flex gap-2">
-                <button type="button" onClick={download} disabled={!pack || !Object.keys(pack.types).length}
-                  className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-40">
-                  <Download className="w-3.5 h-3.5" /> Download
-                </button>
                 <button type="button" onClick={copy} disabled={!pack || !Object.keys(pack.types).length}
+                  className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-40">
+                  <Copy className="w-3.5 h-3.5" /> Copy share code
+                </button>
+                <button type="button" onClick={download} disabled={!pack || !Object.keys(pack.types).length}
                   className="h-9 px-3 rounded-lg border border-border/50 text-sm flex items-center gap-1.5 disabled:opacity-40">
-                  <Copy className="w-3.5 h-3.5" /> Copy
+                  <Download className="w-3.5 h-3.5" /> File
                 </button>
               </div>
+              <p className="text-[0.625rem] text-muted-foreground">
+                The share code is one line of text — paste it in a chat; the other person pastes it into Import.
+              </p>
             </>
           )}
 
           {tab === "import" && !imported && (
             <>
               <div className="flex gap-2">
-                <button type="button" onClick={() => fileRef.current?.click()}
-                  className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
-                  <Upload className="w-3.5 h-3.5" /> Pick a file
-                </button>
                 <button type="button" onClick={paste}
-                  className="flex-1 h-9 rounded-lg border border-border/50 text-sm flex items-center justify-center gap-1.5">
-                  <ClipboardPaste className="w-3.5 h-3.5" /> Paste
+                  className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5">
+                  <ClipboardPaste className="w-3.5 h-3.5" /> Paste a share code
+                </button>
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="h-9 px-3 rounded-lg border border-border/50 text-sm flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5" /> File
                 </button>
                 <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} />
               </div>
@@ -454,7 +464,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
               {manualPaste && (
                 <div className="space-y-1.5">
                   <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
-                    placeholder='Long-press → Paste the pack text here ({"__format":"symphony_setup_pack"…)'
+                    placeholder={'Long-press → Paste the share code (OSPACK1.…) or pack text here'}
                     rows={4}
                     className="w-full px-2.5 py-2 rounded-lg border border-border/50 bg-transparent text-[0.6875rem] font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
                   <button type="button" disabled={!manualText.trim()}

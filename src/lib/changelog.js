@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Setup packs share as a compact one-line code now — copy it, paste it in any chat, and the other person pastes it into Import. Files are still there as the backup option." },
+      { type: "fix", text: "Sharing a layout with appearance now bundles the saved styles its widgets use, so the frost/borders/fonts actually arrive instead of pointing at a style that stayed home." },
       { type: "fix", text: "Setup packs now carry your fonts (body, headings and the theme font — names only, not files). The pack summary also says plainly whether widget appearance is included, so it's clear when \"Include widget appearance\" wasn't ticked on export." },
       { type: "fix", text: "Setup packs now carry a themed board properly: the app colour theme rides the UI-theme type, the home screen's background colours and board style travel with appearance, and widgets styled with a saved style keep that style on import. (Background images still can't travel — they're local files.)" },
       { type: "improve", text: "Importing a styled layout pack now asks whether to take the pack's widget appearance or keep your own styling — so you can mix one pack's arrangement with another pack's theme." },

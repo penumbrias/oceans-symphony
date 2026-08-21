@@ -77,7 +77,7 @@ function sanitizeLook(look = {}) {
 }
 
 // ── Builders ───────────────────────────────────────────────────────
-export function buildLayoutType(home, { includeLook = false } = {}) {
+export function buildLayoutType(home, { includeLook = false, userStyles = [] } = {}) {
   const pages = (home?.pages || []).map((p) => ({
     layoutMode: p.layoutMode || "flow",
     widgets: (p.widgets || []).map((w) => ({
@@ -89,6 +89,20 @@ export function buildLayoutType(home, { includeLook = false } = {}) {
     })),
   }));
   const out = { pages, grid: home?.grid || null };
+  // Appearance is only real if the styles it references travel too: a
+  // widget styled via a saved style ("user:<id>") carries just the ref —
+  // bundle the referenced definitions so layout+appearance is
+  // self-contained even when "Widget styles" isn't ticked.
+  if (includeLook) {
+    const refIds = new Set();
+    for (const p of pages) for (const w of p.widgets) {
+      const st = w.settings?.style;
+      if (typeof st === "string" && st.startsWith("user:")) refIds.add(st.slice(5));
+    }
+    const bundled = (userStyles || []).filter((st) => refIds.has(st.id))
+      .map((st) => ({ id: st.id, label: st.label, look: sanitizeLook(st.look || {}) }));
+    if (bundled.length) out.styles = bundled;
+  }
   // Board-level surface: the page background (gradient layers — image
   // urls scrubbed) and the board style, carried only with appearance —
   // without them a themed board arrived as bare widgets on a default
@@ -202,17 +216,27 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
   // (unmapped refs used to dangle, so styled widgets fell back to
   // default on import — owner screenshots).
   const styleIdMap = {};
-  if (which.widgetStyles && t.widgetStyles) {
-    const existing = Array.isArray(settingsRow?.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
-    const byLabel = Object.fromEntries(existing.map((s) => [s.label, s.id]));
-    const merged = [...existing];
-    for (const st of t.widgetStyles) {
-      if (byLabel[st.label]) { styleIdMap[st.id] = byLabel[st.label]; continue; }
-      const id = `s_${Date.now().toString(36)}_${merged.length}`;
-      styleIdMap[st.id] = id;
-      merged.push({ id, label: st.label, look: st.look || {} });
+  {
+    const incomingStyles = [
+      ...(which.widgetStyles && t.widgetStyles ? t.widgetStyles : []),
+      // Styles bundled inside the layout (referenced by its widgets)
+      // ride whenever the layout's appearance is applied.
+      ...(which.layout && !which.stripLayoutLook && Array.isArray(t.layout?.styles) ? t.layout.styles : []),
+    ];
+    if (incomingStyles.length) {
+      const existing = Array.isArray(settingsRow?.ui_v2_styles) ? settingsRow.ui_v2_styles : [];
+      const byLabel = Object.fromEntries(existing.map((s) => [s.label, s.id]));
+      const merged = [...existing];
+      for (const st of incomingStyles) {
+        if (styleIdMap[st.id]) continue;
+        if (byLabel[st.label]) { styleIdMap[st.id] = byLabel[st.label]; continue; }
+        const id = `s_${Date.now().toString(36)}_${merged.length}`;
+        styleIdMap[st.id] = id;
+        byLabel[st.label] = id;
+        merged.push({ id, label: st.label, look: st.look || {} });
+      }
+      patch.ui_v2_styles = merged;
     }
-    patch.ui_v2_styles = merged;
   }
   if (which.layout && t.layout) {
     const cur = JSON.parse(JSON.stringify(settingsRow?.ui_v2_home || {}));
@@ -362,6 +386,34 @@ export function applyAppTheme(at) {
     } catch { /* non-fatal */ }
     return true;
   } catch { return false; }
+}
+
+// ── Compact share code ─────────────────────────────────────────────
+// "OSPACK1.<base64url(deflate(json))>" — a 7KB pack becomes a ~2KB
+// single-line string that pastes cleanly into a chat message. Falls
+// back to plain JSON where CompressionStream isn't available; the
+// decoder accepts both.
+const PACK_CODE_PREFIX = "OSPACK1.";
+const b64uEncode = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64uDecode = (str) => {
+  const b = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+};
+export async function encodePackCompact(pack) {
+  const json = JSON.stringify(pack);
+  if (typeof CompressionStream === "undefined") return json;
+  try {
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("deflate"));
+    const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+    return PACK_CODE_PREFIX + b64uEncode(buf);
+  } catch { return json; }
+}
+export async function decodePackText(text) {
+  const t = String(text || "").trim();
+  if (!t.startsWith(PACK_CODE_PREFIX)) return t;
+  const bytes = b64uDecode(t.slice(PACK_CODE_PREFIX.length));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return await new Response(stream).text();
 }
 
 // A stored pack row back into a shareable file body.
