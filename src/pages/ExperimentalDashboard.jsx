@@ -2033,7 +2033,7 @@ export default function ExperimentalDashboard({
         document.body
       )}
       <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)} initialTab={packSheetTab}
-        home={home} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
+        home={home} currentPageId={page?.id} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
     </div>
   );
 }

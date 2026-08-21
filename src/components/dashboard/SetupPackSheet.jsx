@@ -5,10 +5,10 @@
 // save the pack to your app as a preset. No personal data ever rides along
 // (see lib/setupPacks.js).
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, Download, ClipboardPaste, Upload, Copy } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, ClipboardPaste, Upload, Copy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
@@ -17,6 +17,12 @@ import {
   parsePack, summarizePack, packLooksSafe, buildApplyPatch,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
+import { V2_WIDGETS } from "@/v2/widgets";
+
+// The v2 board renders V2_WIDGETS; classic-derived boards use
+// WIDGET_REGISTRY — name lookups must cover both or v2-native widgets
+// print as raw ids ("presence").
+const ALL_WIDGET_DEFS = { ...WIDGET_REGISTRY, ...V2_WIDGETS };
 import { useTerms } from "@/lib/useTerms";
 import { shareFile } from "@/lib/shareFile";
 import { isNative } from "@/lib/platform";
@@ -120,7 +126,7 @@ function FriendlyReview({ pack }) {
                 <div key={pi} className="space-y-1">
                   <p className="text-[0.6875rem] text-muted-foreground">Page {pi + 1} · {pg.layoutMode === "free" ? "free placement" : "flowing"} · {(pg.widgets || []).length} widget(s)</p>
                   {(pg.widgets || []).map((w, wi) => {
-                    const def = WIDGET_REGISTRY[w.widgetId];
+                    const def = ALL_WIDGET_DEFS[w.widgetId];
                     const st = Object.fromEntries(Object.entries(w.settings || {}).filter(([, v]) => v !== "" && v != null));
                     return (
                       <div key={wi} className="rounded-md border border-border/40 px-2 py-1.5">
@@ -185,8 +191,9 @@ function RawReview({ json }) {
   );
 }
 
-export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyles, settingsRow, initialTab = null }) {
+export default function SetupPackSheet({ open, onClose, home, currentPageId = null, uiV2Raw, userStyles, settingsRow, initialTab = null }) {
   const qc = useQueryClient();
+  const sheetTerms = useTerms();
   const fileRef = useRef(null);
   const [tab, setTab] = useState("export"); // export | import
   const [title, setTitle] = useState("");
@@ -198,15 +205,48 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
   // specific tab.
   React.useEffect(() => { if (open && initialTab) setTab(initialTab); }, [open, initialTab]);
 
+  // Granular export selection (owner spec): which PAGES ride along
+  // (default: just the page you're on), which WIDGETS on each selected
+  // page, and which saved STYLES. Re-seeded each open so the default
+  // always reflects where the user is standing.
+  const pages = home?.pages || [];
+  const [pageSel, setPageSel] = useState(() => new Set());
+  const [widgetDrop, setWidgetDrop] = useState({}); // pageId -> Set of EXCLUDED instanceIds
+  const [pageOpen, setPageOpen] = useState(null);   // pageId with the widget list expanded
+  const [styleSel, setStyleSel] = useState(() => new Set());
+  useEffect(() => {
+    if (!open) return;
+    const startPage = pages.find((p) => p.id === currentPageId) || pages[0];
+    setPageSel(new Set(startPage ? [startPage.id] : []));
+    setWidgetDrop({});
+    setPageOpen(null);
+    setStyleSel(new Set((userStyles || []).map((st) => st.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const togglePage = (id) => setPageSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleStyle = (id) => setStyleSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleWidget = (pageId, instanceId) => setWidgetDrop((m) => {
+    const cur = new Set(m[pageId] || []);
+    if (cur.has(instanceId)) cur.delete(instanceId); else cur.add(instanceId);
+    return { ...m, [pageId]: cur };
+  });
+  const selectedHome = useMemo(() => ({
+    ...home,
+    pages: pages
+      .filter((p) => pageSel.has(p.id))
+      .map((p) => ({ ...p, widgets: (p.widgets || []).filter((w) => !(widgetDrop[p.id] || new Set()).has(w.instanceId)) })),
+  }), [home, pages, pageSel, widgetDrop]);
+  const selectedStyles = useMemo(() => (userStyles || []).filter((st) => styleSel.has(st.id)), [userStyles, styleSel]);
+
   const pack = useMemo(() => {
     if (tab !== "export") return null;
     return buildPack({
       title: title || "My setup",
-      layout: inc.layout ? buildLayoutType(home) : null,
-      widgetStyles: inc.widgetStyles ? buildWidgetStylesType(userStyles) : null,
+      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome) : null,
+      widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
       uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw) : null,
     });
-  }, [tab, title, inc, home, userStyles, uiV2Raw]);
+  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, uiV2Raw]);
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
 
   const download = async () => {
@@ -287,9 +327,64 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
               <div className={box}>
                 <TypeCheck label="Widget layout" desc="Which widgets, where, at what size — a ready-made home page."
                   checked={inc.layout} onChange={(v) => setInc((s) => ({ ...s, layout: v }))} />
+                {inc.layout && (
+                  <div className="pl-6 space-y-1">
+                    {pages.map((p, i) => {
+                      const on = pageSel.has(p.id);
+                      const drop = widgetDrop[p.id] || new Set();
+                      const expanded = pageOpen === p.id;
+                      const total = (p.widgets || []).length;
+                      return (
+                        <div key={p.id}>
+                          <div className="flex items-center gap-1.5">
+                            <label className="flex items-center gap-2 text-xs cursor-pointer flex-1 min-w-0">
+                              <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary" checked={on} onChange={() => togglePage(p.id)} />
+                              <span className="truncate">
+                                {p.label || `Page ${i + 1}`}
+                                {p.id === currentPageId && <span className="text-muted-foreground"> · this page</span>}
+                                <span className="text-muted-foreground"> · {total - (on ? drop.size : 0)}/{total} widgets</span>
+                              </span>
+                            </label>
+                            {on && total > 0 && (
+                              <button type="button" onClick={() => setPageOpen(expanded ? null : p.id)}
+                                aria-expanded={expanded} aria-label={`Choose widgets on ${p.label || `page ${i + 1}`}`}
+                                className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0">
+                                <ChevronRight className="w-3 h-3" style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform .15s" }} />
+                              </button>
+                            )}
+                          </div>
+                          {on && expanded && (
+                            <div className="pl-5 pt-0.5 space-y-0.5">
+                              {(p.widgets || []).map((w) => (
+                                <label key={w.instanceId} className="flex items-center gap-2 text-[0.6875rem] cursor-pointer">
+                                  <input type="checkbox" className="w-3 h-3 rounded accent-primary"
+                                    checked={!drop.has(w.instanceId)} onChange={() => toggleWidget(p.id, w.instanceId)} />
+                                  <span className="truncate text-muted-foreground">
+                                    {w.settings?.label || widgetLabel(ALL_WIDGET_DEFS[w.widgetId], sheetTerms) || w.widgetId}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <TypeCheck label="Widget styles" desc={`Your saved widget looks (${userStyles.length}) — colours, fonts, borders.`}
                   checked={inc.widgetStyles} onChange={(v) => setInc((s) => ({ ...s, widgetStyles: v }))}
                   disabled={!userStyles.length} />
+                {inc.widgetStyles && userStyles.length > 0 && (
+                  <div className="pl-6 space-y-1">
+                    {userStyles.map((st) => (
+                      <label key={st.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
+                          checked={styleSel.has(st.id)} onChange={() => toggleStyle(st.id)} />
+                        <span className="truncate">{st.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
                 <TypeCheck label="UI theme" desc="Display options — bars, tokens, per-bar looks."
                   checked={inc.uiTheme} onChange={(v) => setInc((s) => ({ ...s, uiTheme: v }))} />
               </div>
@@ -299,11 +394,11 @@ export default function SetupPackSheet({ open, onClose, home, uiV2Raw, userStyle
               <FriendlyReview pack={pack} />
               <RawReview json={packJson} />
               <div className="flex gap-2">
-                <button type="button" onClick={download} disabled={!Object.values(inc).some(Boolean)}
+                <button type="button" onClick={download} disabled={!pack || !Object.keys(pack.types).length}
                   className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-40">
                   <Download className="w-3.5 h-3.5" /> Download
                 </button>
-                <button type="button" onClick={copy} disabled={!Object.values(inc).some(Boolean)}
+                <button type="button" onClick={copy} disabled={!pack || !Object.keys(pack.types).length}
                   className="h-9 px-3 rounded-lg border border-border/50 text-sm flex items-center gap-1.5 disabled:opacity-40">
                   <Copy className="w-3.5 h-3.5" /> Copy
                 </button>

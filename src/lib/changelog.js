@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Sharing a setup pack is granular now: pick which pages ride along (just your current page by default), untick individual widgets on a page, and choose exactly which saved styles to include." },
       { type: "fix", text: "Setup packs: Download actually saves the file now (it silently did nothing in the app), and when the clipboard can't be read, Import offers a box to paste the pack into." },
       { type: "fix", text: "The edit history no longer fills with phantom \"Widgets & layout\" entries just from opening a widget's options — only your own changes are recorded." },
       { type: "fix", text: "Undo now reverses a whole slider drag in one step instead of walking back through every value it passed." },
