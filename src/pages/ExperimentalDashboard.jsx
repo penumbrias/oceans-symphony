@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine,
+  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -355,7 +355,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       )}
 
       {editMode && (
-        <div className="absolute -top-2 -right-2 z-30 flex items-center gap-1">
+        // INSIDE the widget bounds — the old -top-2/-right-2 poked outside
+        // and got clipped by overflow/board edges (owner report).
+        <div className="absolute top-1 right-1 z-30 flex items-center gap-1">
           {/* Widget options (rename / mode / style / icon) */}
           <button
             type="button"
@@ -735,6 +737,15 @@ export default function ExperimentalDashboard({
     if (!editMode) { editSnapshot.current = null; setSaveMenuOpen(false); setExitMenuOpen(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
+  const [barsPreview, setBarsPreview] = useState(false);
+  useEffect(() => {
+    // The chrome (V2Frame) collapses the quick-action + pinned bars while
+    // the board is being edited; the eye chip previews them back in.
+    document.documentElement.toggleAttribute("data-home-edit", editMode);
+    document.documentElement.toggleAttribute("data-home-edit-preview", editMode && barsPreview);
+    try { window.dispatchEvent(new Event("symphony-home-edit-changed")); } catch { /* SSR */ }
+    if (!editMode) setBarsPreview(false);
+  }, [editMode, barsPreview]);
   const exitSave = () => { editSnapshot.current = null; setEditMode(false); };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
@@ -1892,6 +1903,26 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
           }}>
+          <div className="flex items-center gap-1.5 px-3 pt-1.5">
+            <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground">Bars</span>
+            <button type="button" aria-pressed={barsPreview}
+              aria-label={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
+              title={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
+              onClick={() => setBarsPreview((v) => !v)}
+              className={`w-6 h-6 rounded-full border flex items-center justify-center ${barsPreview ? "border-[var(--v2-accent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"}`}>
+              {barsPreview ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            </button>
+            <button type="button" aria-label="Quick actions bar options" title="Quick actions bar options"
+              onClick={() => setHomeSettingsOpen(true)}
+              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Settings2 className="w-3 h-3" /> Quick actions
+            </button>
+            <button type="button" aria-label="Pinned bar options" title="Pinned bar options"
+              onClick={() => setConfigId(BAR_CONFIG_ID)}
+              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Settings2 className="w-3 h-3" /> Pinned bar
+            </button>
+          </div>
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>
             <button type="button" aria-label="Add widgets" title="Add widgets"
               onClick={() => { setDrawerTabRequest("widgets"); setDrawerOpen(true); }}

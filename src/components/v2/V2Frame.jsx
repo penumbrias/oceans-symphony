@@ -799,6 +799,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
 // the top bar (row above the handle, swipe DOWN opens — Display options →
 // Quick action bar → Edge). Open state is a device preference.
 function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
+  const homeEdit = useHomeEditMode();
   const navigate = useNavigate();
   const t = useT();
   const terms = useTerms();
@@ -983,6 +984,8 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
       )}
     </AnimatePresence>
   );
+  // Board edit mode: the strip folds away entirely unless previewed.
+  if (homeEdit.editing && !homeEdit.preview) return null;
   return (
     <>
       {attached && edge === "top" && attachedRow}
@@ -993,6 +996,23 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
       <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
     </>
   );
+}
+
+// While the home board is in edit mode the chrome bars collapse out of
+// the way; the edit bar's eye chip previews them back in. The board
+// publishes both states as <html> attributes + a change event.
+function useHomeEditMode() {
+  const read = () => ({
+    editing: typeof document !== "undefined" && document.documentElement.hasAttribute("data-home-edit"),
+    preview: typeof document !== "undefined" && document.documentElement.hasAttribute("data-home-edit-preview"),
+  });
+  const [state, setState] = useState(read);
+  useEffect(() => {
+    const on = () => setState(read());
+    window.addEventListener("symphony-home-edit-changed", on);
+    return () => window.removeEventListener("symphony-home-edit-changed", on);
+  }, []);
+  return state;
 }
 
 // The quick-action key row's contents — one implementation for the
@@ -1078,6 +1098,8 @@ function useBodyPointerWatchdog() {
 
 export function V2BottomChrome({ uiV2, settingsRow }) {
   useBodyPointerWatchdog();
+  const homeEdit = useHomeEditMode();
+  const barsHidden = homeEdit.editing && !homeEdit.preview;
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -1192,7 +1214,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         }}
         onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
     )}
-    {altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "bottom" || altersPos === "top") && (
+    {!barsHidden && altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "bottom" || altersPos === "top") && (
       <div
         className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
         // Attached: flush against the chrome, edge to edge — "included in
@@ -1234,7 +1256,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           </AnimatePresence>
       </div>
     )}
-    {altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "left" || altersPos === "right") && (
+    {!barsHidden && altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "left" || altersPos === "right") && (
       <div
         className={`fixed z-40 flex items-center gap-1 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
         style={{

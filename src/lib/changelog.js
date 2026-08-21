@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Editing the home screen tucks the quick-actions and pinned {{alters}} bars away — the edit bar's eye previews them, and each has its own options chip there. The cog on the pinned bar itself is gone (its options live in Display options and its config sheet)." },
+      { type: "fix", text: "The widget edit buttons sit inside the widget now, so they can't get clipped at the screen edges." },
       { type: "feature", text: "Editing the home screen now has its own bottom bar — Widgets, Close gaps, Display options, Save (with save/share/import), and Exit (asking save or discard). The corner buttons are gone, and edit sheets no longer cover the bar." },
       { type: "feature", text: "Setup packs: share or import home layouts, widget styles and UI themes as a file — pick which parts to include, review the exact contents first, and save imports as presets. Personal data is stripped automatically, always." },
       { type: "improve", text: "Per-{{front}}-level display styles now live inside the {{Fronting}}-levels section (Settings, guide, and the pinned bar's panel) — one editor, no duplicates." },

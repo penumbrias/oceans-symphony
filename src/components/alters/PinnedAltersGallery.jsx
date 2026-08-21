@@ -156,12 +156,6 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
       return (
         <div className="flex items-center gap-2 py-1.5 px-2 text-xs text-muted-foreground">
           <span className="flex-1 min-w-0">{emptyHint}</span>
-          {showGear && onGear && (
-            <button type="button" onClick={onGear} aria-label="Pinned bar options"
-              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
-              <SettingsIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       );
     }
@@ -198,13 +192,8 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
         </div>
       )}
 
-      {!showHeader && showGear && !rearrange && (
-        <button type="button" onClick={() => (onGear ? onGear() : setGearOpen(true))}
-          aria-label="Pinned settings" title="Pinned settings"
-          className="absolute -top-1 right-0 z-10 p-1 rounded-full text-muted-foreground/70 hover:text-foreground bg-background/80">
-          <SettingsIcon className="w-3 h-3" />
-        </button>
-      )}
+      {/* The headerless (bar/widget) gear is RETIRED (owner) — options live
+          in the widget's own config sheet and Display options → Alter bar. */}
 
       <div style={stripWrapStyle}>
         {rearrange ? (
