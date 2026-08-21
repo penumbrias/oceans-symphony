@@ -23,8 +23,18 @@ const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_home_desktop", "ui_v2_sty
 const MAX = 40;
 const HOLD_MS = 450;
 
-const hist = { entries: [], cursor: -1, restoringUntil: 0, listeners: new Set() };
+const hist = { entries: [], cursor: -1, restoringUntil: 0, quietUntil: 0, listeners: new Set() };
 const emit = () => hist.listeners.forEach((fn) => fn());
+
+// Machine writes (the board's auto-fit/untangle pass, and anything else
+// the APP persists without the user touching a control) must not become
+// history entries — opening a widget's options used to show "Opened"
+// plus three phantom "Widgets & layout" rows. The writer calls this just
+// before persisting; changes landing inside the window are ABSORBED into
+// the current entry (the state stays accurate, no new step).
+export function markMachineWrite(ms = 2500) {
+  hist.quietUntil = Math.max(hist.quietUntil, Date.now() + ms);
+}
 
 // Which area changed — the row label in the history window.
 const UI_V2_AREAS = {
@@ -118,9 +128,14 @@ export default function UndoRedoButtons() {
     if (cur && cur.json === snapJson) return;
     if (Date.now() < hist.restoringUntil) return;
     const snap = JSON.parse(snapJson);
+    const now = Date.now();
+    if (cur && now < hist.quietUntil) {
+      hist.entries[hist.cursor] = { ...cur, snap, json: snapJson };
+      emit();
+      return;
+    }
     const label = cur ? diffLabel(cur.snap, snap) : "Opened";
     const paths = cur ? changedPaths(cur.snap, snap) : "";
-    const now = Date.now();
     // Coalesce: the same knob still moving (same paths, within the
     // window, cursor at the top, and not the baseline) updates the top
     // entry in place — one drag, one history step. `ts` refreshes each

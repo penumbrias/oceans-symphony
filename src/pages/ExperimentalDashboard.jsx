@@ -20,7 +20,7 @@
 
 import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
-import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
+import UndoRedoButtons, { markMachineWrite } from "@/components/v2/UndoRedoHistory";
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1133,6 +1133,7 @@ export default function ExperimentalDashboard({
       const changed = grown.some((w, i) => w.span?.rows !== page.widgets[i].span?.rows);
       if (!changed && !hasOverlaps(page.widgets, gridCols)) { fitted.current = stamp; return; }
       fitted.current = stamp;
+      markMachineWrite();
       updatePageWidgets(() => resolveOverlaps(grown, gridCols));
     }, 120);
     return () => clearTimeout(id);
