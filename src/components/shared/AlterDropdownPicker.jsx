@@ -1,9 +1,14 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Check, ChevronDown, Users, Globe, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { Check, ChevronDown, Users, Globe, Search, FolderTree } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { groupedAlterSections } from "@/lib/alterSections";
+
+const GROUPED_KEY = "symphony_alterDropdown_grouped";
 
 // Compact dropdown-style alter picker for surfaces where the
 // SetFrontModal-style full grid is too heavy (Polls, small inline
@@ -56,6 +61,19 @@ export default function AlterDropdownPicker({
     if (!s) return activeAlters;
     return activeAlters.filter((a) => (a.name || "").toLowerCase().includes(s) || (a.alias || "").toLowerCase().includes(s));
   }, [activeAlters, search]);
+  // Nested view (rule 23): same grouped sections as every other member
+  // list; groups fetched here so callers stay untouched.
+  const [grouped, setGrouped] = useState(() => {
+    try { return localStorage.getItem(GROUPED_KEY) === "1"; } catch { return false; }
+  });
+  const toggleGrouped = () => setGrouped((g) => {
+    try { localStorage.setItem(GROUPED_KEY, g ? "0" : "1"); } catch { /* storage off */ }
+    return !g;
+  });
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: open && grouped });
+  const sections = open && grouped && !search.trim()
+    ? groupedAlterSections({ alters: alters || [], groups, sort: sorter.sort, toOption: (a) => a })
+    : null;
 
   const triggerText = useMemo(() => {
     if (isMulti) {
@@ -131,6 +149,11 @@ export default function AlterDropdownPicker({
                 className="flex-1 min-w-0 pl-6 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
               />
               <AlterSortToggle sorter={sorter} className="flex-shrink-0 px-1.5 py-1 border-0" />
+              <button type="button" onClick={toggleGrouped} aria-pressed={grouped}
+                aria-label={`View by ${terms.system || "system"} groups`} title={`View by ${terms.system || "system"} groups`}
+                className={`flex-shrink-0 px-1.5 py-1 rounded ${grouped ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <FolderTree className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="max-h-60 overflow-y-auto">
               {allowSystemWide && (
@@ -156,14 +179,27 @@ export default function AlterDropdownPicker({
                   </span>
                 </button>
               )}
-              {filteredAlters.length === 0 && (
+              {(sections ? sections.length === 0 : filteredAlters.length === 0) && (
                 <p className="px-3 py-3 text-xs text-muted-foreground italic">No matching {terms.alters || "alters"}.</p>
               )}
-              {filteredAlters.map((a) => {
+              {(sections
+                ? sections.flatMap((sec) => [
+                    (sec.label !== null || sections.length > 1) && (
+                      <p key={`h_${sec.id}`} className="px-3 pt-2 pb-0.5 text-[0.625rem] font-semibold uppercase tracking-wide truncate"
+                        style={{ paddingLeft: 12 + (sec.depth || 0) * 10, color: sec.color || undefined }}>
+                        {sec.label ?? "No group"}
+                      </p>
+                    ),
+                    ...sec.options.map((a) => ({ ...a, _rowKey: `${sec.id}_${a.id}` })),
+                  ]).filter(Boolean)
+                : filteredAlters
+              ).map((item) => {
+                if (React.isValidElement(item)) return item;
+                const a = item;
                 const selected = isSelected(a.id);
                 return (
                   <button
-                    key={a.id}
+                    key={a._rowKey || a.id}
                     type="button"
                     onClick={() => toggle(a.id)}
                     className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selected ? "bg-primary/5" : ""}`}

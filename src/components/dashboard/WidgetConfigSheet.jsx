@@ -23,6 +23,7 @@ import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import FontUploadButton from "@/components/shared/FontUploadButton";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
+import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
 // read as one system rather than two conventions.
@@ -558,6 +559,7 @@ export default function WidgetConfigSheet({
               <DrawerDescription className="sr-only">Widget options</DrawerDescription>
             </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
+            <UndoRedoButtons />
             <button type="button" onClick={flipDock}
               aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">

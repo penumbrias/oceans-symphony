@@ -1,9 +1,14 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { createPortal } from "react-dom";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, FolderTree } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
+import { groupedAlterSections } from "@/lib/alterSections";
+
+const GROUPED_KEY = "symphony_alterSearchSelect_grouped";
 
 // Single-select alter picker styled like the Journals "filter by alter"
 // popover: a trigger button + a fixed-positioned, searchable, scrollable
@@ -61,6 +66,20 @@ export default function AlterSearchSelect({
       .filter((a) => !a.is_archived)
       .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase())),
   );
+  // Nested view (rule 23): the same sections every grouped member list
+  // uses — a header per group/subsystem in the user's own tree order.
+  // Groups are fetched here so no caller has to thread them through.
+  const [grouped, setGrouped] = useState(() => {
+    try { return localStorage.getItem(GROUPED_KEY) === "1"; } catch { return false; }
+  });
+  const toggleGrouped = () => setGrouped((g) => {
+    try { localStorage.setItem(GROUPED_KEY, g ? "0" : "1"); } catch { /* storage off */ }
+    return !g;
+  });
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: open && grouped });
+  const sections = open && grouped && !search
+    ? groupedAlterSections({ alters, groups, sort: sorter.sort, toOption: (a) => a })
+    : null;
 
   const pick = (id) => { onChange?.(id); setOpen(false); setSearch(""); };
   const dotColor = (a) => (isValidHexColor(a?.color) ? a.color : "#94a3b8");
@@ -106,6 +125,11 @@ export default function AlterSearchSelect({
                 className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
               />
               <AlterSortToggle sorter={sorter} className="flex-shrink-0 px-1.5 py-1" />
+              <button type="button" onClick={toggleGrouped} aria-pressed={grouped}
+                aria-label={`View by ${terms?.system || "system"} groups`} title={`View by ${terms?.system || "system"} groups`}
+                className={`flex-shrink-0 px-1.5 py-1 rounded ${grouped ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <FolderTree className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="max-h-60 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
               {showNone && (
@@ -117,31 +141,52 @@ export default function AlterSearchSelect({
                   {noneLabel}
                 </button>
               )}
-              {list.map((a) => {
-                const disabled = disabledIds?.has(a.id);
-                if (disabled) {
+              {(() => {
+                const row = (a, keyPrefix = "") => {
+                  const disabled = disabledIds?.has(a.id);
+                  if (disabled) {
+                    return (
+                      <div key={keyPrefix + a.id} title={disabledLabel} className="w-full px-3 py-2 text-xs opacity-50 flex items-center gap-2 cursor-not-allowed">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(a) }} />
+                        <span className="flex-1 truncate line-through">{a.name}</span>
+                        <span className="text-[0.5625rem] italic text-muted-foreground flex-shrink-0">{disabledLabel}</span>
+                      </div>
+                    );
+                  }
                   return (
-                    <div key={a.id} title={disabledLabel} className="w-full px-3 py-2 text-xs opacity-50 flex items-center gap-2 cursor-not-allowed">
+                    <button
+                      key={keyPrefix + a.id}
+                      type="button"
+                      onClick={() => pick(a.id)}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${value === a.id ? "bg-primary/5 text-primary" : ""}`}
+                    >
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(a) }} />
-                      <span className="flex-1 truncate line-through">{a.name}</span>
-                      <span className="text-[0.5625rem] italic text-muted-foreground flex-shrink-0">{disabledLabel}</span>
-                    </div>
+                      <span className="flex-1 truncate">{a.name}</span>
+                      {value === a.id && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                    </button>
                   );
+                };
+                if (sections) {
+                  return sections.map((sec) => (
+                    <React.Fragment key={sec.id}>
+                      {sec.label !== null && (
+                        <p className="px-3 pt-2 pb-0.5 text-[0.625rem] font-semibold uppercase tracking-wide truncate"
+                          style={{ paddingLeft: 12 + (sec.depth || 0) * 10, color: sec.color || undefined }}>
+                          {sec.label}
+                        </p>
+                      )}
+                      {sec.label === null && sections.length > 1 && (
+                        <p className="px-3 pt-2 pb-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                          No group
+                        </p>
+                      )}
+                      {sec.options.map((a) => row(a, `${sec.id}_`))}
+                    </React.Fragment>
+                  ));
                 }
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => pick(a.id)}
-                    className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${value === a.id ? "bg-primary/5 text-primary" : ""}`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(a) }} />
-                    <span className="flex-1 truncate">{a.name}</span>
-                    {value === a.id && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                  </button>
-                );
-              })}
-              {list.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">No matches.</p>}
+                return list.map((a) => row(a));
+              })()}
+              {(sections ? sections.length === 0 : list.length === 0) && <p className="px-3 py-3 text-xs text-muted-foreground">No matches.</p>}
             </div>
           </div>
         </>

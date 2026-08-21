@@ -20,6 +20,7 @@
 
 import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
+import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1406,6 +1407,7 @@ export default function ExperimentalDashboard({
                   this drawer IS display options on the home page, and
                   adjusting a board you can't see defeats the point. */}
               <span className="flex items-center gap-1.5 flex-shrink-0">
+                <UndoRedoButtons />
                 <button type="button" onClick={flipHomeDock}
                   aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
                   className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Undo and redo buttons in the edit menus' headers — tap to step, hold either for a Photoshop-style history list and jump to any earlier state." },
+      { type: "improve", text: "{{Alter}} picker dropdowns gained a tree-view toggle that lists {{alters}} under their groups and subsystems." },
       { type: "improve", text: "Setup packs live in the Presets section now too: share or import from there, and packs you saved on import are listed with Apply, Download and Delete." },
       { type: "fix", text: "Applying a setup pack's UI theme no longer knocks the app back to the classic interface." },
       { type: "fix", text: "Colour swatches in Display options showed their labels twice; now once, untruncated." },

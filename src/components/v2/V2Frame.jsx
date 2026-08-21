@@ -51,6 +51,7 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
+import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { EdgeDock } from "@/components/v2/EdgeDock";
@@ -188,6 +189,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
               <DrawerDescription className="sr-only">{t("options.subtitle")}</DrawerDescription>
             </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
+            <UndoRedoButtons />
             {/* Flip the sheet to the other edge — a bottom sheet can sit
                 right on top of the thing being adjusted. */}
             <button type="button" onClick={flipDock}
