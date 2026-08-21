@@ -330,7 +330,11 @@ export default function AppDrawer({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
         className="relative w-full max-w-2xl bg-background border-t border-x border-border/60 rounded-t-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: "80vh", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+        // max() with --home-edit-bar-h: while the board is in edit mode the
+        // z-70 edit bar overlays this panel's bottom edge (the drawer lives
+        // inside the board's transform, so its z-95 can't beat a
+        // body-portaled bar) — pad clear of whichever bar is taller.
+        style={{ maxHeight: "80vh", paddingBottom: "calc(max(var(--bottom-nav-height, 56px), var(--home-edit-bar-h, 0px)) + env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/40">
           {/* Outside edit mode this is a plain app drawer — no widget tab. */}
