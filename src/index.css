@@ -91,17 +91,22 @@
     --radius: 0.75rem;
     --bottom-nav-height: 56px;
     /* The bottom safe area, RESOLVED.
-       On Android the system navigation bar (the back/home/recents
-       buttons) overlays an edge-to-edge app, but the WebView frequently
-       reports var(--os-sab) as 0 for it — only display
-       cutouts are guaranteed — so fixed bottom controls ended up under
-       the nav buttons (tester report). MainActivity publishes the real
-       window insets as --android-inset-*, and every bottom-anchored
-       surface reads THIS variable instead of env() directly.
+       On Android the system navigation bar (back / home / recents)
+       overlays an edge-to-edge app, and the WebView's own
+       env(safe-area-inset-bottom) does not always account for it — so
+       fixed bottom controls ended up under the nav buttons and became
+       untappable (tester report). Capacitor publishes the real window
+       insets as --safe-area-inset-* (SystemBars.injectSafeAreaCSS), so
+       every bottom-anchored surface reads THIS variable rather than
+       env() alone.
        max(), not sum: whichever source knows the true inset wins, and a
-       platform that reports both can never double-pad. iOS and the web
-       are unaffected — --android-inset-bottom is simply unset there. */
-    --os-sab: max(env(safe-area-inset-bottom, 0px), var(--android-inset-bottom, 0px));
+       platform that reports both can never double-pad. Unset anywhere
+       Capacitor isn't running (web, iOS), where env() is authoritative.
+       Do NOT add a window-insets listener on the WebView to feed this —
+       that replaces Chromium's own inset handling, which is what
+       computes env() for the page, and the app bleeds into the status
+       bar (the v0.212.3 regression). Insets belong to Capacitor. */
+    --os-sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
   }
 
   .dark {

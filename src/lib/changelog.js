@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Fixed the app bleeding up into the notification bar on Android (from the previous update). Bottom controls still keep clear of the back/home/recents buttons." },
       { type: "fix", text: "Android: your phone's back/home/recents buttons no longer sit on top of the app's bottom bar and buttons — every bottom control now keeps clear of them." },
       { type: "improve", text: "The planner's details popup can resolve a plan directly — Done, Partly, Skipped, Cancelled or Reschedule — instead of only offering \"Start now\"." },
       { type: "improve", text: "The guide's welcome page now waits for the medical-disclaimer tick before it can be skipped or closed — the box unlocks Skip, Next and the close button. If you already acknowledged it, nothing is locked." },
