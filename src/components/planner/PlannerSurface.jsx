@@ -511,15 +511,28 @@ export default function PlannerSurface({
 
   // Resolve a plan: what actually became of it. The lifecycle enum exists so
   // a plan that didn't happen stays honest instead of counting as time spent.
-  const setOutcome = async (status) => {
-    if (!timing) return;
+  const resolveItem = async (item, status) => {
+    if (!item) return;
     try {
       // One write path with the home-notice resolve list (lib resolvePlan).
-      await resolveOutcome(timing.item, status);
+      await resolveOutcome(item, status);
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
-      setTiming(null);
+      setTiming(null); setDetails(null);
     } catch (e) { toast.error(e.message || "Failed"); }
+  };
+  const setOutcome = (status) => resolveItem(timing?.item, status);
+  // The details view resolves too (owner spec) — an outcome shouldn't
+  // require opening the editor first. Reschedule hands off to the editor,
+  // where the day picker lives, and opens it.
+  const rescheduleFromDetails = (item) => {
+    openEditor(item);
+    setTimeout(() => {
+      const el = dayInputRef.current;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      try { el.showPicker(); } catch { el.focus(); }
+    }, 120);
   };
 
   // "Start now" — the plan becomes a running Active Activity (the same
@@ -1063,6 +1076,30 @@ export default function PlannerSurface({
                         <p className="text-sm whitespace-pre-wrap break-words">{it.notes}</p>
                       </div>
                     )}
+                  </div>
+                  {/* OUTCOME — resolvable right here; the editor is for
+                      changing the plan, not for saying what became of it. */}
+                  <div className="pt-1 border-t border-border/40">
+                    <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground mb-1">{tr("planner.outcome")}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
+                        ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
+                        <button key={id} type="button" aria-pressed={st === id}
+                          onClick={() => resolveItem(it, id)}
+                          className={`text-xs px-2.5 py-1 rounded-full border ${
+                            st === id
+                              ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                              : "border-border/50 text-muted-foreground hover:text-foreground"
+                          }`}>{label}</button>
+                      ))}
+                      {/* Still happening, just later — this also brings a
+                          skipped/cancelled plan back to scheduled on its
+                          new day. */}
+                      <button type="button" onClick={() => rescheduleFromDetails(it)}
+                        className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
                     <button type="button" onClick={() => openEditor(it, { day: it._day || null })}
