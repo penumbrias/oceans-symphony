@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "A stray two-finger pinch can no longer shrink the whole app into the corner of the screen (easiest to trigger in System Chat, and it stuck around as you moved between pages). Pinching to zoom IN still works." },
       { type: "fix", text: "Fixed the app bleeding up into the notification bar on Android (from the previous update). Bottom controls still keep clear of the back/home/recents buttons." },
       { type: "fix", text: "Android: your phone's back/home/recents buttons no longer sit on top of the app's bottom bar and buttons — every bottom control now keeps clear of them." },
       { type: "improve", text: "The planner's details popup can resolve a plan directly — Done, Partly, Skipped, Cancelled or Reschedule — instead of only offering \"Start now\"." },

@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- minimum-scale=1: a stray two-finger gesture used to pinch the whole
+         app OUT, leaving everything shrunk into the top-left corner with the
+         phone wallpaper around it — and because this is a single-page app it
+         survived navigating between pages (tester report, after visiting
+         System Chat). Surfaces that own pinch — planner, timeline, maps —
+         preventDefault their own gestures; everywhere else had nothing to
+         stop it. Zooming IN is deliberately still allowed, so pinch-to-
+         magnify keeps working for low vision. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0A0E17" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#F0F9FF" media="(prefers-color-scheme: light)" />
     <meta name="description" content="Oceans Symphony — a local-first plural system tracking app. All data stays on your device." />
