@@ -19,6 +19,7 @@ import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
+import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
@@ -987,6 +988,9 @@ const handleNotifClick = (mentionLog) => {
       {/* System switcher sheet — ONE host for every chrome trigger (top-bar
           name, sidebar app icon). */}
       <SystemSwitcherSheetHost />
+      {/* "Try it" safety net — offers Keep / Put it back after a pack
+          is trialled, from anywhere in the app. */}
+      <PackRestoreBar />
       {/* The floating support bubble is the always-there crisis path in the
           classic UI. In v2 the quick actions carry a Support anchor in every
           placement (handle row, floating bar, bubble, rail), so showing both

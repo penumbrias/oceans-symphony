@@ -16,6 +16,7 @@
 // Saved packs live in SystemSettings.ui_v2_setup_packs (rides backups).
 
 import { LOOK_KEYS } from "@/lib/widgetLook";
+import { V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { findFreeCell } from "@/lib/experimentalHome";
 import { getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 
@@ -340,11 +341,21 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
   }
   if (which.uiTheme && t.uiTheme) {
     const cur = settingsRow?.ui_v2 || {};
-    patch.ui_v2 = { ...t.uiTheme, enabled: cur.enabled === true };
+    // MERGE the ticked parts over what's there — importing a font must
+    // not silently wipe the user's bars. Tokens merge key by key, so an
+    // unticked group keeps its current values.
+    const sel = filterUiThemeParts(t.uiTheme, which.themeParts);
+    const next = { ...cur };
+    if (sel.tokens) next.tokens = { ...(cur.tokens || {}), ...sel.tokens };
+    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar"]) {
+      if (sel[k] !== undefined) next[k] = sel[k];
+    }
+    next.enabled = cur.enabled === true;
     // appTheme is transport-only: it belongs to ThemeContext, which the
     // importing component applies itself (see SetupPackSheet/Presets).
-    delete patch.ui_v2.appTheme;
-    if (cur.activeDockPos !== undefined) patch.ui_v2.activeDockPos = cur.activeDockPos;
+    delete next.appTheme;
+    if (cur.activeDockPos !== undefined) next.activeDockPos = cur.activeDockPos;
+    patch.ui_v2 = next;
   }
   if (savePreset) {
     const packs = Array.isArray(settingsRow?.ui_v2_setup_packs) ? settingsRow.ui_v2_setup_packs : [];
@@ -410,6 +421,137 @@ export async function savePackFile(blob, filename) {
   return shareFile({ blob, filename, title: "Oceans Symphony setup pack", dialogTitle: "Save setup pack", prefer: "download" });
 }
 
+// ── What a pack actually contains, in the app's own words ──────────
+// The import screen lists every setting a pack would change, grouped
+// the way the user meets them, with the VALUE spelled out — a pack is
+// not something anyone should have to accept blind.
+const TOKEN_BY_ID = Object.fromEntries((V2_TOKEN_DEFS || []).map((d) => [d.id, d]));
+// Which theme group each token belongs to. Colours and fonts are named
+// explicitly; everything else is sizing/layout.
+const COLOUR_TOKENS = new Set(["accent"]);
+const FONT_TOKENS = new Set(["bodyStyle", "headerStyle", "headerScale"]);
+
+export const THEME_PARTS = ["colors", "fonts", "sizes", "bars"];
+export const THEME_PART_LABELS = {
+  colors: "Colours & theme",
+  fonts: "Fonts & text",
+  sizes: "Sizes & spacing",
+  bars: "Bars, keys & icons",
+};
+
+const tokenLabel = (id) => TOKEN_BY_ID[id]?.label || id;
+const partOfToken = (id) => (COLOUR_TOKENS.has(id) ? "colors" : FONT_TOKENS.has(id) ? "fonts" : "sizes");
+
+// Human-readable value for one token/setting.
+function describeValue(id, v) {
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "none";
+  const def = TOKEN_BY_ID[id];
+  if (def?.type === "select") {
+    const opt = (def.options || []).find((o) => o.v === v);
+    if (opt) return opt.label;
+  }
+  if (def?.type === "range") return `${v}${def.unit || ""}`;
+  if (typeof v === "boolean") return v ? "on" : "off";
+  return String(v);
+}
+
+// Every change a pack's uiTheme would make, grouped by THEME_PARTS.
+// [{ part, label, value, isColor }]
+export function describeUiTheme(uiTheme = {}) {
+  const rows = [];
+  for (const [id, v] of Object.entries(uiTheme.tokens || {})) {
+    if (v === undefined || v === null || v === "") continue;
+    rows.push({ part: partOfToken(id), label: tokenLabel(id), value: describeValue(id, v), isColor: TOKEN_BY_ID[id]?.type === "color" });
+  }
+  const at = uiTheme.appTheme || {};
+  if (at.selectedTheme) rows.push({ part: "colors", label: "Colour theme", value: at.selectedTheme });
+  if (at.themeMode) rows.push({ part: "colors", label: "Light / dark", value: at.themeMode });
+  if (at.customColors) rows.push({ part: "colors", label: "Custom palette", value: "included" });
+  if (at.selectedFont) rows.push({ part: "fonts", label: "Theme font", value: at.selectedFont });
+  if (at.fontFamily) rows.push({ part: "fonts", label: "Body font", value: at.fontFamily });
+  if (at.headingFont && at.headingFont !== "default") rows.push({ part: "fonts", label: "Heading font", value: at.headingFont });
+  if (uiTheme.bars) {
+    const on = Object.entries(uiTheme.bars).filter(([, v]) => v).map(([k]) => k);
+    rows.push({ part: "bars", label: "Bars shown", value: on.length ? on.join(", ") : "none" });
+  }
+  if (Array.isArray(uiTheme.commandKeys)) rows.push({ part: "bars", label: "Quick-action keys", value: `${uiTheme.commandKeys.length} keys` });
+  if (uiTheme.barLooks && Object.values(uiTheme.barLooks).some((l) => l && Object.keys(l).length)) {
+    rows.push({ part: "bars", label: "Per-bar looks", value: "included" });
+  }
+  if (uiTheme.icons && Object.values(uiTheme.icons).some((g) => g && Object.keys(g).length)) {
+    rows.push({ part: "bars", label: "Icon choices", value: "included" });
+  }
+  if (uiTheme.appsView) rows.push({ part: "bars", label: "Apps view", value: uiTheme.appsView });
+  if (uiTheme.dockPos) rows.push({ part: "bars", label: "Floating bar position", value: "included" });
+  return rows;
+}
+
+// Split a uiTheme down to only the parts the user ticked.
+export function filterUiThemeParts(uiTheme = {}, parts) {
+  const want = new Set(parts || THEME_PARTS);
+  const out = {};
+  const tokens = {};
+  for (const [id, v] of Object.entries(uiTheme.tokens || {})) {
+    if (want.has(partOfToken(id))) tokens[id] = v;
+  }
+  if (Object.keys(tokens).length) out.tokens = tokens;
+  if (want.has("bars")) {
+    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar"]) {
+      if (uiTheme[k] !== undefined) out[k] = uiTheme[k];
+    }
+  }
+  const at = uiTheme.appTheme || null;
+  if (at && (want.has("colors") || want.has("fonts"))) {
+    const next = {};
+    if (want.has("colors")) {
+      if (at.selectedTheme) next.selectedTheme = at.selectedTheme;
+      if (at.themeMode) next.themeMode = at.themeMode;
+      next.customColors = at.customColors || null;
+    }
+    if (want.has("fonts")) {
+      if (at.selectedFont) next.selectedFont = at.selectedFont;
+      if (at.fontFamily) next.fontFamily = at.fontFamily;
+      if (at.headingFont) next.headingFont = at.headingFont;
+    }
+    if (Object.keys(next).length) out.appTheme = next;
+  }
+  return out;
+}
+
+// ── Safety net: the setup you had BEFORE an import ─────────────────
+// Importing replaces things. Snapshot the whole current setup first and
+// keep it as a pack, so "put it back" is always one tap — no user
+// should have to reconstruct a board from memory.
+// VERBATIM, and deliberately NOT a pack. Two reasons: a share pack is
+// sanitized (personal widget settings — which journal, which board —
+// are stripped), so restoring from one would quietly lose them; and a
+// restore point holds exactly those personal references, so it must
+// never sit in the shareable packs list where it could be sent to
+// someone. It lives in its own field, ui_v2_restore_point.
+export function buildRestorePoint({ settingsRow, appTheme, title = "import" }) {
+  return {
+    title: `Before ${title}`,
+    created: new Date().toISOString(),
+    ui_v2_home: settingsRow?.ui_v2_home ? JSON.parse(JSON.stringify(settingsRow.ui_v2_home)) : null,
+    ui_v2_home_desktop: settingsRow?.ui_v2_home_desktop ? JSON.parse(JSON.stringify(settingsRow.ui_v2_home_desktop)) : null,
+    ui_v2_styles: Array.isArray(settingsRow?.ui_v2_styles) ? JSON.parse(JSON.stringify(settingsRow.ui_v2_styles)) : [],
+    ui_v2: settingsRow?.ui_v2 ? JSON.parse(JSON.stringify(settingsRow.ui_v2)) : null,
+    appTheme: appTheme ? { ...appTheme } : null,
+  };
+}
+
+// Put everything back exactly as it was. Returns the SystemSettings
+// patch; the caller applies point.appTheme through applyAppTheme.
+export function restorePatchFrom(point) {
+  if (!point) return null;
+  const patch = {};
+  if (point.ui_v2_home) patch.ui_v2_home = point.ui_v2_home;
+  if (point.ui_v2_home_desktop) patch.ui_v2_home_desktop = point.ui_v2_home_desktop;
+  if (Array.isArray(point.ui_v2_styles)) patch.ui_v2_styles = point.ui_v2_styles;
+  if (point.ui_v2) patch.ui_v2 = point.ui_v2;
+  return patch;
+}
+
 // ── Compact share code ─────────────────────────────────────────────
 // "OSPACK1.<base64url(deflate(json))>" — a 7KB pack becomes a ~2KB
 // single-line string that pastes cleanly into a chat message. Falls
@@ -421,6 +563,27 @@ const b64uDecode = (str) => {
   const b = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from(b, (c) => c.charCodeAt(0));
 };
+// The text a person actually pastes to a friend: what it is, what's in
+// it, and what to do with it — a bare base64 blob reads as something
+// you should not paste anywhere (owner: "the code looks super
+// suspicious").
+export function formatShareMessage(pack, code) {
+  const t = pack?.types || {};
+  const bits = [];
+  if (t.layout) bits.push(`layout (${(t.layout.pages || []).reduce((n, p) => n + (p.widgets?.length || 0), 0)} widgets)`);
+  if (t.widgetStyles?.length) bits.push(`${t.widgetStyles.length} widget style${t.widgetStyles.length === 1 ? "" : "s"}`);
+  if (t.uiTheme) bits.push("theme");
+  return [
+    `🌊 Oceans Symphony setup pack — "${pack?.title || "My setup"}"`,
+    `Includes: ${bits.join(" · ") || "nothing"}`,
+    "",
+    "To use it: open Oceans Symphony → home screen settings → Presets → Setup packs → Import, and paste this whole message.",
+    "It only changes how the app looks. It carries no personal data.",
+    "",
+    code,
+  ].join("\n");
+}
+
 export async function encodePackCompact(pack) {
   const json = JSON.stringify(pack);
   if (typeof CompressionStream === "undefined") return json;
@@ -431,9 +594,13 @@ export async function encodePackCompact(pack) {
   } catch { return json; }
 }
 export async function decodePackText(text) {
-  const t = String(text || "").trim();
-  if (!t.startsWith(PACK_CODE_PREFIX)) return t;
-  const bytes = b64uDecode(t.slice(PACK_CODE_PREFIX.length));
+  const raw = String(text || "").trim();
+  // The share message wraps the code in a human explanation, and chat
+  // apps add quotes/newlines — find the code wherever it ended up
+  // rather than demanding a bare blob.
+  const m = raw.match(new RegExp(PACK_CODE_PREFIX.replace(".", "\\.") + "([A-Za-z0-9_-]+)"));
+  if (!m) return raw;
+  const bytes = b64uDecode(m[1]);
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
   return await new Response(stream).text();
 }

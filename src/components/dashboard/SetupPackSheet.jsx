@@ -16,6 +16,8 @@ import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
   parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook, applyAppTheme,
   encodePackCompact, decodePackText, savePackFile,
+  describeUiTheme, filterUiThemeParts, THEME_PARTS, THEME_PART_LABELS,
+  buildRestorePoint, formatShareMessage,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -213,6 +215,12 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   // Take the pack's widget appearance along with its arrangement, or keep
   // your own styling — the pack's look is a choice, not a rider.
   const [applyLook, setApplyLook] = useState(true);
+  // Which parts of the pack's theme to take. Everything it carries is
+  // ticked by default; nothing is applied that isn't listed.
+  const [themeParts, setThemeParts] = useState(() => new Set(THEME_PARTS));
+  const toggleThemePart = (id) => setThemeParts((prev) => {
+    const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n;
+  });
   // The Presets section (and the edit bar's Save menu) open straight to a
   // specific tab.
   React.useEffect(() => { if (open && initialTab) setTab(initialTab); }, [open, initialTab]);
@@ -278,8 +286,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const copy = async () => {
     try {
       const code = await encodePackCompact(pack);
-      await navigator.clipboard.writeText(code);
-      toast.success(code.startsWith("OSPACK1.") ? "Copied as a share code — paste it anywhere" : "Copied");
+      const message = code.startsWith("OSPACK1.") ? formatShareMessage(pack, code) : code;
+      await navigator.clipboard.writeText(message);
+      toast.success(code.startsWith("OSPACK1.") ? "Copied — paste the whole message to share it" : "Copied");
     } catch { toast.error("Couldn't copy — use Download instead"); }
   };
 
@@ -311,20 +320,41 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     }
   };
 
-  const applyImport = async () => {
+  // Applying REPLACES things, so the setup you had is snapshotted first
+  // and kept as a pack ("Before <name>") — putting it back is one tap,
+  // from the Undo action or from Presets → Setup packs later. `trial`
+  // additionally arms the preview bar, which offers Keep / Put it back
+  // until the user decides.
+  const applyImport = async ({ trial = false } = {}) => {
     if (!imported || !settingsRow?.id) return;
     try {
+      const restorePoint = buildRestorePoint({
+        settingsRow,
+        appTheme: { selectedTheme, themeMode, customColors, selectedFont },
+        title: imported.title || "import",
+      });
       const patch = buildApplyPatch({
         pack: imported,
-        which: { ...apply, layoutPlacement: placement, currentPageId, stripLayoutLook: !applyLook },
+        which: {
+          ...apply, layoutPlacement: placement, currentPageId,
+          stripLayoutLook: !applyLook, themeParts: [...themeParts],
+        },
         savePreset: saveAsPreset, settingsRow,
       });
+      // The restore point rides the SAME write, so a failure between the
+      // two can never leave the old setup unrecoverable.
+      patch.ui_v2_restore_point = restorePoint;
       await base44.entities.SystemSettings.update(settingsRow.id, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
-      if (apply.uiTheme) applyAppTheme(imported.types.uiTheme?.appTheme);
-      toast.success("Pack applied");
+      if (apply.uiTheme) applyAppTheme(filterUiThemeParts(imported.types.uiTheme || {}, [...themeParts]).appTheme);
       setImported(null);
       onClose?.();
+      // Hand the restore point to the preview bar (and to anyone who
+      // just wants a single undo).
+      window.dispatchEvent(new CustomEvent("os-pack-applied", {
+        detail: { title: imported.title || "Pack", trial },
+      }));
+      if (!trial) toast.success("Pack applied — your previous setup is saved and can be put back");
     } catch (e) { toast.error(e?.message || "Couldn't apply"); }
   };
 
@@ -517,17 +547,59 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                   <TypeCheck label="Widget styles" desc="Added to your saved styles (name clashes skipped)."
                     checked={apply.widgetStyles} onChange={(v) => setApply((s) => ({ ...s, widgetStyles: v }))} />
                 )}
-                {imported.types.uiTheme && (
-                  <TypeCheck label="UI theme" desc="REPLACES your Display-options state (undo via Display options history)."
-                    checked={apply.uiTheme} onChange={(v) => setApply((s) => ({ ...s, uiTheme: v }))} />
-                )}
+                {imported.types.uiTheme && (() => {
+                  const rows = describeUiTheme(imported.types.uiTheme);
+                  const byPart = THEME_PARTS.map((id) => [id, rows.filter((r) => r.part === id)]).filter(([, r]) => r.length);
+                  return (
+                    <>
+                      <TypeCheck label="Look & feel" desc="Only the groups you tick are changed — everything else stays as it is."
+                        checked={apply.uiTheme} onChange={(v) => setApply((s) => ({ ...s, uiTheme: v }))} />
+                      {apply.uiTheme && (
+                        <div className="pl-6 space-y-1.5">
+                          {byPart.map(([id, list]) => (
+                            <div key={id}>
+                              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
+                                  checked={themeParts.has(id)} onChange={() => toggleThemePart(id)} />
+                                <span className="font-medium">{THEME_PART_LABELS[id]}</span>
+                                <span className="text-muted-foreground">· {list.length}</span>
+                              </label>
+                              {/* The actual settings, by name and value —
+                                  nobody should have to accept a pack blind. */}
+                              <div className={`pl-6 pt-0.5 space-y-0.5 ${themeParts.has(id) ? "" : "opacity-40"}`}>
+                                {list.map((r, i) => (
+                                  <p key={i} className="text-[0.6875rem] flex items-baseline gap-1.5">
+                                    <span className="text-muted-foreground">{r.label}:</span>
+                                    {r.isColor
+                                      ? <span className="inline-flex items-center gap-1">
+                                          <span className="w-2.5 h-2.5 rounded-sm border border-border/60 inline-block" style={{ background: r.value }} aria-hidden="true" />
+                                          {r.value}
+                                        </span>
+                                      : <span>{r.value}</span>}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 <TypeCheck label="Save to my app as a preset" desc="Keeps the whole pack under Setup packs for later."
                   checked={saveAsPreset} onChange={setSaveAsPreset} />
               </div>
               <FriendlyReview pack={imported} />
               <RawReview json={JSON.stringify(imported, null, 2)} />
+              <p className="text-[0.6875rem] text-muted-foreground">
+                Your current setup is saved first, so you can put it back at any time.
+              </p>
               <div className="flex gap-2">
-                <button type="button" onClick={applyImport}
+                <button type="button" onClick={() => applyImport({ trial: true })}
+                  className="flex-1 h-9 rounded-lg border border-[var(--v2-accent)] text-[var(--v2-accent)] text-sm font-medium">
+                  Try it
+                </button>
+                <button type="button" onClick={() => applyImport()}
                   className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
                   Apply
                 </button>
