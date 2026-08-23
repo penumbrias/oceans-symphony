@@ -290,7 +290,7 @@ export default function ActivityTracker() {
         // header on devices where the inset is non-zero. Only the bottom
         // inset is repeated as defence-in-depth so the Planned list's
         // tail rows clear the bottom-nav.
-        paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + var(--os-sab))",
       }}
     >
       <ErrorBoundary

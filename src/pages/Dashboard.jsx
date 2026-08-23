@@ -1131,11 +1131,11 @@ export default function Dashboard() {
           // override must be `lg:`, not `sm:`: the tab bar is `lg:hidden`,
           // so between 640–1023px it is still on screen and a `sm:bottom-4`
           // chip lands underneath it.
-          className="os-setup-chip fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
+          className="os-setup-chip fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_var(--os-sab))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
           // v2 chrome: the measured bottom bar + the floating quick-action
           // card publish their heights — the chip sits ABOVE both instead
           // of covering them (owner report). Inline so it wins the class.
-          style={uiV2On ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + var(--v2-qa-float-bottom-h, 0px) + 16px + env(safe-area-inset-bottom, 0px))" } : undefined}
+          style={uiV2On ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + var(--v2-qa-float-bottom-h, 0px) + 16px + var(--os-sab))" } : undefined}
           role="status"
           aria-label="Continue setup"
         >

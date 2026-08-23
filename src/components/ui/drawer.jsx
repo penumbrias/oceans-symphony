@@ -48,7 +48,7 @@ const DrawerContent = React.forwardRef(({ className, children, direction = "bott
       // bar and couldn't be tapped.
       style={{
         ...(direction === "top" ? { paddingTop: "env(safe-area-inset-top, 0px)" } : null),
-        ...(direction === "bottom" ? { paddingBottom: "env(safe-area-inset-bottom, 0px)" } : null),
+        ...(direction === "bottom" ? { paddingBottom: "var(--os-sab)" } : null),
         ...style,
       }}
       {...props}>

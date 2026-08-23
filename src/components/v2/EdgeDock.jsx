@@ -92,7 +92,7 @@ export function EdgeDock({ side = "right", topPct = 50, onSavePos, renderHandle,
       } : horizontal ? {
         [side]: side === "top"
           ? "calc(var(--v2-status-h, 0px) + env(safe-area-inset-top, 0px) + 8px)"
-          : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + env(safe-area-inset-bottom, 0px) + 8px)",
+          : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab) + 8px)",
         left: `clamp(${8 + dockSize.w / 2}px, ${topPct}%, calc(100% - ${8 + dockSize.w / 2}px))`,
         transform: "translateX(-50%)",
         gap: "calc(var(--v2-space, 6px) * 0.75)",
@@ -100,7 +100,7 @@ export function EdgeDock({ side = "right", topPct = 50, onSavePos, renderHandle,
         [side]: "calc(env(safe-area-inset-" + side + ", 0px) + 8px)",
         // Clamp with the dock's measured height so its far end can never
         // slide behind the top or bottom chrome.
-        top: `clamp(calc(var(--v2-status-h, 0px) + env(safe-area-inset-top, 0px) + ${8 + dockSize.h / 2}px), ${topPct}%, calc(100% - var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) - env(safe-area-inset-bottom, 0px) - ${8 + dockSize.h / 2}px))`,
+        top: `clamp(calc(var(--v2-status-h, 0px) + env(safe-area-inset-top, 0px) + ${8 + dockSize.h / 2}px), ${topPct}%, calc(100% - var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) - var(--os-sab) - ${8 + dockSize.h / 2}px))`,
         transform: "translateY(-50%)",
         gap: "calc(var(--v2-space, 6px) * 0.75)",
       }}

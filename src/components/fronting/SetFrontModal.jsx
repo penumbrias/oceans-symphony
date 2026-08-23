@@ -634,7 +634,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             // Spotify pill the modal's top edge bled into the bar.
             // Subtract both insets so the modal stays inside the safe
             // viewport.
-            maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)",
+            maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)",
           }}
         >
           <DialogHeader>

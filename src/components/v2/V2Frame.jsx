@@ -202,7 +202,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
           </div>
         </DrawerHeader>
         <div className="px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+          style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
           {/* The unified UI edit popup (docs/v2-edit-menu-spec.md) — the
               user's wireframed structure. Bars/layout controls stay in
               Settings → Appearance until the spec's bars section lands. */}
@@ -256,7 +256,7 @@ export function QuickNoteSheet({ open, onClose }) {
           <DrawerTitle className="text-base">{t("note.title")}</DrawerTitle>
           <DrawerDescription className="text-xs">{t("note.subtitle")}</DrawerDescription>
         </DrawerHeader>
-        <div className="px-4 space-y-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+        <div className="px-4 space-y-3" style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
           <div className="flex items-start gap-2">
             <StickyNote className="w-4 h-4 mt-2.5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -297,7 +297,7 @@ function SearchSheet({ open, onClose }) {
         </DrawerHeader>
         {/* The results panel hangs below the input, so the row itself must
             stay input-height — the sheet reserves the space instead. */}
-        <div className="px-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", minHeight: "62vh" }}>
+        <div className="px-4" style={{ paddingBottom: "calc(var(--os-sab) + 24px)", minHeight: "62vh" }}>
           <div className="flex">{open && <GlobalSearch autoFocus onNavigate={onClose} />}</div>
         </div>
       </DrawerContent>
@@ -489,7 +489,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
             <DrawerTitle className="text-base">{"What's new"}</DrawerTitle>
           </DrawerHeader>
           <div className="px-3 pb-6 overflow-y-auto overscroll-contain"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
             <NewFeaturesBar embedded />
           </div>
         </DrawerContent>
@@ -970,7 +970,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     <div className={`fixed left-0 right-0 z-40 ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={edge === "top"
         ? { pointerEvents: "none", top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }
-        : { pointerEvents: "none", bottom: "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + 8px)" }}>
+        : { pointerEvents: "none", bottom: "calc(max(var(--v2-bottom-chrome-h, 56px) + var(--os-sab), var(--home-edit-bar-h, 0px)) + 8px)" }}>
       <div ref={floatRef} className="mx-3">
           <AnimatePresence initial={false}>
             {(qaOpen || previewLift) && (
@@ -1260,8 +1260,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         // the bar" rather than a floating card (per-user choice).
         style={altersPos === "bottom"
           ? { bottom: altersBarCfg.attached
-              ? "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + var(--v2-qa-float-bottom-h, 0px))"
-              : "calc(max(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px), var(--home-edit-bar-h, 0px)) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
+              ? "calc(max(var(--v2-bottom-chrome-h, 56px) + var(--os-sab), var(--home-edit-bar-h, 0px)) + var(--v2-qa-float-bottom-h, 0px))"
+              : "calc(max(var(--v2-bottom-chrome-h, 56px) + var(--os-sab), var(--home-edit-bar-h, 0px)) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
           : { top: altersBarCfg.attached
               ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
               : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
@@ -1324,7 +1324,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingBottom: "var(--os-sab)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
         borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",

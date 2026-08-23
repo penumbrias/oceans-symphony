@@ -76,8 +76,8 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
         // dialog can't bleed under the status bar / notification island
         // at the top or the gesture-area chin at the bottom on Android /
         // iOS notch devices.
-        top: `calc(env(safe-area-inset-top, 0px) + (100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
-        maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
+        top: `calc(env(safe-area-inset-top, 0px) + (100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
+        maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
         ...style,
       }}
       className={cn(

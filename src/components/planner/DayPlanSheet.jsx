@@ -76,7 +76,7 @@ export default function DayPlanSheet({ day, open, onClose }) {
   // to the board and the sheet gets clipped by the widget box.
   return createPortal((
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-card w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2 max-h-full overflow-y-auto overscroll-contain"
         style={{ borderRadius: "var(--v2-radius, 16px)" }}>

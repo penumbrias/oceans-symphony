@@ -48,7 +48,7 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
   const vertCls = vert === "top" ? "top-4" : "bottom-4";
   const vertStyle = vert === "top"
     ? { marginTop: "env(safe-area-inset-top)" }
-    : { marginBottom: "env(safe-area-inset-bottom)" };
+    : { marginBottom: "var(--os-sab)" };
 
   // Render through a portal to <body>. The onboarding/tour screens animate
   // their containers (framer-motion transforms), which turn a `position:fixed`

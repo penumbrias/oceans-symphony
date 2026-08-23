@@ -114,7 +114,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
       className={inline
         ? "flex items-center gap-1.5 w-full min-w-0"
         : "fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm max-w-[85vw]"}
-      style={inline ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
+      style={inline ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 12px)" }}
     >
       <Music className={`w-3.5 h-3.5 flex-shrink-0 ${
         state === "error" ? "text-destructive" : state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"

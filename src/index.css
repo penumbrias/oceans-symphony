@@ -90,6 +90,18 @@
 
     --radius: 0.75rem;
     --bottom-nav-height: 56px;
+    /* The bottom safe area, RESOLVED.
+       On Android the system navigation bar (the back/home/recents
+       buttons) overlays an edge-to-edge app, but the WebView frequently
+       reports var(--os-sab) as 0 for it — only display
+       cutouts are guaranteed — so fixed bottom controls ended up under
+       the nav buttons (tester report). MainActivity publishes the real
+       window insets as --android-inset-*, and every bottom-anchored
+       surface reads THIS variable instead of env() directly.
+       max(), not sum: whichever source knows the true inset wins, and a
+       platform that reports both can never double-pad. iOS and the web
+       are unaffected — --android-inset-bottom is simply unset there. */
+    --os-sab: max(env(safe-area-inset-bottom, 0px), var(--android-inset-bottom, 0px));
   }
 
   .dark {
@@ -150,7 +162,7 @@ body {
    Settings → Accessibility. */
 @media (max-width: 1023px) {
   .app-content-main {
-    padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + var(--os-sab)) !important;
   }
 }
 
@@ -161,7 +173,7 @@ body {
    pulled open — which is when the bar used to cover the last rows of a
    page. */
 [data-ui-v2="1"] .app-content-main {
-  padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + var(--os-sab)) !important;
 }
 
 /* Text-effect keyframes for the formatting toolbar's "fun" effects.
@@ -901,5 +913,5 @@ body > .fixed { pointer-events: auto; }
 html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
   /* !important: DrawerContent sets its safe-area padding INLINE, which
      would silently win over this rule. The inset is folded back in. */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-edit-bar-h, 0px)) !important;
+  padding-bottom: calc(var(--os-sab) + var(--home-edit-bar-h, 0px)) !important;
 }

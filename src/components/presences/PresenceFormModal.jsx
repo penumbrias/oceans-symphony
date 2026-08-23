@@ -9,7 +9,7 @@ export default function PresenceFormModal({ open, onClose, presence = null }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className="max-w-md flex flex-col overflow-hidden"
-        style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)" }}
+        style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}
       >
         <DialogHeader>
           <DialogTitle>{presence?.id ? "Edit presence" : "New presence"}</DialogTitle>

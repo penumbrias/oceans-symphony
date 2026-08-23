@@ -189,7 +189,7 @@ export default function SidebarNav({ open, onClose }) {
           // Clear whatever bottom chrome is on screen (classic nav or the v2
           // bar with its drawer open) plus room to breathe, so the last
           // group is always reachable and never sits under the bar.
-          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 1.5rem)" }}
         >
           {groups.map(({ label, items }) => (
             <div key={label}>

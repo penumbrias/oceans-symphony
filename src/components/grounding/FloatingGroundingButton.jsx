@@ -25,9 +25,9 @@ function getBottomNavGuard() {
     const styles = getComputedStyle(document.documentElement);
     const navRaw = styles.getPropertyValue("--bottom-nav-height").trim() || "56px";
     const navPx = parseFloat(navRaw) || 56;
-    // env(safe-area-inset-bottom) — temp element to resolve to px.
+    // var(--os-sab) — temp element to resolve to px.
     const probe = document.createElement("div");
-    probe.style.height = "env(safe-area-inset-bottom, 0px)";
+    probe.style.height = "var(--os-sab)";
     probe.style.position = "absolute";
     probe.style.visibility = "hidden";
     document.body.appendChild(probe);
@@ -226,7 +226,7 @@ export default function FloatingGroundingButton() {
       {isDragging && (
         <div
           className="fixed left-0 right-0 z-[45] flex justify-center pointer-events-none"
-          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
+          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 12px)" }}
           aria-hidden="true"
         >
           <div className={`flex flex-col items-center gap-1 px-5 py-3 rounded-2xl border-2 border-dashed transition-colors ${overDrop ? "border-destructive bg-destructive/15 text-destructive scale-105" : "border-border bg-card/90 text-muted-foreground"}`}>

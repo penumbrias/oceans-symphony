@@ -45,7 +45,7 @@ export default function DisclaimerModal({ onAcknowledge }) {
       className="fixed inset-0 z-[10000] bg-black/80 flex items-stretch justify-center p-2 sm:p-4 sm:items-center"
       style={{
         paddingTop: "max(env(safe-area-inset-top), 0.5rem)",
-        paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+        paddingBottom: "max(var(--os-sab), 0.5rem)",
       }}
       aria-modal="true"
       role="dialog"

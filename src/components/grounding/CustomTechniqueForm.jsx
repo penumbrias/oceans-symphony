@@ -46,7 +46,7 @@ export default function CustomTechniqueForm({ onClose, onSaved }) {
     // seen". The action row is also pinned to the sheet's bottom so it
     // stays visible however far the fields scroll or the keyboard rises.
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
-      style={{ paddingBottom: "calc(1rem + var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + env(safe-area-inset-bottom, 0px))" }}
+      style={{ paddingBottom: "calc(1rem + var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab))" }}
       onClick={onClose}>
       <div className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85dvh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}>

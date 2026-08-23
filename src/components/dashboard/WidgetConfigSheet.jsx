@@ -570,7 +570,7 @@ export default function WidgetConfigSheet({
         </DrawerHeader>
         <div
           className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}
         >
           {/* Rename */}
           {/* First thing in the sheet — moving is the most common intent

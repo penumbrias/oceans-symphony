@@ -122,7 +122,7 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md flex flex-col overflow-hidden" style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 2rem)" }}>
+      <DialogContent className="max-w-md flex flex-col overflow-hidden" style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top,0px) - var(--os-sab) - 2rem)" }}>
         <DialogHeader>
           <DialogTitle>Create {terms.alter} from presence</DialogTitle>
         </DialogHeader>

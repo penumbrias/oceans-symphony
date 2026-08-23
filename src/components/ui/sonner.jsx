@@ -40,7 +40,7 @@ const Toaster = ({
   const isTop = prefs.position.startsWith("top-");
   const offset = isTop
     ? "calc(env(safe-area-inset-top, 0px) + 16px)"
-    : "calc(env(safe-area-inset-bottom, 0px) + 16px)";
+    : "calc(var(--os-sab) + 16px)";
 
   return (
     // Force remount when `position` changes — Sonner's `position`

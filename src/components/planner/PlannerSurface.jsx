@@ -993,7 +993,7 @@ export default function PlannerSurface({
           details view ... in a non-edit, easy to read form"). */}
       {details && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setDetails(null); }}>
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2.5 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
@@ -1122,7 +1122,7 @@ export default function PlannerSurface({
       ), document.body)}
       {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setTiming(null); }}>
           {/* A sheet taller than the screen must scroll, not overflow off the
               top — with member list, notes and outcomes it can exceed a short
@@ -1665,7 +1665,7 @@ export default function PlannerSurface({
           v2 overlay. */}
       {branchAsk && createPortal((
         <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setBranchAsk(null); }}>
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-4 space-y-2"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>

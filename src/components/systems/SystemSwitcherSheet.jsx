@@ -37,7 +37,7 @@ export default function SystemSwitcherSheetHost() {
           <DrawerDescription className="sr-only">Switch, create or manage {terms.systems || `${terms.system}s`}.</DrawerDescription>
         </DrawerHeader>
         <div className="px-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+          style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
           {open && (
             <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">Loading…</p>}>
               <SystemSwitcherPanel />

@@ -353,7 +353,7 @@ export default function GroupsManager() {
           // The sheet sits above the bottom nav — anchored to the bottom of
           // the screen it was partly hidden behind it, and the nav height is
           // user-configurable so it can't be a fixed number.
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
           // Only a click on the backdrop ITSELF dismisses. React portals
           // propagate events through the React tree rather than the DOM, so
           // a plain onClick here also fires for clicks inside the picker's

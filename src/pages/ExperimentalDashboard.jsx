@@ -155,7 +155,7 @@ function TrashZone({ active }) {
       data-widget-trash="1"
       className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all pointer-events-none"
       style={{
-        bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)",
+        bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 12px)",
         opacity: active ? 1 : 0,
         transform: `translateX(-50%) scale(${isOver ? 1.08 : 1})`,
         background: isOver ? "#ef4444" : "color-mix(in srgb, var(--color-bg) 95%, transparent)",
@@ -1394,7 +1394,7 @@ export default function ExperimentalDashboard({
             </div>
           </DrawerHeader>
           <div className="px-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               This home screen
             </p>
@@ -1669,7 +1669,7 @@ export default function ExperimentalDashboard({
       {(barIds.length > 0 || altersBottom) && (
         <div
           className="fixed left-0 right-0 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
-          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
+          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 8px)" }}
         >
           <AnimatePresence initial={false}>
           {altersBottom && !altersCollapsed && (
@@ -1729,7 +1729,7 @@ export default function ExperimentalDashboard({
       {/* Pick-widgets overlay: tap widgets to include, then apply. */}
       {pickLookFrom && (
         <div className="fixed left-0 right-0 z-[70] px-3 flex items-center gap-2"
-          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}>
+          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 12px)" }}>
           <div className="flex-1 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg px-3 py-2 flex items-center gap-2">
             <span className="text-xs flex-1 min-w-0 truncate">
               {pickLookIds.length ? `${pickLookIds.length} selected` : "Tap widgets to apply the look to"}
@@ -1835,7 +1835,7 @@ export default function ExperimentalDashboard({
           </DrawerHeader>
           <div
             className="px-4 pb-6 space-y-1 overflow-y-auto overscroll-contain"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+            style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}
           >
             {/* Each row previews the real thing: a style is just look values
                 now, so the swatch is rendered by the same pipeline a widget
@@ -1915,7 +1915,7 @@ export default function ExperimentalDashboard({
           style={{
             background: "var(--color-bg)",
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            paddingBottom: "var(--os-sab)",
           }}>
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/30">
             <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground">Bars</span>

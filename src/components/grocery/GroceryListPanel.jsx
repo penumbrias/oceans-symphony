@@ -580,7 +580,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
         touchAction: "manipulation",
         paddingTop: "env(safe-area-inset-top)",
         bottom: keyboardInset > 0 ? `${keyboardInset}px` : 0,
-        paddingBottom: keyboardInset > 0 ? 0 : "env(safe-area-inset-bottom)",
+        paddingBottom: keyboardInset > 0 ? 0 : "var(--os-sab)",
       }}
     >
       {interactBlocked && <div aria-hidden className="absolute inset-0 z-[10000]" />}

@@ -1231,7 +1231,7 @@ function FolderWidget({ settings, mode }) {
             </DrawerDescription>
           </DrawerHeader>
           <div className="px-4 grid grid-cols-4 sm:grid-cols-6 gap-3"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
             {apps.map((a) => {
               const Icon = a.icon;
               return (

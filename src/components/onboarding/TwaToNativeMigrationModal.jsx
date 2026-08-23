@@ -62,7 +62,7 @@ export default function TwaToNativeMigrationModal({ open, onClose, onImport }) {
       className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm overflow-y-auto"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: 'var(--os-sab)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
