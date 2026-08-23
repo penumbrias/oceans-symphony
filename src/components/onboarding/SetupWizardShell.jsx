@@ -24,6 +24,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 //     extraAction?: { label, onClick } — a secondary footer button next
 //       to Next (e.g. "Dive in" on the transition page). No busy/next
 //       side effects; just a plain callback.
+//     dismissLocked?: bool — this step must be answered before the wizard
+//       can be left at all: Skip is disabled (with a reason), and the X /
+//       Escape / outside-click are blocked. For acknowledgements only —
+//       the same treatment DisclaimerModal gives the medical notice. The
+//       step is responsible for making the unlock obvious (a checkbox).
 //     extraActionPrimary?: bool — swap emphasis: extraAction gets the
 //       filled/primary variant and Next drops to outline. Use when the
 //       extra action is the recommended path (e.g. "Dive in" on the
@@ -42,6 +47,9 @@ export default function SetupWizardShell({
   useEffect(() => { if (open) setStep(initialStep); }, [open, initialStep]);
 
   const current = steps[step] || null;
+  // A locked step owns every exit: without this the X, Escape and a tap
+  // outside would all slip past a required acknowledgement.
+  const locked = !!current?.dismissLocked;
   const isLast = step === steps.length - 1;
   const isFirst = step === 0;
   const progress = steps.length ? ((step + 1) / steps.length) * 100 : 0;
@@ -101,10 +109,16 @@ export default function SetupWizardShell({
   if (!current) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose?.()}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v && locked) return; if (!v) onClose?.(); }}>
       <DialogContent
         className="max-w-md p-0 gap-0 border-border/50 flex flex-col max-h-[90vh] sm:max-h-[85vh]"
         aria-label={ariaLabel}
+        // Hidden rather than dead: a close button that does nothing reads
+        // as broken.
+        showCloseButton={!locked}
+        onEscapeKeyDown={(e) => { if (locked) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (locked) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (locked) e.preventDefault(); }}
       >
         {/* Progress bar — with small notches marking where each phase
             ends so users can see at a glance how short each part is. */}
@@ -239,11 +253,16 @@ export default function SetupWizardShell({
           {!isLast && !current.skipHidden && (
             <button
               type="button"
-              onClick={() => !busy && onClose?.()}
-              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center"
+              onClick={() => !busy && !locked && onClose?.()}
+              disabled={locked}
+              title={locked ? current.lockedHint : undefined}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
             >
               {skipLabel}
             </button>
+          )}
+          {locked && current.lockedHint && (
+            <p className="text-[0.6875rem] text-muted-foreground text-center">{current.lockedHint}</p>
           )}
         </div>
       </DialogContent>

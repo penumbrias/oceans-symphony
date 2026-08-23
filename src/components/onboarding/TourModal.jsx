@@ -216,6 +216,12 @@ export default function TourModal({ open, onClose, openAt = null }) {
         </div>
       ),
       nextDisabled: !ackChecked,
+      // The medical acknowledgement is the one thing the guide won't let
+      // you walk past — Skip, the X, Escape and outside taps all wait for
+      // the tick (owner spec). Anyone who acknowledged on a previous run
+      // starts checked, so reopening the guide is never a trap.
+      dismissLocked: !ackChecked,
+      lockedHint: "Tick the box above to continue or skip.",
       onNext: () => {
         try {
           if (ackChecked && !localStorage.getItem(DISCLAIMER_ACK_KEY)) {

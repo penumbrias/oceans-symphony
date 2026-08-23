@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "The guide's welcome page now waits for the medical-disclaimer tick before it can be skipped or closed — the box unlocks Skip, Next and the close button. If you already acknowledged it, nothing is locked." },
       { type: "feature", text: "Tapping something in the planner now opens a readable details view — what it is, when, how long, who, notes — with Edit one tap away instead of dropping you straight into the editor." },
       { type: "feature", text: "Plans can be linked to a to-do: type the to-do's name and it's offered right there, or pick one from the list. Finishing the plan ticks the to-do off." },
       { type: "fix", text: "Resolving a plan that had no set time no longer moves it to the moment you resolved it — it stays on its day. Resolved plans are also findable again under a \"Resolved\" tab in the planner's Plans list, which now shows untimed plans too." },
