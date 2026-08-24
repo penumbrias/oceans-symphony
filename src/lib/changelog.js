@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Setup packs can carry your images now — tick \"Include images\" and the pack downloads as a .zip with your wallpaper and custom icons inside. You see thumbnails of exactly which pictures go, and importing a .zip puts them back on the other device." },
+      { type: "fix", text: "Packs no longer pass along image paths that only work on the sending device — they either travel properly in a .zip or are counted as left out." },
       { type: "fix", text: "Imported layouts keep their proportions: a board built on a fine grid no longer lands squashed and overlapping on a coarser one — widgets are scaled to your grid instead." },
       { type: "improve", text: "Importing a pack now says up front how many images (wallpaper, custom icons) couldn't travel with it, so a themed board doesn't arrive with surprise gaps." },
       { type: "feature", text: "Importing a setup pack now lists every setting it would change — font, text size, corner radius, colours, bars — with its value, and you tick which groups to take. \"Try it\" applies the pack with a Keep / Put it back bar, and your previous setup is always saved first either way." },

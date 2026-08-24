@@ -32,18 +32,45 @@ const PERSONAL_SETTING_KEYS = new Set([
   "notebookAlters", "alterId", "contactIds",
 ]);
 
-const isLocalRef = (v) => typeof v === "string" && (v.startsWith("local-image://") || v.startsWith("folder://") || v.startsWith("data:"));
+// TWO local-image shapes exist: the canonical "/local-image/<id>"
+// (createLocalImageUrl, service-worker interceptable) and the legacy
+// "local-image://<id>". Only the legacy one was ever matched here, so
+// modern image paths sailed straight through packs — meaningless on the
+// receiving device, and a device reference in something meant to carry
+// none.
+const localImageId = (v) => {
+  if (typeof v !== "string") return null;
+  if (v.startsWith("/local-image/")) return decodeURIComponent(v.slice("/local-image/".length));
+  if (v.startsWith("local-image://")) return v.slice("local-image://".length);
+  return null;
+};
+const isLocalRef = (v) => typeof v === "string" && (localImageId(v) !== null || v.startsWith("folder://") || v.startsWith("data:"));
 
 // Deep-scrub: drop any local-image:// / folder:// / data: string anywhere
 // in a nested look object (board background layers etc.) while keeping
 // plain colours/numbers.
-function scrubLocalRefs(value) {
+// imageRefs (optional): when present, a device image reference is KEPT
+// as an archive-relative pack-image://N and its id recorded, instead of
+// being dropped. That is the whole difference between a pack that
+// carries pictures and one that can't.
+function packImageRef(value, imageRefs) {
+  const id = imageRefs ? localImageId(value) : null;
+  if (!id) return null;
+  let i = imageRefs.indexOf(id);
+  if (i === -1) { imageRefs.push(id); i = imageRefs.length - 1; }
+  return `${PACK_IMAGE_PREFIX}${i}`;
+}
+
+function scrubLocalRefs(value, imageRefs = null) {
+  if (isPackImageRef(value)) return value;
+  const mapped = packImageRef(value, imageRefs);
+  if (mapped) return mapped;
   if (isLocalRef(value)) return undefined;
-  if (Array.isArray(value)) return value.map(scrubLocalRefs).filter((v) => v !== undefined);
+  if (Array.isArray(value)) return value.map((v) => scrubLocalRefs(v, imageRefs)).filter((v) => v !== undefined);
   if (value && typeof value === "object") {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
-      const c = scrubLocalRefs(v);
+      const c = scrubLocalRefs(v, imageRefs);
       if (c !== undefined) out[k] = c;
     }
     return out;
@@ -56,7 +83,7 @@ function scrubLocalRefs(value) {
 // widget layout export included colours I never asked to share" (owner).
 const LOOK_SETTING_KEYS = new Set([...LOOK_KEYS, "style"]);
 
-function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null, dropped = null } = {}) {
+function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null, dropped = null, imageRefs = null } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(settings)) {
     // App shortcuts: targetId names an APP PAGE (nav-catalogue slug),
@@ -66,6 +93,9 @@ function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null,
     if (k === "targetId" && widgetId === "app_shortcut" && typeof v === "string" && !/^[0-9a-f-]{30,}$/i.test(v)) { out[k] = v; continue; }
     if (PERSONAL_SETTING_KEYS.has(k)) continue;
     if (!includeLook && LOOK_SETTING_KEYS.has(k)) continue;
+    if (isPackImageRef(v)) { out[k] = v; continue; }
+    const mappedImg = packImageRef(v, imageRefs);
+    if (mappedImg) { out[k] = mappedImg; continue; }
     if (isLocalRef(v)) { if (dropped) dropped.images += 1; continue; }
     if (v && typeof v === "object") continue; // nested structures are where ids hide
     out[k] = v;
@@ -83,7 +113,7 @@ function sanitizeLook(look = {}) {
 }
 
 // ── Builders ───────────────────────────────────────────────────────
-export function buildLayoutType(home, { includeLook = false, userStyles = [] } = {}) {
+export function buildLayoutType(home, { includeLook = false, userStyles = [], imageRefs = null } = {}) {
   // Pictures are files on ONE device (local-image:// ids mean nothing
   // anywhere else), so they never travel. Counting what got dropped
   // turns that from a nasty surprise on the other end into something
@@ -96,10 +126,11 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [] } =
       span: w.span || null,
       pos: w.pos || null,
       mode: w.mode || "normal",
-      settings: sanitizeSettings(w.settings || {}, { includeLook, widgetId: w.widgetId, dropped }),
+      settings: sanitizeSettings(w.settings || {}, { includeLook, widgetId: w.widgetId, dropped, imageRefs }),
     })),
   }));
-  if (isLocalRef(home?.wallpaper?.url) || home?.wallpaper?.folder) dropped.images += 1;
+  const wallpaperRef = packImageRef(home?.wallpaper?.url, imageRefs);
+  if (!wallpaperRef && (isLocalRef(home?.wallpaper?.url) || home?.wallpaper?.folder)) dropped.images += 1;
   const out = { pages, grid: home?.grid || null };
   if (dropped.images) out.omittedImages = dropped.images;
   // Appearance is only real if the styles it references travel too: a
@@ -123,10 +154,17 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [] } =
   if (includeLook) {
     const rawLook = { styleMode: home?.styleMode || null, background: home?.background || null };
     const rawStr = JSON.stringify(rawLook) || "";
-    const scrubbed = scrubLocalRefs(rawLook);
-    const imgRefs = (rawStr.match(/local-image:\/\/|folder:\/\/|data:image/g) || []).length;
-    if (imgRefs) { dropped.images += imgRefs; out.omittedImages = dropped.images; }
+    const scrubbed = scrubLocalRefs(rawLook, imageRefs);
+    // Only count what actually got dropped — anything mapped into the
+    // archive is travelling, not missing.
+    const stillMissing = (JSON.stringify(scrubbed) || "").match(/local-image:\/\/|\/local-image\/|folder:\/\//g) || [];
+    const before = (rawStr.match(/local-image:\/\/|\/local-image\/|folder:\/\/|data:image/g) || []).length;
+    const omitted = imageRefs ? stillMissing.length : before;
+    if (omitted) { dropped.images += omitted; }
     out.look = scrubbed;
+    // The wallpaper only travels with the pictures.
+    if (wallpaperRef) out.wallpaper = { url: wallpaperRef };
+    if (dropped.images) out.omittedImages = dropped.images; else delete out.omittedImages;
   }
   return out;
 }
@@ -135,7 +173,7 @@ export function buildWidgetStylesType(userStyles = []) {
   return userStyles.map((s) => ({ id: s.id, label: s.label, look: sanitizeLook(s.look || {}) }));
 }
 
-export function buildUiThemeType(uiV2Raw = {}, appTheme = null) {
+export function buildUiThemeType(uiV2Raw = {}, appTheme = null, { imageRefs = null } = {}) {
   // The stored ui_v2 object minus anything device/personal: icon image
   // overrides (local images) are stripped; named lucide icons survive.
   const clone = JSON.parse(JSON.stringify(uiV2Raw || {}));
@@ -143,7 +181,10 @@ export function buildUiThemeType(uiV2Raw = {}, appTheme = null) {
     for (const group of Object.values(clone.icons)) {
       if (!group || typeof group !== "object") continue;
       for (const [id, icon] of Object.entries(group)) {
-        if (icon && typeof icon === "object" && isLocalRef(icon.imageUrl)) delete group[id];
+      if (!icon || typeof icon !== "object" || !isLocalRef(icon.imageUrl)) continue;
+        const mapped = packImageRef(icon.imageUrl, imageRefs);
+        if (mapped) group[id] = { ...icon, imageUrl: mapped };
+        else delete group[id];
       }
     }
   }
@@ -215,16 +256,22 @@ export function summarizePack(pack) {
 
 // Safety re-check on IMPORT too — a hand-edited pack could smuggle refs.
 export function packLooksSafe(pack) {
-  const raw = JSON.stringify(pack.types || {});
-  return !/local-image:\/\/|data:image|"secret"|"userId"/.test(raw);
+  // pack-image://N is archive-relative and names no device or account —
+  // unlike local-image:// (this device's store) or an inline data:image.
+  const raw = JSON.stringify(pack.types || {}).split(PACK_IMAGE_PREFIX).join("");
+  return !/local-image:\/\/|\/local-image\/|data:image|"secret"|"userId"/.test(raw);
 }
 
 // ── Applying a pack ────────────────────────────────────────────────
 // ONE implementation for the import sheet AND the Presets section's
 // saved-pack rows (rule: reuse, don't fork). Layout lands as NEW pages,
 // styles merge by label (clashes skipped), uiTheme REPLACES ui_v2.
-export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow }) {
-  const t = pack?.types || {};
+export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow, imageMap = null }) {
+  // Images arrived in the archive and were saved to this device first;
+  // every pack-image:// reference becomes that local picture here.
+  const t = imageMap && Object.keys(imageMap).length
+    ? applyImageMap(pack?.types || {}, imageMap)
+    : (pack?.types || {});
   const patch = {};
   // Styles first: layout widgets reference saved styles BY ID, and the
   // merge assigns new ids — the map lets the layout rewrite its refs
@@ -378,6 +425,11 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     if (t.layout.look && !which.stripLayoutLook) {
       if (t.layout.look.background && typeof t.layout.look.background === "object") cur.background = t.layout.look.background;
       if (typeof t.layout.look.styleMode === "string") cur.styleMode = t.layout.look.styleMode;
+    }
+    // The wallpaper only exists in packs that carried their images, and
+    // by here its reference is already the re-hosted local picture.
+    if (t.layout.wallpaper?.url && !which.stripLayoutLook) {
+      cur.wallpaper = { ...(cur.wallpaper || {}), url: t.layout.wallpaper.url };
     }
     patch.ui_v2_home = cur;
   }
@@ -592,6 +644,130 @@ export function restorePatchFrom(point) {
   if (Array.isArray(point.ui_v2_styles)) patch.ui_v2_styles = point.ui_v2_styles;
   if (point.ui_v2) patch.ui_v2 = point.ui_v2;
   return patch;
+}
+
+// ── Images ─────────────────────────────────────────────────────────
+// Pictures live in this device's image store, so a plain pack can only
+// drop them. A .zip CAN carry them: the JSON keeps pack-relative
+// references (pack-image://N) and the archive holds the files, which
+// keeps the rule that a pack's JSON never contains device ids intact.
+//
+// These are the pictures the BOARD uses — wallpaper, widget icons,
+// background layers, bar/nav icons. Alter avatars and the asset library
+// are not part of a pack and never travel. The sender sees exactly what
+// is going out (thumbnails in the share sheet) and can leave them out.
+export const PACK_IMAGE_PREFIX = "pack-image://";
+const isPackImageRef = (v) => typeof v === "string" && v.startsWith(PACK_IMAGE_PREFIX);
+
+// Walk any structure, swapping local-image:// refs for pack-image://N and
+// recording the originals in order. Returns the rewritten copy.
+function mapImageRefs(value, refs) {
+  const localId = localImageId(value);
+  if (localId) {
+    const id = localId;
+    let idx = refs.indexOf(id);
+    if (idx === -1) { refs.push(id); idx = refs.length - 1; }
+    return `${PACK_IMAGE_PREFIX}${idx}`;
+  }
+  if (Array.isArray(value)) return value.map((v) => mapImageRefs(v, refs));
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = mapImageRefs(v, refs);
+    return out;
+  }
+  return value;
+}
+
+// Every image id a board+theme would need, in pack-reference order.
+export function collectPackImages({ home, uiV2 }) {
+  const refs = [];
+  mapImageRefs({ home: home || null, uiV2: uiV2 || null }, refs);
+  return refs;
+}
+
+// Kept for callers that already hold a built pack: re-map any device
+// references still inside it (none, once the builders run with
+// imageRefs) and report what the archive must contain.
+export function withPackImages(pack, { home, uiV2 } = {}) {
+  const refs = [];
+  const types = mapImageRefs(pack.types || {}, refs);
+  const extra = collectPackImages({ home, uiV2 });
+  for (const id of extra) if (!refs.includes(id)) refs.push(id);
+  return { pack: { ...pack, types }, sourceIds: refs };
+}
+
+// Load the referenced images and build the .zip: pack.json + images/N.
+export async function buildPackZip(pack, sourceIds) {
+  const { getLocalImage } = await import("@/lib/localImageStorage");
+  const { zipSync, strToU8 } = await import("fflate");
+  const files = { "pack.json": strToU8(JSON.stringify(pack, null, 2)) };
+  const meta = [];
+  for (let i = 0; i < sourceIds.length; i++) {
+    const rec = await getLocalImage(sourceIds[i]);
+    const blob = rec instanceof Blob ? rec : rec?.blob instanceof Blob ? rec.blob : null;
+    const dataUrl = typeof rec === "string" ? rec : typeof rec?.data === "string" ? rec.data : null;
+    let bytes = null, mime = "image/png";
+    if (blob) { bytes = new Uint8Array(await blob.arrayBuffer()); mime = blob.type || mime; }
+    else if (dataUrl && dataUrl.startsWith("data:")) {
+      mime = dataUrl.slice(5, dataUrl.indexOf(";")) || mime;
+      const b64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+      const bin = atob(b64);
+      bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    }
+    if (!bytes) continue; // a missing picture just doesn't travel
+    const ext = (mime.split("/")[1] || "png").replace(/[^a-z0-9]/gi, "");
+    files[`images/${i}.${ext}`] = bytes;
+    meta.push({ i, mime });
+  }
+  files["pack.json"] = strToU8(JSON.stringify({ ...pack, imageFiles: meta }, null, 2));
+  return zipSync(files, { level: 6 });
+}
+
+// Read a .zip back: the pack plus { N: dataUrl } for its images.
+export async function parsePackZip(bytes) {
+  const { unzipSync, strFromU8 } = await import("fflate");
+  const files = unzipSync(new Uint8Array(bytes));
+  const jsonBytes = files["pack.json"];
+  if (!jsonBytes) throw new Error("That zip isn't a setup pack (no pack.json).");
+  const pack = parsePack(strFromU8(jsonBytes));
+  const images = {};
+  for (const [name, data] of Object.entries(files)) {
+    const m = name.match(/^images\/(\d+)\.([a-z0-9]+)$/i);
+    if (!m) continue;
+    const mime = (pack.imageFiles || []).find((f) => String(f.i) === m[1])?.mime || `image/${m[2]}`;
+    let bin = "";
+    for (let i = 0; i < data.length; i++) bin += String.fromCharCode(data[i]);
+    images[m[1]] = `data:${mime};base64,${btoa(bin)}`;
+  }
+  return { pack, images };
+}
+
+// Save a pack's images into THIS device's store and return the map from
+// pack reference to a real local-image:// url.
+export async function rehostPackImages(images) {
+  if (!images || !Object.keys(images).length) return {};
+  const { saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
+  const map = {};
+  for (const [idx, dataUrl] of Object.entries(images)) {
+    const id = `imp_${Date.now().toString(36)}_${idx}_${Math.random().toString(36).slice(2, 7)}`;
+    try {
+      await saveLocalImage(id, dataUrl);
+      map[`${PACK_IMAGE_PREFIX}${idx}`] = createLocalImageUrl(id);
+    } catch { /* one picture failing must not sink the import */ }
+  }
+  return map;
+}
+
+// Swap pack-image:// references for the freshly saved local ones.
+export function applyImageMap(value, map) {
+  if (isPackImageRef(value)) return map[value] || "";
+  if (Array.isArray(value)) return value.map((v) => applyImageMap(v, map));
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = applyImageMap(v, map);
+    return out;
+  }
+  return value;
 }
 
 // ── Compact share code ─────────────────────────────────────────────

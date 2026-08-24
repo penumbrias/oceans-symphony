@@ -18,6 +18,7 @@ import {
   encodePackCompact, decodePackText, savePackFile,
   describeUiTheme, filterUiThemeParts, THEME_PARTS, THEME_PART_LABELS,
   buildRestorePoint, formatShareMessage,
+  buildPackZip, parsePackZip, rehostPackImages,
 } from "@/lib/setupPacks";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -209,6 +210,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const [title, setTitle] = useState("");
   const [inc, setInc] = useState({ layout: true, widgetStyles: false, uiTheme: false });
   const [imported, setImported] = useState(null); // parsed pack
+  const [importedImages, setImportedImages] = useState(null); // { N: dataUrl } from a .zip
   const [apply, setApply] = useState({ layout: true, widgetStyles: true, uiTheme: true });
   const [saveAsPreset, setSaveAsPreset] = useState(true);
   const [placement, setPlacement] = useState("new"); // new | merge | replace
@@ -239,6 +241,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   // stripped because the tick was easy to miss, and "looks like mine" is
   // the dominant intent of sharing a board.
   const [incLook, setIncLook] = useState(true);
+  // Pictures can only travel in the .zip. Off by default: they make the
+  // file much larger, and a picture is the one thing in a pack that
+  // could be personal — the sender opts in and sees what goes.
+  const [incImages, setIncImages] = useState(false);
+  const [packImages, setPackImages] = useState({ ids: [], busy: false });
   useEffect(() => {
     if (!open) return;
     const startPage = pages.find((p) => p.id === currentPageId) || pages[0];
@@ -264,20 +271,61 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   }), [home, pages, pageSel, widgetDrop]);
   const selectedStyles = useMemo(() => (userStyles || []).filter((st) => styleSel.has(st.id)), [userStyles, styleSel]);
 
-  const pack = useMemo(() => {
-    if (tab !== "export") return null;
-    return buildPack({
+  // imageRefs collects the pictures the pack needs as it is built, so
+  // the JSON's pack-image://N references and the archive's files can
+  // never disagree.
+  const built = useMemo(() => {
+    if (tab !== "export") return { pack: null, sourceIds: [] };
+    const imageRefs = incImages ? [] : null;
+    const pack = buildPack({
       title: title || "My setup",
-      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook, userStyles }) : null,
+      layout: inc.layout && pageSel.size ? buildLayoutType(selectedHome, { includeLook: incLook, userStyles, imageRefs }) : null,
       widgetStyles: inc.widgetStyles && selectedStyles.length ? buildWidgetStylesType(selectedStyles) : null,
-      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors, selectedFont }) : null,
+      uiTheme: inc.uiTheme ? buildUiThemeType(uiV2Raw, { selectedTheme, themeMode, customColors, selectedFont }, { imageRefs }) : null,
     });
-  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, uiV2Raw, selectedTheme, themeMode, customColors, selectedFont]);
+    return { pack, sourceIds: imageRefs || [] };
+  }, [tab, title, inc, selectedHome, selectedStyles, pageSel, incLook, incImages, uiV2Raw, selectedTheme, themeMode, customColors, selectedFont]);
+  const pack = built.pack;
   const packJson = useMemo(() => (pack ? JSON.stringify(pack, null, 2) : ""), [pack]);
+  // With images on, the pack keeps archive-relative references and we
+  // know which of this device's pictures to put in the zip.
+  const imaged = incImages && pack ? { pack, sourceIds: built.sourceIds } : null;
+  // Thumbnails so the sender SEES every picture that would leave.
+  useEffect(() => {
+    let alive = true;
+    if (!incImages) { setPackImages({ ids: [], busy: false }); return () => { alive = false; }; }
+    const ids = imaged?.sourceIds || [];
+    if (!ids.length) { setPackImages({ ids: [], busy: false }); return () => { alive = false; }; }
+    setPackImages({ ids, busy: true });
+    (async () => {
+      const { getLocalImage } = await import("@/lib/localImageStorage");
+      const out = [];
+      for (const id of ids) {
+        try {
+          const rec = await getLocalImage(id);
+          const blob = rec instanceof Blob ? rec : rec?.blob instanceof Blob ? rec.blob : null;
+          out.push({ id, url: blob ? URL.createObjectURL(blob) : (typeof rec === "string" ? rec : rec?.data || null) });
+        } catch { out.push({ id, url: null }); }
+      }
+      if (alive) setPackImages({ ids: out, busy: false });
+    })();
+    return () => { alive = false; };
+  }, [incImages, imaged]);
 
   const download = async () => {
+    const base = (title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase();
+    if (incImages && imaged) {
+      try {
+        const bytes = await buildPackZip(imaged.pack, imaged.sourceIds);
+        const res = await savePackFile(new Blob([bytes], { type: "application/zip" }), `${base}.symphony-pack.zip`);
+        if (res?.result === "failed") toast.error("Couldn't save the zip");
+        else if (res?.result === "downloaded") toast.success(res.location ? `Saved to ${res.location}` : "Saved");
+        else if (res?.result && res.result !== "cancelled") toast.success("Saved");
+      } catch (e) { toast.error(e?.message || "Couldn't build the zip"); }
+      return;
+    }
     const blob = new Blob([packJson], { type: "application/json" });
-    const filename = `${(title || "symphony-setup").replace(/[^\w-]+/g, "-").toLowerCase()}.symphony-pack.json`;
+    const filename = `${base}.symphony-pack.json`;
     const res = await savePackFile(blob, filename);
     if (res?.result === "failed") toast.error("Couldn't save the file — try Copy instead");
     else if (res?.result === "downloaded") toast.success(res.location ? `Saved to ${res.location}` : "Saved");
@@ -297,13 +345,26 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
       const p = parsePack(await decodePackText(text));
       if (!packLooksSafe(p)) { toast.error("This pack contains personal-looking data — refusing to import it."); return; }
       setImported(p);
+      setImportedImages(null);
       setApply({ layout: !!p.types.layout, widgetStyles: !!p.types.widgetStyles, uiTheme: !!p.types.uiTheme });
     } catch (e) { toast.error(e.message || "Couldn't read that"); }
   };
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (f) readText(await f.text());
+    if (!f) return;
+    // A .zip carries the pictures alongside the pack.
+    if (/\.zip$/i.test(f.name) || f.type === "application/zip") {
+      try {
+        const { pack, images } = await parsePackZip(await f.arrayBuffer());
+        if (!packLooksSafe(pack)) { toast.error("This pack contains personal-looking data — refusing to import it."); return; }
+        setImported(pack);
+        setImportedImages(images);
+        setApply({ layout: !!pack.types.layout, widgetStyles: !!pack.types.widgetStyles, uiTheme: !!pack.types.uiTheme });
+      } catch (err) { toast.error(err?.message || "Couldn't read that zip"); }
+      return;
+    }
+    readText(await f.text());
   };
   const [manualPaste, setManualPaste] = useState(false);
   const [manualText, setManualText] = useState("");
@@ -333,7 +394,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
         appTheme: { selectedTheme, themeMode, customColors, selectedFont },
         title: imported.title || "import",
       });
+      // Save the archive's pictures to this device first, so the layout
+      // can point at real local images rather than archive references.
+      const imageMap = await rehostPackImages(importedImages);
       const patch = buildApplyPatch({
+        imageMap,
         pack: imported,
         which: {
           ...apply, layoutPlacement: placement, currentPageId,
@@ -391,6 +456,31 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                         checked={incLook} onChange={(e) => setIncLook(e.target.checked)} />
                       <span className="text-muted-foreground">Include widget appearance (colours, fonts, borders, styles) — untick for a bare layout</span>
                     </label>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"
+                        checked={incImages} onChange={(e) => setIncImages(e.target.checked)} />
+                      <span className="text-muted-foreground">Include images (wallpaper, icons) — shares as a .zip instead of a code</span>
+                    </label>
+                    {/* Every picture that would leave this device, shown. */}
+                    {incImages && (
+                      packImages.busy ? <p className="text-[0.6875rem] text-muted-foreground">Reading images…</p>
+                      : packImages.ids.length ? (
+                        <div className="space-y-1">
+                          <p className="text-[0.6875rem] text-muted-foreground">
+                            {packImages.ids.length} image{packImages.ids.length === 1 ? "" : "s"} will be included:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {packImages.ids.map((im, i) => (
+                              <span key={i} className="w-10 h-10 rounded-lg border border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center">
+                                {im.url
+                                  ? <img src={im.url} alt="" className="w-full h-full object-cover" />
+                                  : <span className="text-[0.5rem] text-muted-foreground">?</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : <p className="text-[0.6875rem] text-muted-foreground">This board uses no images.</p>
+                    )}
                     {pages.map((p, i) => {
                       const on = pageSel.has(p.id);
                       const drop = widgetDrop[p.id] || new Set();
@@ -459,17 +549,20 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                   compact line that pastes into any chat. The file is the
                   secondary path. */}
               <div className="flex gap-2">
-                <button type="button" onClick={copy} disabled={!pack || !Object.keys(pack.types).length}
+                <button type="button" onClick={copy} disabled={!pack || !Object.keys(pack.types).length || incImages}
+                  title={incImages ? "Images can only travel in the zip" : undefined}
                   className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-40">
                   <Copy className="w-3.5 h-3.5" /> Copy share code
                 </button>
                 <button type="button" onClick={download} disabled={!pack || !Object.keys(pack.types).length}
-                  className="h-9 px-3 rounded-lg border border-border/50 text-sm flex items-center gap-1.5 disabled:opacity-40">
-                  <Download className="w-3.5 h-3.5" /> File
+                  className={`h-9 px-3 rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-40 ${incImages ? "bg-primary text-primary-foreground font-medium" : "border border-border/50"}`}>
+                  <Download className="w-3.5 h-3.5" /> {incImages ? "Download .zip" : "File"}
                 </button>
               </div>
               <p className="text-[0.625rem] text-muted-foreground">
-                The share code is one line of text — paste it in a chat; the other person pastes it into Import.
+                {incImages
+                  ? "With images the pack is a .zip file — send that file; the other person picks it with Import → File."
+                  : "The share code is one line of text — paste it in a chat; the other person pastes it into Import."}
               </p>
             </>
           )}
@@ -485,7 +578,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                   className="h-9 px-3 rounded-lg border border-border/50 text-sm flex items-center gap-1.5">
                   <Upload className="w-3.5 h-3.5" /> File
                 </button>
-                <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} />
+                <input ref={fileRef} type="file" accept=".json,.zip,application/json,application/zip" hidden onChange={onFile} />
               </div>
               {!manualPaste && (
                 <button type="button" onClick={() => setManualPaste(true)}
