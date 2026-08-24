@@ -532,6 +532,11 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
                             </button>
                           ))}
                         </div>
+                        {imported.types.layout.omittedImages > 0 && (
+                          <p className="text-[0.6875rem] text-amber-500">
+                            {imported.types.layout.omittedImages} image{imported.types.layout.omittedImages === 1 ? "" : "s"} (wallpaper, custom icons) can't travel in a pack — those spots use your own or the default instead.
+                          </p>
+                        )}
                         {layoutHasLook(imported.types.layout) && (
                           <label className="flex items-center gap-2 text-xs cursor-pointer">
                             <input type="checkbox" className="w-3.5 h-3.5 rounded accent-primary"

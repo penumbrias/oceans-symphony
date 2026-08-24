@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Imported layouts keep their proportions: a board built on a fine grid no longer lands squashed and overlapping on a coarser one — widgets are scaled to your grid instead." },
+      { type: "improve", text: "Importing a pack now says up front how many images (wallpaper, custom icons) couldn't travel with it, so a themed board doesn't arrive with surprise gaps." },
       { type: "feature", text: "Importing a setup pack now lists every setting it would change — font, text size, corner radius, colours, bars — with its value, and you tick which groups to take. \"Try it\" applies the pack with a Keep / Put it back bar, and your previous setup is always saved first either way." },
       { type: "improve", text: "Sharing a pack now copies a short message explaining what it is and how to use it, with the code at the end — pasting the whole thing still imports fine." },
       { type: "fix", text: "A stray two-finger pinch can no longer shrink the whole app into the corner of the screen (easiest to trigger in System Chat, and it stuck around as you moved between pages). Pinching to zoom IN still works." },

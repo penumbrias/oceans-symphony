@@ -56,7 +56,7 @@ function scrubLocalRefs(value) {
 // widget layout export included colours I never asked to share" (owner).
 const LOOK_SETTING_KEYS = new Set([...LOOK_KEYS, "style"]);
 
-function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null } = {}) {
+function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null, dropped = null } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(settings)) {
     // App shortcuts: targetId names an APP PAGE (nav-catalogue slug),
@@ -66,7 +66,7 @@ function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null 
     if (k === "targetId" && widgetId === "app_shortcut" && typeof v === "string" && !/^[0-9a-f-]{30,}$/i.test(v)) { out[k] = v; continue; }
     if (PERSONAL_SETTING_KEYS.has(k)) continue;
     if (!includeLook && LOOK_SETTING_KEYS.has(k)) continue;
-    if (isLocalRef(v)) continue;
+    if (isLocalRef(v)) { if (dropped) dropped.images += 1; continue; }
     if (v && typeof v === "object") continue; // nested structures are where ids hide
     out[k] = v;
   }
@@ -84,6 +84,11 @@ function sanitizeLook(look = {}) {
 
 // ── Builders ───────────────────────────────────────────────────────
 export function buildLayoutType(home, { includeLook = false, userStyles = [] } = {}) {
+  // Pictures are files on ONE device (local-image:// ids mean nothing
+  // anywhere else), so they never travel. Counting what got dropped
+  // turns that from a nasty surprise on the other end into something
+  // both sides are told about up front.
+  const dropped = { images: 0 };
   const pages = (home?.pages || []).map((p) => ({
     layoutMode: p.layoutMode || "flow",
     widgets: (p.widgets || []).map((w) => ({
@@ -91,10 +96,12 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [] } =
       span: w.span || null,
       pos: w.pos || null,
       mode: w.mode || "normal",
-      settings: sanitizeSettings(w.settings || {}, { includeLook, widgetId: w.widgetId }),
+      settings: sanitizeSettings(w.settings || {}, { includeLook, widgetId: w.widgetId, dropped }),
     })),
   }));
+  if (isLocalRef(home?.wallpaper?.url) || home?.wallpaper?.folder) dropped.images += 1;
   const out = { pages, grid: home?.grid || null };
+  if (dropped.images) out.omittedImages = dropped.images;
   // Appearance is only real if the styles it references travel too: a
   // widget styled via a saved style ("user:<id>") carries just the ref —
   // bundle the referenced definitions so layout+appearance is
@@ -114,10 +121,12 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [] } =
   // without them a themed board arrived as bare widgets on a default
   // ground (owner screenshots).
   if (includeLook) {
-    out.look = scrubLocalRefs({
-      styleMode: home?.styleMode || null,
-      background: home?.background || null,
-    });
+    const rawLook = { styleMode: home?.styleMode || null, background: home?.background || null };
+    const rawStr = JSON.stringify(rawLook) || "";
+    const scrubbed = scrubLocalRefs(rawLook);
+    const imgRefs = (rawStr.match(/local-image:\/\/|folder:\/\/|data:image/g) || []).length;
+    if (imgRefs) { dropped.images += imgRefs; out.omittedImages = dropped.images; }
+    out.look = scrubbed;
   }
   return out;
 }
@@ -255,6 +264,35 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     const placement = which.layoutPlacement === "merge" || which.layoutPlacement === "replace"
       ? which.layoutPlacement : "new";
     const packPages = t.layout.pages || [];
+    // GRID TRANSLATION. A widget's pos/span are cells, not pixels, so a
+    // board built on an 8-column / 40px grid dropped onto a 4-column /
+    // 80px one lands scrambled and overlapping — the pack carried the
+    // grid all along and the importer ignored it (owner screenshots).
+    // Scale instead of adopting the pack's grid outright: grid is
+    // board-wide, and an import must not re-flow the user's OTHER pages.
+    const packGrid = t.layout.grid || null;
+    const tgtCols = cur.grid?.phoneCols || 4;
+    const tgtRowPx = cur.grid?.rowPx || 80;
+    const srcCols = packGrid?.phoneCols || tgtCols;
+    const srcRowPx = packGrid?.rowPx || tgtRowPx;
+    const colK = tgtCols / (srcCols || tgtCols);
+    // Taller target rows mean FEWER of them for the same height.
+    const rowK = srcRowPx / (tgtRowPx || srcRowPx);
+    const needsScale = Math.abs(colK - 1) > 0.01 || Math.abs(rowK - 1) > 0.01;
+    const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+    const scaleWidget = (w) => {
+      if (!needsScale) return w;
+      const cols = clamp(Math.round((w.span?.cols || 1) * colK), 1, tgtCols);
+      const rows = Math.max(1, Math.round((w.span?.rows || 1) * rowK));
+      const next = { ...w, span: { ...(w.span || {}), cols, rows } };
+      if (w.pos && Number.isFinite(parseInt(w.pos.x, 10))) {
+        next.pos = {
+          x: clamp(Math.round(w.pos.x * colK), 0, Math.max(0, tgtCols - cols)),
+          y: Math.max(0, Math.round((w.pos.y || 0) * rowK)),
+        };
+      }
+      return next;
+    };
     // stripLayoutLook: the importer wants the ARRANGEMENT but not the
     // pack's baked-in widget appearance — keep their own styling.
     const cleanSettings = (settings = {}) => {
@@ -269,11 +307,15 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
       }
       return out;
     };
-    const mkWidgets = (p, pi, { dropPos = false } = {}) => (p.widgets || []).map((w, i) => ({
-      instanceId: `imp_${Date.now().toString(36)}_${pi}_${i}`,
-      widgetId: w.widgetId, span: w.span || { cols: 4, rows: 2 },
-      pos: dropPos ? null : (w.pos || null), mode: w.mode || "normal", settings: cleanSettings(w.settings || {}),
-    }));
+    const mkWidgets = (p, pi, { dropPos = false } = {}) => (p.widgets || []).map((w, i) => {
+      const scaled = scaleWidget({ ...w, span: w.span || { cols: 4, rows: 2 } });
+      return {
+        instanceId: `imp_${Date.now().toString(36)}_${pi}_${i}`,
+        widgetId: scaled.widgetId, span: scaled.span,
+        pos: dropPos ? null : (scaled.pos || null), mode: scaled.mode || "normal",
+        settings: cleanSettings(scaled.settings || {}),
+      };
+    });
     const targetIdx = Math.max(0, cur.pages.findIndex((p) => p.id === which.currentPageId));
     if (placement === "new" || !cur.pages.length) {
       for (const [pi, p] of packPages.entries()) {
