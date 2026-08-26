@@ -502,27 +502,33 @@ const OP_TERM_FIELD_MAP = {
 };
 
 export function buildSystemIdentityPatch(system, existing = {}, opts = {}) {
-  const { systemAvatarUrl = "", systemBannerUrl = "" } = opts;
+  // overwrite: fill fields even when the local one already has a value.
+  // Default stays merge-safe (never clobber), but an import that leaves
+  // the system's avatar and banner behind because a value was already
+  // there reads as "my banner didn't import" (owner report) — so the
+  // caller can ask for a replace explicitly.
+  const { systemAvatarUrl = "", systemBannerUrl = "", overwrite = false } = opts;
+  const isEmptyOr = (v) => overwrite || isEmpty(v);
   if (!system || typeof system !== "object") return {};
   const patch = {};
   const isEmpty = (v) => v == null || String(v).trim() === "";
 
   // Fill-if-empty scalar identity fields.
   const name = (system.name || "").toString().trim();
-  if (name && isEmpty(existing.system_name)) patch.system_name = name;
+  if (name && isEmptyOr(existing.system_name)) patch.system_name = name;
 
   const bio = (system.description || "").toString().trim();
-  if (bio && isEmpty(existing.system_bio) && isEmpty(existing.system_description)) {
+  if (bio && isEmptyOr(existing.system_bio) && isEmptyOr(existing.system_description)) {
     patch.system_bio = bio;
   }
 
   const color = normalizeColor(system.color);
-  if (color && isEmpty(existing.system_color)) patch.system_color = color;
+  if (color && isEmptyOr(existing.system_color)) patch.system_color = color;
 
-  if (systemAvatarUrl && isEmpty(existing.system_avatar_url)) {
+  if (systemAvatarUrl && isEmptyOr(existing.system_avatar_url)) {
     patch.system_avatar_url = systemAvatarUrl;
   }
-  if (systemBannerUrl && isEmpty(existing.system_banner_url)) {
+  if (systemBannerUrl && isEmptyOr(existing.system_banner_url)) {
     patch.system_banner_url = systemBannerUrl;
   }
 
@@ -574,36 +580,57 @@ export async function parseOpenPluralFile(file) {
     fflate.unzip(buf, (err, files) => (err ? reject(err) : resolve(files)));
   });
 
-  // Locate openplural.json — exact name first, then any *.json that parses as
-  // an OpenPlural document (in case it's nested in a top-level folder).
-  let jsonEntry = unzipped["openplural.json"];
-  if (!jsonEntry) {
-    const key = Object.keys(unzipped).find((k) => k.replace(/^.*\//, "") === "openplural.json");
-    if (key) jsonEntry = unzipped[key];
-  }
-  if (!jsonEntry) {
+  // An ACCOUNT-scoped export holds one openplural.json PER SYSTEM
+  // (systems/<slug>/openplural.json). Taking the first match imported
+  // whichever system the archive happened to list first — for the
+  // owner's export that was a 1-member system with no media, while the
+  // 48-member system carrying every avatar and banner was ignored
+  // entirely. That single wrong pick is why "only one system was
+  // detected" AND why "banners and avatars didn't import".
+  const decoder = new TextDecoder("utf-8");
+  const jsonKeys = Object.keys(unzipped)
+    .filter((k) => !k.endsWith("/") && k.replace(/^.*\//, "") === "openplural.json");
+  if (!jsonKeys.length) {
     throw new Error("No openplural.json found in the .zip — is this an OpenPlural export?");
   }
 
-  const decoder = new TextDecoder("utf-8");
-  const data = JSON.parse(decoder.decode(jsonEntry));
-
-  // Index media by both the in-zip path and the canonical "media/<file>" uri so
-  // asset.uri lookups resolve regardless of any leading folder in the archive.
-  const media = new Map();
-  for (const [path, bytes] of Object.entries(unzipped)) {
-    const idx = path.indexOf("media/");
-    if (idx === -1) continue;
-    if (path.endsWith("/")) continue; // skip directory entries
-    const canonical = path.slice(idx); // "media/<file>"
-    const fileName = canonical.slice("media/".length);
-    if (!fileName) continue;
-    const entry = { bytes, mime: mimeFromName(fileName) };
-    media.set(canonical, entry);
-    media.set(path, entry);
+  const docs = [];
+  for (const key of jsonKeys) {
+    let data;
+    try { data = JSON.parse(decoder.decode(unzipped[key])); }
+    catch { continue; } // a malformed system must not sink the whole archive
+    // Media belongs to the system whose folder it sits in — indexing the
+    // whole archive by bare "media/<file>" let one system's assets
+    // resolve to another's file.
+    const base = key.slice(0, key.length - "openplural.json".length);
+    const media = new Map();
+    for (const [path, bytes] of Object.entries(unzipped)) {
+      if (path.endsWith("/") || !path.startsWith(base)) continue;
+      const rel = path.slice(base.length);
+      if (!rel.startsWith("media/")) continue;
+      const fileName = rel.slice("media/".length);
+      if (!fileName) continue;
+      const entry = { bytes, mime: mimeFromName(fileName) };
+      media.set(rel, entry);   // matches asset.uri ("media/<file>")
+      media.set(path, entry);  // and the full in-zip path
+    }
+    const sys = (data.systems || [])[0] || {};
+    docs.push({
+      key,
+      data,
+      media,
+      name: sys.name || key.split("/").slice(-2)[0] || "System",
+      memberCount: Array.isArray(data.members) ? data.members.length : 0,
+    });
+  }
+  if (!docs.length) {
+    throw new Error("The .zip's openplural.json couldn't be read — is this an OpenPlural export?");
   }
 
-  return { data, media };
+  // Default to the BIGGEST system rather than whatever the archive
+  // listed first; `systems` lets the caller offer the choice.
+  docs.sort((a, b) => b.memberCount - a.memberCount);
+  return { data: docs[0].data, media: docs[0].media, systems: docs };
 }
 
 function mimeFromName(fileName) {

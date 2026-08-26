@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "PluralSpace/OpenPlural exports that contain more than one {{system}} now show all of them and let you choose — the app was importing whichever one happened to come first, which is also why avatars and banners seemed to go missing." },
+      { type: "improve", text: "OpenPlural import can now replace your {{system}} name, avatar and banner instead of only filling in blanks (tick the option under \"{{System}} profile\")." },
       { type: "fix", text: "Backups can no longer be exported with your images silently missing — if the app can't read your stored pictures it now says so instead of writing an image-less file behind a success message." },
       { type: "improve", text: "Export now tells you how many images went into the file, and \"Last import attempt\" reports images in the file and how many were restored — so a picture problem shows which side it's on." },
       { type: "feature", text: "Setup packs can carry your images now — tick \"Include images\" and the pack downloads as a .zip with your wallpaper and custom icons inside. You see thumbnails of exactly which pictures go, and importing a .zip puts them back on the other device." },

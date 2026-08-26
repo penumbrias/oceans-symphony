@@ -103,6 +103,14 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
   const [includeJournals, setIncludeJournals] = useState(true);
   const [includeRelationships, setIncludeRelationships] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
+  // An account-scoped export contains a system PER FOLDER; the parser
+  // returns them all and defaults to the largest. This is which one the
+  // buttons act on.
+  const [systemIdx, setSystemIdx] = useState(0);
+  // Replace the existing profile rather than only filling blanks — an
+  // import that skipped the avatar and banner because something was
+  // already there reads as "they didn't import".
+  const [replaceSystemProfile, setReplaceSystemProfile] = useState(false);
   const [includeChat, setIncludeChat] = useState(true);
 
   // Import mode for records that ALREADY exist locally (matched by op_id /
@@ -132,6 +140,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
         throw new Error("This file doesn't look like an OpenPlural export.");
       }
       setParsed(result);
+      setSystemIdx(0);
     } catch (err) {
       toast.error(err.message || "Couldn't read that file");
       setFileName("");
@@ -148,7 +157,10 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
   }, [presetFile]);
 
   // Counts for the preview card. is_custom_front members are NOT real alters.
-  const data = parsed?.data;
+  // The archive may hold several systems; everything below works on the
+  // SELECTED one (parser defaults to the largest).
+  const activeDoc = parsed?.systems?.[systemIdx] || parsed || null;
+  const data = activeDoc?.data;
   const realMembers = (data?.members || []).filter((m) => !m.is_custom_front);
   const counts = data ? {
     members: realMembers.length,
@@ -165,7 +177,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
 
   // ── Import ───────────────────────────────────────────────────────────────
   const handleImport = async () => {
-    if (!parsed?.data) return;
+    if (!activeDoc?.data) return;
 
     // ── Destructive "Replace everything" gate ──────────────────────────────
     // Confirm + force a full backup BEFORE deleting anything. Only the ticked
@@ -221,7 +233,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
         if (includeChat) { await deleteAllOf("SystemChatMessage"); await deleteAllOf("SystemChatCategory"); await deleteAllOf("SystemChatChannel"); }
       }
 
-      const { data: d, media } = parsed;
+      const { data: d, media } = activeDoc;
 
       const assetsById = {};
       for (const a of d.assets || []) { if (a?.id) assetsById[a.id] = a; }
@@ -579,6 +591,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
           const patch = buildSystemIdentityPatch(sys, existingSettings || {}, {
             systemAvatarUrl: sysAvatarUrl,
             systemBannerUrl: sysBannerUrl,
+            overwrite: replaceSystemProfile,
           });
           if (Object.keys(patch).length > 0) {
             if (existingSettings?.id) {
@@ -820,6 +833,32 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
             </div>
           )}
 
+          {/* An account-scoped export holds several systems — say so and
+              let the user choose, instead of silently importing whichever
+              one the archive happened to list first. */}
+          {parsed?.systems?.length > 1 && (
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-1.5">
+              <p className="text-sm font-medium">
+                This file holds {parsed.systems.length} {t.systems || "systems"} — pick one to import:
+              </p>
+              <div className="space-y-1">
+                {parsed.systems.map((doc, i) => (
+                  <label key={doc.key} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input type="radio" name="op-system" checked={systemIdx === i}
+                      onChange={() => setSystemIdx(i)} className="rounded" />
+                    <span className="flex-1 min-w-0 truncate">{doc.name}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {doc.memberCount} {doc.memberCount === 1 ? (t.alter || "member") : (t.alters || "members")}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Import one now, then run it again for the other.
+              </p>
+            </div>
+          )}
+
           {/* Preview */}
           {counts && (
             <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-1.5">
@@ -937,8 +976,14 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeSystemProfile} onChange={(e) => setIncludeSystemProfile(e.target.checked)} className="rounded" />
                   <UserCircle className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{t.System} profile <span className="text-muted-foreground/60 text-xs">(fills empty fields only)</span></span>
+                  <span>{t.System} profile <span className="text-muted-foreground/60 text-xs">({replaceSystemProfile ? "replaces yours" : "fills empty fields only"})</span></span>
                 </label>
+                {includeSystemProfile && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none pl-6">
+                    <input type="checkbox" checked={replaceSystemProfile} onChange={(e) => setReplaceSystemProfile(e.target.checked)} className="rounded" />
+                    <span className="text-muted-foreground">Replace my {t.system} name, avatar and banner with the imported ones</span>
+                  </label>
+                )}
               </div>
 
               {progress && (
