@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Quick Check-In's \"who's {{fronting}}\" list now uses the same hold-and-slide level rail as everywhere else, instead of the old swipe gestures — and the level you pick is saved with the {{switch}}." },
       { type: "fix", text: "PluralSpace/OpenPlural exports that contain more than one {{system}} now show all of them and let you choose — the app was importing whichever one happened to come first, which is also why avatars and banners seemed to go missing." },
       { type: "improve", text: "OpenPlural import can now replace your {{system}} name, avatar and banner instead of only filling in blanks (tick the option under \"{{System}} profile\")." },
       { type: "fix", text: "Backups can no longer be exported with your images silently missing — if the app can't read your stored pictures it now says so instead of writing an image-less file behind a success message." },
