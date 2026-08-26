@@ -9,7 +9,7 @@ import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRa
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
-import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
@@ -520,6 +520,19 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // poisoned every export for the rest of the session, silently
     // producing image-less backups behind a success toast.
     try { images = await getAllLocalImages(); } catch { imagesFailed = true; }
+    // getAllLocalImages SWALLOWS its own errors and returns {} — so a
+    // store that couldn't be read looked exactly like a device with no
+    // pictures, got cached, and every export that session shipped
+    // image-less behind a success message (tester: backups import
+    // "finished" but no images ever arrive). Count separately: if the
+    // device holds pictures and we gathered fewer, that's a failure.
+    try {
+      const onDevice = await countLocalImages();
+      if (onDevice > 0 && Object.keys(images).length < onDevice) {
+        imagesFailed = true;
+        console.warn(`[export] image store holds ${onDevice} but only ${Object.keys(images).length} could be read`);
+      }
+    } catch { imagesFailed = true; }
     let fonts = {};
     let fontsFailed = false;
     try { fonts = await getAllLocalFonts(); } catch { fontsFailed = true; }
@@ -688,6 +701,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     try {
       const overrideCats = onlyCats ?? (skipHeavyBlobs ? catsWithoutHeavyBlobs() : undefined);
       const exportData = await buildExportData(overrideCats);
+      // Say how many pictures went in. A backup that silently contains
+      // none is the whole failure this pair of fixes is about — the
+      // count lets anyone confirm BEFORE handing the file to another
+      // device, instead of discovering it after an import that says
+      // "finished".
+      const imgCount = Object.keys(exportData?.__local_images || {}).length;
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
       // Data-only backups get their own filename suffix so users can
@@ -704,12 +723,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       } else if (res?.result === "cancelled") {
         // User dismissed the share sheet — no toast, no surprise.
       } else {
-        const msg = res?.result === "shared"
+        const base = res?.result === "shared"
           ? "Backup ready — pick a destination"
           : res?.location
             ? `Backup saved to ${res.location} 📁`
             : "Backup exported!";
-        showStatus("success", msg);
+        const imgNote = (overrideCats ?? selectedCats).has("images")
+          ? ` Includes ${imgCount} image${imgCount === 1 ? "" : "s"}.`
+          : "";
+        showStatus("success", `${base}${imgNote}`);
         // Mark today as "backup exported" so a daily task wired to the
         // backup_exported auto-trigger can complete itself.
         try {
@@ -843,8 +865,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
     let imageResult = null;
     let fontResult = null;
+    // State it plainly in the log: a file with no pictures in it and a
+    // restore that dropped them look identical from the outside.
+    traceStep("images in file", `${localImages ? Object.keys(localImages).length : 0}`);
     if (localImages) imageResult = await restoreLocalImages(localImages);
     if (localFonts) fontResult = await restoreLocalFonts(localFonts);
+    if (imageResult) {
+      traceStep("images restored", `${imageResult.restored} of ${imageResult.total}${imageResult.failed.length ? ` (${imageResult.failed.length} failed)` : ""}`);
+    }
     // The records reference local images but the file carries none — the
     // export was made without the Images category (or via the data-only
     // export). Silence here read as "import broke my images" (tester);

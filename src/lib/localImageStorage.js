@@ -250,6 +250,21 @@ export async function getAllLocalImageBlobs() {
 // re-importing the same file used to "find" more images each pass).
 // Returns { total, restored, failed: [id...] } so callers can tell the
 // user the truth instead of a blanket success.
+// How many images this device actually holds. Unlike getAllLocalImages
+// (which returns {} on any failure so callers can degrade), this THROWS
+// when the store can't be read — the export needs to tell "you have no
+// pictures" apart from "I couldn't reach your pictures", because the two
+// produced identical, silently image-less backups.
+export async function countLocalImages() {
+  const idb = await getIdb();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readonly');
+    const req = tx.objectStore(STORE_NAME).count();
+    req.onerror = () => reject(new Error('Failed to count images'));
+    req.onsuccess = () => resolve(req.result || 0);
+  });
+}
+
 export async function restoreLocalImages(imagesMap) {
   const entries = Object.entries(imagesMap || {});
   const result = { total: entries.length, restored: 0, failed: [] };

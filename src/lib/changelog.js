@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Backups can no longer be exported with your images silently missing — if the app can't read your stored pictures it now says so instead of writing an image-less file behind a success message." },
+      { type: "improve", text: "Export now tells you how many images went into the file, and \"Last import attempt\" reports images in the file and how many were restored — so a picture problem shows which side it's on." },
       { type: "feature", text: "Setup packs can carry your images now — tick \"Include images\" and the pack downloads as a .zip with your wallpaper and custom icons inside. You see thumbnails of exactly which pictures go, and importing a .zip puts them back on the other device." },
       { type: "fix", text: "Packs no longer pass along image paths that only work on the sending device — they either travel properly in a .zip or are counted as left out." },
       { type: "fix", text: "Imported layouts keep their proportions: a board built on a fine grid no longer lands squashed and overlapping on a coarser one — widgets are scaled to your grid instead." },
