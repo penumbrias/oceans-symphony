@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 27, 2026",
+    changes: [
+      { type: "fix", text: "Clearing a description or bio now sticks. Edits in an {{alter}} profile, the {{alter}} editor and {{System}} settings could be silently undone by a background refresh — deleting a template looked impossible because the old text came back and saved itself again." },
+    ],
+  },
+  {
     date: "August 20, 2026",
+    version: "0.214.3",
     changes: [
       { type: "improve", text: "Quick Check-In's \"who's {{fronting}}\" list now uses the same hold-and-slide level rail as everywhere else, instead of the old swipe gestures — and the level you pick is saved with the {{switch}}." },
       { type: "fix", text: "PluralSpace/OpenPlural exports that contain more than one {{system}} now show all of them and let you choose — the app was importing whichever one happened to come first, which is also why avatars and banners seemed to go missing." },

@@ -253,7 +253,14 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       preferences: parsePreferences(alter),
     });
     setPrefsOpen(parsePreferences(alter).length > 0);
-  }, [alter]);
+    // Keyed on the {alter}'s ID, not the object. The alters query is
+    // invalidated constantly (fronting, pins, avatars, this page's own
+    // saves), and every invalidation handed us a NEW object, re-running
+    // this reset and restoring whatever the user had part-way edited.
+    // Deleting a description was the visible casualty: it came back on
+    // the next refresh and then saved itself again (owner report —
+    // "no matter what I do or how I edit it, it doesn't delete").
+  }, [alter?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
   const bgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";

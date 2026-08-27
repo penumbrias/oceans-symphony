@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
@@ -197,6 +197,21 @@ export default function BioEditor({ value, onChange }) {
 
   const previewBlocks = useMemo(() => htmlToBlocks(currentHTML), [currentHTML]);
 
+  // Adopt a genuinely EXTERNAL change (a different record loaded, a
+  // discard upstream) while ignoring the echo of what this editor just
+  // emitted — without this the editor and its parent could hold
+  // different text, and the parent's copy is the one that saves.
+  const lastEmitted = useRef(value || "");
+  useEffect(() => {
+    const incoming = value || "";
+    if (incoming === lastEmitted.current) return; // our own echo
+    if (incoming === currentHTML) return;
+    lastEmitted.current = incoming;
+    originalValue.current = incoming;
+    historyRef.current = { stack: [incoming], index: 0 };
+    setCurrentHTML(incoming);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleChange = useCallback((html) => {
     const h = historyRef.current;
     h.stack = h.stack.slice(0, h.index + 1);
@@ -204,6 +219,7 @@ export default function BioEditor({ value, onChange }) {
     if (h.stack.length > MAX_HISTORY) h.stack.shift();
     else h.index++;
     setCurrentHTML(html);
+    lastEmitted.current = html;
     onChange(html);
   }, [onChange]);
 

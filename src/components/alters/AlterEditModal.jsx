@@ -150,7 +150,14 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
       setPrefsOpen(false);
     }
     setShowAvatarUrl(false);
-  }, [alter, open, isNew]);
+    // Seed on OPEN or when a different {alter} is being edited — NOT on
+    // every new `alter` object. The alters query is invalidated constantly
+    // (fronting, pins, avatars…), and depending on the object identity
+    // re-ran this effect mid-edit and reset the whole form to the stored
+    // values. Clearing a description then looked impossible: the text came
+    // back on the next background refresh and saved itself again
+    // ("no matter what I do or how I edit it, it doesn't delete").
+  }, [alter?.id, open, isNew]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const cf = form.custom_fields || {};

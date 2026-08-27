@@ -268,7 +268,11 @@ export default function Settings() {
     if (typeof settings?.system_banner_height === "number") setSystemBannerHeight(settings.system_banner_height);
     if (typeof settings?.system_banner_position === "number") setSystemBannerPosition(settings.system_banner_position);
     if (settings?.system_banner_scope) setSystemBannerScope(settings.system_banner_scope);
-  }, [settings]);
+    // Keyed on the settings ROW, not the object: the settings query is
+    // invalidated all over the app, and re-seeding on every new object
+    // overwrote whatever the user was part-way through typing — including
+    // a bio they had just cleared, which then saved itself back.
+  }, [settings?.id]);
 
   // Upload + compress a new system-wide avatar. Mirrors the alter
   // avatar uploader in ProfileTab so the user experience is identical
