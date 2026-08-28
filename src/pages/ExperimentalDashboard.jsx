@@ -26,7 +26,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
+import { CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
   ArrowUpToLine, ArrowDownToLine, Eye, EyeOff,
 } from "lucide-react";
@@ -169,7 +169,8 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null }) {
+  const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -382,6 +383,25 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       <div
         data-widget-content="1"
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
+        {...(editMode && !a11yStack && onHoldSelect ? {
+          // Hold, then LET GO without moving = pick this widget for a
+          // multi-selection (owner spec). Holding and dragging is still
+          // the move gesture — dnd-kit arms at the same 300ms, so the
+          // two are told apart by whether the pointer travelled.
+          onPointerDownCapture: (e) => { holdSel.current = { t: Date.now(), x: e.clientX, y: e.clientY, moved: false }; },
+          onPointerMoveCapture: (e) => {
+            const h = holdSel.current;
+            if (!h) return;
+            if (Math.abs(e.clientX - h.x) > 6 || Math.abs(e.clientY - h.y) > 6) h.moved = true;
+          },
+          onPointerUpCapture: () => {
+            const h = holdSel.current;
+            holdSel.current = null;
+            if (!h || h.moved || isDragging) return;
+            if (Date.now() - h.t >= 300) onHoldSelect();
+          },
+          onPointerCancelCapture: () => { holdSel.current = null; },
+        } : {})}
         onContextMenu={editMode ? (e) => e.preventDefault() : undefined}
         className={[
           // Style shell (homeStyles.js) — per-widget override beats the
@@ -815,9 +835,26 @@ export default function ExperimentalDashboard({
     });
   const handleMode = (instanceId, mode) =>
     updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, mode } : w)));
+  // MULTI-SELECT (owner request): set several widgets at once — give the
+  // whole page a preset, then adjust just a few for alignment or
+  // background. Press-and-hold is already the drag-to-move gesture in
+  // edit mode, so selection is its own mode off the edit bar rather than
+  // a second meaning for the same press.
+  const [multiMode, setMultiMode] = useState(false);
+  const [multiIds, setMultiIds] = useState([]);
+  const multiEditing = multiMode && multiIds.length > 0 && configId && multiIds.includes(configId);
+  const exitMulti = () => { setMultiMode(false); setMultiIds([]); };
+  const toggleMulti = (id) => setMultiIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const selectAllOnPage = () => setMultiIds(page.widgets.map((w) => w.instanceId));
+
   const handleSettings = (instanceId, patch) =>
     updatePageWidgets((ws) =>
-      ws.map((w) => (w.instanceId === instanceId ? { ...w, settings: { ...w.settings, ...patch } } : w))
+      ws.map((w) => {
+        // While editing a selection, every change lands on ALL of them —
+        // the point of selecting several is to stop repeating yourself.
+        const hit = multiEditing ? multiIds.includes(w.instanceId) : w.instanceId === instanceId;
+        return hit ? { ...w, settings: { ...w.settings, ...patch } } : w;
+      })
     );
   // Copying a look = the LOOK_KEYS only (colours/shape/spacing/font/css) —
   // never a widget's own options, its name or its size, which are not
@@ -1318,11 +1355,14 @@ export default function ExperimentalDashboard({
           onSettings={handleSettings}
           onMove={handleMove}
           onConfigure={openConfig}
-          pickLookMode={!!pickLookFrom}
-          pickLookSelected={pickLookIds.includes(w.instanceId)}
-          pickLookIsSource={pickLookFrom === w.instanceId}
-          onPickLookToggle={() => setPickLookIds((prev) =>
-            prev.includes(w.instanceId) ? prev.filter((x) => x !== w.instanceId) : [...prev, w.instanceId])}
+          pickLookMode={!!pickLookFrom || multiMode}
+          pickLookSelected={multiMode ? multiIds.includes(w.instanceId) : pickLookIds.includes(w.instanceId)}
+          pickLookIsSource={!multiMode && pickLookFrom === w.instanceId}
+          onPickLookToggle={() => (multiMode
+            ? toggleMulti(w.instanceId)
+            : setPickLookIds((prev) =>
+              prev.includes(w.instanceId) ? prev.filter((x) => x !== w.instanceId) : [...prev, w.instanceId]))}
+          onHoldSelect={pickLookFrom ? null : () => { setMultiMode(true); toggleMulti(w.instanceId); }}
           styleMode={home.styleMode}
           free={freeMode}
           onPos={handlePos}
@@ -1727,6 +1767,24 @@ export default function ExperimentalDashboard({
       )}
 
       {/* Pick-widgets overlay: tap widgets to include, then apply. */}
+      {multiMode && (
+        <div className="fixed left-0 right-0 z-[70] px-3 flex items-center gap-2"
+          style={{ bottom: "calc(var(--home-edit-bar-h, var(--bottom-nav-height, 56px)) + var(--os-sab) + 12px)" }}>
+          <div className="flex-1 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg px-3 py-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs flex-1 min-w-0 truncate">
+              {multiIds.length ? `${multiIds.length} selected` : "Tap widgets to select"}
+            </span>
+            <button type="button" onClick={selectAllOnPage}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">All</button>
+            <button type="button" disabled={!multiIds.length} onClick={() => setStylePickerOpen(true)}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground disabled:opacity-40">Style…</button>
+            <button type="button" disabled={!multiIds.length} onClick={() => setConfigId(multiIds[0])}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40">Edit all</button>
+            <button type="button" onClick={exitMulti}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Deselect</button>
+          </div>
+        </div>
+      )}
       {pickLookFrom && (
         <div className="fixed left-0 right-0 z-[70] px-3 flex items-center gap-2"
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 12px)" }}>
@@ -1859,7 +1917,26 @@ export default function ExperimentalDashboard({
                   <span aria-hidden="true" className="w-10 h-10 flex-shrink-0"
                     style={{ ...lookToStyle(st.look), ...boxStyle() }} />
                   <button type="button"
-                    onClick={() => { persist({ ...home, styleMode: st.id }); setStylePickerOpen(false); }}
+                    onClick={() => {
+                      if (multiMode && multiIds.length) {
+                        // A selection is showing — the tap means "give
+                        // THESE this style", not "restyle the board".
+                        const ids = new Set(multiIds);
+                        persist({
+                          ...home,
+                          pages: home.pages.map((p) => ({
+                            ...p,
+                            widgets: p.widgets.map((w) => (ids.has(w.instanceId)
+                              ? { ...w, settings: { ...w.settings, style: st.id } }
+                              : w)),
+                          })),
+                        });
+                        toast.success(`${st.label} applied to ${ids.size} widget${ids.size === 1 ? "" : "s"}`);
+                      } else {
+                        persist({ ...home, styleMode: st.id });
+                      }
+                      setStylePickerOpen(false);
+                    }}
                     className="flex-1 min-w-0 text-left">
                     <span className="font-medium">{st.label}</span>
                     <span className="text-xs text-muted-foreground block truncate">
@@ -1943,6 +2020,13 @@ export default function ExperimentalDashboard({
               className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
               <LayoutGrid className="w-4 h-4" />
               <span className="text-[0.5625rem]">Widgets</span>
+            </button>
+            <button type="button" aria-label={multiMode ? "Stop selecting" : "Select widgets"}
+              title={multiMode ? "Stop selecting" : "Select several widgets to change together"}
+              onClick={() => (multiMode ? exitMulti() : setMultiMode(true))}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 ${multiMode ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
+              <CheckSquare className="w-4 h-4" />
+              <span className="text-[0.5625rem]">Select</span>
             </button>
             <button type="button" aria-label="Close gaps" title="Close gaps" disabled={!pageIsFree}
               onClick={collapseGaps}
