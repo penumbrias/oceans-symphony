@@ -67,14 +67,14 @@ export default function CriticalPinnedPlans() {
           plan={plan}
           openStep={openStep}
           onDismiss={() => dismiss(plan, openStep)}
-          onOpen={() => navigate(`/activities?activityId=${plan.id}`)}
+          onOpen={() => navigate(`/planner?activityId=${plan.id}`)}
         />
       ))}
     </div>
   );
 }
 
-// Double-tap the card body → /activities?activityId=<id>, which opens the
+// Double-tap the card body → /planner?activityId=<id>, which opens the
 // Activity Details modal automatically. Single tap is a no-op (the X
 // dismiss button handles its own click; navigating away on a single tap
 // would be too easy to trigger by accident).

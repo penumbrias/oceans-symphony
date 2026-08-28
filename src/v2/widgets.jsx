@@ -26,7 +26,7 @@ import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import { statusFor as statusForActivity } from "@/lib/activityStatus";
 import { applyLogCommands } from "@/lib/logCommands";
-import {
+import { Square,
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
@@ -77,6 +77,8 @@ import ChannelView from "@/components/chat/ChannelView";
 const CreatePollModal = React.lazy(() => import("@/pages/Polls").then((m) => ({ default: m.CreatePollModal })));
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
+import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
@@ -479,16 +481,24 @@ function TodayAddSheet({ open, onClose }) {
 function TodayWidget() {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const now = Date.now();
   const [addOpen, setAddOpen] = React.useState(false);
+  // Tapping a plan opens the SAME details popup the planner uses — the
+  // widget is for today's plans, so resolving one shouldn't mean leaving
+  // for the tracker (owner request).
+  const [detailItem, setDetailItem] = React.useState(null);
   const activities = useList("activities", "Activity");
   const tasks = useList("tasks", "Task");
   // Plans for today: timed ones AND the day's untimed intentions (the
   // planner's day "+" writes planned_date with no timestamp) — those used
   // to be missing here entirely, so a plan made that way only appeared via
   // its linked to-do under "Due today" (owner report).
+  // Today's plans INCLUDING the ones already settled — a checkbox that
+  // makes the row vanish can't tell you what you finished, and leaves no
+  // way to untick a mistake.
   const plans = activities
-    .filter((a) => a.status === "scheduled"
+    .filter((a) => ["scheduled", "done", "partial"].includes(a.status || "scheduled")
       && ((a.timestamp && sameDay(a.timestamp, now)) || (!a.timestamp && a.planned_date && sameDay(a.planned_date, now))))
     .sort((a, b) => {
       if (!a.timestamp) return 1;      // untimed sink below the timed ones
@@ -512,6 +522,11 @@ function TodayWidget() {
         <TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>
       </span>}>
       <TodayAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
+      <PlanDetailsSheet
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        onEdit={(it) => { setDetailItem(null); navigate(`/planner?activityId=${it.id}`); }}
+      />
       {plans.length === 0 && due.length === 0 && (
         <button type="button" onClick={() => setAddOpen(true)} className="text-left w-full">
           <Muted>{tr("widget.today.empty")} — {tr("widget.today.tapToAdd")}</Muted>
@@ -527,13 +542,34 @@ function TodayWidget() {
           take the accent colour. */}
       {plans.map((a) => {
         const late = !!a.timestamp && new Date(a.timestamp).getTime() < now;
+        // The box shows what actually became of the plan, and ticking it
+        // marks it done — it used to be a static icon that said nothing.
+        const st = a.status || "scheduled";
+        const settled = st === "done" || st === "partial";
+        const toggle = async (e) => {
+          e.stopPropagation();
+          try {
+            await resolveOutcome(a, settled ? "scheduled" : "done");
+            qc.invalidateQueries({ queryKey: ["activities"] });
+            qc.invalidateQueries({ queryKey: ["tasks"] });
+          } catch { /* the row stays as it was */ }
+        };
         return (
           <Row key={a.id}
-            left={<CalendarCheck className="w-3.5 h-3.5 flex-shrink-0"
-              style={{ color: late ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />}
-            primary={a.activity_name} right={a.timestamp ? fmtTime(a.timestamp) : tr("widget.today.anytime")}
-            title={late ? tr("widget.today.unresolved") : undefined}
-            onClick={() => navigate(`/activities?activityId=${a.id}`)} />
+            left={(
+              <button type="button" onClick={toggle}
+                aria-label={settled ? `Mark ${a.activity_name} not done` : `Mark ${a.activity_name} done`}
+                aria-pressed={settled}
+                className="flex-shrink-0 flex items-center justify-center">
+                {settled
+                  ? <CheckSquare className="w-3.5 h-3.5" style={{ color: "var(--v2-accent)" }} />
+                  : <Square className="w-3.5 h-3.5" style={{ color: late ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />}
+              </button>
+            )}
+            primary={settled ? <span className="line-through opacity-60">{a.activity_name}</span> : a.activity_name}
+            right={a.timestamp ? fmtTime(a.timestamp) : tr("widget.today.anytime")}
+            title={late && !settled ? tr("widget.today.unresolved") : undefined}
+            onClick={() => setDetailItem(a)} />
         );
       })}
       {plans.length > 0 && due.length > 0 && (
@@ -551,7 +587,7 @@ function TodayWidget() {
       {unresolved > 0 && (
         <Muted>
           {tr("widget.today.unresolvedCount", { count: unresolved })} —{" "}
-          <TextAction onClick={() => navigate("/activities?tab=planned")}>{tr("widget.today.review")}</TextAction>
+          <TextAction onClick={() => navigate("/planner")}>{tr("widget.today.review")}</TextAction>
         </Muted>
       )}
     </Section>
@@ -1719,7 +1755,7 @@ function PlansWidget({ settings }) {
   });
   return (
     <Section label={tr("widget.plans.label")}
-      action={<TextAction onClick={() => navigate("/activities?tab=planned")}>{tr("widget.today.open")}</TextAction>}>
+      action={<TextAction onClick={() => navigate("/planner")}>{tr("widget.today.open")}</TextAction>}>
       {upcoming.length === 0 && <Muted>{tr("widget.plans.empty")}</Muted>}
       {upcoming.length > 0 && (
         <PlannedActivitiesList
@@ -1727,7 +1763,7 @@ function PlansWidget({ settings }) {
           alters={alters}
           compact
           limit={limit}
-          onClick={(activity) => navigate(activity?.id ? `/activities?activityId=${activity.id}` : "/activities")}
+          onClick={(activity) => navigate(activity?.id ? `/planner?activityId=${activity.id}` : "/planner")}
         />
       )}
     </Section>
@@ -1755,7 +1791,7 @@ function RecentActivitiesWidget({ settings }) {
         <Row key={a.id} primary={a.activity_name}
           secondary={a.duration_minutes ? `${a.actual_duration_minutes || a.duration_minutes}m` : undefined}
           right={fmtTime(a.timestamp)}
-          onClick={() => navigate(`/activities?activityId=${a.id}`)} />
+          onClick={() => navigate(`/planner?activityId=${a.id}`)} />
       ))}
     </Section>
   );

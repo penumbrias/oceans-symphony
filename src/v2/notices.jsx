@@ -347,7 +347,7 @@ function UnresolvedNotice({ rows, onResolved }) {
                     {tr("notices.startPlan")}
                   </button>
                   <button type="button"
-                    onClick={(e) => { e.stopPropagation(); navigate(`/activities?activityId=${encodeURIComponent(item.id)}`); }}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/planner?activityId=${encodeURIComponent(item.id)}`); }}
                     className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
                     {tr("notices.planDetails")}
                   </button>

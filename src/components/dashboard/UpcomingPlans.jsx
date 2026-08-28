@@ -170,7 +170,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
         alters={alters}
         compact
         limit={effectiveLimit}
-        onClick={(activity) => navigate(activity?.id ? `/activities?activityId=${activity.id}` : "/activities")}
+        onClick={(activity) => navigate(activity?.id ? `/planner?activityId=${activity.id}` : "/planner")}
       />
       {allowInlineSettings && (
         <UpcomingPlansSettingsDialog

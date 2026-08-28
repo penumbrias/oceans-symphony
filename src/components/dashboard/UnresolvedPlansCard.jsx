@@ -224,7 +224,7 @@ export default function UnresolvedPlansCard() {
             onResolve={resolve}
             onReschedule={rescheduleTomorrow}
             onStart={() => startActive(act)}
-            onOpen={() => navigate(`/activities?activityId=${act.id}`)}
+            onOpen={() => navigate(`/planner?activityId=${act.id}`)}
           />
         ))}
       </div>
@@ -232,7 +232,7 @@ export default function UnresolvedPlansCard() {
       {!showInline && (
         <button
           type="button"
-          onClick={() => navigate("/activities?tab=planned")}
+          onClick={() => navigate("/planner")}
           className="mt-2 text-xs font-medium text-primary hover:underline"
         >
           View all ({unresolved.length})
@@ -242,7 +242,7 @@ export default function UnresolvedPlansCard() {
   );
 }
 
-// Double-tap the row body → /activities?activityId=<id>, which opens the
+// Double-tap the row body → /planner?activityId=<id>, which opens the
 // Activity Details modal automatically (same pattern as
 // CriticalPlanCard). Single tap is a no-op so the lifecycle buttons
 // stay the primary one-shot affordance — accidentally tapping the row

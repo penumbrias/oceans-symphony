@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 27, 2026",
     changes: [
+      { type: "improve", text: "Today's plans are properly interactive: the box shows whether each one is done (tap it to tick or untick), and tapping the row opens the same plan popup the planner uses — outcome buttons and all — instead of sending you to the activity tracker." },
+      { type: "improve", text: "Every \"open this plan\" link now goes to the Planner, which opens that plan's details directly." },
       { type: "fix", text: "Clearing a description or bio now sticks. Edits in an {{alter}} profile, the {{alter}} editor and {{System}} settings could be silently undone by a background refresh — deleting a template looked impossible because the old text came back and saved itself again." },
     ],
   },

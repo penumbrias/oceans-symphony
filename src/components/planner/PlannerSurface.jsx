@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { X, Pencil, CheckSquare, Zap, ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
+import { CheckSquare, ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal, ListChecks } from 
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
-import { statusFor } from "@/lib/activityStatus";
+import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -94,6 +94,10 @@ export default function PlannerSurface({
   // is a window onto the planner, so tapping its body should go there).
   // Hold-to-create and tap-a-block still work exactly as on the page.
   onOpenPage = null,
+  // Deep link: open this plan's details on mount (Planner page passes the
+  // ?activityId= param through).
+  openActivityId = null,
+  onOpenedActivity = null,
 }) {
   const t = useTerms();
   const tr = useT();
@@ -350,6 +354,18 @@ export default function PlannerSurface({
     setNoteValue(item.notes || "");
     seedExtras(item);
   };
+  // Deep link from anywhere that lists a plan (Today widget, notices,
+  // unresolved card): land on its day with its details open.
+  useEffect(() => {
+    if (!openActivityId) return;
+    const found = (activities || []).find((a) => a.id === openActivityId);
+    if (!found) return;
+    const when = found.timestamp || found.planned_date;
+    if (when) setAnchor(new Date(when));
+    setDetails(found);
+    onOpenedActivity?.();
+  }, [openActivityId, activities]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
   // whole hour today, and every field is adjustable in the sheet.
@@ -991,135 +1007,19 @@ export default function PlannerSurface({
       {/* DETAILS — what this entry IS, in plain reading form. Tapping a
           block lands here; Edit opens the editor (owner spec: "a little
           details view ... in a non-edit, easy to read form"). */}
-      {details && createPortal((
-        <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setDetails(null); }}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2.5 max-h-full overflow-y-auto overscroll-contain"
-            style={{ borderRadius: "var(--v2-radius, 16px)" }}>
-            {(() => {
-              const it = details;
-              const st = statusFor(it);
-              const cat = categories.find((c) => c.id === categoryIdOf(it));
-              const color = it.color || cat?.color || "var(--v2-accent)";
-              const start = it.timestamp ? new Date(it.timestamp) : null;
-              const mins = Number(it.actual_duration_minutes) || Number(it.duration_minutes) || 0;
-              const end = start && mins ? new Date(start.getTime() + mins * 60000) : null;
-              const who = (it.fronting_alter_ids || []).map((id) => alters.find((a) => a.id === id)).filter(Boolean);
-              const task = it.task_id ? tasks.find((x) => x.id === it.task_id) : null;
-              const Line = ({ label, children }) => (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[0.6875em] uppercase tracking-wide text-muted-foreground w-16 flex-shrink-0">{label}</span>
-                  <span className="text-sm flex-1 min-w-0">{children}</span>
-                </div>
-              );
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 20 }} />
-                      <span className="text-base font-semibold truncate">{it.activity_name || tr("planner.untitled")}</span>
-                    </span>
-                    <button type="button" onClick={() => setDetails(null)} aria-label={tr("planner.close")}
-                      className="p-1 -mr-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1">
-                    <span className="text-[0.6875em] px-2 py-0.5 rounded-full border"
-                      style={st === "scheduled"
-                        ? { borderColor: "var(--v2-accent)", color: "var(--v2-accent)" }
-                        : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                      {tr(`planner.${st}`)}
-                    </span>
-                    {it.is_critical && (
-                      <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-500 flex items-center gap-1">
-                        <Zap className="w-3 h-3" />{tr("planner.critical")}
-                      </span>
-                    )}
-                    {it.recurrence_group_id && (
-                      <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
-                        <Repeat className="w-3 h-3" />{tr("planner.series")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1 pt-0.5">
-                    <Line label={tr("planner.whenLabel")}>
-                      {start
-                        ? `${format(start, "EEE d MMM")} · ${format(start, "HH:mm")}${end ? `–${format(end, "HH:mm")}` : ""}`
-                        : it.planned_date
-                          ? `${format(new Date(it.planned_date), "EEE d MMM")} · ${tr("planner.anytime")}`
-                          : tr("planner.noTimeSet")}
-                    </Line>
-                    {mins > 0 && <Line label={tr("planner.durLabel")}>{fmt(mins)}</Line>}
-                    {cat && (
-                      <Line label={tr("planner.whatLabel")}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {cat.color && <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />}
-                          {cat.name}
-                        </span>
-                      </Line>
-                    )}
-                    {who.length > 0 && <Line label={tr("planner.who")}>{who.map((a) => formatAlter(a)).join(", ")}</Line>}
-                    {it.location && <Line label={tr("planner.location")}>{it.location}</Line>}
-                    {task && (
-                      <Line label={tr("planner.todoLabel")}>
-                        <span className="inline-flex items-center gap-1.5">
-                          <CheckSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                          <span className={task.completed || task.is_complete ? "line-through text-muted-foreground" : ""}>{task.title}</span>
-                        </span>
-                      </Line>
-                    )}
-                    {it.notes && (
-                      <div className="pt-1">
-                        <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground">{tr("planner.notes")}</p>
-                        <p className="text-sm whitespace-pre-wrap break-words">{it.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  {/* OUTCOME — resolvable right here; the editor is for
-                      changing the plan, not for saying what became of it. */}
-                  <div className="pt-1 border-t border-border/40">
-                    <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground mb-1">{tr("planner.outcome")}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
-                        ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-                        <button key={id} type="button" aria-pressed={st === id}
-                          onClick={() => resolveItem(it, id)}
-                          className={`text-xs px-2.5 py-1 rounded-full border ${
-                            st === id
-                              ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
-                              : "border-border/50 text-muted-foreground hover:text-foreground"
-                          }`}>{label}</button>
-                      ))}
-                      {/* Still happening, just later — this also brings a
-                          skipped/cancelled plan back to scheduled on its
-                          new day. */}
-                      <button type="button" onClick={() => rescheduleFromDetails(it)}
-                        className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                        <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
-                    <button type="button" onClick={() => openEditor(it, { day: it._day || null })}
-                      className="text-xs px-3 py-1.5 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
-                      <Pencil className="w-3 h-3" />{tr("planner.edit")}
-                    </button>
-                    {st === "scheduled" && !getActiveActivities().some((a) => a.planActivityId === it.id) && (
-                      <button type="button"
-                        onClick={() => { const item = it; setDetails(null); setTiming({ item, day: item.timestamp ? new Date(item.timestamp) : anchor }); setTimeout(startNow, 0); }}
-                        className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                        <Play className="w-3 h-3" />{tr("planner.startNow")}
-                      </button>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      ), document.body)}
+      {/* Details — the SHARED sheet (also used by the Today widget), so a
+          plan reads and resolves the same wherever you tap it. */}
+      <PlanDetailsSheet
+        item={details}
+        onClose={() => setDetails(null)}
+        onEdit={(it) => openEditor(it, { day: it._day || null })}
+        onStartNow={(it) => {
+          setDetails(null);
+          setTiming({ item: it, day: it.timestamp ? new Date(it.timestamp) : anchor });
+          setTimeout(startNow, 0);
+        }}
+        onReschedule={(it) => rescheduleFromDetails(it)}
+      />
       {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
           style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
