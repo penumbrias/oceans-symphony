@@ -64,6 +64,12 @@ function DayColumn({
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
   onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
   laneOpacity = 90,
+  // Cross-day creation: which column this is, and how to turn a pointer
+  // x into a column index. Minutes are measured from THIS day's midnight,
+  // so dragging into tomorrow simply carries past 1440 — the create sheet
+  // already turns (to − from) into the duration, so a span of days needs
+  // no new plumbing beyond letting the number grow.
+  dayIndex = 0, dayIndexAt = null, registerNode = null,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -130,7 +136,11 @@ function DayColumn({
       e.preventDefault();
       lastYRef.current = e.clientY;
       startAutoScroll();
-      const now = snap(minuteAt(e.clientY));
+      const overIdx = dayIndexAt ? dayIndexAt(e.clientX) : dayIndex;
+      // Only FORWARD across days: dragging back before the start would
+      // invert the range, and the start is where the finger went down.
+      const offset = Math.max(0, (overIdx == null ? dayIndex : overIdx) - dayIndex);
+      const now = snap(minuteAt(e.clientY)) + offset * MINUTES_PER_DAY;
       // Both ends are already snapped whole minutes, so the label can never
       // show a fraction and the block edges land on the grain.
       setDraft({ fromMin: Math.min(g.startMin, now), toMin: Math.max(g.startMin, now) });
@@ -326,7 +336,7 @@ function DayColumn({
       </div>
 
       <div
-        ref={ref}
+        ref={(n) => { ref.current = n; registerNode?.(n); }}
         // This surface runs its own press-and-hold (create by dragging a time
         // range), so the widget shell must not ALSO arm its options sheet on
         // the same press — otherwise the sheet opens mid-drag, which reads as
@@ -504,13 +514,17 @@ function DayColumn({
         {draft && (
           <div className="absolute left-0 right-0 border-2 border-dashed pointer-events-none flex items-start justify-center"
             style={{
-              top: pct(draft.fromMin), height: pct(Math.max(draft.toMin - draft.fromMin, 15)),
+              top: pct(draft.fromMin),
+              // The draft paints inside its own column; the label carries
+              // the real end when the drag has run into later days.
+              height: pct(Math.max(Math.min(draft.toMin, MINUTES_PER_DAY) - draft.fromMin, 15)),
               borderRadius: "var(--v2-radius, 6px)",
               borderColor: "var(--v2-accent)",
               background: "color-mix(in srgb, var(--v2-accent) 15%, transparent)",
             }}>
             <span className="text-[0.625em] font-medium mt-0.5" style={{ color: "var(--v2-accent)" }}>
-              {minutesToLabel(draft.fromMin)}–{minutesToLabel(Math.max(draft.toMin, draft.fromMin + 15))}
+              {minutesToLabel(draft.fromMin)}–{minutesToLabel(Math.max(draft.toMin, draft.fromMin + 15) % MINUTES_PER_DAY)}
+              {draft.toMin >= MINUTES_PER_DAY && ` +${Math.floor(draft.toMin / MINUTES_PER_DAY)}d`}
             </span>
           </div>
         )}
@@ -625,6 +639,23 @@ export default function WeekCanvas({
 
   let activeSystemIdRef = null;
   try { activeSystemIdRef = getActiveSystemId() || null; } catch { /* registry not up yet */ }
+  // Column nodes, so a create-drag can resolve the pointer's x to a day
+  // and run past midnight into the next one.
+  const colNodes = useRef([]);
+  const dayIndexAt = useCallback((clientX) => {
+    const nodes = colNodes.current || [];
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (!n) continue;
+      const r = n.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return i;
+      // Past the last column's right edge — treat as that column, so a
+      // finger dragged off the end still extends rather than snapping back.
+      if (i === nodes.length - 1 && clientX > r.right) return i;
+    }
+    return null;
+  }, []);
+
   const perDay = useMemo(() => days.map((day) => {
     const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
     const sameDay = (t) => t && isSameDay(new Date(t), day);
@@ -799,10 +830,13 @@ export default function WeekCanvas({
               <div style={{ height: 24 * hourPx }} />
             </div>
 
-            {perDay.map(({ day, blocks, untimed, bands, marks }) => (
+            {perDay.map(({ day, blocks, untimed, bands, marks }, dayIdx) => (
               <DayColumn
                 key={day.toISOString()}
                 day={day}
+                dayIndex={dayIdx}
+                dayIndexAt={dayIndexAt}
+                registerNode={(n) => { colNodes.current[dayIdx] = n; }}
                 nowMin={isSameDay(day, nowTick) ? nowTick.getHours() * 60 + nowTick.getMinutes() : null}
                 minWidth={MIN_DAY_PX}
                 blocks={blocks}
