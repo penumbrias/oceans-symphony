@@ -18,7 +18,7 @@
 // creation and edits go through the existing modals, so stored data keeps
 // exactly the shape it already has.
 
-import React, { useMemo, useRef, useState, useCallback } from "react";
+import React, { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
 import { categoryIdOf } from "@/lib/planner/rollup";
@@ -70,12 +70,29 @@ function DayColumn({
   // already turns (to − from) into the duration, so a span of days needs
   // no new plumbing beyond letting the number grow.
   dayIndex = 0, dayIndexAt = null, registerNode = null,
+  // A draft started in an EARLIER column that has run into this day, in
+  // this day's own minutes — so the range the finger is drawing paints as
+  // one continuous block across the week instead of stopping at midnight.
+  onDraftSpan = null, spillDraft = null,
 }) {
   const tr = useT();
   const ref = useRef(null);
   const gesture = useRef(null);
   const [draft, setDraft] = useState(null);      // { fromMin, toMin }
   const [resizing, setResizing] = useState(null); // { id, edge, startMin, endMin }
+  // Only a draft that has actually crossed midnight is published upward —
+  // a same-day drag must not re-render the other six columns on every move.
+  const spanPublished = useRef(false);
+  useEffect(() => {
+    if (!onDraftSpan) return;
+    if (draft && draft.toMin > MINUTES_PER_DAY) {
+      spanPublished.current = true;
+      onDraftSpan(dayIndex, draft);
+    } else if (spanPublished.current) {
+      spanPublished.current = false;
+      onDraftSpan(dayIndex, null);
+    }
+  }, [draft, dayIndex, onDraftSpan]);
   const resizeArm = useRef(null); // hold-to-arm edge resize: { timer, x, y, block, armed }
   // Which block has an edge press in progress (before the hold lands): drives
   // the faint "charging" ring so the user sees the hold registering.
@@ -518,6 +535,9 @@ function DayColumn({
               // The draft paints inside its own column; the label carries
               // the real end when the drag has run into later days.
               height: pct(Math.max(Math.min(draft.toMin, MINUTES_PER_DAY) - draft.fromMin, 15)),
+              // Open at the bottom when the range carries on into tomorrow,
+              // so the two halves read as one block rather than two.
+              borderBottomWidth: draft.toMin > MINUTES_PER_DAY ? 0 : undefined,
               borderRadius: "var(--v2-radius, 6px)",
               borderColor: "var(--v2-accent)",
               background: "color-mix(in srgb, var(--v2-accent) 15%, transparent)",
@@ -526,6 +546,27 @@ function DayColumn({
               {minutesToLabel(draft.fromMin)}–{minutesToLabel(Math.max(draft.toMin, draft.fromMin + 15) % MINUTES_PER_DAY)}
               {draft.toMin >= MINUTES_PER_DAY && ` +${Math.floor(draft.toMin / MINUTES_PER_DAY)}d`}
             </span>
+          </div>
+        )}
+
+        {spillDraft && !draft && (
+          <div className="absolute left-0 right-0 border-2 border-dashed pointer-events-none flex items-end justify-center"
+            style={{
+              top: pct(spillDraft.fromMin),
+              height: pct(Math.max(spillDraft.toMin - spillDraft.fromMin, 15)),
+              // Open at the top (it began yesterday) and, unless this is
+              // where the finger is, open at the bottom too.
+              borderTopWidth: 0,
+              borderBottomWidth: spillDraft.isEnd ? undefined : 0,
+              borderRadius: "var(--v2-radius, 6px)",
+              borderColor: "var(--v2-accent)",
+              background: "color-mix(in srgb, var(--v2-accent) 15%, transparent)",
+            }}>
+            {spillDraft.isEnd && (
+              <span className="text-[0.625em] font-medium mb-0.5" style={{ color: "var(--v2-accent)" }}>
+                {minutesToLabel(spillDraft.toMin % MINUTES_PER_DAY)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -655,6 +696,21 @@ export default function WeekCanvas({
     }
     return null;
   }, []);
+
+  // The in-flight create range, once it has crossed into another day —
+  // held here so every column can paint its own slice of it.
+  const [spanDraft, setSpanDraft] = useState(null); // { originIndex, fromMin, toMin }
+  const handleDraftSpan = useCallback((originIndex, d) => {
+    setSpanDraft(d ? { originIndex, fromMin: d.fromMin, toMin: d.toMin } : null);
+  }, []);
+  const spillFor = (i) => {
+    if (!spanDraft || i <= spanDraft.originIndex) return null;
+    const off = (i - spanDraft.originIndex) * MINUTES_PER_DAY;
+    const from = Math.max(spanDraft.fromMin, off) - off;
+    const to = Math.min(spanDraft.toMin, off + MINUTES_PER_DAY) - off;
+    if (to <= from) return null;
+    return { fromMin: from, toMin: to, isEnd: spanDraft.toMin <= off + MINUTES_PER_DAY };
+  };
 
   const perDay = useMemo(() => days.map((day) => {
     const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
@@ -836,6 +892,8 @@ export default function WeekCanvas({
                 day={day}
                 dayIndex={dayIdx}
                 dayIndexAt={dayIndexAt}
+                onDraftSpan={handleDraftSpan}
+                spillDraft={spillFor(dayIdx)}
                 registerNode={(n) => { colNodes.current[dayIdx] = n; }}
                 nowMin={isSameDay(day, nowTick) ? nowTick.getHours() * 60 + nowTick.getMinutes() : null}
                 minWidth={MIN_DAY_PX}
