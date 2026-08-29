@@ -32,7 +32,7 @@ import { Square,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
-, Map, MapPin
+, Map, MapPin, Compass
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -785,10 +785,21 @@ function HeadingWidget({ settings }) {
 
 function TextWidget({ settings }) {
   const align = settings?.align || "left";
+  const text = settings?.text || "";
+  // Rich content (the editor writes HTML) renders sanitized; a plain-text
+  // widget from before the upgrade renders exactly as it always did.
+  const rich = /<[a-z][\s\S]*>|&[a-z]+;|&#\d+;/i.test(text);
+  if (rich) {
+    return (
+      <div className="text-sm [&_p]:mb-1 [&_a]:underline"
+        style={{ ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text) }} />
+    );
+  }
   return (
     <p className="text-sm text-muted-foreground whitespace-pre-line"
       style={{ ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align }}>
-      {settings?.text || ""}
+      {text}
     </p>
   );
 }
@@ -2642,6 +2653,42 @@ function sized(render) {
   );
 }
 
+// First-run starter guide — seeded onto page 1 the first time the
+// experimental home is switched on, so the jump from the classic
+// dashboard isn't a cold start. Just a widget: delete it in edit mode
+// like any other. The buttons dispatch the SAME events the edit bar
+// uses — no new surfaces, it only points at what already exists.
+function StarterGuideWidget() {
+  const tr = useT();
+  const fire = (name, detail) => window.dispatchEvent(new CustomEvent(name, detail ? { detail } : undefined));
+  const btn = "flex-1 min-w-[7rem] text-xs font-medium px-2 py-1.5 rounded-lg border transition-colors";
+  return (
+    <div className="space-y-2 text-sm">
+      <p className="font-semibold">{tr("widget.guide.title")}</p>
+      <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+        <li>{tr("widget.guide.line1")}</li>
+        <li>{tr("widget.guide.line2")}</li>
+        <li>{tr("widget.guide.line3")}</li>
+      </ul>
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
+        <button type="button" onClick={() => fire("os-v2-home-settings")}
+          className={`${btn} border-primary/40 text-primary hover:bg-primary/10`}>
+          {tr("widget.guide.browseStyles")}
+        </button>
+        <button type="button" onClick={() => fire("os-v2-pack-sheet", { tab: "import" })}
+          className={`${btn} border-primary/40 text-primary hover:bg-primary/10`}>
+          {tr("widget.guide.samplePacks")}
+        </button>
+        <button type="button" onClick={() => fire("os-v2-edit-home")}
+          className={`${btn} border-border/60 text-muted-foreground hover:text-foreground`}>
+          {tr("widget.guide.startEditing")}
+        </button>
+      </div>
+      <p className="text-[0.6875rem] text-muted-foreground/80">{tr("widget.guide.footer")}</p>
+    </div>
+  );
+}
+
 export const V2_WIDGETS = {
   activity_week: {
     label: "Week grid", description: "The activity tracker's week, on your home screen. Minimal is a per-day readout; normal draws the grid; expanded gives you the tracker's own gestures \u2014 drag a time range to log or plan it.",
@@ -3020,13 +3067,23 @@ export const V2_WIDGETS = {
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
+  starter_guide: {
+    label: "Starter guide", description: "Quick pointers for the home screen, with shortcuts to styles and layout packs.",
+    icon: Compass, category: "layout",
+    render: () => <StarterGuideWidget />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    configFields: [],
+    defaultSpan: { cols: 8, rows: 4 }, minSpan: { cols: 4, rows: 3 }, maxSpan: { cols: 12, rows: 8 },
+  },
   text: {
     label: "Text", description: "A paragraph of your own — notes, reminders to yourself, anything.",
     icon: AlignLeft, category: "layout",
     render: ({ settings }) => <TextWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
-      { key: "text", type: "textarea", label: "Text", rows: 4, placeholder: "Write anything here…" },
+      // Full rich editing (colours, fonts, images, in-app link buttons) —
+      // the same editor journals and bios use.
+      { key: "text", type: "richtext", label: "Text", placeholder: "Write anything here…" },
       { key: "align", type: "select", label: "Alignment", default: "left",
         options: [{ value: "left", label: "Left" }, { value: "center", label: "Centre" }, { value: "right", label: "Right" }] },
     ],
@@ -3266,10 +3323,25 @@ export function seedV2Home() {
     // Fresh boards start on the FINEST grid (the user can coarsen it) —
     // big jumps between sizes were the complaint, not the fine steps.
     wallpaper: { url: "" }, grid: { phoneCols: 8, rowPx: 40 }, drawer: { folders: [] },
-    pages: [{
-      id: "p1", label: "Home", layoutMode: "free",
-      widgets: [mk("presence", 4, 1), mk("today", 4, 2), mk("running", 4, 1), mk("status", 4, 1)],
-    }],
+    pages: [
+      {
+        // Page 1 mirrors the classic dashboard's shape (fronters → status →
+        // today → tasks) with a starter guide on top, so switching over
+        // isn't a cold start. It's all ordinary widgets — edit or delete
+        // anything.
+        id: "p1", label: "Home", layoutMode: "free",
+        widgets: [
+          mk("starter_guide", 8, 4),
+          mk("presence", 8, 2),
+          mk("status", 8, 2),
+          mk("today", 8, 3),
+          mk("tasks", 4, 3), mk("running", 4, 3),
+        ],
+      },
+      // A blank second page to build on, so experiments never have to
+      // touch the preset (owner spec).
+      { id: "p2", label: "Your page", layoutMode: "free", widgets: [] },
+    ],
   };
 }
 

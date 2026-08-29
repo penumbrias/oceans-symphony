@@ -17,6 +17,34 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
+const WysiwygEditorLazy = React.lazy(() => import("@/components/shared/WysiwygEditor"));
+
+// Rich text with a DEBOUNCED commit — the wysiwyg emits per keystroke and
+// committing straight through would persist the whole board every letter.
+// Local state is the truth while typing (never re-seeded from the prop —
+// the "description won't delete" lesson); pending text flushes on unmount.
+function RichTextField({ value, onCommit, placeholder }) {
+  const [draft, setDraft] = React.useState(value || "");
+  const timer = React.useRef(null);
+  const pending = React.useRef(null);
+  const commitRef = React.useRef(onCommit);
+  commitRef.current = onCommit;
+  React.useEffect(() => () => {
+    clearTimeout(timer.current);
+    if (pending.current != null) commitRef.current(pending.current);
+  }, []);
+  const change = (v) => {
+    setDraft(v);
+    pending.current = v;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { pending.current = null; commitRef.current(v); }, 600);
+  };
+  return (
+    <React.Suspense fallback={<div className="h-24 rounded-lg border border-input bg-background animate-pulse" />}>
+      <WysiwygEditorLazy value={draft} onChange={change} placeholder={placeholder || "Write anything here…"} />
+    </React.Suspense>
+  );
+}
 import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
@@ -623,6 +651,14 @@ export default function WidgetConfigSheet({
                   <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder}
                     maxLength={f.maxLength || 120} onCommit={(v) => { if (v !== val) commit(v); }}
                     className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                )}
+                {f.type === "richtext" && (
+                  /* THE full editor — same WysiwygEditor + MiniToolbar the
+                     journals and bios use, so text widgets can carry colours,
+                     fonts, images and in-app link buttons (owner spec:
+                     "utilize all full formatting functionality"). */
+                  <RichTextField key={`${widget.instanceId}:${f.key}`} value={val}
+                    onCommit={(v) => { if (v !== val) commit(v); }} placeholder={f.placeholder} />
                 )}
                 {f.type === "textarea" && (
                   <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder}
