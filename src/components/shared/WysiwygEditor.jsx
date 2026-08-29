@@ -189,7 +189,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const [toolbarModal, setToolbarModal] = useState(false);
   const [kbBottom, setKbBottom] = useState(0);
   const dockRef = useRef(null);
-  useDockHeightVar(dockRef, floatResolved && (focused || toolbarModal), kbBottom);
+  useDockHeightVar(dockRef, floatResolved && (focused || toolbarModal));
   useEffect(() => {
     if (!floatResolved) return undefined;
     const vv = window.visualViewport;
@@ -247,7 +247,11 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           <div
             ref={dockRef}
             className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
-            style={{ bottom: kbBottom }}
+            // With the keyboard up, dock right above it. With the keyboard
+            // CLOSED but the editor still focused, sit above the bottom
+            // chrome instead — bottom:0 painted the toolbar OVER the nav
+            // bar and key row (owner screenshot, "UI got kinda weird").
+            style={{ bottom: kbBottom > 40 ? kbBottom : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab, 0px))" }}
             // Keep the editor focused (and the selection alive) while
             // tapping anything on the bar.
             onPointerDown={(e) => e.preventDefault()}

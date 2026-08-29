@@ -776,6 +776,44 @@ export function applyImageMap(value, map) {
 // back to plain JSON where CompressionStream isn't available; the
 // decoder accepts both.
 const PACK_CODE_PREFIX = "OSPACK1.";
+const PACK_CODE_PREFIX_V2 = "OSPACK2.";
+
+// ── Key tokenisation (OSPACK2) ─────────────────────────────────────
+// The pack JSON's KEYS are the bulk of its raw bytes — the same forty-odd
+// field names repeated per widget. Deflate already dictionary-compresses
+// them, but swapping each for a two-char token first still shrinks the
+// final code ~15–25%. Purely reversible renaming of KNOWN keys: values
+// (the user's actual choices) are never touched, unknown keys pass
+// through untouched, and a real key that happens to start with "~" is
+// escaped to "~~key" so nothing can collide. OSPACK1 codes decode
+// forever; older app versions can't read OSPACK2 codes — re-export there.
+const PACK_KEY_DICT = [
+  "instanceId", "widgetId", "settings", "span", "cols", "rows", "mode",
+  "pos", "pages", "widgets", "label", "layoutMode", "types", "layout",
+  "widgetStyles", "uiTheme", "title", "created", "style", "grid",
+  "phoneCols", "rowPx", "wallpaper", "drawer", "folders", "defaultPageId",
+  "styleMode", "actionBar", "altersBar", "enabled", "position",
+  "collapsed", "look", "tokens", "bars", "icons", "commandKeys",
+  "appTheme", "colors", "background", "border", "radius", "shadow",
+  "opacity", "color", "image", "url", "name", "value", "version",
+  "buttonIds", "visibleTo", "visibleMode", "userStyles", "imageRefs",
+];
+const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const keyToToken = new Map(PACK_KEY_DICT.map((k, i) => [k, `~${TOKEN_ALPHABET[Math.floor(i / TOKEN_ALPHABET.length)] || ""}${TOKEN_ALPHABET[i % TOKEN_ALPHABET.length]}`]));
+const tokenToKey = new Map([...keyToToken].map(([k, t]) => [t, k]));
+
+function mapKeys(value, mapKey) {
+  if (Array.isArray(value)) return value.map((v) => mapKeys(v, mapKey));
+  if (!value || typeof value !== "object") return value;
+  const out = {};
+  for (const [k, v] of Object.entries(value)) out[mapKey(k)] = mapKeys(v, mapKey);
+  return out;
+}
+const tokenizeKeys = (obj) => mapKeys(obj, (k) => keyToToken.get(k) || (k.startsWith("~") ? `~~${k.slice(1)}` : k));
+const detokenizeKeys = (obj) => mapKeys(obj, (k) => {
+  if (k.startsWith("~~")) return `~${k.slice(2)}`;
+  return tokenToKey.get(k) || k;
+});
 const b64uEncode = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const b64uDecode = (str) => {
   const b = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
@@ -806,16 +844,25 @@ export async function encodePackCompact(pack) {
   const json = JSON.stringify(pack);
   if (typeof CompressionStream === "undefined") return json;
   try {
-    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("deflate"));
+    const tokenized = JSON.stringify(tokenizeKeys(pack));
+    const stream = new Blob([tokenized]).stream().pipeThrough(new CompressionStream("deflate"));
     const buf = new Uint8Array(await new Response(stream).arrayBuffer());
-    return PACK_CODE_PREFIX + b64uEncode(buf);
+    return PACK_CODE_PREFIX_V2 + b64uEncode(buf);
   } catch { return json; }
 }
 export async function decodePackText(text) {
   const raw = String(text || "").trim();
   // The share message wraps the code in a human explanation, and chat
   // apps add quotes/newlines — find the code wherever it ended up
-  // rather than demanding a bare blob.
+  // rather than demanding a bare blob. Both generations decode: v2 adds
+  // the key detokenisation pass, v1 codes keep working forever.
+  const m2 = raw.match(new RegExp(PACK_CODE_PREFIX_V2.replace(".", "\\.") + "([A-Za-z0-9_-]+)"));
+  if (m2) {
+    const bytes = b64uDecode(m2[1]);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+    const json = await new Response(stream).text();
+    return JSON.stringify(detokenizeKeys(JSON.parse(json)));
+  }
   const m = raw.match(new RegExp(PACK_CODE_PREFIX.replace(".", "\\.") + "([A-Za-z0-9_-]+)"));
   if (!m) return raw;
   const bytes = b64uDecode(m[1]);

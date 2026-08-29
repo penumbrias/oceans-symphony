@@ -195,6 +195,7 @@ export default {
   "widget.notebook.saved": "Saved to your journal",
   "widget.notebook.titlePlaceholder": "Title (optional)",
   "widget.notebook.placeholder": "Write here\u2026",
+  "widget.notebook.entryLabel": "Entry",
 
   "widget.tasks.label": "To-dos",
   "widget.tasks.empty": "Nothing open.",

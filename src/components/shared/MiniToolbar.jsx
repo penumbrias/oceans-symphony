@@ -549,7 +549,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // no visualViewport), so the toolbar renders inline exactly as before.
   const [kb, setKb] = useState(0);
   const dockRef = useRef(null);
-  useDockHeightVar(dockRef, float === "keyboard" && kb > 40, kb);
+  useDockHeightVar(dockRef, float === "keyboard" && kb > 40);
   useEffect(() => {
     if (float !== "keyboard") return undefined;
     const vv = window.visualViewport;

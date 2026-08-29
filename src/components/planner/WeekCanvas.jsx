@@ -167,9 +167,15 @@ function DayColumn({
       e.preventDefault();
       lastYRef.current = e.clientY;
       startAutoScroll();
-      const now = snap(minuteAt(e.clientY));
+      // Bottom edge follows the pointer into LATER columns, same as the
+      // create drag — each day to the right adds a day of minutes, so a
+      // block can be stretched across midnight. Forward only (the start
+      // stays put), and the top edge remains same-day.
+      const overIdx = dayIndexAt ? dayIndexAt(e.clientX) : dayIndex;
+      const offset = Math.max(0, (overIdx == null ? dayIndex : overIdx) - dayIndex);
+      const now = snap(minuteAt(e.clientY)) + (resizing.edge === "bottom" ? offset * MINUTES_PER_DAY : 0);
       setResizing((r) => (r.edge === "top"
-        ? { ...r, startMin: Math.min(now, r.endMin - 15) }
+        ? { ...r, startMin: Math.min(Math.max(0, snap(minuteAt(e.clientY))), r.endMin - 15) }
         : { ...r, endMin: Math.max(now, r.startMin + 15) }));
     }
   };
@@ -443,7 +449,11 @@ function DayColumn({
           const isLive = live?.id === b.id;
           const isArming = !isLive && armingId === b.id;
           const top = isLive ? live.startMin : b.startMin;
-          const bottom = isLive ? live.endMin : b.endMin;
+          // A live bottom-edge drag can run past midnight (endMin > 1440);
+          // paint clips at the day edge — the label carries the real end,
+          // and on release the block re-renders with continuation pieces.
+          const bottom = isLive ? Math.min(live.endMin, MINUTES_PER_DAY) : b.endMin;
+          const liveExtraDays = isLive ? Math.floor(live.endMin / MINUTES_PER_DAY) : 0;
           // A block that crosses midnight is drawn as two pieces. The cut
           // edge is square (it continues, it doesn't end) and NOT
           // resizable — a resize commits "this day's minutes" as the whole
@@ -511,7 +521,8 @@ function DayColumn({
                 </span>
                 {isLive && (
                   <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
-                    {minutesToLabel(top)}–{minutesToLabel(bottom)}
+                    {minutesToLabel(top)}–{minutesToLabel(live.endMin % MINUTES_PER_DAY)}
+                    {liveExtraDays > 0 && ` +${liveExtraDays}d`}
                   </span>
                 )}
                 {bottom - top >= 40 && !isLive && (

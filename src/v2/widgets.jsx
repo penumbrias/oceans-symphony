@@ -1436,8 +1436,9 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
 // journals are a log). Half-written text survives closing the app via the
 // shared draft hook, per instance so two notebooks never share a draft.
 const WysiwygEditorLazy = React.lazy(() => import("@/components/shared/WysiwygEditor"));
+const BioEditorLazy = React.lazy(() => import("@/components/alters/BioEditor"));
 
-function NotebookWidget({ settings, updateSettings, instanceId }) {
+function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" }) {
   const notebookAlters = useList("alters", "Alter");
   const tr = useT();
   const qc = useQueryClient();
@@ -1528,25 +1529,32 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         placeholder={tr("widget.notebook.titlePlaceholder")}
         className="w-full h-8 px-2 text-sm font-medium bg-transparent border-0 border-b border-border/40 focus:outline-none focus:border-primary/50"
       />
-      {/* The page itself: grows with the widget, scrolls when it outgrows it.
-          "Formatting & images" (widget config) swaps in the journal's own
-          rich editor — the SAME WysiwygEditor + MiniToolbar the journal
-          page uses, so images, colours and headings work identically. */}
-      {settings?.rich ? (
+      {/* The page itself: grows with the widget, scrolls when it outgrows
+          it. The widget's display mode picks the editor depth (owner spec):
+          Minimal = bare page (mention autocomplete, no toolbar), Normal =
+          the wysiwyg with its MiniToolbar, Expanded = THE full BioEditor —
+          mode tabs, undo, templates and all, same as journals and bios. */}
+      {mode === "expanded" ? (
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <React.Suspense fallback={<Muted>…</Muted>}>
+            <BioEditorLazy value={text} onChange={setText} label={tr("widget.notebook.entryLabel")} placeholder={tr("widget.notebook.placeholder")} />
+          </React.Suspense>
+        </div>
+      ) : mode === "minimal" ? (
+        <MentionTextarea
+          value={text}
+          onChange={setText}
+          alters={notebookAlters}
+          commands={false}
+          placeholder={tr("widget.notebook.placeholder")}
+          className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
+        />
+      ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <React.Suspense fallback={<Muted>…</Muted>}>
             <WysiwygEditorLazy value={text} onChange={setText} placeholder={tr("widget.notebook.placeholder")} floatingToolbar />
           </React.Suspense>
         </div>
-      ) : (
-      <MentionTextarea
-        value={text}
-        onChange={setText}
-        alters={notebookAlters}
-        commands={false}
-        placeholder={tr("widget.notebook.placeholder")}
-        className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
-      />
       )}
     </Section>
   );
@@ -2940,12 +2948,14 @@ export const V2_WIDGETS = {
   notebook: {
     label: "Notebook", description: "Write straight onto the page — it saves as a journal entry in the journal you pick.",
     icon: PenLine, category: "journals",
-    render: ({ settings, updateSettings, instanceId }) =>
-      <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: ({ settings, updateSettings, instanceId, mode }) =>
+      <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} mode={mode} />,
+    // The display mode picks the editor depth: Minimal = bare page,
+    // Normal = wysiwyg + toolbar, Expanded = the full BioEditor with mode
+    // tabs. (The old "Formatting & images" toggle is superseded by this.)
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "journal", type: "dynamicSelect", source: "journalFolders", label: "Journal", emptyLabel: "All journals" },
-      { key: "rich", type: "toggle", label: "Formatting & images", default: false },
     ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },

@@ -423,7 +423,10 @@ export default function PlannerSurface({
     if (!activity) return;
     const start = new Date(day);
     start.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
-    const minutes = Math.max(1, Math.min(MINUTES_PER_DAY, endMin - startMin));
+    // No one-day ceiling: dragging the bottom edge sideways into later
+    // days hands in endMin > 1440, and multi-day blocks already render
+    // with continuation edges. 14 days is a sanity cap, not a feature.
+    const minutes = Math.max(1, Math.min(MINUTES_PER_DAY * 14, endMin - startMin));
     try {
       await base44.entities.Activity.update(id, {
         timestamp: start.toISOString(),

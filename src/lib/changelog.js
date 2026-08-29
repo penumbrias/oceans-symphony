@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "Closing the keyboard with a journal text box still focused no longer leaves the formatting toolbar sitting on top of the bottom bar — it now parks neatly above it." },
+      { type: "improve", text: "Setup-pack share codes are ~15% shorter. Codes from older versions still import fine." },
+      { type: "improve", text: "The Notebook widget's editor now follows its display mode: Minimal is a bare page, Normal adds the formatting toolbar, Expanded is the full journal editor with mode tabs, undo and templates." },
+      { type: "improve", text: "Planner: dragging a plan's bottom edge sideways into later days now stretches it across midnight, same as creating one." },
       { type: "improve", text: "The feature tour caught up with everything recent: multi-select editing, the bottom-bar swap, the journal editor's full toolbar (mentions, clear formatting, image sizing, in-app links), hashtag tags, multi-day plans and pull-to-refresh — and it no longer describes the removed Flow layout." },
       { type: "feature", text: "Pull down at the top of any page — or the home screen — to refresh everything." },
       { type: "hotfix", text: "Hotfix: Friends registrations are now rate-limited per network." },
