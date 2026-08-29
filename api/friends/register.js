@@ -1,7 +1,7 @@
 // POST /api/friends/register
 // Body: { userId?, secret?, displayName, systemName, terms, privacyLevel }
 // Creates or updates a user profile. Returns { userId, secret, friendCode }.
-import { kv, generateId, generateFriendCode, getProfile, cors, timingSafeEqualStr, capStr, capTerms, capPrivacy } from '../_kv.js';
+import { kv, generateId, generateFriendCode, getProfile, cors, timingSafeEqualStr, capStr, capTerms, capPrivacy, rateLimit } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -31,6 +31,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ userId, secret, friendCode: existing.friendCode });
     }
     return res.status(401).json({ error: 'Invalid credentials.' });
+  }
+
+  // New registration — rate limited per IP so minted accounts can't be
+  // farmed to bloat the store. 20/hour is generous for humans even behind
+  // carrier NAT (registration is one-time per user), hostile to scripts.
+  // Returning-user updates above are NOT limited — they're authenticated.
+  if (!(await rateLimit(req, 'register', 20, 60 * 60))) {
+    return res.status(429).json({ error: 'Too many new registrations from this network — try again later.' });
   }
 
   // New registration

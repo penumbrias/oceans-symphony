@@ -124,6 +124,27 @@ export function capFronters(list) {
   }));
 }
 
+// Fixed-window rate limit keyed on the caller's IP, stored in KV.
+// Two commands per check (INCR + EXPIRE on the first hit) — cheap enough
+// for low-traffic endpoints like /register; don't put it on the 30s
+// polling paths. Fails OPEN: if KV hiccups, the request proceeds — a
+// rate limiter must never become the outage.
+export async function rateLimit(req, bucket, max, windowSeconds) {
+  try {
+    // Vercel sets x-forwarded-for; first hop is the client. x-real-ip is
+    // the fallback. A missing IP shares one bucket — still bounded.
+    const fwd = String(req.headers?.['x-forwarded-for'] || '');
+    const ip = (fwd.split(',')[0] || '').trim() || String(req.headers?.['x-real-ip'] || '') || 'unknown';
+    const window = Math.floor(Date.now() / (windowSeconds * 1000));
+    const key = `rl:${bucket}:${ip}:${window}`;
+    const count = await kv.incr(key);
+    if (count === 1) await kv.expire(key, windowSeconds + 5);
+    return count <= max;
+  } catch {
+    return true; // fail open
+  }
+}
+
 export function cors(res, req) {
   const origin = req?.headers?.origin;
   // Native WebViews and server-to-server calls send no Origin — allow
