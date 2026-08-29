@@ -23,6 +23,8 @@ export const CHANGELOG = [
       { type: "feature", text: "Edit several widgets at once: hold a widget and let go (without dragging) to start selecting, tap more to add them, then give the lot a style or open \"Edit all\" and every change lands on all of them. Holding and dragging still moves a widget." },
       { type: "improve", text: "Today's plans are properly interactive: the box shows whether each one is done (tap it to tick or untick), and tapping the row opens the same plan popup the planner uses — outcome buttons and all — instead of sending you to the activity tracker." },
       { type: "improve", text: "Every \"open this plan\" link now goes to the Planner, which opens that plan's details directly." },
+      { type: "fix", text: "If the app ever opens to an empty {{system}} while your data is still on the device, it now offers to restore it instead of showing you a blank app. Restoring only re-points the app — nothing is deleted." },
+      { type: "fix", text: "A hidden profile header no longer looks like deleted data: editing an {{alter}} whose header is off now says so and offers a one-tap \"Show it\". The avatar, name, pronouns and role were never gone." },
       { type: "improve", text: "In the planner, holding and dragging out a new plan can now run past midnight — keep dragging sideways and the block stretches across every day it covers as you go." },
       { type: "fix", text: "Clearing a description or bio now sticks. Edits in an {{alter}} profile, the {{alter}} editor and {{System}} settings could be silently undone by a background refresh — deleting a template looked impossible because the old text came back and saved itself again." },
     ],

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -970,6 +970,31 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
   return (
     <div className="space-y-4">
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
+
+      {/* The header toggle lives buried in Profile style, and edit mode used
+          to render the header regardless — so someone who caught that switch
+          by accident saw the avatar, name, pronouns and role vanish from the
+          saved profile with nothing anywhere to explain it or undo it. It
+          reads as deleted data (owner report). Say so, and offer it back. */}
+      {hideHeader && (
+        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <EyeOff className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground flex-1 min-w-0">
+            The header is hidden, so the avatar, name, pronouns and role don't show on this profile. Nothing was deleted.
+          </p>
+          <button
+            type="button"
+            onClick={() => setForm((f) => {
+              const cf = { ...f.custom_fields };
+              delete cf[HIDE_HEADER_KEY];
+              return { ...f, custom_fields: cf };
+            })}
+            className="text-xs font-medium px-2 py-1 rounded-lg border border-border/60 hover:bg-muted flex-shrink-0"
+          >
+            Show it
+          </button>
+        </div>
+      )}
 
       {/* Name + Alias on the left, Avatar on the right — matches the
           Add New / Edit {alter} modal arrangement. */}

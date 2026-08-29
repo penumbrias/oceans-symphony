@@ -15,9 +15,13 @@
 // reads. The one mutating action (adopting a found blob as the active system)
 // lives in systems.js and edits only the small registry pointer.
 //
-// This runs ONLY in the `!peek.exists` boot branch (active slot empty), so it
-// can never divert a user whose data is loading normally, and it returns an
-// empty list for a genuinely-new user (no blob keys), leaving firstrun intact.
+// This runs in the boot branches where the active system has nothing to show:
+// the slot is missing entirely (`!peek.exists`), or it holds a blob that is
+// present but EMPTY (see isEffectivelyEmpty — the hole a "my whole system got
+// wiped" user falls through). It can never divert a user whose data is loading
+// normally, and it returns an empty list for a genuinely-new user (no blob
+// keys) as well as for a user whose only other blobs are REGISTERED sibling
+// systems, leaving firstrun and multi-system intact.
 
 import { openDB } from 'idb';
 import { getActiveStorageKey } from './localDb';
@@ -159,6 +163,26 @@ function classifyBlob({ key, raw, source }, { skipEmpty, isActive = false }) {
 // - `raw` is the on-disk string, handed back so the recovery screen can offer a
 //   "download a copy first" button without a second read.
 // Never throws for a per-key parse failure — a corrupted key is simply skipped.
+// Is a decrypted blob effectively EMPTY — nothing the user would call their
+// data? A freshly-initialised DB is not `null`: it's an object of empty
+// tables (and often a lone SystemSettings row the app writes on boot), so
+// `peek.exists` is true and the boot path's `!peek.exists` recovery branch
+// never fires. That is the exact hole a wiped user falls through: the app
+// opens on an empty-but-present system, calls itself fine, and their real
+// blob sits untouched under another key with no offer to go get it.
+//
+// SystemSettings is discounted deliberately — it's app-written boot furniture,
+// not something the user made.
+export function isEffectivelyEmpty(data) {
+  if (!data || typeof data !== 'object') return true;
+  for (const [name, table] of Object.entries(data)) {
+    if (name === 'SystemSettings') continue;
+    if (!table || typeof table !== 'object') continue;
+    if (Object.keys(table).length > 0) return false;
+  }
+  return true;
+}
+
 export async function scanForOrphanedData() {
   const activeKey = getActiveStorageKey();
   // Blobs belonging to REGISTERED systems are siblings, not orphans — the

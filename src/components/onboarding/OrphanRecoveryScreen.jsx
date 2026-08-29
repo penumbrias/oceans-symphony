@@ -10,7 +10,7 @@ import { shareFile } from "@/lib/shareFile";
 // someone whose data is still on the device, just mis-pointed. Restoring only
 // re-points the active system at the found blob and reloads; it never touches
 // the data itself. A "download a copy first" button is offered as a safety net.
-export default function OrphanRecoveryScreen({ candidates, onSetupNew }) {
+export default function OrphanRecoveryScreen({ candidates, onSetupNew, overExistingSystem = false }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { type, text }
 
@@ -156,7 +156,9 @@ export default function OrphanRecoveryScreen({ candidates, onSetupNew }) {
             disabled={busy}
             className="w-full text-xs text-muted-foreground hover:text-foreground py-2 disabled:opacity-50"
           >
-            None of these are mine — set up as a new system instead
+            {overExistingSystem
+              ? "None of these are mine — carry on with the empty one"
+              : "None of these are mine — set up as a new system instead"}
           </button>
         </div>
       </div>

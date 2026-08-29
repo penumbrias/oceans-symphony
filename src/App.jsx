@@ -1,6 +1,6 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -85,7 +85,7 @@ import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { refreshCustomFontFaces } from '@/lib/customFontFaces';
 import { reconcileDistressStore } from '@/lib/emotionDistress';
 import { initSystemsRegistry } from '@/lib/systems';
-import { scanForOrphanedData } from '@/lib/dataRecovery';
+import { scanForOrphanedData, isEffectivelyEmpty } from '@/lib/dataRecovery';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
@@ -316,6 +316,14 @@ function App() {
   // Data blobs found under a non-active key when the active slot was empty —
   // populated in the 'recover-orphan' boot branch (see dataRecovery.js).
   const [orphanCandidates, setOrphanCandidates] = useState([]);
+  // True when recovery was offered over a system that EXISTS but is empty
+  // (rather than a missing slot). Declining there must carry on into that
+  // system, NOT into setup — setup refuses to run over an existing slot and
+  // would bounce the user round the same screen forever.
+  const [orphanOverEmpty, setOrphanOverEmpty] = useState(false);
+  // Set when the user has declined recovery this session, so the empty-slot
+  // scan doesn't re-offer it on the very next pass through boot.
+  const orphanDeclined = useRef(false);
 
   // Boot sequence: persist storage FIRST (so the browser stops marking us
   // for eviction before any further work), then peek at IndexedDB to
@@ -375,6 +383,32 @@ function App() {
         setRecoveryReason({ kind: 'corrupted' });
         setSetupState('recovery');
         return;
+      }
+
+      // The slot EXISTS but holds nothing the user made — a wiped or drifted
+      // active system. `peek.exists` was true, so the scan above was skipped,
+      // and this is exactly where a "my whole system got wiped, I can't get it
+      // back" user landed: an empty app that thinks it's fine, with their real
+      // blob still sitting under another key in the same database. Scan for
+      // UNREGISTERED data (a sibling system's blob is excluded, so a genuinely
+      // empty second system is left alone) and offer it back.
+      //
+      // Plaintext only: an encrypted blob can't be inspected without the key,
+      // and the encrypted branch below owns that case.
+      if (!peek.encrypted && !orphanDeclined.current) {
+        let emptyActive = false;
+        try { emptyActive = isEffectivelyEmpty(JSON.parse(peek.raw)); } catch { emptyActive = false; }
+        if (emptyActive) {
+          let orphans = [];
+          try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
+          if (cancelled) return;
+          if (orphans.length > 0) {
+            setOrphanCandidates(orphans);
+            setOrphanOverEmpty(true);
+            setSetupState('recover-orphan');
+            return;
+          }
+        }
       }
 
       if (peek.encrypted) {
@@ -470,7 +504,19 @@ function App() {
         <QueryClientProvider client={queryClientInstance}>
           <OrphanRecoveryScreen
             candidates={orphanCandidates}
-            onSetupNew={() => { setOrphanCandidates([]); setSetupState('firstrun'); }}
+            overExistingSystem={orphanOverEmpty}
+            onSetupNew={() => {
+              setOrphanCandidates([]);
+              if (orphanOverEmpty) {
+                // There IS a system here, it's just empty — carry on into it
+                // instead of into setup, which would refuse to overwrite it.
+                orphanDeclined.current = true;
+                setOrphanOverEmpty(false);
+                setSetupState('booting');
+              } else {
+                setSetupState('firstrun');
+              }
+            }}
           />
           <AccessibilityFab zIndex={110} />
         </QueryClientProvider>
