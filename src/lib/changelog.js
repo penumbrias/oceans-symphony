@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "The empty rectangle some devices showed at the top of the navigation menu (covering the header and first section) can no longer appear — top spacing is now capped at real status-bar size." },
+      { type: "improve", text: "Bug reports now auto-include screen inset values, so layout glitches like that one are easier to pin down." },
+      { type: "improve", text: "Android: the app package is now optimized and shrunk (Google Play's app-optimization requirement) — smaller install, better memory usage." },
       { type: "improve", text: "Onboarding: the Privacy & Data Notice now says up front that OS is \"vibe-coded\" and in active alpha." },
       { type: "improve", text: "The journal editor is now the exact same editor {{alter}} bios use — same modes, undo, templates, import and preview. One editor everywhere, so a fix in one place fixes them all." },
       { type: "fix", text: "Holding a bulletin no longer opens the widget options on top of the bulletin's own menu." },

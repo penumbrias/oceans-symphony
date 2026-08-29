@@ -1,21 +1,35 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 rules for the Capacitor shell. The actual app is the web bundle in
+# assets/public — R8 never touches it. These keeps cover the native bridge's
+# reflection points; everything else (androidx, Firebase, kotlin runtime)
+# obfuscates and shrinks freely, which is what Play's "App optimization"
+# check wants to see.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── Capacitor core + plugin bridge ──
+# Plugin classes and their @PluginMethod / callback methods are looked up
+# reflectively by name at runtime.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * {
+    @com.getcapacitor.annotation.PermissionCallback <methods>;
+    @com.getcapacitor.annotation.ActivityCallback <methods>;
+    @com.getcapacitor.PluginMethod public <methods>;
+}
+-keep public class * extends com.getcapacitor.Plugin { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── Cordova compatibility layer (capacitor-cordova-android-plugins) ──
+-keep class org.apache.cordova.** { *; }
+-keep public class * extends org.apache.cordova.CordovaPlugin { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── WebView ↔ JS bridge ──
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes JavascriptInterface
+-keepattributes *Annotation*
+
+# ── Background Runner (own JS runtime; resolves classes reflectively) ──
+-keep class io.ionic.android.** { *; }
+-keep class io.ionic.backgroundrunner.** { *; }
+
+# Readable crash reports from testers: keep line numbers, hide file names.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

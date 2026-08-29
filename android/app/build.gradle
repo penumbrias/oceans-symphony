@@ -11,8 +11,8 @@ android {
         // upload — Play rejects duplicates. Bump for every Play
         // release; mirror versionName from src/lib/appVersion.js so
         // the displayed version chip matches the Play release.
-        versionCode 1149
-        versionName "0.217.2"
+        versionCode 1150
+        versionName "0.217.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,7 +22,13 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // R8 on: Play Console's "App optimization" check flags releases
+            // with ~0% obfuscation/shrinking ("fix by Feb 2027" warning).
+            // Keeps for Capacitor/Cordova reflection live in
+            // proguard-rules.pro — the web bundle in assets/ is untouched
+            // by R8 either way.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

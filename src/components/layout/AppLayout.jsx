@@ -634,7 +634,9 @@ const handleNotifClick = (mentionLog) => {
       <header
         className="os-classic-chrome sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
         style={{
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          // Clamped: garbage inset values (shade/split-screen/WebView quirks)
+          // must never inflate the header into a giant empty band.
+          paddingTop: 'min(env(safe-area-inset-top, 0px), 64px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
@@ -700,7 +702,9 @@ const handleNotifClick = (mentionLog) => {
       <header
         className="os-classic-chrome sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
         style={{
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          // Clamped: garbage inset values (shade/split-screen/WebView quirks)
+          // must never inflate the header into a giant empty band.
+          paddingTop: 'min(env(safe-area-inset-top, 0px), 64px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
         }}

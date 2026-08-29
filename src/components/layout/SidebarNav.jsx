@@ -128,7 +128,12 @@ export default function SidebarNav({ open, onClose }) {
         style={{ height: "100dvh" }}
       >
         {/* Safe-area + header */}
-        <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
+        {/* Top inset CLAMPED: a device reporting a garbage inset (notification
+            shade half-open, split-screen, WebView quirk) used to paint a tall
+            empty band here that covered the header + first section (tester's
+            "rectangle of unused space"). No real status bar/cutout exceeds
+            ~56px; 64px covers them all. */}
+        <div style={{ paddingTop: "min(env(safe-area-inset-top, 0px), 64px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between px-4 h-14">
             {/* App icon → the system switcher (switch / side systems /
                 create — owner spec); the title text stays the quick way
