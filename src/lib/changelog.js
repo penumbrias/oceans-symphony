@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "feature", text: "Pull down at the top of any page — or the home screen — to refresh everything." },
       { type: "hotfix", text: "Hotfix: Friends registrations are now rate-limited per network." },
       { type: "improve", text: "Friends security audit: unfriending or deleting your account now removes every trace of the shared data from the relay, request spam is capped, and all inputs are bounded. The relay still never sees member lists unencrypted." },
       { type: "fix", text: "\"Delete all local data\" now tells every open tab about the wipe — a second tab can no longer silently bring the deleted data back." },

@@ -18,6 +18,7 @@ import useFriendsLiveRefresh from "@/hooks/useFriendsLiveRefresh";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
+import GlobalPullToRefresh from "@/components/layout/GlobalPullToRefresh";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 // Lazy: only pulled into the bundle for the users who need it (existing
@@ -616,6 +617,9 @@ const handleNotifClick = (mentionLog) => {
       >
         Skip to main content
       </a>
+      {/* Pull down at the top of any page (or the home board) to refetch
+          everything — mounted once here so no page needs its own wiring. */}
+      <GlobalPullToRefresh />
       {/* Polite route announcer — names the current page for screen readers on
           each navigation (SPA route changes are otherwise silent). */}
       <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
