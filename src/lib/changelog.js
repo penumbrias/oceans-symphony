@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "\"Delete all local data\" now tells every open tab about the wipe — a second tab can no longer silently bring the deleted data back." },
       { type: "fix", text: "Major data-safety fix: with the app open in two tabs or windows at once, whichever one saved last could silently undo everything the other had written. Tabs now sync live, and even a worst-case clash keeps a rescue copy instead of losing anything." },
       { type: "fix", text: "Editing sleep records, tasks, reminder settings and diary-card sections can no longer be silently reset by a background refresh mid-edit." },
       { type: "improve", text: "Turning on the experimental home screen now starts you with a friendlier setup: a first page shaped like the classic dashboard, and a blank second page to build on." },

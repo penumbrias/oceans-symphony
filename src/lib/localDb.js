@@ -82,6 +82,19 @@ function ensureSyncChannel() {
     _bc.onmessage = (e) => {
       const m = e?.data;
       if (!m || m.writer === _writerId || m.key !== _storageKey) return;
+      if (m.cleared) {
+        // Another tab ran "delete all local data". Verify against disk
+        // before emptying memory — an emptied _db must never rest on a
+        // message alone.
+        loadFromStorage().then((raw) => {
+          if (raw) return; // disk still has data — treat as a normal change
+          if (_db === null) return;
+          _db = {};
+          if (typeof m.gen === "number") { _gen = m.gen; _genKey = _storageKey; }
+          try { window.dispatchEvent(new CustomEvent("symphony-db-external-change")); } catch { /* SSR */ }
+        }).catch(() => { /* unreadable disk — keep memory */ });
+        return;
+      }
       adoptExternalChange(m.gen).then((ok) => {
         if (ok) {
           try { window.dispatchEvent(new CustomEvent("symphony-db-external-change")); } catch { /* SSR */ }
@@ -938,6 +951,15 @@ export async function clearStoredData() {
     await idb.delete(IDB_STORE, _storageKey);
   } catch { /* fall through to localStorage cleanup */ }
   try { localStorage.removeItem(_storageKey); } catch { /* ignore */ }
+  // Tell other open tabs the wipe happened — without this, a tab still
+  // holding the old DB in memory would RESURRECT everything on its next
+  // save, silently undoing an explicit "delete all my data" (the one
+  // flow where bringing data back is the failure).
+  try {
+    _gen += 1;
+    await writeGenSidecar(_gen);
+    ensureSyncChannel()?.postMessage({ key: _storageKey, gen: _gen, writer: _writerId, cleared: true });
+  } catch { /* best effort */ }
 }
 
 // Add-only merge: only inserts records whose IDs don't already exist locally.
