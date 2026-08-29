@@ -8,14 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
-import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code, PenLine, ChevronDown, X } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { extractHashtags, mergeTags } from "@/lib/journalTags";
-import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
-import SimplePreview from "@/components/shared/SimplePreview";
-import WysiwygEditor from "@/components/shared/WysiwygEditor";
+import BioEditor from "@/components/alters/BioEditor";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -59,7 +56,6 @@ export default function JournalEditorModal({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState(defaultFolder || null);
-  const [editorMode, setEditorMode] = useState("plain");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -86,11 +82,8 @@ export default function JournalEditorModal({
   const [signpostQuery, setSignpostQuery] = useState("");
   const signpostInputRef = useRef(null);
 
-  const taRef = useRef(null);
-  const insert = useTextareaInsert(taRef, content, setContent);
   const folders = getSavedFolders();
 
-  const previewBlocks = useMemo(() => htmlToBlocks(content), [content]);
 
   const altersById = useMemo(() => {
     const map = {};
@@ -183,7 +176,6 @@ useEffect(() => {
       setIsEncrypted(false);
       setShowPasswordField(false);
       setFolder(defaultFolder || null);
-      setEditorMode("plain");
       setAuthorAlterId(currentAlterId || null);
       setCoAuthorIds([]);
     }
@@ -239,9 +231,9 @@ useEffect(() => {
   const draftKey = `symphony_draft_journal_${editingEntryFinal?.id || "new"}_v1`;
   const draftActive = !!isOpenFinal && !isEncrypted && !editingEntryFinal?.is_encrypted;
   const draftSnapshot = useMemo(() => ({
-    title, content, folder, editorMode, mentionNote,
+    title, content, folder, mentionNote,
     authorAlterId, coAuthorIds, signpostText,
-  }), [title, content, folder, editorMode, mentionNote, authorAlterId, coAuthorIds, signpostText]);
+  }), [title, content, folder, mentionNote, authorAlterId, coAuthorIds, signpostText]);
   const { clearDraft } = useFormDraft(draftKey, draftSnapshot, {
     active: draftActive,
     isEmpty: (s) =>
@@ -252,7 +244,6 @@ useEffect(() => {
       if (typeof d.title === "string") setTitle(d.title);
       if (typeof d.content === "string") setContent(d.content);
       if (d.folder !== undefined) setFolder(d.folder);
-      if (typeof d.editorMode === "string") setEditorMode(d.editorMode);
       if (typeof d.mentionNote === "string") setMentionNote(d.mentionNote);
       if (d.authorAlterId !== undefined) setAuthorAlterId(d.authorAlterId);
       if (Array.isArray(d.coAuthorIds)) setCoAuthorIds(d.coAuthorIds);
@@ -634,52 +625,11 @@ useEffect(() => {
           )}
 
           {(!editingEntryFinal?.is_encrypted || !showPasswordField) && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Content</label>
-                <div className="flex gap-1 bg-muted/40 p-1 rounded-lg">
-                  <button type="button" onClick={() => setEditorMode("plain")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                    <Type className="w-3 h-3" /> Plain
-                  </button>
-                  <button type="button" onClick={() => setEditorMode("simple")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                    <Eye className="w-3 h-3" /> Simple
-                  </button>
-                  <button type="button" onClick={() => setEditorMode("blocks")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                    <LayoutGrid className="w-3 h-3" /> Blocks
-                  </button>
-                  <button type="button" onClick={() => setEditorMode("raw")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                    <Code className="w-3 h-3" /> Raw
-                  </button>
-                </div>
-              </div>
-
-              {editorMode === "plain" ? (
-                <WysiwygEditor value={content} onChange={setContent} placeholder="Write your entry..." />
-              ) : editorMode === "raw" ? (
-                <div className="rounded-xl border border-input bg-background">
-                  <textarea ref={taRef} value={content} onChange={e => setContent(e.target.value)}
-                    placeholder="Write your entry... Use ~AlterName: to signpost sections."
-                    className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
-                    spellCheck={false} />
-                  <MiniToolbar onInsert={insert} />
-                </div>
-              ) : editorMode === "simple" ? (
-                <SimplePreview
-                  blocks={previewBlocks}
-                  onBlockChange={(id, patch) => {
-                    const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
-                    setContent(blocksToHTML(updated));
-                  }}
-                  scopeId="journal-editor-preview"
-                />
-              ) : (
-                <BlockEditor value={content} onChange={setContent} />
-              )}
-            </div>
+            /* The SAME editor the {alter} bios use — one canonical component
+               (modes, undo, templates, import, preview), so an editor fix
+               lands everywhere at once. The Plain/Simple/Blocks/Raw clone
+               that used to live here drifted behind it. */
+            <BioEditor value={content} onChange={setContent} label="Content" placeholder="Write your entry..." />
           )}
 
           <div>

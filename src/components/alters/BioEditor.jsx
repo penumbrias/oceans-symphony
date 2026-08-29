@@ -182,7 +182,11 @@ function HTMLPreviewModal({ html, onClose }) {
 
 const MAX_HISTORY = 50;
 
-export default function BioEditor({ value, onChange }) {
+// THE canonical rich-content editor — bios, group/location profiles, the
+// {system} description AND journal entries all render this one component,
+// so an editor bug fixed here is fixed everywhere (owner pillar: reuse,
+// never rebuild). label/placeholder let non-bio hosts name their field.
+export default function BioEditor({ value, onChange, label = "Description / Bio", placeholder = "Write a bio..." }) {
   const originalValue = useRef(value || "");
   const hasBlocks = value?.includes('data-blocks=');
   const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain"); // "plain" = wysiwyg, "raw" = html textarea
@@ -275,7 +279,7 @@ export default function BioEditor({ value, onChange }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+        <label className="text-xs text-muted-foreground font-medium">{label}</label>
         <div className="flex items-center gap-2">
           <button type="button" onClick={handleUndo} disabled={!canUndo}
             title="Undo"
@@ -346,10 +350,10 @@ export default function BioEditor({ value, onChange }) {
       )}
 
       {editorMode === "plain" ? (
-        <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
+        <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder={placeholder} />
       ) : editorMode === "raw" ? (
         <div className="rounded-xl border border-input bg-background">
-          <CodeEditor ref={taRef} value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
+          <CodeEditor ref={taRef} value={currentHTML} onChange={handleChange} placeholder={placeholder} />
           <MiniToolbar onInsert={insert} templateField />
         </div>
       ) : editorMode === "simple" ? (

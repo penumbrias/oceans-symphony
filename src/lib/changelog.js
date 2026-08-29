@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "improve", text: "The journal editor is now the exact same editor {{alter}} bios use — same modes, undo, templates, import and preview. One editor everywhere, so a fix in one place fixes them all." },
       { type: "fix", text: "Holding a bulletin no longer opens the widget options on top of the bulletin's own menu." },
       { type: "fix", text: "Logged sleep can no longer show up as an unresolved plan in the Today widget." },
       { type: "fix", text: "The \"link to a page in the app\" picker in the formatting toolbar no longer closes itself the moment it opens." },
