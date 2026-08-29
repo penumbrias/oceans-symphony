@@ -30,6 +30,89 @@ export function setActiveStorageKey(key) { _storageKey = key || DEFAULT_STORAGE_
 export function getActiveStorageKey() { return _storageKey; }
 
 let _db = null;       // in-memory: { EntityName: { id: record } }
+
+// ── Cross-tab write safety (v0.219.2) ──
+//
+// The whole DB lives in one blob, and every save overwrites it wholesale.
+// With the app open in TWO same-origin contexts (a pinned PWA window plus
+// a browser tab is enough), each tab held its own in-memory copy — and the
+// staler tab's next save silently reverted everything the other tab had
+// written since it loaded. Irregular two-context condition = the
+// "sporadic random data loss" reports.
+//
+// Two layers:
+//   1. LIVE SYNC — every successful save broadcasts on a BroadcastChannel;
+//      other tabs re-read the blob into memory (decrypting with the key
+//      already in memory) and tell the app to refetch. Tabs stay current,
+//      so the stale-writer case all but disappears.
+//   2. RESCUE BACKSTOP — a tiny generation sidecar (NOT under the data-blob
+//      key prefix, so the recovery scanner never mistakes it for data) is
+//      bumped on every save. If a save finds the sidecar ahead of what
+//      this tab last synced, an unsynced writer got there first: the
+//      on-disk blob is stashed into `<key>__rescue` BEFORE being
+//      overwritten. That slot IS under the data prefix on purpose — the
+//      Data Rescue panel and the boot orphan scanner list it, so even the
+//      worst race never loses data permanently.
+const _writerId = `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+let _gen = 0;            // the generation this tab last loaded or wrote
+let _genKey = null;      // which storage key _gen belongs to
+const genSidecarKey = () => `symphony_gen__${_storageKey}`;
+const rescueKey = () => `${_storageKey}__rescue`;
+
+async function readGenSidecar() {
+  try {
+    const idb = await getIdb();
+    const v = await idb.get(IDB_STORE, genSidecarKey());
+    return v && typeof v.gen === "number" ? v.gen : 0;
+  } catch { return 0; }
+}
+
+async function writeGenSidecar(gen) {
+  try {
+    const idb = await getIdb();
+    await idb.put(IDB_STORE, { gen, writer: _writerId, at: Date.now() }, genSidecarKey());
+  } catch { /* best effort — the broadcast still fires */ }
+}
+
+let _bc = null;
+function ensureSyncChannel() {
+  if (_bc || typeof BroadcastChannel === "undefined") return _bc;
+  try {
+    _bc = new BroadcastChannel("symphony_db_sync");
+    _bc.onmessage = (e) => {
+      const m = e?.data;
+      if (!m || m.writer === _writerId || m.key !== _storageKey) return;
+      adoptExternalChange(m.gen).then((ok) => {
+        if (ok) {
+          try { window.dispatchEvent(new CustomEvent("symphony-db-external-change")); } catch { /* SSR */ }
+        }
+      });
+    };
+  } catch { _bc = null; }
+  return _bc;
+}
+
+// Another tab saved: re-read the blob into memory. Failures keep the
+// current in-memory DB — never throw mid-session, never go empty.
+async function adoptExternalChange(gen) {
+  if (_previewDb !== null) return false; // preview is memory-only by design
+  if (_db === null) return false;        // not booted yet — init will read fresh
+  try {
+    const raw = await loadFromStorage();
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && parsed.__encrypted) {
+      if (!_encKey) return false;
+      _db = await decryptData(parsed.__encrypted, _encKey);
+    } else if (parsed && typeof parsed === "object") {
+      _db = parsed;
+    } else {
+      return false;
+    }
+    if (typeof gen === "number") { _gen = gen; _genKey = _storageKey; }
+    return true;
+  } catch { return false; }
+}
 let _previewDb = null; // in-memory only: when set, all reads/writes use this and skip persistence
 let _encKey = null;   // CryptoKey when encryption is active
 let _activeSalt = null; // salt currently in use; mirrored into the encrypted envelope on every save
@@ -315,6 +398,24 @@ function _saveDbNow() {
 async function doSaveDb() {
   // Preview-mode writes stay purely in memory and never reach IndexedDB.
   if (_previewDb !== null) return;
+  // Stale-writer backstop: if the generation sidecar moved past what this
+  // tab last synced, an unsynced writer saved since — stash the on-disk
+  // blob before overwriting it so nothing is ever unrecoverable.
+  let diskGen = 0;
+  try {
+    if (_genKey !== _storageKey) { _gen = await readGenSidecar(); _genKey = _storageKey; }
+    diskGen = await readGenSidecar();
+    if (diskGen > _gen) {
+      const current = await loadFromStorage();
+      if (current) {
+        try {
+          const idb = await getIdb();
+          await idb.put(IDB_STORE, current, rescueKey());
+          console.warn("[localDb] concurrent write detected — previous blob stashed in", rescueKey());
+        } catch { /* stash is best-effort; the save still proceeds */ }
+      }
+    }
+  } catch { /* backstop only — never block the save */ }
   let json;
   if (_encKey) {
     // Embed the salt INSIDE the encrypted envelope so the data is still
@@ -334,6 +435,11 @@ async function doSaveDb() {
     json = JSON.stringify(_db);
   }
   await saveToStorage(json);
+  // Advance the generation and tell every other tab to catch up.
+  _gen = Math.max(_gen, diskGen) + 1;
+  _genKey = _storageKey;
+  await writeGenSidecar(_gen);
+  try { ensureSyncChannel()?.postMessage({ key: _storageKey, gen: _gen, writer: _writerId }); } catch { /* ok */ }
 }
 
 // Preview mode: replace the in-memory DB with curated example data.
@@ -371,6 +477,13 @@ function finalizeInit() {
 }
 
 export async function initLocalDb(password) {
+  // Cross-tab sync: listen from boot so a save in another tab refreshes
+  // this one even before this tab's own first write; seed the generation
+  // from the sidecar so the first save can tell whether anyone else has
+  // written since.
+  ensureSyncChannel();
+  _gen = await readGenSidecar();
+  _genKey = _storageKey;
   // loadFromStorage throws StorageReadError only when both IDB and
   // localStorage are unreachable AND empty.
   const raw = await loadFromStorage();

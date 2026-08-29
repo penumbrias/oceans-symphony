@@ -24,3 +24,12 @@ export const queryClientInstance = new QueryClient({
 		},
 	},
 });
+
+// Another tab saved the database and this tab just re-read it into memory
+// (localDb's BroadcastChannel sync). Every cached query is now potentially
+// stale — refetch the lot so the UI shows what's actually on disk.
+if (typeof window !== "undefined") {
+  window.addEventListener("symphony-db-external-change", () => {
+    queryClientInstance.invalidateQueries();
+  });
+}

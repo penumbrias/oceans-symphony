@@ -34,7 +34,11 @@ export default function DiaryCardPresetsManager() {
     if (settings?.diary_sections) {
       setSections(settings.diary_sections);
     }
-  }, [settings]);
+    // Keyed on the row's ID, not the object: the settings query invalidates
+    // constantly (now including cross-tab syncs) and every invalidation
+    // hands back a NEW object — re-seeding then clobbered in-progress edits
+    // (the "description wouldn't delete" class of bug).
+  }, [settings?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggle = (id) => {
     setSections(prev =>

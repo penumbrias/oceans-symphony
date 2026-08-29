@@ -77,7 +77,9 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         goal_unit: "",
       });
     }
-  }, [editingTask, open]);
+    // Keyed on id, not the object — a tasks invalidation mid-edit used to
+    // reset every field to the stored record.
+  }, [editingTask?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savingRef = useRef(false); // synchronous re-entry guard vs duplicate tasks
   const handleSubmit = async (e) => {

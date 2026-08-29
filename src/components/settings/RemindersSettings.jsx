@@ -75,7 +75,9 @@ export default function RemindersSettings() {
     setPaused(!!settings.reminders_paused);
     setDefaultSnooze(settings.default_snooze_options || DEFAULT_SNOOZE_OPTIONS);
     setIncludeReminderText(settings.reminder_push_include_text !== false);
-  }, [settings]);
+    // Keyed on id, not the object — see DiaryCardPresetsManager; a query
+    // invalidation mid-edit used to reset the whole quiet-hours form.
+  }, [settings?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
     setSaving(true);

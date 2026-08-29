@@ -116,7 +116,9 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
     // to a JournalEntry. Editing the toggle off here doesn't unlink — it
     // just prevents legacy-path journal creation below.
     setSaveAsDream(!!sleep.journal_entry_id);
-  }, [sleep]);
+    // Keyed on id, not the object — an invalidation of the sleep list
+    // mid-edit used to wipe typed notes back to the stored record.
+  }, [sleep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNightmareToggle = (val) => {
     setHadNightmare(val);
