@@ -1,7 +1,7 @@
 // POST /api/friends/update-front
 // Body: { userId, secret, fronters, terms, systemName, displayName, privacyLevel, perFriendFronters? }
 // Pushes current front status. Optionally stores per-friend filtered fronter lists.
-import { kv, validateUser, getFriends, cors } from '../_kv.js';
+import { kv, validateUser, getFriends, cors, capStr, capTerms, capPrivacy, capFronters } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -23,12 +23,15 @@ export default async function handler(req, res) {
   }
 
   const now = new Date().toISOString();
+  const cappedTerms = capTerms(terms);
+  const cappedSystem = capStr(systemName, 60, '');
+  const cappedDisplay = capStr(displayName, 60, '');
   const frontData = {
-    fronters,
-    terms,
-    systemName,
-    displayName,
-    privacyLevel: privacyLevel || 'names',
+    fronters: capFronters(fronters),
+    terms: cappedTerms,
+    systemName: cappedSystem,
+    displayName: cappedDisplay,
+    privacyLevel: capPrivacy(privacyLevel),
     updatedAt: now,
   };
 
@@ -36,16 +39,18 @@ export default async function handler(req, res) {
   // down — fetched once, up front.
   const friends = await getFriends(userId);
 
-  // Store default front blob + per-friend overrides in parallel
+  // Store default front blob + per-friend overrides in parallel. Overrides
+  // are only stored for ids actually in the friends map — anything else
+  // would just litter this user's namespace with unreachable keys.
   const storeOps = [kv.set(`user:${userId}:front`, frontData)];
   for (const [friendId, data] of Object.entries(perFriendFronters)) {
-    if (!friendId || !data) continue;
+    if (!friendId || !data || !friends[friendId]) continue;
     storeOps.push(kv.set(`user:${userId}:front:${friendId}`, {
-      fronters: data.fronters || [],
-      terms,
-      systemName,
-      displayName,
-      privacyLevel: data.privacyLevel || privacyLevel || 'names',
+      fronters: capFronters(data.fronters),
+      terms: cappedTerms,
+      systemName: cappedSystem,
+      displayName: cappedDisplay,
+      privacyLevel: capPrivacy(data.privacyLevel || privacyLevel),
       updatedAt: now,
     }));
   }

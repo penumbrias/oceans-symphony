@@ -33,6 +33,16 @@ export default async function handler(req, res) {
   await Promise.all([
     setFriends(myUserId, myFriends),
     setFriends(friendUserId, theirFriends),
+    // Retention: without these, both sides' per-friend blobs (front
+    // overrides carry plaintext fronter names; alters envelopes are the
+    // shared member list) survived the unfriending FOREVER — update-front's
+    // stale sweep only touches ids still in the friends map.
+    kv.del(
+      `user:${myUserId}:front:${friendUserId}`,
+      `user:${myUserId}:alters:${friendUserId}`,
+      `user:${friendUserId}:front:${myUserId}`,
+      `user:${friendUserId}:alters:${myUserId}`,
+    ),
   ]);
 
   return res.status(200).json({ ok: true });

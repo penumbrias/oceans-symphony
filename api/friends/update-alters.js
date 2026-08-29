@@ -5,7 +5,7 @@
 // read it — see src/lib/friendsCrypto.js). Passing null for a friend deletes
 // their blob (e.g. you stopped sharing any members with them). The relay never
 // sees plaintext member data.
-import { kv, validateUser, cors } from '../_kv.js';
+import { kv, validateUser, getFriends, cors } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -20,12 +20,25 @@ export default async function handler(req, res) {
   if (!userId || !secret) return res.status(400).json({ error: 'Missing fields.' });
   if (!await validateUser(userId, secret)) return res.status(401).json({ error: 'Invalid credentials.' });
 
+  // Envelopes only for real friends (deletes are allowed for any id so an
+  // unfriended leftover can still be cleaned), and bounded: an envelope is
+  // an encrypted member list, not a file store.
+  const friends = await getFriends(userId);
   const ops = [];
+  let stored = 0;
   for (const [friendId, envelope] of Object.entries(perFriend)) {
     if (!friendId) continue;
     const key = `user:${userId}:alters:${friendId}`;
-    if (envelope) ops.push(kv.set(key, envelope));
-    else ops.push(kv.del(key));
+    if (envelope) {
+      if (!friends[friendId]) continue;
+      if (stored >= 200) break;
+      const size = typeof envelope === 'string' ? envelope.length : JSON.stringify(envelope).length;
+      if (size > 512 * 1024) continue; // silently oversized — client bug or abuse
+      ops.push(kv.set(key, envelope));
+      stored += 1;
+    } else {
+      ops.push(kv.del(key));
+    }
   }
   await Promise.all(ops);
 

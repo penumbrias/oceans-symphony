@@ -1,7 +1,7 @@
 // POST /api/friends/request
 // Body: { fromUserId, fromSecret, toCode, fromDisplayName, fromSystemName }
 // Sends a friend request to the owner of toCode.
-import { kv, validateUser, getProfile, getFriends, getPending, setPending, cors } from '../_kv.js';
+import { kv, validateUser, getProfile, getFriends, getPending, setPending, cors, capStr } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -43,11 +43,14 @@ export default async function handler(req, res) {
   const pending = await getPending(toUserId);
   const alreadyPending = pending.some(r => r.fromUserId === fromUserId);
   if (alreadyPending) return res.status(409).json({ error: 'Request already sent.' });
+  // Flood cap: a wall of minted accounts must not grow someone's pending
+  // list without bound (KV bloat + an unusable inbox).
+  if (pending.length >= 100) return res.status(429).json({ error: 'This inbox has too many pending requests right now.' });
 
   pending.push({
     fromUserId,
-    fromDisplayName: fromDisplayName || 'Someone',
-    fromSystemName: fromSystemName || '',
+    fromDisplayName: capStr(fromDisplayName, 60, 'Someone') || 'Someone',
+    fromSystemName: capStr(fromSystemName, 60, ''),
     requestedAt: new Date().toISOString(),
   });
   await setPending(toUserId, pending);

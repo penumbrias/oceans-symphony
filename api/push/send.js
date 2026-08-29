@@ -39,6 +39,9 @@ export default async function handler(req, res) {
   if (!payload || typeof payload !== 'object') {
     return res.status(400).json({ error: 'Missing payload' });
   }
+  if (JSON.stringify(payload).length > 4096) {
+    return res.status(400).json({ error: 'Payload too large.' });
+  }
 
   const subscription = await kv.get(`user:${userId}:pushsub`);
   if (!subscription?.endpoint || !subscription?.keys) {

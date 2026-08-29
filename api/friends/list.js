@@ -1,6 +1,6 @@
 // GET /api/friends/list?userId=X&secret=Y
 // Returns { friends: [...], pending: [...] }
-import { kv, cors } from '../_kv.js';
+import { kv, cors, timingSafeEqualStr } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
   // Inlined from validateUser() — the profile is already in hand, and calling it
   // would spend a second command re-reading the same key.
-  if (!profile || profile.secret !== secret) {
+  if (!profile || typeof profile.secret !== 'string' || !timingSafeEqualStr(profile.secret, String(secret))) {
     return res.status(401).json({ error: 'Invalid credentials.' });
   }
 

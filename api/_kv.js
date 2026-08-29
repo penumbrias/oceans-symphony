@@ -34,7 +34,10 @@ export async function validateUser(userId, secret) {
 
 // Constant-time string compare (secrets are 128-bit random, so remote
 // timing is impractical anyway — this is cheap hardening, not a fix).
-function timingSafeEqualStr(a, b) {
+// Exported so endpoints that already hold the profile in hand (list.js's
+// MGET batch, register's returning-user path) can compare without the
+// extra KV read validateUser would spend.
+export function timingSafeEqualStr(a, b) {
   const ab = Buffer.from(a, 'utf8');
   const bb = Buffer.from(b, 'utf8');
   if (ab.length !== bb.length) {
@@ -81,6 +84,45 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173',
   ...String(process.env.EXTRA_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
 ]);
+
+// Input caps — every string a user hands the relay is bounded before it
+// is stored or echoed to a friend. Not sanitisation (clients render via
+// React text nodes); this stops storage bloat and absurd payloads.
+export function capStr(v, max, fallback = "") {
+  if (typeof v !== "string") return fallback;
+  const t = v.trim();
+  return t.length > max ? t.slice(0, max) : t;
+}
+
+export const PRIVACY_LEVELS = new Set(["names", "count_only", "hidden", ""]);
+export function capPrivacy(v, fallback = "names") {
+  return PRIVACY_LEVELS.has(v) ? (v || fallback) : fallback;
+}
+
+// terms is a small map of display words ({ fronter: "driver", … }) — cap
+// both breadth and value length so it can't be used as a dumping ground.
+export function capTerms(t) {
+  if (!t || typeof t !== "object" || Array.isArray(t)) return {};
+  const out = {};
+  let n = 0;
+  for (const [k, v] of Object.entries(t)) {
+    if (n >= 24) break;
+    if (typeof v !== "string") continue;
+    out[String(k).slice(0, 32)] = v.slice(0, 48);
+    n += 1;
+  }
+  return out;
+}
+
+// Bounded fronter list for update-front: entries beyond the cap are
+// dropped, and every echoed field is length-capped.
+export function capFronters(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 150).map((f) => ({
+    ...(f && typeof f === "object" ? f : {}),
+    name: capStr(f?.name, 80, ""),
+  }));
+}
 
 export function cors(res, req) {
   const origin = req?.headers?.origin;

@@ -23,13 +23,16 @@ export default async function handler(req, res) {
   const profile = await getProfile(userId);
   const myFriends = await getFriends(userId);
 
-  // Remove this user from every friend's friends map.
+  // Remove this user from every friend's friends map — and the per-friend
+  // blobs pointed at this user (the friend's front override / encrypted
+  // member share for us), which nothing would ever clean up afterwards.
   await Promise.all(Object.keys(myFriends).map(async friendId => {
     const theirFriends = await getFriends(friendId);
     if (theirFriends && theirFriends[userId]) {
       delete theirFriends[userId];
       await setFriends(friendId, theirFriends);
     }
+    await kv.del(`user:${friendId}:front:${userId}`, `user:${friendId}:alters:${userId}`);
   }));
 
   // Drop this user's data. Per-friend front overrides aren't enumerated by
@@ -40,8 +43,13 @@ export default async function handler(req, res) {
     kv.del(`user:${userId}:friends`),
     kv.del(`user:${userId}:pending`),
     kv.del(`user:${userId}:pushsub`),
+    kv.del(`user:${userId}:fcmtoken`),
     kv.del(`user:${userId}:front`),
   ];
+  // Per-friend blobs under OUR namespace — enumerable from the friends map.
+  for (const friendId of Object.keys(myFriends)) {
+    ops.push(kv.del(`user:${userId}:front:${friendId}`, `user:${userId}:alters:${friendId}`));
+  }
   if (profile?.friendCode) ops.push(kv.del(`code:${profile.friendCode}`));
   await Promise.all(ops);
 
