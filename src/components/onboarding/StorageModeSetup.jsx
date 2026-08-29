@@ -658,7 +658,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
               <span className="text-base">🔐</span>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground">Privacy &amp; Data Notice</p>
-                <p className="text-xs text-muted-foreground font-medium">!! Please read !!</p>
+                <p className="text-xs text-muted-foreground font-medium">!! Please read !! OS is "vibe-coded" and in active alpha</p>
               </div>
               <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${noticeOpen ? "rotate-180" : ""}`} />
             </button>
