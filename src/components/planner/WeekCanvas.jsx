@@ -61,7 +61,7 @@ export function formatDuration(min) {
 // geometry.
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks, onOpenBand, terms,
-  onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
+  onCreate, onOpenBlock, onOpenLive, onResize, colorFor, showOverlays, minWidth,
   onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
   laneOpacity = 90,
   // Cross-day creation: which column this is, and how to turn a pointer
@@ -513,7 +513,15 @@ function DayColumn({
                 </>
               )}
               <button type="button"
-                onClick={() => (b._live ? (b._planRecord && onOpenBlock(b._planRecord)) : onOpenBlock(b))}
+                // A live block WITHOUT a linked plan used to swallow the tap
+                // entirely — a running quick-start activity sat in the grid
+                // unopenable and unresizable (owner report, "can't change the
+                // third one"). It now opens the running-activity menu (edit
+                // start, pause, end & log, discard); plan-linked live blocks
+                // keep opening their plan.
+                onClick={() => (b._live
+                  ? (b._planRecord ? onOpenBlock(b._planRecord) : onOpenLive?.(b._session))
+                  : onOpenBlock(b))}
                 className="w-full h-full text-left px-1 py-0.5"
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
@@ -599,6 +607,7 @@ export default function WeekCanvas({
   overlays = { alters: false, emotions: false },
   onCreate,
   onOpenBlock,
+  onOpenLive = null,
   onResize,
   onAddToDay,
   onOpenUntimed,
@@ -769,7 +778,7 @@ export default function WeekCanvas({
         timed.push({
           id: `live_${sess.id}`, activity_name: name, color,
           status: "logged", start, end: now,
-          _live: true, _planRecord: plan || null,
+          _live: true, _planRecord: plan || null, _session: sess,
           activity_category_ids: plan?.activity_category_ids || (sess.categoryId ? [sess.categoryId] : []),
         });
       }
@@ -778,7 +787,7 @@ export default function WeekCanvas({
         timed.push({
           id: `live_${sess.id}_rest`, activity_name: name, color,
           status: "scheduled", start: now, end: new Date(endMs),
-          _live: true, _planRecord: plan || null,
+          _live: true, _planRecord: plan || null, _session: sess,
           activity_category_ids: plan?.activity_category_ids || [],
         });
       }
@@ -916,6 +925,7 @@ export default function WeekCanvas({
                 colorFor={colorFor}
                 onCreate={onCreate}
                 onOpenBlock={onOpenBlock}
+                onOpenLive={onOpenLive}
                 onResize={onResize}
                 onAddToDay={onAddToDay}
                 onOpenUntimed={onOpenUntimed}

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "A running activity's block in the planner (the one growing toward the now line) responded to nothing if it wasn't started from a plan. Tapping it now opens the running-activity menu — edit its start time, pause, end & log, or discard." },
       { type: "fix", text: "Screen readers now announce a proper name for the language-setup popup, bulletin action menu and search palette." },
       { type: "fix", text: "Closing the keyboard with a journal text box still focused no longer leaves the formatting toolbar sitting on top of the bottom bar — it now parks neatly above it." },
       { type: "improve", text: "Setup-pack share codes are ~15% shorter. Codes from older versions still import fine." },

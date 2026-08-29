@@ -50,6 +50,7 @@ import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
+import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -311,6 +312,11 @@ export default function PlannerSurface({
   // Creating uses the SAME sheet as editing (one implementation, rule 16),
   // opened with an unsaved draft item. Whether it becomes a log or a plan is
   // decided at commit from the chosen time — the split the tracker makes.
+  // A running quick-start activity tapped in the grid — the same
+  // ActivityActionMenu the dashboard pill opens (edit start, pause,
+  // end & log, discard). Reuse, don't fork.
+  const [liveMenu, setLiveMenu] = useState(null);
+
   const openCreate = (day, fromMin, toMin) => {
     const pad = (n) => String(n).padStart(2, "0");
     setTiming({
@@ -944,6 +950,7 @@ export default function PlannerSurface({
           />
         ) : (
         <WeekCanvas
+          onOpenLive={setLiveMenu}
           anchor={anchor}
           onOpenPage={onOpenPage}
           onSetPref={onSetPref}
@@ -1012,6 +1019,9 @@ export default function PlannerSurface({
           details view ... in a non-edit, easy to read form"). */}
       {/* Details — the SHARED sheet (also used by the Today widget), so a
           plan reads and resolves the same wherever you tap it. */}
+      {liveMenu && (
+        <ActivityActionMenu activity={liveMenu} onClose={() => setLiveMenu(null)} />
+      )}
       <PlanDetailsSheet
         item={details}
         onClose={() => setDetails(null)}
