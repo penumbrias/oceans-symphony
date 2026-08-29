@@ -15,6 +15,7 @@ import { parseAndStripSignposts, foldSignpostAuthors, isSystemSignpost, SYSTEM_S
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
@@ -56,6 +57,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const inputRef = React.useRef(null);
   const imageInputRef = React.useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Image waiting in the preview/size dialog before it lands in the comment.
+  const [pendingImage, setPendingImage] = useState(null);
   const insertHtml = useTextareaInsert(inputRef, text, setText);
   const handleImage = async (e) => {
     const file = e.target.files?.[0];
@@ -72,7 +75,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
         await saveLocalImage(id, dataUrl);
         url = createLocalImageUrl(id);
       }
-      insertHtml(`<img src="${url}" alt="" />`, "");
+      setPendingImage(url);
       toast.success(isGif ? "GIF added!" : "Image added!");
     } catch (err) {
       toast.error(err?.message || "Couldn't add that image.");
@@ -289,7 +292,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
 
   return (
     <div className="relative">
-      <div className="flex gap-2 items-end">
+      <div className="relative flex gap-2 items-end">
         {richMode ? (
           <textarea
             ref={inputRef}
@@ -334,6 +337,37 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
         >
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
+
+        {/* Mention / sign-as-author menu — anchored DIRECTLY under the text
+            entry. It used to sit after the toolbar + whisper blocks in flow
+            (absolute with no top), which dropped it way below the composer
+            (owner screenshot). */}
+        {showMenu && (filteredAlters.length > 0 || systemSignpostMatches) && (
+          <div className="absolute top-full z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
+            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
+              {menuMode === "mention" ? `Mention ${terms.alter}…` : "Sign as author…"}
+            </div>
+            {systemSignpostMatches && (
+              <button
+                key={SYSTEM_SENTINEL_ID}
+                onClick={() => handleSelect({ id: SYSTEM_SENTINEL_ID, isSystem: true, name: systemIdentity.name })}
+                className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs"
+              >
+                <SystemAvatar size="sm" />
+                <span>{systemIdentity.name}</span>
+                <span className="text-muted-foreground">(no specific {terms.alter})</span>
+              </button>
+            )}
+            {filteredAlters.slice(0, 6).map(a => (
+              <button key={a.id} onClick={() => handleSelect(a)}
+                className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs">
+                <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                <span>{a.name}</span>
+                {a.alias && <span className="text-muted-foreground">({a.alias})</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {whisperOn && (
@@ -406,37 +440,16 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
               className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
               {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
             </button>
-            <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
             <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
           </div>
-          <MiniToolbar onInsert={insertHtml} />
+          <MiniToolbar onInsert={insertHtml} float="keyboard" />
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
-        </div>
-      )}
-      {showMenu && (filteredAlters.length > 0 || systemSignpostMatches) && (
-        <div className="absolute z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
-          <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
-            {menuMode === "mention" ? `Mention ${terms.alter}…` : "Sign as author…"}
-          </div>
-          {systemSignpostMatches && (
-            <button
-              key={SYSTEM_SENTINEL_ID}
-              onClick={() => handleSelect({ id: SYSTEM_SENTINEL_ID, isSystem: true, name: systemIdentity.name })}
-              className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs"
-            >
-              <SystemAvatar size="sm" />
-              <span>{systemIdentity.name}</span>
-              <span className="text-muted-foreground">(no specific {terms.alter})</span>
-            </button>
-          )}
-          {filteredAlters.slice(0, 6).map(a => (
-            <button key={a.id} onClick={() => handleSelect(a)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs">
-              <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
-              <span>{a.name}</span>
-              {a.alias && <span className="text-muted-foreground">({a.alias})</span>}
-            </button>
-          ))}
+        {pendingImage && (
+          <ImageInsertPreview url={pendingImage}
+            onInsert={(html) => insertHtml(html, "")}
+            onClose={() => setPendingImage(null)} />
+        )}
         </div>
       )}
     </div>

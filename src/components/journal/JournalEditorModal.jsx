@@ -11,6 +11,7 @@ import { encryptContent, decryptContent } from "@/lib/encryption";
 import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code, PenLine, ChevronDown, X } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
+import { extractHashtags, mergeTags } from "@/lib/journalTags";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -310,9 +311,14 @@ useEffect(() => {
     if (isEncrypted && encryptionPassword) {
       finalContent = await encryptContent(content, encryptionPassword);
     }
+    // Hashtags typed in the body become tags (merged with any existing).
+    // Extraction runs on the PLAINTEXT content — an encrypted body can't be
+    // scanned, and shouldn't leak its tags anyway.
+    const extracted = isEncrypted ? [] : extractHashtags(`${title} ${content}`);
     saveMutation.mutate({
       title: title.trim() || new Date().toLocaleString(),
       content: finalContent,
+      tags: mergeTags(editingEntryFinal?.tags, extracted),
       is_encrypted: isEncrypted,
       folder: folder || null,
       author_alter_id: effectiveAuthorId || null,

@@ -161,7 +161,7 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
                   <AssetButton onPick={(url) => { insertHtml(`<img src="${url}" alt="" />`, ""); setRichMode(true); }} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
                   <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions still work.</span>
                 </div>
-                <MiniToolbar onInsert={insertHtml} />
+                <MiniToolbar onInsert={insertHtml} float="keyboard" />
                 <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
               </div>
             )}

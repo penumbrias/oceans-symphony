@@ -124,6 +124,7 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
       isCompleted ? "border-green-500/40 bg-green-500/5" :
       isUrgent ? "border-amber-500/70 bg-amber-500/10 border-l-4 border-l-amber-500" : "border-border/60 bg-muted/15"
     }`}
+      data-own-hold
       onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
       onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
       style={{ touchAction: "pan-y" }}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
@@ -239,7 +240,17 @@ function LinkPromptModal({ onApply, onClose }) {
 // onImage / onAssets: host-provided media inserts (image upload, asset
 // gallery). When given they sit INLINE on the base row — the separate
 // media row above the toolbar is gone (owner: "in line with the rest").
-export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false, onImage = null, onAssets = null, mediaBusy = false }) {
+// onModalChange: floating hosts (WysiwygEditor's above-keyboard dock) hide
+// the toolbar when the editor blurs — but opening one of the toolbar's own
+// modals steals focus, which used to unmount the toolbar and take the modal
+// with it (the puzzle-link picker "immediately closed"). The host uses this
+// to stay mounted while any toolbar modal is open.
+// float: "keyboard" docks the whole toolbar in a fixed bar just above the
+// on-screen keyboard WHENEVER one is up (visualViewport inset), regardless
+// of which element has focus — for hosts whose composer the keyboard would
+// otherwise separate from the toolbar (system chat, bulletin composer).
+// WysiwygEditor keeps its own focus-gated dock and passes nothing here.
+export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false, onImage = null, onAssets = null, mediaBusy = false, onModalChange = null, float = null }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
   // the decorative effects. ALWAYS starts collapsed on mount — every page that
@@ -374,6 +385,15 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPicker(true);
   };
 
+  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp);
+  useEffect(() => {
+    onModalChange?.(anyModalOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyModalOpen]);
+  // If the host unmounts the toolbar anyway, don't leave it thinking a
+  // modal is still up.
+  useEffect(() => () => onModalChange?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const openWebLink = () => {
     saveSel();
     setShowLinkPrompt(true);
@@ -455,7 +475,21 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   const sep = <div className="w-px h-4 bg-border/40 mx-0.5 flex-shrink-0" />;
 
-  return (
+  // Keyboard tracking for float="keyboard". kb stays 0 with no keyboard (or
+  // no visualViewport), so the toolbar renders inline exactly as before.
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    if (float !== "keyboard") return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const on = () => setKb(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", on);
+    vv.addEventListener("scroll", on);
+    on();
+    return () => { vv.removeEventListener("resize", on); vv.removeEventListener("scroll", on); };
+  }, [float]);
+
+  const body = (
     <>
       {/* ── Base row: media inserts + section toggles (accordion) ── */}
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10">
@@ -629,15 +663,17 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           </div>
         </>
       )}
-      {showHelp && <HelpPopup onClose={() => setShowHelp(false)} />}
-      {showLinkPrompt && (
+      {/* Modals are PORTALED to <body>: inside the floating dock they'd sit
+          under its pointerdown-preventDefault (which exists to keep the
+          editor focused), so none of their inputs could ever take focus. */}
+      {showHelp && createPortal(<HelpPopup onClose={() => setShowHelp(false)} />, document.body)}
+      {showLinkPrompt && createPortal(
         <LinkPromptModal
           onApply={applyLink}
           onClose={() => { savedSelection.current = null; setShowLinkPrompt(false); }}
-        />
-      )}
-      {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
-      {showLinkPicker && (
+        />, document.body)}
+      {colorModal && createPortal(<ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />, document.body)}
+      {showLinkPicker && createPortal(
         <InternalLinkPicker
           onSelect={(html) => {
             restoreSel();
@@ -646,8 +682,24 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
             setShowLinkPicker(false);
           }}
           onClose={() => { savedSelection.current = null; setShowLinkPicker(false); }}
-        />
-      )}
+        />, document.body)}
     </>
   );
+
+  // >40px filters out browser-chrome jitter that isn't a real keyboard.
+  if (float === "keyboard" && kb > 40) {
+    return createPortal(
+      <div
+        className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
+        style={{ bottom: kb }}
+        // Keep the composer focused (selection alive) while tapping styles.
+        onPointerDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        {body}
+      </div>,
+      document.body
+    );
+  }
+  return body;
 }

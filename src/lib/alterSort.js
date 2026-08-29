@@ -41,8 +41,14 @@ export const ALTER_SORTS = [
   { id: "recent", label: "Recently updated", short: "Recent" },
 ];
 
+// localStorage, not sessionStorage: the choice should survive closing the
+// app — "always opens alphabetical again" was the complaint. Old
+// sessionStorage values are read once as a fallback so nobody's current
+// in-session choice snaps back during the release that changes this.
 const read = (key, fallback) => {
-  try { return sessionStorage.getItem(key) || fallback; } catch { return fallback; }
+  try {
+    return localStorage.getItem(key) || sessionStorage.getItem(key) || fallback;
+  } catch { return fallback; }
 };
 
 // storageKey — remembers this surface's choice. When the user has a
@@ -84,7 +90,7 @@ export function useAlterSorter(storageKey, { frontingIds = null, totals = null, 
   const [mode, setModeState] = useState(() => read(storageKey, hasOrder ? "manual" : "alpha-asc"));
   const setMode = useCallback((next) => {
     setModeState(next);
-    try { sessionStorage.setItem(storageKey, next); } catch { /* storage off */ }
+    try { localStorage.setItem(storageKey, next); } catch { /* storage off */ }
   }, [storageKey]);
   const cycle = useCallback(() => {
     const options = hasOrder ? ALTER_SORTS : ALTER_SORTS.filter((s) => s.id !== "manual");

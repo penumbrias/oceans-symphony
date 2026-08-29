@@ -310,7 +310,15 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [showJournalModal, setShowJournalModal] = useState(false);
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
-  const [viewMode, setViewMode] = useState("list");
+  // Remembered across sessions — reopening should look how you left it,
+  // not reset to the list view (owner request, same as the sort choice).
+  const [viewMode, setViewModeState] = useState(() => {
+    try { return localStorage.getItem("setFrontModal_view") || "list"; } catch { return "list"; }
+  });
+  const setViewMode = (v) => {
+    setViewModeState(v);
+    try { localStorage.setItem("setFrontModal_view", v); } catch { /* storage off */ }
+  };
   // "fronters" (the existing flow) | "presence" (record a sensed-but-not-yet-
   // identified fragment). The presence tab renders a self-contained form and
   // touches NO FrontingSession logic.

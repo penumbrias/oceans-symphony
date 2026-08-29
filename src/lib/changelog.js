@@ -18,7 +18,22 @@
 
 export const CHANGELOG = [
   {
+    date: "August 29, 2026",
+    changes: [
+      { type: "fix", text: "Holding a bulletin no longer opens the widget options on top of the bulletin's own menu." },
+      { type: "fix", text: "Logged sleep can no longer show up as an unresolved plan in the Today widget." },
+      { type: "fix", text: "The \"link to a page in the app\" picker in the formatting toolbar no longer closes itself the moment it opens." },
+      { type: "improve", text: "Inserting an image from the formatting toolbar now shows a preview first, with a size picker (small / medium / large / full)." },
+      { type: "improve", text: "The formatting toolbar in {{system}} chat and bulletin posts now docks just above the on-screen keyboard." },
+      { type: "fix", text: "The mention / sign-as-author menu in comments now opens directly under the text box instead of way below it." },
+      { type: "fix", text: "Untitled journals written from the home-screen widget now save exactly like untitled entries from the Journals page, and stray \"&nbsp;\" no longer shows at the end." },
+      { type: "feature", text: "Type a hashtag in a journal entry (like #dream) and it becomes a tag automatically — works from the Journals page and the home-screen widget." },
+      { type: "improve", text: "The set-{{front}} popup now remembers your last sort and view choice instead of reopening alphabetical in list mode." },
+    ],
+  },
+  {
     date: "August 27, 2026",
+    version: "0.216.3",
     changes: [
       { type: "feature", text: "Edit several widgets at once: hold a widget and let go (without dragging) to start selecting, tap more to add them, then give the lot a style or open \"Edit all\" and every change lands on all of them. Holding and dragging still moves a widget." },
       { type: "improve", text: "Today's plans are properly interactive: the box shows whether each one is done (tap it to tick or untick), and tapping the row opens the same plan popup the planner uses — outcome buttons and all — instead of sending you to the activity tracker." },

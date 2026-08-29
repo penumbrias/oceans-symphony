@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
 import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { scopeBioStyles } from "@/lib/scopedBioStyle";
 
 function fileToDataUrl(file) {
@@ -38,6 +39,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
+  // An image waiting in the preview/size dialog before it's inserted.
+  const [pendingImage, setPendingImage] = useState(null);
   // A bio's <style> must NOT apply globally while it's being edited. Keep the
   // raw <style> out of the contentEditable and inject a SCOPED copy into a
   // sibling instead; reattach the raw text on emit so the value round-trips.
@@ -116,7 +119,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
       const id = `bioimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(id, stored);
       const url = createLocalImageUrl(id);
-      insertHTML(`<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0;" />`, "");
+      // Preview + size choice first — never a blind insert.
+      setPendingImage(url);
     } catch (err) {
       toast.error(err?.message || "Couldn't add that image.");
     } finally {
@@ -136,6 +140,10 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // Floating mode: visible while the editable has focus; pointerdown on the
   // bar preventDefaults so tapping a style never blurs the editor.
   const [focused, setFocused] = useState(false);
+  // True while one of the toolbar's own modals (link picker, colour modal,
+  // help) is open. Those steal focus by design — the dock must stay mounted
+  // through it or the modal unmounts with it the instant it opens.
+  const [toolbarModal, setToolbarModal] = useState(false);
   const [kbBottom, setKbBottom] = useState(0);
   useEffect(() => {
     if (!floatResolved) return undefined;
@@ -184,10 +192,11 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField
             onImage={() => imageInputRef.current?.click()}
             onAssets={() => setShowAssetPicker(true)}
-            mediaBusy={uploadingImage} />
+            mediaBusy={uploadingImage}
+            onModalChange={setToolbarModal} />
         );
         if (!floatResolved) return rows;
-        if (!focused) return null;
+        if (!focused && !toolbarModal) return null;
         return createPortal(
           <div
             className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
@@ -210,9 +219,17 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           open
           onClose={() => setShowAssetPicker(false)}
           onSelect={(url) => {
-            insertHTML(`<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0;" />`, "");
             setShowAssetPicker(false);
+            setPendingImage(url);
           }}
+        />
+      )}
+
+      {pendingImage && (
+        <ImageInsertPreview
+          url={pendingImage}
+          onInsert={(html) => insertHTML(html, "")}
+          onClose={() => setPendingImage(null)}
         />
       )}
     </div>

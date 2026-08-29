@@ -69,6 +69,12 @@ export function statusFor(activity) {
     return activity.status;
   }
   if (isRecurringOccurrence) return ACTIVITY_STATUSES.SCHEDULED;
+  // A sleep-mirror row is always a LOG — it exists because a Sleep record
+  // was saved, never because the user planned anything. Without this,
+  // mirrors created before the write-side stamped status:"logged" (or with
+  // a future-dated bedtime) derived as "scheduled" and haunted the plan
+  // lists as unresolved plans.
+  if (activity.source_sleep_id) return ACTIVITY_STATUSES.LOGGED;
   const ts = activity.timestamp ? new Date(activity.timestamp).getTime() : 0;
   return ts > Date.now() ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED;
 }

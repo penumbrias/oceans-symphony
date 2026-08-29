@@ -11,6 +11,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
+import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import RichMentionInput from "@/components/shared/RichMentionInput";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -430,6 +431,8 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
   const insertHtml = useCallback((before, after = "") => editorRef.current?.insertHTML(before, after), []);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Image waiting in the preview/size dialog before it lands in the message.
+  const [pendingImage, setPendingImage] = useState(null);
   const handleComposerImage = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -445,7 +448,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
         await saveLocalImage(id, dataUrl);
         url = createLocalImageUrl(id);
       }
-      insertHtml(`<img src="${url}" alt="" />`, "");
+      setPendingImage(url);
       toast.success(isGif ? "GIF added!" : "Image added!");
     } catch (err) {
       toast.error(err?.message || "Couldn't add that image.");
@@ -575,7 +578,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
             className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
             {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
           </button>
-          <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+          <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -589,9 +592,14 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           </button>
         </div>
         {showFormatting && (
-          <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} />
+          <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} float="keyboard" />
         )}
         <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+        {pendingImage && (
+          <ImageInsertPreview url={pendingImage}
+            onInsert={(html) => insertHtml(html, "")}
+            onClose={() => setPendingImage(null)} />
+        )}
       </div>
     </div>
   );

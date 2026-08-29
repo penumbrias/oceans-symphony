@@ -239,6 +239,11 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         } else {
           const newAct = await base44.entities.Activity.create({
             timestamp: bedtimeISO,
+            // Explicitly a LOG: without this the status is derived from the
+            // timestamp, and a bedtime that lands in the future (logging tonight's
+            // sleep, or a date slip) read as "scheduled" — the sleep then showed
+            // up as an unresolved PLAN on the Today widget (owner report).
+            status: "logged",
             activity_name: "Sleep",
             duration_minutes: durationMinutes,
             activity_category_ids: [sleepCat.id],

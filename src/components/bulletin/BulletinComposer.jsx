@@ -14,6 +14,7 @@ import { parseAndStripSignposts, parseSignpostAuthors, parseSignpostDirectives, 
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
@@ -81,6 +82,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Image waiting in the preview/size dialog before it lands in the post.
+  const [pendingImage, setPendingImage] = useState(null);
   // "Fancy" mode adds a formatting toolbar + image/GIF upload over the SAME
   // text box — the @mention/-signpost typing + parsing below is completely
   // unchanged either way. Persisted so the last choice sticks.
@@ -143,7 +146,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         await saveLocalImage(id, dataUrl);
         url = createLocalImageUrl(id);
       }
-      insertHtml(`<img src="${url}" alt="" />`, "");
+      setPendingImage(url);
       toast.success(isGif ? "GIF added!" : "Image added!");
     } catch (err) {
       toast.error(err?.message || "Couldn't add that image.");
@@ -466,11 +469,16 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
               className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
               {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
             </button>
-            <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
             <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions and -signposts still work.</span>
           </div>
-          <MiniToolbar onInsert={insertHtml} />
+          <MiniToolbar onInsert={insertHtml} float="keyboard" />
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+        {pendingImage && (
+          <ImageInsertPreview url={pendingImage}
+            onInsert={(html) => insertHtml(html, "")}
+            onClose={() => setPendingImage(null)} />
+        )}
         </div>
       )}
 

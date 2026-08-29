@@ -41,6 +41,7 @@ import DOMPurify from "dompurify";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
+import { extractHashtags } from "@/lib/journalTags";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
@@ -1337,7 +1338,11 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
 
   const idx = Math.min(page, Math.max(0, pages.length - 1));
   const entry = pages[idx];
-  const isHtml = entry && /<[a-z][\s\S]*>/i.test(entry.content || "");
+  // Entities count as HTML too: a plain-text-looking entry that carries
+  // &nbsp; (contenteditable's favourite parting gift) must go through the
+  // sanitized-HTML branch so the entity DECODES instead of printing
+  // literally at the end of the page (owner report).
+  const isHtml = entry && /<[a-z][\s\S]*>|&[a-z]+;|&#\d+;/i.test(entry.content || "");
 
   return (
     <Section
@@ -1443,13 +1448,22 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
   });
 
   const save = async () => {
-    const content = text.trim();
+    // The wysiwyg hands back HTML, and contenteditable loves to leave a
+    // trailing &nbsp; (typed spaces become non-breaking at the end of a
+    // node) — which then renders as literal "&nbsp;" wherever the entry is
+    // shown as text. Strip trailing entity/whitespace runs before saving.
+    const content = text.replace(/(?:&nbsp;|<br\s*\/?>|\s)+$/gi, "").trim();
     if (!content || saving) return;
     setSaving(true);
     try {
       await base44.entities.JournalEntry.create({
-        title: title.trim() || null,
+        // Untitled entries match the Journals page editor exactly (it falls
+        // back to the date-time string) so the entry lists read the same no
+        // matter where the entry was written.
+        title: title.trim() || new Date().toLocaleString(),
         content,
+        // Typed hashtags become tags, same as the Journals page editor.
+        tags: extractHashtags(`${title} ${content}`),
         timestamp: new Date().toISOString(),
         folder: journal || null,
       });
