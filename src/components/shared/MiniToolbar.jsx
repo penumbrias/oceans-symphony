@@ -8,6 +8,11 @@ import {
   ImagePlus, Images,
 } from "lucide-react";
 import InternalLinkPicker from "@/components/shared/InternalLinkPicker";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { AtSign } from "lucide-react";
+import useDockHeightVar from "@/hooks/useDockHeightVar";
 
 export const PRESET_COLORS = [
   "#ff4d4d","#ff85a1","#ff1493","#c0392b",
@@ -67,7 +72,7 @@ export function ColorPickerModal({ mode, onApply, onClose }) {
   const presets = isFg ? PRESET_COLORS : PRESET_HIGHLIGHTS;
   const pickerColor = hex.length === 9 ? hex.slice(0, 7) : hex;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220]">
       <div className="bg-background border-2 border-border rounded-xl p-5 space-y-4 max-w-xs mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{isFg ? "Text color" : "Highlight color"}</h3>
@@ -132,6 +137,7 @@ const MORE_HELP = [
   { icons: [EyeOff], d: "Censor bar — hides text behind a bar until tapped" },
   { icons: [Eraser], d: "Clear formatting — strip styles from the selection, or stop typing styled" },
   { icons: [Puzzle], d: "Link to a page inside the app" },
+  { icons: [AtSign], d: "Compose @ mentions, -signposts and ~commands, then insert them" },
   { icons: [Pencil], d: "Mark text as a fill-in field (bio templates)" },
 ];
 const FUN_HELP = [
@@ -155,7 +161,7 @@ function HelpRow({ icons, glyph, d }) {
 
 function HelpPopup({ onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220] p-4" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 flex-shrink-0">
           <h3 className="font-semibold text-sm">Formatting tools</h3>
@@ -207,7 +213,7 @@ function LinkPromptModal({ onApply, onClose }) {
   const [text, setText] = useState("");
   const submit = () => { if (url.trim()) onApply(url, text); };
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220] p-4" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-xl p-5 space-y-3 max-w-xs w-full shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">Add a web link</h3>
@@ -232,6 +238,51 @@ function LinkPromptModal({ onApply, onClose }) {
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
           <button type="button" onClick={submit} disabled={!url.trim()} className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Add link</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Mention & command composer — hosts whose main editor is a contenteditable
+// (the wysiwyg) have no @-mention / -signpost / ~-command autocomplete of
+// their own. This popup gives them the SAME MentionTextarea the composers
+// use; whatever's written gets inserted into the content at the cursor.
+function MentionComposeModal({ onInsert, onClose }) {
+  const [text, setText] = useState("");
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const insert = () => {
+    const t = text.trim();
+    if (!t) { onClose(); return; }
+    // Escape, then newlines become <br /> so the paragraph shape survives.
+    const html = t
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br />");
+    onInsert(html);
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[220] p-3" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full sm:max-w-md p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-sm flex items-center gap-1.5"><AtSign className="w-4 h-4" /> Mentions &amp; commands</p>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <MentionTextarea
+          value={text}
+          onChange={setText}
+          alters={alters}
+          signposts
+          rows={4}
+          autoFocus
+          placeholder="@ to mention · -name to signpost · ~ for commands"
+        />
+        <button type="button" onClick={insert}
+          className="w-full py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+          Insert into text
+        </button>
       </div>
     </div>
   );
@@ -263,6 +314,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const [fontPickerPos, setFontPickerPos] = useState(null);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [showLinkPrompt, setShowLinkPrompt] = useState(false);
+  const [showMentionCompose, setShowMentionCompose] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   // Which toggle commands are active for the current selection, so the
   // matching toolbar buttons light up (bold on → Bold button highlighted).
@@ -385,7 +437,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPicker(true);
   };
 
-  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp);
+  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose);
   useEffect(() => {
     onModalChange?.(anyModalOpen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -478,6 +530,8 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // Keyboard tracking for float="keyboard". kb stays 0 with no keyboard (or
   // no visualViewport), so the toolbar renders inline exactly as before.
   const [kb, setKb] = useState(0);
+  const dockRef = useRef(null);
+  useDockHeightVar(dockRef, float === "keyboard" && kb > 40, kb);
   useEffect(() => {
     if (float !== "keyboard") return undefined;
     const vv = window.visualViewport;
@@ -500,6 +554,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
             <ImagePlus className="w-3.5 h-3.5" />
           </button>
         )}
+        <button type="button" title="Mentions & commands" aria-label="Insert mentions, signposts or commands"
+          onMouseDown={e => e.preventDefault()} onClick={() => { saveSel(); setShowMentionCompose(true); }}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+          <AtSign className="w-3.5 h-3.5" />
+        </button>
         {onAssets && (
           <button type="button" title="Insert from assets" aria-label="Insert from assets"
             onMouseDown={e => e.preventDefault()} onClick={onAssets}
@@ -673,6 +732,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           onClose={() => { savedSelection.current = null; setShowLinkPrompt(false); }}
         />, document.body)}
       {colorModal && createPortal(<ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />, document.body)}
+      {showMentionCompose && createPortal(
+        <MentionComposeModal
+          onInsert={(html) => { restoreSel(); onInsert(html, ""); savedSelection.current = null; }}
+          onClose={() => setShowMentionCompose(false)}
+        />, document.body)}
       {showLinkPicker && createPortal(
         <InternalLinkPicker
           onSelect={(html) => {
@@ -690,6 +754,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   if (float === "keyboard" && kb > 40) {
     return createPortal(
       <div
+        ref={dockRef}
         className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
         style={{ bottom: kb }}
         // Keep the composer focused (selection alive) while tapping styles.

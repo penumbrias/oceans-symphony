@@ -283,7 +283,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
         onBlur={(e) => { setTimeout(() => setMenu(null), 120); textareaProps.onBlur?.(e); }}
       />
       {open && menuPos && createPortal(
-        <div className="fixed z-[120] bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
+        <div className="fixed z-[240] bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
           style={menuPos}>
           {menu.type === "command" ? (
             <>

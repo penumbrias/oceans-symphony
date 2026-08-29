@@ -144,7 +144,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
   }, [filtered]);
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[70]" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[220]" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-md mx-0 sm:mx-4 shadow-2xl flex flex-col"
         style={{ maxHeight: "80vh" }}
         onClick={e => e.stopPropagation()}>

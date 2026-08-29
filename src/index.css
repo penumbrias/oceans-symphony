@@ -137,6 +137,10 @@ body {
  
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* While a formatting toolbar is docked above the on-screen keyboard it
+     occludes the bottom of the page — this var (set by useDockHeightVar)
+     adds matching scroll room so everything stays reachable. 0 otherwise. */
+  padding-bottom: var(--os-kb-dock-pad, 0px);
   overscroll-behavior: none;
 }
 

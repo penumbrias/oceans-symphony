@@ -7,6 +7,7 @@ import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { scopeBioStyles } from "@/lib/scopedBioStyle";
+import useDockHeightVar from "@/hooks/useDockHeightVar";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -145,6 +146,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // through it or the modal unmounts with it the instant it opens.
   const [toolbarModal, setToolbarModal] = useState(false);
   const [kbBottom, setKbBottom] = useState(0);
+  const dockRef = useRef(null);
+  useDockHeightVar(dockRef, floatResolved && (focused || toolbarModal), kbBottom);
   useEffect(() => {
     if (!floatResolved) return undefined;
     const vv = window.visualViewport;
@@ -199,6 +202,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         if (!focused && !toolbarModal) return null;
         return createPortal(
           <div
+            ref={dockRef}
             className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
             style={{ bottom: kbBottom }}
             // Keep the editor focused (and the selection alive) while
