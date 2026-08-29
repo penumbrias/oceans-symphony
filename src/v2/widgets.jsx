@@ -42,6 +42,7 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
+import { saveMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
@@ -1456,7 +1457,7 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
     if (!content || saving) return;
     setSaving(true);
     try {
-      await base44.entities.JournalEntry.create({
+      const created = await base44.entities.JournalEntry.create({
         // Untitled entries match the Journals page editor exactly (it falls
         // back to the date-time string) so the entry lists read the same no
         // matter where the entry was written.
@@ -1467,6 +1468,18 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         timestamp: new Date().toISOString(),
         folder: journal || null,
       });
+      // Body @mentions notify, same as the Journals page editor. New
+      // entries only ever fire once — the widget always creates.
+      try {
+        await saveMentions({
+          content: htmlToPlainText(content),
+          alters: notebookAlters,
+          sourceType: "journal",
+          sourceId: created?.id,
+          sourceLabel: title.trim() || "Journal Entry",
+          navigatePath: created?.id ? `/journals?id=${created.id}` : "/journals",
+        });
+      } catch { /* notifications are best-effort */ }
       qc.invalidateQueries({ queryKey: ["journalEntries"] });
       clearDraft();
       setTitle("");

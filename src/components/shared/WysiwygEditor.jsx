@@ -91,6 +91,48 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     emit();
   }, [emit]);
 
+  // Clear formatting. With a selection: strip every inline style/element in
+  // it. With just a cursor: hop OUT of every styled inline ancestor (colour
+  // spans, gradients, bold runs) so typing continues plain — execCommand's
+  // removeFormat is a no-op without a selection, which is why the old
+  // eraser "did nothing" mid-typing. What's already written is untouched.
+  const clearFormatting = useCallback(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.focus();
+    const sel = window.getSelection();
+    const hasRange = sel && sel.rangeCount > 0;
+    if (hasRange && !sel.getRangeAt(0).collapsed) {
+      try { document.execCommand("removeFormat"); } catch { /* unsupported */ }
+      try { document.execCommand("unlink"); } catch { /* unsupported */ }
+      emit();
+      return;
+    }
+    if (hasRange) {
+      const INLINE = /^(SPAN|FONT|B|I|U|S|STRONG|EM|SUB|SUP|CODE|A|MARK|SMALL|BIG)$/;
+      const range = sel.getRangeAt(0);
+      let cur = range.startContainer.nodeType === 3 ? range.startContainer.parentNode : range.startContainer;
+      let top = null;
+      while (cur && cur !== ed && INLINE.test(cur.nodeName)) { top = cur; cur = cur.parentNode; }
+      if (top && top.parentNode) {
+        // A zero-width anchor right after the styled run gives the caret an
+        // unstyled home; typing from here is plain.
+        const marker = document.createTextNode("\u200b");
+        top.parentNode.insertBefore(marker, top.nextSibling);
+        const r = document.createRange();
+        r.setStart(marker, 1);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    }
+    // Toggle states (bold etc.) persist independently of the DOM position.
+    for (const c of ["bold", "italic", "underline", "strikeThrough", "superscript", "subscript"]) {
+      try { if (document.queryCommandState(c)) document.execCommand(c); } catch { /* unsupported */ }
+    }
+    emit();
+  }, [emit]);
+
   // Wrap the current selection in markup (colours, fonts, sizes, effects,
   // censor, images…). MiniToolbar drives this through onInsert.
   const insertHTML = useCallback((before, after = "") => {
@@ -196,6 +238,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             onImage={() => imageInputRef.current?.click()}
             onAssets={() => setShowAssetPicker(true)}
             mediaBusy={uploadingImage}
+            onClearFormat={clearFormatting}
             onModalChange={setToolbarModal} />
         );
         if (!floatResolved) return rows;

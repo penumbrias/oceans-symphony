@@ -10,7 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
 import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions } from "@/lib/mentionUtils";
+import { saveMentions, extractMentionedIds, htmlToPlainText } from "@/lib/mentionUtils";
 import { extractHashtags, mergeTags } from "@/lib/journalTags";
 import BioEditor from "@/components/alters/BioEditor";
 
@@ -277,6 +277,26 @@ useEffect(() => {
       }
     },
     onSuccess: async (savedEntry) => {
+      // @mentions typed in the entry BODY notify too (owner request) — same
+      // MentionLog pipeline as the dedicated field. Only NEW mentions fire on
+      // an edit (diffed against the previous version of this entry), and
+      // encrypted bodies are never scanned.
+      if (!isEncrypted && alters?.length > 0) {
+        try {
+          const prevPlain = editingEntryFinal && !editingEntryFinal.is_encrypted
+            ? htmlToPlainText(editingEntryFinal.content || "") : "";
+          await saveMentions({
+            content: htmlToPlainText(content),
+            alters,
+            sourceType: "journal",
+            sourceId: savedEntry.id,
+            sourceLabel: title || "Journal Entry",
+            navigatePath: `/journals?id=${savedEntry.id}`,
+            authorAlterId: authorAlterId || null,
+            excludeIds: extractMentionedIds(prevPlain, alters),
+          });
+        } catch { /* notifications are best-effort */ }
+      }
       if (mentionNote.trim() && alters?.length > 0) {
         await saveMentions({
           content: mentionNote,

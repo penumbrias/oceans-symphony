@@ -301,7 +301,10 @@ function MentionComposeModal({ onInsert, onClose }) {
 // of which element has focus — for hosts whose composer the keyboard would
 // otherwise separate from the toolbar (system chat, bulletin composer).
 // WysiwygEditor keeps its own focus-gated dock and passes nothing here.
-export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false, onImage = null, onAssets = null, mediaBusy = false, onModalChange = null, float = null }) {
+// onClearFormat: host-provided "back to plain text" (WysiwygEditor's does
+// real caret surgery for the no-selection case). Without it, a best-effort
+// fallback runs through onCommand.
+export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false, onImage = null, onAssets = null, mediaBusy = false, onModalChange = null, float = null, onClearFormat = null }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
   // the decorative effects. ALWAYS starts collapsed on mount — every page that
@@ -451,6 +454,21 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPrompt(true);
   };
 
+  const clearFormatting = () => {
+    if (onClearFormat) { onClearFormat(); return; }
+    if (!onCommand) return;
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+      onCommand("removeFormat");
+      onCommand("unlink");
+      return;
+    }
+    for (const c of ["bold", "italic", "underline", "strikeThrough", "superscript", "subscript"]) {
+      try { if (document.queryCommandState(c)) onCommand(c); } catch { /* unsupported */ }
+    }
+    onCommand("removeFormat");
+  };
+
   // Insert a real anchor for the typed URL. Label precedence: explicit
   // display text from the dialog > wrapped selection > the address itself.
   // Works on both hosts: execCommand on a contentEditable editor (preserves
@@ -559,6 +577,14 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
           <AtSign className="w-3.5 h-3.5" />
         </button>
+        {(onClearFormat || onCommand) && (
+          <button type="button" title="Clear formatting — back to plain text"
+            aria-label="Clear formatting"
+            onMouseDown={e => e.preventDefault()} onClick={clearFormatting}
+            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            <Eraser className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onAssets && (
           <button type="button" title="Insert from assets" aria-label="Insert from assets"
             onMouseDown={e => e.preventDefault()} onClick={onAssets}
@@ -606,14 +632,6 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           {txtBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
           {sep}
           {iconBtn(EyeOff, "||", "||", "Censor bar — hide until tapped")}
-          {onCommand && (
-            <button type="button" title="Clear formatting — back to plain text"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => onCommand("removeFormat")}
-              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-              <Eraser className="w-3.5 h-3.5" />
-            </button>
-          )}
           {templateField && iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
         </div>
       )}

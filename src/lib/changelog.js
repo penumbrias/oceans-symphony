@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "improve", text: "@ mentions typed in a journal entry's body now send mention notifications too — editing an entry only notifies newly-added mentions, and private (encrypted) entries are never scanned." },
+      { type: "improve", text: "The clear-formatting eraser now lives on the toolbar's main row and actually works mid-typing: press it and keep writing in plain text (what you already wrote stays styled), or select text first to strip its formatting." },
       { type: "feature", text: "New @ button in the formatting toolbar: opens a small composer where @ mentions, -signposts and ~commands all autocomplete, then inserts the result into your text — for editors (like journals) that don't support them inline." },
       { type: "fix", text: "The link pickers no longer get covered by the formatting toolbar, and the page now scrolls clear of the toolbar while it's docked above the keyboard." },
       { type: "fix", text: "The empty rectangle some devices showed at the top of the navigation menu (covering the header and first section) can no longer appear — top spacing is now capped at real status-bar size." },

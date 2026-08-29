@@ -54,9 +54,24 @@ export async function saveAuthoredLog({ authorAlterId, sourceType, sourceId, sou
   });
 }
 
-export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId }) {
+// Rich content (journal bodies, bios) is HTML — flatten it before mention
+// extraction so tags/attributes can't split or fake an @token.
+export function htmlToPlainText(html) {
+  if (!html || typeof html !== "string") return "";
+  return html
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
+}
+
+// excludeIds: mentions to SKIP — callers that notify on content pass the ids
+// already mentioned in the previous version of the same record, so editing
+// an entry never re-pings everyone in it.
+export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId, excludeIds = [] }) {
   if (!content) return;
-  const mentionedIds = extractMentionedIds(content, alters);
+  const skip = new Set(excludeIds);
+  const mentionedIds = extractMentionedIds(content, alters).filter((id) => !skip.has(id));
   const preview = content.slice(0, 120);
 
   const logs = [];
