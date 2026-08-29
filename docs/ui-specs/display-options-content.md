@@ -34,7 +34,11 @@ grammar:
   + "Back to the default"; one close control).
 - **Wave colour**: colour SWATCH circles (`var(--color-*)`), not word
   pills; "Off" stays a word chip; custom via the shared ColorPicker.
-- Handle halves / Edge / Placement etc. as PillRows. Alter bar Placement
+- Handle halves / Edge / Placement etc. as PillRows. Quick action bar also
+  carries **"Swap with bottom bar"** (stacked PillRow, only while the
+  actions are a bottom-edge bar): "swapped" fixes the key row where the
+  tabs were and folds the page tabs behind the handle. Default stays
+  "normal" — it's a toggle, never the default arrangement. Alter bar Placement
   is top/bottom/left/right; the bar's fold control lives ONLY on its own
   edge — the QA split handle carries the alters half solely when both
   share an edge; otherwise that edge gets an AltersEdgeTab (click chevron;

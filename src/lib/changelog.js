@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "improve", text: "The feature tour caught up with everything recent: multi-select editing, the bottom-bar swap, the journal editor's full toolbar (mentions, clear formatting, image sizing, in-app links), hashtag tags, multi-day plans and pull-to-refresh — and it no longer describes the removed Flow layout." },
       { type: "feature", text: "Pull down at the top of any page — or the home screen — to refresh everything." },
       { type: "hotfix", text: "Hotfix: Friends registrations are now rate-limited per network." },
       { type: "improve", text: "Friends security audit: unfriending or deleting your account now removes every trace of the shared data from the relay, request spam is capped, and all inputs are bounded. The relay still never sees member lists unencrypted." },
