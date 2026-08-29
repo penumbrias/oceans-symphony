@@ -32,7 +32,7 @@ import { Square,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
-, Map, MapPin, Compass
+, Map, MapPin
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -2653,42 +2653,6 @@ function sized(render) {
   );
 }
 
-// First-run starter guide — seeded onto page 1 the first time the
-// experimental home is switched on, so the jump from the classic
-// dashboard isn't a cold start. Just a widget: delete it in edit mode
-// like any other. The buttons dispatch the SAME events the edit bar
-// uses — no new surfaces, it only points at what already exists.
-function StarterGuideWidget() {
-  const tr = useT();
-  const fire = (name, detail) => window.dispatchEvent(new CustomEvent(name, detail ? { detail } : undefined));
-  const btn = "flex-1 min-w-[7rem] text-xs font-medium px-2 py-1.5 rounded-lg border transition-colors";
-  return (
-    <div className="space-y-2 text-sm">
-      <p className="font-semibold">{tr("widget.guide.title")}</p>
-      <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-        <li>{tr("widget.guide.line1")}</li>
-        <li>{tr("widget.guide.line2")}</li>
-        <li>{tr("widget.guide.line3")}</li>
-      </ul>
-      <div className="flex flex-wrap gap-1.5 pt-0.5">
-        <button type="button" onClick={() => fire("os-v2-home-settings")}
-          className={`${btn} border-primary/40 text-primary hover:bg-primary/10`}>
-          {tr("widget.guide.browseStyles")}
-        </button>
-        <button type="button" onClick={() => fire("os-v2-pack-sheet", { tab: "import" })}
-          className={`${btn} border-primary/40 text-primary hover:bg-primary/10`}>
-          {tr("widget.guide.samplePacks")}
-        </button>
-        <button type="button" onClick={() => fire("os-v2-edit-home")}
-          className={`${btn} border-border/60 text-muted-foreground hover:text-foreground`}>
-          {tr("widget.guide.startEditing")}
-        </button>
-      </div>
-      <p className="text-[0.6875rem] text-muted-foreground/80">{tr("widget.guide.footer")}</p>
-    </div>
-  );
-}
-
 export const V2_WIDGETS = {
   activity_week: {
     label: "Week grid", description: "The activity tracker's week, on your home screen. Minimal is a per-day readout; normal draws the grid; expanded gives you the tracker's own gestures \u2014 drag a time range to log or plan it.",
@@ -3067,14 +3031,6 @@ export const V2_WIDGETS = {
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
-  starter_guide: {
-    label: "Starter guide", description: "Quick pointers for the home screen, with shortcuts to styles and layout packs.",
-    icon: Compass, category: "layout",
-    render: () => <StarterGuideWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
-    configFields: [],
-    defaultSpan: { cols: 8, rows: 4 }, minSpan: { cols: 4, rows: 3 }, maxSpan: { cols: 12, rows: 8 },
-  },
   text: {
     label: "Text", description: "A paragraph of your own — notes, reminders to yourself, anything.",
     icon: AlignLeft, category: "layout",
@@ -3331,7 +3287,6 @@ export function seedV2Home() {
         // anything.
         id: "p1", label: "Home", layoutMode: "free",
         widgets: [
-          mk("starter_guide", 8, 4),
           mk("presence", 8, 2),
           mk("status", 8, 2),
           mk("today", 8, 3),

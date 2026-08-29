@@ -20,7 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
-      { type: "improve", text: "Turning on the experimental home screen now starts you with a friendlier setup: a starter-guide widget with shortcuts to styles, layout packs and editing, a first page shaped like the classic dashboard, and a blank second page to build on." },
+      { type: "improve", text: "Turning on the experimental home screen now starts you with a friendlier setup: a first page shaped like the classic dashboard, and a blank second page to build on." },
       { type: "improve", text: "Text widgets now use the full formatting editor — colours, fonts, images and in-app link buttons all work, same as journals and bios." },
       { type: "feature", text: "New toggle in Display options → Quick actions: swap the bottom bars, so the quick-action keys stay fixed at the bottom and the page tabs fold behind the handle instead. Default arrangement is unchanged." },
       { type: "improve", text: "@ mentions typed in a journal entry's body now send mention notifications too — editing an entry only notifies newly-added mentions, and private (encrypted) entries are never scanned." },
