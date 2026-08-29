@@ -175,6 +175,12 @@ export const V2_TOKEN_DEFS = [
   // row inside the hosting bar, the pre-0.198.2 look). The user's call.
   { id: "actionsAttach", group: "bars", label: "Quick actions row", type: "select", cssVar: "--v2-actions-attach-noop", default: "float",
     options: [{ v: "float", label: "Floating card", css: "float" }, { v: "attached", label: "Inside the bar", css: "attached" }] },
+  // Swap the two bottom-chrome roles: the always-visible bar shows the
+  // quick-action keys, and the page tabs fold behind the handle instead.
+  // A toggle, NOT a new default (owner spec). Only meaningful while the
+  // quick actions are a bottom-edge bar; V2Frame ignores it otherwise.
+  { id: "barsSwap", group: "bars", label: "Bottom bar contents", type: "select", cssVar: "--v2-bars-swap-noop", default: "normal",
+    options: [{ v: "normal", label: "Tabs fixed, actions fold", css: "normal" }, { v: "swapped", label: "Actions fixed, tabs fold", css: "swapped" }] },
   // The "active now" bubble: off / only while something is active / always.
   { id: "activeBubble", group: "bars", label: "Active-now bubble", type: "select", cssVar: "--v2-active-bubble-noop", default: "off",
     options: [

@@ -804,7 +804,10 @@ export function V2QuickDock({ uiV2, settingsRow }) {
 // two hosts: the bottom chrome (handle above the row, swipe UP opens) or
 // the top bar (row above the handle, swipe DOWN opens — Display options →
 // Quick action bar → Edge). Open state is a device preference.
-function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
+// content="tabs" (bars swapped): the fold-out carries the page tabs
+// instead of the command keys — all the handle/swipe/persist mechanics
+// stay identical.
+function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys", tabItems = [] }) {
   const homeEdit = useHomeEditMode();
   const navigate = useNavigate();
   const t = useT();
@@ -875,6 +878,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     // bar lands ON the card (the "bars overlap" bug).
   }, [edge, attached, homeEdit.editing, homeEdit.preview]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+  const isActiveTab = useIsActive();
+  const stripBody = content === "tabs"
+    ? <TabButtons items={tabItems} uiV2={uiV2} isActive={isActiveTab} navigate={navigate} t={t} />
+    : <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
+        onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />;
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
@@ -994,8 +1002,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                     border: "var(--v2-border-w, 1px) var(--v2-border-style, solid) var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
                     boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
                   }}>
-                  <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
-                    onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />
+                  {stripBody}
                 </div>
               </motion.div>
             )}
@@ -1014,8 +1021,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
           <div className="flex items-center justify-center overflow-x-auto px-2"
             {...cardDragProps(dir)}
             style={{ touchAction: "pan-x", gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)", ...barLookStyle(uiV2, "actions", { veil: false }) }}>
-            <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
-              onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />
+            {stripBody}
           </div>
         </motion.div>
       )}
@@ -1050,6 +1056,31 @@ function useHomeEditMode() {
     return () => window.removeEventListener("symphony-home-edit-changed", on);
   }, []);
   return state;
+}
+
+// The page-tab row's contents — one implementation for the fixed bottom
+// bar AND the fold-out strip when the bars are swapped (reuse, don't fork).
+function TabButtons({ items, uiV2, isActive, navigate, t }) {
+  return (
+    <div className="flex items-stretch overflow-x-auto w-full" style={{ height: "var(--v2-strip-h)" }} role="tablist" aria-label={t("nav.appNav")}>
+      {items.map((item) => {
+        const on = isActive(item.path);
+        const Icon = item.icon;
+        return (
+          <button key={item.id} type="button" role="tab" aria-selected={on}
+            onClick={() => navigate(item.path)}
+            className="flex-1 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1"
+            style={{
+              color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
+              boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
+            }}>
+            <IconSlot override={uiV2.icons?.pages?.[item.id]} Default={Icon} style={{ width: 18, height: 18 }} />
+            <span className="text-[0.625em] font-medium leading-tight whitespace-nowrap">{item.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // The quick-action key row's contents — one implementation for the
@@ -1154,6 +1185,15 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
 
   const { primary: items } = useNavItems(settingsRow);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+  // Bars swapped (a toggle, never the default): the ALWAYS-VISIBLE bar is
+  // the quick-action keys and the page tabs fold behind the handle. Only
+  // meaningful while the quick actions are a bottom-edge bar — float /
+  // bubble / top-edge configurations ignore it.
+  const barsSwapped = (uiV2.tokens.barsSwap || "normal") === "swapped"
+    && (uiV2.tokens.actionsMode || "bar") === "bar"
+    && (uiV2.tokens.actionsEdge || "bottom") !== "top";
+  const [swapActiveOpen, setSwapActiveOpen] = useState(false);
+  const swapActiveAnchor = useRef(null);
 
   // The pinned {alters} bar takes the quick-action bar's slot when that
   // bar is off (the user's spec: it should copy the QUICK ACTIONS bar's
@@ -1340,29 +1380,36 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       {/* The nav's own alters fold handle is RETIRED (owner) — the bar's
           visibility lives in Display options; swipe-down on the bar itself
           still tucks it away, and the set_front key's hold brings it back. */}
-      {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top" && (
-        <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />
-      )}
+      {/* Fold-out strip: quick actions normally; the page tabs when the
+          bars are swapped. Same handle, same swipe, same persistence. */}
+      {barsSwapped
+        ? (uiV2.bars.tabs && (
+            <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" content="tabs" tabItems={items} />
+          ))
+        : (uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top" && (
+            <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />
+          ))}
 
-      {uiV2.bars.tabs && (
-        <div className="flex items-stretch overflow-x-auto" style={{ height: "var(--v2-strip-h)" }} role="tablist" aria-label={t("nav.appNav")}>
-          {items.map((item) => {
-            const on = isActive(item.path);
-            const Icon = item.icon;
-            return (
-              <button key={item.id} type="button" role="tab" aria-selected={on}
-                onClick={() => navigate(item.path)}
-                className="flex-1 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1"
-                style={{
-                  color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
-                  boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
-                }}>
-                <IconSlot override={uiV2.icons?.pages?.[item.id]} Default={Icon} style={{ width: 18, height: 18 }} />
-                <span className="text-[0.625em] font-medium leading-tight whitespace-nowrap">{item.label}</span>
-              </button>
-            );
-          })}
+      {/* Always-visible row: the page tabs normally; the key row when the
+          bars are swapped. */}
+      {!barsSwapped && uiV2.bars.tabs && (
+        <TabButtons items={items} uiV2={uiV2} isActive={isActive} navigate={navigate} t={t} />
+      )}
+      {barsSwapped && uiV2.bars.actions && (
+        <div ref={swapActiveAnchor}
+          className="flex items-center justify-center overflow-x-auto px-2"
+          style={{
+            touchAction: "pan-x",
+            gap: "calc(var(--v2-space) * 1.5)",
+            padding: "calc(var(--v2-space) * 0.75) 0.5rem",
+            ...barLookStyle(uiV2, "actions", { veil: false }),
+          }}>
+          <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
+            onNote={() => setNoteOpen(true)} onActive={() => setSwapActiveOpen((v) => !v)} />
         </div>
+      )}
+      {barsSwapped && (
+        <ActiveNowPopover anchorRef={swapActiveAnchor} open={swapActiveOpen} onClose={() => setSwapActiveOpen(false)} />
       )}
 
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />

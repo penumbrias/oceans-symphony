@@ -628,6 +628,14 @@ function BarsSection({ v2, alignX }) {
             onChange={(val) => v2.setToken("actionsAttach", val)} alignX={alignX}
             options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
         )}
+        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (v2.uiV2.tokens.actionsEdge ?? "bottom") !== "top" && (
+          <PillRow label={tr("editSheet.barsSwap")} value={v2.uiV2.tokens.barsSwap ?? "normal"}
+            onChange={(val) => v2.setToken("barsSwap", val)} alignX={alignX} stacked
+            options={[
+              { v: "normal", label: tr("editSheet.barsSwapNormal") },
+              { v: "swapped", label: tr("editSheet.barsSwapSwapped") },
+            ]} />
+        )}
         {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
           <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
             onChange={(val) => v2.setToken("handleSides", val)} alignX={alignX} stacked
