@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Pin, PinOff, Trash2, Eye, Loader2, Pencil, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -80,6 +81,10 @@ export default function BulletinActionMenu({ bulletin, alters = [], open, onClos
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-xs">
+        {/* No visible heading by design — screen readers still need a name. */}
+        <VisuallyHidden>
+          <DialogTitle>Bulletin actions</DialogTitle>
+        </VisuallyHidden>
         <div className="space-y-2">
           {taskId && (
             <button

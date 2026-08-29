@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "Screen readers now announce a proper name for the language-setup popup, bulletin action menu and search palette." },
       { type: "fix", text: "Closing the keyboard with a journal text box still focused no longer leaves the formatting toolbar sitting on top of the bottom bar — it now parks neatly above it." },
       { type: "improve", text: "Setup-pack share codes are ~15% shorter. Codes from older versions still import fine." },
       { type: "improve", text: "The Notebook widget's editor now follows its display mode: Minimal is a bare page, Normal adds the formatting toolbar, Expanded is the full journal editor with mode tabs, undo and templates." },

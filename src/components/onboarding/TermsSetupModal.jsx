@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Pencil, Check } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
@@ -443,6 +444,11 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
+        {/* Screen-reader name for the dialog — the visible heading lives in
+            TermsSetupContent, which also renders outside this dialog. */}
+        <VisuallyHidden>
+          <DialogTitle>Choose your language</DialogTitle>
+        </VisuallyHidden>
         <TermsSetupContent onSaved={onClose} existingSettingsId={existingSettingsId} />
       </DialogContent>
     </Dialog>
