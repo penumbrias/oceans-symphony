@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "Importing a large backup (hundreds of images) on Android no longer blacks out the app and silently does nothing — the file is now streamed instead of loaded whole, exports write the same way, and the \"last import attempt\" panel records every stage so a failure is never silent again." },
       { type: "fix", text: "Fixed the Android crash-on-launch some users hit on the last two updates (reported on a Galaxy S24) — reproduced, root-caused and verified fixed." },
       { type: "hotfix", text: "Hotfix: rolled back an Android build optimization that may have caused crashes on some devices." },
       { type: "hotfix", text: "Hotfix: Android builds now shrink unused resources more aggressively (Play's optimized-shrinking recommendation)." },

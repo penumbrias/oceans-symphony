@@ -42,20 +42,11 @@ async function shareNative(blob, filename, title, dialogTitle) {
     return { result: "failed", error: "chunk_load_failed" };
   }
 
-  // Convert the Blob → base64 string for the Filesystem plugin (it
-  // can't take a Blob directly; data must be a string + encoding, or
-  // a base64-encoded binary).
-  const base64 = await blobToBase64(blob);
-
   let uri;
   try {
-    const writeRes = await Filesystem.writeFile({
-      path: filename,
-      data: base64,
-      directory: Directory.Cache,
-      recursive: true,
-    });
-    uri = writeRes?.uri;
+    // Chunked — see writeBlobChunked; one giant base64 bridge message
+    // OOM-killed the app on large backups.
+    uri = await writeBlobChunked(Filesystem, { blob, path: filename, directory: Directory.Cache });
     console.log("[shareFile] wrote to cache:", uri);
   } catch (e) {
     console.warn("[shareFile] cache write failed:", e?.message || e);
@@ -90,6 +81,33 @@ async function shareNative(blob, filename, title, dialogTitle) {
 // strings simultaneously, which OOM'd the native WebView on large
 // backups. Reading as ArrayBuffer + chunked btoa keeps only one small
 // slice in memory at a time.
+// Write a Blob to a native file in CHUNKS. Filesystem.writeFile with one
+// giant base64 string marshals the whole file across the JS↔native bridge
+// in a single JSObject — for a big backup (hundreds of images) that
+// allocation OOM-killed the app (the com.getcapacitor.JSObject.<init>
+// OutOfMemoryError in Play vitals, and the "export/import just goes
+// black" reports). 3MB slices (multiple of 3 so each slice's base64
+// concatenates losslessly) keep every bridge message small.
+const CHUNK_BYTES = 3 * 1024 * 1024;
+async function writeBlobChunked(Filesystem, { blob, path, directory }) {
+  let uri = null;
+  for (let off = 0; off < blob.size; off += CHUNK_BYTES) {
+    const slice = blob.slice(off, Math.min(off + CHUNK_BYTES, blob.size));
+    const b64 = await blobToBase64(slice);
+    if (off === 0) {
+      const r = await Filesystem.writeFile({ path, data: b64, directory, recursive: true });
+      uri = r?.uri || null;
+    } else {
+      await Filesystem.appendFile({ path, data: b64, directory });
+    }
+  }
+  if (blob.size === 0) {
+    const r = await Filesystem.writeFile({ path, data: "", directory, recursive: true });
+    uri = r?.uri || null;
+  }
+  return uri;
+}
+
 async function blobToBase64(blob) {
   const buf = await blob.arrayBuffer();
   const bytes = new Uint8Array(buf);
@@ -202,15 +220,9 @@ export async function writeFileToDocumentsSilent({ blob, filename }) {
   }
   try {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    const base64 = await blobToBase64(blob);
-    const writeRes = await Filesystem.writeFile({
-      path: filename,
-      data: base64,
-      directory: Directory.Documents,
-      recursive: true,
-    });
-    console.log("[shareFile] silent write OK → Documents:", writeRes?.uri);
-    return { result: "filesystem", uri: writeRes?.uri, location: "Documents" };
+    const uri = await writeBlobChunked(Filesystem, { blob, path: filename, directory: Directory.Documents });
+    console.log("[shareFile] silent write OK → Documents:", uri);
+    return { result: "filesystem", uri, location: "Documents" };
   } catch (e) {
     console.warn("[shareFile] Documents write failed:", e?.message || e);
     return { result: "failed", error: e?.message || "write_failed" };

@@ -417,6 +417,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   });
   const importTrace = useRef(null);
   const traceStart = (file) => {
+    // A native pick already opened this attempt's trace (with the picker
+    // stages in it) — keep those steps instead of resetting.
+    if (importTrace.current && importTrace.current.result === null) {
+      traceStep("handed to importer");
+      return;
+    }
     importTrace.current = {
       startedAt: new Date().toISOString(),
       file: { name: file?.name || "(no name)", size: file?.size ?? null, type: file?.type || "" },
@@ -1177,26 +1183,51 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const handleNativeImportPick = async () => {
     try {
       const { FilePicker } = await import("@capawesome/capacitor-file-picker");
-      const res = await FilePicker.pickFiles({ readData: true });
+      // readData: FALSE — readData:true made the NATIVE plugin inhale the
+      // whole file and base64-marshal it across the bridge as one JSObject.
+      // For a big backup (hundreds of images) that native-heap allocation
+      // OOM-killed the app between the picker and our handler: screen goes
+      // black, app relaunches, no trace, no toast (the tester's exact
+      // report, and the JSObject.<init> OOM in Play vitals). We take only
+      // the PATH and stream the bytes through the WebView's local file
+      // bridge instead — no single giant allocation anywhere.
+      const res = await FilePicker.pickFiles({ readData: false });
       const picked = res?.files?.[0];
       if (!picked) return;
-      let bytes = null;
-      const b64ToBytes = (b64) => {
-        const bin = atob(b64);
-        const out = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-        return out;
-      };
-      if (picked.data) {
-        bytes = b64ToBytes(picked.data);
+      // Trace IMMEDIATELY — before any heavy work. If the app dies while
+      // streaming, the next launch's "Last import attempt" panel shows a
+      // trace that stops at "streaming…" instead of showing nothing at
+      // all (the tester's "no popup or anything" report).
+      traceStart({ name: picked.name, size: picked.size ?? null, type: picked.mimeType || "" });
+      traceStep("streaming from picker path");
+      let fileObj = null;
+      if (picked.blob) {
+        // Web implementation hands a Blob directly.
+        fileObj = new File([picked.blob], picked.name || "import", { type: picked.mimeType || "application/octet-stream" });
       } else if (picked.path) {
-        // Fallback: read the content URI via Filesystem if readData didn't inline it.
-        const { Filesystem } = await import("@capacitor/filesystem");
-        const r = await Filesystem.readFile({ path: picked.path });
-        bytes = typeof r.data === "string" ? b64ToBytes(r.data) : new Uint8Array(await r.data.arrayBuffer());
+        const { Capacitor } = await import("@capacitor/core");
+        const src = Capacitor.convertFileSrc(picked.path);
+        try {
+          const resp = await fetch(src);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          // Chromium spills large fetched blobs to disk — this never
+          // materialises the whole file in a single JS allocation here.
+          const blob = await resp.blob();
+          fileObj = new File([blob], picked.name || "import", { type: picked.mimeType || blob.type || "application/octet-stream" });
+        } catch (streamErr) {
+          // Fallback for paths the local bridge can't serve: the old
+          // whole-file native read. Worse memory profile, better than
+          // failing outright — and small files never hit the problem.
+          console.warn("[import] stream via convertFileSrc failed, falling back to Filesystem.readFile:", streamErr?.message || streamErr);
+          const { Filesystem } = await import("@capacitor/filesystem");
+          const r = await Filesystem.readFile({ path: picked.path });
+          const bin = typeof r.data === "string" ? atob(r.data) : null;
+          const bytes = bin ? Uint8Array.from(bin, (c) => c.charCodeAt(0)) : new Uint8Array(await r.data.arrayBuffer());
+          fileObj = new File([bytes], picked.name || "import", { type: picked.mimeType || "application/octet-stream" });
+        }
       }
-      if (!bytes) throw new Error("couldn't read the file's contents");
-      const fileObj = new File([bytes], picked.name || "import", { type: picked.mimeType || "application/octet-stream" });
+      if (!fileObj) throw new Error("couldn't read the file's contents");
+      traceStep("streamed", `${fileObj.size} bytes`);
       await handleImportFromFile(fileObj);
     } catch (err) {
       const msg = err?.message || String(err);
