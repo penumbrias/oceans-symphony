@@ -11,8 +11,8 @@ android {
         // upload — Play rejects duplicates. Bump for every Play
         // release; mirror versionName from src/lib/appVersion.js so
         // the displayed version chip matches the Play release.
-        versionCode 1165
-        versionName "0.221.3"
+        versionCode 1166
+        versionName "0.221.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,13 +22,16 @@ android {
     }
     buildTypes {
         release {
-            // R8 on: Play Console's "App optimization" check flags releases
-            // with ~0% obfuscation/shrinking ("fix by Feb 2027" warning).
-            // Keeps for Capacitor/Cordova reflection live in
-            // proguard-rules.pro — the web bundle in assets/ is untouched
-            // by R8 either way.
-            minifyEnabled true
-            shrinkResources true
+            // EMERGENCY ROLLBACK (v0.221.4): a 1-star "keeps crashing"
+            // review landed on 1165 (Galaxy S24 / Android 16) — the first
+            // R8-minified + precise-shrunk builds on Play. Until the crash
+            // is reproduced and root-caused under an emulator, release
+            // builds return to the exact non-minified config that ran on
+            // users' devices for months. Play's optimization deadline is
+            // Feb 2027 — user stability first. Re-enable ONLY with a
+            // logcat-verified fix and an internal-testing smoke pass.
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
