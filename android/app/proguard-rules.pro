@@ -26,7 +26,14 @@
 -keepattributes JavascriptInterface
 -keepattributes *Annotation*
 
-# ── Background Runner (own JS runtime; resolves classes reflectively) ──
+# ── Background Runner (own JS runtime; resolves classes via JNI) ──
+# THE 1164/1165 CRASH: libandroid_js_engine.so does a JNI FindClass on
+# io.ionic.android_js_engine.NativeWebAPI (and siblings) BY NAME at
+# startup. R8 stripped the package (the old rules guarded
+# io.ionic.backgroundrunner — the WRONG package) → native
+# ClassNotFoundException → std::runtime_error → SIGABRT on every
+# launch. Reproduced + fixed under the Android 16 emulator, v0.221.5.
+-keep class io.ionic.android_js_engine.** { *; }
 -keep class io.ionic.android.** { *; }
 -keep class io.ionic.backgroundrunner.** { *; }
 

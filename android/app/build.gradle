@@ -11,8 +11,8 @@ android {
         // upload — Play rejects duplicates. Bump for every Play
         // release; mirror versionName from src/lib/appVersion.js so
         // the displayed version chip matches the Play release.
-        versionCode 1166
-        versionName "0.221.4"
+        versionCode 1167
+        versionName "0.221.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,16 +22,15 @@ android {
     }
     buildTypes {
         release {
-            // EMERGENCY ROLLBACK (v0.221.4): a 1-star "keeps crashing"
-            // review landed on 1165 (Galaxy S24 / Android 16) — the first
-            // R8-minified + precise-shrunk builds on Play. Until the crash
-            // is reproduced and root-caused under an emulator, release
-            // builds return to the exact non-minified config that ran on
-            // users' devices for months. Play's optimization deadline is
-            // Feb 2027 — user stability first. Re-enable ONLY with a
-            // logcat-verified fix and an internal-testing smoke pass.
-            minifyEnabled false
-            shrinkResources false
+            // R8 back ON (v0.221.5) after the 1164/1165 crash was reproduced
+            // under the Android 16 emulator and root-caused: the Background
+            // Runner's native JS engine JNI-loads io.ionic.android_js_engine
+            // classes BY NAME, and the old keep rules guarded the wrong
+            // package — see proguard-rules.pro. Fixed build cold-launches
+            // clean in the emulator (Displayed +1s, zero FATAL/SIGABRT).
+            // Run the internal-testing track over this before production.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

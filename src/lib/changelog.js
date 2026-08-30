@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 29, 2026",
     changes: [
+      { type: "fix", text: "Fixed the Android crash-on-launch some users hit on the last two updates (reported on a Galaxy S24) — reproduced, root-caused and verified fixed." },
       { type: "hotfix", text: "Hotfix: rolled back an Android build optimization that may have caused crashes on some devices." },
       { type: "hotfix", text: "Hotfix: Android builds now shrink unused resources more aggressively (Play's optimized-shrinking recommendation)." },
       { type: "fix", text: "A running activity's block in the planner (the one growing toward the now line) responded to nothing if it wasn't started from a plan. Tapping it now opens the running-activity menu — edit its start time, pause, end & log, or discard." },
