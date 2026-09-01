@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 1, 2026",
     changes: [
+      { type: "fix", text: "Desktop: the \"overlapping records\" review that can appear when importing a backup was clipped inside the import popup and unreadable — it now opens full-screen." },
       { type: "fix", text: "Desktop: the top bar now runs the full width of the window, over the sidebar." },
       { type: "improve", text: "The Status widget shows the date on older status notes, not just the time." },
       { type: "improve", text: "Planner: picking an activity now fills in the plan's title with the activity's name." },
