@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2137,7 +2138,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         </>)}
     </>
   );
-  const modal = (
+  // Portaled to <body>: this component also renders inside Radix dialogs
+  // (Settings → Backup dropdown → "Import a backup"), whose DialogContent
+  // carries a CSS transform — that makes it the containing block for
+  // position:fixed descendants, so these overlays were clipped inside the
+  // dialog's overflow-y-auto box instead of covering the viewport.
+  const modal = createPortal(
     <>
       <EncryptedImportPasswordModal
         open={!!pendingEncryptedImport}
@@ -2146,7 +2152,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         busy={importLoading}
       />
       {replaceSystemsPrompt && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60" role="dialog" aria-modal="true">
+        <div data-overlay-notification className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 pointer-events-auto" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-2xl border border-border bg-background shadow-xl max-h-[85vh] flex flex-col">
             <div className="p-4 border-b border-border/60">
               <h3 className="text-base font-semibold">
@@ -2186,7 +2192,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
       {/* Merge overlap review — pick the winner per overlapping record. */}
       {conflictReview && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-label="Review overlapping records">
+        <div data-overlay-notification className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-auto" role="dialog" aria-label="Review overlapping records">
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative w-full max-w-md max-h-[85vh] bg-background border border-border/60 rounded-2xl shadow-2xl flex flex-col">
             <div className="p-4 pb-2">
@@ -2255,7 +2261,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
       {/* Friends identity adoption — explicit consent, never automatic. */}
       {friendAdoptPrompt && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-label="Friends identity found in backup">
+        <div data-overlay-notification className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-auto" role="dialog" aria-label="Friends identity found in backup">
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative w-full max-w-sm bg-background border border-border/60 rounded-2xl shadow-2xl p-4 space-y-3">
             <h3 className="text-base font-semibold">This backup contains a Friends identity</h3>
@@ -2294,7 +2300,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
   if (section !== "all") {
     return <div className="space-y-3">{inner}{modal}</div>;
@@ -2323,7 +2330,7 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
   const [showPass, setShowPass] = useState(false);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div data-overlay-notification className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[120] flex items-center justify-center p-4 pointer-events-auto">
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <h3 className="font-semibold text-lg">Encrypted file</h3>
         <p className="text-sm text-muted-foreground">

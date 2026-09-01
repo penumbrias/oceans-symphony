@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 1, 2026",
+    changes: [
+      { type: "fix", text: "Desktop: the \"overlapping records\" review that can appear when importing a backup was clipped inside the import popup and unreadable — it now opens full-screen." },
+    ],
+  },
+  {
     date: "August 29, 2026",
+    version: "0.221.6",
     changes: [
       { type: "fix", text: "Importing a large backup (hundreds of images) on Android no longer blacks out the app and silently does nothing — the file is now streamed instead of loaded whole, exports write the same way, and the \"last import attempt\" panel records every stage so a failure is never silent again." },
       { type: "fix", text: "Fixed the Android crash-on-launch some users hit on the last two updates (reported on a Galaxy S24) — reproduced, root-caused and verified fixed." },
