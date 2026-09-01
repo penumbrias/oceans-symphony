@@ -166,6 +166,15 @@ export default function PlannerSurface({
   const dayInputRef = useRef(null);
 
   const [recur, setRecur] = useState({ interval: "none", count: 8 });
+  // Create-mode only: extra week days picked on the day chips. The same
+  // plan lands on each picked day as its own record — a "Thursday AND
+  // Friday this week" plan isn't a recurring series. timing.day stays the
+  // primary day (the date field edits that one).
+  const [extraDays, setExtraDays] = useState([]);
+  // The last title this sheet auto-filled from a picked activity — so a
+  // later pick can replace its own fill without ever clobbering a title
+  // the user typed themselves.
+  const autoTitleRef = useRef("");
   const [extra, setExtra] = useState({
     is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS,
     reminder_offset_minutes: null, location: "",
@@ -328,6 +337,8 @@ export default function PlannerSurface({
     setDurValue(Math.max(15, toMin - fromMin));
     setNoteValue("");
     setRecur({ interval: "none", count: 8 });
+    setExtraDays([]);
+    autoTitleRef.current = "";
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
     setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
     setWhatOpen(true);
@@ -395,30 +406,41 @@ export default function PlannerSurface({
     const isPlan = when.getTime() > Date.now();
     const catId = (timing.item.activity_category_ids || [])[0] || null;
     const cat = catId ? categories.find((c) => c.id === catId) : null;
+    // One record per picked day — the primary day plus any extra chips,
+    // deduped so the primary can't double up.
+    const days = [new Date(timing.day),
+      ...extraDays.filter((d) => d.toDateString() !== new Date(timing.day).toDateString())];
     try {
-      const { occurrences } = await createPlan({
-        records: [{
-          activity_name: name,
-          activity_category_ids: timing.item.activity_category_ids || [],
-          ...(cat?.color ? { color: cat.color } : {}),
-          // A to-do linked while creating must ride along, or ticking one
-          // off could never find the other.
-          ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
-        }],
-        timestamp: when,
-        durationMinutes: Math.max(5, Number(durValue) || 60),
-        alterIds: timing.item.fronting_alter_ids || [],
-        notes: noteValue.trim() || null,
-        location: extra.location.trim() || null,
-        isCritical: extra.is_critical,
-        leadSteps: extra.is_critical ? extra.critical_lead_steps : null,
-        reminderOffset: extra.reminder_offset_minutes,
-        recurrence: recur,
-      });
+      let total = 0;
+      for (const day of days) {
+        const dayWhen = new Date(day);
+        dayWhen.setHours(h || 0, m || 0, 0, 0);
+        const { occurrences } = await createPlan({
+          records: [{
+            activity_name: name,
+            activity_category_ids: timing.item.activity_category_ids || [],
+            ...(cat?.color ? { color: cat.color } : {}),
+            // A to-do linked while creating must ride along, or ticking one
+            // off could never find the other.
+            ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
+          }],
+          timestamp: dayWhen,
+          durationMinutes: Math.max(5, Number(durValue) || 60),
+          alterIds: timing.item.fronting_alter_ids || [],
+          notes: noteValue.trim() || null,
+          location: extra.location.trim() || null,
+          isCritical: extra.is_critical,
+          leadSteps: extra.is_critical ? extra.critical_lead_steps : null,
+          reminderOffset: extra.reminder_offset_minutes,
+          recurrence: recur,
+        });
+        total += occurrences.length;
+      }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
-      toast.success(occurrences.length > 1
-        ? tr("planner.createdCount", { count: occurrences.length })
+      setExtraDays([]);
+      toast.success(total > 1
+        ? tr("planner.createdCount", { count: total })
         : (isPlan ? tr("planner.planned") : tr("planner.logged")));
     } catch (e) { toast.error(e.message || "Failed"); }
   };
@@ -652,6 +674,32 @@ export default function PlannerSurface({
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  // Picking an activity in the create sheet also names the plan after it —
+  // choosing an activity used to leave the title box untouched (and the
+  // Plan button dead when it was empty). A hand-typed title survives: only
+  // an empty box, this sheet's own previous auto-fill, or an abandoned
+  // fragment of the picked name ("coo" → "Cooking") gets replaced.
+  const changeWhat = async (ids) => {
+    const next = Array.isArray(ids) ? ids : [];
+    const patch = { activity_category_ids: next };
+    if (timing?.create) {
+      const prev = timing.item.activity_category_ids || [];
+      const addedId = next.find((id) => !prev.includes(id));
+      let cat = addedId ? categories.find((c) => c.id === addedId) : null;
+      if (addedId && !cat) {
+        // A just-created activity isn't in this query's cache yet.
+        try { cat = await base44.entities.ActivityCategory.get(addedId); } catch { /* name fill is best-effort */ }
+      }
+      const cur = (timing.item.activity_name || "").trim();
+      if (cat?.name && (!cur || cur === autoTitleRef.current
+          || cat.name.toLowerCase().startsWith(cur.toLowerCase()))) {
+        patch.activity_name = cat.name;
+        autoTitleRef.current = cat.name;
+      }
+    }
+    saveField(patch);
   };
 
   const deleteEntry = async () => {
@@ -1211,7 +1259,7 @@ export default function PlannerSurface({
                 <span className="text-[0.6875em] text-muted-foreground">{tr("planner.matchHint")}</span>
                 {nameMatches.map((c) => (
                   <button key={c.id} type="button"
-                    onClick={() => saveField({ activity_category_ids: [c.id] })}
+                    onClick={() => changeWhat([c.id])}
                     className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 hover:text-foreground flex items-center gap-1">
                     {c.color && <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />}
                     {c.name}
@@ -1232,7 +1280,7 @@ export default function PlannerSurface({
               {(timing.create || whatOpen) ? (
                 <ActivityPillSelector
                   selectedActivities={timing.item.activity_category_ids || []}
-                  onActivityChange={(ids) => saveField({ activity_category_ids: Array.isArray(ids) ? ids : [] })}
+                  onActivityChange={changeWhat}
                 />
               ) : (
                 <div className="flex flex-wrap gap-1">
@@ -1257,10 +1305,29 @@ export default function PlannerSurface({
               <div className="flex gap-1 items-center">
                 {Array.from({ length: 7 }, (_, i) => {
                   const d = new Date(startOfWeek(anchor, { weekStartsOn: prefs.weekStartsOn }).getTime() + i * 86400000);
-                  const on = new Date(timing.day).toDateString() === d.toDateString();
+                  const isPrimary = new Date(timing.day).toDateString() === d.toDateString();
+                  const inExtra = !!timing.create && extraDays.some((x) => x.toDateString() === d.toDateString());
+                  const on = isPrimary || inExtra;
                   return (
                     <button key={i} type="button" aria-pressed={on}
-                      onClick={() => setTiming((prev) => ({ ...prev, day: d }))}
+                      onClick={() => {
+                        // Editing moves the entry (single-select). Creating
+                        // TOGGLES days — the plan lands on every lit chip,
+                        // one record per day (a twice-this-week plan, not a
+                        // recurring series). The last lit day can't be
+                        // un-toggled; removing the primary promotes the
+                        // earliest extra so the date field stays honest.
+                        if (!timing.create) { setTiming((prev) => ({ ...prev, day: d })); return; }
+                        if (inExtra) {
+                          setExtraDays((prev) => prev.filter((x) => x.toDateString() !== d.toDateString()));
+                        } else if (!isPrimary) {
+                          setExtraDays((prev) => [...prev, d]);
+                        } else if (extraDays.length) {
+                          const sorted = [...extraDays].sort((a, b) => a - b);
+                          setTiming((prev) => ({ ...prev, day: sorted[0] }));
+                          setExtraDays(sorted.slice(1));
+                        }
+                      }}
                       className={`flex-1 text-[0.6875em] py-1 rounded border ${
                         on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
                       }`}>
@@ -1554,7 +1621,8 @@ export default function PlannerSurface({
             {timing.create ? (
               <Button size="sm" className="w-full" disabled={!(timing.item.activity_name || "").trim()}
                 onClick={commitCreate}>
-                {createIsPlan ? tr("planner.plan") : tr("planner.log")}
+                {(createIsPlan ? tr("planner.plan") : tr("planner.log"))
+                  + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
               </Button>
             ) : timingDirty && (
               <Button size="sm" className="w-full" onClick={applyTime}>

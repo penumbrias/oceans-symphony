@@ -630,7 +630,10 @@ function StatusWidget() {
   return (
     <Section label={tr("widget.status.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.status.log")}</TextAction>}>
       {latest
-        ? <Row primary={latest.note} right={fmtTime(latest.timestamp)}
+        ? <Row primary={latest.note}
+            right={sameDay(latest.timestamp, Date.now())
+              ? fmtTime(latest.timestamp)
+              : `${new Date(latest.timestamp).toLocaleDateString([], { month: "short", day: "numeric" })}, ${fmtTime(latest.timestamp)}`}
             onClick={() => navigate(`/timeline?highlightStatus=${latest.id}`)} />
         : <Muted>{tr("widget.status.empty")}</Muted>}
       <div className="flex items-center gap-1.5 pt-0.5">

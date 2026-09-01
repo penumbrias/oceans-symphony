@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "September 1, 2026",
+    changes: [
+      { type: "fix", text: "Desktop: the top bar now runs the full width of the window, over the sidebar." },
+      { type: "improve", text: "The Status widget shows the date on older status notes, not just the time." },
+      { type: "improve", text: "Planner: picking an activity now fills in the plan's title with the activity's name." },
+      { type: "feature", text: "Planner: when creating a plan you can light up several days of the week — it lands on each picked day, without making it a repeating series." },
+    ],
+  },
+  {
     date: "August 29, 2026",
+    version: "0.221.6",
     changes: [
       { type: "fix", text: "Importing a large backup (hundreds of images) on Android no longer blacks out the app and silently does nothing — the file is now streamed instead of loaded whole, exports write the same way, and the \"last import attempt\" panel records every stage so a failure is never silent again." },
       { type: "fix", text: "Fixed the Android crash-on-launch some users hit on the last two updates (reported on a Galaxy S24) — reproduced, root-caused and verified fixed." },
