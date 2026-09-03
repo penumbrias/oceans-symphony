@@ -937,8 +937,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // back-dated time, not the current wall clock.
       await handleSaveActivities(now);
 
-      // Fronting sync — if fronting section was opened at any point (even if later collapsed)
-      if (hadFrontingOpen || openSections.has("fronting")) {
+      // Fronting sync — if fronting section was opened at any point (even if later collapsed).
+      // EDIT MODE gates on frontingActuallyChanged instead: the section seeds
+      // from the OLD entry's recorded fronters, so an unrelated edit (fixing a
+      // typo in yesterday's note) used to reconcile the LIVE front back to that
+      // historical list — silently ending whoever is fronting today. Only a
+      // deliberate change to the fronter selection touches live sessions now.
+      if (isEditing ? frontingActuallyChanged : (hadFrontingOpen || openSections.has("fronting"))) {
         const allSelectedIds = [...selectedAlterIds];
         const desiredMap = {}; // alterId -> is_primary
         for (const id of allSelectedIds) desiredMap[id] = id === primaryId;

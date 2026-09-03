@@ -56,6 +56,33 @@ export function currentMemberIds(group, alters) {
   return getMemberAlters(group, alters).map((a) => a.id);
 }
 
+// Refetch-before-write (the same rule as FrontingSession primary toggles):
+// callers hand in `group` / `alters` from props or the react-query cache,
+// which are stale the moment a previous toggle has written but the queries
+// haven't refetched. Computing "current members" from that snapshot
+// RESURRECTS the previously-removed member — because getMemberAlters unions
+// both stored representations, one stale side is enough to re-add them on
+// the next write. (Adds never conflicted, which is why "adding works but
+// removing glitches".) So every write path reads fresh from the DB here.
+async function freshMembershipState(group) {
+  const [groups, alters] = await Promise.all([
+    base44.entities.Group.list(),
+    base44.entities.Alter.list(),
+  ]);
+  const live = groups.find((g) => g.id === group?.id) || group;
+  return { group: live, alters };
+}
+
+// Two toggles in quick succession must not interleave their read→write
+// pairs either — the second read has to see the first write. One promise
+// chain serialises every membership write app-wide.
+let membershipWriteChain = Promise.resolve();
+function enqueueMembershipWrite(fn) {
+  const run = membershipWriteChain.then(fn);
+  membershipWriteChain = run.catch(() => {});
+  return run;
+}
+
 /**
  * Set a group's members to exactly `alterIds`.
  *
@@ -64,9 +91,17 @@ export function currentMemberIds(group, alters) {
  * on every save would churn `updated_date` across the whole system).
  *
  * Never deletes anything else on the alter — it rewrites only `groups`.
+ *
+ * The `alters` param is accepted for back-compat but membership state is
+ * always re-read fresh from the DB (see freshMembershipState above).
  */
-export async function setGroupMembers({ group, alterIds, alters }) {
-  if (!group) return { added: 0, removed: 0 };
+export function setGroupMembers(args) {
+  return enqueueMembershipWrite(() => doSetGroupMembers(args));
+}
+
+async function doSetGroupMembers({ group: groupArg, alterIds }) {
+  if (!groupArg) return { added: 0, removed: 0 };
+  const { group, alters } = await freshMembershipState(groupArg);
   const wanted = new Set(alterIds || []);
   const keys = new Set(groupKeys(group));
 
@@ -109,15 +144,25 @@ export async function setGroupMembers({ group, alterIds, alters }) {
 }
 
 // Convenience wrappers for single-member toggles, so callers don't have to
-// rebuild the whole list themselves.
-export async function addGroupMember({ group, alterId, alters }) {
-  const next = new Set(currentMemberIds(group, alters));
-  next.add(alterId);
-  return setGroupMembers({ group, alterIds: [...next], alters });
+// rebuild the whole list themselves. The current-member set is computed
+// INSIDE the queued job from fresh DB state — computing it from the
+// caller's snapshot is exactly the stale-read that resurrected members.
+export function addGroupMember({ group, alterId }) {
+  return enqueueMembershipWrite(async () => {
+    if (!group) return { added: 0, removed: 0 };
+    const { group: live, alters } = await freshMembershipState(group);
+    const next = new Set(currentMemberIds(live, alters));
+    next.add(alterId);
+    return doSetGroupMembers({ group: live, alterIds: [...next] });
+  });
 }
 
-export async function removeGroupMember({ group, alterId, alters }) {
-  const next = new Set(currentMemberIds(group, alters));
-  next.delete(alterId);
-  return setGroupMembers({ group, alterIds: [...next], alters });
+export function removeGroupMember({ group, alterId }) {
+  return enqueueMembershipWrite(async () => {
+    if (!group) return { added: 0, removed: 0 };
+    const { group: live, alters } = await freshMembershipState(group);
+    const next = new Set(currentMemberIds(live, alters));
+    next.delete(alterId);
+    return doSetGroupMembers({ group: live, alterIds: [...next] });
+  });
 }

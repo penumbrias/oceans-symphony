@@ -110,6 +110,15 @@ function ensureSyncChannel() {
 async function adoptExternalChange(gen) {
   if (_previewDb !== null) return false; // preview is memory-only by design
   if (_db === null) return false;        // not booted yet — init will read fresh
+  // NEVER adopt while this tab has writes of its own in flight — a batch
+  // still open, a batch flush owed, or a queued save. Adopting here
+  // replaced _db wholesale and silently discarded those in-memory writes
+  // (and, because _gen then matched disk, the follow-up flush took the
+  // no-clash path: no rescue copy either — a FrontingSession set in this
+  // tab just vanished). Skipping keeps _gen behind, so this tab's own
+  // flush goes through the stale-writer backstop: the other tab's blob is
+  // stashed to the rescue key and every tab converges on this tab's write.
+  if (_batchDepth > 0 || _batchDirty || _pendingSaves > 0) return false;
   try {
     const raw = await loadFromStorage();
     if (!raw) return false;
@@ -381,6 +390,9 @@ let _saveQueue = Promise.resolve();
 // write count changes.
 let _batchDepth = 0;
 let _batchDirty = false;
+// Saves queued but not yet settled — while non-zero, adoptExternalChange
+// refuses to replace _db (see its guard for why).
+let _pendingSaves = 0;
 
 export async function withBatch(fn) {
   _batchDepth++;
@@ -401,10 +413,12 @@ function saveDb() {
 }
 
 function _saveDbNow() {
+  _pendingSaves++;
   const run = _saveQueue.then(() => doSaveDb());
   // Keep the chain alive even if a save fails; the failure still
-  // propagates to this call's awaiter.
-  _saveQueue = run.catch(() => {});
+  // propagates to this call's awaiter. The pending counter (read by
+  // adoptExternalChange's guard) drops once this save settles either way.
+  _saveQueue = run.then(() => { _pendingSaves--; }, () => { _pendingSaves--; });
   return run;
 }
 
