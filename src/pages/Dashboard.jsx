@@ -494,6 +494,17 @@ export default function Dashboard() {
     } else if (action.type === "add_to_front_alter") {
       const alterId = action.config?.alter_id;
       if (!alterId) return;
+      // Refetch-before-write: creating unconditionally gave an already-
+      // fronting alter a SECOND active row — and the next boot sweep would
+      // end the original (older) row, silently dropping their primary flag
+      // and resetting "fronting since".
+      const activeNow = await base44.entities.FrontingSession.filter({ is_active: true });
+      const already = activeNow.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
+      if (already) {
+        const alterObj = alters.find((a) => a.id === alterId);
+        toast.info(`${alterObj?.name || "Alter"} is already ${terms.fronting}`);
+        return;
+      }
       await base44.entities.FrontingSession.create({ alter_id: alterId, is_primary: false, start_time: now, is_active: true });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });

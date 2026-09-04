@@ -842,6 +842,12 @@ html[data-heading-font] :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-di
 @media (min-width: 1024px) {
   [data-ui-v2="1"] { padding-left: var(--v2-rail-pad, 0px); }
   [data-ui-v2="1"][data-rail-side="right"] { padding-left: 0; padding-right: var(--v2-rail-pad, 0px); }
+  /* The top bar spans the FULL window, over the rail — the rail already
+     starts below --v2-status-h expecting it to. Without this the root's
+     rail padding pushed the bar right and left a bare corner above the
+     rail. Negative margin bleeds it back across the padding. */
+  [data-ui-v2="1"] header[data-v2-topbar] { margin-left: calc(-1 * var(--v2-rail-pad, 0px)); }
+  [data-ui-v2="1"][data-rail-side="right"] header[data-v2-topbar] { margin-left: 0; margin-right: calc(-1 * var(--v2-rail-pad, 0px)); }
 }
 
 /* ── Overlay layering guard ─────────────────────────────────────────

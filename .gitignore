@@ -31,3 +31,5 @@ dist-ssr
 .vite
 .vercel
 .claude/settings.local.json
+android/keystore.properties
+android/local.properties

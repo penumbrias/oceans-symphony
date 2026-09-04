@@ -361,6 +361,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   return (
     <header
       data-widget-content
+      data-v2-topbar=""
       className="sticky top-0 z-50 backdrop-blur-xl border-b relative overflow-hidden"
       style={{
         ...barLookStyle(uiV2, "top"),

@@ -53,12 +53,24 @@ export default function useFrontSessionSweep() {
         const newModel = active.filter(s => s.alter_id);
         const now = nowLocalIso();
 
+        // Sort key hardened against bad rows: a missing/unparseable
+        // start_time used to compare as NaN, which makes Array.sort order
+        // ARBITRARY — the sweep could keep the broken row and silently end
+        // the alter's real, live session (reported as "my fronting status
+        // randomly disappeared overnight"). Invalid timestamps now sort
+        // oldest, and on a tie the primary row survives.
+        const ts = (s) => {
+          const t = new Date(s.start_time || NaN).getTime();
+          return Number.isFinite(t) ? t : -Infinity;
+        };
+        const newestFirst = (a, b) => (ts(b) - ts(a)) || ((b.is_primary === true) - (a.is_primary === true));
+
         // 1. dedupe per alter
         const byAlter = {};
         for (const s of newModel) (byAlter[s.alter_id] ||= []).push(s);
         const survivors = [];
         for (const sessions of Object.values(byAlter)) {
-          sessions.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+          sessions.sort(newestFirst);
           survivors.push(sessions[0]);
           for (const stale of sessions.slice(1)) {
             try { await base44.entities.FrontingSession.update(stale.id, { is_active: false, end_time: now }); touched = true; } catch {}
@@ -68,7 +80,7 @@ export default function useFrontSessionSweep() {
         // 2. demote extra primaries
         const stillPrimary = survivors.filter(s => s.is_primary);
         if (stillPrimary.length > 1) {
-          stillPrimary.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+          stillPrimary.sort(newestFirst);
           for (const s of stillPrimary.slice(1)) {
             try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); touched = true; } catch {}
           }
