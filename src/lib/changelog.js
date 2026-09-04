@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 3, 2026",
     changes: [
+      { type: "fix", text: "On some Android keyboards, tapping the formatting toolbar's buttons did nothing and the link pickers closed the instant they opened — the toolbar now holds steady through the tap. (#304)" },
       { type: "improve", text: "The setup guide's Notifications & reminders step now includes the persistent status notifications (current fronters, active symptoms, activity timer) on Android." },
       { type: "hotfix", text: "Hotfix: dropped the quotes around vibe-coded on the first-run notice." },
     ],
