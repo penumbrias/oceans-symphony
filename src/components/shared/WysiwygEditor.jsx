@@ -189,6 +189,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const [toolbarModal, setToolbarModal] = useState(false);
   const [kbBottom, setKbBottom] = useState(0);
   const dockRef = useRef(null);
+  // Last touch on the dock — read by the blur handler's race guard above.
+  const dockTouchAt = useRef(0);
   useDockHeightVar(dockRef, floatResolved && (focused || toolbarModal));
   useEffect(() => {
     if (!floatResolved) return undefined;
@@ -221,11 +223,27 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         onInput={emit}
         onKeyDown={handleKeyDown}
         onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => {
+        onBlur={() => {
           // Delayed: a tap on the floating bar preventDefaults, so focus
           // never actually leaves — this only fires on a real blur.
-          if (document.activeElement !== editorRef.current) setFocused(false);
-        }, 120)}
+          // RESIDUAL RACE (#304): some Android WebViews blur the editor
+          // despite the dock's preventDefault. If the dock unmounts here
+          // the tapped button dies BEFORE its click lands — the link
+          // picker "immediately disappeared" and formatting buttons did
+          // nothing. So when the blur follows a touch on the dock, keep
+          // re-checking for up to ~1s: the click either opens a toolbar
+          // modal (toolbarModal holds the dock) or the command re-focuses
+          // the editor. Only then concede it was a real leave.
+          const check = (attempt) => {
+            if (document.activeElement === editorRef.current) return;
+            if (attempt < 8 && Date.now() - dockTouchAt.current < 1000) {
+              setTimeout(() => check(attempt + 1), 120);
+              return;
+            }
+            setFocused(false);
+          };
+          setTimeout(() => check(0), 120);
+        }}
         data-placeholder={placeholder}
         className="wysiwyg-content bio-scope-wysiwyg-live min-h-[200px] px-3 py-2.5 text-sm focus:outline-none prose prose-sm dark:prose-invert max-w-none leading-relaxed"
       />
@@ -253,9 +271,12 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             // bar and key row (owner screenshot, "UI got kinda weird").
             style={{ bottom: kbBottom > 40 ? kbBottom : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab, 0px))" }}
             // Keep the editor focused (and the selection alive) while
-            // tapping anything on the bar.
-            onPointerDown={(e) => e.preventDefault()}
+            // tapping anything on the bar. The timestamp feeds the blur
+            // handler's race guard — WebViews that blur ANYWAY get the
+            // dock held up long enough for the tap's click to land.
+            onPointerDown={(e) => { dockTouchAt.current = Date.now(); e.preventDefault(); }}
             onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={() => { dockTouchAt.current = Date.now(); }}
           >
             {rows}
           </div>,
