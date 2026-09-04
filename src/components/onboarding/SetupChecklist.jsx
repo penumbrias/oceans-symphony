@@ -27,6 +27,7 @@ import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
+import { PersistentNotificationsSection } from "@/components/settings/NotificationSettings";
 import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 
 // Per-system-scoped since v0.85.6 (tester report: a new system was
@@ -564,6 +565,14 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
             <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">
               Notifications are blocked for this app — enable them in your device's app settings, then come back.
             </p>
+          )}
+          {/* The SAME persistent-notification toggles as Settings →
+              Notifications (one component, not a copy) — Android-only,
+              like there. */}
+          {isNative() && (
+            <div className="border-t border-border/40 pt-3">
+              <PersistentNotificationsSection />
+            </div>
           )}
         </div>
       ),

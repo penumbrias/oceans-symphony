@@ -154,8 +154,9 @@ const TYPE_ROWS = [
 // Android-only ongoing ("persistent") notifications that sit in the tray and
 // update live while the app runs. Toggles are device-local (localStorage via
 // persistentNotifPrefs); the usePersistentNotifications hook in AppLayout does
-// the actual scheduling.
-function PersistentNotificationsSection() {
+// the actual scheduling. Exported so the setup guide's Notifications &
+// reminders step renders THIS section rather than a copy of it.
+export function PersistentNotificationsSection() {
   const t = useTerms();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
 
