@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "September 3, 2026",
+    changes: [
+      { type: "improve", text: "The setup guide's Notifications & reminders step now includes the persistent status notifications (current fronters, active symptoms, activity timer) on Android." },
+      { type: "hotfix", text: "Hotfix: dropped the quotes around vibe-coded on the first-run notice." },
+    ],
+  },
+  {
     date: "September 2, 2026",
+    version: "0.221.9",
     changes: [
       { type: "fix", text: "Removing several members from a group in a row no longer glitches — earlier removals could silently come back. (Adding was never affected.)" },
       { type: "fix", text: "Editing an older check-in no longer rewrites who's currently fronting — live fronting only changes if you actually change the entry's fronting list." },
