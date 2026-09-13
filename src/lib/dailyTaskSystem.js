@@ -319,6 +319,24 @@ export function getLevelFromTotalXP(totalXP) {
   return { level, xpIntoLevel: totalXP - accumulated, xpForNextLevel: xpForNext, totalXP };
 }
 
+// A task's nav_path can be an in-app route ("/journals") OR a full web
+// link ("https://youtube.com/...") — one field, told apart by scheme.
+// Every surface that follows a task's path goes through here so external
+// links open the same way everywhere (system browser on native, new tab
+// on web) instead of being fed to the SPA router as a broken route.
+export function isExternalNavPath(navPath) {
+  return /^https?:\/\//i.test(navPath || "");
+}
+
+export function followTaskNavPath(navPath, navigate) {
+  if (!navPath) return;
+  if (isExternalNavPath(navPath)) {
+    import("@/lib/openExternalUrl").then((m) => m.openExternalUrl(navPath));
+    return;
+  }
+  navigate(navPath);
+}
+
 export function getTodayString() {
   const d = new Date();
   const yyyy = d.getFullYear();

@@ -24,7 +24,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
-  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
+  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn, followTaskNavPath,
 } from "@/lib/dailyTaskSystem";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -353,7 +353,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
                 primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
                 secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
                 right={mode === "expanded" && t.points ? `${t.points} xp` : undefined}
-                onClick={t.nav_path ? () => navigate(t.nav_path) : undefined}
+                onClick={t.nav_path ? () => followTaskNavPath(t.nav_path, navigate) : undefined}
               />
             );
           })}

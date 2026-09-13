@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "September 12, 2026",
+    changes: [
+      { type: "feature", text: "Recurring tasks: the navigation path can now be a web link too — tapping the task opens it in your browser." },
+      { type: "improve", text: "Quick Check-In: the \"Who's fronting?\" list is much taller (no more three-at-a-time keyhole) and gained the same sort toggle as the other member pickers." },
+      { type: "feature", text: "Quick Check-In: the quick note now supports @mentions and -name signposts — and a signposted {{alter}} is added to the fronting selection automatically." },
+      { type: "fix", text: "Check-In Log: the Company you logged in a check-in now shows on the entry (it was saved only as live \"with\" sessions before, so the log never showed it)." },
+    ],
+  },
+  {
     date: "September 3, 2026",
+    version: "0.221.11",
     changes: [
       { type: "fix", text: "On some Android keyboards, tapping the formatting toolbar's buttons did nothing and the link pickers closed the instant they opened — the toolbar now holds steady through the tap. (#304)" },
       { type: "improve", text: "The setup guide's Notifications & reminders step now includes the persistent status notifications (current fronters, active symptoms, activity timer) on Android." },
