@@ -30,7 +30,11 @@ import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import { useFrontLevels } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { useFrontersFirst } from "@/lib/alterSort";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
 // hold-and-slide level rail as every other {front} surface (the swipe
@@ -40,6 +44,7 @@ import { useFrontersFirst } from "@/lib/alterSort";
 //   tap → toggle selected · hold + slide → pick a level (or Remove)
 function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onToggle, onSetPrimary }) {
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
+  const formatAlter = useAlterLabel();
   const [imgError, setImgError] = useState(false);
   const bind = holdProps || {};
   return (
@@ -66,7 +71,7 @@ function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onTogg
           : <User className="w-4 h-4 text-white/70" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{alter.name}</p>
+        <p className="text-sm font-medium truncate">{formatAlter(alter)}</p>
         {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
       </div>
       <button onClick={(e) => { e.stopPropagation(); if (isSelected) onSetPrimary(); }}
@@ -306,9 +311,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   };
 
   // Whoever is fronting first, then the user's arrangement — the
-  // standard order for every list that names members.
-  const sortAlters = useFrontersFirst();
-  const activeAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
+  // standard order for every list that names members, with the same
+  // one-tap sort toggle the other member pickers carry.
+  const alterSorter = useAlterSorter("symphony_checkin_alter_sort");
+  const activeAlters = useMemo(
+    () => alterSorter.sort(alters.filter((a) => !a.is_archived)),
+    [alters, alterSorter]
+  );
+  const formatAlter = useAlterLabel();
   // "Who's fronting" list view: flat search list vs the standard
   // by-subsystem/group tree (AlterTreeSelect).
   const [frontTreeView, setFrontTreeView] = useState(false);
@@ -465,17 +475,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   }, [isOpen]);
 
-  // Contacts — seed from whoever's currently marked "with" regardless of
-  // create/edit mode (there's no per-check-in contact record to restore from,
-  // it always mirrors the live ContactEncounter sessions).
+  // Contacts — EDIT mode seeds from the record's own contact_ids (saved
+  // since v0.222.x so the Check-In Log can show who you were with);
+  // create mode (and older records without the field) still mirrors the
+  // live ContactEncounter sessions.
   useEffect(() => {
     if (!isOpen) return;
+    if (isEditing && Array.isArray(editingEntry?.contact_ids)) {
+      setSelectedContactIds(editingEntry.contact_ids);
+      initialContactIdsRef.current = editingEntry.contact_ids;
+      return;
+    }
     getActiveEncounters().then((active) => {
       const ids = active.map((e) => e.contact_id);
       setSelectedContactIds(ids);
       initialContactIdsRef.current = ids;
     }).catch(() => {});
-  }, [isOpen]);
+  }, [isOpen, isEditing, editingEntry]);
 
   const resetForm = () => {
     setSelectedEmotions([]);
@@ -591,6 +607,30 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     if (primaryId !== init.primaryId) return true;
     return false;
   }, [primaryId, coFronterIds, hadFrontingOpen]);
+
+  // Note → fronting: an alter who SIGNPOSTS in the quick note ("-kyo")
+  // is added to the fronting selection automatically (owner ask), so the
+  // check-in records them and the live front picks them up on save. A
+  // one-way ratchet: we only ever ADD — deleting the signpost text (or
+  // an early unique-prefix match while still typing a longer name) never
+  // kicks anyone out; the chips' X does that, and an id the user removed
+  // is remembered so the same signpost doesn't re-add them.
+  const appliedSignpostIdsRef = useRef(new Set());
+  useEffect(() => {
+    if (!isOpen) { appliedSignpostIdsRef.current = new Set(); return undefined; }
+    const t = setTimeout(() => {
+      let authors = [];
+      try { authors = parseSignpostAuthors(note || "", alters); } catch { return; }
+      const fresh = authors
+        .map((a) => a?.id)
+        .filter((id) => id && !selectedAlterIds.has(id) && !appliedSignpostIdsRef.current.has(id));
+      if (!fresh.length) return;
+      fresh.forEach((id) => appliedSignpostIdsRef.current.add(id));
+      setCoFronterIds((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id) && id !== primaryId)]);
+      setHadFrontingOpen(true);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [note, isOpen, alters, selectedAlterIds, primaryId]);
 
   const triggerString = useMemo(() => {
     const cat = TRIGGER_CATEGORIES.find(c => c.id === triggerCategory);
@@ -845,6 +885,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           ),
           note: noteForCheckIn,
           journal_entry_id: journalEntryId,
+          // Like emotion_alters above: an edit is an explicit re-statement,
+          // so the company list is always written (empty clears it).
+          contact_ids: selectedContactIds,
         });
         queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
         // Propagate symptom changes attached to this check-in so
@@ -1048,6 +1091,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           emotions: selectedEmotions,
           fronting_alter_ids: selectedAlters,
           ...(Object.keys(cleanEmotionAlters).length > 0 ? { emotion_alters: cleanEmotionAlters } : {}),
+          // Company rides on the record so the Check-In Log can show it —
+          // the live ContactEncounter sessions are managed separately in
+          // commitContactChanges.
+          ...(selectedContactIds.length > 0 ? { contact_ids: selectedContactIds } : {}),
           note: wordCount <= 50 ? note : note.substring(0, 300) + "...",
           journal_entry_id: journalEntryId
         });
@@ -1390,7 +1437,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                         className="px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
                         style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        <button onClick={() => setAsPrimary(id)} className="hover:underline" aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>{a.name}</button>
+                        <button onClick={() => setAsPrimary(id)} className="hover:underline" aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>{formatAlter(a)}</button>
                         <button onClick={() => toggleAlter(id)} aria-label={`Remove ${a.name}`} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="w-3 h-3" />
                         </button>
@@ -1405,15 +1452,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                     ? <>Browse by subsystem / group. Tap to toggle; set <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary using the chips above.</>
                     : <>Tap to toggle · hold and slide to pick a level · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> sets Primary</>}
                 </p>
-                <div className="flex gap-1 bg-muted/50 rounded-md p-0.5 flex-shrink-0" role="group" aria-label="View mode">
-                  <button type="button" onClick={() => setFrontTreeView(false)} aria-label="Flat list" aria-pressed={!frontTreeView}
-                    className={`p-1.5 rounded transition-colors ${!frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button type="button" onClick={() => setFrontTreeView(true)} aria-label="By subsystem or group" aria-pressed={frontTreeView}
-                    className={`p-1.5 rounded transition-colors ${frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                    <FolderTree className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {!frontTreeView && <AlterSortToggle sorter={alterSorter} />}
+                  <div className="flex gap-1 bg-muted/50 rounded-md p-0.5" role="group" aria-label="View mode">
+                    <button type="button" onClick={() => setFrontTreeView(false)} aria-label="Flat list" aria-pressed={!frontTreeView}
+                      className={`p-1.5 rounded transition-colors ${!frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => setFrontTreeView(true)} aria-label="By subsystem or group" aria-pressed={frontTreeView}
+                      className={`p-1.5 rounded transition-colors ${frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                      <FolderTree className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
               {frontTreeView ? (
@@ -1429,7 +1479,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 <>
                   <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
                     onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
-                  <div className="max-h-40 overflow-y-auto space-y-1">
+                  {/* Tall enough to actually browse a system — the old
+                      max-h-40 showed ~3 rows and made this feel like a
+                      keyhole (owner report). */}
+                  <div className="max-h-[45vh] overflow-y-auto overscroll-contain space-y-1">
                     {activeAlters
                       .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
                       .map(a => (
@@ -1602,7 +1655,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           {openSections.has("note") &&
           <div ref={(el) => (sectionRefs.current.note = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Quick note <span className="text-muted-foreground font-normal">(over 50 words → journal)</span></p>
-              <Textarea placeholder="Optional note..." value={note} onChange={(e) => setNote(e.target.value)} className="h-20 text-xs" />
+              {/* Same @mention / -signpost input as every other note box.
+                  A signposted {alter} is added to the fronting selection
+                  automatically (the effect near the fronting state). */}
+              <MentionTextarea
+                value={note}
+                onChange={setNote}
+                alters={alters}
+                commands={false}
+                rows={3}
+                placeholder="Optional note… @ to mention, -name to signpost"
+                className="w-full rounded-lg border border-input bg-background text-xs p-2"
+              />
               {note &&
             <p className="text-xs text-muted-foreground">
                   {note.trim().split(/\s+/).filter(Boolean).length} / 50 words

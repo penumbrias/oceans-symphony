@@ -4,20 +4,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  ArrowRight, Settings as SettingsIcon, CheckCircle2, Circle, ChevronUp, ChevronDown, Sparkles, ExternalLink,
+import { Settings as SettingsIcon, CheckCircle2, Circle, ChevronUp, ChevronDown, Sparkles, ExternalLink,
 } from "lucide-react";
 import {
   applyTerms,
   getPeriodKey,
-  getTodayString,
   FREQUENCY_LABELS,
   toggleDailyProgressTasks,
+  followTaskNavPath,
 } from "@/lib/dailyTaskSystem";
 import {
   loadPrefs, savePrefs, subscribePrefs, FREQUENCIES, DEFAULT_PREFS,
@@ -216,7 +214,7 @@ function TaskRow({ template, done, terms, onToggle }) {
   // task.nav_path). AUTO tasks without an explicit nav_path fall back
   // to the Daily Tasks page so the auto state can be refreshed there.
   const navPath = template.nav_path || (isAuto ? "/tasks" : null);
-  const goToPage = () => { if (navPath) navigate(navPath); };
+  const goToPage = () => followTaskNavPath(navPath, navigate);
   return (
     <div
       onClick={navPath ? goToPage : undefined}

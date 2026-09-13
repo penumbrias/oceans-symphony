@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
-  useSensor, useSensors, DragOverlay,
+  useSensor, useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext, verticalListSortingStrategy,
@@ -233,9 +233,9 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
         })()}
         {form.mode === "MANUAL" && (
           <div className="col-span-2">
-            <label className="text-xs font-medium text-muted-foreground">Navigation path (optional)</label>
+            <label className="text-xs font-medium text-muted-foreground">Navigation path or web link (optional)</label>
             <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              value={form.nav_path || ""} onChange={(e) => set("nav_path", e.target.value)} placeholder="/page-path" />
+              value={form.nav_path || ""} onChange={(e) => set("nav_path", e.target.value)} placeholder="/page-path or https://…" />
           </div>
         )}
         <div className="col-span-2 flex items-center gap-2">

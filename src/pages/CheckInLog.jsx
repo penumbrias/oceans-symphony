@@ -5,7 +5,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil, X } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil, UserCheck } from "lucide-react";
+import { contactDisplayName } from "@/lib/contacts";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -296,6 +297,17 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   // Only show symptoms that were part of this specific check-in (linked by check_in_id)
   const mySymptomCheckIns = symptomCheckIns.filter(sc => sc.check_in_id === checkIn.id);
 
+  // Company — resolved from the record's contact_ids. The ["contacts"]
+  // query is shared react-query cache, so N cards cost one fetch.
+  const { data: allContacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => base44.entities.Contact.list(),
+    enabled: (checkIn.contact_ids || []).length > 0,
+  });
+  const myContacts = (checkIn.contact_ids || [])
+    .map((id) => allContacts.find((c) => c.id === id))
+    .filter(Boolean);
+
   const myActivities = activities.filter(act => {
     try { return Math.abs(new Date(act.timestamp).getTime() - ciTime) < TWO_MIN; }
     catch { return false; }
@@ -358,6 +370,21 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
             <span key={a.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border/50">
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
               {a.alias || a.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Company — who the user was with, from the check-in's own
+          contact_ids (saved by the Quick Check-In since v0.222.x; older
+          records simply lack the field and show nothing here). */}
+      {myContacts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          <UserCheck className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          {myContacts.map((c) => (
+            <span key={c.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border/50">
+              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color || "#0ea5e9" }} />
+              {contactDisplayName(c)}
             </span>
           ))}
         </div>

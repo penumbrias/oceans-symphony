@@ -1,14 +1,12 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { followTaskNavPath } from "@/lib/dailyTaskSystem";
 
 export default function TaskCard({ task, completed, onToggle }) {
   const navigate = useNavigate();
 
-  const handleCardClick = () => {
-    if (task.mode === "AUTO" && task.nav_path) navigate(task.nav_path);
-    if (task.mode === "MANUAL" && task.nav_path) navigate(task.nav_path);
-  };
+  const handleCardClick = () => followTaskNavPath(task.nav_path, navigate);
 
   const isClickable = !!task.nav_path;
 
