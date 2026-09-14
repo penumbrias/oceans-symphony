@@ -239,6 +239,35 @@ export function ClassicBarsToggles() {
       <Row label={`Pinned ${t.alters} bar`}
         hint={`Your pinned ${t.alters} in a floating bar — tap to toggle ${t.fronting}, hold for the level rail.`}
         checked={altersOn} onChange={(v) => writeCb({ alters: true }, !!v)} />
+      {/* The widget board is one swipe left of the classic home — this
+          decides which of the two "/" opens on. */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5">
+        <div className="min-w-0">
+          <span className="text-sm font-medium">Home opens on</span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            The widget board is always one swipe left; pick which one greets you.
+          </p>
+        </div>
+        <div className="flex gap-1 flex-shrink-0">
+          {[["classic", "Classic"], ["board", "Board"]].map(([v, label]) => {
+            const on = (record?.ui_v2?.homeDefault === "board" ? "board" : "classic") === v;
+            return (
+              <button key={v} type="button" aria-pressed={on}
+                onClick={async () => {
+                  try {
+                    const next = { ...(record?.ui_v2 || {}), homeDefault: v };
+                    if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
+                    else await base44.entities.SystemSettings.create({ ui_v2: next });
+                    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+                  } catch (e) { toast.error(e?.message || "Couldn't switch"); }
+                }}
+                className={`text-xs px-2.5 py-1 rounded-full border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

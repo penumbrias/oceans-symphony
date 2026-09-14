@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 14, 2026",
+    changes: [
+      { type: "feature", text: "The widget board is now one swipe away from the classic home screen — swipe left (or tap the grid button by Help) to slide onto your board, swipe right on its first page to come back. Same board, same layouts; \"Home opens on\" in Settings \u2192 Appearance \u2192 Layout picks which greets you." },
+    ],
+  },
+  {
     date: "September 13, 2026",
+    version: "0.222.0",
     changes: [
       { type: "feature", text: "The new UI's bars now work in the classic look: the quick action bar and the pinned {{alters}} bar are on by default, and the new top bar ({{system}} name, who's {{fronting}}, clock, search) can replace the classic header — all in the setup guide and Settings \u2192 Appearance \u2192 Layout." },
       { type: "feature", text: "The {{alter}} menu's header now carries a {{fronting}} status pill — tap to toggle {{front}}, hold for the level rail. What tapping does (toggle / step a level / open the picker) is configurable under Fronting levels." },

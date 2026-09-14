@@ -799,6 +799,69 @@ export default function Dashboard() {
   // dashboard (their saved layout is untouched and returns if re-enabled).
   const uiV2On = UI_V2_ENABLED && settings[0]?.ui_v2?.enabled === true;
   const experimentalOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
+
+  // ── The widget board as a swipe-left page of the CLASSIC home ──
+  // Classic home is the leftmost "page"; swiping left (or the board
+  // button in the header) opens the SAME v2 board (ui_v2_home fields —
+  // nothing is migrated or duplicated). Swiping right past the board's
+  // first page comes back. ui_v2.homeDefault === "board" opens on the
+  // board instead, so board-as-homescreen stays one setting away.
+  const classicBoardAvailable = UI_V2_ENABLED && !uiV2On && !experimentalOn && !!settings[0];
+  const [boardOpen, setBoardOpen] = useState(false);
+  const boardShowing = classicBoardAvailable && boardOpen;
+  const showClassic = !uiV2On && !experimentalOn && !boardShowing;
+  const bootedBoardDefault = useRef(false);
+  useEffect(() => {
+    if (bootedBoardDefault.current || !classicBoardAvailable) return;
+    bootedBoardDefault.current = true;
+    if (settings[0]?.ui_v2?.homeDefault === "board") setBoardOpen(true);
+  }, [classicBoardAvailable, settings]);
+  // Swipe LEFT anywhere on the classic home opens the board. Touch-only
+  // (mouse users get the header button); same blocked-target rules as the
+  // board's own pager — inputs, overlays and horizontally-scrollable rows
+  // keep their gestures.
+  useEffect(() => {
+    if (!classicBoardAvailable || boardOpen) return undefined;
+    let g = null;
+    const blocked = (t) => {
+      if (t.closest?.("input, textarea, select, [contenteditable='true'], [role='dialog'], [data-radix-popper-content-wrapper], [data-vaul-drawer], [data-sonner-toast], [data-own-hold], [data-color-picker-popover]")) return true;
+      let n = t;
+      while (n && n !== document.body) {
+        if (n.scrollWidth > n.clientWidth + 4) {
+          const o = getComputedStyle(n).overflowX;
+          if (o === "auto" || o === "scroll") return true;
+        }
+        n = n.parentElement;
+      }
+      return false;
+    };
+    const start = (e) => {
+      if (e.touches.length !== 1) { g = null; return; }
+      const t0 = e.touches[0];
+      g = blocked(e.target) ? null : { x: t0.clientX, y: t0.clientY, horiz: false, dead: false };
+    };
+    const move = (e) => {
+      if (!g || g.dead || e.touches.length !== 1) return;
+      const t0 = e.touches[0];
+      const dx = t0.clientX - g.x, dy = t0.clientY - g.y;
+      if (!g.horiz) {
+        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
+        if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy)) g.horiz = true;
+      }
+      if (g.horiz && dx <= -64) { g.dead = true; setBoardOpen(true); }
+    };
+    const end = () => { g = null; };
+    document.addEventListener("touchstart", start, { passive: true });
+    document.addEventListener("touchmove", move, { passive: true });
+    document.addEventListener("touchend", end);
+    document.addEventListener("touchcancel", end);
+    return () => {
+      document.removeEventListener("touchstart", start);
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", end);
+      document.removeEventListener("touchcancel", end);
+    };
+  }, [classicBoardAvailable, boardOpen]);
   const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
   const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
   const enableExperimentalHome = async () => {
@@ -894,7 +957,7 @@ export default function Dashboard() {
         </AnimatePresence>
       )}
 
-      {!uiV2On && !experimentalOn && (
+      {showClassic && (
       <div className="mb-3 flex items-start justify-between">
         <div>
           {multiSystem ? (
@@ -923,6 +986,19 @@ export default function Dashboard() {
           </Dialog>
         </div>
         <div className="flex items-center gap-1">
+        {/* The widget board lives one swipe left of here — this button is
+            the mouse/desktop way in (and the discoverable one). */}
+        {classicBoardAvailable && (
+          <button
+            type="button"
+            onClick={() => setBoardOpen(true)}
+            title="Open the widget board (or swipe left)"
+            aria-label="Open the widget board"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Grid2x2 className="w-4 h-4" />
+          </button>
+        )}
         {/* v0.86.8: unified "help" button — the old side-by-side Setup /
             Tour pills were too close together and touch-crowded (tester
             report). One minimal icon opens a dropdown with the two
@@ -988,9 +1064,11 @@ export default function Dashboard() {
           board's stacking context where the wallpaper can't cover them —
           these classic cards sit outside it and would render invisibly
           under the wallpaper. */}
-      {!uiV2On && <BackupHealthNotice className="mb-3" />}
-      {!uiV2On && <CriticalPinnedPlans />}
-      {!uiV2On && <UnresolvedPlansCard />}
+      {/* The v2 board carries these in its own V2Notices stack — hide the
+          classic overlays while the board page is showing too. */}
+      {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
+      {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
+      {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}
@@ -1001,6 +1079,13 @@ export default function Dashboard() {
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
       {uiV2On && <HomeV2 settingsRow={settings[0] || null} api={homeApi} />}
+
+      {/* The widget board as the classic home's swipe-left page — the
+          SAME board, same saved layout; swiping right past its first
+          page (or a board's own exit) returns to classic. */}
+      {boardShowing && (
+        <HomeV2 settingsRow={settings[0] || null} api={homeApi} onExitLeft={() => setBoardOpen(false)} />
+      )}
       <V2SetFrontHost alters={alters} />
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
@@ -1009,7 +1094,7 @@ export default function Dashboard() {
       )}
 
       {/* "Try it" banner — classic only, dismissible per system. */}
-      {EXPERIMENTAL_HOME_ENABLED && !uiV2On && !experimentalOn && !expBannerDismissed && (
+      {EXPERIMENTAL_HOME_ENABLED && showClassic && !expBannerDismissed && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
           <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-xs flex-1 min-w-0">
@@ -1031,7 +1116,7 @@ export default function Dashboard() {
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
-      {!uiV2On && !experimentalOn && (
+      {showClassic && (
       <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;
