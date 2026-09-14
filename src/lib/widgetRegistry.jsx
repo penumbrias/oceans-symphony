@@ -581,6 +581,27 @@ export const CLASSIC_TO_WIDGET = Object.fromEntries(
   ].map((id) => [id, id])
 );
 
+// Classic dashboard_layout element id → its V2 BOARD widget id (the ids
+// differ from the legacy registry above — the board rebuilt functions
+// under its own names). Drives the classic slot "upgrade to board
+// widget" (entry.v2 in dashboard_layout). Ids missing here (pins,
+// what's-new) have no board twin and simply aren't upgradable.
+export const CLASSIC_TO_V2_WIDGET = {
+  current_fronters: "fronting_panel",
+  pinned_alters: "pinned_alters",
+  status_note: "status",
+  pinned_daily_tasks: "daily_tasks",
+  current_symptoms: "running",
+  current_activities: "running",
+  current_contacts: "running",
+  quick_checkin: "capture",
+  quick_nav_menu: "quick_links",
+  bulletin_board: "bulletin_board",
+  upcoming_top: "upcoming_plans",
+  upcoming_bottom: "plans",
+  insight_spotlight: "emotion_analytics",
+};
+
 export const WIDGET_CATEGORIES = [
   // One section per PAGE of the app (owner, v0.126.0): the goal is that a
   // page's functions can be assembled on the home screen instead of

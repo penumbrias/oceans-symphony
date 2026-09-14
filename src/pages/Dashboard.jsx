@@ -17,6 +17,9 @@ import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
 import { seedFromClassic } from "@/lib/experimentalHome";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
+import { V2_WIDGETS } from "@/v2/widgets";
+import { widgetLookFor } from "@/pages/ExperimentalDashboard";
+import { lookToStyle, resolveUserStyles } from "@/lib/widgetLook";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
@@ -808,6 +811,13 @@ export default function Dashboard() {
   // board instead, so board-as-homescreen stays one setting away.
   const classicBoardAvailable = UI_V2_ENABLED && !uiV2On && !experimentalOn && !!settings[0];
   const [boardOpen, setBoardOpen] = useState(false);
+  // Which way the last classic↔board move went (1 = into the board,
+  // -1 = back out, 0 = no move yet) — drives the same slide-in the board
+  // uses between its own pages, so the transition feels like paging, not
+  // a hard cut. A ref: it's read at the mount the state flip causes.
+  const boardAnimDir = useRef(0);
+  const openBoard = () => { boardAnimDir.current = 1; setBoardOpen(true); };
+  const closeBoard = () => { boardAnimDir.current = -1; setBoardOpen(false); };
   const boardShowing = classicBoardAvailable && boardOpen;
   const showClassic = !uiV2On && !experimentalOn && !boardShowing;
   const bootedBoardDefault = useRef(false);
@@ -848,7 +858,7 @@ export default function Dashboard() {
         if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
         if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy)) g.horiz = true;
       }
-      if (g.horiz && dx <= -64) { g.dead = true; setBoardOpen(true); }
+      if (g.horiz && dx <= -56) { g.dead = true; openBoard(); }
     };
     const end = () => { g = null; };
     document.addEventListener("touchstart", start, { passive: true });
@@ -991,7 +1001,7 @@ export default function Dashboard() {
         {classicBoardAvailable && (
           <button
             type="button"
-            onClick={() => setBoardOpen(true)}
+            onClick={openBoard}
             title="Open the widget board (or swipe left)"
             aria-label="Open the widget board"
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -1084,7 +1094,16 @@ export default function Dashboard() {
           SAME board, same saved layout; swiping right past its first
           page (or a board's own exit) returns to classic. */}
       {boardShowing && (
-        <HomeV2 settingsRow={settings[0] || null} api={homeApi} onExitLeft={() => setBoardOpen(false)} />
+        <motion.div
+          key="classic-board"
+          // The SAME slide the board uses between its own pages, so
+          // entering it from classic feels like paging, not a hard cut.
+          initial={boardAnimDir.current === 0 ? false : { x: 72, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          <HomeV2 settingsRow={settings[0] || null} api={homeApi} onExitLeft={closeBoard} />
+        </motion.div>
       )}
       <V2SetFrontHost alters={alters} />
 
@@ -1117,9 +1136,38 @@ export default function Dashboard() {
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
       {showClassic && (
-      <div className="os-dash-cols">
+      <motion.div
+        className="os-dash-cols"
+        // Sliding back FROM the board mirrors the board's own page slide;
+        // a plain first load (dir 0) doesn't animate.
+        initial={boardAnimDir.current === -1 ? { x: -72, opacity: 0 } : false}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}>
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;
+        // Slot upgraded to its BOARD WIDGET (entry.v2, set from the
+        // layout editor's ✨): render the live v2 widget with its mode,
+        // config and look — the board's customization in the classic
+        // column. No entry.v2 = the classic card, exactly as always.
+        const upDef = entry.v2 ? V2_WIDGETS[entry.v2.widgetId] : null;
+        if (upDef) {
+          const look = widgetLookFor(
+            { widgetId: entry.v2.widgetId, settings: entry.v2.settings || {} },
+            resolveUserStyles(settings[0]?.ui_v2_styles),
+            "current"
+          );
+          return (
+            <div key={`v2_${entry.id}`} data-widget-content className="mb-4"
+              style={lookToStyle(look)}>
+              {upDef.render({
+                mode: entry.v2.mode || "normal",
+                settings: entry.v2.settings || {},
+                instanceId: `classic_${entry.id}`,
+                api: homeApi,
+              })}
+            </div>
+          );
+        }
         switch (entry.id) {
           case "upcoming_top":
             return <UpcomingPlans key="upcoming_top" placement="home_top" />;
@@ -1212,7 +1260,7 @@ export default function Dashboard() {
             return null;
         }
       })}
-      </div>
+      </motion.div>
       )}
 
       {/* v0.84.9: no more blocking terms modal — the Guide (below)
