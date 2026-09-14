@@ -41,6 +41,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         route: "/", target: null,
         look: `the slim dash-and-chevron handle just above the bottom tab bar`, action: null,
       },
+      {
+        section: "welcome", sectionLabel: "Welcome",
+        emoji: "🧩",
+        title: "The widget board, one swipe away",
+        body: `Swipe LEFT anywhere on this home screen — or tap the grid button next to Help, top-right — to slide onto the widget board: the buildable home made of live widgets. It's the same board the new UI uses, so your pages, layouts and looks carry over exactly. Swipe right on its first page to come back, and Settings → Appearance → Layout picks which of the two greets you when the app opens.`,
+        route: "/", target: null,
+        look: `the small grid button beside the Help icon at the top-right of the home screen`, action: null,
+      },
     ] : []),
 
     // ─── NEW UI (only when the ui_v2 toggle is on) ──────────────────────────

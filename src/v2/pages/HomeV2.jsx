@@ -41,7 +41,7 @@ function useIsWide() {
   return wide;
 }
 
-export default function HomeV2({ settingsRow, api }) {
+export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
   const qc = useQueryClient();
   const wide = useIsWide();
   const field = wide ? V2_HOME_FIELD_DESKTOP : V2_HOME_FIELD;
@@ -78,6 +78,7 @@ export default function HomeV2({ settingsRow, api }) {
       api={api}
       registry={V2_WIDGETS}
       settingsField={field}
+      onExitLeft={onExitLeft}
       notices={<V2Notices />}
       commandBar={{
         keys: uiV2.commandKeys,

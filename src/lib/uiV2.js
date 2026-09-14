@@ -305,6 +305,9 @@ export function resolveUiV2(stored) {
       actions: src.classicBars?.actions !== false,
       alters: src.classicBars?.alters !== false,
     },
+    // What "/" opens on while classic is active: the classic homescreen
+    // (default, the leftmost "page") or straight onto the widget board.
+    homeDefault: src.homeDefault === "board" ? "board" : "classic",
     appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
     appsView: src.appsView === "sidebar" ? "sidebar" : "grid",
     icons: {

@@ -293,9 +293,13 @@ const classicAltersOn = (() => {
 })();
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
 const classicBarsOn = !!classicBars && (classicBars.top || classicBars.actions || (classicBars.alters && classicAltersOn));
+// The --v2-* tokens are emitted in classic mode UNCONDITIONALLY (not just
+// when bars are hosted): the widget board is one swipe left of the classic
+// home now, and its widgets read these variables.
+const classicV2VarsOn = !uiV2On && UI_V2_ENABLED && !!settings0;
 const uiV2Vars = useMemo(
-  () => ((uiV2On || classicBarsOn) ? buildTokenVars(uiV2) : null),
-  [uiV2On, classicBarsOn, uiV2]
+  () => ((uiV2On || classicV2VarsOn) ? buildTokenVars(uiV2) : null),
+  [uiV2On, classicV2VarsOn, uiV2]
 );
 // On the v2 home the board's own notice stack (V2Notices) carries plan
 // reminders, fired reminders and mentions — the classic overlays are
@@ -310,18 +314,20 @@ const v2HomeNotices = uiV2On && location.pathname === "/";
 // cascade covers portals too. Cleaned up when v2 turns off.
 useEffect(() => {
   const root = document.documentElement;
-  if (!uiV2Vars || (!uiV2On && !classicBarsOn)) {
+  if (!uiV2Vars || (!uiV2On && !classicV2VarsOn)) {
     root.removeAttribute("data-ui-v2");
     root.removeAttribute("data-classic-v2-bars");
     root.removeAttribute("data-classic-v2-top");
     return undefined;
   }
-  // Classic-hosted bars: emit ONLY the --v2-* namespace so the bars can
-  // render, and none of the app-skinning writes below — the classic app
-  // must not visibly re-skin (radius, primary colour) just because the
-  // bars are on. Full v2 keeps the complete behaviour.
+  // Classic mode: emit ONLY the --v2-* namespace so the bars and the
+  // swipe-left board can render, and none of the app-skinning writes
+  // below — the classic app must not visibly re-skin (radius, primary
+  // colour). Full v2 keeps the complete behaviour. The bars' clearance
+  // attribute applies only while bars are actually hosted.
   if (!uiV2On) {
-    root.setAttribute("data-classic-v2-bars", "1");
+    if (classicBarsOn) root.setAttribute("data-classic-v2-bars", "1");
+    else root.removeAttribute("data-classic-v2-bars");
     if (classicBars?.top) root.setAttribute("data-classic-v2-top", "1");
     else root.removeAttribute("data-classic-v2-top");
     const applied = [];
@@ -370,7 +376,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars, classicBarsOn, classicBars?.top]);
+}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;

@@ -540,6 +540,11 @@ export default function ExperimentalDashboard({
   // same context, so notices mounted here can never be painted over
   // (the fate of every banner that lived outside the board).
   notices = null,
+  // Classic-hosted board (the swipe-left widget board): swiping RIGHT
+  // past the FIRST page hands control back to the caller — the classic
+  // homescreen is the leftmost "page". Null under full v2 (no page to
+  // exit to).
+  onExitLeft = null,
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -1222,7 +1227,9 @@ export default function ExperimentalDashboard({
   //   · a press that lingers past the hold threshold belongs to a hold
   //   · once horizontal, TOUCH is claimed via non-passive preventDefault
   useEffect(() => {
-    if (editMode || a11yStack || home.pages.length < 2) return undefined;
+    // With onExitLeft the gesture must run even on a one-page board —
+    // swiping right there exits to the classic homescreen.
+    if (editMode || a11yStack || (home.pages.length < 2 && !onExitLeft)) return undefined;
     // Resolved by class, not ref — framer's motion.div doesn't reliably
     // forward a spread ref, which left the surface "missing" and every
     // press bailing.
@@ -1275,7 +1282,11 @@ export default function ExperimentalDashboard({
         claim?.();
         if (Math.abs(dx) >= 56) {
           g.dead = true;
-          goToPage(pageIdx + (dx < 0 ? 1 : -1));
+          const nextIdx = pageIdx + (dx < 0 ? 1 : -1);
+          // Right-swipe past the first page: back out to the classic
+          // homescreen (the leftmost "page" of the board).
+          if (nextIdx < 0 && onExitLeft) { onExitLeft(); return; }
+          goToPage(nextIdx);
         }
       }
     };
@@ -1302,7 +1313,7 @@ export default function ExperimentalDashboard({
       document.removeEventListener("pointermove", onPointerMove, { capture: true });
       document.removeEventListener("pointerup", endAll, { capture: true });
     };
-  }, [editMode, a11yStack, home.pages.length, pageIdx]);  
+  }, [editMode, a11yStack, home.pages.length, pageIdx, onExitLeft]);  
 
   // Drop-target ghost while a widget drags in free mode.
   const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash }
