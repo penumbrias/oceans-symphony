@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 13, 2026",
+    changes: [
+      { type: "feature", text: "The {{alter}} menu's header now carries a {{fronting}} status pill — tap to toggle {{front}}, hold for the level rail. What tapping does (toggle / step a level / open the picker) is configurable under Fronting levels." },
+    ],
+  },
+  {
     date: "September 12, 2026",
+    version: "0.221.12",
     changes: [
       { type: "feature", text: "Recurring tasks: the navigation path can now be a web link too — tapping the task opens it in your browser." },
       { type: "improve", text: "Quick Check-In: the \"Who's fronting?\" list is much taller (no more three-at-a-time keyhole) and gained the same sort toggle as the other member pickers." },

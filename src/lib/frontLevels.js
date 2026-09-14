@@ -85,6 +85,14 @@ export function resolveFrontLevels(settingsRow) {
       direction: soloRaw.direction === "right" ? "right" : "left",
       scope: soloRaw.scope === "all" ? "all" : "level",
     },
+    // What a TAP on a fronting control does (the status pill in the alter
+    // menu, and front-capable surfaces that adopt the shared grammar).
+    // Hold is always the rail. "toggle" adds/removes from front;
+    // "level_up" steps one level closer to front (a non-fronter joins at
+    // the outermost level); "picker" opens the level picker.
+    tap_action: ["toggle", "level_up", "picker"].includes(raw?.tap_action)
+      ? raw.tap_action
+      : "toggle",
   };
 }
 

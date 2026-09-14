@@ -42,7 +42,9 @@ export default function FrontLevelsSettings() {
     }
   };
 
-  const save = (patch) => persist({ levels: cfg.levels, solo_swipe: cfg.solo_swipe, ...patch });
+  // Every field of front_levels must ride along here or a save of one
+  // control silently resets the others back to defaults.
+  const save = (patch) => persist({ levels: cfg.levels, solo_swipe: cfg.solo_swipe, tap_action: cfg.tap_action, ...patch });
   const saveSolo = (patch) => save({ solo_swipe: { ...cfg.solo_swipe, ...patch } });
 
   const updateLevel = (id, change) =>
@@ -173,6 +175,29 @@ export default function FrontLevelsSettings() {
                 </p>
               </>
             )}
+          </div>
+
+          {/* The shared tap grammar for fronting controls (the status
+              pill in the {alter} menu, and surfaces that adopt it):
+              hold is always the rail; TAP is the user's choice. */}
+          <div className="rounded-xl border border-border/50 p-2.5 space-y-2">
+            <p className="text-xs font-medium">Tapping a {terms.fronting} control</p>
+            <div className="flex flex-wrap gap-1">
+              {[
+                ["toggle", `Toggles ${terms.front}`],
+                ["level_up", "Steps a level up"],
+                ["picker", "Opens the level picker"],
+              ].map(([v, label]) => (
+                <button key={v} type="button" disabled={busy} aria-pressed={cfg.tap_action === v}
+                  onClick={() => save({ tap_action: v })}
+                  className={`text-xs px-2.5 py-1 rounded-full border ${cfg.tap_action === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              Holding always opens the level rail.
+            </p>
           </div>
         </>
       )}
