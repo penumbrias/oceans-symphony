@@ -146,6 +146,13 @@ export function resolveLayout(storedLayout) {
     out.push({
       id: entry.id,
       enabled: meta.locked ? true : entry.enabled !== false,
+      // The board-widget upgrade for this slot ({ widgetId, mode,
+      // settings }) — set from the layout editor's ✨; absent = the
+      // classic card renders exactly as always. MUST survive resolve or
+      // a user's customised slot silently reverts on the next save.
+      ...(entry.v2 && typeof entry.v2 === "object" && typeof entry.v2.widgetId === "string"
+        ? { v2: entry.v2 }
+        : {}),
     });
     seen.add(entry.id);
   }

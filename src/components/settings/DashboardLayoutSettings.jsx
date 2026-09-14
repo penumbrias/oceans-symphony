@@ -4,7 +4,12 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { GripVertical, Lock, LayoutGrid } from "lucide-react";
+import { GripVertical, Lock, LayoutGrid, Sparkles, SlidersHorizontal, Undo2 } from "lucide-react";
+import { CLASSIC_TO_V2_WIDGET } from "@/lib/widgetRegistry";
+import { V2_WIDGETS } from "@/v2/widgets";
+import { resolveUserStyles, newStyleId } from "@/lib/widgetLook";
+import { widgetLookFor } from "@/pages/ExperimentalDashboard";
+import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
 import {
   DndContext,
   closestCenter,
@@ -38,7 +43,7 @@ import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 // below) rather than getting their own draggable SortablePill.
 const SUB_TOGGLE_IDS = ["start_activity_button", "start_symptom_button", "quick_task_button", "quick_plan_button"];
 
-function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize, subToggleEntries }) {
+function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize, subToggleEntries, onUpgrade, onConfigure, onRevert }) {
   const meta = DASHBOARD_ELEMENTS[entry.id];
   const locked = !!meta?.locked;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -133,6 +138,31 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
           </div>
         )}
       </div>
+      {/* Board-widget upgrade for this slot: ✨ swaps the classic card
+          for its live board widget (modes, config, colours — the works);
+          once upgraded, ⚙ opens its options and ↩ restores the classic
+          card. Slots without a widget twin show nothing extra. */}
+      {entry.v2 ? (
+        <span className="flex items-center gap-0.5 flex-shrink-0">
+          <button type="button" onClick={() => onConfigure?.(entry.id)}
+            title="Widget options" aria-label={`Options for ${meta.label} widget`}
+            className="p-1.5 rounded-md text-primary hover:bg-primary/10">
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" onClick={() => onRevert?.(entry.id)}
+            title="Back to the classic card" aria-label={`Use the classic ${meta.label} card`}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50">
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+        </span>
+      ) : (onUpgrade && CLASSIC_TO_V2_WIDGET[entry.id] && V2_WIDGETS[CLASSIC_TO_V2_WIDGET[entry.id]] ? (
+        <button type="button" onClick={() => onUpgrade(entry.id)}
+          title="Use the board widget — modes, options, colours"
+          aria-label={`Upgrade ${meta.label} to its board widget`}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0">
+          <Sparkles className="w-3.5 h-3.5" />
+        </button>
+      ) : null)}
       {locked ? (
         <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide flex-shrink-0">
           Always on
@@ -331,6 +361,30 @@ export default function DashboardLayoutSettings() {
     catch { /* ignore */ }
   };
 
+  // ── Board-widget upgrades per slot (entry.v2) ──
+  const [configFor, setConfigFor] = useState(null); // entry id whose sheet is open
+  const patchEntry = (id, fn) => {
+    const next = draftLayout.map((e) => (e.id === id ? fn(e) : e));
+    setDraftLayout(next);
+    persist(next);
+  };
+  const upgradeSlot = (id) => {
+    const widgetId = CLASSIC_TO_V2_WIDGET[id];
+    if (!widgetId || !V2_WIDGETS[widgetId]) return;
+    patchEntry(id, (e) => ({ ...e, v2: { widgetId, mode: "normal", settings: {} } }));
+    setConfigFor(id);
+  };
+  const revertSlot = (id) => {
+    setConfigFor((cur) => (cur === id ? null : cur));
+    patchEntry(id, (e) => { const { v2: _v2, ...rest } = e; return rest; });
+  };
+  const configEntry = configFor ? draftLayout.find((e) => e.id === configFor && e.v2) : null;
+  const configWidget = configEntry
+    ? { instanceId: `classic_${configEntry.id}`, widgetId: configEntry.v2.widgetId, mode: configEntry.v2.mode || "normal", settings: configEntry.v2.settings || {} }
+    : null;
+  const configDef = configEntry ? V2_WIDGETS[configEntry.v2.widgetId] : null;
+  const layoutUserStyles = resolveUserStyles(record?.ui_v2_styles);
+
   const toggle = (id, enabled) => {
     const next = draftLayout.map((e) => (e.id === id ? { ...e, enabled } : e));
     setDraftLayout(next);
@@ -488,11 +542,43 @@ export default function DashboardLayoutSettings() {
                 onBulletinBatchChange={handleBatchChange}
                 bulletinBatchSize={batchSize}
                 subToggleEntries={entry.id === "quick_checkin" ? subToggleEntries : undefined}
+                onUpgrade={upgradeSlot}
+                onConfigure={setConfigFor}
+                onRevert={revertSlot}
               />
             ))}
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* THE board widget-options sheet, driving an upgraded classic slot —
+          one sheet, not a lookalike: modes, config fields, colours &
+          background, presets, saved styles all behave exactly as on the
+          board. "Remove" here means "back to the classic card". */}
+      {configWidget && configDef && (
+        <WidgetConfigSheet
+          widget={configWidget}
+          def={configDef}
+          pageStyleId=""
+          resolvedLook={widgetLookFor(configWidget, layoutUserStyles, "current")}
+          userStyles={layoutUserStyles}
+          onClose={() => setConfigFor(null)}
+          onMode={(_iid, mode) => patchEntry(configFor, (e) => ({ ...e, v2: { ...e.v2, mode } }))}
+          onSettings={(_iid, patch) => patchEntry(configFor, (e) => ({ ...e, v2: { ...e.v2, settings: { ...(e.v2.settings || {}), ...patch } } }))}
+          onRemove={() => revertSlot(configFor)}
+          onResetWidget={() => patchEntry(configFor, (e) => ({ ...e, v2: { widgetId: e.v2.widgetId, mode: "normal", settings: {} } }))}
+          onPickIcon={() => toast.info("Custom icons live on the widget board")}
+          onSaveStyle={async (label, look) => {
+            try {
+              const styles = [...layoutUserStyles, { id: newStyleId(), label, look }];
+              if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2_styles: styles });
+              else await base44.entities.SystemSettings.create({ ui_v2_styles: styles });
+              queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+              toast.success(`Style "${label}" saved`);
+            } catch (e) { toast.error(e?.message || "Couldn't save the style"); }
+          }}
+        />
+      )}
     </section>
   );
 }
