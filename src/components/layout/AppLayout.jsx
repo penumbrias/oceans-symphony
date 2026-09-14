@@ -282,7 +282,21 @@ const settings0 = systemSettings?.[0];
 // release can ship with zero UI changes by flipping the flag alone.
 const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
 const uiV2On = UI_V2_ENABLED && uiV2.enabled;
-const uiV2Vars = useMemo(() => (uiV2On ? buildTokenVars(uiV2) : null), [uiV2On, uiV2]);
+// v2 bars hosted in CLASSIC chrome (ui_v2 off): the quick-action bar and
+// pinned alters bar are default-on; the v2 top bar replaces the classic
+// header only when chosen. Wait for settings to load (settings0 defined)
+// so the bars never flash in before a user's saved "off" arrives.
+const classicAltersOn = (() => {
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const home = settings0?.[wide ? "ui_v2_home_desktop" : "ui_v2_home"];
+  return home?.altersBar?.enabled === true;
+})();
+const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
+const classicBarsOn = !!classicBars && (classicBars.top || classicBars.actions || (classicBars.alters && classicAltersOn));
+const uiV2Vars = useMemo(
+  () => ((uiV2On || classicBarsOn) ? buildTokenVars(uiV2) : null),
+  [uiV2On, classicBarsOn, uiV2]
+);
 // On the v2 home the board's own notice stack (V2Notices) carries plan
 // reminders, fired reminders and mentions — the classic overlays are
 // suppressed there so nothing double-surfaces or fights the wallpaper's
@@ -296,11 +310,35 @@ const v2HomeNotices = uiV2On && location.pathname === "/";
 // cascade covers portals too. Cleaned up when v2 turns off.
 useEffect(() => {
   const root = document.documentElement;
-  if (!uiV2On || !uiV2Vars) {
+  if (!uiV2Vars || (!uiV2On && !classicBarsOn)) {
     root.removeAttribute("data-ui-v2");
+    root.removeAttribute("data-classic-v2-bars");
+    root.removeAttribute("data-classic-v2-top");
     return undefined;
   }
+  // Classic-hosted bars: emit ONLY the --v2-* namespace so the bars can
+  // render, and none of the app-skinning writes below — the classic app
+  // must not visibly re-skin (radius, primary colour) just because the
+  // bars are on. Full v2 keeps the complete behaviour.
+  if (!uiV2On) {
+    root.setAttribute("data-classic-v2-bars", "1");
+    if (classicBars?.top) root.setAttribute("data-classic-v2-top", "1");
+    else root.removeAttribute("data-classic-v2-top");
+    const applied = [];
+    for (const [k, v] of Object.entries(uiV2Vars)) {
+      if (!k.startsWith("--v2-")) continue;
+      root.style.setProperty(k, v);
+      applied.push(k);
+    }
+    return () => {
+      root.removeAttribute("data-classic-v2-bars");
+      root.removeAttribute("data-classic-v2-top");
+      for (const k of applied) root.style.removeProperty(k);
+    };
+  }
   root.setAttribute("data-ui-v2", "1");
+  root.removeAttribute("data-classic-v2-bars");
+  root.removeAttribute("data-classic-v2-top");
   const applied = [];
   for (const [k, v] of Object.entries(uiV2Vars)) {
     root.style.setProperty(k, v);
@@ -332,7 +370,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars]);
+}, [uiV2On, uiV2Vars, classicBarsOn, classicBars?.top]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -625,6 +663,9 @@ const handleNotifClick = (mentionLog) => {
       <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
 
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
+      {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
+          headers (hidden via [data-classic-v2-top] in index.css). */}
+      {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
 
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
@@ -636,7 +677,7 @@ const handleNotifClick = (mentionLog) => {
           web/TWA these envs evaluate to 0 and the header looks the
           same as before. */}
       <header
-        className="os-classic-chrome sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
+        className="os-classic-chrome os-classic-header sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
         style={{
           // Clamped: garbage inset values (shade/split-screen/WebView quirks)
           // must never inflate the header into a giant empty band.
@@ -704,7 +745,7 @@ const handleNotifClick = (mentionLog) => {
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
       <header
-        className="os-classic-chrome sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
+        className="os-classic-chrome os-classic-header sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
         style={{
           // Clamped: garbage inset values (shade/split-screen/WebView quirks)
           // must never inflate the header into a giant empty band.
@@ -937,6 +978,31 @@ const handleNotifClick = (mentionLog) => {
       {uiV2On && <V2SideRail uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <V2QuickDock uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <ActiveNowBubble uiV2={uiV2} settingsRow={settings0} />}
+
+      {/* v2 quick-action bar + pinned alters bar hosted in CLASSIC chrome.
+          The classic tab bar stays; the hosted chrome parks above it
+          (classicHost) with tabs/rail forced off. The dock covers the
+          float/bubble quick-action modes; it self-gates on actionsMode. */}
+      {/* Mobile-only for now: desktop classic has no bottom nav to park
+          against (display:none on this wrapper hides the fixed children
+          too, so lg:hidden works here). */}
+      {classicBarsOn && (classicBars.actions || (classicBars.alters && classicAltersOn)) && (
+        <div className="lg:hidden">
+          <V2BottomChrome
+            classicHost
+            uiV2={{
+              ...uiV2,
+              bars: { ...uiV2.bars, tabs: false, rail: false, actions: uiV2.bars.actions && classicBars.actions },
+            }}
+            settingsRow={settings0}
+          />
+        </div>
+      )}
+      {classicBarsOn && classicBars.actions && (
+        <div className="lg:hidden">
+          <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
+        </div>
+      )}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

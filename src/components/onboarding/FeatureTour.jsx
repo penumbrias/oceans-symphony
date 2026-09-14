@@ -31,6 +31,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       look: `the floating "Accessibility" button in the corner of the screen`, action: null,
     },
 
+    // ─── Classic-hosted v2 bars (classic look only — v2 has its own) ────────
+    ...(!uiV2On ? [
+      {
+        section: "welcome", sectionLabel: "Welcome",
+        emoji: "⚡",
+        title: "Quick bars on the classic look",
+        body: `Just above the bottom tab bar sits a slim handle — tap or swipe it up to unfold the quick-action bar: one-tap keys for a check-in, a note, starting an activity or symptom, a task, or setting ${t.front}. Your pinned ${t.alters} can float there as a bar too, and a new top bar (${t.system} name, who's ${t.fronting}, clock, search, notifications) can replace this header. All three live in the setup guide and Settings → Appearance → Layout.`,
+        route: "/", target: null,
+        look: `the slim dash-and-chevron handle just above the bottom tab bar`, action: null,
+      },
+    ] : []),
+
     // ─── NEW UI (only when the ui_v2 toggle is on) ──────────────────────────
     ...(uiV2On ? [
       {
