@@ -11,9 +11,8 @@ import TransferToSystemModal from "@/components/systems/TransferToSystemModal";
 import { hasMultipleSystems } from "@/lib/systems";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
-import { commitFrontLevel } from "@/components/fronting/FrontLevelRail";
-import SearchableSelect from "@/components/shared/SearchableSelect";
+import { useFrontLevels } from "@/lib/frontLevels";
+import FrontStatusPill from "@/components/fronting/FrontStatusPill";
 
 // Long-press popup for an alter chip/icon on the alters page. Actions:
 // go to profile, create/open subsystem, toggle front, toggle primary,
@@ -64,10 +63,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
   };
   const mySession = session || activeSessions.find((s) => s.alter_id === alter.id);
   const isFronting = !!mySession;
-  // Fronting level (opt-in): a dropdown in the header row, inline with the
-  // name — the menu's alternative to the hold-and-drag rail.
   const levelCfg = useFrontLevels();
-  const showLevel = levelCfg.enabled && isFronting;
   const isPrimary = mySession?.is_primary ?? false;
   const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
 
@@ -138,18 +134,13 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
               : <User className="w-4 h-4 text-white" />}
           </div>
           <span className="font-medium text-sm flex-1 truncate">{alter.emoji ? `${alter.emoji} ` : ""}{alter.name}</span>
-          {showLevel && (
-            <div className="w-[40%] flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              <SearchableSelect
-                value={mySession.front_level || levelCfg.levels[0]?.id}
-                onChange={async (v) => { if (v) await commitFrontLevel({ alterId: alter.id, levelId: v, queryClient: qc }); }}
-                options={levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, t) }))}
-                placeholder={`${t.Front} level`}
-                searchPlaceholder="Search levels..."
-                zIndex={80}
-              />
-            </div>
-          )}
+          {/* The status pill replaces the old level dropdown: the shared
+              control grammar — tap = configured tap action, hold = rail.
+              Shows "Not {fronting}" too, so front state is one tap away
+              from the menu header regardless. */}
+          <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <FrontStatusPill alter={alter} session={mySession} />
+          </div>
           <button onClick={close} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
         <div className="py-1">
