@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { GripVertical, Lock, LayoutGrid } from "lucide-react";
@@ -182,6 +183,66 @@ export function NewUiToggle() {
   );
 }
 
+// The classic-hosted v2 bars, on their own so the setup guide can offer
+// them too. Same record, same writes, one implementation. Reads/writes
+// ui_v2.classicBars (+ the board's altersBar.enabled for the pinned bar,
+// which is the same bar the widget board shows — one switch, one truth).
+export function ClassicBarsToggles() {
+  const queryClient = useQueryClient();
+  const t = useTerms();
+  const { data: rows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const record = rows[0];
+  const cb = record?.ui_v2?.classicBars || {};
+  const topOn = cb.top === true;
+  const actionsOn = cb.actions !== false;
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const altersOn = cb.alters !== false && record?.[homeField]?.altersBar?.enabled === true;
+  const writeCb = async (patch, alsoAlters = null) => {
+    try {
+      const next = { ...(record?.ui_v2 || {}), classicBars: { ...cb, ...patch } };
+      const write = { ui_v2: next };
+      if (alsoAlters !== null) {
+        write[homeField] = {
+          ...(record?.[homeField] || {}),
+          altersBar: { ...(record?.[homeField]?.altersBar || {}), enabled: alsoAlters, collapsed: false },
+        };
+      }
+      if (record?.id) await base44.entities.SystemSettings.update(record.id, write);
+      else await base44.entities.SystemSettings.create(write);
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch");
+    }
+  };
+  if (!UI_V2_ENABLED) return null;
+  const Row = ({ label, hint, checked, onChange }) => (
+    <label className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5 cursor-pointer">
+      <div className="min-w-0">
+        <span className="text-sm font-medium">{label}</span>
+        <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </label>
+  );
+  return (
+    <div className="space-y-2">
+      <Row label="New top bar"
+        hint={`${t.System} name, who's ${t.fronting}, clock, search and notifications — replaces the classic header.`}
+        checked={topOn} onChange={(v) => writeCb({ top: !!v })} />
+      <Row label="Quick action bar"
+        hint="A fold-out row of one-tap capture keys above the tab bar."
+        checked={actionsOn} onChange={(v) => writeCb({ actions: !!v })} />
+      <Row label={`Pinned ${t.alters} bar`}
+        hint={`Your pinned ${t.alters} in a floating bar — tap to toggle ${t.fronting}, hold for the level rail.`}
+        checked={altersOn} onChange={(v) => writeCb({ alters: true }, !!v)} />
+    </div>
+  );
+}
+
 export default function DashboardLayoutSettings() {
   const queryClient = useQueryClient();
   const { data: settings = [] } = useQuery({
@@ -336,6 +397,15 @@ export default function DashboardLayoutSettings() {
           </div>
           <Switch checked={uiV2On} onCheckedChange={toggleUiV2} />
         </label>
+      )}
+
+      {/* The v2 bars in the CLASSIC chrome — only offered while the full
+          new UI is off (v2 already carries its own bars). */}
+      {UI_V2_ENABLED && !uiV2On && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">New bars in the classic look</p>
+          <ClassicBarsToggles />
+        </div>
       )}
 
       {EXPERIMENTAL_HOME_ENABLED && (

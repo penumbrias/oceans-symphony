@@ -185,6 +185,20 @@ body {
   padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + var(--os-sab)) !important;
 }
 
+/* v2 bars hosted in CLASSIC chrome (data-classic-v2-bars, mobile-only):
+   content clears the classic tab bar PLUS the hosted chrome above it
+   (--v2-bottom-chrome-h includes both; the floating quick-action card
+   adds its own measured height). */
+@media (max-width: 1023px) {
+  [data-classic-v2-bars="1"] .app-content-main {
+    padding-bottom: calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + 24px + var(--os-sab) + var(--v2-qa-float-bottom-h, 0px)) !important;
+  }
+}
+
+/* The v2 top bar hosted in classic replaces the classic headers only —
+   the rest of the classic chrome (tab bar, sidebar) stays. */
+[data-classic-v2-top="1"] .os-classic-header { display: none !important; }
+
 /* Text-effect keyframes for the formatting toolbar's "fun" effects.
    Tailwind already ships `spin`; `float` and `wave` were referenced by the
    toolbar but never defined, so those buttons did nothing — define them

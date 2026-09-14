@@ -296,6 +296,15 @@ export function resolveUiV2(stored) {
       // Desktop-only: the side rail that replaces the bottom bar at ≥1024px.
       rail: src.bars?.rail !== false,
     },
+    // v2 bars hosted inside the CLASSIC chrome (ui_v2.enabled false).
+    // The quick-action bar and the pinned {alters} bar are on by default
+    // (owner call — the setup guide introduces them); the v2 top bar
+    // replaces the classic header only when explicitly chosen.
+    classicBars: {
+      top: src.classicBars?.top === true,
+      actions: src.classicBars?.actions !== false,
+      alters: src.classicBars?.alters !== false,
+    },
     appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
     appsView: src.appsView === "sidebar" ? "sidebar" : "grid",
     icons: {

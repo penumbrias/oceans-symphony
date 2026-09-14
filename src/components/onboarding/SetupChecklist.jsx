@@ -22,7 +22,7 @@ import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
-import { NewUiToggle } from "@/components/settings/DashboardLayoutSettings";
+import { NewUiToggle, ClassicBarsToggles } from "@/components/settings/DashboardLayoutSettings";
 import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
@@ -306,6 +306,13 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
             time, and nothing you've recorded changes either way.
           </p>
           <NewUiToggle />
+          {/* The v2 bars hosted inside the CLASSIC chrome — the same
+              toggles as Settings → Appearance → Layout, one component. */}
+          <p className="text-xs text-muted-foreground pt-1">
+            You can also keep the classic look and take just the bars: the quick action bar and
+            pinned {t.alters} bar are on by default, and the new top bar is one switch away.
+          </p>
+          <ClassicBarsToggles />
         </div>
       ),
     },

@@ -1165,7 +1165,13 @@ function useBodyPointerWatchdog() {
   }, []);
 }
 
-export function V2BottomChrome({ uiV2, settingsRow }) {
+// classicHost: the same bottom chrome mounted INSIDE the classic UI
+// (ui_v2.enabled off). The classic tab bar stays — this box parks itself
+// ABOVE it (bottom: --bottom-nav-height) and the published clearance var
+// includes the classic bar's height so the alters bar / floating card
+// stack exactly as they do under full v2. The caller passes uiV2 with
+// bars.tabs/rail forced off.
+export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
   useBodyPointerWatchdog();
   const homeEdit = useHomeEditMode();
   const barsHidden = homeEdit.editing && !homeEdit.preview;
@@ -1247,12 +1253,23 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     const el = navRef.current;
     const root = document.documentElement;
     const publish = () => {
-      if (!el) return;
+      if (!el) {
+        // Classic host with no nav box (strip off, alters bar only): the
+        // clearance is exactly the classic bar.
+        if (classicHost) root.style.setProperty("--v2-bottom-chrome-h", "var(--bottom-nav-height, 56px)");
+        return;
+      }
       const box = el.getBoundingClientRect().height;
       // The nav pads itself by the safe-area inset; consumers add that
       // inset themselves, so report the height above it.
       const inset = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-      root.style.setProperty("--v2-bottom-chrome-h", `${Math.max(0, Math.round(box - inset))}px`);
+      const h = Math.max(0, Math.round(box - inset));
+      // Classic host: this box sits ON TOP of the classic tab bar, so the
+      // clearance everything stacks on includes both.
+      root.style.setProperty(
+        "--v2-bottom-chrome-h",
+        classicHost ? `calc(${h}px + var(--bottom-nav-height, 56px))` : `${h}px`
+      );
     };
     publish();
     if (!el || typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--v2-bottom-chrome-h");
@@ -1362,10 +1379,13 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
       data-widget-content
-      className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+      className={`fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
-        paddingBottom: "var(--os-sab)",
+        // Classic host: park above the classic tab bar (which already
+        // handles the safe-area inset itself).
+        bottom: classicHost ? "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" : 0,
+        paddingBottom: classicHost ? 0 : "var(--os-sab)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
         borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",
