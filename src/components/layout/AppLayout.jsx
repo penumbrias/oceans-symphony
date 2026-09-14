@@ -292,7 +292,7 @@ const classicAltersOn = (() => {
   return home?.altersBar?.enabled === true;
 })();
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
-const classicBarsOn = !!classicBars && (classicBars.top || classicBars.actions || (classicBars.alters && classicAltersOn));
+const classicBarsOn = !!classicBars && (classicBars.top || classicBars.bottom || (classicBars.alters && classicAltersOn));
 // The --v2-* tokens are emitted in classic mode UNCONDITIONALLY (not just
 // when bars are hosted): the widget board is one swipe left of the classic
 // home now, and its widgets read these variables.
@@ -326,7 +326,9 @@ useEffect(() => {
   // colour). Full v2 keeps the complete behaviour. The bars' clearance
   // attribute applies only while bars are actually hosted.
   if (!uiV2On) {
-    if (classicBarsOn) root.setAttribute("data-classic-v2-bars", "1");
+    // The attribute hides the classic tab bar and drives the content
+    // clearance — it tracks the BOTTOM replacement specifically.
+    if (classicBars?.bottom) root.setAttribute("data-classic-v2-bars", "1");
     else root.removeAttribute("data-classic-v2-bars");
     if (classicBars?.top) root.setAttribute("data-classic-v2-top", "1");
     else root.removeAttribute("data-classic-v2-top");
@@ -376,7 +378,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top]);
+}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -989,22 +991,25 @@ const handleNotifClick = (mentionLog) => {
           The classic tab bar stays; the hosted chrome parks above it
           (classicHost) with tabs/rail forced off. The dock covers the
           float/bubble quick-action modes; it self-gates on actionsMode. */}
-      {/* Mobile-only for now: desktop classic has no bottom nav to park
-          against (display:none on this wrapper hides the fixed children
-          too, so lg:hidden works here). */}
-      {classicBarsOn && (classicBars.actions || (classicBars.alters && classicAltersOn)) && (
+      {/* The v2 bottom chrome REPLACES the classic tab bar in classic mode
+          (owner call): page tabs (same navigation_config), the fold-out
+          quick-action strip with its swipe handle, and the alters bar —
+          the real component, so every gesture works identically. Mobile
+          widths only (classic desktop keeps its sidebar; display:none on
+          this wrapper hides the fixed children too). The classic tab bar
+          is hidden via [data-classic-v2-bars] in index.css. */}
+      {classicBars?.bottom && (
         <div className="lg:hidden">
           <V2BottomChrome
-            classicHost
             uiV2={{
               ...uiV2,
-              bars: { ...uiV2.bars, tabs: false, rail: false, actions: uiV2.bars.actions && classicBars.actions },
+              bars: { ...uiV2.bars, tabs: true, rail: false, actions: uiV2.bars.actions && classicBars.actions },
             }}
             settingsRow={settings0}
           />
         </div>
       )}
-      {classicBarsOn && classicBars.actions && (
+      {classicBars?.bottom && classicBars.actions && (
         <div className="lg:hidden">
           <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
         </div>
@@ -1012,7 +1017,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="os-classic-chrome a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="os-classic-chrome os-classic-bottom-nav a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           height: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))",
           paddingBottom: "var(--os-sab)",

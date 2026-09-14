@@ -818,6 +818,18 @@ export default function Dashboard() {
   const boardAnimDir = useRef(0);
   const openBoard = () => { boardAnimDir.current = 1; setBoardOpen(true); };
   const closeBoard = () => { boardAnimDir.current = -1; setBoardOpen(false); };
+  // The HOME button always means the CLASSIC home (owner call). Tapping
+  // Home (tab bar, sidebar, logo — anything that navigates to "/") while
+  // the board is showing steps back to classic. Every navigation gets a
+  // fresh location.key, including same-path ones, so this catches a Home
+  // tap while already on "/" without touching each button.
+  const lastLocKey = useRef(location.key);
+  useEffect(() => {
+    if (location.key === lastLocKey.current) return;
+    lastLocKey.current = location.key;
+    if (boardOpen) closeBoard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
   const boardShowing = classicBoardAvailable && boardOpen;
   const showClassic = !uiV2On && !experimentalOn && !boardShowing;
   const bootedBoardDefault = useRef(false);

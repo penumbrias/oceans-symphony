@@ -302,6 +302,11 @@ export function resolveUiV2(stored) {
     // replaces the classic header only when explicitly chosen.
     classicBars: {
       top: src.classicBars?.top === true,
+      // The whole v2 bottom chrome (page tabs + quick-action strip +
+      // alters bar) REPLACES the classic tab bar — default on (owner:
+      // "migrate the experimental UI for the bottom bars, replacing the
+      // classic UI for that part").
+      bottom: src.classicBars?.bottom !== false,
       actions: src.classicBars?.actions !== false,
       alters: src.classicBars?.alters !== false,
     },

@@ -185,13 +185,13 @@ body {
   padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + var(--os-sab)) !important;
 }
 
-/* v2 bars hosted in CLASSIC chrome (data-classic-v2-bars, mobile-only):
-   content clears the classic tab bar PLUS the hosted chrome above it
-   (--v2-bottom-chrome-h includes both; the floating quick-action card
-   adds its own measured height). */
+/* The v2 bottom chrome REPLACING the classic tab bar (data-classic-v2-bars,
+   mobile-only): the classic bar hides, content clears the v2 chrome's
+   measured height (+ the floating quick-action card when open). */
 @media (max-width: 1023px) {
+  [data-classic-v2-bars="1"] .os-classic-bottom-nav { display: none !important; }
   [data-classic-v2-bars="1"] .app-content-main {
-    padding-bottom: calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + 24px + var(--os-sab) + var(--v2-qa-float-bottom-h, 0px)) !important;
+    padding-bottom: calc(var(--v2-bottom-chrome-h, 56px) + 24px + var(--os-sab) + var(--v2-qa-float-bottom-h, 0px)) !important;
   }
 }
 
