@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 14, 2026",
     changes: [
+      { type: "improve", text: "The new bottom bars fully replace the classic tab bar now (same pages, plus the swipe-up handle for quick actions and the pinned {{alters}} bar) — switchable back under Settings \u2192 Appearance \u2192 Layout." },
+      { type: "fix", text: "The Home tab always returns to the classic home screen, even when you're on the widget board." },
       { type: "feature", text: "Classic dashboard cards can now be upgraded to their board widgets, one by one — tap \u2728 next to a card in Settings \u2192 Appearance \u2192 Layout \u2192 Dashboard to get its display modes, options and colours; \u21a9 brings the classic card back untouched." },
       { type: "improve", text: "Opening the widget board from the classic home now slides like paging between board pages instead of cutting hard." },
       { type: "feature", text: "The widget board is now one swipe away from the classic home screen — swipe left (or tap the grid button by Help) to slide onto your board, swipe right on its first page to come back. Same board, same layouts; \"Home opens on\" in Settings \u2192 Appearance \u2192 Layout picks which greets you." },

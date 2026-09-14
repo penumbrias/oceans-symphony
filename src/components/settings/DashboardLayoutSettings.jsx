@@ -227,6 +227,7 @@ export function ClassicBarsToggles() {
   const record = rows[0];
   const cb = record?.ui_v2?.classicBars || {};
   const topOn = cb.top === true;
+  const bottomOn = cb.bottom !== false;
   const actionsOn = cb.actions !== false;
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
@@ -263,8 +264,11 @@ export function ClassicBarsToggles() {
       <Row label="New top bar"
         hint={`${t.System} name, who's ${t.fronting}, clock, search and notifications — replaces the classic header.`}
         checked={topOn} onChange={(v) => writeCb({ top: !!v })} />
+      <Row label="New bottom bars"
+        hint="The new tab bar with the fold-out handle — swipe it up for quick actions. Replaces the classic tab bar."
+        checked={bottomOn} onChange={(v) => writeCb({ bottom: !!v })} />
       <Row label="Quick action bar"
-        hint="A fold-out row of one-tap capture keys above the tab bar."
+        hint="The fold-out row of one-tap capture keys behind the bottom bar's handle."
         checked={actionsOn} onChange={(v) => writeCb({ actions: !!v })} />
       <Row label={`Pinned ${t.alters} bar`}
         hint={`Your pinned ${t.alters} in a floating bar — tap to toggle ${t.fronting}, hold for the level rail.`}
