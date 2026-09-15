@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "September 15, 2026",
     changes: [
+      { type: "improve", text: "Home screen: the layout now mirrors the classic dashboard faithfully — your card order is kept, rows hug their content much closer, and existing screens re-seat themselves on next open." },
+      { type: "feature", text: "Active symptoms, active activities and \"currently with\" are now ONE \"Active now\" card — toggle each category on or off in the card's options." },
+      { type: "feature", text: "The {{system}} name & date heading is now its own home screen widget — move it, restyle it, or remove it like any other card." },
+      { type: "improve", text: "The Quick Check-In card is back in its classic spot and configurable in edit mode — the Start Activity / Start Symptom / Quick Task / Quick Plan buttons are toggles in its options." },
+      { type: "improve", text: "The home screen's bulletin board is now the refined board version — upcoming plans is its own card nearby instead of living inside the bulletin surface." },
+      { type: "fix", text: "Pinned tasks: weekly tasks set to repeat \"7 days after completed\" now show their real done state instead of resetting with the calendar week (matching the board's Recurring-tasks widget)." },
       { type: "hotfix", text: "Hotfix: home screen spacing stayed loose after editing and saving — empty cards tuck away again after leaving edit mode." },
       { type: "fix", text: "Home screen: cards now size themselves to their content instead of leaving big empty stretches — existing screens tighten up on next open (cards you resized by hand keep their size)." },
       { type: "fix", text: "Home screen: the cards no longer pile up in one overlapping heap — the first canvas layout now seats every card in its own spot (existing screens fix themselves on next open)." },

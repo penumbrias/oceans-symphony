@@ -383,20 +383,31 @@ export const WIDGET_REGISTRY = {
 
   // ── Quick actions ──────────────────────────────────────────────
   quick_checkin: {
-    label: "Quick action buttons", description: "Quick Check-In plus the start/quick buttons.",
+    label: "Quick action buttons", description: "The Quick Check-In button — turn on the extra start/quick buttons in this widget's options.",
     icon: Heart, category: "actions",
-    render: ({ api }) => (
+    render: ({ api, settings }) => (
       <QuickCheckinButtons
         hold={api?.hold || {}}
         holdProgress={api?.holdProgress || 0}
         holdActive={api?.holdActive || false}
-        show={{ start_activity: true, start_symptom: true, quick_task: true, quick_plan: true }}
+        show={{
+          start_activity: settings?.startActivity === true,
+          start_symptom: settings?.startSymptom === true,
+          quick_task: settings?.quickTask === true,
+          quick_plan: settings?.quickPlan === true,
+        }}
         on={api?.quickOn || {}}
         quickActionsSlot={api?.quickActionsSlot || null}
       />
     ),
     supportsModes: ["normal"],
     supportsMultiInstance: false,
+    configFields: [
+      { key: "startActivity", type: "toggle", label: "Start Activity button", default: false },
+      { key: "startSymptom", type: "toggle", label: "Start Symptom button", default: false },
+      { key: "quickTask", type: "toggle", label: "Quick Task button", default: false },
+      { key: "quickPlan", type: "toggle", label: "Quick Plan button", default: false },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
 
@@ -448,6 +459,29 @@ export const WIDGET_REGISTRY = {
   },
 
   // ── Tracking ───────────────────────────────────────────────────
+  // One card for everything running right now — symptoms, activity
+  // timers, who you're with — with per-category toggles in the widget's
+  // options (owner ask). The three single-category widgets below stay
+  // in the drawer for anyone who wants them split out.
+  active_now: {
+    label: "Active now", description: "Running symptom sessions, activity timers and who you're with — toggle each category in this widget's options.",
+    icon: ActivityIcon, category: "tracking",
+    render: ({ settings }) => (
+      <div>
+        {settings?.showSymptoms !== false && <CurrentSymptoms />}
+        {settings?.showActivities !== false && <CurrentActivities />}
+        {settings?.showContacts !== false && <CurrentContacts />}
+      </div>
+    ),
+    supportsModes: ["normal"],
+    supportsMultiInstance: false,
+    configFields: [
+      { key: "showSymptoms", type: "toggle", label: "Active symptoms", default: true },
+      { key: "showActivities", type: "toggle", label: "Active activities", default: true },
+      { key: "showContacts", type: "toggle", label: "Currently with", default: true },
+    ],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
   current_symptoms: {
     label: "Active symptoms", description: "Symptom sessions currently running.",
     icon: ActivityIcon, category: "tracking",
