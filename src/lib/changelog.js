@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 14, 2026",
     changes: [
+      { type: "feature", text: "A widget board page can now BE your home screen: in the board's edit mode, tap the 🏠 by the page's name — the app opens there and the Home button lands there. Turn it off and the classic home screen is home again." },
       { type: "feature", text: "Edit your home screen in place: ⚙ menu → \"Edit home screen\" — drag cards to reorder, remove them, add any board widget, and open each card's options, where \"Classic\" sits beside the board's display modes, colours and styles." },
       { type: "improve", text: "Resetting the home screen to default now offers to keep your current arrangement as a widget board page first." },
       { type: "improve", text: "The header ⚙ menu is clearer: \"Edit home screen\" edits this home screen, \"Edit widget board\" opens the board's editor — opening the board for you first if you're not on it." },
