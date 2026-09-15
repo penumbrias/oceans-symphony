@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 14, 2026",
     changes: [
+      { type: "feature", text: "The home screen now edits EXACTLY like the widget board — it's the same canvas: hold a card to drag it anywhere or drop it on Remove, hold an edge to resize, add anything from the widget drawer, style every card from its gear. Hold an empty spot or ⚙ → \"Edit home screen\" to start." },
+      { type: "improve", text: "\"Reset to default\" for the home screen lives in Settings → Appearance → Layout, and still offers to keep your arrangement on the widget board first." },
       { type: "feature", text: "A widget board page can now BE your home screen: in the board's edit mode, tap the 🏠 by the page's name — the app opens there and the Home button lands there. Turn it off and the classic home screen is home again." },
       { type: "feature", text: "Edit your home screen in place: ⚙ menu → \"Edit home screen\" — drag cards to reorder, remove them, add any board widget, and open each card's options, where \"Classic\" sits beside the board's display modes, colours and styles." },
       { type: "improve", text: "Resetting the home screen to default now offers to keep your current arrangement as a widget board page first." },
