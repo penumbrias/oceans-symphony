@@ -14,11 +14,16 @@
 // Shape on disk (single JSON blob keyed by STORAGE_KEY):
 //   {
 //     version: 1,
-//     lists: [{ id, name, created_date }],
+//     lists: [{ id, name, created_date, list_type?, note_content? }],
 //     items: [{ id, list_id, name, checked, purchased_at,
 //               ran_out_at, created_date }],
 //     favorites: [{ id, name, created_date }],
 //   }
+// list_type / note_content arrived with the notes feature (v0.227.0):
+// a "note" list is a free-text page instead of item rows. Still no
+// owner/alter metadata here — nothing sensitive-by-structure lands in
+// plaintext storage; the note text itself is the user's explicit call
+// (the "available when locked" checkbox carries the warning).
 
 const STORAGE_KEY = "grocery_unlocked_store_v1";
 
@@ -63,14 +68,33 @@ export function listUnlockedLists() {
   });
 }
 
-export function createUnlockedList(name) {
+export function createUnlockedList(name, extra = {}) {
   const trimmed = (name || "").trim();
   if (!trimmed) return null;
   const store = loadStore();
-  const record = { id: newId(), name: trimmed, created_date: nowIso() };
+  const record = {
+    id: newId(),
+    name: trimmed,
+    created_date: nowIso(),
+    ...(extra.list_type ? { list_type: extra.list_type } : {}),
+  };
   store.lists.push(record);
   saveStore(store);
   return record;
+}
+
+// Patch a list's own fields (name / list_type / note_content). Only
+// these keys are accepted — the allow-list keeps arbitrary metadata
+// from drifting into plaintext storage.
+export function updateUnlockedList(id, patch = {}) {
+  const store = loadStore();
+  const list = store.lists.find((l) => l.id === id);
+  if (!list) return false;
+  if (typeof patch.name === "string" && patch.name.trim()) list.name = patch.name.trim();
+  if (typeof patch.list_type === "string") list.list_type = patch.list_type;
+  if (typeof patch.note_content === "string") list.note_content = patch.note_content;
+  saveStore(store);
+  return true;
 }
 
 export function renameUnlockedList(id, name) {

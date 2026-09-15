@@ -48,6 +48,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_autobackup_last_at",
   "symphony_backup_health_v1",
   "grocery_lock_on_close_v1",
+  "grocery_note_open_mode_v1",
   // View / mode preferences — small but user-set, so they should ride
   // along to a new device with the rest of the backup.
   "alter_show_folders",

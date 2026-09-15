@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
-import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil, Hand } from "lucide-react";
+import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil, Hand, NotebookPen, Camera, Image as ImageIcon, Mic, MicOff, Clock3 } from "lucide-react";
+import { saveLocalImage, deleteLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
   readPanicTapsSetting, writePanicTapsSetting, PANIC_TAP_OPTIONS,
 } from "@/components/settings/GroceryPanicTapsSettings";
@@ -25,12 +27,15 @@ const LIST_TYPES = {
   shopping: { emoji: "🛒", label: "Shopping", doneHeader: "purchased" },
   wishlist: { emoji: "🎁", label: "Wishlist", doneHeader: "got it" },
   checklist: { emoji: "📋", label: "Checklist", doneHeader: "done" },
+  // v0.227.0: a "note" is a free-text page instead of item rows — the
+  // panel broadened beyond lists. Auto-saves as you type; quick photo
+  // attach and voice input live on the note toolbar.
+  note: { emoji: "📝", label: "Note", doneHeader: "" },
 };
 const typeOf = (list) => LIST_TYPES[list?.list_type] ? list.list_type : "shopping";
 import {
   listUnlockedLists,
   createUnlockedList,
-  renameUnlockedList,
   deleteUnlockedList,
   listItemsForUnlockedList,
   createUnlockedItem,
@@ -39,10 +44,14 @@ import {
   listUnlockedFavorites,
   addUnlockedFavorite,
   removeUnlockedFavorite,
+  updateUnlockedList,
 } from "@/lib/localUnlockedGrocery";
 
 const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
 const ACTIVE_LIST_KEY = "grocery_active_list_v1";
+// Notes open behaviour: "last" re-opens the note you were on; "fresh"
+// starts a brand-new note whenever the panel opens onto notes.
+const NOTE_OPEN_MODE_KEY = "grocery_note_open_mode_v1";
 // One-shot flag — the first time the panel opens via the triple-tap panic
 // gesture we show a "What's this?" explainer so a surprised user understands
 // the cover (and can re-tune the gesture).
@@ -275,6 +284,46 @@ export default function GroceryListPanel({ lockedMode = false }) {
     return match || allLists[0];
   }, [allLists, activeListId]);
 
+  // ── Notes. A note "list" is a free-text page (note_content on the
+  // list record itself) — same switcher, same stores, same
+  // available-when-locked option, no item rows.
+  const [wantFreshNote, setWantFreshNote] = useState(false);
+  const createQuickNote = async (unlocked = lockedMode) => {
+    const name = `Note — ${format(new Date(), "MMM d, h:mm a")}`;
+    let created = null;
+    if (unlocked || lockedMode) {
+      created = createUnlockedList(name, { list_type: "note" });
+    } else if (idbAvailable) {
+      created = await localEntities.GroceryList.create({
+        name,
+        list_type: "note",
+        created_date: new Date().toISOString(),
+      });
+      qc.invalidateQueries({ queryKey: ["groceryLists"] });
+    }
+    if (created) {
+      setActiveListId(created.id);
+      setSwitcherOpen(false);
+    }
+    return created;
+  };
+  const saveNote = async (list, patch) => {
+    if (list.source === "local") {
+      updateUnlockedList(list.id, patch);
+    } else {
+      await localEntities.GroceryList.update(list.id, patch);
+      qc.invalidateQueries({ queryKey: ["groceryLists"] });
+    }
+  };
+  useEffect(() => {
+    if (!open || !wantFreshNote || !activeList) return;
+    setWantFreshNote(false);
+    // Only when the panel opens ONTO notes — a shopping list stays put.
+    if (typeOf(activeList) !== "note") return;
+    createQuickNote(activeList.source === "local");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, wantFreshNote, activeList]);
+
   // ── Items + favourites for the active list, routed through the
   // matching backing store.
   const activeItems = useMemo(() => {
@@ -329,6 +378,12 @@ export default function GroceryListPanel({ lockedMode = false }) {
         if (!explained) setExplainerOpen(true);
       }
       if (e?.detail?.focusInput) setTimeout(() => inputRef.current?.focus(), 80);
+      // "Open to a fresh note": when the user was last on a note and
+      // prefers a clean page, each open starts a new one. Deferred to
+      // the effect below — the lists may not be loaded yet.
+      try {
+        if (localStorage.getItem(NOTE_OPEN_MODE_KEY) === "fresh") setWantFreshNote(true);
+      } catch { /* storage off */ }
     };
     const onClose = () => {
       if (lockAndReloadIfArmed()) return;
@@ -464,10 +519,10 @@ export default function GroceryListPanel({ lockedMode = false }) {
     if (!name) return;
     let created;
     if (newListUnlocked) {
-      // Plaintext store — no type/owner metadata by design (it must stay
-      // a mundane-looking grocery list, and alter names must never land
-      // in unencrypted storage).
-      created = createUnlockedList(name);
+      // Plaintext store — no owner metadata by design (alter names must
+      // never land in unencrypted storage). The list TYPE is mundane and
+      // carries over, so unlocked notes work from the lock screen too.
+      created = createUnlockedList(name, { list_type: newListType });
     } else {
       created = await localEntities.GroceryList.create({
         name,
@@ -494,7 +549,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     const next = editingListName.trim();
     if (!editingList || !next) return;
     if (editingList.source === "local") {
-      renameUnlockedList(editingList.id, next);
+      updateUnlockedList(editingList.id, { name: next, list_type: editingListType });
     } else {
       await localEntities.GroceryList.update(editingList.id, {
         name: next,
@@ -520,6 +575,11 @@ export default function GroceryListPanel({ lockedMode = false }) {
     } else {
       for (const item of idbItems.filter((i) => i.list_id === list.id)) {
         try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
+      }
+      // A note's photo attachments go with it — they're unreachable
+      // once the note record is gone.
+      for (const url of Array.isArray(list.note_images) ? list.note_images : []) {
+        try { const imgId = getLocalImageId(url); if (imgId) await deleteLocalImage(imgId); } catch { /* non-fatal */ }
       }
       await localEntities.GroceryList.delete(list.id);
       qc.invalidateQueries({ queryKey: ["groceryLists"] });
@@ -604,6 +664,14 @@ export default function GroceryListPanel({ lockedMode = false }) {
           <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${switcherOpen ? "rotate-180" : ""}`} />
         </button>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => createQuickNote(lockedMode)}
+            aria-label="New note"
+            title="New note — auto-saves as you type"
+            className="p-2 rounded-md text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          >
+            <NotebookPen className="w-5 h-5" />
+          </button>
           {encryptionOn && !lockedMode && (
             <button
               onClick={toggleLockOnClose}
@@ -777,6 +845,13 @@ export default function GroceryListPanel({ lockedMode = false }) {
           </p>
         ) : !activeList ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">Loading…</p>
+        ) : typeOf(activeList) === "note" ? (
+          <NotePad
+            key={`${activeList.source}-${activeList.id}`}
+            list={activeList}
+            canAttach={idbAvailable && activeList.source !== "local"}
+            onSave={saveNote}
+          />
         ) : isEmpty ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">
             Nothing on this list yet. Add an item below.
@@ -840,7 +915,8 @@ export default function GroceryListPanel({ lockedMode = false }) {
         )}
       </div>
 
-      {/* Add input */}
+      {/* Add input — item lists only; a note is its own editor. */}
+      {(!activeList || typeOf(activeList) !== "note") && (
       <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-2">
           <input
@@ -862,6 +938,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
           </button>
         </div>
       </div>
+      )}
 
       {/* First-time panic-gesture explainer */}
       {explainerOpen && (
@@ -875,7 +952,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
                 You just opened the <strong>Grocery List</strong> — a quick-access <strong>privacy screen</strong>. Tapping the screen a few times in a row covers Oceans Symphony with a real-looking grocery list, so a glance reveals nothing about your system.
               </p>
               <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                It's also a fully <strong>functioning list tool</strong> — shopping lists, wishlists, and checklists. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
+                It's also a fully <strong>functioning list &amp; notes tool</strong> — shopping lists, wishlists, checklists, and quick notes that save as you type. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
               </p>
             </div>
             <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
@@ -1055,14 +1132,16 @@ export default function GroceryListPanel({ lockedMode = false }) {
 // Three-way type selector used by the create + edit dialogs. Neutral copy —
 // no plural-terminology leakage (see the LIST_TYPES comment).
 function ListTypePicker({ value, onChange }) {
+  // 2×2 grid — four types in one flex row crushed the labels at phone
+  // widths ("Sho ppin g").
   return (
-    <div className="flex gap-1.5">
+    <div className="grid grid-cols-2 gap-1.5">
       {Object.entries(LIST_TYPES).map(([key, meta]) => (
         <button
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center justify-center gap-1 ${
+          className={`py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center justify-center gap-1 ${
             value === key
               ? "bg-emerald-500 text-white border-emerald-500"
               : "bg-neutral-50 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-emerald-500/50"
@@ -1160,5 +1239,217 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
         </>
       )}
     </li>
+  );
+}
+
+// ── Notes ──────────────────────────────────────────────────────────
+// A note page: auto-saving textarea + a small toolbar (timestamp,
+// camera capture, photo upload, voice input where the platform has
+// it). Keyed by list id from the caller, so switching notes remounts
+// with the right content and pending saves flush per-note.
+function NotePad({ list, canAttach, onSave }) {
+  const [text, setText] = useState(typeof list.note_content === "string" ? list.note_content : "");
+  const [images, setImages] = useState(Array.isArray(list.note_images) ? list.note_images : []);
+  const [savedAt, setSavedAt] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [openMode, setOpenMode] = useState(() => {
+    try { return localStorage.getItem("grocery_note_open_mode_v1") === "fresh" ? "fresh" : "last"; }
+    catch { return "last"; }
+  });
+  const taRef = useRef(null);
+  const camRef = useRef(null);
+  const fileRef = useRef(null);
+  const recRef = useRef(null);
+  const saveTimer = useRef(null);
+  const latest = useRef({ text, images, dirty: false });
+  latest.current.text = text;
+  latest.current.images = images;
+
+  const flush = async () => {
+    clearTimeout(saveTimer.current);
+    if (!latest.current.dirty) return;
+    latest.current.dirty = false;
+    setDirty(false);
+    try {
+      await onSave(list, { note_content: latest.current.text, note_images: latest.current.images });
+      setSavedAt(new Date());
+    } catch {
+      latest.current.dirty = true;
+      setDirty(true);
+    }
+  };
+  const queueSave = () => {
+    latest.current.dirty = true;
+    setDirty(true);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flush, 800);
+  };
+  // Flush any pending edit when the note unmounts (switching notes,
+  // closing the panel) — auto-save must never lose the last keystrokes.
+  useEffect(() => () => { clearTimeout(saveTimer.current); flush(); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []);
+
+  const append = (addition) => {
+    setText((cur) => {
+      const sep = cur && !cur.endsWith("\n") && addition.startsWith("—") ? "\n" : "";
+      return cur + sep + addition;
+    });
+    queueSave();
+  };
+
+  const insertStamp = () => {
+    append(`— ${format(new Date(), "MMM d, yyyy · h:mm a")} —\n`);
+    taRef.current?.focus();
+  };
+
+  const attach = async (file) => {
+    if (!file) return;
+    try {
+      const id = `note_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      await saveLocalImage(id, file, file.type);
+      const url = createLocalImageUrl(id);
+      setImages((cur) => {
+        latest.current.images = [...cur, url];
+        return latest.current.images;
+      });
+      latest.current.dirty = true;
+      flush();
+    } catch (e) {
+      toast.error(e?.message || "Couldn't attach the photo");
+    }
+  };
+  const removeImage = async (url) => {
+    setImages((cur) => {
+      latest.current.images = cur.filter((u) => u !== url);
+      return latest.current.images;
+    });
+    latest.current.dirty = true;
+    flush();
+    try { const id = getLocalImageId(url); if (id) await deleteLocalImage(id); } catch { /* non-fatal */ }
+  };
+
+  // Voice input — Web Speech API where the platform provides it. On
+  // Android WebViews it usually doesn't; the keyboard's own mic key
+  // covers that case, so the button simply doesn't render there.
+  const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  const toggleMic = () => {
+    if (listening) { try { recRef.current?.stop(); } catch { /* ignore */ } return; }
+    try {
+      const rec = new SR();
+      rec.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.onresult = (e) => {
+        let addition = "";
+        for (let i = e.resultIndex; i < e.results.length; i += 1) {
+          if (e.results[i].isFinal) addition += e.results[i][0].transcript;
+        }
+        if (addition.trim()) append(`${addition.trim()} `);
+      };
+      rec.onend = () => setListening(false);
+      rec.onerror = () => setListening(false);
+      recRef.current = rec;
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+      toast.error("Voice input isn't available here — your keyboard's mic key still works.");
+    }
+  };
+
+  const setNoteOpenMode = (mode) => {
+    setOpenMode(mode);
+    try { localStorage.setItem("grocery_note_open_mode_v1", mode); } catch { /* storage off */ }
+  };
+
+  const toolBtn = "p-2 rounded-md text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors";
+
+  return (
+    <div className="flex flex-col h-full min-h-[50vh]">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-0.5">
+          <button type="button" onClick={insertStamp} aria-label="Insert a timestamp" title="Insert a timestamp" className={toolBtn}>
+            <Clock3 className="w-4 h-4" />
+          </button>
+          {canAttach && (
+            <>
+              <button type="button" onClick={() => camRef.current?.click()} aria-label="Take a photo" title="Take a photo" className={toolBtn}>
+                <Camera className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={() => fileRef.current?.click()} aria-label="Add a photo" title="Add a photo" className={toolBtn}>
+                <ImageIcon className="w-4 h-4" />
+              </button>
+              <input ref={camRef} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => { attach(e.target.files?.[0]); e.target.value = ""; }} />
+              <input ref={fileRef} type="file" accept="image/*" hidden
+                onChange={(e) => { attach(e.target.files?.[0]); e.target.value = ""; }} />
+            </>
+          )}
+          {SR && (
+            <button type="button" onClick={toggleMic} aria-pressed={listening}
+              aria-label={listening ? "Stop voice input" : "Speak a note"}
+              title={listening ? "Stop voice input" : "Speak a note"}
+              className={listening ? "p-2 rounded-md text-red-500 bg-red-500/10 animate-pulse" : toolBtn}>
+              {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
+        <span className="text-[11px] text-neutral-400 flex-shrink-0" role="status">
+          {dirty ? "Saving…" : savedAt ? `Saved ${format(savedAt, "h:mm a")}` : "Auto-saves"}
+        </span>
+      </div>
+
+      <textarea
+        ref={taRef}
+        value={text}
+        onChange={(e) => { setText(e.target.value); queueSave(); }}
+        onBlur={flush}
+        placeholder="Write anything — it saves as you type."
+        className="flex-1 w-full min-h-[40vh] resize-none bg-transparent text-base leading-relaxed focus:outline-none placeholder:text-neutral-400"
+      />
+
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2 py-2">
+          {images.map((url) => (
+            <NoteImage key={url} url={url} onRemove={() => removeImage(url)} />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 py-2 border-t border-neutral-200 dark:border-neutral-800">
+        <span className="text-[11px] text-neutral-500">Notes open to</span>
+        {[["last", "Last note"], ["fresh", "A fresh note"]].map(([mode, label]) => (
+          <button key={mode} type="button" aria-pressed={openMode === mode}
+            onClick={() => setNoteOpenMode(mode)}
+            className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+              openMode === mode
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NoteImage({ url, onRemove }) {
+  const resolved = useResolvedAvatarUrl(url);
+  return (
+    <span className="relative inline-block">
+      {resolved ? (
+        <img src={resolved} alt="Note attachment"
+          className="w-20 h-20 object-cover rounded-lg border border-neutral-200 dark:border-neutral-800" />
+      ) : (
+        <span className="w-20 h-20 rounded-lg bg-neutral-100 dark:bg-neutral-800 inline-block" />
+      )}
+      <button type="button" onClick={onRemove} aria-label="Remove photo"
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-neutral-900/80 text-white flex items-center justify-center">
+        <X className="w-3 h-3" />
+      </button>
+    </span>
   );
 }
