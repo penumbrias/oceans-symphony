@@ -140,7 +140,20 @@ export function resolveLayout(storedLayout) {
   // their saved order.
   for (const entry of stored) {
     if (!entry || typeof entry !== "object") continue;
-    if (!DASHBOARD_ELEMENTS[entry.id]) continue;
+    if (!DASHBOARD_ELEMENTS[entry.id]) {
+      // User-added board widgets on the classic home (from the in-place
+      // editor's Add sheet): id "w_…" + a v2 payload. They aren't cards
+      // we know, but they're the user's — dropping them here would wipe
+      // an arranged home screen on the next save.
+      if (
+        typeof entry.id === "string" && entry.id.startsWith("w_") && !seen.has(entry.id) &&
+        entry.v2 && typeof entry.v2 === "object" && typeof entry.v2.widgetId === "string"
+      ) {
+        out.push({ id: entry.id, enabled: entry.enabled !== false, v2: entry.v2 });
+        seen.add(entry.id);
+      }
+      continue;
+    }
     if (seen.has(entry.id)) continue;
     const meta = DASHBOARD_ELEMENTS[entry.id];
     out.push({

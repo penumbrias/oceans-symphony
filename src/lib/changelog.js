@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "September 14, 2026",
     changes: [
+      { type: "feature", text: "Edit your home screen in place: ⚙ menu → \"Edit home screen\" — drag cards to reorder, remove them, add any board widget, and open each card's options, where \"Classic\" sits beside the board's display modes, colours and styles." },
+      { type: "improve", text: "Resetting the home screen to default now offers to keep your current arrangement as a widget board page first." },
+      { type: "improve", text: "The header ⚙ menu is clearer: \"Edit home screen\" edits this home screen, \"Edit widget board\" opens the board's editor — opening the board for you first if you're not on it." },
+      { type: "improve", text: "The widget board is standard now — no more experimental home screen toggle; the setup guide and the dashboard banner point at the board instead." },
       { type: "improve", text: "The new bottom bars fully replace the classic tab bar now (same pages, plus the swipe-up handle for quick actions and the pinned {{alters}} bar) — switchable back under Settings \u2192 Appearance \u2192 Layout." },
       { type: "fix", text: "The Home tab always returns to the classic home screen, even when you're on the widget board." },
       { type: "feature", text: "Classic dashboard cards can now be upgraded to their board widgets, one by one — tap \u2728 next to a card in Settings \u2192 Appearance \u2192 Layout \u2192 Dashboard to get its display modes, options and colours; \u21a9 brings the classic card back untouched." },

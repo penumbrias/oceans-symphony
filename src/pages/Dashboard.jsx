@@ -14,17 +14,32 @@ import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
-import { seedFromClassic } from "@/lib/experimentalHome";
+import { newInstanceId, newPageId } from "@/lib/experimentalHome";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
-import HomeV2 from "@/v2/pages/HomeV2";
-import { V2_WIDGETS } from "@/v2/widgets";
+import HomeV2, { V2_HOME_FIELD, V2_HOME_FIELD_DESKTOP } from "@/v2/pages/HomeV2";
+import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
 import { widgetLookFor } from "@/pages/ExperimentalDashboard";
-import { lookToStyle, resolveUserStyles } from "@/lib/widgetLook";
+import { lookToStyle, resolveUserStyles, newStyleId } from "@/lib/widgetLook";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
+import { CLASSIC_TO_V2_WIDGET } from "@/lib/widgetRegistry";
+import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
+import {
+  ClassicEditShell,
+  ClassicEditBar,
+  ClassicAddSheet,
+  ClassicResetDialog,
+  CLASSIC_SUB_TOGGLE_IDS,
+} from "@/components/dashboard/ClassicHomeEditor";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { Grid2x2 } from "lucide-react";
-
-const EXP_HOME_BANNER_KEY = "symphony_exp_home_banner_dismissed_v1";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -41,7 +56,7 @@ import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
 import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
-import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
+import { markQuickActionUsedToday, applyTerms } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 const LazyActivityPlanModal = React.lazy(() => import("@/components/activities/ActivityPlanModal"));
@@ -66,7 +81,7 @@ export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
 import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
-import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
+import { resolveLayout, isElementEnabled, DASHBOARD_ELEMENTS, DEFAULT_LAYOUT } from "@/lib/dashboardLayout";
 import { addActiveActivity } from "@/lib/activitySession";
 import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
 import { contactDisplayName } from "@/lib/contacts";
@@ -818,6 +833,34 @@ export default function Dashboard() {
   const boardAnimDir = useRef(0);
   const openBoard = () => { boardAnimDir.current = 1; setBoardOpen(true); };
   const closeBoard = () => { boardAnimDir.current = -1; setBoardOpen(false); };
+  // ── Classic home in-place edit mode ─────────────────────────────
+  // The classic cards edited the way board widgets are: drag to reorder,
+  // remove, add (cards or any board widget), configure through the SAME
+  // WidgetConfigSheet the board uses — with the card's current appearance
+  // offered as the "Classic" display mode. Persists to dashboard_layout,
+  // exactly like the Settings → Appearance editor. Declared up here:
+  // the board effects below read this state in their dep arrays.
+  const [classicEdit, setClassicEdit] = useState(false);
+  const [classicEditRequested, setClassicEditRequested] = useState(() => {
+    try {
+      if (sessionStorage.getItem("symphony_classic_edit-home") === "1") {
+        sessionStorage.removeItem("symphony_classic_edit-home");
+        return true;
+      }
+    } catch { /* storage off */ }
+    return false;
+  });
+  const [editDraft, setEditDraft] = useState(null);
+  const [editConfigId, setEditConfigId] = useState(null);
+  const [editAddOpen, setEditAddOpen] = useState(false);
+  const [editResetOpen, setEditResetOpen] = useState(false);
+  const endClassicEdit = () => {
+    setClassicEdit(false);
+    setEditDraft(null);
+    setEditConfigId(null);
+    setEditAddOpen(false);
+    setEditResetOpen(false);
+  };
   // The HOME button always means the CLASSIC home (owner call). Tapping
   // Home (tab bar, sidebar, logo — anything that navigates to "/") while
   // the board is showing steps back to classic. Every navigation gets a
@@ -828,6 +871,7 @@ export default function Dashboard() {
     if (location.key === lastLocKey.current) return;
     lastLocKey.current = location.key;
     if (boardOpen) closeBoard();
+    if (classicEdit) endClassicEdit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
   const boardShowing = classicBoardAvailable && boardOpen;
@@ -843,7 +887,7 @@ export default function Dashboard() {
   // board's own pager — inputs, overlays and horizontally-scrollable rows
   // keep their gestures.
   useEffect(() => {
-    if (!classicBoardAvailable || boardOpen) return undefined;
+    if (!classicBoardAvailable || boardOpen || classicEdit) return undefined;
     let g = null;
     const blocked = (t) => {
       if (t.closest?.("input, textarea, select, [contenteditable='true'], [role='dialog'], [data-radix-popper-content-wrapper], [data-vaul-drawer], [data-sonner-toast], [data-own-hold], [data-color-picker-popover]")) return true;
@@ -883,28 +927,179 @@ export default function Dashboard() {
       document.removeEventListener("touchend", end);
       document.removeEventListener("touchcancel", end);
     };
-  }, [classicBoardAvailable, boardOpen]);
-  const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
-  const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
-  const enableExperimentalHome = async () => {
+  }, [classicBoardAvailable, boardOpen, classicEdit]);
+  // The board's own header/menu actions can be requested while CLASSIC is
+  // showing (the hosted top bar's "Edit widget board", the promo banner,
+  // a pending key set on another page). Bridge them: park the action as
+  // the board's pending key, open the board, and it picks the action up
+  // on mount — exactly as if it had been open all along.
+  useEffect(() => {
+    if (!classicBoardAvailable || boardOpen) return undefined;
     try {
-      // First enable seeds the homescreen from the classic layout so it
-      // opens familiar; re-enabling keeps whatever the user built.
-      const existing = settings[0]?.experimental_home;
-      const next = existing && Array.isArray(existing.pages) && existing.pages.some((p) => (p.widgets || []).length > 0)
-        ? { ...existing, enabled: true }
-        : seedFromClassic(settings[0]?.dashboard_layout, WIDGET_REGISTRY, CLASSIC_TO_WIDGET);
-      if (settings[0]?.id) {
-        await base44.entities.SystemSettings.update(settings[0].id, { experimental_home: next });
-      } else {
-        await base44.entities.SystemSettings.create({ experimental_home: next });
-      }
+      const pending = ["edit-home", "open-apps", "home-settings", "bar-options"]
+        .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");
+      if (pending) { openBoard(); return undefined; }
+    } catch { /* storage off */ }
+    const mk = (action) => () => {
+      try { sessionStorage.setItem(`symphony_v2_${action}`, "1"); } catch { /* storage off */ }
+      endClassicEdit();
+      openBoard();
+    };
+    const onEdit = mk("edit-home");
+    const onApps = mk("open-apps");
+    const onHomeSettings = mk("home-settings");
+    const onOpenBoard = () => { endClassicEdit(); openBoard(); };
+    window.addEventListener("os-v2-edit-home", onEdit);
+    window.addEventListener("os-v2-open-apps", onApps);
+    window.addEventListener("os-v2-home-settings", onHomeSettings);
+    window.addEventListener("os-open-widget-board", onOpenBoard);
+    return () => {
+      window.removeEventListener("os-v2-edit-home", onEdit);
+      window.removeEventListener("os-v2-open-apps", onApps);
+      window.removeEventListener("os-v2-home-settings", onHomeSettings);
+      window.removeEventListener("os-open-widget-board", onOpenBoard);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classicBoardAvailable, boardOpen]);
+  useEffect(() => {
+    const req = () => setClassicEditRequested(true);
+    window.addEventListener("os-classic-edit-home", req);
+    return () => window.removeEventListener("os-classic-edit-home", req);
+  }, []);
+  useEffect(() => {
+    // Wait for the settings row so the draft starts from the REAL saved
+    // layout — never from defaults that would then overwrite it.
+    if (!classicEditRequested || settings.length === 0) return;
+    setClassicEditRequested(false);
+    if (uiV2On || experimentalOn) return;
+    setBoardOpen(false);
+    setEditDraft(resolveLayout(settings[0]?.dashboard_layout));
+    setClassicEdit(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classicEditRequested, settings]);
+  const persistDraft = async (next) => {
+    setEditDraft(next);
+    try {
+      if (settings[0]?.id) await base44.entities.SystemSettings.update(settings[0].id, { dashboard_layout: next });
+      else await base44.entities.SystemSettings.create({ dashboard_layout: next });
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success("Experimental homescreen on — tap ✏️ to arrange it");
     } catch (e) {
-      toast.error(e?.message || "Couldn't enable the homescreen");
+      toast.error(e?.message || "Couldn't save the layout");
     }
   };
+  const editVisible = classicEdit && editDraft
+    ? editDraft.filter((e) => e.enabled && !CLASSIC_SUB_TOGGLE_IDS.includes(e.id))
+    : null;
+  const editHiddenCards = classicEdit && editDraft
+    ? editDraft
+        .filter((e) => !e.enabled && DASHBOARD_ELEMENTS[e.id] && !CLASSIC_SUB_TOGGLE_IDS.includes(e.id))
+        .map((e) => ({ id: e.id, label: DASHBOARD_ELEMENTS[e.id].label, description: DASHBOARD_ELEMENTS[e.id].description }))
+    : [];
+  const editSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+  const handleEditDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id || !editDraft) return;
+    const a = editDraft.findIndex((e) => e.id === active.id);
+    const b = editDraft.findIndex((e) => e.id === over.id);
+    if (a === -1 || b === -1) return;
+    persistDraft(arrayMove(editDraft, a, b));
+  };
+  const removeEditEntry = (id) => {
+    if (!editDraft) return;
+    const meta = DASHBOARD_ELEMENTS[id];
+    if (meta?.locked) return;
+    // Known cards toggle off (they can come back from the Add sheet);
+    // added widgets are simply taken out again.
+    persistDraft(meta
+      ? editDraft.map((e) => (e.id === id ? { ...e, enabled: false } : e))
+      : editDraft.filter((e) => e.id !== id));
+  };
+  const addEditCard = (id) => {
+    if (!editDraft) return;
+    setEditAddOpen(false);
+    persistDraft(editDraft.map((e) => (e.id === id ? { ...e, enabled: true } : e)));
+  };
+  const addEditWidget = (widgetId) => {
+    if (!editDraft || !V2_WIDGETS[widgetId]) return;
+    setEditAddOpen(false);
+    persistDraft([
+      { id: newInstanceId(), enabled: true, v2: { widgetId, mode: "normal", settings: {} } },
+      ...editDraft,
+    ]);
+  };
+  // Reset flow — never silently discard an arrangement: the outgoing
+  // layout can be kept as a page on the widget board first.
+  const buildBoardPageFromDraft = () => {
+    const widgets = [];
+    const seenPlain = new Set();
+    for (const e of editDraft || []) {
+      if (!e.enabled || CLASSIC_SUB_TOGGLE_IDS.includes(e.id)) continue;
+      const widgetId = e.v2?.widgetId || CLASSIC_TO_V2_WIDGET[e.id];
+      if (!widgetId || !V2_WIDGETS[widgetId]) continue;
+      if (!e.v2) {
+        // Several classic cards can map to the same board widget (the
+        // running-sessions trio) — one copy is enough.
+        if (seenPlain.has(widgetId)) continue;
+        seenPlain.add(widgetId);
+      }
+      widgets.push({
+        instanceId: newInstanceId(),
+        widgetId,
+        mode: e.v2?.mode && e.v2.mode !== "classic" ? e.v2.mode : "normal",
+        settings: e.v2?.settings || {},
+      });
+    }
+    return { id: newPageId(), label: "Saved home screen", layoutMode: "free", widgets };
+  };
+  const resetClassicLayout = async ({ keepAsPage }) => {
+    setEditResetOpen(false);
+    try {
+      if (keepAsPage && settings[0]) {
+        const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+        const field = wide && settings[0][V2_HOME_FIELD_DESKTOP] ? V2_HOME_FIELD_DESKTOP : V2_HOME_FIELD;
+        const stored = settings[0][field];
+        const page = buildBoardPageFromDraft();
+        const base = stored && typeof stored === "object" ? stored : seedV2Home();
+        const nextBoard = { ...base, pages: [...(Array.isArray(base.pages) ? base.pages : []), page] };
+        if (settings[0].id) await base44.entities.SystemSettings.update(settings[0].id, { [field]: nextBoard });
+        else await base44.entities.SystemSettings.create({ [field]: nextBoard });
+      }
+      await persistDraft(DEFAULT_LAYOUT.map((e) => ({ ...e })));
+      toast.success(keepAsPage
+        ? "Saved to the widget board — the home screen is back to default"
+        : "Home screen restored to default");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't reset the layout");
+    }
+  };
+  // WidgetConfigSheet wiring for the slot being configured. Classic-mapped
+  // slots get the extra "Classic" display mode: picking it renders the
+  // classic card (look settings still apply); picking a board mode renders
+  // the live board widget in that slot.
+  const editConfigEntry = editConfigId && editDraft ? editDraft.find((e) => e.id === editConfigId) : null;
+  const editConfigWidgetId = editConfigEntry
+    ? (editConfigEntry.v2?.widgetId || CLASSIC_TO_V2_WIDGET[editConfigEntry.id] || null)
+    : null;
+  const editConfigDef = editConfigWidgetId ? V2_WIDGETS[editConfigWidgetId] : null;
+  const editConfigIsClassicSlot = !!(editConfigEntry && DASHBOARD_ELEMENTS[editConfigEntry.id] && CLASSIC_TO_V2_WIDGET[editConfigEntry.id]);
+  const editConfigDefForSheet = editConfigDef && editConfigIsClassicSlot
+    ? { ...editConfigDef, extraModes: [{ id: "classic", label: "Classic" }] }
+    : editConfigDef;
+  const editConfigWidget = editConfigEntry && editConfigDef
+    ? {
+        instanceId: `classic_${editConfigEntry.id}`,
+        widgetId: editConfigWidgetId,
+        mode: editConfigEntry.v2 ? (editConfigEntry.v2.mode || "normal") : "classic",
+        settings: editConfigEntry.v2?.settings || {},
+      }
+    : null;
+  const patchEditEntry = (id, fn) => {
+    if (!editDraft) return;
+    persistDraft(editDraft.map((e) => (e.id === id ? fn(e) : e)));
+  };
+  const editUserStyles = resolveUserStyles(settings[0]?.ui_v2_styles);
 
   const hasUnreadMentions = mentionLogs.some(m =>
     m.log_type !== "authored" &&
@@ -1124,25 +1319,6 @@ export default function Dashboard() {
         <ExperimentalDashboard settingsRow={settings[0] || null} api={homeApi} />
       )}
 
-      {/* "Try it" banner — classic only, dismissible per system. */}
-      {EXPERIMENTAL_HOME_ENABLED && showClassic && !expBannerDismissed && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
-          <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
-          <p className="text-xs flex-1 min-w-0">
-            <span className="font-medium">Try the experimental homescreen?</span>{" "}
-            <span className="text-muted-foreground">Widgets, an app drawer, and a quick-action bar. Switch back any time.</span>
-          </p>
-          <button type="button" onClick={enableExperimentalHome}
-            className="text-xs px-2.5 py-1 rounded-lg bg-primary text-primary-foreground font-medium flex-shrink-0">
-            Try it
-          </button>
-          <button type="button" aria-label="Dismiss" onClick={dismissExpBanner}
-            className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Layout-driven element rendering. Order + enabled state come
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
@@ -1155,31 +1331,8 @@ export default function Dashboard() {
         initial={boardAnimDir.current === -1 ? { x: -72, opacity: 0 } : false}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.18, ease: "easeOut" }}>
-      {dashboardLayout.map((entry) => {
-        if (!layoutEnabled[entry.id]) return null;
-        // Slot upgraded to its BOARD WIDGET (entry.v2, set from the
-        // layout editor's ✨): render the live v2 widget with its mode,
-        // config and look — the board's customization in the classic
-        // column. No entry.v2 = the classic card, exactly as always.
-        const upDef = entry.v2 ? V2_WIDGETS[entry.v2.widgetId] : null;
-        if (upDef) {
-          const look = widgetLookFor(
-            { widgetId: entry.v2.widgetId, settings: entry.v2.settings || {} },
-            resolveUserStyles(settings[0]?.ui_v2_styles),
-            "current"
-          );
-          return (
-            <div key={`v2_${entry.id}`} data-widget-content className="mb-4"
-              style={lookToStyle(look)}>
-              {upDef.render({
-                mode: entry.v2.mode || "normal",
-                settings: entry.v2.settings || {},
-                instanceId: `classic_${entry.id}`,
-                api: homeApi,
-              })}
-            </div>
-          );
-        }
+      {(() => {
+        const renderClassicCard = (entry) => {
         switch (entry.id) {
           case "upcoming_top":
             return <UpcomingPlans key="upcoming_top" placement="home_top" />;
@@ -1248,7 +1401,7 @@ export default function Dashboard() {
           case "new_features_bar":
             return (
               <React.Fragment key="new_features_bar">
-                <NewUiBanner />
+                <NewUiBanner onOpenBoard={classicBoardAvailable ? openBoard : null} />
                 <NewFeaturesBar />
               </React.Fragment>
             );
@@ -1271,8 +1424,148 @@ export default function Dashboard() {
           default:
             return null;
         }
-      })}
+        };
+        // One renderer for both modes. A slot with entry.v2 in a board
+        // mode renders the live board widget (the board's customization
+        // in the classic column); mode "classic" (or no entry.v2 at all)
+        // renders the classic card — with the board look box around it
+        // when the user has styled it. Edit mode wraps whatever rendered
+        // in the drag/remove/configure shell.
+        const slotLook = (v2cfg) => widgetLookFor(
+          { widgetId: v2cfg.widgetId, settings: v2cfg.settings || {} },
+          resolveUserStyles(settings[0]?.ui_v2_styles),
+          "current"
+        );
+        const renderEntry = (entry) => {
+          if (!classicEdit && !layoutEnabled[entry.id]) return null;
+          const v2cfg = entry.v2 || null;
+          const upDef = v2cfg ? V2_WIDGETS[v2cfg.widgetId] : null;
+          let content = null;
+          if (upDef && (v2cfg.mode || "normal") !== "classic") {
+            content = (
+              <div key={`v2_${entry.id}`} data-widget-content className="mb-4"
+                style={lookToStyle(slotLook(v2cfg))}>
+                {upDef.render({
+                  mode: v2cfg.mode || "normal",
+                  settings: v2cfg.settings || {},
+                  instanceId: `classic_${entry.id}`,
+                  api: homeApi,
+                })}
+              </div>
+            );
+          } else {
+            let card = renderClassicCard(entry);
+            if (card && upDef) {
+              card = (
+                <div key={`c_${entry.id}`} className="mb-4" style={lookToStyle(slotLook(v2cfg))}>
+                  {card}
+                </div>
+              );
+            }
+            content = card;
+          }
+          if (!classicEdit) return content;
+          const meta = DASHBOARD_ELEMENTS[entry.id];
+          const label = meta?.label || (upDef ? applyTerms(upDef.label, terms) : entry.id);
+          return (
+            <ClassicEditShell
+              key={`edit_${entry.id}`}
+              id={entry.id}
+              label={label}
+              locked={!!meta?.locked}
+              configurable={!!(upDef || CLASSIC_TO_V2_WIDGET[entry.id])}
+              onConfigure={() => setEditConfigId(entry.id)}
+              onRemove={() => removeEditEntry(entry.id)}
+            >
+              {content || (
+                <div className="rounded-2xl border border-dashed border-border/60 px-3 py-4 text-xs text-muted-foreground">
+                  Shows here when it has something to show.
+                </div>
+              )}
+            </ClassicEditShell>
+          );
+        };
+        if (!classicEdit || !editVisible) return dashboardLayout.map(renderEntry);
+        return (
+          <DndContext sensors={editSensors} collisionDetection={closestCenter} onDragEnd={handleEditDragEnd}>
+            <SortableContext items={editVisible.map((e) => e.id)} strategy={rectSortingStrategy}>
+              {editVisible.map(renderEntry)}
+            </SortableContext>
+          </DndContext>
+        );
+      })()}
       </motion.div>
+      )}
+
+      {/* Classic edit-mode chrome: the bottom toolbar, the add sheet, the
+          reset dialog, and THE board widget-options sheet driving the slot
+          being configured (one sheet, not a lookalike). */}
+      {classicEdit && showClassic && (
+        <>
+          <ClassicEditBar
+            onAdd={() => setEditAddOpen(true)}
+            onReset={() => setEditResetOpen(true)}
+            onDone={endClassicEdit}
+          />
+          <ClassicAddSheet
+            open={editAddOpen}
+            onClose={() => setEditAddOpen(false)}
+            hiddenCards={editHiddenCards}
+            widgets={Object.entries(V2_WIDGETS).map(([id, def]) => ({
+              id, label: def.label, category: def.category, Icon: def.icon || null,
+            }))}
+            terms={terms}
+            onAddCard={addEditCard}
+            onAddWidget={addEditWidget}
+          />
+          <ClassicResetDialog
+            open={editResetOpen}
+            onClose={() => setEditResetOpen(false)}
+            onKeepAsPage={() => resetClassicLayout({ keepAsPage: true })}
+            onJustReset={() => resetClassicLayout({ keepAsPage: false })}
+          />
+          {editConfigWidget && editConfigDefForSheet && (
+            <WidgetConfigSheet
+              widget={editConfigWidget}
+              def={editConfigDefForSheet}
+              pageStyleId=""
+              resolvedLook={widgetLookFor(editConfigWidget, editUserStyles, "current")}
+              userStyles={editUserStyles}
+              onClose={() => setEditConfigId(null)}
+              onMode={(_iid, mode) => patchEditEntry(editConfigId, (e) => ({
+                ...e,
+                v2: { widgetId: editConfigWidgetId, mode, settings: e.v2?.settings || {} },
+              }))}
+              onSettings={(_iid, patch) => patchEditEntry(editConfigId, (e) => ({
+                ...e,
+                v2: {
+                  widgetId: editConfigWidgetId,
+                  mode: e.v2?.mode || "classic",
+                  settings: { ...(e.v2?.settings || {}), ...patch },
+                },
+              }))}
+              onRemove={() => { removeEditEntry(editConfigId); setEditConfigId(null); }}
+              onResetWidget={() => patchEditEntry(editConfigId, (e) => {
+                // Back to the plain classic card for classic slots; a
+                // fresh default state for added widgets.
+                if (DASHBOARD_ELEMENTS[e.id]) { const { v2: _v2, ...rest } = e; return rest; }
+                return { ...e, v2: { widgetId: editConfigWidgetId, mode: "normal", settings: {} } };
+              })}
+              onPickIcon={() => toast.info("Custom icons live on the widget board")}
+              onSaveStyle={async (label, look) => {
+                try {
+                  const styles = [...editUserStyles, { id: newStyleId(), label, look }];
+                  if (settings[0]?.id) await base44.entities.SystemSettings.update(settings[0].id, { ui_v2_styles: styles });
+                  else await base44.entities.SystemSettings.create({ ui_v2_styles: styles });
+                  queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+                  toast.success("Style saved");
+                } catch (err) {
+                  toast.error(err?.message || "Couldn't save the style");
+                }
+              }}
+            />
+          )}
+        </>
       )}
 
       {/* v0.84.9: no more blocking terms modal — the Guide (below)

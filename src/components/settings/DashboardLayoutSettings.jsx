@@ -34,7 +34,8 @@ import {
   DEFAULT_BATCH,
 } from "@/lib/bulletinLimit";
 import { toast } from "sonner";
-import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 // Drag/drop pill row. Whole row is the drag handle when grabbed from
 // the GripVertical icon — using a dedicated handle keeps the toggle
@@ -44,7 +45,15 @@ import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 const SUB_TOGGLE_IDS = ["start_activity_button", "start_symptom_button", "quick_task_button", "quick_plan_button"];
 
 function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize, subToggleEntries, onUpgrade, onConfigure, onRevert }) {
-  const meta = DASHBOARD_ELEMENTS[entry.id];
+  const terms = useTerms();
+  // Custom entries (board widgets added from the home screen's in-place
+  // editor, id "w_…") have no DASHBOARD_ELEMENTS row — name them after
+  // their widget so they're still visible and manageable here.
+  const widgetDef = entry.v2 ? V2_WIDGETS[entry.v2.widgetId] : null;
+  const meta = DASHBOARD_ELEMENTS[entry.id]
+    || (widgetDef
+      ? { label: applyTerms(widgetDef.label, terms), description: "Board widget added from the home screen editor." }
+      : null);
   const locked = !!meta?.locked;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
@@ -380,6 +389,14 @@ export default function DashboardLayoutSettings() {
   };
   const revertSlot = (id) => {
     setConfigFor((cur) => (cur === id ? null : cur));
+    // A classic slot goes back to its classic card; a custom widget entry
+    // (added from the home screen editor) has no classic card — remove it.
+    if (!DASHBOARD_ELEMENTS[id]) {
+      const next = draftLayout.filter((e) => e.id !== id);
+      setDraftLayout(next);
+      persist(next);
+      return;
+    }
     patchEntry(id, (e) => { const { v2: _v2, ...rest } = e; return rest; });
   };
   const configEntry = configFor ? draftLayout.find((e) => e.id === configFor && e.v2) : null;
@@ -432,30 +449,6 @@ export default function DashboardLayoutSettings() {
     setBatchSizeLocal(clamped);
   };
 
-  // Experimental homescreen toggle (v0.90.0). Enabling seeds the widget
-  // layout from the classic dashboard (only the first time); disabling
-  // keeps the built layout for later. Classic dashboard_layout is never
-  // touched by the experimental view.
-  const experimentalOn = record?.experimental_home?.enabled === true;
-  const toggleExperimental = async (on) => {
-    try {
-      const { seedFromClassic } = await import("@/lib/experimentalHome");
-      const { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } = await import("@/lib/widgetRegistry");
-      const existing = record?.experimental_home;
-      const next = on
-        ? (existing && Array.isArray(existing.pages) && existing.pages.some((p) => (p.widgets || []).length > 0)
-            ? { ...existing, enabled: true }
-            : seedFromClassic(record?.dashboard_layout, WIDGET_REGISTRY, CLASSIC_TO_WIDGET))
-        : { ...(existing || {}), enabled: false };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { experimental_home: next });
-      else await base44.entities.SystemSettings.create({ experimental_home: next });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success(on ? "Experimental homescreen on" : "Back to the classic dashboard");
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
-
   // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
   const uiV2On = record?.ui_v2?.enabled === true;
   const toggleUiV2 = async (on) => {
@@ -493,20 +486,6 @@ export default function DashboardLayoutSettings() {
           <p className="text-xs font-medium text-muted-foreground">New bars in the classic look</p>
           <ClassicBarsToggles />
         </div>
-      )}
-
-      {EXPERIMENTAL_HOME_ENABLED && (
-      <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
-        <div className="min-w-0">
-          <span className="text-sm font-medium flex items-center gap-1.5">
-            🧪 Experimental homescreen
-          </span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            A phone-style home: placeable widgets, an app drawer, and a quick-action bar. Your classic dashboard stays saved — switch back any time.
-          </p>
-        </div>
-        <Switch checked={experimentalOn} onCheckedChange={toggleExperimental} />
-      </label>
       )}
 
       <div className="flex items-start justify-between gap-3">

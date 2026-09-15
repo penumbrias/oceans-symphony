@@ -564,7 +564,12 @@ export default function WidgetConfigSheet({
     setNaming(false);
     setStyleName("");
   };
-  const mode = effectiveMode(widget.mode, def.supportsModes);
+  // Host-added modes (def.extraModes — e.g. the classic home's "Classic")
+  // aren't in HOME_MODES, so effectiveMode would coerce them away and the
+  // wrong pill would highlight. They pass through as-is.
+  const mode = (def.extraModes || []).some((x) => x.id === widget.mode)
+    ? widget.mode
+    : effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
 
@@ -777,14 +782,19 @@ export default function WidgetConfigSheet({
           {/* Layout (mode / across / down / content size) lives here with type
               and shape — one standard section, not two (the user's call). */}
 
-          {/* Display mode */}
-          {def.supportsModes.length > 1 && (
+          {/* Display mode. `def.extraModes` lets a HOST add modes of its
+              own — the classic home offers "Classic" (the untouched
+              classic card) ahead of the board modes. */}
+          {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
             <div>
               <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
                 Display mode
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => (
+                {[
+                  ...(def.extraModes || []).map((x) => x.id),
+                  ...HOME_MODES.filter((m) => def.supportsModes.includes(m)),
+                ].map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -795,7 +805,7 @@ export default function WidgetConfigSheet({
                         : "border-border/50 text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {MODE_LABEL[m]}
+                    {(def.extraModes || []).find((x) => x.id === m)?.label || MODE_LABEL[m]}
                   </button>
                 ))}
               </div>
