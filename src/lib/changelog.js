@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 15, 2026",
+    changes: [
+      { type: "fix", text: "Home screen: the cards no longer pile up in one overlapping heap — the first canvas layout now seats every card in its own spot (existing screens fix themselves on next open)." },
+    ],
+  },
+  {
     date: "September 14, 2026",
+    version: "0.227.0",
     changes: [
       { type: "feature", text: "The grocery/list panel takes notes now: the ✎ button starts a note that saves as you type — one-tap timestamps, camera or photo attachments, and voice input where your device supports it. Notes can be \"available when locked\" like any list, and you can choose whether notes open to your last note or a fresh one." },
       { type: "feature", text: "The home screen now edits EXACTLY like the widget board — it's the same canvas: hold a card to drag it anywhere or drop it on Remove, hold an edge to resize, add anything from the widget drawer, style every card from its gear. Hold an empty spot or ⚙ → \"Edit home screen\" to start." },
