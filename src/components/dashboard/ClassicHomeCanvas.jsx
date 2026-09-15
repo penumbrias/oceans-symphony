@@ -17,7 +17,7 @@ import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
-import { seedFromClassic, newInstanceId, packPositions } from "@/lib/experimentalHome";
+import { seedFromClassic, newInstanceId, packPositions, compactVertically } from "@/lib/experimentalHome";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
@@ -32,33 +32,15 @@ export const CLASSIC_HOME_REGISTRY = { ...V2_WIDGETS, ...WIDGET_REGISTRY };
 // Free-grid pages render every widget at its stored cell — a widget
 // WITHOUT pos lands at (0,0), so an unpacked seed paints the whole
 // layout in one overlapping pile (the v0.226.0 on-device bug). Every
-// seeded page must therefore be packed. The row counts are starting
-// heights tuned for the classic cards (80px rows); users resize from
-// there like any board widget.
-const SEED_ROWS = {
-  upcoming_top: 2,
-  upcoming_bottom: 2,
-  current_fronters: 3,
-  pinned_alters: 2,
-  status_note: 2,
-  dashboard_pins: 2,
-  current_symptoms: 2,
-  current_activities: 2,
-  current_contacts: 2,
-  quick_checkin: 2,
-  pinned_daily_tasks: 3,
-  new_features_bar: 2,
-  insight_spotlight: 3,
-  quick_nav_menu: 6,
-  bulletin_board: 5,
-};
+// seeded page must therefore be packed — at ONE row each: the canvas's
+// fit pass measures every widget's content on render and GROWS it to
+// exactly the rows it needs (it never shrinks), so minimal seeds become
+// a content-sized column while generous guesses would stay as slack
+// forever (the v0.227.1 "too much spacing" bug).
 export function packSeededPage(page, gridCols = 4) {
   const widgets = (page.widgets || []).map((w) => ({
     ...w,
-    span: {
-      cols: Math.min(w.span?.cols || 4, gridCols),
-      rows: SEED_ROWS[w.widgetId] || Math.max(w.span?.rows || 1, 2),
-    },
+    span: { cols: Math.min(w.span?.cols || 4, gridCols), rows: 1 },
   }));
   return { ...page, widgets: packPositions(widgets, gridCols) };
 }
@@ -125,24 +107,33 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
           qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
-        // Heal the v0.226.0 seed: pages whose widgets ALL lack grid
-        // positions render as one overlapping pile at (0,0). That exact
-        // signature can only be the unpacked seed (any user-arranged free
-        // page has positions), so pack those pages once and persist.
-        // A page the user has since arranged (any pos present) is never
-        // touched.
+        // Heal earlier seeds, one-shot per device:
+        //  · v0.226.0 pages whose widgets ALL lack grid positions render
+        //    as one overlapping pile at (0,0) — that signature can only
+        //    be the unpacked seed, so pack them.
+        //  · v0.227.1 seeded generous row heights that the grow-only fit
+        //    pass can never take back ("too much spacing") — shrink every
+        //    content-sized widget (autoFit not turned off, i.e. never
+        //    hand-resized) back to 1 row and gravity-pack; the fit pass
+        //    regrows each to its measured content on this same render.
+        let normalized = false;
+        try { normalized = localStorage.getItem("classic_home_rows_norm_v1") === "1"; } catch { /* storage off */ }
         const pages = Array.isArray(stored.pages) ? stored.pages : [];
-        const broken = pages.some((p) => (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos));
-        if (broken) {
+        const nextPages = pages.map((p) => {
+          const ws = p.widgets || [];
+          if (ws.length > 1 && ws.every((w) => !w?.pos)) return packSeededPage(p);
+          if (normalized) return p;
+          const shrunk = ws.map((w) => (
+            w?.settings?.autoFit === false
+              ? w
+              : { ...w, span: { cols: w?.span?.cols || 4, rows: 1 } }
+          ));
+          return { ...p, widgets: compactVertically(shrunk, 4) };
+        });
+        try { localStorage.setItem("classic_home_rows_norm_v1", "1"); } catch { /* storage off */ }
+        if (JSON.stringify(nextPages) !== JSON.stringify(pages)) {
           await base44.entities.SystemSettings.update(settingsRow.id, {
-            [CLASSIC_HOME_FIELD]: {
-              ...stored,
-              pages: pages.map((p) => (
-                (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos)
-                  ? packSeededPage(p)
-                  : p
-              )),
-            },
+            [CLASSIC_HOME_FIELD]: { ...stored, pages: nextPages },
           });
           qc.invalidateQueries({ queryKey: ["systemSettings"] });
         }
