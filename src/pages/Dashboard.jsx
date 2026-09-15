@@ -861,17 +861,21 @@ export default function Dashboard() {
     setEditAddOpen(false);
     setEditResetOpen(false);
   };
-  // The HOME button always means the CLASSIC home (owner call). Tapping
-  // Home (tab bar, sidebar, logo — anything that navigates to "/") while
-  // the board is showing steps back to classic. Every navigation gets a
-  // fresh location.key, including same-path ones, so this catches a Home
-  // tap while already on "/" without touching each button.
+  // The HOME button means the CLASSIC home (owner call) — unless a board
+  // page has "overwrite as homescreen" on (ui_v2.homeDefault === "board"),
+  // in which case Home lands on the board. Every navigation gets a fresh
+  // location.key, including same-path ones, so this catches a Home tap
+  // while already on "/" without touching each button.
   const lastLocKey = useRef(location.key);
   useEffect(() => {
     if (location.key === lastLocKey.current) return;
     lastLocKey.current = location.key;
-    if (boardOpen) closeBoard();
     if (classicEdit) endClassicEdit();
+    if (settings[0]?.ui_v2?.homeDefault === "board") {
+      if (!boardOpen && classicBoardAvailable) openBoard();
+    } else if (boardOpen) {
+      closeBoard();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
   const boardShowing = classicBoardAvailable && boardOpen;

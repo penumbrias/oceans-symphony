@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff,
+  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -975,6 +975,28 @@ export default function ExperimentalDashboard({
     persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, label } : p)) });
   };
   const handleSetDefaultPage = () => persist({ ...home, defaultPageId: page.id });
+  // "Overwrite as homescreen" (classic-hosted boards only, i.e. when
+  // onExitLeft exists): the app opens on THIS page and the Home button
+  // lands here instead of the classic home. Off = the classic home
+  // screen is home again. Implemented as ui_v2.homeDefault="board" +
+  // this page as the board's default page.
+  const homeOverrideOn = settingsRow?.ui_v2?.homeDefault === "board" && home.defaultPageId === page.id;
+  const toggleHomeOverride = async () => {
+    try {
+      if (!homeOverrideOn && home.defaultPageId !== page.id) {
+        await persist({ ...home, defaultPageId: page.id });
+      }
+      const nextUi = { ...(settingsRow?.ui_v2 || {}), homeDefault: homeOverrideOn ? "classic" : "board" };
+      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: nextUi });
+      else await base44.entities.SystemSettings.create({ ui_v2: nextUi });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(homeOverrideOn
+        ? "The classic home screen is home again"
+        : "This page is your home screen now — Home comes here");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch the home screen");
+    }
+  };
   const handleDeletePage = () => {
     if (home.pages.length <= 1) return;
     const remaining = home.pages.filter((p) => p.id !== page.id);
@@ -1602,6 +1624,27 @@ export default function ExperimentalDashboard({
           >
             <Star className="w-3.5 h-3.5" fill={home.defaultPageId === page.id ? "currentColor" : "none"} />
           </button>
+          {/* Overwrite-as-homescreen — only meaningful when this board is
+              the classic home's swipe-left page (onExitLeft is only passed
+              by that host; under the full new UI the board IS home). */}
+          {onExitLeft && (
+            <button
+              type="button"
+              onClick={toggleHomeOverride}
+              aria-pressed={homeOverrideOn}
+              aria-label="Use this page as the home screen"
+              title={homeOverrideOn
+                ? "This page is your home screen — the app opens here and Home comes here. Tap to make the classic home screen home again."
+                : "Use this page as the home screen — the app opens here and the Home button comes here"}
+              className={`min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg transition-colors ${
+                homeOverrideOn
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+            </button>
+          )}
           {home.pages.length > 1 && (
             <button
               type="button"
