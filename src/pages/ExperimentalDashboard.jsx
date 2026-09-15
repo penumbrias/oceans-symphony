@@ -1169,7 +1169,13 @@ export default function ExperimentalDashboard({
   const fitted = React.useRef("");
   React.useEffect(() => {
     if (!freeMode || !settingsRow?.id || !gridRef.current) return undefined;
-    const stamp = `${page.id}:${gridCols}`;
+    // The stamp carries the layout fingerprint, not just the page id — a
+    // page-id-only stamp meant an external rewrite of the SAME page (the
+    // classic-home heal reseating everything at 1 row) never re-fitted,
+    // leaving every card clipped. The pass's own write changes the
+    // fingerprint too, which triggers exactly one confirming re-run that
+    // measures, finds nothing to grow, and settles.
+    const stamp = `${page.id}:${gridCols}:${page.widgets.map((w) => `${w.instanceId}${w.span?.rows}|${w.pos?.x},${w.pos?.y}`).join(";")}`;
     if (fitted.current === stamp) return undefined;
     const id = setTimeout(() => {
       const grid = gridRef.current;

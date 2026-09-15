@@ -16,6 +16,9 @@ import {
   FREQUENCY_LABELS,
   toggleDailyProgressTasks,
   followTaskNavPath,
+  hasCustomReset,
+  isCustomResetDone,
+  lastCompletionOf,
 } from "@/lib/dailyTaskSystem";
 import {
   loadPrefs, savePrefs, subscribePrefs, FREQUENCIES, DEFAULT_PREFS,
@@ -76,6 +79,13 @@ export default function PinnedDailyTasksWidget() {
   }, [allProgress]);
 
   const isDone = (template) => {
+    // Custom-reset tasks (rolling "N days after completed", or a weekly
+    // task anchored to a non-Monday weekday) derive doneness from their
+    // latest completion across ALL records — the calendar-period record
+    // alone shows them wrongly (e.g. a rolling weekly task looked reset
+    // at the calendar week boundary). Same rule as the board's
+    // Recurring-tasks widget.
+    if (hasCustomReset(template)) return isCustomResetDone(template, allProgress);
     const f = template.frequency || "daily";
     return completionByFreq[f]?.completed.has(template.id) || false;
   };
@@ -133,17 +143,34 @@ export default function PinnedDailyTasksWidget() {
     // DailyTasks page's trigger pipeline; don't fake-toggle them.
     const f = template.frequency || "daily";
     const slot = completionByFreq[f];
-    const done = slot.completed.has(template.id);
+    const done = isDone(template);
+    const templatesFor = activeTemplates.filter((t) => (t.frequency || "daily") === f);
     // Shared writer: refetch-before-write + XP recompute over the FULL
     // active template list for this frequency (the old MANUAL-only recompute
     // silently dropped auto-task XP from the record on every pin toggle).
-    await toggleDailyProgressTasks({
-      periodKey: slot.periodKey,
-      frequency: f,
-      setIds: done ? [] : [template.id],
-      clearIds: done ? [template.id] : [],
-      templates: activeTemplates.filter((t) => (t.frequency || "daily") === f),
-    });
+    if (done && hasCustomReset(template)) {
+      // Un-doing a custom-reset task clears it from the record that holds
+      // its latest completion (which may not be this period's) — same as
+      // the board's Recurring-tasks widget.
+      const last = lastCompletionOf(template.id, allProgress);
+      const rec = last?.record;
+      await toggleDailyProgressTasks({
+        periodKey: rec?.period_key || slot.periodKey,
+        dateKey: rec?.date || undefined,
+        frequency: f,
+        setIds: [],
+        clearIds: [template.id],
+        templates: templatesFor,
+      });
+    } else {
+      await toggleDailyProgressTasks({
+        periodKey: slot.periodKey,
+        frequency: f,
+        setIds: done ? [] : [template.id],
+        clearIds: done ? [template.id] : [],
+        templates: templatesFor,
+      });
+    }
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 

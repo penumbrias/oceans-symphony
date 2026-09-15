@@ -7,7 +7,7 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Inbox, ChevronsUpDown, CheckSquare, HelpCircle, Sparkles, Compass } from "lucide-react";
+import { Inbox, CheckSquare, HelpCircle, Sparkles, Compass } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
@@ -921,34 +921,21 @@ export default function Dashboard() {
         </AnimatePresence>
       )}
 
+      {/* The system heading (name + date/time) is a WIDGET on the canvas
+          now (system_header — seeded first, configurable like any other
+          card); this row keeps only the page chrome buttons. The system
+          switcher dialog stays mounted here — the widget opens it via
+          api.openSystemSwitcher. */}
+      <Dialog open={showSystemSwitcher} onOpenChange={setShowSystemSwitcher}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{terms.Systems}</DialogTitle>
+          </DialogHeader>
+          <SystemSwitcherPanel />
+        </DialogContent>
+      </Dialog>
       {showClassic && (
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          {multiSystem ? (
-            <button
-              type="button"
-              onClick={() => setShowSystemSwitcher(true)}
-              title={`Switch ${terms.system}`}
-              className="group inline-flex items-center gap-1.5 text-left"
-            >
-              <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
-              <ChevronsUpDown className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground transition-colors flex-shrink-0" />
-            </button>
-          ) : (
-            <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
-          )}
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-          </p>
-          <Dialog open={showSystemSwitcher} onOpenChange={setShowSystemSwitcher}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>{terms.Systems}</DialogTitle>
-              </DialogHeader>
-              <SystemSwitcherPanel />
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="mb-1 flex items-start justify-end">
         <div className="flex items-center gap-1">
         {/* The widget board lives one swipe left of here — this button is
             the mouse/desktop way in (and the discoverable one). */}
