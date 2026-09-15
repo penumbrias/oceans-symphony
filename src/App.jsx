@@ -51,6 +51,7 @@ const Reminders = lazy(() => import('@/pages/Reminders'));
 const Polls = lazy(() => import('@/pages/Polls'));
 const CheckInLog = lazy(() => import('@/pages/CheckInLog'));
 const SystemHistory = lazy(() => import('@/pages/SystemHistory'));
+const HistoryArchive = lazy(() => import('@/pages/HistoryArchive'));
 const LocationHistory = lazy(() => import('@/pages/LocationHistory'));
 const FriendsPage = lazy(() => import('@/pages/Friends'));
 const PlannerPage = lazy(() => import('@/pages/Planner'));
@@ -272,6 +273,7 @@ const AuthenticatedApp = () => {
         <Route path="/polls" element={<Polls />} />
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
+        <Route path="/history" element={<HistoryArchive />} />
         <Route path="/location-history" element={<LocationHistory />} />
         <Route path="/friends" element={<FriendsPage />} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
