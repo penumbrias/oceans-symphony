@@ -944,3 +944,17 @@ html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
      would silently win over this rule. The inset is folded back in. */
   padding-bottom: calc(var(--os-sab) + var(--home-edit-bar-h, 0px)) !important;
 }
+
+/* Status-banner widget ticker — two copies of the text scroll by half the
+   track width for a seamless loop; duration is set inline per note length. */
+@keyframes os-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.os-marquee-track {
+  animation: os-marquee linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-marquee-track { animation: none; }
+}

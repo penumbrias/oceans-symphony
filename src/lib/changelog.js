@@ -20,6 +20,13 @@ export const CHANGELOG = [
   {
     date: "September 15, 2026",
     changes: [
+      { type: "fix", text: "Home screen: cards sit at their natural heights now — the spacing finally reads like the classic dashboard, and expandable things (What's new, bulletin threads) grow in place instead of being cut off. Edit mode keeps the grid for arranging." },
+      { type: "feature", text: "The corner buttons (widget board / guide / notifications) are their own home screen widget now, back on their classic row." },
+      { type: "feature", text: "New \"Status banner\" widget — your latest status as a scrolling ticker, for the home screen or any board page." },
+      { type: "feature", text: "Planner: press and hold a plan to start selecting — then cancel or delete everything you've selected at once (with a confirmation)." },
+      { type: "improve", text: "Planner: the \"copy last week\" button is gone — it rewrote the week with no confirmation and no easy undo." },
+      { type: "fix", text: "Planner: the plans list scrolls properly by touch again." },
+      { type: "fix", text: "Pinned tasks now load on the home screen right away — no more visiting the Recurring tasks page first." },
       { type: "improve", text: "Home screen: the layout now mirrors the classic dashboard faithfully — your card order is kept, rows hug their content much closer, and existing screens re-seat themselves on next open." },
       { type: "feature", text: "Active symptoms, active activities and \"currently with\" are now ONE \"Active now\" card — toggle each category on or off in the card's options." },
       { type: "feature", text: "The {{system}} name & date heading is now its own home screen widget — move it, restyle it, or remove it like any other card." },

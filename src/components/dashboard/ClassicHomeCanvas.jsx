@@ -80,9 +80,11 @@ export function seedClassicHome(dashboardLayoutStored) {
       ...extra,
     });
   };
-  // The system heading (name + date/time) leads, as it always has — now
-  // as its own configurable widget instead of fixed page chrome.
-  push("system_header");
+  // The corner buttons row (board / guide / notifications) leads, then
+  // the system heading — the classic top-of-page, each as its own
+  // configurable widget instead of fixed page chrome.
+  push("page_buttons", { span: { cols: 4, rows: 1 } });
+  push("system_header", { span: { cols: 4, rows: 1 } });
   for (const entry of layout) {
     if (!enabled(entry.id)) continue;
     if (SUB_BUTTON_IDS.includes(entry.id)) continue; // folded into quick_checkin settings
@@ -180,6 +182,17 @@ function healPage(page, oldRowPx, layout) {
       settings: {},
     });
   }
+  // The corner buttons row sits ABOVE the heading, right-aligned — the
+  // classic top-of-page.
+  if (!out.some((w) => w.widgetId === "page_buttons")) {
+    out.unshift({
+      instanceId: newInstanceId(),
+      widgetId: "page_buttons",
+      span: { cols: 4, rows: 1 },
+      mode: "normal",
+      settings: {},
+    });
+  }
   // The early seeds APPENDED the quick-action buttons at the very bottom
   // (owner report) — put them back at their classic spot: right after the
   // running trio (now "Active now"), and carry the saved sub-button
@@ -234,7 +247,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
           return;
         }
         let healed = false;
-        try { healed = localStorage.getItem("classic_home_norm_v3") === "1"; } catch { /* storage off */ }
+        try { healed = localStorage.getItem("classic_home_norm_v4") === "1"; } catch { /* storage off */ }
         const pages = Array.isArray(stored.pages) ? stored.pages : [];
         const unpacked = (p) => (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos);
         if (healed) {
@@ -250,7 +263,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
         const oldRowPx = stored.grid?.rowPx || 80;
         const layout = resolveLayout(settingsRow.dashboard_layout);
         const nextPages = pages.map((p) => healPage(p, oldRowPx, layout));
-        try { localStorage.setItem("classic_home_norm_v3", "1"); } catch { /* storage off */ }
+        try { localStorage.setItem("classic_home_norm_v4", "1"); } catch { /* storage off */ }
         await base44.entities.SystemSettings.update(settingsRow.id, {
           [CLASSIC_HOME_FIELD]: {
             ...stored,
@@ -271,6 +284,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
       settingsField={CLASSIC_HOME_FIELD}
       eventPrefix="os-classic"
       onExitRight={onOpenBoard}
+      viewFlow
       // The frame's command bar (the classic-hosted quick-action strip) is
       // THE quick-action bar here — this stops the canvas drawing its own
       // duplicate strip, and the edit toolbar's Bar row edits these keys.

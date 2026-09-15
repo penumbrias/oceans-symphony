@@ -45,7 +45,7 @@ import { SearchableMultiList } from "@/v2/widgets";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
-import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal, ListChecks } from "lucide-react";
+import { BarChart3, ChevronDown, SlidersHorizontal, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
@@ -280,32 +280,9 @@ export default function PlannerSurface({
     [goals, totals, categories]
   );
 
-  // The work rota changes weekly, so the fastest way to set it is to take
-  // last week and shift it seven days. Copies PLANS only — logs are history.
-  const copyLastWeek = async () => {
-    const prevFrom = new Date(weekRange.from.getTime() - 7 * 86400000);
-    const source = activities.filter(
-      (a) => a.timestamp && new Date(a.timestamp) >= prevFrom && new Date(a.timestamp) < weekRange.from
-    );
-    if (!source.length) { toast.info(tr("planner.copyNothing")); return; }
-    try {
-      for (const a of source) {
-        const when = new Date(new Date(a.timestamp).getTime() + 7 * 86400000);
-        await base44.entities.Activity.create({
-          activity_name: a.activity_name,
-          parent_category_id: a.parent_category_id || null,
-          duration_minutes: a.duration_minutes ?? a.actual_duration_minutes ?? null,
-          fronting_alter_ids: a.fronting_alter_ids || [],
-          timestamp: when.toISOString(),
-          // Always a PLAN — copying last week is scheduling, not claiming
-          // you already did it.
-          status: "scheduled",
-        });
-      }
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(tr("planner.copied", { count: source.length }));
-    } catch (e) { toast.error(e.message || "Copy failed"); }
-  };
+  // ("Copy last week" lived here until v0.229.0 — removed at the owner's
+  // request: it wrote a week of plans with no confirmation and no easy
+  // undo.)
 
   const catColor = useMemo(() => {
     const byId = Object.fromEntries(categories.map((c) => [c.id, c]));
@@ -846,10 +823,6 @@ export default function PlannerSurface({
               aria-label={tr("planner.new")} title={tr("planner.new")}>
               <Plus className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={copyLastWeek}
-              title={tr("planner.copyWeek")}>
-              <CopyPlus className="w-3.5 h-3.5" />
-            </Button>
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowTotals((v) => !v)}
               aria-expanded={showTotals} title={tr("planner.totals")}>
               <BarChart3 className="w-3.5 h-3.5" />
@@ -995,6 +968,18 @@ export default function PlannerSurface({
             categories={categories}
             onOpen={(item, { series } = {}) => (series ? openEditor(item, { series: true }) : setDetails(item))}
             onDeleteSeries={(item) => setBranchAsk({ item })}
+            onMassChange={async (kind, items) => {
+              for (const it of items) {
+                try {
+                  if (kind === "delete") await base44.entities.Activity.delete(it.id);
+                  else await base44.entities.Activity.update(it.id, { status: "cancelled" });
+                } catch { /* keep going — partial progress beats none */ }
+              }
+              qc.invalidateQueries({ queryKey: ["activities"] });
+              toast.success(kind === "delete"
+                ? tr("planner.massDeleted", { count: items.length })
+                : tr("planner.massCancelled", { count: items.length }));
+            }}
           />
         ) : (
         <WeekCanvas

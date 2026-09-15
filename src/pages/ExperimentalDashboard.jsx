@@ -169,7 +169,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, flowView = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -280,7 +280,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
   const lookStyle = lookToStyle(look.bgImage ? { ...look, bgImage: bgUrl } : look);
   const handSized = widget.settings?.autoFit === false;
-  const fixedHeight = shownRows > 1 || handSized || !!resize.preview;
+  // Flow view: everything is content-height unless the user explicitly
+  // hand-sized it — grown rows from the fit pass are a GRID concept and
+  // must not freeze a flowing card.
+  const fixedHeight = flowView
+    ? (handSized || !!resize.preview)
+    : (shownRows > 1 || handSized || !!resize.preview);
 
   const style = collapsed
     // Empty right now (view mode): keep it mounted at zero size so its
@@ -310,7 +315,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // one-row widgets still size to their content, so nothing that was
         // never resized suddenly becomes a 80px letterbox.
         height: fixedHeight ? shownRows * rowPx + (shownRows - 1) * 12 : undefined,
-        minHeight: fixedHeight ? undefined : 56,
+        overflowY: fixedHeight ? "auto" : undefined,
+        minHeight: fixedHeight ? undefined : flowView ? 0 : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
@@ -559,6 +565,13 @@ export default function ExperimentalDashboard({
   // home canvas uses "os-classic" so "Edit widget board" can't put the
   // HOME SCREEN into edit mode and vice versa.
   eventPrefix = "os-v2",
+  // Classic-home rendering contract (owner): in VIEW mode the page reads
+  // as the classic column — every card at its natural content height,
+  // stacked in position order, expanding freely when its content does
+  // (What's-new, bulletins). Edit mode still uses the free grid, so
+  // arranging works exactly like the board. Display-only: stored
+  // positions and spans are untouched.
+  viewFlow = false,
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -1161,6 +1174,7 @@ export default function ExperimentalDashboard({
   const altersBottom = altersBarOn && home.altersBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
+  const flowView = viewFlow && freeMode && !editMode;
 
   // One pass, per page and width: give every widget the rows its content
   // actually needs, then untangle. Done centrally and written once —
@@ -1254,11 +1268,19 @@ export default function ExperimentalDashboard({
   // every cell so empties can still be found, moved or removed. Collapsed
   // widgets stay mounted at zero size so they keep measuring.
   const displayWidgets = React.useMemo(() => {
+    // Flow view: position order becomes document order (CSS grid auto-
+    // placement stacks them with natural heights); empties ride along
+    // zero-sized so they stay measurable and pop back in with content.
+    if (flowView) {
+      return [...widgets]
+        .sort((a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0))
+        .map((w) => (emptyIds.has(w.instanceId) ? { ...w, __collapsed: true } : w));
+    }
     if (!freeMode || editMode || emptyIds.size === 0) return widgets;
     const visible = compactVertically(widgets.filter((w) => !emptyIds.has(w.instanceId)), gridCols);
     const byId = new Map(visible.map((w) => [w.instanceId, w]));
     return widgets.map((w) => byId.get(w.instanceId) || { ...w, __collapsed: true });
-  }, [widgets, emptyIds, freeMode, editMode, gridCols]);
+  }, [widgets, emptyIds, freeMode, editMode, gridCols, flowView]);
   const placedWidgets = displayWidgets.filter((w) => !w.__collapsed);
   // Enough rows to hold everything plus room to move things down into.
   // Shared empty rows at the top get folded away (see SortableWidget). In
@@ -1435,11 +1457,13 @@ export default function ExperimentalDashboard({
       style={a11yStack ? undefined : {
         display: "grid",
         gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
-        gap: home.styleMode === "barebones" ? "0.375rem" : "0.75rem",
+        gap: home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem",
         alignItems: "start",
         // Free pages need fixed-height rows for cell coordinates to mean
         // anything, plus a few spare rows so there's somewhere to drag TO.
-        ...(freeMode ? { gridAutoRows: `${rowPx}px`, gridTemplateRows: `repeat(${freeRows}, ${rowPx}px)` } : null),
+        // Flow view deliberately omits them: rows are as tall as their
+        // content, which is the classic column look.
+        ...(freeMode && !flowView ? { gridAutoRows: `${rowPx}px`, gridTemplateRows: `repeat(${freeRows}, ${rowPx}px)` } : null),
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
@@ -1483,7 +1507,8 @@ export default function ExperimentalDashboard({
               prev.includes(w.instanceId) ? prev.filter((x) => x !== w.instanceId) : [...prev, w.instanceId]))}
           onHoldSelect={pickLookFrom ? null : () => { setMultiMode(true); toggleMulti(w.instanceId); }}
           styleMode={home.styleMode}
-          free={freeMode}
+          free={freeMode && !flowView}
+          flowView={flowView}
           onPos={handlePos}
           userStyles={userStyles}
         />
