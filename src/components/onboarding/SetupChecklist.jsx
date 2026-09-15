@@ -22,7 +22,7 @@ import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
-import { NewUiToggle, ClassicBarsToggles } from "@/components/settings/DashboardLayoutSettings";
+import { ClassicBarsToggles } from "@/components/settings/DashboardLayoutSettings";
 import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
@@ -296,20 +296,35 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
     {
       id: "newui",
       icon: Sparkles,
-      title: "Try the new home screen",
-      description: "Build your home screen out of widgets you arrange yourself.",
+      title: "Check out the widget board",
+      description: "Swipe left on your home screen — pages you build from widgets.",
       content: (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            The new interface lets you build your own home screen from widgets — what's on it,
-            where each piece sits, how big it is and how it looks. You can switch back at any
-            time, and nothing you've recorded changes either way.
+            Swipe left on your home screen (or use the grid button in its header) and you're on
+            the widget board — extra pages you assemble yourself: what's on them, where each
+            piece sits, how big it is and how it looks. Your home screen itself is editable the
+            same way: open the ⚙ menu up top and choose "Edit home screen".
           </p>
-          <NewUiToggle />
+          <Button
+            size="sm"
+            className="text-xs gap-1"
+            onClick={() => {
+              onCloseGuide?.();
+              if (window.location.pathname === "/") {
+                window.dispatchEvent(new CustomEvent("os-open-widget-board"));
+              } else {
+                navigate("/");
+                setTimeout(() => window.dispatchEvent(new CustomEvent("os-open-widget-board")), 250);
+              }
+            }}
+          >
+            <Sparkles className="w-3 h-3" /> Open the widget board
+          </Button>
           {/* The v2 bars hosted inside the CLASSIC chrome — the same
               toggles as Settings → Appearance → Layout, one component. */}
           <p className="text-xs text-muted-foreground pt-1">
-            You can also keep the classic look and take just the bars: the quick action bar and
+            The new bars are part of the classic look too: the bottom bars, quick action bar and
             pinned {t.alters} bar are on by default, and the new top bar is one switch away.
           </p>
           <ClassicBarsToggles />

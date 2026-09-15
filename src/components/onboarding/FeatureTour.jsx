@@ -49,6 +49,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         route: "/", target: null,
         look: `the small grid button beside the Help icon at the top-right of the home screen`, action: null,
       },
+      {
+        section: "welcome", sectionLabel: "Welcome",
+        emoji: "✏️",
+        title: "Edit your home screen in place",
+        body: `Open the ⚙ menu (top-right) and choose "Edit home screen": every card lifts into an editable tile you can drag to reorder, remove with ✕, or tune with its options button — where "Classic" is the familiar look, sitting beside the board's minimal/normal/expanded modes and full colour & style controls. "Add" drops in any widget from the board's catalogue, and "Reset" restores the default home screen — offering to keep your arrangement as a widget board page first. The same menu's "Edit widget board" jumps you to the board's own editor.`,
+        route: "/", target: null,
+        look: `the ⚙ cog in the top-right — "Edit home screen" is the first item`, action: null,
+      },
     ] : []),
 
     // ─── NEW UI (only when the ui_v2 toggle is on) ──────────────────────────

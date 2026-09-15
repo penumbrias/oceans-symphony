@@ -138,6 +138,18 @@ export function requestHomeAction(navigate, pathname, action) {
   }
 }
 
+// The CLASSIC home's in-place editor, reachable from anywhere the v2 top
+// bar is hosted in the classic chrome. Same route-or-dispatch dance as
+// requestHomeAction; Dashboard owns both the event and the pending key.
+export function requestClassicHomeAction(navigate, pathname) {
+  if (pathname === "/") {
+    window.dispatchEvent(new CustomEvent("os-classic-edit-home"));
+  } else {
+    try { sessionStorage.setItem("symphony_classic_edit-home", "1"); } catch { /* storage off */ }
+    navigate("/");
+  }
+}
+
 function useClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -306,7 +318,7 @@ function SearchSheet({ open, onClose }) {
 }
 
 // ── Top bar ────────────────────────────────────────────────────────
-export function V2StatusLine({ settingsRow, uiV2 }) {
+export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const t = useT();
@@ -464,6 +476,12 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         <HeaderPageMenu
           className="min-w-[34px] min-h-[34px] rounded-none"
           v2Options={{
+            // Hosted in the classic chrome, the classic home is the real
+            // home screen — its in-place editor leads the menu and the
+            // board entry is named for what it is.
+            ...(classicHost
+              ? { editClassicHome: () => requestClassicHomeAction(navigate, location.pathname) }
+              : {}),
             editHome: () => requestHomeAction(navigate, location.pathname, "edit-home"),
             // On the home board this opens the SAME sheet the board's own
             // cog opens (board pills + the unified popup) — one surface,

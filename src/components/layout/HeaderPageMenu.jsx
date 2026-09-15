@@ -38,10 +38,22 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
 
   const pageActions = [];
   if (v2Options) {
+    // Classic chrome hosting the v2 top bar: the classic home is the
+    // actual home screen, so ITS editor leads; the board editor sits
+    // right under it under its own name. In the full new UI the board
+    // IS the home screen and there's no classic editor to offer.
+    if (v2Options.editClassicHome) {
+      pageActions.push({
+        key: "classic-edit-home",
+        label: "Edit home screen",
+        icon: Pencil,
+        onSelect: () => v2Options.editClassicHome(),
+      });
+    }
     pageActions.push({
       key: "v2-edit-home",
-      label: "Edit home screen",
-      icon: Pencil,
+      label: v2Options.editClassicHome ? "Edit widget board" : "Edit home screen",
+      icon: LayoutGrid,
       onSelect: () => v2Options.editHome(),
     });
     pageActions.push({
@@ -73,12 +85,19 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
   if (!v2Options && path === "/") {
     pageActions.push({
       key: "dash-edit",
-      label: "Customize dashboard",
+      label: "Edit home screen",
+      icon: Pencil,
+      // The in-place editor ON the home screen (drag cards, remove, add
+      // widgets) — not the old settings-popup pill list.
+      onSelect: () => window.dispatchEvent(new CustomEvent("os-classic-edit-home")),
+    });
+    pageActions.push({
+      key: "dash-board",
+      label: "Edit widget board",
       icon: LayoutGrid,
-      // Opens the section drag/drop layout editor (same one in
-      // Settings → Appearance → Layout → Dashboard) in a popup — NOT the
-      // nav-tile grid edit (that's the separate symphony-open-dashboard-edit).
-      onSelect: () => window.dispatchEvent(new CustomEvent("symphony-open-dashboard-layout")),
+      // Dashboard bridges this: opens the board first if classic is
+      // showing, then the board enters its edit mode.
+      onSelect: () => window.dispatchEvent(new CustomEvent("os-v2-edit-home")),
     });
     pageActions.push({
       key: "dash-appearance",

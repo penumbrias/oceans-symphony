@@ -673,7 +673,7 @@ const handleNotifClick = (mentionLog) => {
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
       {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
           headers (hidden via [data-classic-v2-top] in index.css). */}
-      {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
+      {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
 
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
