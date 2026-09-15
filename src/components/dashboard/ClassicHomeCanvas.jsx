@@ -17,7 +17,7 @@ import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
-import { seedFromClassic, newInstanceId } from "@/lib/experimentalHome";
+import { seedFromClassic, newInstanceId, packPositions } from "@/lib/experimentalHome";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
@@ -28,6 +28,40 @@ export const CLASSIC_HOME_FIELD = "classic_home";
 // On the two id collisions (pinned_alters, bulletin_board) the classic
 // card wins — the home screen defaults to looking classic.
 export const CLASSIC_HOME_REGISTRY = { ...V2_WIDGETS, ...WIDGET_REGISTRY };
+
+// Free-grid pages render every widget at its stored cell — a widget
+// WITHOUT pos lands at (0,0), so an unpacked seed paints the whole
+// layout in one overlapping pile (the v0.226.0 on-device bug). Every
+// seeded page must therefore be packed. The row counts are starting
+// heights tuned for the classic cards (80px rows); users resize from
+// there like any board widget.
+const SEED_ROWS = {
+  upcoming_top: 2,
+  upcoming_bottom: 2,
+  current_fronters: 3,
+  pinned_alters: 2,
+  status_note: 2,
+  dashboard_pins: 2,
+  current_symptoms: 2,
+  current_activities: 2,
+  current_contacts: 2,
+  quick_checkin: 2,
+  pinned_daily_tasks: 3,
+  new_features_bar: 2,
+  insight_spotlight: 3,
+  quick_nav_menu: 6,
+  bulletin_board: 5,
+};
+export function packSeededPage(page, gridCols = 4) {
+  const widgets = (page.widgets || []).map((w) => ({
+    ...w,
+    span: {
+      cols: Math.min(w.span?.cols || 4, gridCols),
+      rows: SEED_ROWS[w.widgetId] || Math.max(w.span?.rows || 1, 2),
+    },
+  }));
+  return { ...page, widgets: packPositions(widgets, gridCols) };
+}
 
 // Build the classic_home blob from a dashboard_layout (the user's, or
 // null for the app default). Exported for the Settings reset flow.
@@ -66,6 +100,7 @@ export function seedClassicHome(dashboardLayoutStored) {
       settings: v2.settings || {},
     });
   }
+  seeded.pages = seeded.pages.map((p) => packSeededPage(p));
   return seeded;
 }
 
@@ -79,14 +114,38 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
   useEffect(() => {
     if (seededRef.current) return;
     if (!settingsRow?.id) return;
-    if (settingsRow[CLASSIC_HOME_FIELD]) return;
     seededRef.current = true;
     (async () => {
       try {
-        await base44.entities.SystemSettings.update(settingsRow.id, {
-          [CLASSIC_HOME_FIELD]: seedClassicHome(settingsRow.dashboard_layout),
-        });
-        qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        const stored = settingsRow[CLASSIC_HOME_FIELD];
+        if (!stored) {
+          await base44.entities.SystemSettings.update(settingsRow.id, {
+            [CLASSIC_HOME_FIELD]: seedClassicHome(settingsRow.dashboard_layout),
+          });
+          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          return;
+        }
+        // Heal the v0.226.0 seed: pages whose widgets ALL lack grid
+        // positions render as one overlapping pile at (0,0). That exact
+        // signature can only be the unpacked seed (any user-arranged free
+        // page has positions), so pack those pages once and persist.
+        // A page the user has since arranged (any pos present) is never
+        // touched.
+        const pages = Array.isArray(stored.pages) ? stored.pages : [];
+        const broken = pages.some((p) => (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos));
+        if (broken) {
+          await base44.entities.SystemSettings.update(settingsRow.id, {
+            [CLASSIC_HOME_FIELD]: {
+              ...stored,
+              pages: pages.map((p) => (
+                (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos)
+                  ? packSeededPage(p)
+                  : p
+              )),
+            },
+          });
+          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        }
       } catch { /* non-fatal: the canvas just starts empty */ }
     })();
   }, [settingsRow, qc]);
