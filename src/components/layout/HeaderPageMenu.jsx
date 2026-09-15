@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -56,6 +56,14 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       icon: LayoutGrid,
       onSelect: () => v2Options.editHome(),
     });
+    if (v2Options.editClassicHome && path === "/") {
+      pageActions.push({
+        key: "classic-reset-home",
+        label: "Reset home screen…",
+        icon: RotateCcw,
+        onSelect: () => window.dispatchEvent(new CustomEvent("os-classic-reset-home")),
+      });
+    }
     pageActions.push({
       key: "v2-display",
       label: "Display options",
@@ -98,6 +106,15 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       // Dashboard bridges this: opens the board first if classic is
       // showing, then the board enters its edit mode.
       onSelect: () => window.dispatchEvent(new CustomEvent("os-v2-edit-home")),
+    });
+    pageActions.push({
+      key: "dash-reset-home",
+      label: "Reset home screen…",
+      icon: RotateCcw,
+      // Opens the restore-to-default dialog (offers to keep the current
+      // arrangement on the widget board first). Also in Settings →
+      // Appearance → Layout — this is the discoverable way in.
+      onSelect: () => window.dispatchEvent(new CustomEvent("os-classic-reset-home")),
     });
     pageActions.push({
       key: "dash-appearance",

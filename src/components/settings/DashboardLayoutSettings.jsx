@@ -146,41 +146,20 @@ export function ClassicBarsToggles() {
   );
 }
 
-export default function DashboardLayoutSettings() {
+// The restore-to-default flow, exported so the home screen's own ⚙ menu
+// can offer it too (owner couldn't find it buried in Settings). Reset
+// always offers to keep the outgoing arrangement as widget board pages
+// first — resets must never silently discard work.
+export function HomeScreenResetDialog({ open, onClose }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { data: settings = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const record = settings[0] || null;
-  const [resetOpen, setResetOpen] = useState(false);
-
-  // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
-  const uiV2On = record?.ui_v2?.enabled === true;
-  const toggleUiV2 = async (on) => {
-    try {
-      const next = { ...(record?.ui_v2 || {}), enabled: on };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
-      else await base44.entities.SystemSettings.create({ ui_v2: next });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success(on ? "New UI on" : "Classic navigation restored");
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
-
-  // The home screen is edited IN PLACE now — on the board canvas, with
-  // the board's own edit mode. This section just points there, and keeps
-  // the reset flow (which offers to preserve the outgoing arrangement as
-  // widget board pages first — resets must never silently discard work).
-  const openHomeEditor = () => {
-    try { sessionStorage.setItem("symphony_classic_edit-home", "1"); } catch { /* storage off */ }
-    navigate("/");
-  };
 
   const resetHome = async (keepAsPage) => {
-    setResetOpen(false);
+    onClose?.();
     try {
       if (!record?.id) return;
       const stored = record.classic_home;
@@ -220,6 +199,66 @@ export default function DashboardLayoutSettings() {
     } catch (e) {
       toast.error(e?.message || "Couldn't reset the home screen");
     }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose?.(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Restore the default home screen?</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Your current arrangement can be kept as pages on the widget board
+          before the home screen resets — or reset without keeping it.
+          Nothing you've recorded changes either way.
+        </p>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button size="sm" onClick={() => resetHome(true)} className="text-xs">
+            Keep it on the board, then reset
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => resetHome(false)} className="text-xs">
+            Just reset
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onClose?.()} className="text-xs">
+            Cancel
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function DashboardLayoutSettings() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { data: settings = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const record = settings[0] || null;
+  const [resetOpen, setResetOpen] = useState(false);
+
+  // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
+  const uiV2On = record?.ui_v2?.enabled === true;
+  const toggleUiV2 = async (on) => {
+    try {
+      const next = { ...(record?.ui_v2 || {}), enabled: on };
+      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
+      else await base44.entities.SystemSettings.create({ ui_v2: next });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(on ? "New UI on" : "Classic navigation restored");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch");
+    }
+  };
+
+  // The home screen is edited IN PLACE now — on the board canvas, with
+  // the board's own edit mode. This section just points there, and keeps
+  // the reset flow (which offers to preserve the outgoing arrangement as
+  // widget board pages first — resets must never silently discard work).
+  const openHomeEditor = () => {
+    try { sessionStorage.setItem("symphony_classic_edit-home", "1"); } catch { /* storage off */ }
+    navigate("/");
   };
 
   return (
@@ -267,29 +306,7 @@ export default function DashboardLayoutSettings() {
         </div>
       </div>
 
-      <Dialog open={resetOpen} onOpenChange={(v) => { if (!v) setResetOpen(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Restore the default home screen?</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Your current arrangement can be kept as pages on the widget board
-            before the home screen resets — or reset without keeping it.
-            Nothing you've recorded changes either way.
-          </p>
-          <div className="flex flex-col gap-2 pt-1">
-            <Button size="sm" onClick={() => resetHome(true)} className="text-xs">
-              Keep it on the board, then reset
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => resetHome(false)} className="text-xs">
-              Just reset
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setResetOpen(false)} className="text-xs">
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <HomeScreenResetDialog open={resetOpen} onClose={() => setResetOpen(false)} />
     </section>
   );
 }

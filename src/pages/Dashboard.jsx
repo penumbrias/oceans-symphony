@@ -31,7 +31,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
-import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
+import DashboardLayoutSettings, { HomeScreenResetDialog } from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
 import { loadChecklist, checklistComplete, checklistProgress } from "@/components/onboarding/SetupChecklist";
 import { ClipboardList, X } from "lucide-react";
@@ -79,6 +79,19 @@ function V2SetFrontHost({ alters }) {
     <SetFrontSheet open onClose={() => setOpen(false)} alters={alters}
       currentSession={sessions.find((x) => x.is_primary) || sessions[0] || null} />
   );
+}
+
+// Hosts the home screen's restore-to-default dialog, opened by the ⚙
+// menu's "Reset home screen…" entry via a window event.
+function HomeResetHost() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener("os-classic-reset-home", show);
+    return () => window.removeEventListener("os-classic-reset-home", show);
+  }, []);
+  if (!open) return null;
+  return <HomeScreenResetDialog open onClose={() => setOpen(false)} />;
 }
 
 export default function Dashboard() {
@@ -981,6 +994,9 @@ export default function Dashboard() {
         </motion.div>
       )}
       <V2SetFrontHost alters={alters} />
+      {/* Restore-to-default for the home screen — reachable from the ⚙
+          menu's "Reset home screen…" (and mirrored in Settings). */}
+      <HomeResetHost />
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (

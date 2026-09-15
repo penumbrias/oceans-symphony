@@ -205,14 +205,50 @@ export default function PlannerSurface({
     const best = previousActivityEnd(activities, { before: ownStart, excludeId: timing.item?.id || null });
     return { prevEnd: best?.end || null, prevEndName: best?.name || "" };
   }, [activities, timing]);
+  // The editor writes several fields straight through (members, notes,
+  // name…) — convenient, but closing used to be silent about it (owner:
+  // "no save-and-exit, no discard"). Closing an EDIT now compares the
+  // live record against the snapshot taken when the editor opened; if
+  // anything changed, a Keep-or-Undo prompt appears, and Undo restores
+  // the snapshot. Explicit actions (Move, outcomes, Start now) still
+  // close directly — pressing a named button IS the confirmation.
+  const [closeAsk, setCloseAsk] = useState(false);
+  const EDIT_GUARD_FIELDS = ["activity_name", "notes", "fronting_alter_ids", "activity_category_ids",
+    "parent_category_id", "location", "is_critical", "color", "timestamp", "duration_minutes", "actual_duration_minutes"];
+  const editorDirty = () => {
+    if (!timing || timing.create || !timing.snapshot) return false;
+    const live = (activities || []).find((a) => a.id === timing.item.id);
+    if (!live) return false;
+    return EDIT_GUARD_FIELDS.some((f) => JSON.stringify(live[f] ?? null) !== JSON.stringify(timing.snapshot[f] ?? null));
+  };
+  const requestCloseEditor = () => {
+    if (editorDirty()) { setCloseAsk(true); return; }
+    setCloseAsk(false);
+    setTiming(null);
+  };
+  const undoEditorChanges = async () => {
+    try {
+      const snap = timing?.snapshot;
+      if (snap?.id) {
+        const patch = {};
+        for (const f of EDIT_GUARD_FIELDS) patch[f] = snap[f] ?? null;
+        await base44.entities.Activity.update(snap.id, patch);
+        qc.invalidateQueries({ queryKey: ["activities"] });
+        toast.success(tr("planner.editUndone"));
+      }
+    } catch (e) { toast.error(e?.message || "Couldn't undo"); }
+    setCloseAsk(false);
+    setTiming(null);
+  };
   // Escape closes the entry sheet — the backdrop tap is easy to miss when
   // the sheet fills a phone screen, so there's an X too (title row).
   useEffect(() => {
     if (!timing) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") { setTiming(null); setDetails(null); } };
+    const onKey = (e) => { if (e.key === "Escape") { requestCloseEditor(); setDetails(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [timing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timing, activities]);
   const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -342,6 +378,9 @@ export default function PlannerSurface({
     setTiming({
       item, day: day || start || (item.planned_date ? new Date(item.planned_date) : anchor),
       seriesBranch: series ? RECURRENCE_BRANCHES.THIS_AND_FUTURE : null,
+      // What the record looked like when editing began — the Undo point
+      // for the close-with-changes prompt.
+      snapshot: { ...item },
     });
     setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
     setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
@@ -1069,14 +1108,40 @@ export default function PlannerSurface({
       {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
           style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setTiming(null); }}>
+          onClick={(e) => { if (e.target === e.currentTarget) requestCloseEditor(); }}>
+          {/* Close-with-changes prompt — the editor writes through as you
+              edit, so leaving must say so and offer the way back. */}
+          {closeAsk && (
+            <div className="absolute inset-0 z-[75] bg-black/50 flex items-center justify-center px-6"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="bg-card w-full max-w-xs rounded-2xl border border-border p-4 space-y-3"
+                style={{ borderRadius: "var(--v2-radius, 16px)" }}>
+                <p className="text-sm font-semibold">{tr("planner.closeAskTitle")}</p>
+                <p className="text-xs text-muted-foreground">{tr("planner.closeAskBody")}</p>
+                <div className="flex flex-col gap-1.5">
+                  <button type="button" onClick={() => { setCloseAsk(false); setTiming(null); }}
+                    className="text-sm px-3 py-2 rounded-xl bg-[var(--v2-accent)] text-white font-medium">
+                    {tr("planner.keepChanges")}
+                  </button>
+                  <button type="button" onClick={undoEditorChanges}
+                    className="text-sm px-3 py-2 rounded-xl border border-destructive/50 text-destructive">
+                    {tr("planner.undoChanges")}
+                  </button>
+                  <button type="button" onClick={() => setCloseAsk(false)}
+                    className="text-sm px-3 py-2 rounded-xl border border-border/60 text-muted-foreground">
+                    {tr("planner.keepEditing")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* A sheet taller than the screen must scroll, not overflow off the
               top — with member list, notes and outcomes it can exceed a short
               viewport. */}
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <div className="flex items-start justify-between gap-2">
-              <button type="button" onClick={() => setTiming(null)} aria-label={tr("planner.close")} title={tr("planner.close")}
+              <button type="button" onClick={requestCloseEditor} aria-label={tr("planner.close")} title={tr("planner.close")}
                 className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
                 <ChevronLeft className="w-4 h-4" />
               </button>
