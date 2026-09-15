@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 15, 2026",
     changes: [
+      { type: "improve", text: "Planner: closing a plan you've edited now asks — keep the changes, undo them all, or keep editing. No more silent edits on the way out." },
+      { type: "improve", text: "\"Reset home screen…\" now lives right in the home screen's ⚙ menu (it offers to keep your arrangement on the widget board first, as before)." },
       { type: "feature", text: "New \"Recent changes\" page (sidebar → Tools): deletions, {{alter}} profile edits and layout rewrites are silently archived in separate buckets — open any entry to see what was there and restore it. A deleted {{alter}} comes back with their history and groups intact. A safety net for the whole {{system}}." },
       { type: "fix", text: "Home screen: cards sit at their natural heights now — the spacing finally reads like the classic dashboard, and expandable things (What's new, bulletin threads) grow in place instead of being cut off. Edit mode keeps the grid for arranging." },
       { type: "feature", text: "The corner buttons (widget board / guide / notifications) are their own home screen widget now, back on their classic row." },
