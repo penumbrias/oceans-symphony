@@ -12,12 +12,13 @@
 // plans into an anonymous count; this is where those plans get faces —
 // filter to them, read their names, tap one and give it a category.
 
-import React, { useMemo, useState } from "react";
-import { Repeat, Zap, ChevronRight } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+import { Repeat, Zap, ChevronRight, CheckCircle2, Circle, Trash2, Ban, Check, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { CheckSquare } from "lucide-react";
 import { format, isSameDay } from "date-fns";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 const dayMs = 86400000;
 
@@ -56,10 +57,43 @@ function whenLabel(ts) {
   return `${format(d, "d MMM yyyy")} · ${time}`;
 }
 
-export default function PlansList({ activities = [], categories = [], onOpen, onDeleteSeries }) {
+export default function PlansList({ activities = [], categories = [], onOpen, onDeleteSeries, onMassChange = null }) {
   const tr = useT();
   const [filter, setFilter] = useState("all"); // all | uncategorized
   const [openSeries, setOpenSeries] = useState(null); // groupId with actions expanded
+  // Press-and-hold multiselect (owner ask): hold any row to start
+  // selecting, tap rows to add, then act on all of them at once.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const holdTimer = useRef(null);
+  const holdStart = useRef(null);
+  const holdFired = useRef(false);
+  const exitSelect = () => { setSelectMode(false); setSelected(new Set()); };
+  const toggleSelected = (key) => setSelected((cur) => {
+    const next = new Set(cur);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const beginHold = (key) => (e) => {
+    if (selectMode) return;
+    holdFired.current = false;
+    holdStart.current = { x: e.clientX, y: e.clientY };
+    clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      holdFired.current = true;
+      setSelectMode(true);
+      setSelected(new Set([key]));
+    }, 450);
+  };
+  const moveHold = (e) => {
+    if (!holdStart.current) return;
+    if (Math.abs(e.clientX - holdStart.current.x) > 10 || Math.abs(e.clientY - holdStart.current.y) > 10) {
+      clearTimeout(holdTimer.current);
+      holdStart.current = null;
+    }
+  };
+  const endHold = () => { clearTimeout(holdTimer.current); holdStart.current = null; };
 
   const catById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
 
@@ -121,8 +155,39 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
     || catById[(item.activity_category_ids || [])[0]]?.color
     || "var(--v2-accent)";
 
+  // Everything a selected row stands for: a single is itself; a series row
+  // is its future occurrences.
+  const itemsForRow = (r) => (r.kind === "series"
+    ? r.members.filter((m) => {
+        const w = m.timestamp ? new Date(m.timestamp).getTime() : (m.planned_date ? new Date(m.planned_date).getTime() : 0);
+        return w > Date.now();
+      })
+    : [r.item]);
+  const selectedRows = visible.filter((r) => selected.has(r.key));
+  const selectedItems = selectedRows.flatMap(itemsForRow);
+  const massAct = async (kind) => {
+    if (!selectedItems.length || busy) return;
+    const n = selectedItems.length;
+    const ok = await confirm(kind === "delete"
+      ? tr("planner.massDeleteConfirm", { count: n })
+      : tr("planner.massCancelConfirm", { count: n }));
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await onMassChange?.(kind, selectedItems);
+      exitSelect();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-1.5 pr-0.5" data-own-hold>
+    // touch-action pan-y: vertical panning must always belong to the
+    // browser on this list — an ancestor gesture claiming touches made
+    // the rows swallow scrolling on some devices (owner report).
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5" data-own-hold
+      style={{ touchAction: "pan-y" }}
+      onPointerMove={moveHold} onPointerUp={endHold} onPointerCancel={endHold} onPointerLeave={endHold}>
       {(uncategorized.length > 0 || resolvedRows.length > 0) && (
         <div className="flex items-center gap-1 pb-0.5 flex-wrap">
           {[["all", tr("planner.allPlans")],
@@ -141,16 +206,46 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
       {visible.length === 0 && (
         <p className="text-xs text-muted-foreground px-1 py-3">{tr("planner.noPlans")}</p>
       )}
+      {selectMode && (
+        <div className="sticky top-0 z-10 flex items-center gap-1.5 py-1 bg-[var(--color-bg,#0b1120)]/95 backdrop-blur rounded-lg">
+          <span className="text-xs text-muted-foreground px-1 flex-1">
+            {tr("planner.selectedCount", { count: selectedItems.length })}
+          </span>
+          <button type="button" disabled={!selectedItems.length || busy} onClick={() => massAct("cancel")}
+            className="text-xs px-2.5 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground disabled:opacity-50 flex items-center gap-1">
+            <Ban className="w-3 h-3" /> {tr("planner.massCancel")}
+          </button>
+          <button type="button" disabled={!selectedItems.length || busy} onClick={() => massAct("delete")}
+            className="text-xs px-2.5 py-1 rounded-full border border-destructive/50 text-destructive disabled:opacity-50 flex items-center gap-1">
+            <Trash2 className="w-3 h-3" /> {tr("planner.delete")}
+          </button>
+          <button type="button" onClick={exitSelect} aria-label={tr("planner.exitSelect")}
+            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
       {visible.map((r) => {
         const c = colorFor(r.item);
         const noCat = !(r.item.activity_category_ids || []).length;
         const expanded = r.kind === "series" && openSeries === r.key;
+        const isSel = selected.has(r.key);
         return (
-          <div key={r.key} className="rounded-lg border border-border/50 overflow-hidden"
+          <div key={r.key} className={`rounded-lg border overflow-hidden ${isSel ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)]" : "border-border/50"}`}
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
             <button type="button"
-              onClick={() => (r.kind === "series" ? setOpenSeries(expanded ? null : r.key) : onOpen?.(r.item))}
+              onPointerDown={beginHold(r.key)}
+              onClick={() => {
+                if (holdFired.current) { holdFired.current = false; return; }
+                if (selectMode) { toggleSelected(r.key); return; }
+                if (r.kind === "series") setOpenSeries(expanded ? null : r.key); else onOpen?.(r.item);
+              }}
               className="w-full flex items-center gap-2 px-2 py-2 text-left hover:bg-muted/30">
+              {selectMode && (
+                isSel
+                  ? <CheckCircle2 className="w-4 h-4 text-[var(--v2-accent)] flex-shrink-0" />
+                  : <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              )}
               <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: c }} />
               <span className="flex-1 min-w-0">
                 <span className="text-sm font-medium truncate flex items-center gap-1.5">

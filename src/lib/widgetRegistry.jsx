@@ -24,8 +24,11 @@ import { useNavigate } from "react-router-dom";
 import {
   Users, Heart, ClipboardList, Zap, MessageSquare, Pin, Sparkles, Clock,
   Inbox, HelpCircle, LayoutGrid, Bell, StickyNote, Activity as ActivityIcon,
-  Contact, CalendarDays, ListTodo, Megaphone, Lightbulb, Rocket,
+  Contact, CalendarDays, ListTodo, Megaphone, Lightbulb, Rocket, Compass,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
@@ -362,6 +365,58 @@ export const WIDGET_REGISTRY = {
     supportsModes: ["normal"],
     supportsMultiInstance: false,
     defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 1 },
+  },
+  // The home screen's corner buttons (board / guide / notifications) as
+  // one placeable tile — the static header row they lived in is gone,
+  // so the page chrome is a widget like everything else (owner ask).
+  page_buttons: {
+    label: "Page buttons", description: "Widget board, guide & tour, and notifications buttons in one row.",
+    icon: LayoutGrid, category: "chrome",
+    render: ({ api }) => (
+      <div className="flex items-center justify-end gap-1 h-full">
+        {api?.openWidgetBoard && (
+          <button type="button" onClick={() => api.openWidgetBoard()}
+            aria-label="Open the widget board" title="Open the widget board (or swipe left)"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button"
+              aria-label="Guide & tour" title="Guide & tour"
+              className="relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+              <HelpCircle className="w-5 h-5" />
+              {api?.checklistIncomplete && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => api?.openTour?.()} className="gap-2 cursor-pointer">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="flex-1">Setup guide</span>
+              {api?.checklistIncomplete && (
+                <span className="text-[0.6875rem] text-primary font-medium">In progress</span>
+              )}
+            </DropdownMenuItem>
+            {api?.openFeatureTour && (
+              <DropdownMenuItem onClick={() => api.openFeatureTour()} className="gap-2 cursor-pointer">
+                <Compass className="w-4 h-4 text-muted-foreground" />
+                <span className="flex-1">Feature tour</span>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button type="button" onClick={() => api?.openNotifHistory?.()}
+          aria-label="Notification history" title="Notification history"
+          className="relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+          <Inbox className="w-5 h-5" />
+          {api?.hasUnreadMentions && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
+        </button>
+      </div>
+    ),
+    supportsModes: ["normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 1 },
   },
   notification_inbox: {
     label: "Notifications", description: "The notification-history button, as a placeable tile.",

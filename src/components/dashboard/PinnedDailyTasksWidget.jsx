@@ -48,14 +48,22 @@ export default function PinnedDailyTasksWidget() {
   const prefs = useMemo(() => JSON.parse(prefsJson), [prefsJson]);
   const [showSettings, setShowSettings] = useState(false);
 
+  // refetchOnMount "always": the widget used to serve a stale (sometimes
+  // empty) cache until the Recurring-tasks page happened to refetch the
+  // same keys — configured tasks "didn't load" on the home screen until
+  // that page was visited (long-standing owner report).
   const { data: templates = [] } = useQuery({
     queryKey: ["dailyTaskTemplates"],
     queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: allProgress = [] } = useQuery({
     queryKey: ["dailyProgress"],
     queryFn: () => base44.entities.DailyProgress.list("-date", 200),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Build a per-frequency map of (period_key -> Set(completed_task_ids))

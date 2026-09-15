@@ -864,7 +864,11 @@ export default function Dashboard() {
     multiSystem,
     openSystemSwitcher: () => setShowSystemSwitcher(true),
     openTour: () => setShowTour(true),
+    openFeatureTour: () => setShowFeatureTour(true),
     openNotifHistory: () => setShowNotifHistory(true),
+    // The page_buttons widget's board button — only offered while the
+    // board actually is a swipe away (classic mode).
+    ...(classicBoardAvailable ? { openWidgetBoard: openBoard } : {}),
     checklistIncomplete,
     hasUnreadMentions,
     alters,
@@ -934,79 +938,9 @@ export default function Dashboard() {
           <SystemSwitcherPanel />
         </DialogContent>
       </Dialog>
-      {showClassic && (
-      <div className="mb-1 flex items-start justify-end">
-        <div className="flex items-center gap-1">
-        {/* The widget board lives one swipe left of here — this button is
-            the mouse/desktop way in (and the discoverable one). */}
-        {classicBoardAvailable && (
-          <button
-            type="button"
-            onClick={openBoard}
-            title="Open the widget board (or swipe left)"
-            aria-label="Open the widget board"
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <Grid2x2 className="w-4 h-4" />
-          </button>
-        )}
-        {/* v0.86.8: unified "help" button — the old side-by-side Setup /
-            Tour pills were too close together and touch-crowded (tester
-            report). One minimal icon opens a dropdown with the two
-            options; the small primary dot at top-right signals that
-            setup is still incomplete without needing a second visible
-            surface. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              aria-label="Guide & tour"
-              title="Guide & tour"
-              className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <HelpCircle className="w-5 h-5" />
-              {checklistIncomplete && (
-                <span
-                  aria-hidden="true"
-                  title="Setup isn't finished"
-                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary"
-                />
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => setShowTour(true)} className="gap-2 cursor-pointer">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="flex-1">Setup guide</span>
-              {checklistIncomplete && (
-                <span className="text-[0.6875rem] text-primary font-medium">In progress</span>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShowFeatureTour(true)} className="gap-2 cursor-pointer">
-              <Compass className="w-4 h-4 text-muted-foreground" />
-              <span className="flex-1">Feature tour</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <button
-            onClick={() => setShowNotifHistory(true)}
-            aria-label="Notification history"
-            title="Notification history"
-            className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-
-          <Inbox className="w-5 h-5" />
-          {mentionLogs.some(m =>
-            m.log_type !== "authored" &&
-            (m.mentioned_alter_id || m.alter_id) &&
-            frontingAlterIds.includes(m.mentioned_alter_id || m.alter_id) &&
-            !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id || m.alter_id) &&
-            m.is_read !== true
-          ) && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
-          )}
-        </button>
-        </div>
-      </div>
-      )}
+      {/* The corner buttons (board / guide / notifications) are the
+          page_buttons WIDGET on the canvas now; only their modals and
+          dropdown host state stay here. */}
 
       {/* Critical/unresolved plans + the notification modal are SHARED
           between the classic and experimental views — safety surfaces

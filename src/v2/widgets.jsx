@@ -596,6 +596,39 @@ function TodayWidget() {
   );
 }
 
+// ── Status banner ──────────────────────────────────────────────────
+// The latest status note as a scrolling ticker (owner ask). Read-only —
+// setting a status stays with the Status widget / classic card.
+function StatusBannerWidget() {
+  const tr = useT();
+  const navigate = useNavigate();
+  const notes = useList("statusNotes", "StatusNote");
+  const latest = React.useMemo(
+    () => [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] || null,
+    [notes]
+  );
+  const text = (latest?.note || "").trim();
+  // Slow enough to read, fast enough to feel alive; longer notes get
+  // proportionally more time so the pace stays constant.
+  const dur = Math.max(8, Math.min(90, Math.round(text.length * 0.45)));
+  return (
+    <Section label={tr("widget.status.label")}>
+      {text ? (
+        <button type="button" onClick={() => navigate(`/timeline?highlightStatus=${latest.id}`)}
+          className="block w-full overflow-hidden whitespace-nowrap text-left"
+          aria-label={text} title={text}>
+          <span aria-hidden="true" className="os-marquee-track inline-flex" style={{ animationDuration: `${dur}s` }}>
+            <span className="pr-16 text-sm">{text}</span>
+            <span className="pr-16 text-sm">{text}</span>
+          </span>
+        </button>
+      ) : (
+        <Muted>{tr("widget.status.empty")}</Muted>
+      )}
+    </Section>
+  );
+}
+
 // ── Status note ────────────────────────────────────────────────────
 function StatusWidget() {
   const tr = useT();
@@ -2828,6 +2861,13 @@ export const V2_WIDGETS = {
     render: sized(() => <StatusWidget />),
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  status_banner: {
+    label: "Status banner", description: "The latest status note as a scrolling ticker.",
+    icon: Megaphone, category: "home",
+    render: sized(() => <StatusBannerWidget />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   recent: {
     label: "Recent check-ins", description: "Your most recent check-ins.",
