@@ -924,6 +924,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-data-inspector",
       look: `the highlighted "See Your Data" section inside Data & Privacy — tap its header to expand it`, action: null,
     },
+    {
+      section: "settings", sectionLabel: "Settings",
+      emoji: "🕰️",
+      title: "Recent changes archive",
+      body: `Deletions, ${t.alter} profile edits, and home-screen / widget-board layout rewrites are silently archived on the Recent Changes page (in the sidebar under Tools). Each bucket — ${t.alters}, journals & content, tracking, layouts — keeps its own recent window, so a burst of home-screen edits can never push out the record of a deleted ${t.alter}. Open an entry to see exactly what was there, and tap Restore to bring it back — a deleted ${t.alter} comes back with the same identity, so their ${t.fronting} history and group memberships reconnect. A safety net for the whole ${t.system}: nothing important disappears just because one person deleted it.`,
+      route: "/history", target: "history-archive",
+      look: `the Recent Changes page with its category buckets`, action: null,
+    },
 
     // ─── FRIENDS ────────────────────────────────────────────────────────────
     {

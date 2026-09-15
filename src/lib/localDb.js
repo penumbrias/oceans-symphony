@@ -359,6 +359,146 @@ function recordDeletionTombstone(entityName, id) {
   } catch { /* tombstones are best-effort — never block a delete */ }
 }
 
+// ── History archive (v0.230.0 — "Recent changes") ─────────────────
+// Anything destructive or layout-shaped gets silently archived into the
+// HistoryEvent table so it can be inspected and restored from the
+// Recent-changes page — the safety net against one member of a system
+// quietly erasing what the rest didn't agree to lose. Buckets prune
+// independently, so a burst of home-screen edits can never flush the
+// record of a deleted alter.
+const HISTORY_SKIP = new Set([
+  "HistoryEvent", "DeletionLog", "FriendIdentity", "PushSubscription",
+  // The grocery panel doubles as the privacy cover — its contents stay
+  // out of app surfaces like the history page. Progress/derived rows
+  // churn constantly and carry no user-authored substance.
+  "GroceryItem", "GroceryFavorite", "GroceryList",
+  "ReminderInstance", "DailyProgress", "MentionLog", "LearningProgress",
+]);
+const HISTORY_BUCKET_OF = (entityName) => {
+  if (["Alter", "Group", "AlterRelationship", "SystemChangeEvent", "InnerWorldLocation",
+    "AlterNote", "AlterMessage", "CustomField", "RelationshipType"].includes(entityName)) return "alters";
+  if (["JournalEntry", "Bulletin", "BulletinComment", "SupportJournalEntry", "DiaryCard",
+    "Poll", "StatusNote", "Note"].includes(entityName)) return "content";
+  if (["Activity", "ActivityCategory", "ActivityGoal", "EmotionCheckIn", "SymptomCheckIn",
+    "Symptom", "SymptomSession", "SymptomDefinition", "Sleep", "Location", "SystemCheckIn",
+    "Task", "DailyTaskTemplate", "Reminder", "TriggerType", "CustomEmotion",
+    "FrontingSession"].includes(entityName)) return "tracking";
+  return "other";
+};
+const HISTORY_CAPS = { alters: 50, content: 50, tracking: 50, layout: 15, other: 30 };
+// Coalescing window for repeated edits of the same thing — a drag session
+// on the home screen or a bio being typed shouldn't write 50 snapshots.
+const HISTORY_COALESCE_MS = 10 * 60 * 1000;
+// SystemSettings fields whose previous value is worth a restore point.
+const HISTORY_LAYOUT_FIELDS = [
+  "classic_home", "ui_v2_home", "ui_v2_home_desktop", "dashboard_layout",
+  "navigation_config", "experimental_home",
+];
+
+function historyLabelFor(entityName, record) {
+  const s = (v) => (typeof v === "string" ? v.trim() : "");
+  const text = s(record?.name) || s(record?.title) || s(record?.activity_name)
+    || s(record?.note) || s(record?.content) || s(record?.question) || "";
+  const plain = text.replace(/<[^>]*>/g, "").slice(0, 60);
+  return plain || record?.id || "";
+}
+
+function pruneHistoryBucket(db, category) {
+  const cap = HISTORY_CAPS[category] || 30;
+  const rows = Object.values(db.HistoryEvent).filter((r) => r.category === category);
+  if (rows.length <= cap) return;
+  rows.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  for (let i = 0; i < rows.length - cap; i += 1) delete db.HistoryEvent[rows[i].id];
+}
+
+function recordHistoryEvent(evt) {
+  try {
+    if (_previewDb !== null) return;
+    const db = getDb();
+    if (!db.HistoryEvent) db.HistoryEvent = {};
+    // Coalesce: an event for the same subject inside the window keeps the
+    // EARLIER snapshot (the more valuable restore point) and just refreshes
+    // its timestamp so pruning treats it as recent.
+    if (evt.action !== "deleted") {
+      const recent = Object.values(db.HistoryEvent).find((r) =>
+        r.category === evt.category && r.action === evt.action && r.entity === evt.entity
+        && r.record_id === evt.record_id && (r.field || "") === (evt.field || "")
+        && Date.now() - new Date(r.timestamp).getTime() < HISTORY_COALESCE_MS);
+      if (recent) { recent.timestamp = new Date().toISOString(); return; }
+    }
+    const id = generateId();
+    db.HistoryEvent[id] = {
+      id,
+      timestamp: new Date().toISOString(),
+      category: evt.category,
+      action: evt.action,
+      entity: evt.entity,
+      record_id: evt.record_id,
+      field: evt.field || null,
+      label: evt.label || "",
+      snapshot: evt.snapshot ?? null,
+    };
+    pruneHistoryBucket(db, evt.category);
+  } catch { /* the archive is best-effort — never block the write itself */ }
+}
+
+function recordHistoryDeletion(entityName, record) {
+  if (HISTORY_SKIP.has(entityName) || !record) return;
+  recordHistoryEvent({
+    category: HISTORY_BUCKET_OF(entityName),
+    action: "deleted",
+    entity: entityName,
+    record_id: record.id,
+    label: historyLabelFor(entityName, record),
+    snapshot: record,
+  });
+}
+
+function recordHistoryUpdate(entityName, prev, patch) {
+  if (!prev) return;
+  if (entityName === "Alter") {
+    recordHistoryEvent({
+      category: "alters",
+      action: "edited",
+      entity: "Alter",
+      record_id: prev.id,
+      label: historyLabelFor("Alter", prev),
+      snapshot: prev,
+    });
+    return;
+  }
+  if (entityName === "SystemSettings") {
+    for (const field of HISTORY_LAYOUT_FIELDS) {
+      if (!(field in (patch || {}))) continue;
+      if (prev[field] === undefined) continue;
+      recordHistoryEvent({
+        category: "layout",
+        action: "layout",
+        entity: "SystemSettings",
+        record_id: prev.id,
+        field,
+        label: field,
+        snapshot: prev[field],
+      });
+    }
+  }
+}
+
+// Put a deleted record back exactly as it was — same id, so every
+// reference to it (alter_id on sessions, group members…) reconnects.
+// Also lifts the deletion tombstone so a later deletion-sync import
+// can't re-erase what the user explicitly restored.
+export async function restoreDeletedRecord(entityName, snapshot) {
+  if (!entityName || !snapshot?.id) throw new Error("Nothing to restore");
+  const db = getDb();
+  if (!db[entityName]) db[entityName] = {};
+  db[entityName][snapshot.id] = { ...snapshot };
+  try { if (db.DeletionLog) delete db.DeletionLog[`${entityName}:${snapshot.id}`]; } catch { /* non-fatal */ }
+  await saveDb();
+  emit(entityName, { type: "create", id: snapshot.id, data: snapshot });
+  return snapshot;
+}
+
 function getDb() {
   if (_previewDb !== null) return _previewDb;
   if (_db !== null) return _db;
@@ -755,6 +895,7 @@ export function createLocalDbEntities() {
         update: async (id, data) => {
           const col = getCollection(entityName);
           if (!col[id]) throw new Error(`Record ${id} not found in ${entityName}`);
+          recordHistoryUpdate(entityName, col[id], data);
           col[id] = { ...col[id], ...data, updated_date: new Date().toISOString() };
           await saveDb();
           emit(entityName, { type: 'update', id, data: col[id] });
@@ -762,8 +903,10 @@ export function createLocalDbEntities() {
         },
         delete: async (id) => {
           const col = getCollection(entityName);
+          const existing = col[id] || null;
           delete col[id];
           recordDeletionTombstone(entityName, id);
+          recordHistoryDeletion(entityName, existing);
           await saveDb();
           emit(entityName, { type: 'delete', id });
         },
@@ -805,8 +948,10 @@ export function createLocalDbEntities() {
           const removed = [];
           for (const id of ids || []) {
             if (!id || !(id in col)) continue;
+            const existing = col[id];
             delete col[id];
             recordDeletionTombstone(entityName, id);
+            recordHistoryDeletion(entityName, existing);
             removed.push(id);
           }
           if (removed.length) await saveDb();

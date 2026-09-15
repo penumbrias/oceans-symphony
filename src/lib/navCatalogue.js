@@ -12,7 +12,7 @@
 import {
   Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList,
   Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote,
-  Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange } from "lucide-react";
+  Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History } from "lucide-react";
 
 export function buildNavGroups(altersLabel, systemLabel) {
   return {
@@ -51,6 +51,7 @@ export function buildNavGroups(altersLabel, systemLabel) {
       { id: "timeline",         label: "Timeline",               icon: Clock,     path: "/timeline" },
       { id: "system-history",   label: `${systemLabel} History`, icon: GitMerge,  path: "/system-history" },
       { id: "location-history", label: "Location History",       icon: MapPin,    path: "/location-history" },
+      { id: "history-archive", label: "Recent Changes",         icon: History,   path: "/history" },
     ],
   };
 }
@@ -77,6 +78,7 @@ export function buildGridItems(altersLabel, systemLabel) {
     { id: "polls",           label: "Polls",                  icon: Vote,          path: "/polls",            color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
     { id: "system-history",  label: `${systemLabel} History`, icon: GitMerge,      path: "/system-history",   color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "location-history",label: "Location History",       icon: MapPin,        path: "/location-history", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+    { id: "history-archive", label: "Recent Changes",         icon: History,       path: "/history", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "settings",        label: "Settings",               icon: Settings,      path: "/settings",         color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "home",            label: "Home",                   icon: CheckSquare,   path: "/",                 color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "friends",         label: "Friends",                icon: UserRound,     path: "/friends",          color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },

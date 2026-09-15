@@ -2,7 +2,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange , History } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "todo",        label: "To-Do List",              icon: ClipboardList, path: "/todo" },
         { id: "sleep",             label: "Sleep",            icon: Activity, path: "/sleep" },
         { id: "location-history", label: "Locations",         icon: MapPin,   path: "/location-history" },
+        { id: "history-archive",  label: "Recent changes",    icon: History,  path: "/history" },
         { id: "timeline",    label: "Timeline",                icon: Clock,    path: "/timeline" },
       ],
     },
