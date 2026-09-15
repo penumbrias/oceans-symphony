@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 15, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: home screen spacing stayed loose after editing and saving — empty cards tuck away again after leaving edit mode." },
       { type: "fix", text: "Home screen: cards now size themselves to their content instead of leaving big empty stretches — existing screens tighten up on next open (cards you resized by hand keep their size)." },
       { type: "fix", text: "Home screen: the cards no longer pile up in one overlapping heap — the first canvas layout now seats every card in its own spot (existing screens fix themselves on next open)." },
     ],
