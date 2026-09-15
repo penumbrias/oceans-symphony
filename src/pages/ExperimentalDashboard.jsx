@@ -169,7 +169,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -282,7 +282,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const handSized = widget.settings?.autoFit === false;
   const fixedHeight = shownRows > 1 || handSized || !!resize.preview;
 
-  const style = a11yStack
+  const style = collapsed
+    // Empty right now (view mode): keep it mounted at zero size so its
+    // content stays measurable and the cell un-collapses the moment the
+    // card has something to show — but out of the grid flow entirely.
+    ? { position: "absolute", left: 0, top: 0, width: 0, height: 0, overflow: "hidden", opacity: 0, pointerEvents: "none" }
+    : a11yStack
     ? {}
     : free
       ? {
@@ -1189,15 +1194,70 @@ export default function ExperimentalDashboard({
     }, 120);
     return () => clearTimeout(id);
   }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);
+  // Presence-conditional widgets (the classic cards) can render NOTHING
+  // right now — no pins, no plans — and a cell of nothing is a dead row
+  // on the home screen. Track which widgets currently measure empty
+  // (ResizeObserver, so content arriving later un-collapses them).
+  const [emptyIds, setEmptyIds] = React.useState(() => new Set());
+  React.useEffect(() => {
+    const grid = gridRef.current;
+    if (!freeMode || !grid || typeof ResizeObserver === "undefined") {
+      setEmptyIds((cur) => (cur.size ? new Set() : cur));
+      return undefined;
+    }
+    let raf = 0;
+    // "Empty" can't be read off scrollHeight — the content wrapper (and
+    // the alignment stack inside it) stretch to the cell, so an empty
+    // card still measures 80px. Empty = nothing to read and nothing to
+    // touch inside.
+    const contentEmpty = (content) =>
+      (content.innerText || "").trim() === ""
+      && !content.querySelector("img, svg, canvas, video, iframe, input, textarea, button, [role='button']");
+    const recompute = () => {
+      raf = 0;
+      const g = gridRef.current;
+      if (!g) return;
+      const next = new Set();
+      for (const node of g.querySelectorAll("[data-widget-id]")) {
+        const content = node.querySelector("[data-widget-content]");
+        if (content && contentEmpty(content)) next.add(node.dataset.widgetId);
+      }
+      setEmptyIds((cur) => {
+        if (cur.size === next.size && [...next].every((id) => cur.has(id))) return cur;
+        return next;
+      });
+    };
+    const queue = () => { if (!raf) raf = requestAnimationFrame(recompute); };
+    const ro = new ResizeObserver(queue);
+    for (const node of grid.querySelectorAll("[data-widget-content]")) ro.observe(node);
+    // A COLLAPSED cell is 0px, so content appearing inside it never
+    // changes the observed box — watch the DOM itself too, or an empty
+    // card could never come back.
+    const mo = new MutationObserver(queue);
+    mo.observe(grid, { childList: true, subtree: true, characterData: true });
+    queue();
+    return () => { ro.disconnect(); mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [freeMode, page.id, widgets.length]);
+  // View mode collapses those empty cells and lets everything below slide
+  // up — display-only (stored positions untouched), and edit mode shows
+  // every cell so empties can still be found, moved or removed. Collapsed
+  // widgets stay mounted at zero size so they keep measuring.
+  const displayWidgets = React.useMemo(() => {
+    if (!freeMode || editMode || emptyIds.size === 0) return widgets;
+    const visible = compactVertically(widgets.filter((w) => !emptyIds.has(w.instanceId)), gridCols);
+    const byId = new Map(visible.map((w) => [w.instanceId, w]));
+    return widgets.map((w) => byId.get(w.instanceId) || { ...w, __collapsed: true });
+  }, [widgets, emptyIds, freeMode, editMode, gridCols]);
+  const placedWidgets = displayWidgets.filter((w) => !w.__collapsed);
   // Enough rows to hold everything plus room to move things down into.
   // Shared empty rows at the top get folded away (see SortableWidget). In
   // edit mode they stay, so a deliberate gap can still be dragged into.
-  const topRowOffset = freeMode && !editMode && widgets.length
-    ? Math.min(...widgets.map((w) => w.pos?.y || 0))
+  const topRowOffset = freeMode && !editMode && placedWidgets.length
+    ? Math.min(...placedWidgets.map((w) => w.pos?.y || 0))
     : 0;
-  const freeRows = freeMode
-    ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) - topRowOffset + (w.span?.rows || 1))) + (editMode ? 4 : 0)
-    : 0;
+  const freeRows = freeMode && placedWidgets.length
+    ? Math.max(6, ...placedWidgets.map((w) => (w.pos?.y || 0) - topRowOffset + (w.span?.rows || 1))) + (editMode ? 4 : 0)
+    : freeMode ? 6 : 0;
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
   // status_note widget is on the page (mirrors classic layoutEnabled logic).
@@ -1383,10 +1443,11 @@ export default function ExperimentalDashboard({
             zIndex: 40,
           }} />
       )}
-      {widgets.map((w) => (
+      {displayWidgets.map((w) => (
         <SortableWidget
           key={w.instanceId}
           widget={w}
+          collapsed={!!w.__collapsed}
           topRowOffset={topRowOffset}
           def={registry[w.widgetId]}
           editMode={editMode}
