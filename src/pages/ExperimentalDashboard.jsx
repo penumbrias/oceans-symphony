@@ -545,6 +545,15 @@ export default function ExperimentalDashboard({
   // homescreen is the leftmost "page". Null under full v2 (no page to
   // exit to).
   onExitLeft = null,
+  // The mirror: the classic home rendered ON this canvas has the widget
+  // board as its RIGHT neighbour — swiping LEFT past the last page hands
+  // control forward instead of clamping.
+  onExitRight = null,
+  // Scopes the window events + pending sessionStorage keys this canvas
+  // answers to ("os-v2" → os-v2-edit-home / symphony_v2_*). The classic
+  // home canvas uses "os-classic" so "Edit widget board" can't put the
+  // HOME SCREEN into edit mode and vice versa.
+  eventPrefix = "os-v2",
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -574,42 +583,44 @@ export default function ExperimentalDashboard({
   // The apps button (top bar) and "Edit the home screen" (Display options)
   // trigger the drawer / edit mode from outside this component.
   React.useEffect(() => {
+    const key = (a) => `symphony_${eventPrefix === "os-classic" ? "classic" : "v2"}_${a}`;
     const openApps = () => { setDrawerOpen(true); };
     const editHome = () => { setEditMode(true); };
     const homeSettings = () => { openHomeSettings(); };
     const barOptions = () => { openConfig(BAR_CONFIG_ID); };
     const packSheet = (e) => { openPackSheet(e?.detail?.tab); };
-    window.addEventListener("os-v2-pack-sheet", packSheet);
-    window.addEventListener("os-v2-bar-options", barOptions);
-    window.addEventListener("os-v2-open-apps", openApps);
-    window.addEventListener("os-v2-edit-home", editHome);
-    window.addEventListener("os-v2-home-settings", homeSettings);
+    window.addEventListener(`${eventPrefix}-pack-sheet`, packSheet);
+    window.addEventListener(`${eventPrefix}-bar-options`, barOptions);
+    window.addEventListener(`${eventPrefix}-open-apps`, openApps);
+    window.addEventListener(`${eventPrefix}-edit-home`, editHome);
+    window.addEventListener(`${eventPrefix}-home-settings`, homeSettings);
     try {
-      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
-        sessionStorage.removeItem("symphony_v2_open-apps"); setDrawerOpen(true);
+      if (sessionStorage.getItem(key("open-apps")) === "1") {
+        sessionStorage.removeItem(key("open-apps")); setDrawerOpen(true);
       }
-      if (sessionStorage.getItem("symphony_v2_edit-home") === "1") {
-        sessionStorage.removeItem("symphony_v2_edit-home"); setEditMode(true);
+      if (sessionStorage.getItem(key("edit-home")) === "1") {
+        sessionStorage.removeItem(key("edit-home")); setEditMode(true);
       }
-      if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
-        sessionStorage.removeItem("symphony_v2_home-settings"); openHomeSettings();
+      if (sessionStorage.getItem(key("home-settings")) === "1") {
+        sessionStorage.removeItem(key("home-settings")); openHomeSettings();
       }
-      if (sessionStorage.getItem("symphony_v2_bar-options") === "1") {
-        sessionStorage.removeItem("symphony_v2_bar-options"); openConfig(BAR_CONFIG_ID);
+      if (sessionStorage.getItem(key("bar-options")) === "1") {
+        sessionStorage.removeItem(key("bar-options")); openConfig(BAR_CONFIG_ID);
       }
-      const packTab = sessionStorage.getItem("symphony_v2_pack-sheet");
+      const packTab = sessionStorage.getItem(key("pack-sheet"));
       if (packTab) {
-        sessionStorage.removeItem("symphony_v2_pack-sheet"); openPackSheet(packTab);
+        sessionStorage.removeItem(key("pack-sheet")); openPackSheet(packTab);
       }
     } catch { /* storage off */ }
     return () => {
-      window.removeEventListener("os-v2-pack-sheet", packSheet);
-      window.removeEventListener("os-v2-bar-options", barOptions);
-      window.removeEventListener("os-v2-open-apps", openApps);
-      window.removeEventListener("os-v2-edit-home", editHome);
-      window.removeEventListener("os-v2-home-settings", homeSettings);
+      window.removeEventListener(`${eventPrefix}-pack-sheet`, packSheet);
+      window.removeEventListener(`${eventPrefix}-bar-options`, barOptions);
+      window.removeEventListener(`${eventPrefix}-open-apps`, openApps);
+      window.removeEventListener(`${eventPrefix}-edit-home`, editHome);
+      window.removeEventListener(`${eventPrefix}-home-settings`, homeSettings);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventPrefix]);
 
   const home = useMemo(
     () => resolveExperimentalHome(settingsRow?.[settingsField], registry),
@@ -1249,9 +1260,9 @@ export default function ExperimentalDashboard({
   //   · a press that lingers past the hold threshold belongs to a hold
   //   · once horizontal, TOUCH is claimed via non-passive preventDefault
   useEffect(() => {
-    // With onExitLeft the gesture must run even on a one-page board —
-    // swiping right there exits to the classic homescreen.
-    if (editMode || a11yStack || (home.pages.length < 2 && !onExitLeft)) return undefined;
+    // With an exit handler the gesture must run even on a one-page board —
+    // swiping past the edge hands control to the neighbouring surface.
+    if (editMode || a11yStack || (home.pages.length < 2 && !onExitLeft && !onExitRight)) return undefined;
     // Resolved by class, not ref — framer's motion.div doesn't reliably
     // forward a spread ref, which left the surface "missing" and every
     // press bailing.
@@ -1306,8 +1317,11 @@ export default function ExperimentalDashboard({
           g.dead = true;
           const nextIdx = pageIdx + (dx < 0 ? 1 : -1);
           // Right-swipe past the first page: back out to the classic
-          // homescreen (the leftmost "page" of the board).
+          // homescreen (the leftmost "page" of the board). Left-swipe past
+          // the last page: forward to the widget board, when this canvas
+          // is the classic home.
           if (nextIdx < 0 && onExitLeft) { onExitLeft(); return; }
+          if (nextIdx >= visiblePages.length && onExitRight) { onExitRight(); return; }
           goToPage(nextIdx);
         }
       }
@@ -1335,7 +1349,7 @@ export default function ExperimentalDashboard({
       document.removeEventListener("pointermove", onPointerMove, { capture: true });
       document.removeEventListener("pointerup", endAll, { capture: true });
     };
-  }, [editMode, a11yStack, home.pages.length, pageIdx, onExitLeft]);  
+  }, [editMode, a11yStack, home.pages.length, pageIdx, onExitLeft, onExitRight]);
 
   // Drop-target ghost while a widget drags in free mode.
   const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash }

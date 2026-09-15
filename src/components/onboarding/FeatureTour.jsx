@@ -53,7 +53,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "welcome", sectionLabel: "Welcome",
         emoji: "✏️",
         title: "Edit your home screen in place",
-        body: `Open the ⚙ menu (top-right) and choose "Edit home screen": every card lifts into an editable tile you can drag to reorder, remove with ✕, or tune with its options button — where "Classic" is the familiar look, sitting beside the board's minimal/normal/expanded modes and full colour & style controls. "Add" drops in any widget from the board's catalogue, and "Reset" restores the default home screen — offering to keep your arrangement as a widget board page first. The same menu's "Edit widget board" jumps you to the board's own editor.`,
+        body: `Your home screen edits exactly like the widget board, because it IS the same canvas. Press and hold an empty spot — or open the ⚙ menu (top-right) and choose "Edit home screen". In edit mode: hold a card until it lifts, then drag it anywhere or onto "Drop to remove"; hold an edge to resize; the apps button opens the drawer with an "Add widget" tab (every classic card plus the board's whole catalogue); each card's gear opens its options, modes and looks. "Reset to default" lives in Settings → Appearance → Layout, and offers to keep your arrangement on the widget board first. The same ⚙ menu's "Edit widget board" edits the board instead.`,
         route: "/", target: null,
         look: `the ⚙ cog in the top-right — "Edit home screen" is the first item`, action: null,
       },
