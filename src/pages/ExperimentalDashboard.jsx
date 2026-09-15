@@ -1201,7 +1201,12 @@ export default function ExperimentalDashboard({
   const [emptyIds, setEmptyIds] = React.useState(() => new Set());
   React.useEffect(() => {
     const grid = gridRef.current;
-    if (!freeMode || !grid || typeof ResizeObserver === "undefined") {
+    // Edit mode shows every cell, so nothing to track there — and the
+    // edit chrome re-renders the grid, which detaches these observers.
+    // Re-running on the editMode flip re-attaches them to the LIVE grid
+    // and recomputes, so the collapse comes back after "Save & close"
+    // (it silently stayed off before).
+    if (!freeMode || editMode || !grid || typeof ResizeObserver === "undefined") {
       setEmptyIds((cur) => (cur.size ? new Set() : cur));
       return undefined;
     }
@@ -1237,7 +1242,7 @@ export default function ExperimentalDashboard({
     mo.observe(grid, { childList: true, subtree: true, characterData: true });
     queue();
     return () => { ro.disconnect(); mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [freeMode, page.id, widgets.length]);
+  }, [freeMode, editMode, page.id, widgets.length]);
   // View mode collapses those empty cells and lets everything below slide
   // up — display-only (stored positions untouched), and edit mode shows
   // every cell so empties can still be found, moved or removed. Collapsed
