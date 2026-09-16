@@ -961,12 +961,9 @@ export default function ExperimentalDashboard({
   const handleAddWidget = (widgetId, settings = {}, { edit = true, mode = "normal" } = {}) => {
     const def = registry[widgetId];
     if (!def) return;
-    // Single-instance is per PAGE — the same widget CAN live on several
-    // pages (v0.91.0 over-tightened this to all-pages; tester wants per-page).
-    if (!def.supportsMultiInstance && page.widgets.some((w) => w.widgetId === widgetId)) {
-      toast.info("Already on this page");
-      return;
-    }
+    // Duplicates are allowed everywhere (v0.231.0, owner ask): two copies
+    // of the same widget with different options is a real use case. The
+    // drawer's "on this page" tag is informational only.
     updatePageWidgets((ws) => {
       const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: effectiveMode(mode, def.supportsModes), settings };
       if (!pageIsFree) return [...ws, added];

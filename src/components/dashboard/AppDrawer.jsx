@@ -3,8 +3,10 @@
 //                 so colours/icons/labels stay identical to the classic
 //                 nav grid), tap to navigate.
 //   Add widget  — the widget registry grouped by category; tap to add an
-//                 instance to the current page. Single-instance widgets
-//                 already placed are disabled with an "added" tag.
+//                 instance to the current page. Widgets already placed
+//                 show an informational "added" tag but can be added
+//                 again — duplicates with different options are allowed
+//                 (v0.231.0).
 
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -553,21 +555,20 @@ export default function AppDrawer({
                     {open && widgets.some(([, d]) => isKeySized(d)) && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pb-2">
                         {widgets.filter(([, d]) => isKeySized(d)).map(([id, def]) => {
-                          const already = !def.supportsMultiInstance && placed.has(id);
+                          const already = placed.has(id);
                           return (
                             <div key={id}
-                              className={`rounded-xl border overflow-hidden flex flex-col ${
-                                already ? "border-border/30 opacity-60" : "border-border/50 hover:border-primary/50"
-                              }`}>
+                              className="rounded-xl border overflow-hidden flex flex-col border-border/50 hover:border-primary/50">
                               <button type="button" onClick={() => setDetailId(id)} className="px-1.5 pt-1.5" aria-label={`${widgetLabel(def, t)} options`}>
                                 <WidgetPreview def={def} mode={effectiveMode("normal", def.supportsModes)} api={api} userStyles={userStyles} maxHeight={44} />
                               </button>
                               <div className="flex items-center gap-1 px-1.5 pb-1.5 pt-1">
+                                {already && <Check className="w-3 h-3 text-muted-foreground flex-shrink-0" aria-label="On this page" />}
                                 <span className="text-[0.6875rem] text-muted-foreground truncate flex-1">{widgetLabel(def, t)}</span>
-                                <button type="button" disabled={already} onClick={() => onAddWidget?.(id)}
+                                <button type="button" onClick={() => onAddWidget?.(id)}
                                   aria-label={`Add ${widgetLabel(def, t)}`}
-                                  className="text-xs px-2 py-0.5 rounded-full border border-primary/50 text-primary disabled:opacity-40 flex-shrink-0">
-                                  {already ? <Check className="w-3 h-3" /> : "Add"}
+                                  className="text-xs px-2 py-0.5 rounded-full border border-primary/50 text-primary flex-shrink-0">
+                                  Add
                                 </button>
                               </div>
                             </div>
@@ -577,14 +578,12 @@ export default function AppDrawer({
                     )}
                     <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${open ? "" : "hidden"}`}>
                       {widgets.filter(([, d]) => !isKeySized(d)).map(([id, def]) => {
-                        const already = !def.supportsMultiInstance && placed.has(id);
+                        const already = placed.has(id);
                         const cardMode = cardModes[id] || effectiveMode("normal", def.supportsModes);
                         const multiMode = (def.supportsModes || []).length > 1;
                         return (
                           <div key={id}
-                            className={`rounded-xl border text-left transition-colors overflow-hidden ${
-                              already ? "border-border/30 opacity-60" : "border-border/50 hover:border-primary/50"
-                            }`}>
+                            className="rounded-xl border text-left transition-colors overflow-hidden border-border/50 hover:border-primary/50">
                             <button type="button" onClick={() => setDetailId(id)}
                               className="w-full text-left">
                               <div className="flex items-center gap-2 px-3 pt-2">
@@ -613,9 +612,9 @@ export default function AppDrawer({
                                   {MODE_LABEL[cardMode]}
                                 </button>
                               )}
-                              <button type="button" disabled={already}
+                              <button type="button"
                                 onClick={() => onAddWidget?.(id)}
-                                className="text-xs px-2.5 py-1 rounded-full border border-primary/50 text-primary disabled:opacity-40">
+                                className="text-xs px-2.5 py-1 rounded-full border border-primary/50 text-primary">
                                 Add
                               </button>
                             </div>

@@ -18,7 +18,19 @@
 
 export const CHANGELOG = [
   {
+    date: "September 16, 2026",
+    changes: [
+      { type: "fix", text: "The Quick Plan button now actually appears on the quick-action buttons row when turned on." },
+      { type: "feature", text: "Quick action buttons: reorder them, rename them, give each its own icon, and show icons only or labels only — Quick Check-In itself can be toggled off too (one button always stays)." },
+      { type: "feature", text: "The saved quick-actions list (press & hold Quick Check-In) is now editable right inside the widget's own options." },
+      { type: "feature", text: "Header widget: pick which of name / date / time show and in what order — the first becomes the big headline — and set a custom display name." },
+      { type: "improve", text: "The header and the corner page buttons now share one line by default, like the classic top-of-page." },
+      { type: "feature", text: "Any widget can now be added to a page more than once — handy for two copies with different options or looks." },
+    ],
+  },
+  {
     date: "September 15, 2026",
+    version: "0.230.1",
     changes: [
       { type: "improve", text: "Planner: closing a plan you've edited now asks — keep the changes, undo them all, or keep editing. No more silent edits on the way out." },
       { type: "improve", text: "\"Reset home screen…\" now lives right in the home screen's ⚙ menu (it offers to keep your arrangement on the widget board first, as before)." },

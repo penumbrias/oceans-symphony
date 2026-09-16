@@ -83,6 +83,8 @@ import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
+import LucideByName from "@/components/shared/LucideByName";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
 // Committing only onBlur loses whatever was typed when the sheet is closed
@@ -151,6 +153,148 @@ function AppListField({ value = [], onChange, terms }) {
         })}
         {shown.length === 0 && <p className="text-xs text-muted-foreground px-1 py-2">No apps match that.</p>}
       </div>
+    </div>
+  );
+}
+
+// Pick-and-order list: each option has a checkbox and, while on, up/down
+// arrows. Stores the array of enabled values in display order. Generic —
+// the header widget's name/date/time uses it, and anything else whose
+// config is "which of these, in what order".
+function OrderToggleField({ field, value, onChange }) {
+  const options = field.options || [];
+  const stored = Array.isArray(value) ? value.filter((v) => options.some((o) => o.value === v)) : null;
+  const enabled = stored && stored.length ? stored : (field.default || []);
+  const rest = options.filter((o) => !enabled.includes(o.value));
+  const move = (id, dir) => {
+    const i = enabled.indexOf(id);
+    const j = i + dir;
+    if (i === -1 || j < 0 || j >= enabled.length) return;
+    const next = [...enabled];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+  const toggle = (id, on) => {
+    if (on) onChange([...enabled, id]);
+    else if (enabled.length > 1) onChange(enabled.filter((x) => x !== id));
+  };
+  const row = (o, on, idx) => (
+    <div key={o.value} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40">
+      <input type="checkbox" checked={on} disabled={on && enabled.length === 1}
+        onChange={(e) => toggle(o.value, e.target.checked)}
+        aria-label={o.label} className="w-4 h-4 rounded accent-primary flex-shrink-0" />
+      <span className={`flex-1 text-sm truncate ${on ? "" : "text-muted-foreground"}`}>{o.label}</span>
+      {on && (
+        <span className="flex items-center gap-0.5 flex-shrink-0">
+          <button type="button" aria-label={`Move ${o.label} up`} disabled={idx === 0}
+            onClick={() => move(o.value, -1)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" aria-label={`Move ${o.label} down`} disabled={idx === enabled.length - 1}
+            onClick={() => move(o.value, 1)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </span>
+      )}
+    </div>
+  );
+  return (
+    <div className="space-y-1">
+      {enabled.map((id, idx) => { const o = options.find((x) => x.value === id); return o ? row(o, true, idx) : null; })}
+      {rest.map((o) => row(o, false, -1))}
+    </div>
+  );
+}
+
+// The quick-action-buttons widget's per-button editor: toggle, reorder,
+// rename and re-icon each button. Stores [{ id, on, label, iconName }].
+function QuickButtonsField({ settings, onChange, terms }) {
+  const buttons = resolveQuickButtons(settings);
+  const [iconFor, setIconFor] = React.useState(null); // button id
+  const onCount = buttons.filter((b) => b.on).length;
+  const commit = (next) => onChange(next.map((b) => ({ id: b.id, on: b.on, label: b.label || "", iconName: b.iconName || "" })));
+  const patch = (id, p) => commit(buttons.map((b) => (b.id === id ? { ...b, ...p } : b)));
+  const move = (id, dir) => {
+    const i = buttons.findIndex((b) => b.id === id);
+    const j = i + dir;
+    if (i === -1 || j < 0 || j >= buttons.length) return;
+    const next = [...buttons];
+    [next[i], next[j]] = [next[j], next[i]];
+    commit(next);
+  };
+  return (
+    <div className="space-y-1">
+      {buttons.map((b, idx) => {
+        const def = QUICK_BUTTON_DEFS.find((d) => d.id === b.id);
+        if (!def) return null;
+        const DefIcon = def.icon;
+        const label = applyTerms(def.label, terms);
+        return (
+          <div key={b.id} className={`rounded-lg border px-2.5 py-1.5 space-y-1.5 ${b.on ? "border-border/50" : "border-border/30"}`}>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={b.on} disabled={b.on && onCount === 1}
+                onChange={(e) => patch(b.id, { on: e.target.checked })}
+                aria-label={label} className="w-4 h-4 rounded accent-primary flex-shrink-0" />
+              <span className={`flex-1 text-sm truncate ${b.on ? "" : "text-muted-foreground"}`}>{b.label || label}</span>
+              <span className="flex items-center gap-0.5 flex-shrink-0">
+                <button type="button" aria-label={`Move ${label} up`} disabled={idx === 0}
+                  onClick={() => move(b.id, -1)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30">
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" aria-label={`Move ${label} down`} disabled={idx === buttons.length - 1}
+                  onClick={() => move(b.id, 1)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            </div>
+            {b.on && (
+              <div className="flex items-center gap-1.5 pl-6">
+                <button type="button" onClick={() => setIconFor(b.id)}
+                  aria-label={`${label} icon`}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+                  {b.iconName
+                    ? <LucideByName name={b.iconName} className="w-4 h-4" fallback={<DefIcon className="w-4 h-4" />} />
+                    : <DefIcon className="w-4 h-4" />}
+                </button>
+                <DebouncedText value={b.label} placeholder={label} maxLength={40}
+                  onCommit={(v) => { if (v !== b.label) patch(b.id, { label: v.trim() }); }}
+                  className="flex-1 min-w-0 h-8 px-2.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <IconPicker open={!!iconFor} onClose={() => setIconFor(null)} allowImage={false}
+        current={buttons.find((b) => b.id === iconFor)?.iconName || ""}
+        onPick={(o) => { if (iconFor) patch(iconFor, { iconName: o.iconName || "" }); }} />
+    </div>
+  );
+}
+
+// The saved quick-action LIST (what press-and-hold on Quick Check-In
+// opens) — the full Settings manager, hosted right in the widget's own
+// config. Collapsed by default: it's a big panel.
+const QuickActionsConfigLazy = React.lazy(() => import("@/components/settings/QuickActionsConfig"));
+function QuickActionsManagerField({ label }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="rounded-lg border border-border/40 overflow-hidden">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left text-sm font-medium">
+        <span>{label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-3 py-3 border-t border-border/30">
+          <React.Suspense fallback={<div className="h-24 rounded-lg bg-muted/30 animate-pulse" />}>
+            <QuickActionsConfigLazy />
+          </React.Suspense>
+        </div>
+      )}
     </div>
   );
 }
@@ -643,6 +787,15 @@ export default function WidgetConfigSheet({
             // current settings — the cure for option-soup config sheets.
             if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
             if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
+            if (f.type === "quickButtons") {
+              return (
+                <QuickButtonsField key={f.key} settings={settings} terms={t}
+                  onChange={(next) => onSettings(widget.instanceId, { [f.key]: next })} />
+              );
+            }
+            if (f.type === "quickActionsManager") {
+              return <QuickActionsManagerField key={f.key} label={applyTerms(f.label, t)} />;
+            }
             const val = settings[f.key] ?? f.default ?? "";
             const commit = (v) => onSettings(widget.instanceId, { [f.key]: v });
             return (
@@ -653,9 +806,12 @@ export default function WidgetConfigSheet({
                   </label>
                 )}
                 {f.type === "text" && (
-                  <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder}
+                  <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder ? applyTerms(f.placeholder, t) : undefined}
                     maxLength={f.maxLength || 120} onCommit={(v) => { if (v !== val) commit(v); }}
                     className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                )}
+                {f.type === "orderToggle" && (
+                  <OrderToggleField field={f} value={val} onChange={commit} />
                 )}
                 {f.type === "richtext" && (
                   /* THE full editor — same WysiwygEditor + MiniToolbar the
