@@ -80,11 +80,12 @@ export function seedClassicHome(dashboardLayoutStored) {
       ...extra,
     });
   };
-  // The corner buttons row (board / guide / notifications) leads, then
-  // the system heading — the classic top-of-page, each as its own
-  // configurable widget instead of fixed page chrome.
-  push("page_buttons", { span: { cols: 4, rows: 1 } });
-  push("system_header", { span: { cols: 4, rows: 1 } });
+  // The system heading with the corner buttons (board / guide /
+  // notifications) beside it on the SAME line — the classic top-of-page,
+  // each as its own configurable widget instead of fixed page chrome.
+  // Flow view auto-places a cols-3 + cols-1 pair onto one row.
+  push("system_header", { span: { cols: 3, rows: 1 } });
+  push("page_buttons", { span: { cols: 1, rows: 1 } });
   for (const entry of layout) {
     if (!enabled(entry.id)) continue;
     if (SUB_BUTTON_IDS.includes(entry.id)) continue; // folded into quick_checkin settings
@@ -224,6 +225,32 @@ function healPage(page, oldRowPx, layout) {
   return { ...page, widgets: packPositions(rescaled, 4) };
 }
 
+// One-shot (v0.231.0): put the header and the page-buttons row on the
+// SAME line — header cols 3, buttons cols 1 beside it. Only touches the
+// shipped full-width pair; a hand-resized header or buttons row is the
+// user's own layout and stays put.
+function mergeHeaderLine(page) {
+  const ws = page.widgets || [];
+  const header = ws.find((w) => w.widgetId === "system_header");
+  const buttons = ws.find((w) => w.widgetId === "page_buttons");
+  if (!header || !buttons) return page;
+  if ((header.span?.cols || 4) !== 4 || (buttons.span?.cols || 4) !== 4) return page;
+  const ordered = [...ws].sort(
+    (a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0)
+  );
+  const out = [];
+  for (const w of ordered) {
+    if (w === buttons) continue; // re-inserted right after the header
+    if (w === header) {
+      out.push({ ...header, span: { ...(header.span || {}), cols: 3, rows: 1 } });
+      out.push({ ...buttons, span: { ...(buttons.span || {}), cols: 1, rows: 1 } });
+      continue;
+    }
+    out.push(w);
+  }
+  return { ...page, widgets: packPositions(out, 4) };
+}
+
 export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null }) {
   const qc = useQueryClient();
   const uiV2 = resolveUiV2(settingsRow?.ui_v2);
@@ -250,20 +277,29 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
         try { healed = localStorage.getItem("classic_home_norm_v4") === "1"; } catch { /* storage off */ }
         const pages = Array.isArray(stored.pages) ? stored.pages : [];
         const unpacked = (p) => (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos);
+        let headerLined = false;
+        try { headerLined = localStorage.getItem("classic_home_headerline_v1") === "1"; } catch { /* storage off */ }
         if (healed) {
-          // Already migrated on this device — only re-seat a page that
-          // somehow arrived with no positions at all (the overlap pile).
-          if (!pages.some(unpacked)) return;
+          // Already migrated on this device — re-seat a page that somehow
+          // arrived with no positions at all (the overlap pile), and run
+          // the one-shot header-line merge if this device hasn't yet.
+          if (headerLined && !pages.some(unpacked)) return;
+          const nextPages = pages.map((p) => {
+            const q = unpacked(p) ? packSeededPage(p) : p;
+            return headerLined ? q : mergeHeaderLine(q);
+          });
+          try { localStorage.setItem("classic_home_headerline_v1", "1"); } catch { /* storage off */ }
           await base44.entities.SystemSettings.update(settingsRow.id, {
-            [CLASSIC_HOME_FIELD]: { ...stored, pages: pages.map((p) => (unpacked(p) ? packSeededPage(p) : p)) },
+            [CLASSIC_HOME_FIELD]: { ...stored, pages: nextPages },
           });
           qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
         const oldRowPx = stored.grid?.rowPx || 80;
         const layout = resolveLayout(settingsRow.dashboard_layout);
-        const nextPages = pages.map((p) => healPage(p, oldRowPx, layout));
+        const nextPages = pages.map((p) => mergeHeaderLine(healPage(p, oldRowPx, layout)));
         try { localStorage.setItem("classic_home_norm_v4", "1"); } catch { /* storage off */ }
+        try { localStorage.setItem("classic_home_headerline_v1", "1"); } catch { /* storage off */ }
         await base44.entities.SystemSettings.update(settingsRow.id, {
           [CLASSIC_HOME_FIELD]: {
             ...stored,

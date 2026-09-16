@@ -56,7 +56,7 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
-import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
+import QuickCheckinButtons, { resolveQuickButtons } from "@/components/dashboard/QuickCheckinButtons";
 import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
 
 // Generic minimal-mode shell — gives every widget a "minimal" rendering
@@ -334,12 +334,22 @@ function simple(label, icon, Component, extraProps = {}) {
 export const WIDGET_REGISTRY = {
   // ── Chrome (formerly fixed header) ─────────────────────────────
   system_header: {
-    label: "Header (name, date & time)", description: "Your {{system}}'s name with the live date and time.",
+    label: "Header (name, date & time)", description: "Your {{system}}'s name with the live date and time — pick and reorder the elements in this widget's options.",
     icon: Sparkles, category: "chrome",
-    render: ({ mode, api }) => <SystemHeaderCard mode={mode} api={api} />,
+    render: ({ mode, api, settings }) => <SystemHeaderCard mode={mode} api={api} settings={settings} />,
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    configFields: [
+      { key: "customName", type: "text", label: "Name", placeholder: "Your {{system}}'s name", maxLength: 60 },
+      // First element = the big headline; the rest form the small line.
+      { key: "parts", type: "orderToggle", label: "Elements", default: ["name", "date", "time"],
+        options: [
+          { value: "name", label: "Name" },
+          { value: "date", label: "Date" },
+          { value: "time", label: "Time" },
+        ] },
+    ],
+    defaultSpan: { cols: 3, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   clock: {
     label: "Clock", description: "Just the time and date — place as many as you like.",
@@ -373,11 +383,13 @@ export const WIDGET_REGISTRY = {
     label: "Page buttons", description: "Widget board, guide & tour, and notifications buttons in one row.",
     icon: LayoutGrid, category: "chrome",
     render: ({ api }) => (
-      <div className="flex items-center justify-end gap-1 h-full">
+      // Compact and wrap-capable so the row lives happily beside the
+      // header in a single grid column (v0.231.0 same-line default).
+      <div className="flex items-center justify-end gap-0.5 h-full flex-wrap">
         {api?.openWidgetBoard && (
           <button type="button" onClick={() => api.openWidgetBoard()}
             aria-label="Open the widget board" title="Open the widget board (or swipe left)"
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             <LayoutGrid className="w-4 h-4" />
           </button>
         )}
@@ -385,9 +397,9 @@ export const WIDGET_REGISTRY = {
           <DropdownMenuTrigger asChild>
             <button type="button"
               aria-label="Guide & tour" title="Guide & tour"
-              className="relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-              <HelpCircle className="w-5 h-5" />
-              {api?.checklistIncomplete && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
+              className="relative min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+              <HelpCircle className="w-4 h-4" />
+              {api?.checklistIncomplete && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -408,9 +420,9 @@ export const WIDGET_REGISTRY = {
         </DropdownMenu>
         <button type="button" onClick={() => api?.openNotifHistory?.()}
           aria-label="Notification history" title="Notification history"
-          className="relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-          <Inbox className="w-5 h-5" />
-          {api?.hasUnreadMentions && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
+          className="relative min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+          <Inbox className="w-4 h-4" />
+          {api?.hasUnreadMentions && <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
         </button>
       </div>
     ),
@@ -438,19 +450,15 @@ export const WIDGET_REGISTRY = {
 
   // ── Quick actions ──────────────────────────────────────────────
   quick_checkin: {
-    label: "Quick action buttons", description: "The Quick Check-In button — turn on the extra start/quick buttons in this widget's options.",
+    label: "Quick action buttons", description: "Quick Check-In and the start/quick buttons — pick, reorder and restyle them in this widget's options.",
     icon: Heart, category: "actions",
     render: ({ api, settings }) => (
       <QuickCheckinButtons
         hold={api?.hold || {}}
         holdProgress={api?.holdProgress || 0}
         holdActive={api?.holdActive || false}
-        show={{
-          start_activity: settings?.startActivity === true,
-          start_symptom: settings?.startSymptom === true,
-          quick_task: settings?.quickTask === true,
-          quick_plan: settings?.quickPlan === true,
-        }}
+        buttons={resolveQuickButtons(settings || {})}
+        display={settings?.buttonDisplay || "both"}
         on={api?.quickOn || {}}
         quickActionsSlot={api?.quickActionsSlot || null}
       />
@@ -458,10 +466,17 @@ export const WIDGET_REGISTRY = {
     supportsModes: ["normal"],
     supportsMultiInstance: false,
     configFields: [
-      { key: "startActivity", type: "toggle", label: "Start Activity button", default: false },
-      { key: "startSymptom", type: "toggle", label: "Start Symptom button", default: false },
-      { key: "quickTask", type: "toggle", label: "Quick Task button", default: false },
-      { key: "quickPlan", type: "toggle", label: "Quick Plan button", default: false },
+      { key: "buttons", type: "quickButtons", label: "Buttons" },
+      { key: "buttonDisplay", type: "select", label: "Button display", default: "both",
+        options: [
+          { value: "both", label: "Icon & label" },
+          { value: "icon", label: "Icon only" },
+          { value: "label", label: "Label only" },
+        ] },
+      // The saved quick-action list behind press-and-hold on Quick
+      // Check-In — the same manager Settings hosts, right where the
+      // button lives.
+      { key: "_quickActions", type: "quickActionsManager", label: "Quick actions (press & hold)" },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
