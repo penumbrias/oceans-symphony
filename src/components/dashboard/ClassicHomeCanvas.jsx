@@ -255,6 +255,11 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
   const qc = useQueryClient();
   const uiV2 = resolveUiV2(settingsRow?.ui_v2);
   const seededRef = useRef(false);
+  // The canvas mounts only AFTER the seed/heal below has settled. Mounting
+  // it alongside meant its fit pass (120ms after mount) still held the
+  // PRE-heal page and wrote it back, silently undoing the heal — the
+  // header-line merge lost that race every time.
+  const [ready, setReady] = React.useState(false);
 
   // First render ever: lay the canvas out from the saved dashboard_layout
   // so nothing looks moved. Existing pre-v0.228 layouts get the one-shot
@@ -270,7 +275,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
           await base44.entities.SystemSettings.update(settingsRow.id, {
             [CLASSIC_HOME_FIELD]: seedClassicHome(settingsRow.dashboard_layout),
           });
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          await qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
         let healed = false;
@@ -292,7 +297,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
           await base44.entities.SystemSettings.update(settingsRow.id, {
             [CLASSIC_HOME_FIELD]: { ...stored, pages: nextPages },
           });
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          await qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
         const oldRowPx = stored.grid?.rowPx || 80;
@@ -307,10 +312,16 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
             pages: nextPages,
           },
         });
-        qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        await qc.invalidateQueries({ queryKey: ["systemSettings"] });
       } catch { /* non-fatal: the canvas just starts empty */ }
+      finally { setReady(true); }
     })();
   }, [settingsRow, qc]);
+
+  // Until the seed/heal settles the canvas stays unmounted — its fit pass
+  // must never run against (and write back) a layout the heal is
+  // replacing. Normal boots pass through in one frame.
+  if (!ready) return null;
 
   return (
     <ExperimentalDashboard

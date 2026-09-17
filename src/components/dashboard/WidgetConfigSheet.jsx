@@ -621,6 +621,8 @@ export default function WidgetConfigSheet({
   const open = !!widget && !!def;
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const [styleOpen, setStyleOpen] = React.useState(false);
+  const [builtinOpen, setBuiltinOpen] = React.useState(false);
+  const [themesOpen, setThemesOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
   const [advOpen, setAdvOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
@@ -1024,27 +1026,55 @@ export default function WidgetConfigSheet({
           ))}
 
           <div className="space-y-3 pt-2 border-t border-border/30">
-            <div>
-              <label className="text-xs font-medium block mb-1">Font</label>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-              
-              <SearchableSelect
-                value={settings.font || ""}
-                onChange={(v) => onSettings(widget.instanceId, { font: v || "" })}
-                // Includes the user's own uploaded fonts, not just the
-                // built-in catalogue (owner rule).
-                options={fontOptions}
-                placeholder="Use the app font"
-                searchPlaceholder="Search fonts…"
-                renderOption={(o) => (
-                  <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>
-                )}
-              />
+            {/* Body and header type, side by side as two matching rows.
+                The header font reaches the widget's titles/headings (h1–h4
+                and the display face) — the body font never did, which is
+                why the header widget's name wasn't restyleable. Both take
+                uploaded custom fonts, and each carries its own style chips
+                (bold / italic / small caps). Standard on every widget. */}
+            {[
+              { label: "Font", fontKey: "font", stylesKey: "fontStyles" },
+              { label: "Header font", fontKey: "headerFont", stylesKey: "headerFontStyles" },
+            ].map(({ label, fontKey, stylesKey }) => {
+              const styles = Array.isArray(settings[stylesKey]) ? settings[stylesKey] : [];
+              const toggleStyle = (id) => onSettings(widget.instanceId, {
+                [stylesKey]: styles.includes(id) ? styles.filter((x) => x !== id) : [...styles, id],
+              });
+              return (
+                <div key={fontKey}>
+                  <label className="text-xs font-medium block mb-1">{label}</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        value={settings[fontKey] || ""}
+                        onChange={(v) => onSettings(widget.instanceId, { [fontKey]: v || "" })}
+                        // Includes the user's own uploaded fonts, not just
+                        // the built-in catalogue (owner rule).
+                        options={fontOptions}
+                        placeholder="Use the app font"
+                        searchPlaceholder="Search fonts…"
+                        renderOption={(o) => (
+                          <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>
+                        )}
+                      />
+                    </div>
+                    <FontUploadButton onUploaded={(family) => onSettings(widget.instanceId, { [fontKey]: family })} />
+                  </div>
+                  <div className="flex gap-1 mt-1.5">
+                    {[["bold", "Bold"], ["italic", "Italic"], ["smallcaps", "Small caps"]].map(([id, chip]) => (
+                      <button key={id} type="button" aria-pressed={styles.includes(id)}
+                        onClick={() => toggleStyle(id)}
+                        className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${
+                          styles.includes(id) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                        }`}
+                        style={id === "bold" ? { fontWeight: 700 } : id === "italic" ? { fontStyle: "italic" } : { fontVariant: "small-caps" }}>
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <FontUploadButton onUploaded={(family) => onSettings(widget.instanceId, { font: family })} />
-              </div>
-            </div>
+              );
+            })}
 
             <SliderRow label="Corner radius" value={settings.radius} fallback={12}
               min={0} max={32} unit="px"
@@ -1216,6 +1246,14 @@ export default function WidgetConfigSheet({
                       onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
                       onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
                   ))}
+                  {/* Per-side border widths — each side can depart from the
+                      uniform Border width on its own (owner ask). */}
+                  {[["borderTopW", "Top border"], ["borderBottomW", "Bottom border"], ["borderLeftW", "Left border"], ["borderRightW", "Right border"]].map(([key, label]) => (
+                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.borderW ?? 1}
+                      min={0} max={8} unit="px"
+                      onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
+                      onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1355,49 +1393,74 @@ export default function WidgetConfigSheet({
                 <span className="font-medium">Inherit page style</span>
                 <span className="text-xs text-muted-foreground block">Currently “{pageStyleLabel}”</span>
               </button>
+              {/* The two catalogues fold away behind labelled groups —
+                  the flat run of ~30 full-width cards buried the sheet
+                  (owner report), and nothing said how the two differ. */}
+              <div className="rounded-lg border border-border/40 overflow-hidden mt-1">
+                <button type="button" onClick={() => setBuiltinOpen((v) => !v)} aria-expanded={builtinOpen}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
+                  <span className="flex-1 min-w-0">
+                    <span className="text-sm font-medium block">Widget styles{styleOverride ? ` — ${HOME_STYLES.find((x) => x.id === styleOverride)?.label}` : ""}</span>
+                    <span className="text-[0.6875rem] text-muted-foreground block">Ready-made looks for the widget's box</span>
+                  </span>
+                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums flex-shrink-0">{HOME_STYLES.length}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${builtinOpen ? "rotate-180" : ""}`} />
+                </button>
+                {builtinOpen && (
+                  <div className="px-2 py-2 space-y-1 border-t border-border/30">
+                    {HOME_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => onSettings(widget.instanceId, { style: s.id })}
+                        className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                          styleOverride === s.id
+                            ? "border-primary/60 bg-primary/10"
+                            : "border-border/40 hover:border-border"
+                        }`}
+                      >
+                        <span className="font-medium">{s.label}</span>
+                        <span className="text-xs text-muted-foreground block">{s.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* The user's app themes, translated into widget looks
                   (owner request). Applying one writes the look onto this
                   widget, so it stays tweakable afterwards. */}
               {themeLookEntries.length > 0 && (
-                <>
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-2">
-                    From your app themes
-                  </p>
-                  {themeLookEntries.map(({ name, preset, mine }) => (
-                    <button
-                      key={`theme_${name}`}
-                      type="button"
-                      onClick={() => onSettings(widget.instanceId, { ...themeToLook(preset, isDarkMode), style: "" })}
-                      className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5"
-                    >
-                      <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
-                        style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
-                      <span className="min-w-0">
-                        <span className="font-medium capitalize block truncate">{name}</span>
-                        <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
-                      </span>
-                    </button>
-                  ))}
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-2">
-                    Widget styles
-                  </p>
-                </>
+                <div className="rounded-lg border border-border/40 overflow-hidden">
+                  <button type="button" onClick={() => setThemesOpen((v) => !v)} aria-expanded={themesOpen}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
+                    <span className="flex-1 min-w-0">
+                      <span className="text-sm font-medium block">From your app themes</span>
+                      <span className="text-[0.6875rem] text-muted-foreground block">Copies a theme's colours &amp; font onto this widget</span>
+                    </span>
+                    <span className="text-[0.6875rem] text-muted-foreground tabular-nums flex-shrink-0">{themeLookEntries.length}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${themesOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {themesOpen && (
+                    <div className="px-2 py-2 space-y-1 border-t border-border/30">
+                      {themeLookEntries.map(({ name, preset, mine }) => (
+                        <button
+                          key={`theme_${name}`}
+                          type="button"
+                          onClick={() => onSettings(widget.instanceId, { ...themeToLook(preset, isDarkMode), style: "" })}
+                          className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5"
+                        >
+                          <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
+                            style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
+                          <span className="min-w-0">
+                            <span className="font-medium capitalize block truncate">{name}</span>
+                            <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-              {HOME_STYLES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onSettings(widget.instanceId, { style: s.id })}
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                    styleOverride === s.id
-                      ? "border-primary/60 bg-primary/10"
-                      : "border-border/40 hover:border-border"
-                  }`}
-                >
-                  <span className="font-medium">{s.label}</span>
-                  <span className="text-xs text-muted-foreground block">{s.description}</span>
-                </button>
-              ))}
             </div>
           </div>
 

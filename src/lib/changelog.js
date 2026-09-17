@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "feature", text: "Widget options: every widget now has a \"Header font\" — its titles and headings can carry their own font, separate from the body. Custom uploaded fonts work for both." },
+      { type: "feature", text: "Widget options: bold / italic / small-caps style chips under both fonts." },
+      { type: "feature", text: "Widget options → Advanced: each side of a widget's border can have its own width, like the per-side spacing." },
+      { type: "improve", text: "Widget style presets are easier to navigate: \"Widget styles\" and \"From your app themes\" now fold into labelled groups that say what each one does." },
       { type: "fix", text: "The Quick Plan button now actually appears on the quick-action buttons row when turned on." },
       { type: "feature", text: "Quick action buttons: reorder them, rename them, give each its own icon, and show icons only or labels only — Quick Check-In itself can be toggled off too (one button always stays)." },
       { type: "feature", text: "The saved quick-actions list (press & hold Quick Check-In) is now editable right inside the widget's own options." },

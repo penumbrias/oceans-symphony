@@ -19,6 +19,13 @@ export const LOOK_KEYS = [
   "font", "fontScale", "radius", "borderW", "borderColor", "borderStyle",
   "accent", "bg", "bgOpacity", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
   "padTop", "padRight", "padBottom", "padLeft",
+  // Heading type, separate from body type: a widget's titles/headings can
+  // carry their own font and styling (owner ask — the header widget's name
+  // wasn't reachable through the body font at all).
+  "headerFont", "fontStyles", "headerFontStyles",
+  // Per-side border widths (Advanced) — each overrides the uniform
+  // borderW on its side only, like the per-side spacing.
+  "borderTopW", "borderRightW", "borderBottomW", "borderLeftW",
   // Effects the user can build themselves — the same ones the built-in
   // styles use, so nothing is reserved for presets.
   "gradFrom", "gradTo", "gradAngle", "blur",
@@ -89,6 +96,13 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   }
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;
+  // Body font styling: italic and small caps inherit cleanly (almost
+  // nothing inside a widget sets its own font-style/variant). Bold can't —
+  // Tailwind weight classes win over inheritance — so it rides the scoped
+  // CSS from lookExtraCss instead.
+  const bodyStyles = Array.isArray(look.fontStyles) ? look.fontStyles : [];
+  if (bodyStyles.includes("italic")) s.fontStyle = "italic";
+  if (bodyStyles.includes("smallcaps")) s.fontVariant = "small-caps";
   if (isSet(look.textColor)) {
     // Plain inheritance only reaches unclassed text — nearly everything in a
     // widget carries text-foreground / text-muted-foreground, which win over
@@ -120,6 +134,10 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   }
   if (isSet(look.borderColor)) s["--v2-border-color"] = withAlpha(look.borderColor, look.borderOpacity);
   if (isSet(look.borderStyle)) s["--v2-border-style"] = look.borderStyle;
+  if (isSet(look.borderTopW)) s["--v2-border-w-t"] = `${look.borderTopW}px`;
+  if (isSet(look.borderRightW)) s["--v2-border-w-r"] = `${look.borderRightW}px`;
+  if (isSet(look.borderBottomW)) s["--v2-border-w-b"] = `${look.borderBottomW}px`;
+  if (isSet(look.borderLeftW)) s["--v2-border-w-l"] = `${look.borderLeftW}px`;
   if (isSet(look.shadow)) s["--v2-shadow"] = SHADOW_PRESETS[look.shadow] ?? look.shadow;
   // A gradient layers OVER the flat background colour, so the two combine
   // rather than one silently winning. Each stop carries its own opacity, so
@@ -136,6 +154,33 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   return s;
 }
 
+// Rules that can't ride CSS variables — they target elements INSIDE the
+// widget, so they're emitted as a scoped <style> next to the user's own
+// custom CSS. `sel` is the widget's attribute selector.
+// Headings = h1–h4 and .font-display (the classic display face), which is
+// what every widget's titles actually are.
+const HEADING_SEL = ":is(h1,h2,h3,h4,.font-display)";
+export function lookExtraCss(look = {}, sel) {
+  const rules = [];
+  const heads = Array.isArray(look.headerFontStyles) ? look.headerFontStyles : [];
+  const body = Array.isArray(look.fontStyles) ? look.fontStyles : [];
+  const headDecls = [];
+  if (isSet(look.headerFont)) headDecls.push(`font-family:${look.headerFont}`);
+  if (heads.includes("bold")) headDecls.push("font-weight:800");
+  if (heads.includes("italic")) headDecls.push("font-style:italic");
+  if (heads.includes("smallcaps")) headDecls.push("font-variant:small-caps");
+  if (headDecls.length) rules.push(`${sel} ${HEADING_SEL}{${headDecls.join(";")}}`);
+  // Body bold: inherited font-weight loses to Tailwind's weight classes,
+  // so lift everything a step instead — normal/medium text goes bold,
+  // already-bold text goes bolder, hierarchy survives.
+  if (body.includes("bold")) {
+    rules.push(`${sel}{font-weight:700}`);
+    rules.push(`${sel} :is(.font-normal,.font-medium){font-weight:700}`);
+    rules.push(`${sel} :is(.font-semibold,.font-bold,b,strong,h1,h2,h3,h4){font-weight:800}`);
+  }
+  return rules.join("\n");
+}
+
 // ── What a style covers ────────────────────────────────────────────
 // A saved style doesn't have to be a whole look. You can save just the
 // shape, or just the colours, and apply it over anything without
@@ -147,12 +192,13 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
 export const LOOK_GROUPS = [
   {
     id: "shape", label: "Shape & spacing",
-    keys: ["radius", "borderW", "borderStyle", "padding", "shadow"],
+    keys: ["radius", "borderW", "borderStyle", "padding", "shadow",
+      "borderTopW", "borderRightW", "borderBottomW", "borderLeftW"],
     required: ["radius", "borderW", "padding", "shadow"],
   },
   {
     id: "type", label: "Font & text size",
-    keys: ["font", "fontScale"],
+    keys: ["font", "fontScale", "headerFont", "fontStyles", "headerFontStyles"],
     required: ["font", "fontScale"],
   },
   {
