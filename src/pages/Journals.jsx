@@ -204,6 +204,13 @@ export default function Journals() {
     if (pendingFolder != null) setViewingFolder(pendingFolder || null);
   }, [pendingFolder]);
 
+  // ?author=<alterId> — arrive with that member's author filter already
+  // on (the profile Journal tab's "Open in Journals" link).
+  const pendingAuthor = searchParams.get('author');
+  useEffect(() => {
+    if (pendingAuthor) setSelectedAuthorId(pendingAuthor);
+  }, [pendingAuthor]);
+
   // ?compose=1 — open the editor for a new entry straight away (used by
   // the UI-v2 quick-note key; optionally combined with ?folder=). Param is
   // stripped so back/refresh doesn't reopen the editor.
