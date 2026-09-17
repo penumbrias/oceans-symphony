@@ -3375,7 +3375,7 @@ export function seedV2Home() {
           {
             ...mk("text", 8, 2),
             settings: {
-              text: "<p>Welcome to the widget board! You can customize this space however you'd like to make things more accessible for you. We encourage experimentation and creativity!</p>",
+              text: "<p>Welcome to the widget board! You can customize this space however you'd like to make things more accessible for you. We encourage experimentation and creativity!</p><p>Press and hold on any empty area to enter \"edit\" mode, or access via the settings icon in the top right corner.</p>",
               align: "center",
             },
           },
