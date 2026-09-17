@@ -1143,6 +1143,48 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
 // A chevron tab on a screen edge that folds the pinned-{alters} bar in
 // and out — used when no bar handle lives on that edge (top without the
 // QA strip, and the left/right edges, where a swipe would fight scrolling).
+// Handle-only strip for the bottom nav: the alters bar's fold handle when
+// the quick-actions strip (which normally carries it) isn't mounted —
+// quick actions as a bubble / floating edge bar, or turned off. Same
+// swipe-or-tap grammar and the same toggle events as the split handle, so
+// "swipe up on the bottom bar" works in every configuration (owner ask).
+function AltersFoldHandle({ uiV2, settingsRow, terms }) {
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const cfg = settingsRow?.[homeField]?.altersBar || {};
+  const dragY = useRef(null);
+  const open = !cfg.collapsed;
+  return (
+    <div className="relative" style={barLookStyle(uiV2, "actions", { veil: false })}>
+      <div className="w-full flex" style={{ height: 13 }}>
+        <button
+          type="button"
+          style={{ touchAction: "none" }}
+          aria-label={applyTerms(`Show the pinned {{alters}} bar`, terms)}
+          title={applyTerms(`Show the pinned {{alters}} bar`, terms)}
+          onPointerDown={(e) => {
+            dragY.current = e.clientY;
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+          }}
+          onPointerUp={(e) => {
+            const dy = dragY.current == null ? 0 : e.clientY - dragY.current;
+            dragY.current = null;
+            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+            if (dy < -14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }));
+            else if (dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
+            else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
+          }}
+          className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+        >
+          <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+          <ChevronUp className="w-2.5 h-2.5" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+          <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AltersEdgeTab({ edge, open, onToggle, terms }) {
   const Icon = edge === "left" ? ChevronRight : edge === "right" ? ChevronLeft : edge === "top" ? ChevronDown : ChevronUp;
   return (
@@ -1351,11 +1393,13 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
           {(() => {
             const actionsMode = uiV2.tokens.actionsMode || "bar";
             const actionsEdge = uiV2.tokens.actionsEdge || "bottom";
-            const swapped = (uiV2.tokens.barsSwap || "normal") === "swapped";
+            // Bottom: the nav now ALWAYS carries a fold handle for this
+            // bar when it has any content (the strip's split handle, or
+            // the standalone AltersFoldHandle) — the floating pill is
+            // only for a fully bare bottom edge.
             const handleOnThisEdge = altersPos === "top"
               ? (uiV2.bars.actions && actionsMode === "bar" && actionsEdge === "top")
-              : (swapped ? uiV2.bars.tabs
-                : (uiV2.bars.actions && actionsMode === "bar" && actionsEdge !== "top"));
+              : navHasContent;
             if (!altersBarCfg.collapsed || previewLift || handleOnThisEdge) return null;
             // Same gesture grammar as the split handle (owner ask): swipe
             // toward the page opens, tap toggles. (The bar's own
@@ -1464,13 +1508,26 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
           still tucks it away, and the set_front key's hold brings it back. */}
       {/* Fold-out strip: quick actions normally; the page tabs when the
           bars are swapped. Same handle, same swipe, same persistence. */}
-      {barsSwapped
-        ? (uiV2.bars.tabs && (
-            <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" content="tabs" tabItems={items} />
-          ))
-        : (uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top" && (
-            <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />
-          ))}
+      {(() => {
+        const stripHere = barsSwapped
+          ? uiV2.bars.tabs
+          : (uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top");
+        if (stripHere) {
+          return barsSwapped
+            ? <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" content="tabs" tabItems={items} />
+            : <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />;
+        }
+        // No strip (quick actions bubble/floating/off) — the alters bar
+        // still gets its fold handle on the bottom bar, so swipe-up works
+        // in every configuration (owner ask).
+        const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+        const abCfg = settingsRow?.[wide ? "ui_v2_home_desktop" : "ui_v2_home"]?.altersBar || {};
+        const wantsHandle = abCfg.enabled === true && abCfg.mode !== "bubble"
+          && (!["top", "left", "right"].includes(abCfg.position));
+        return wantsHandle
+          ? <AltersFoldHandle uiV2={uiV2} settingsRow={settingsRow} terms={terms} />
+          : null;
+      })()}
 
       {/* Always-visible row: the page tabs normally; the key row when the
           bars are swapped. */}
