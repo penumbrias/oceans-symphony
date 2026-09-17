@@ -1609,6 +1609,19 @@ export default function ExperimentalDashboard({
       {/* Edit-mode chrome moved to the BOTTOM EDIT BAR (owner) — the
           corner buttons are gone; see the fixed bar rendered below. */}
 
+      {/* Undo/redo, always on screen while editing (owner ask) — a small
+          pill above the edit bar, thumb-reachable and clear of the
+          widgets. Hidden while a sheet is open: those carry their own
+          copy in their header (the shared history dedupes instances). */}
+      {editMode && !homeSettingsOpen && !configId && !drawerOpen && (
+        <div className="fixed right-3 z-[60]"
+          style={{ bottom: "calc(var(--home-edit-bar-h, 56px) + var(--os-sab) + 10px)" }}>
+          <div className="flex items-center px-1.5 py-1.5 rounded-2xl border border-border/60 bg-background/90 backdrop-blur shadow-lg">
+            <UndoRedoButtons />
+          </div>
+        </div>
+      )}
+
       {/* Home screen settings — what used to be the toolbar pills. */}
       <Drawer key={homeDock} direction={homeDock} open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
         <DrawerContent direction={homeDock} hideHandle

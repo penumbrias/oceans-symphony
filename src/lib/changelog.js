@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "improve", text: "Undo/redo stay on screen the whole time you're editing the home screen or board — a small floating pair above the edit bar (hold either for the history list)." },
       { type: "improve", text: "Home screen's Display panel: the \"Back to classic\" button is now \"Reset to default…\" — it opens the same reset dialog as the ⚙ menu (the old button quietly turned the whole canvas off)." },
       { type: "fix", text: "Dragging right now works on the currently-{{fronting}} chips (and the set-{{front}} and check-in rows) too — they run their own gesture wiring and had been missed." },
       { type: "fix", text: "Home screen widgets no longer pick up a default border and extra padding from the app-wide display settings — the look is back to unchanged unless you style a widget yourself." },
