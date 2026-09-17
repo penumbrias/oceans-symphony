@@ -98,6 +98,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { recordCrash } from '@/lib/lastCrash';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
+import { pruneDanglingGroupEntries } from '@/lib/groupMembership';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
 import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
@@ -471,6 +472,13 @@ function App() {
     return () => { cancelled = true; };
   }, [setupState]);
 
+  // Signal the index.html white-screen watchdog that boot got somewhere real
+  // (dashboard, firstrun, unlock, or a recovery screen all count — the
+  // watchdog only rescues a boot that never leaves the spinner).
+  useEffect(() => {
+    if (setupState !== 'booting') window.__OS_ALIVE = true;
+  }, [setupState]);
+
   useEffect(() => {
     if (setupState === null && isDbInitialized()) {
       migrateBase64AvatarsToLocal().catch(() => {});
@@ -488,6 +496,10 @@ function App() {
       // would overwrite their last real backup file with junk.
       if (!isPreviewActive()) {
         runAutoBackupIfDue().catch(() => {});
+        // Scrub membership entries pointing at groups deleted before
+        // deleteGroupCascade existed — they rendered as chips leading to
+        // "Group not found". Best-effort, writes only when stale refs exist.
+        pruneDanglingGroupEntries().catch(() => {});
       }
     }
   }, [setupState]);

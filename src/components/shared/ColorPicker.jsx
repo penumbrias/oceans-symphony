@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HexColorPicker } from 'react-colorful';
+import { normalizeHexInput } from '@/lib/colorUtils';
 
 // compact: show ONLY the swatch in the row — the name, the hex field and any
 // actions (Clear, "use the app colour") live inside the popover, which is
@@ -66,11 +67,32 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
+  // Liberal in what we accept: "#312e81", "312e81", "#f80" and "f80" all
+  // count (see normalizeHexInput). The old strict `#xxxxxx`-only test
+  // meant a code typed without the # never applied — half of the tester's
+  // "the text input doesn't accept anything".
   const handleHexInput = (e) => {
     const v = e.target.value;
     markEdit();
     setHex(v);
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v);
+    const norm = normalizeHexInput(v);
+    if (norm) onChange(norm);
+  };
+
+  // Commit shorthand / fix casing when the user leaves the field; snap back
+  // to the last good colour if what's left isn't a colour at all.
+  const handleHexBlur = () => {
+    const norm = normalizeHexInput(hex);
+    if (norm) { setHex(norm); onChange(norm); }
+    else setHex(value || '#6366f1');
+  };
+
+  // The field always arrives pre-filled with a full 7-character code, so
+  // with a plain cursor-at-the-end tap, typing appeared to do NOTHING (the
+  // other half of the report — maxLength was already reached). Select-all
+  // on focus so typing replaces the old code, like every colour app.
+  const handleHexFocus = (e) => {
+    try { e.target.select(); } catch { /* non-fatal */ }
   };
 
   const handlePickerChange = (color) => {
@@ -118,9 +140,11 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
           <input
             value={hex}
             onChange={handleHexInput}
+            onBlur={handleHexBlur}
+            onFocus={handleHexFocus}
             placeholder='#6366f1'
             className='flex-1 h-8 px-2 rounded-md border border-border bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary/50'
-            maxLength={7}
+            maxLength={9}
           />
         )}
       </div>
@@ -146,8 +170,10 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
             <input
               value={hex}
               onChange={handleHexInput}
+              onBlur={handleHexBlur}
+              onFocus={handleHexFocus}
               className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
-              maxLength={7}
+              maxLength={9}
             />
             {opacity && (
               <div className='mt-2'>

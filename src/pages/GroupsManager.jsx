@@ -43,7 +43,7 @@ import {
 } from "@/lib/groupTree";
 import { byGroupOrder } from "@/lib/groupTreeUtils";
 import { getMemberAlters } from "@/lib/subsystemUtils";
-import { setGroupMembers, currentMemberIds } from "@/lib/groupMembership";
+import { setGroupMembers, currentMemberIds, deleteGroupCascade } from "@/lib/groupMembership";
 import { isValidHexColor } from "@/lib/colorUtils";
 
 const dotColor = (c) => (isValidHexColor(c) ? c : "hsl(var(--muted))");
@@ -248,7 +248,9 @@ export default function GroupsManager() {
         for (const kid of childGroups(groups, id)) {
           if (!ids.includes(kid.id)) await base44.entities.Group.update(kid.id, { parent: "" });
         }
-        await base44.entities.Group.delete(id);
+        // Cascade: also scrubs the group's membership entries off every
+        // member, so no "Group not found" chips are left behind.
+        await deleteGroupCascade(byId[id] || { id });
       }
       refresh();
       setSelected(new Set());

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { normalizeHexInput } from "@/lib/colorUtils";
 
 /**
  * Standard color picker modal used across the app.
@@ -21,7 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
  */
 export default function ColorPickerModal({ color = "#8b5cf6", label = "Pick Color", onSave, onClose }) {
   const [hex, setHex] = useState(color);
-  const valid = /^#[0-9A-F]{6}$/i.test(hex);
+  const norm = normalizeHexInput(hex);
+  const valid = !!norm;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose?.(); }}>
@@ -34,15 +36,22 @@ export default function ColorPickerModal({ color = "#8b5cf6", label = "Pick Colo
           <DialogTitle>{label}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <HexColorPicker color={hex} onChange={setHex} style={{ width: "100%" }} />
+          <HexColorPicker color={norm || hex} onChange={setHex} style={{ width: "100%" }} />
           <input
             type="text"
             value={hex}
-            onChange={(e) => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setHex(e.target.value); }}
+            // Free typing; validity gates the Save button instead. The old
+            // filter silently swallowed keystrokes whenever the field was
+            // already full — "the text input doesn't accept anything".
+            onChange={(e) => setHex(e.target.value)}
+            // Pre-filled with a full code, so select-all on focus lets
+            // typing replace it instead of hitting the length ceiling.
+            onFocus={(e) => { try { e.target.select(); } catch { /* non-fatal */ } }}
             placeholder="#000000"
+            maxLength={9}
             className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono"
           />
-          <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: valid ? hex : "transparent" }} />
+          <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: norm || "transparent" }} />
           <div className="flex gap-2">
             <button
               type="button"
@@ -53,7 +62,7 @@ export default function ColorPickerModal({ color = "#8b5cf6", label = "Pick Colo
             </button>
             <button
               type="button"
-              onClick={() => { onSave?.(hex); onClose?.(); }}
+              onClick={() => { onSave?.(norm || hex); onClose?.(); }}
               disabled={!valid}
               className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm cursor-pointer disabled:opacity-50"
             >
