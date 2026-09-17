@@ -1009,6 +1009,35 @@ export default function ExperimentalDashboard({
     // in a row.
   };
 
+  // Drop from the drawer's hold-and-drag: land the widget AT the cell
+  // under the finger (free pages in edit mode — the only place the
+  // widgets tab opens from). A drop outside the grid falls back to the
+  // ordinary append.
+  const handleDropWidget = (widgetId, point) => {
+    const def = registry[widgetId];
+    if (!def) return;
+    const rect = gridRef.current?.getBoundingClientRect();
+    const inside = rect && point
+      && point.x >= rect.left && point.x <= rect.right
+      && point.y >= rect.top && point.y <= rect.bottom;
+    if (!inside || !pageIsFree) { handleAddWidget(widgetId); return; }
+    const gap = home.styleMode === "barebones" ? 6 : 12;
+    const cw = (rect.width - (gridCols - 1) * gap) / gridCols;
+    const col = Math.floor((point.x - rect.left) / (cw + gap));
+    const row = Math.floor((point.y - rect.top) / (rowPx + gap));
+    const span = { ...(def.defaultSpan || { cols: 4, rows: 1 }) };
+    span.cols = Math.min(span.cols, gridCols);
+    const added = {
+      instanceId: newInstanceId(), widgetId, span,
+      mode: effectiveMode("normal", def.supportsModes), settings: {},
+      pos: { x: Math.max(0, Math.min(gridCols - span.cols, col)), y: Math.max(0, row) },
+    };
+    updatePageWidgets((ws) => resolveOverlaps([...ws, added], gridCols, added.instanceId));
+    toast.success(`${widgetLabel(def, t)} added`);
+    setDrawerOpen(false);
+    setEditMode(true);
+  };
+
   const setWallpaper = (url) => persist({ ...home, wallpaper: { url: url || "" } });
   // Route the shared AssetPickerModal's selection to whatever asked for it.
   const handleAssetSelected = (url) => {
@@ -1999,6 +2028,7 @@ export default function ExperimentalDashboard({
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         registry={registry}
         onAddWidget={handleAddWidget}
+        onDropWidget={handleDropWidget}
         api={widgetApi}
         userStyles={userStyles}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "feature", text: "Widget drawer: press and hold a widget card, then drag — the drawer slips out of the way and the widget drops right where you let go. (Tapping Add still appends it below everything.)" },
       { type: "improve", text: "A brand-new widget board now starts as a creative space — a welcome note, the week and month planners, box breathing and a notebook page — instead of copying the home screen. (Existing boards are untouched.)" },
       { type: "feature", text: "Inner world map widget: opens showing the whole map by default, and \"Set view\" pins whatever's on screen as the widget's own default (\"Auto\" goes back to whole-map)." },
       { type: "fix", text: "Home screen widgets: the look controls all actually work now — corner radius, borders, background, gradient, blur, shadow and inner spacing were silently ignored by the classic cards." },
