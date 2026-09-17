@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "fix", text: "{{System}} chat: the compose row and its Format bar now ride above the on-screen keyboard instead of hiding behind it." },
       { type: "hotfix", text: "Hotfix: the fresh widget board's welcome note now also says how to enter edit mode." },
       { type: "improve", text: "The pinned {{alters}} bar's pull tab now takes the same swipe as the bar handle — swipe up (or tap) to bring the bar back out; swiping down on the bar itself still tucks it away." },
       { type: "fix", text: "Glow (and every widget shadow) no longer gets clipped at the widget's edge." },

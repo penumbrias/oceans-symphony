@@ -18,6 +18,45 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
+
+// Lift the composer so it rides just above the on-screen keyboard (and
+// above the format toolbar's keyboard dock, via --os-kb-dock-pad) on
+// devices where the webview doesn't resize — otherwise the whole compose
+// row sat BEHIND the keyboard (owner report: "the format/edit bar should
+// render above the keyboard like elsewhere"). position:relative + bottom
+// keeps fixed-position descendants (pickers, popovers) untouched.
+function useComposerLift(kb) {
+  const ref = useRef(null);
+  const liftRef = useRef(0);
+  const [lift, setLift] = useState(0);
+  React.useLayoutEffect(() => {
+    let raf = 0;
+    const compute = () => {
+      const el = ref.current;
+      if (!el) return;
+      let pad = kb;
+      try {
+        const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--os-kb-dock-pad"));
+        if (Number.isFinite(v)) pad = Math.max(pad, v);
+      } catch { /* var unset */ }
+      if (pad <= 40) {
+        if (liftRef.current !== 0) { liftRef.current = 0; setLift(0); }
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const unliftedBottom = r.bottom + liftRef.current;
+      const next = Math.max(0, Math.round(unliftedBottom - (window.innerHeight - pad)));
+      if (next !== liftRef.current) { liftRef.current = next; setLift(next); }
+    };
+    compute();
+    // The toolbar's dock publishes its var a beat after the keyboard
+    // moves — settle on the next frame too.
+    raf = requestAnimationFrame(compute);
+    return () => cancelAnimationFrame(raf);
+  }, [kb]);
+  return { ref, lift };
+}
 import { parseAndStripSignposts, foldSignpostAuthors, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
@@ -412,6 +451,8 @@ export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, sel
 // Identical in chat and meeting. `onSubmit({ content, speakerIds, notifyOnReply })`
 // is called with the raw typed HTML; the host's send logic does the parsing.
 export function Composer({ channelLabel, alters, speakerAlters = alters, defaultAuthorId, replyTo, onCancelReply, onSubmit, terms, placeholderText }) {
+  const kbInset = useKeyboardInset();
+  const composerLift = useComposerLift(kbInset);
   const formatAlter = useAlterLabel();
   const [speakerIds, setSpeakerIds] = useState(() => defaultAuthorId ? [defaultAuthorId] : [SYSTEM_AUTHOR.id]);
   useEffect(() => {
@@ -506,7 +547,8 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
     || `Message ${channelLabel || ""}…  (@ mention · ${terms.signpostReplace || "-"} signpost · /w @name [secret] to whisper)`;
 
   return (
-    <div className="border-t border-border/50 p-2 flex-shrink-0 bg-background">
+    <div ref={composerLift.ref} className="border-t border-border/50 p-2 flex-shrink-0 bg-background"
+      style={composerLift.lift ? { position: "relative", bottom: composerLift.lift, zIndex: 35 } : undefined}>
       {replyTo && (
         <div className="flex items-center gap-2 px-2 py-1 mb-1 text-xs bg-muted/40 rounded-md">
           <Reply className="w-3 h-3" />
