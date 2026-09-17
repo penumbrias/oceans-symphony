@@ -510,9 +510,14 @@ function TodayWidget() {
   // A to-do already shown as a plan (the plan links it) isn't repeated in
   // the due list — one thing, one row.
   const plannedTaskIds = new Set(plans.map((a) => a.task_id).filter(Boolean));
+  // Due today (or overdue) — plus the safety net: a to-do scheduled for
+  // today whose linked plan is missing (older data, or a sync gap) still
+  // belongs on today's list.
   const due = tasks
-    .filter((x) => !x.completed && !plannedTaskIds.has(x.id) && x.due_date && new Date(x.due_date).getTime() <= endOfToday())
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+    .filter((x) => !x.completed && !plannedTaskIds.has(x.id)
+      && ((x.due_date && new Date(x.due_date).getTime() <= endOfToday())
+        || (x.scheduled_at && sameDay(x.scheduled_at, now))))
+    .sort((a, b) => new Date(a.due_date || a.scheduled_at) - new Date(b.due_date || b.scheduled_at));
   const unresolved = activities.filter(
     (a) => a.status === "scheduled" && a.timestamp && new Date(a.timestamp).getTime() < now - 3600000
   ).length;

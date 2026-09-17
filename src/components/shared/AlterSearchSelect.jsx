@@ -43,16 +43,36 @@ export default function AlterSearchSelect({
       let left = r.left;
       const maxLeft = window.innerWidth - width - 8;
       left = maxLeft >= 8 ? Math.min(Math.max(left, 8), maxLeft) : 8;
-      setPos({ top: r.bottom + 4, left, width });
+      // Fit the VISIBLE viewport — with the on-screen keyboard up (this
+      // dropdown autofocuses its search box) the space under a trigger
+      // near the bottom of a sheet can be a sliver, and a fixed-height
+      // list ran straight off screen (the "assign root gets cut off"
+      // report). Open upward when there's more room above, and clamp the
+      // list to whatever room the chosen side actually has.
+      const vv = window.visualViewport;
+      const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const HEAD = 48; // the search row
+      const below = visibleBottom - r.bottom - 12;
+      const above = r.top - 12;
+      const up = below < HEAD + 140 && above > below;
+      const room = (up ? above : below) - HEAD - 8;
+      const listMax = Math.max(120, Math.min(240, room));
+      setPos(up
+        ? { up: true, bottom: window.innerHeight - r.top + 4, left, width, listMax }
+        : { up: false, top: r.bottom + 4, left, width, listMax });
     };
     compute();
     window.addEventListener("resize", compute);
     window.addEventListener("orientationchange", compute);
     window.addEventListener("scroll", compute, true);
+    window.visualViewport?.addEventListener("resize", compute);
+    window.visualViewport?.addEventListener("scroll", compute);
     return () => {
       window.removeEventListener("resize", compute);
       window.removeEventListener("orientationchange", compute);
       window.removeEventListener("scroll", compute, true);
+      window.visualViewport?.removeEventListener("resize", compute);
+      window.visualViewport?.removeEventListener("scroll", compute);
     };
   }, [open]);
 
@@ -112,7 +132,10 @@ export default function AlterSearchSelect({
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
           <div
             className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
-            style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
+            style={{
+              position: "fixed", zIndex: zIndex + 1, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)",
+              ...(pos.up ? { bottom: pos.bottom } : { top: pos.top }),
+            }}
             onPointerDown={(e) => e.stopPropagation()}
             onFocus={(e) => e.stopPropagation()}
           >
@@ -131,7 +154,7 @@ export default function AlterSearchSelect({
                 <FolderTree className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="max-h-60 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
+            <div className="overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", maxHeight: pos.listMax || 240 }}>
               {showNone && (
                 <button
                   type="button"

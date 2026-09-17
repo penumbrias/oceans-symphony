@@ -2043,6 +2043,26 @@ export default function ExperimentalDashboard({
         onResetWidget={(id) => (id === BAR_CONFIG_ID
           ? persist({ ...home, altersBar: { ...home.altersBar, look: {} } })
           : handleResetWidget(id))}
+        // The sheet's close guard: "Undo my changes" puts the widget back
+        // exactly how it was when the sheet opened.
+        onRestoreSnapshot={(id, snap) => {
+          if (id === BAR_CONFIG_ID) {
+            // The bar's sheet settings are synthetic: look + mode +
+            // barHeight/chipSize (which live with the pinned config).
+            const { barHeight, chipSize, mode: barMode, ...look } = snap.settings || {};
+            persist({ ...home, altersBar: { ...home.altersBar, mode: barMode || home.altersBar.mode, look } });
+            if (settingsRow?.id) {
+              const cfg = settingsRow?.pinned_alters_config || {};
+              base44.entities.SystemSettings.update(settingsRow.id, {
+                pinned_alters_config: { ...cfg, barHeight, chipSize },
+              }).then(() => qc.invalidateQueries({ queryKey: ["systemSettings"] })).catch(() => {});
+            }
+            return;
+          }
+          updatePageWidgets((ws) => ws.map((w) => (
+            w.instanceId === id ? { ...w, mode: snap.mode, settings: snap.settings || {} } : w
+          )));
+        }}
         onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
         onEditLayout={() => { setEditMode(true); setConfigId(null); }}
         onApplyLook={handleApplyLook}

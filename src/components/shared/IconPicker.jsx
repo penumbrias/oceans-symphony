@@ -41,10 +41,15 @@ export default function IconPicker({ open, onClose, onPick, current = "", allowI
           </div>
           <div className="flex items-center gap-2">
             {allowImage && (
-              <button type="button" onClick={() => setImgOpen(true)}
-                className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
-                <Images className="w-3.5 h-3.5" /> Use an image instead
-              </button>
+              <>
+                <button type="button" onClick={() => setImgOpen(true)}
+                  className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+                  <Images className="w-3.5 h-3.5" /> Use an image instead
+                </button>
+                {/* The recommended upload size (owner ask) — icons render
+                    tiny, so a small square is all that's needed. */}
+                <span className="text-[0.6875rem] text-muted-foreground">square, ~128×128&nbsp;px</span>
+              </>
             )}
             {current && (
               <button type="button" onClick={() => { onPick({ iconName: "", iconUrl: "" }); onClose(); }}

@@ -30,6 +30,15 @@
 import React from "react";
 import { Heart, Zap, Activity as ActivityIcon, CheckSquare, CalendarClock } from "lucide-react";
 import LucideByName from "@/components/shared/LucideByName";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// An uploaded image as a button icon (asset-library local-image:// URLs
+// must resolve through the shared hook).
+function ImgIcon({ url, className }) {
+  const src = useResolvedAvatarUrl(url);
+  if (!src) return null;
+  return <img src={src} alt="" className={`${className} rounded-[4px] object-cover`.trim()} />;
+}
 
 // One entry per button the row can hold. `onKey` names the handler in the
 // `on` prop; `legacyKey` is the old per-widget toggle it grew out of.
@@ -76,10 +85,10 @@ export function resolveQuickButtons(settings = {}) {
       const def = QUICK_BUTTON_DEFS.find((d) => d.id === b?.id);
       if (!def || seen.has(def.id)) continue;
       seen.add(def.id);
-      out.push({ id: def.id, on: b.on !== false, label: b.label || "", iconName: b.iconName || "" });
+      out.push({ id: def.id, on: b.on !== false, label: b.label || "", iconName: b.iconName || "", iconUrl: b.iconUrl || "" });
     }
     for (const d of QUICK_BUTTON_DEFS) {
-      if (!seen.has(d.id)) out.push({ id: d.id, on: false, label: "", iconName: "" });
+      if (!seen.has(d.id)) out.push({ id: d.id, on: false, label: "", iconName: "", iconUrl: "" });
     }
   } else {
     out = QUICK_BUTTON_DEFS.map((d) => ({
@@ -87,6 +96,7 @@ export function resolveQuickButtons(settings = {}) {
       on: d.legacyKey ? settings[d.legacyKey] === true : true,
       label: "",
       iconName: "",
+      iconUrl: "",
     }));
   }
   if (!out.some((b) => b.on)) {
@@ -124,6 +134,7 @@ export default function QuickCheckinButtons({
 
   const renderIcon = (def, b, extra = "") => {
     const cls = `w-4 h-4 ${extra}`.trim();
+    if (b.iconUrl) return <ImgIcon url={b.iconUrl} className={cls} />;
     return b.iconName
       ? <LucideByName name={b.iconName} className={cls} fallback={<def.icon className={cls} />} />
       : <def.icon className={cls} />;

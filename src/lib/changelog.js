@@ -20,6 +20,13 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "fix", text: "Widget font styles now actually show up — buttons and inputs silently ignored italic and small caps before, which made the style chips look dead on button-heavy widgets." },
+      { type: "feature", text: "Widget fonts: the full style set — bold, light, italic, underline, strikethrough, small caps, all caps — for both the body and header font." },
+      { type: "feature", text: "Quick action buttons can use an uploaded image as their icon; the icon picker now says the recommended size." },
+      { type: "feature", text: "Widget options: closing after making changes now asks — keep them, undo them all, or keep editing. Applies everywhere the menu appears." },
+      { type: "fix", text: "A to-do scheduled or due for today now shows up in the Today widget right away." },
+      { type: "improve", text: "{{Alters}} page: tapping a group folder opens it straight away — press and hold for its options." },
+      { type: "fix", text: "\"Assign root\" (and every searchable picker) no longer gets cut off by the keyboard — the list flips above the field and fits the visible screen." },
       { type: "feature", text: "{{Alter}} and group profiles now have a Journal tab — that member's own journal entries, viewable and writable right from their profile (new entries are attributed to them, and everything still lives in Journals too)." },
       { type: "improve", text: "Journals can open pre-filtered to one author from a profile's \"Open in Journals\" button." },
       { type: "feature", text: "Widget options: every widget now has a \"Header font\" — its titles and headings can carry their own font, separate from the body. Custom uploaded fonts work for both." },

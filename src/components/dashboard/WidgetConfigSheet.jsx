@@ -76,6 +76,7 @@ import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import {
   themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
   LOOK_GROUPS, lookCoverage, lookForGroups, OFF, mergeLook, pickLook, userStyleId,
+  FONT_STYLE_OPTIONS,
 } from "@/lib/widgetLook";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -209,12 +210,19 @@ function OrderToggleField({ field, value, onChange }) {
 }
 
 // The quick-action-buttons widget's per-button editor: toggle, reorder,
-// rename and re-icon each button. Stores [{ id, on, label, iconName }].
+// rename and re-icon each button (any icon, or an uploaded image).
+// Stores [{ id, on, label, iconName, iconUrl }].
+function ButtonIconPreview({ iconUrl, iconName, Fallback }) {
+  const src = useResolvedAvatarUrl(iconUrl || "");
+  if (iconUrl && src) return <img src={src} alt="" className="w-4 h-4 rounded-[4px] object-cover" />;
+  if (iconName) return <LucideByName name={iconName} className="w-4 h-4" fallback={<Fallback className="w-4 h-4" />} />;
+  return <Fallback className="w-4 h-4" />;
+}
 function QuickButtonsField({ settings, onChange, terms }) {
   const buttons = resolveQuickButtons(settings);
   const [iconFor, setIconFor] = React.useState(null); // button id
   const onCount = buttons.filter((b) => b.on).length;
-  const commit = (next) => onChange(next.map((b) => ({ id: b.id, on: b.on, label: b.label || "", iconName: b.iconName || "" })));
+  const commit = (next) => onChange(next.map((b) => ({ id: b.id, on: b.on, label: b.label || "", iconName: b.iconName || "", iconUrl: b.iconUrl || "" })));
   const patch = (id, p) => commit(buttons.map((b) => (b.id === id ? { ...b, ...p } : b)));
   const move = (id, dir) => {
     const i = buttons.findIndex((b) => b.id === id);
@@ -256,9 +264,7 @@ function QuickButtonsField({ settings, onChange, terms }) {
                 <button type="button" onClick={() => setIconFor(b.id)}
                   aria-label={`${label} icon`}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
-                  {b.iconName
-                    ? <LucideByName name={b.iconName} className="w-4 h-4" fallback={<DefIcon className="w-4 h-4" />} />
-                    : <DefIcon className="w-4 h-4" />}
+                  <ButtonIconPreview iconUrl={b.iconUrl} iconName={b.iconName} Fallback={DefIcon} />
                 </button>
                 <DebouncedText value={b.label} placeholder={label} maxLength={40}
                   onCommit={(v) => { if (v !== b.label) patch(b.id, { label: v.trim() }); }}
@@ -268,9 +274,9 @@ function QuickButtonsField({ settings, onChange, terms }) {
           </div>
         );
       })}
-      <IconPicker open={!!iconFor} onClose={() => setIconFor(null)} allowImage={false}
+      <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         current={buttons.find((b) => b.id === iconFor)?.iconName || ""}
-        onPick={(o) => { if (iconFor) patch(iconFor, { iconName: o.iconName || "" }); }} />
+        onPick={(o) => { if (iconFor) patch(iconFor, { iconName: o.iconName || "", iconUrl: o.iconUrl || "" }); }} />
     </div>
   );
 }
@@ -617,8 +623,45 @@ export default function WidgetConfigSheet({
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
+  onRestoreSnapshot, // (instanceId, { mode, settings }) → put the widget back how it was when the sheet opened
 }) {
   const open = !!widget && !!def;
+  // Everything in this sheet applies live, so closing used to just keep
+  // whatever happened — including accidents. Snapshot the widget as the
+  // sheet opens; closing with changes asks Keep / Undo / Keep editing
+  // (the same guard the planner's editor got). One component, so every
+  // surface that hosts this menu — board, home screen, desktop, the
+  // pinned-bar config — gets the guard at once.
+  const openSnap = React.useRef(null);
+  const [closeAsk, setCloseAsk] = React.useState(false);
+  React.useEffect(() => {
+    if (!widget?.instanceId) { openSnap.current = null; setCloseAsk(false); return; }
+    if (openSnap.current?.id === widget.instanceId) return;
+    openSnap.current = {
+      id: widget.instanceId,
+      mode: widget.mode,
+      settings: JSON.parse(JSON.stringify(widget.settings || {})),
+    };
+    setCloseAsk(false);
+  }, [widget?.instanceId]);
+  const editorDirty = () => {
+    const snap = openSnap.current;
+    if (!snap || snap.id !== widget?.instanceId) return false;
+    return snap.mode !== widget.mode
+      || JSON.stringify(widget.settings || {}) !== JSON.stringify(snap.settings);
+  };
+  const requestClose = () => {
+    if (editorDirty() && onRestoreSnapshot) setCloseAsk(true);
+    else onClose();
+  };
+  const undoAndClose = () => {
+    const snap = openSnap.current;
+    if (snap && snap.id === widget?.instanceId) {
+      onRestoreSnapshot?.(snap.id, { mode: snap.mode, settings: snap.settings });
+    }
+    setCloseAsk(false);
+    onClose();
+  };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
@@ -720,17 +763,41 @@ export default function WidgetConfigSheet({
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
 
   return (
-    <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
       <DrawerContent direction={dock} hideHandle
         style={{ maxHeight: `${peekH}vh`, height: `${peekH}vh` }} {...sheetPortalGuards}>
         {/* The grab bar IS the resize handle — every sheet is always
             drag-resizable (no separate Peek mode). */}
         <PeekHandle resize={peekResize} dock={dock} />
+        {/* Close guard: changes here apply live, so leaving with edits
+            asks what to do with them instead of silently keeping them. */}
+        {closeAsk && (
+          <div className="absolute inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="w-full max-w-xs rounded-2xl border border-border/60 bg-card p-4 space-y-3 shadow-xl">
+              <p className="text-sm font-semibold">Keep these changes?</p>
+              <p className="text-xs text-muted-foreground">You changed this widget while the menu was open.</p>
+              <div className="space-y-1.5">
+                <button type="button" onClick={() => { setCloseAsk(false); onClose(); }}
+                  className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                  Keep changes
+                </button>
+                <button type="button" onClick={undoAndClose}
+                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                  Undo my changes
+                </button>
+                <button type="button" onClick={() => setCloseAsk(false)}
+                  className="w-full h-10 rounded-lg border border-border/60 text-sm text-muted-foreground hover:bg-muted/50">
+                  Keep editing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0">
               {/* The standard close chevron — points the way the sheet leaves. */}
-              <button type="button" onClick={onClose} aria-label="Close"
+              <button type="button" onClick={requestClose} aria-label="Close"
                 className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
                 {dock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -1037,9 +1104,23 @@ export default function WidgetConfigSheet({
               { label: "Header font", fontKey: "headerFont", stylesKey: "headerFontStyles" },
             ].map(({ label, fontKey, stylesKey }) => {
               const styles = Array.isArray(settings[stylesKey]) ? settings[stylesKey] : [];
-              const toggleStyle = (id) => onSettings(widget.instanceId, {
-                [stylesKey]: styles.includes(id) ? styles.filter((x) => x !== id) : [...styles, id],
-              });
+              const toggleStyle = (id) => {
+                let next = styles.includes(id) ? styles.filter((x) => x !== id) : [...styles, id];
+                // Bold and Light are opposite weights — picking one drops
+                // the other.
+                if (id === "bold" && next.includes("bold")) next = next.filter((x) => x !== "light");
+                if (id === "light" && next.includes("light")) next = next.filter((x) => x !== "bold");
+                onSettings(widget.instanceId, { [stylesKey]: next });
+              };
+              const chipPreview = {
+                bold: { fontWeight: 700 },
+                light: { fontWeight: 300 },
+                italic: { fontStyle: "italic" },
+                underline: { textDecorationLine: "underline" },
+                strikethrough: { textDecorationLine: "line-through" },
+                smallcaps: { fontVariant: "small-caps" },
+                uppercase: { textTransform: "uppercase", fontSize: "0.625rem" },
+              };
               return (
                 <div key={fontKey}>
                   <label className="text-xs font-medium block mb-1">{label}</label>
@@ -1060,14 +1141,14 @@ export default function WidgetConfigSheet({
                     </div>
                     <FontUploadButton onUploaded={(family) => onSettings(widget.instanceId, { [fontKey]: family })} />
                   </div>
-                  <div className="flex gap-1 mt-1.5">
-                    {[["bold", "Bold"], ["italic", "Italic"], ["smallcaps", "Small caps"]].map(([id, chip]) => (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {FONT_STYLE_OPTIONS.map(({ id, label: chip }) => (
                       <button key={id} type="button" aria-pressed={styles.includes(id)}
                         onClick={() => toggleStyle(id)}
                         className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${
                           styles.includes(id) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
                         }`}
-                        style={id === "bold" ? { fontWeight: 700 } : id === "italic" ? { fontStyle: "italic" } : { fontVariant: "small-caps" }}>
+                        style={chipPreview[id]}>
                         {chip}
                       </button>
                     ))}

@@ -96,13 +96,10 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   }
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;
-  // Body font styling: italic and small caps inherit cleanly (almost
-  // nothing inside a widget sets its own font-style/variant). Bold can't —
-  // Tailwind weight classes win over inheritance — so it rides the scoped
-  // CSS from lookExtraCss instead.
-  const bodyStyles = Array.isArray(look.fontStyles) ? look.fontStyles : [];
-  if (bodyStyles.includes("italic")) s.fontStyle = "italic";
-  if (bodyStyles.includes("smallcaps")) s.fontVariant = "small-caps";
+  // Font STYLES (bold/italic/…) all live in lookExtraCss — inheritance
+  // alone can't reach buttons and inputs (the UA stylesheet resets their
+  // font-style/variant), which is why wrapper-level styling looked dead
+  // on button-heavy widgets.
   if (isSet(look.textColor)) {
     // Plain inheritance only reaches unclassed text — nearly everything in a
     // widget carries text-foreground / text-muted-foreground, which win over
@@ -154,29 +151,68 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   return s;
 }
 
+// The font-style chips a widget's fonts can carry — the full set, for
+// both the body and the header row (owner ask: "all possible font
+// styles"). `bold` and `light` are mutually exclusive (the sheet
+// enforces it).
+export const FONT_STYLE_OPTIONS = [
+  { id: "bold", label: "Bold" },
+  { id: "light", label: "Light" },
+  { id: "italic", label: "Italic" },
+  { id: "underline", label: "Underline" },
+  { id: "strikethrough", label: "Strikethrough" },
+  { id: "smallcaps", label: "Small caps" },
+  { id: "uppercase", label: "All caps" },
+];
+
 // Rules that can't ride CSS variables — they target elements INSIDE the
 // widget, so they're emitted as a scoped <style> next to the user's own
 // custom CSS. `sel` is the widget's attribute selector.
 // Headings = h1–h4 and .font-display (the classic display face), which is
 // what every widget's titles actually are.
+//
+// Every body style also names form controls explicitly: the UA stylesheet
+// gives button/input their own font shorthand, which resets font-style,
+// font-variant and decoration — so plain inheritance from the wrapper
+// never reached them (the "styling buttons don't work" report: the
+// quick-action widget is ALL buttons). Weights go through class lifts
+// because Tailwind's font-* classes beat inheritance.
 const HEADING_SEL = ":is(h1,h2,h3,h4,.font-display)";
+const CONTROL_SEL = ":is(button,input,select,textarea)";
 export function lookExtraCss(look = {}, sel) {
   const rules = [];
   const heads = Array.isArray(look.headerFontStyles) ? look.headerFontStyles : [];
   const body = Array.isArray(look.fontStyles) ? look.fontStyles : [];
+
   const headDecls = [];
   if (isSet(look.headerFont)) headDecls.push(`font-family:${look.headerFont}`);
   if (heads.includes("bold")) headDecls.push("font-weight:800");
+  else if (heads.includes("light")) headDecls.push("font-weight:300");
   if (heads.includes("italic")) headDecls.push("font-style:italic");
   if (heads.includes("smallcaps")) headDecls.push("font-variant:small-caps");
+  if (heads.includes("uppercase")) headDecls.push("text-transform:uppercase");
+  const headDeco = [heads.includes("underline") && "underline", heads.includes("strikethrough") && "line-through"]
+    .filter(Boolean).join(" ");
+  if (headDeco) headDecls.push(`text-decoration-line:${headDeco}`);
   if (headDecls.length) rules.push(`${sel} ${HEADING_SEL}{${headDecls.join(";")}}`);
-  // Body bold: inherited font-weight loses to Tailwind's weight classes,
-  // so lift everything a step instead — normal/medium text goes bold,
-  // already-bold text goes bolder, hierarchy survives.
+
+  const bodyDecls = [];
+  if (body.includes("italic")) bodyDecls.push("font-style:italic");
+  if (body.includes("smallcaps")) bodyDecls.push("font-variant:small-caps");
+  if (body.includes("uppercase")) bodyDecls.push("text-transform:uppercase");
+  const bodyDeco = [body.includes("underline") && "underline", body.includes("strikethrough") && "line-through"]
+    .filter(Boolean).join(" ");
+  if (bodyDeco) bodyDecls.push(`text-decoration-line:${bodyDeco}`);
+  if (bodyDecls.length) rules.push(`${sel}, ${sel} ${CONTROL_SEL}{${bodyDecls.join(";")}}`);
+  // Weight lifts everything a step so hierarchy survives: bold makes
+  // normal/medium text bold and semibold text bolder; light mirrors it
+  // downward.
   if (body.includes("bold")) {
-    rules.push(`${sel}{font-weight:700}`);
-    rules.push(`${sel} :is(.font-normal,.font-medium){font-weight:700}`);
+    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium){font-weight:700}`);
     rules.push(`${sel} :is(.font-semibold,.font-bold,b,strong,h1,h2,h3,h4){font-weight:800}`);
+  } else if (body.includes("light")) {
+    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium,.font-semibold){font-weight:300}`);
+    rules.push(`${sel} :is(.font-bold,b,strong,h1,h2,h3,h4){font-weight:500}`);
   }
   return rules.join("\n");
 }
