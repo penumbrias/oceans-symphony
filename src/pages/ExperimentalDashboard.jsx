@@ -1643,13 +1643,30 @@ export default function ExperimentalDashboard({
               This home screen
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleBackToClassic}
-              className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1"
-            >
-              <Undo2 className="w-3 h-3" /> Back to classic
-            </button>
+            {eventPrefix === "os-classic" ? (
+              // On the classic home the escape hatch is RESET, not "back
+              // to classic" (owner call) — this IS the classic home, and
+              // the old button quietly disabled the whole canvas.
+              <button
+                type="button"
+                onClick={() => {
+                  setHomeSettingsOpen(false);
+                  setEditMode(false);
+                  window.dispatchEvent(new CustomEvent("os-classic-reset-home"));
+                }}
+                className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1"
+              >
+                <Undo2 className="w-3 h-3" /> Reset to default…
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleBackToClassic}
+                className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1"
+              >
+                <Undo2 className="w-3 h-3" /> Back to classic
+              </button>
+            )}
             {pageIsFree && (
               <button
                 type="button"
