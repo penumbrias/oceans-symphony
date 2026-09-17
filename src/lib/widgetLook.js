@@ -148,6 +148,18 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s["--v2-widget-gradient"] = `linear-gradient(${angle}deg, ${from}, ${to})`;
   }
   if (isSet(look.blur) && Number(look.blur) > 0) s["--v2-widget-blur"] = `blur(${Number(look.blur)}px)`;
+  // Widget-OWN mirrors of the box channels. The shared vars above are also
+  // set app-wide by the Display-options tokens, so a wrapper that paints
+  // the box for classic widgets (def.paintBox) must not read them — doing
+  // so gave every home-screen card the app's default border and padding
+  // (owner report). These own-vars exist ONLY when this widget's look sets
+  // them, so the paintBox defaults stay genuinely zero.
+  if (isSet(look.borderW)) s["--v2-own-border-w"] = `${look.borderW}px`;
+  if (isSet(look.padding)) s["--v2-own-pad"] = `${look.padding}px`;
+  if (s["--v2-widget-bg"]) s["--v2-own-bg"] = s["--v2-widget-bg"];
+  if (s["--v2-widget-gradient"]) s["--v2-own-gradient"] = s["--v2-widget-gradient"];
+  if (s["--v2-widget-blur"]) s["--v2-own-blur"] = s["--v2-widget-blur"];
+  if (isSet(look.shadow)) s["--v2-own-shadow"] = SHADOW_PRESETS[look.shadow] ?? look.shadow;
   return s;
 }
 

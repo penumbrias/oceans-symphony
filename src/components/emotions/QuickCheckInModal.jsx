@@ -27,7 +27,7 @@ import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
-import { useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
+import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
 import { useFrontLevels } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterSorter } from "@/lib/alterSort";
@@ -685,10 +685,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setCoFronterIds((prev) => prev.filter((x) => x !== alterId));
   };
   const suppressRowTap = useRef(0);
+  // Drag right on a row = the alter's options menu (unified grammar).
+  const rowOptionsMenu = useFrontOptionsMenu((id) => activeAlters.find((a) => a.id === id) || null);
   const { rail: levelRail, getHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
     onCommit: (alterId, levelId) => { suppressRowTap.current = Date.now() + 400; pickLevel(alterId, levelId); },
     onRemove: (alterId) => { suppressRowTap.current = Date.now() + 400; dropAlter(alterId); },
+    onOptions: (alterId) => { suppressRowTap.current = Date.now() + 400; rowOptionsMenu.openOptions(alterId); },
   });
   const railAlter = levelRail ? (activeAlters.find((a) => a.id === levelRail.alterId) || null) : null;
   const guardedToggle = (id) => {
@@ -1500,6 +1503,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   </div>
                   {/* The shared level rail — same hold-and-slide as the
                       {front} sheet, alter bar and {alter} pages. */}
+                  {rowOptionsMenu.node}
                   <FrontLevelRail rail={levelRail} cfg={levelCfg} withRemove
                     alterName={railAlter ? (railAlter.name || "") : ""} />
                 </>

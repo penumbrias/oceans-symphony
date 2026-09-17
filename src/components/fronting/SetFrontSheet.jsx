@@ -43,7 +43,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { useAlterSorter } from "@/lib/alterSort";
-import { useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
+import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -251,10 +251,13 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   };
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const suppressAddTap = useRef(0);
+  // Drag right on a row = the alter's options menu (unified grammar).
+  const rowOptionsMenu = useFrontOptionsMenu((id) => altersById[id] || null);
   const { rail: addRail, getHoldProps: getAddHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
     onCommit: (alterId, levelId) => { suppressAddTap.current = Date.now() + 400; addAtLevel(alterId, levelId); },
     onRemove: (alterId) => { suppressAddTap.current = Date.now() + 400; removeAlter(alterId); },
+    onOptions: (alterId) => { suppressAddTap.current = Date.now() + 400; rowOptionsMenu.openOptions(alterId); },
   });
   const addRailAlter = addRail ? (altersById[addRail.alterId] || null) : null;
   const guardedAdd = (id) => {
@@ -452,6 +455,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
               </div>
 
               {/* Hold-to-level rail for the add list/grid */}
+              {rowOptionsMenu.node}
               <FrontLevelRail rail={addRail} cfg={levelCfg} withRemove
                 alterName={addRailAlter ? formatAlter(addRailAlter) : ""} />
 

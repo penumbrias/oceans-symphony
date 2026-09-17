@@ -181,21 +181,20 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
         if (!o) return;
         const dx = e.clientX - o.x;
         const dy = e.clientY - o.y;
-        if (o.watch === "right") {
-          if (dx > 40 && dx > Math.abs(dy) * 1.2 && onOptions) {
-            o.watch = "fired";
-            try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-            onOptions(o.alterId);
+        if (o.watch == null && timer.current) {
+          const slop = o.touch ? TOUCH_SLOP_PX : SLOP_PX;
+          if (dx * dx + dy * dy > slop * slop) {
+            clearTimeout(timer.current);
+            timer.current = null;
+            o.watch = onOptions && dx > 0 && dx >= Math.abs(dy) ? "right" : "dead";
           }
-          return;
         }
-        if (o.watch) return;
-        if (!timer.current) return;
-        const slop = o.touch ? TOUCH_SLOP_PX : SLOP_PX;
-        if (dx * dx + dy * dy > slop * slop) {
-          clearTimeout(timer.current);
-          timer.current = null;
-          o.watch = onOptions && dx > 0 && dx >= Math.abs(dy) ? "right" : "dead";
+        // Same-event fall-through: a fast flick can cross the slop AND the
+        // fire distance in one move.
+        if (o.watch === "right" && dx > 40 && dx > Math.abs(dy) * 1.2 && onOptions) {
+          o.watch = "fired";
+          try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+          onOptions(o.alterId);
         }
       },
       onPointerUp: () => {
@@ -347,27 +346,53 @@ export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
         const dy = e.clientY - o.y;
         // Dragging RIGHT is the second way into the menu (unified gesture
         // grammar): a rightward, sideways-dominant start keeps watching
-        // and fires at 40px; any other movement is a scroll.
-        if (o.watch === "right") {
-          if (dx > 40 && dx > Math.abs(dy) * 1.2) {
-            o.watch = "fired";
-            suppress.current = Date.now() + 400;
-            try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-            onHold();
-          }
-          return;
-        }
-        if (o.watch) return;
-        if (!timer.current) return;
-        if (dx * dx + dy * dy > 64) {
+        // and fires at 40px; any other movement is a scroll. Fire-check
+        // runs on the same event as classification so a fast flick works.
+        if (o.watch == null && timer.current && dx * dx + dy * dy > 64) {
           clear();
           o.watch = dx > 0 && dx >= Math.abs(dy) ? "right" : "dead";
+        }
+        if (o.watch === "right" && dx > 40 && dx > Math.abs(dy) * 1.2) {
+          o.watch = "fired";
+          suppress.current = Date.now() + 400;
+          try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+          onHold();
         }
       },
       onPointerUp: () => { clear(); origin.current = null; },
       onPointerCancel: () => { clear(); origin.current = null; },
     },
   };
+}
+
+// Hosts the drag-right options menu for surfaces that use useHoldDragLevel
+// DIRECTLY (their own commit/suppress bookkeeping) rather than through
+// useFrontGesture: pass the result's openOptions to onOptions, render its
+// node next to the rail. resolveAlter maps the gesture's alterId back to
+// the alter object.
+export function useFrontOptionsMenu(resolveAlter) {
+  const [menuFor, setMenuFor] = useState(null);
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const resolveRef = useRef(resolveAlter);
+  resolveRef.current = resolveAlter;
+  const openOptions = useCallback((alterId) => {
+    const a = resolveRef.current?.(alterId);
+    if (a) setMenuFor(a);
+  }, []);
+  const node = menuFor ? (
+    <React.Suspense fallback={null}>
+      <AlterActionMenuLazy
+        alter={menuFor}
+        activeSessions={sessions}
+        session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id) || null}
+        onClose={() => setMenuFor(null)}
+      />
+    </React.Suspense>
+  ) : null;
+  return { openOptions, node };
 }
 
 // ── The app-standard front gesture kit ─────────────────────────────

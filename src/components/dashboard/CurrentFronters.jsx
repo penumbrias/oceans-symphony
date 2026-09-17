@@ -23,7 +23,7 @@ import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { commitFrontLevel, useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
+import { commitFrontLevel, useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -624,6 +624,10 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   // swipe-left/right front gestures are fully replaced by the standard
   // hold gesture; the rail's Remove stop covers remove-from-front).
   const chipLevelCfgMain = useFrontLevels();
+  // Drag RIGHT on a fronting chip = the alter's options menu (unified
+  // gesture grammar — this surface uses the hold-drag hook directly, so
+  // it hosts the menu itself).
+  const chipOptionsMenu = useFrontOptionsMenu((alterId) => alters.find((x) => x.id === alterId) || null);
   const { rail: chipRail, getHoldProps: getChipHoldProps } = useHoldDragLevel({
     cfg: chipLevelCfgMain,
     onCommit: (alterId, levelId, extras = {}) => {
@@ -634,6 +638,10 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       window.__chipSuppressTapUntil = Date.now() + 400;
       const a = alters.find((x) => x.id === alterId);
       if (a) removeFrontFor(a, base44, queryClient, toast, terms);
+    },
+    onOptions: (alterId) => {
+      window.__chipSuppressTapUntil = Date.now() + 400;
+      chipOptionsMenu.openOptions(alterId);
     },
   });
 
@@ -916,6 +924,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
 
         <FrontLevelRail rail={chipRail} cfg={chipLevelCfgMain} withRemove
           alterName={chipRail ? (alters.find((a) => a.id === chipRail.alterId)?.name || "") : ""} />
+        {chipOptionsMenu.node}
         <PrivateMessagesIndicator activeFronters={all} />
 
         {/* Custom status — each save is a new timestamped record, old
