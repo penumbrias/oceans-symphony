@@ -3010,7 +3010,7 @@ export const V2_WIDGETS = {
   inner_map: {
     label: "Inner world map", description: "One of your inner-world maps, right on the home screen — pick the map, and optionally a single layer. Pan and pinch work; Open jumps to the full canvas.",
     icon: Map, category: "system",
-    render: ({ settings }) => <InnerMapWidget settings={settings} />,
+    render: ({ settings, updateSettings }) => <InnerMapWidget settings={settings} updateSettings={updateSettings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
       { key: "mapId", type: "dynamicSelect", source: "innerMaps", label: "Map", emptyLabel: "First map" },
@@ -3320,10 +3320,24 @@ export const V2_WIDGETS = {
 
 // Layout for someone opening the v2 home for the first time.
 export function seedV2Home() {
-  const mk = (widgetId, cols, rows) => ({
-    instanceId: `w_${widgetId}_${Math.random().toString(36).slice(2, 8)}`,
-    widgetId, span: { cols, rows }, mode: "normal", settings: {},
-  });
+  // Each widget is seated at an explicit cell — a free page renders
+  // pos-less widgets stacked at (0,0), and overlap resolution only pushes
+  // straight down, which would unstack the side-by-side pair below.
+  let seedY = 0;
+  let seedRow = [];
+  const mk = (widgetId, cols, rows) => {
+    if (seedRow.reduce((n, w) => n + w.span.cols, 0) + cols > 8) {
+      seedY += Math.max(...seedRow.map((w) => w.span.rows), 1);
+      seedRow = [];
+    }
+    const w = {
+      instanceId: `w_${widgetId}_${Math.random().toString(36).slice(2, 8)}`,
+      widgetId, span: { cols, rows }, mode: "normal", settings: {},
+      pos: { x: seedRow.reduce((n, x) => n + x.span.cols, 0), y: seedY },
+    };
+    seedRow.push(w);
+    return w;
+  };
   return {
     // _seeded marks a starter board the user has never touched — the
     // backup-import singleton merge lets a REAL imported board replace it
@@ -3339,16 +3353,23 @@ export function seedV2Home() {
     wallpaper: { url: "" }, grid: { phoneCols: 8, rowPx: 40 }, drawer: { folders: [] },
     pages: [
       {
-        // Page 1 mirrors the classic dashboard's shape (fronters → status →
-        // today → tasks) with a starter guide on top, so switching over
-        // isn't a cold start. It's all ordinary widgets — edit or delete
-        // anything.
+        // Page 1 is a creative starter, NOT a copy of the home screen
+        // (owner spec, v0.236.0): a welcome note, the week + month
+        // planners, box breathing and a notebook page — things the home
+        // screen doesn't already show, inviting the user to make the
+        // space their own. All ordinary widgets — edit or delete anything.
         id: "p1", label: "Home", layoutMode: "free",
         widgets: [
-          mk("presence", 8, 2),
-          mk("status", 8, 2),
-          mk("today", 8, 3),
-          mk("tasks", 4, 3), mk("running", 4, 3),
+          {
+            ...mk("text", 8, 2),
+            settings: {
+              text: "<p>Welcome to the widget board! You can customize this space however you'd like to make things more accessible for you. We encourage experimentation and creativity!</p>",
+              align: "center",
+            },
+          },
+          mk("activity_week", 8, 4),
+          mk("activity_month", 8, 5),
+          mk("breathing", 4, 4), mk("notebook", 4, 4),
         ],
       },
       // A blank second page to build on, so experiments never have to

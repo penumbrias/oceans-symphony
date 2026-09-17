@@ -556,7 +556,7 @@ export function LearnWidget({ mode = "normal", settings }) {
 const InnerWorldMapLazy = React.lazy(() => import("@/components/systemmap/InnerWorldMapV2"));
 const InnerWorldListLazy = React.lazy(() => import("@/components/systemmap/InnerWorldListView"));
 
-export function InnerMapWidget({ settings }) {
+export function InnerMapWidget({ settings, updateSettings }) {
   const navigate = useNavigate();
   const { data: maps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => localEntities.InnerWorldMap.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -564,18 +564,40 @@ export function InnerMapWidget({ settings }) {
   const live = maps.filter((m) => !m.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
   const map = live.find((m) => m.id === settings?.mapId) || live[0] || null;
   const layerId = settings?.layerId || null;
+  // Where the canvas opens: the user's saved viewport, else fit the whole
+  // map on screen (it used to open zoomed to a corner — owner report).
+  // "Set view" pins whatever is on screen right now as this widget's
+  // default; "Auto" goes back to whole-map fit.
+  const savedView = settings?.view && typeof settings.view === "object" ? settings.view : null;
+  const lastView = React.useRef(null);
   const openPath = map
     ? `/system-map?view=inner&map=${encodeURIComponent(map.id)}${layerId ? `&layer=${encodeURIComponent(layerId)}${settings?.soloLayer ? "&solo=1" : ""}` : ""}`
     : "/system-map?view=inner";
   return (
-    <Section label={map?.name || "Inner world"} action={<TextAction onClick={() => navigate(openPath)}>Open</TextAction>}>
+    <Section label={map?.name || "Inner world"} action={
+      <span className="flex items-center gap-2">
+        {updateSettings && map && (
+          <TextAction onClick={() => {
+            if (!lastView.current) return;
+            updateSettings({ view: { ...lastView.current } });
+            toast.success("This view is now the widget's default");
+          }}>Set view</TextAction>
+        )}
+        {updateSettings && savedView && (
+          <TextAction onClick={() => updateSettings({ view: "" })}>Auto</TextAction>
+        )}
+        <TextAction onClick={() => navigate(openPath)}>Open</TextAction>
+      </span>
+    }>
       {!map && <Muted>No maps yet — open the {"System Map"} to start one.</Muted>}
       {map && (
         <div className="flex-1 min-h-[140px] min-h-0 relative" data-own-hold>
           <React.Suspense fallback={<Muted>…</Muted>}>
-            <InnerWorldMapLazy key={`${map.id}:${layerId || ""}:${settings?.soloLayer ? 1 : 0}`} embedded
+            <InnerWorldMapLazy key={`${map.id}:${layerId || ""}:${settings?.soloLayer ? 1 : 0}:${savedView ? "s" : "f"}`} embedded
               alters={alters} relationships={relationships} onRefreshRelationships={refetch}
-              initialMapId={map.id} initialLayerId={layerId} initialSolo={!!(layerId && settings?.soloLayer)} />
+              initialMapId={map.id} initialLayerId={layerId} initialSolo={!!(layerId && settings?.soloLayer)}
+              initialView={savedView || "fit"}
+              onViewChange={(v) => { lastView.current = v; }} />
           </React.Suspense>
         </div>
       )}

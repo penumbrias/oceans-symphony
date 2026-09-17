@@ -282,11 +282,17 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
 // the layers panel closed, and hides the maps bar + edit/zoom toolbars so
 // the canvas alone fills the tile. Pan/pinch still work; the widget's
 // header link opens the full page.
-export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false, embedded = false }) {
+// `initialView`: where the canvas opens — {x, y, scale} restores a saved
+// viewport; "fit" zooms out until everything on the map is on screen (the
+// widget's default — it used to open zoomed in on a corner, owner report).
+// `onViewChange` reports the transform (debounced) so a host can offer
+// "save this view".
+export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false, embedded = false, initialView = null, onViewChange = null }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
+  const contentRef = useRef(null);
   const mapContainerRef = useRef(null);
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
@@ -326,7 +332,44 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     }
   }, [layers, initialLayerId, initialSolo]);
 
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [transform, setTransform] = useState(() => (
+    initialView && typeof initialView === "object" && Number.isFinite(initialView.scale)
+      ? { x: initialView.x || 0, y: initialView.y || 0, scale: Math.max(0.2, Math.min(4, initialView.scale)) }
+      : { x: 0, y: 0, scale: 1 }
+  ));
+  // "fit": once the content has real size, zoom out so the whole map is on
+  // screen. Runs each render until it succeeds (data arrives async), then
+  // never again — the user's own pans/zooms are theirs.
+  const fitDone = useRef(initialView !== "fit");
+  useEffect(() => {
+    if (fitDone.current) return undefined;
+    const id = requestAnimationFrame(() => {
+      try {
+        const g = contentRef.current;
+        const svg = svgRef.current;
+        if (!g || !svg) return;
+        const bb = g.getBBox();
+        const cw = svg.clientWidth;
+        const ch = svg.clientHeight;
+        if (!bb.width || !bb.height || !cw || !ch) return;
+        const scale = Math.max(0.2, Math.min(4, Math.min(cw / bb.width, ch / bb.height) * 0.9));
+        fitDone.current = true;
+        setTransform({
+          x: (cw - bb.width * scale) / 2 - bb.x * scale,
+          y: (ch - bb.height * scale) / 2 - bb.y * scale,
+          scale,
+        });
+      } catch { /* empty map — nothing to fit */ }
+    });
+    return () => cancelAnimationFrame(id);
+  });
+  // Report where the user has panned/zoomed to (debounced), so the host
+  // widget can offer "use this view as the default".
+  useEffect(() => {
+    if (!onViewChange) return undefined;
+    const t = setTimeout(() => onViewChange(transform), 300);
+    return () => clearTimeout(t);
+  }, [transform, onViewChange]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [placingAlter, setPlacingAlter] = useState(null);
@@ -728,7 +771,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 } else { setRelPopover(null); setSelectedLocation(null); setSelectedImage(null); }
               }
             }}>
-            <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
+            <g ref={contentRef} style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
               {layersBottomToTop.filter((l) => (effectiveSolo ? l.id === effectiveSolo : l.is_visible)).map((layer) => {
                 const layerLocked = viewOnly || layer.is_locked;
                 return (
