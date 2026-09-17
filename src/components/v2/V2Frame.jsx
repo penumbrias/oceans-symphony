@@ -1357,12 +1357,30 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
               : (swapped ? uiV2.bars.tabs
                 : (uiV2.bars.actions && actionsMode === "bar" && actionsEdge !== "top"));
             if (!altersBarCfg.collapsed || previewLift || handleOnThisEdge) return null;
+            // Same gesture grammar as the split handle (owner ask): swipe
+            // toward the page opens, tap toggles. (The bar's own
+            // swipe-down still tucks it away once it's open.)
+            const dir = altersPos === "top" ? -1 : 1;
+            const toggle = (open) => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", open === undefined ? {} : { detail: { open } }));
             return (
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }))}
+                style={{ touchAction: "none" }}
                 aria-label={applyTerms(t("nav.showAlterBar"), terms)}
                 title={applyTerms(t("nav.showAlterBar"), terms)}
+                onPointerDown={(e) => {
+                  e.currentTarget._dragY = e.clientY;
+                  try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+                }}
+                onPointerUp={(e) => {
+                  const start = e.currentTarget._dragY;
+                  e.currentTarget._dragY = null;
+                  try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+                  const dy = start == null ? 0 : e.clientY - start;
+                  if (dir * dy < -14) toggle(true);
+                  else if (dir * dy > 14) toggle(false);
+                  else toggle();
+                }}
                 className="pointer-events-auto flex items-center gap-1 px-4 py-1 rounded-full border border-border/60 bg-background/85 backdrop-blur text-muted-foreground hover:text-foreground shadow"
               >
                 <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />

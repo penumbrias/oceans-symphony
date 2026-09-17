@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "improve", text: "The pinned {{alters}} bar's pull tab now takes the same swipe as the bar handle — swipe up (or tap) to bring the bar back out; swiping down on the bar itself still tucks it away." },
       { type: "fix", text: "Glow (and every widget shadow) no longer gets clipped at the widget's edge." },
       { type: "feature", text: "Widget options: \"Border width\" now scales the borders INSIDE the widget (buttons, cards, dividers); the widget's own box is the new \"Element outline\" slider. Built-in styles updated to match." },
       { type: "fix", text: "The pinned {{alters}} bar can't get stranded any more — when it's tucked away and the quick actions are a bubble or floating bar (so there's no handle), a slim pull tab appears to bring it back." },
