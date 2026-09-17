@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ import OptionsTab from "@/components/alters/profile/OptionsTab";
 import LineageTab from "@/components/alters/profile/LineageTab";
 import RelationshipsTab from "@/components/alters/profile/RelationshipsTab";
 import LocationsTab from "@/components/alters/profile/LocationsTab";
+import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -37,6 +38,7 @@ const TABS = [
   { id: "private-messages", label: "Messages", icon: Mail },
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
+  { id: "journal", label: "Journal", icon: BookOpen },
   { id: "lineage", label: "Lineage", icon: GitMerge },
   { id: "relationships", label: "Relationships", icon: Link2 },
   { id: "locations", label: "Locations", icon: MapPin },
@@ -96,7 +98,7 @@ function AlterProfileInner() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "locations", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "journal", "lineage", "relationships", "locations", "options"];
     return valid.includes(t) ? t : "profile";
   });
   const highlightMessageId = searchParams.get("messageId") || null;
@@ -105,7 +107,7 @@ function AlterProfileInner() {
   // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
   useEffect(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "locations", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "journal", "lineage", "relationships", "locations", "options"];
     if (t && valid.includes(t)) setTab(t);
   }, [searchParams]);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
@@ -501,6 +503,7 @@ function AlterProfileInner() {
           {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} autoOpenCompose={searchParams.get("compose") === "1"} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
+          {tab === "journal" && <ProfileJournalTab alterIds={[alter.id]} defaultAuthorId={alter.id} />}
           {tab === "lineage" && <LineageTab alterId={alter.id} />}
           {tab === "relationships" && <RelationshipsTab alter={alter} alters={alters} />}
           {tab === "locations" && <LocationsTab alter={alter} />}

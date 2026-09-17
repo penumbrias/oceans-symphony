@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
-  Undo2, Redo2, ShieldCheck,
+  Undo2, Redo2, ShieldCheck, BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { pushAlterShares } from "@/lib/friendsShare";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
+import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import { Textarea } from "@/components/ui/textarea";
@@ -304,6 +305,7 @@ function GroupProfileInner() {
     { id: "profile", label: "Profile", icon: User },
     { id: "board", label: "Board", icon: MessageSquare },
     { id: "notes", label: "Notes", icon: FileText },
+    { id: "journal", label: "Journal", icon: BookOpen },
   ];
   const tabBar = (
     <div data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none px-1.5 py-1">
@@ -319,8 +321,8 @@ function GroupProfileInner() {
     </div>
   );
 
-  // ---------- BOARD / NOTES TABS ----------
-  if (tab === "board" || tab === "notes") {
+  // ---------- BOARD / NOTES / JOURNAL TABS ----------
+  if (tab === "board" || tab === "notes" || tab === "journal") {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
@@ -342,6 +344,10 @@ function GroupProfileInner() {
             frontingAlterIds={frontingAlterIds}
             groupId={group.id}
           />
+        ) : tab === "journal" ? (
+          // The group's slice of the journals: entries authored or
+          // co-authored by any member.
+          <ProfileJournalTab alterIds={members.map((m) => m.id)} />
         ) : (
           <GroupNotesTab groupId={group.id} />
         )}

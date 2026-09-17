@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "feature", text: "{{Alter}} and group profiles now have a Journal tab — that member's own journal entries, viewable and writable right from their profile (new entries are attributed to them, and everything still lives in Journals too)." },
+      { type: "improve", text: "Journals can open pre-filtered to one author from a profile's \"Open in Journals\" button." },
       { type: "feature", text: "Widget options: every widget now has a \"Header font\" — its titles and headings can carry their own font, separate from the body. Custom uploaded fonts work for both." },
       { type: "feature", text: "Widget options: bold / italic / small-caps style chips under both fonts." },
       { type: "feature", text: "Widget options → Advanced: each side of a widget's border can have its own width, like the per-side spacing." },
