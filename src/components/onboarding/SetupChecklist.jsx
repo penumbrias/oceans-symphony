@@ -341,6 +341,8 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
           <p className="text-xs text-muted-foreground">
             New {t.systems} start with {t.fronting}, Influencing and Observing. Rename them to
             your own words, add more, or remove the ones you don't use.
+            On any {t.fronting} control: tap acts (your choice below), hold opens the level rail,
+            and dragging right opens that {t.alter}'s menu.
           </p>
           <FrontLevelsSettings />
         </div>

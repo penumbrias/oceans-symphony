@@ -184,8 +184,9 @@ export default function FrontLevelsSettings() {
             <p className="text-xs font-medium">Tapping a {terms.fronting} control</p>
             <div className="flex flex-wrap gap-1">
               {[
-                ["toggle", `Toggles ${terms.front}`],
                 ["level_up", "Steps a level up"],
+                ["level_top", "Jumps to the top level"],
+                ["toggle", `Toggles ${terms.front}`],
                 ["picker", "Opens the level picker"],
               ].map(([v, label]) => (
                 <button key={v} type="button" disabled={busy} aria-pressed={cfg.tap_action === v}
@@ -196,7 +197,7 @@ export default function FrontLevelsSettings() {
               ))}
             </div>
             <p className="text-[0.6875rem] text-muted-foreground">
-              Holding always opens the level rail.
+              Holding always opens the level rail; sliding sideways on the rail sets sole {terms.front}. Dragging right on a control opens that {terms.alter}'s menu.
             </p>
           </div>
         </>

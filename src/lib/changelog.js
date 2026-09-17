@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "feature", text: "One {{fronting}} gesture grammar everywhere: on any {{fronting}} control, tap acts (your choice), hold opens the level rail, and dragging right opens that {{alter}}'s options menu. On the {{alters}} page, tap still opens the profile — drag right for the menu there too." },
+      { type: "improve", text: "The status pill in an {{alter}}'s menu now steps them a level closer to {{front}} on tap by default; \"jump to the top level\" joins the choices in Settings → {{Fronting}} levels." },
       { type: "feature", text: "Widget drawer: press and hold a widget card, then drag — the drawer slips out of the way and the widget drops right where you let go. (Tapping Add still appends it below everything.)" },
       { type: "improve", text: "A brand-new widget board now starts as a creative space — a welcome note, the week and month planners, box breathing and a notebook page — instead of copying the home screen. (Existing boards are untouched.)" },
       { type: "feature", text: "Inner world map widget: opens showing the whole map by default, and \"Set view\" pins whatever's on screen as the widget's own default (\"Auto\" goes back to whole-map)." },
