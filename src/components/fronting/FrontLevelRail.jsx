@@ -17,7 +17,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -25,6 +25,10 @@ import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
+
+// Lazy: AlterActionMenu's module imports FrontStatusPill, which imports
+// this file — a static import here would close that cycle at eval time.
+const AlterActionMenuLazy = React.lazy(() => import("@/components/alters/AlterActionMenu"));
 
 export const LEVEL_ROW_H = 44;
 const HOLD_MS = 350;
@@ -78,7 +82,7 @@ export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = nu
   }
 }
 
-export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
+export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) {
   const [rail, setRail] = useState(null); // { alterId, x, y, pickedIndex }
   const timer = useRef(null);
   const origin = useRef(null);
@@ -108,7 +112,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
       "data-own-hold": "",
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
-        origin.current = { x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse" };
+        origin.current = { x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse", alterId, watch: null };
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           timer.current = null;
@@ -169,19 +173,35 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
         }, HOLD_MS);
       },
       onPointerMove: (e) => {
-        // Before arming: any real movement is a scroll — cancel the hold.
-        if (!timer.current || !origin.current) return;
-        const dx = e.clientX - origin.current.x;
-        const dy = e.clientY - origin.current.y;
-        const slop = origin.current.touch ? TOUCH_SLOP_PX : SLOP_PX;
+        // Before arming: movement decides the gesture. A rightward,
+        // sideways-dominant start is the "more options" drag (unified
+        // grammar — drag right on any front control opens the alter's
+        // menu); anything else is a scroll and cancels the hold.
+        const o = origin.current;
+        if (!o) return;
+        const dx = e.clientX - o.x;
+        const dy = e.clientY - o.y;
+        if (o.watch === "right") {
+          if (dx > 40 && dx > Math.abs(dy) * 1.2 && onOptions) {
+            o.watch = "fired";
+            try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+            onOptions(o.alterId);
+          }
+          return;
+        }
+        if (o.watch) return;
+        if (!timer.current) return;
+        const slop = o.touch ? TOUCH_SLOP_PX : SLOP_PX;
         if (dx * dx + dy * dy > slop * slop) {
           clearTimeout(timer.current);
           timer.current = null;
+          o.watch = onOptions && dx > 0 && dx >= Math.abs(dy) ? "right" : "dead";
         }
       },
       onPointerUp: () => {
         // Released before arming — normal tap, just drop the pending hold.
         if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+        origin.current = null;
       },
       // The browser took the pointer for a scroll (or the OS interrupted):
       // never arm a rail nobody can finish.
@@ -311,7 +331,7 @@ export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
       style: { userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" },
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
-        origin.current = { x: e.clientX, y: e.clientY };
+        origin.current = { x: e.clientX, y: e.clientY, watch: null };
         clear();
         timer.current = setTimeout(() => {
           timer.current = null;
@@ -321,14 +341,31 @@ export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
         }, holdMs);
       },
       onPointerMove: (e) => {
-        if (!timer.current || !origin.current) return;
-        const dx = e.clientX - origin.current.x;
-        const dy = e.clientY - origin.current.y;
-        if (dx * dx + dy * dy > 64) clear();
+        const o = origin.current;
+        if (!o) return;
+        const dx = e.clientX - o.x;
+        const dy = e.clientY - o.y;
+        // Dragging RIGHT is the second way into the menu (unified gesture
+        // grammar): a rightward, sideways-dominant start keeps watching
+        // and fires at 40px; any other movement is a scroll.
+        if (o.watch === "right") {
+          if (dx > 40 && dx > Math.abs(dy) * 1.2) {
+            o.watch = "fired";
+            suppress.current = Date.now() + 400;
+            try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+            onHold();
+          }
+          return;
+        }
+        if (o.watch) return;
+        if (!timer.current) return;
+        if (dx * dx + dy * dy > 64) {
+          clear();
+          o.watch = dx > 0 && dx >= Math.abs(dy) ? "right" : "dead";
+        }
       },
-      onPointerUp: clear,
-      onPointerCancel: clear,
-      onContextMenu: (e) => e.preventDefault(),
+      onPointerUp: () => { clear(); origin.current = null; },
+      onPointerCancel: () => { clear(); origin.current = null; },
     },
   };
 }
@@ -352,6 +389,13 @@ export function useFrontGesture() {
   const altersRef = useRef({});
   const suppress = useRef(0);
   const [pickFor, setPickFor] = useState(null);
+  // Drag RIGHT on any front control = the alter's options menu (unified
+  // gesture grammar — profile, groups, subsystems all live in there).
+  const [menuFor, setMenuFor] = useState(null);
+  const { data: menuSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
 
   const addOrLevel = async (alterId, levelId, extras = {}) => {
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
@@ -373,6 +417,11 @@ export function useFrontGesture() {
       suppress.current = Date.now() + 400;
       const alter = altersRef.current[alterId];
       if (alter) removeFrontFor(alter, base44, queryClient, toast, terms);
+    },
+    onOptions: (alterId) => {
+      suppress.current = Date.now() + 400;
+      const alter = altersRef.current[alterId];
+      if (alter) setMenuFor(alter);
     },
   });
 
@@ -405,6 +454,16 @@ export function useFrontGesture() {
           queryClient={queryClient}
           onClose={() => setPickFor(null)}
         />
+      )}
+      {menuFor && (
+        <React.Suspense fallback={null}>
+          <AlterActionMenuLazy
+            alter={menuFor}
+            activeSessions={menuSessions}
+            session={menuSessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id) || null}
+            onClose={() => setMenuFor(null)}
+          />
+        </React.Suspense>
       )}
     </>
   );

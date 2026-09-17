@@ -227,7 +227,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "🔲",
       title: "List & Grid View",
-      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities. In grid view, tap an avatar to open their profile, and press-and-hold it to set their ${t.fronting} level — drag past the end of the spectrum to remove them from ${t.front}.`,
+      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities. In grid view, tap an avatar to open their profile, press-and-hold it to set their ${t.fronting} level (drag past the end of the spectrum to remove them from ${t.front}), or drag it to the right to open their options menu.`,
       route: "/Home", target: "alter-view-toggle",
       look: `the highlighted list/grid toggle icon at the top right of the ${t.Alters} section`, action: null,
     },

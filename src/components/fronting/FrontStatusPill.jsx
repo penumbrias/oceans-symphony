@@ -46,6 +46,19 @@ export default function FrontStatusPill({ alter, session = null, className = "" 
     await commitFrontLevel({ alterId: alter.id, levelId: cfg.levels[idx - 1].id, queryClient: qc, cfg });
   };
 
+  const jumpToTop = async () => {
+    const top = cfg.levels[0];
+    if (!isFronting) {
+      // Joining with no level set IS the top — full fronting, exactly the
+      // pre-levels semantics.
+      await toggleFrontFor(alter, [], base44, qc, toast, t);
+      return;
+    }
+    if (top && levelId !== top.id) {
+      await commitFrontLevel({ alterId: alter.id, levelId: top.id, queryClient: qc, cfg });
+    }
+  };
+
   const onTap = async () => {
     // A hold that just committed on the rail fires a trailing click —
     // the shared gesture hook tracks that window.
@@ -53,6 +66,7 @@ export default function FrontStatusPill({ alter, session = null, className = "" 
     try {
       if (cfg.tap_action === "picker") await gesture.quickSet(alter, session);
       else if (cfg.tap_action === "level_up") await stepLevelUp();
+      else if (cfg.tap_action === "level_top") await jumpToTop();
       else await toggleFrontFor(alter, [], base44, qc, toast, t);
     } catch (e) {
       toast.error(e?.message || "Failed");

@@ -89,10 +89,12 @@ export function resolveFrontLevels(settingsRow) {
     // menu, and front-capable surfaces that adopt the shared grammar).
     // Hold is always the rail. "toggle" adds/removes from front;
     // "level_up" steps one level closer to front (a non-fronter joins at
-    // the outermost level); "picker" opens the level picker.
-    tap_action: ["toggle", "level_up", "picker"].includes(raw?.tap_action)
+    // the outermost level) — the default (owner call: less jumpy than
+    // straight to the top); "level_top" jumps straight to the top level;
+    // "picker" opens the level picker.
+    tap_action: ["toggle", "level_up", "level_top", "picker"].includes(raw?.tap_action)
       ? raw.tap_action
-      : "toggle",
+      : "level_up",
   };
 }
 
