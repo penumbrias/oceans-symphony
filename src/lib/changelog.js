@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "improve", text: "A brand-new widget board now starts as a creative space — a welcome note, the week and month planners, box breathing and a notebook page — instead of copying the home screen. (Existing boards are untouched.)" },
+      { type: "feature", text: "Inner world map widget: opens showing the whole map by default, and \"Set view\" pins whatever's on screen as the widget's own default (\"Auto\" goes back to whole-map)." },
       { type: "fix", text: "Home screen widgets: the look controls all actually work now — corner radius, borders, background, gradient, blur, shadow and inner spacing were silently ignored by the classic cards." },
       { type: "improve", text: "Press-and-hold a home screen widget now opens the page's full edit mode (edit bar at the bottom); each widget's options sit behind its gear there. The options menu also no longer hides its last rows behind the bottom bar." },
       { type: "feature", text: "Manage groups, rebuilt: browse folders the same way as the {{alters}} page (tap in, breadcrumbs out), see what every group holds, reorder groups and their {{alters}} with arrows, rename in place, and Select many groups to move, recolour or delete together." },
