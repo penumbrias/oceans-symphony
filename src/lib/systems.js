@@ -457,6 +457,30 @@ export async function createSystemWithData(name, dataObj) {
 // Permanently remove a system: delete its data blob, then drop the registry
 // entry. Refuses to delete the ACTIVE system (you're in it — switch away
 // first). Callers MUST save a backup BEFORE calling this (data-loss invariant).
+// FULL wipe — for "Delete All Local Data" (owner report: it cleared only
+// the active system's blob, so the registry and every other system's data
+// survived and the app still "detected five systems"). Removes every
+// system blob, every gen sidecar, and the registry itself (IDB + the
+// localStorage mirror), plus the media stores (uploaded images / fonts —
+// deleteDatabase completes once the imminent reload closes connections).
+export async function wipeAllSystemsData() {
+  _cachedRegistry = null;
+  try {
+    const idb = await getIdb();
+    const keys = await idb.getAllKeys(IDB_STORE);
+    for (const k of keys) {
+      if (typeof k === 'string'
+        && (k === REGISTRY_KEY || k.startsWith('symphony_local_data') || k.startsWith('symphony_gen__'))) {
+        await idb.delete(IDB_STORE, k);
+      }
+    }
+  } catch { /* best effort */ }
+  try { localStorage.removeItem(REGISTRY_KEY); } catch { /* ignore */ }
+  for (const name of ['symphony_images', 'symphony_fonts']) {
+    try { indexedDB.deleteDatabase(name); } catch { /* ignore */ }
+  }
+}
+
 export async function deleteSystem(id) {
   const reg = await ensureRegistry();
   if (id === reg.activeSystemId) throw new Error('Cannot delete the active system');

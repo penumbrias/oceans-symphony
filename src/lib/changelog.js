@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "fix", text: "\"Delete All Local Data\" now truly deletes everything — every {{system}}'s data (not just the active one), the {{systems}} list itself, and uploaded images and fonts." },
       { type: "fix", text: "Brand-new installs get the widget board's starter widgets again — the welcome preset silently skipped seeding when no settings existed yet." },
       { type: "fix", text: "Swipe up on the bottom bar now opens the pinned {{alters}} bar in every setup — the fold handle sits on the bar itself even when the quick actions are a bubble or floating." },
       { type: "fix", text: "{{System}} chat: the compose row and its Format bar now ride above the on-screen keyboard instead of hiding behind it." },

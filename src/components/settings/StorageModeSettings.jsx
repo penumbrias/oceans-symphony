@@ -43,6 +43,11 @@ export default function StorageModeSettings() {
       // empty record the boot path treats as a returning user) so the
       // reload below lands on the first-run onboarding screen.
       await clearStoredData();
+      // …and EVERY other system's blob, the systems registry, and the
+      // media stores — clearing only the active blob left the other
+      // systems fully intact and still detected (owner report).
+      const { wipeAllSystemsData } = await import("@/lib/systems");
+      await wipeAllSystemsData();
       // Clear all Symphony localStorage keys so the app re-runs first-time
       // onboarding. disclaimer_acknowledged_v1 is included deliberately —
       // it used to survive the wipe, so a fully-reset app skipped the
