@@ -9,6 +9,7 @@
 //                 (v0.231.0).
 
 import React, { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, Pencil } from "lucide-react";
 import {
@@ -234,6 +235,7 @@ export default function AppDrawer({
   order = [], onSaveOrder,
   api = null, userStyles = [],
   initialTab = null,
+  onDropWidget = null,   // (widgetId, {x, y}) — hold a widget card, drag, drop it on a spot
 }) {
   const t = useTerms();
   const navigate = useNavigate();
@@ -290,6 +292,51 @@ export default function AppDrawer({
   // shifts the hook order the moment the drawer opens, which is exactly the
   // "rendered more hooks" crash.
   const holdProps = useHoldToEdit(() => setAppsEdit(true), !!onSaveFolders && !appsEdit && !searching);
+  // Hold a widget card, then drag: the drawer fades out of the way, a
+  // ghost chip follows the finger, and letting go over the page drops the
+  // widget AT that spot (owner ask — Add always appended to the bottom).
+  // The drawer stays MOUNTED (visibility hidden) during the drag: on
+  // touch, pointer events are implicitly captured by the element that was
+  // pressed, and unmounting it would end the stream mid-drag.
+  const [dragW, setDragW] = useState(null); // { id, label, x, y }
+  const startWidgetHold = (e, id, label) => {
+    if (!onDropWidget) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const state = { active: false };
+    const timer = setTimeout(() => {
+      state.active = true;
+      try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+      setDragW({ id, label, x: sx, y: sy });
+    }, 300);
+    const end = () => {
+      clearTimeout(timer);
+      setDragW(null);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", end);
+      window.removeEventListener("touchmove", prevent);
+    };
+    const move = (ev) => {
+      if (!state.active) {
+        // Moving before the hold fires is a scroll, not a drag.
+        if (Math.abs(ev.clientX - sx) > 8 || Math.abs(ev.clientY - sy) > 8) end();
+        return;
+      }
+      setDragW((w) => (w ? { ...w, x: ev.clientX, y: ev.clientY } : w));
+    };
+    const prevent = (ev) => { if (state.active) ev.preventDefault(); };
+    const up = (ev) => {
+      const wasActive = state.active;
+      end();
+      if (wasActive) onDropWidget(id, { x: ev.clientX, y: ev.clientY });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", end);
+    window.addEventListener("touchmove", prevent, { passive: false });
+  };
   const dndSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } })
@@ -327,7 +374,17 @@ export default function AppDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-end justify-center" role="dialog" aria-label="App drawer">
+    <>
+    {/* The drag ghost — a chip under the finger while placing a widget. */}
+    {dragW && createPortal(
+      <div aria-hidden="true" className="fixed z-[200] pointer-events-none px-3 py-1.5 rounded-xl border border-primary/60 bg-primary/15 text-primary text-sm font-medium shadow-lg"
+        style={{ left: dragW.x, top: dragW.y, transform: "translate(-50%, -120%)" }}>
+        {dragW.label}
+      </div>,
+      document.body
+    )}
+    <div className="fixed inset-0 z-[95] flex items-end justify-center" role="dialog" aria-label="App drawer"
+      style={{ visibility: dragW ? "hidden" : undefined }}>
       <button type="button" aria-label="Close drawer" onClick={onClose}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
@@ -558,6 +615,7 @@ export default function AppDrawer({
                           const already = placed.has(id);
                           return (
                             <div key={id}
+                              onPointerDown={(e) => startWidgetHold(e, id, widgetLabel(def, t))}
                               className="rounded-xl border overflow-hidden flex flex-col border-border/50 hover:border-primary/50">
                               <button type="button" onClick={() => setDetailId(id)} className="px-1.5 pt-1.5" aria-label={`${widgetLabel(def, t)} options`}>
                                 <WidgetPreview def={def} mode={effectiveMode("normal", def.supportsModes)} api={api} userStyles={userStyles} maxHeight={44} />
@@ -583,6 +641,7 @@ export default function AppDrawer({
                         const multiMode = (def.supportsModes || []).length > 1;
                         return (
                           <div key={id}
+                            onPointerDown={(e) => startWidgetHold(e, id, widgetLabel(def, t))}
                             className="rounded-xl border text-left transition-colors overflow-hidden border-border/50 hover:border-primary/50">
                             <button type="button" onClick={() => setDetailId(id)}
                               className="w-full text-left">
@@ -633,5 +692,6 @@ export default function AppDrawer({
 
 
     </div>
+    </>
   );
 }
