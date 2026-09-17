@@ -433,21 +433,26 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // fallbacks keep the default look pixel-identical; only values
           // the user actually sets appear.
           ...(def.paintBox ? {
-            borderTopWidth: "var(--v2-border-w-t, var(--v2-border-w, 0px))",
-            borderRightWidth: "var(--v2-border-w-r, var(--v2-border-w, 0px))",
-            borderBottomWidth: "var(--v2-border-w-b, var(--v2-border-w, 0px))",
-            borderLeftWidth: "var(--v2-border-w-l, var(--v2-border-w, 0px))",
+            // Widget-OWN vars only (--v2-own-*, plus the per-side vars,
+            // which are widget-set by nature): the shared tokens are also
+            // set app-wide, and reading them here gave every classic card
+            // a default border + padding (owner report). Defaults are all
+            // zero/none — untouched widgets look exactly as before.
+            borderTopWidth: "var(--v2-border-w-t, var(--v2-own-border-w, 0px))",
+            borderRightWidth: "var(--v2-border-w-r, var(--v2-own-border-w, 0px))",
+            borderBottomWidth: "var(--v2-border-w-b, var(--v2-own-border-w, 0px))",
+            borderLeftWidth: "var(--v2-border-w-l, var(--v2-own-border-w, 0px))",
             borderStyle: "var(--v2-border-style, solid)",
             // The colour fallback is visible on purpose: widths default to
             // 0px, so nothing paints until the user sets a width — and a
             // width set WITHOUT a colour must still show something.
             borderColor: "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))",
-            boxShadow: "var(--v2-shadow, none)",
-            backgroundColor: "var(--v2-widget-bg, transparent)",
-            backdropFilter: "var(--v2-widget-blur, none)",
-            WebkitBackdropFilter: "var(--v2-widget-blur, none)",
-            padding: "var(--v2-pad-t, var(--v2-pad, 0px)) var(--v2-pad-r, var(--v2-pad, 0px)) var(--v2-pad-b, var(--v2-pad, 0px)) var(--v2-pad-l, var(--v2-pad, 0px))",
-            ...(lookStyle.backgroundImage ? {} : { backgroundImage: "var(--v2-widget-gradient, none)" }),
+            boxShadow: "var(--v2-own-shadow, none)",
+            backgroundColor: "var(--v2-own-bg, transparent)",
+            backdropFilter: "var(--v2-own-blur, none)",
+            WebkitBackdropFilter: "var(--v2-own-blur, none)",
+            padding: "var(--v2-pad-t, var(--v2-own-pad, 0px)) var(--v2-pad-r, var(--v2-own-pad, 0px)) var(--v2-pad-b, var(--v2-own-pad, 0px)) var(--v2-pad-l, var(--v2-own-pad, 0px))",
+            ...(lookStyle.backgroundImage ? {} : { backgroundImage: "var(--v2-own-gradient, none)" }),
           } : {}),
           // The content fills the widget's box in both layout modes, so the
           // border you see is the size you set; overflow scrolls inside it.

@@ -167,6 +167,12 @@ function PresenceWidget({ mode, api, settings }) {
       const alter = byId[alterId];
       if (alter) removeFrontFor(alter, base44, qc, toast, t);
     },
+    // Drag right = the options menu (unified grammar) — same menu the
+    // double-tap opens.
+    onOptions: (alterId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      if (byId[alterId]) setMenuFor(byId[alterId]);
+    },
   });
   const railAlter = rail ? byId[rail.alterId] : null;
   // Owner-specified gesture model (mirrors the classic Currently Fronting
@@ -2278,6 +2284,12 @@ function PinnedAltersWidget({ api, settings }) {
       suppressTapUntil.current = Date.now() + 400;
       const alter = alters.find((a) => a.id === alterId);
       if (alter) removeFrontFor(alter, base44, qc, toast, t);
+    },
+    // Drag right = the options menu (unified grammar).
+    onOptions: (alterId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      const alter = alters.find((a) => a.id === alterId);
+      if (alter) setMenuFor(alter);
     },
   });
   const railAlter = rail ? alters.find((a) => a.id === rail.alterId) : null;
