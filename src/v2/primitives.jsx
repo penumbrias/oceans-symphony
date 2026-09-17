@@ -42,8 +42,15 @@ export function Page({ title, sub, children }) {
 // their own root. `borderFallback: false` is for tiles, which are
 // borderless until the user asks for a border.
 export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
+  // Per-side border vars (Advanced widget options) override the uniform
+  // width on their side only; unset sides keep following --v2-border-w —
+  // same chain the per-side padding uses.
+  const bw = borderFallback ? "var(--v2-border-w, 1px)" : "var(--v2-border-w, 0px)";
   return {
-    borderWidth: borderFallback ? "var(--v2-border-w, 1px)" : "var(--v2-border-w, 0px)",
+    borderTopWidth: `var(--v2-border-w-t, ${bw})`,
+    borderRightWidth: `var(--v2-border-w-r, ${bw})`,
+    borderBottomWidth: `var(--v2-border-w-b, ${bw})`,
+    borderLeftWidth: `var(--v2-border-w-l, ${bw})`,
     borderStyle: "var(--v2-border-style, solid)",
     borderColor: borderFallback
       ? "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))"

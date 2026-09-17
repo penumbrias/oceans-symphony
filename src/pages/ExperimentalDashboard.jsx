@@ -50,7 +50,7 @@ import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
-  pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, newStyleId,
+  pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
   USER_STYLE_PREFIX, lookCoverage, OFF,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
@@ -475,11 +475,15 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
           }}
           style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, ...(editMode ? { pointerEvents: "none" } : null) }}>
-        {look.css && look.css !== OFF && (
-          <style dangerouslySetInnerHTML={{
-            __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
-          }} />
-        )}
+        {(() => {
+          // Scoped rules: heading font/styles + body bold (lookExtraCss)
+          // and the user's own custom CSS, one style element per widget.
+          const sel = `[data-widget-id="${widget.instanceId}"]`;
+          const extra = lookExtraCss(look, sel);
+          const own = look.css && look.css !== OFF ? `${sel}{${look.css}}` : "";
+          const css = [extra, own].filter(Boolean).join("\n");
+          return css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null;
+        })()}
         {def.render({
           mode,
           settings: widget.settings || {},
