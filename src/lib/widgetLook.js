@@ -16,7 +16,7 @@
 // their journal entries.
 
 export const LOOK_KEYS = [
-  "font", "fontScale", "radius", "borderW", "borderColor", "borderStyle",
+  "font", "fontScale", "radius", "borderW", "outlineW", "borderColor", "borderStyle",
   "accent", "bg", "bgOpacity", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
   "padTop", "padRight", "padBottom", "padLeft",
   // Heading type, separate from body type: a widget's titles/headings can
@@ -86,7 +86,13 @@ export function mergeLook(base = {}, override = {}) {
 export function lookToStyle(look = {}, resolveImage = (u) => u) {
   const s = {};
   if (isSet(look.radius)) { s["--v2-radius"] = `${look.radius}px`; s["--radius"] = `${look.radius}px`; }
-  if (isSet(look.borderW)) s["--v2-border-w"] = `${look.borderW}px`;
+  // The split (owner ask, v0.239.0): "Border width" (borderW) scales the
+  // borders INSIDE the widget — buttons, cards, dividers — via the
+  // [data-own-bw] remaps in index.css; "Element outline" (outlineW) is
+  // the widget's own box shell (what borderW used to mean; the built-in
+  // styles were migrated to outlineW).
+  if (isSet(look.borderW)) s["--v2-own-border-w"] = `${look.borderW}px`;
+  if (isSet(look.outlineW)) s["--v2-own-outline-w"] = `${look.outlineW}px`;
   // Re-declaring the APP token (--color-primary) at widget scope is what
   // makes accent reach everything inside that already follows the theme
   // (bg-primary, the breathing circle, buttons) — same trick as --radius.
@@ -154,7 +160,6 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   // so gave every home-screen card the app's default border and padding
   // (owner report). These own-vars exist ONLY when this widget's look sets
   // them, so the paintBox defaults stay genuinely zero.
-  if (isSet(look.borderW)) s["--v2-own-border-w"] = `${look.borderW}px`;
   if (isSet(look.padding)) s["--v2-own-pad"] = `${look.padding}px`;
   if (s["--v2-widget-bg"]) s["--v2-own-bg"] = s["--v2-widget-bg"];
   if (s["--v2-widget-gradient"]) s["--v2-own-gradient"] = s["--v2-widget-gradient"];
@@ -240,9 +245,9 @@ export function lookExtraCss(look = {}, sel) {
 export const LOOK_GROUPS = [
   {
     id: "shape", label: "Shape & spacing",
-    keys: ["radius", "borderW", "borderStyle", "padding", "shadow",
+    keys: ["radius", "borderW", "outlineW", "borderStyle", "padding", "shadow",
       "borderTopW", "borderRightW", "borderBottomW", "borderLeftW"],
-    required: ["radius", "borderW", "padding", "shadow"],
+    required: ["radius", "outlineW", "padding", "shadow"],
   },
   {
     id: "type", label: "Font & text size",

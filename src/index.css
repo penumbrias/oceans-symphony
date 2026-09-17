@@ -887,6 +887,18 @@ body > .fixed { pointer-events: auto; }
 [data-widget-content] .text-lg   { font-size: 1.125em; }
 [data-widget-content] .text-xl   { font-size: 1.25em; }
 
+/* A widget's own "Border width" scales the borders INSIDE it — buttons,
+   cards, dividers (owner ask; the box shell is "Element outline" now).
+   Gated on [data-own-bw], which the canvas sets only when the widget's
+   look defines borderW, so nothing changes until the user does. These
+   out-specify the [data-ui-v2] app-wide remaps on purpose. */
+[data-widget-content][data-own-bw] .border   { border-width: var(--v2-own-border-w); }
+[data-widget-content][data-own-bw] .border-2 { border-width: calc(var(--v2-own-border-w) * 2); }
+[data-widget-content][data-own-bw] .border-t { border-top-width: var(--v2-own-border-w); }
+[data-widget-content][data-own-bw] .border-b { border-bottom-width: var(--v2-own-border-w); }
+[data-widget-content][data-own-bw] .border-l { border-left-width: var(--v2-own-border-w); }
+[data-widget-content][data-own-bw] .border-r { border-right-width: var(--v2-own-border-w); }
+
 /* A widget's "Text color" must also reach CLASSED text — nearly every
    line in a widget carries text-foreground or text-muted-foreground,
    which beat inherited color. When the look sets a text color,

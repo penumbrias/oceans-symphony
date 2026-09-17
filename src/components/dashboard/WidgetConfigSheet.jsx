@@ -551,7 +551,9 @@ function useLiveColors(open, instanceId, revision = "") {
       // theme through CSS and never appear in the look object, so saving
       // from stored values alone produced a style that set almost nothing.
       radius: cs ? num(cs.borderTopLeftRadius, undefined) : undefined,
-      borderW: cs ? num(cs.borderTopWidth, undefined) : undefined,
+      // The box's measured border is the OUTLINE now (Border width means
+      // the widget's inner borders since v0.239.0).
+      outlineW: cs ? num(cs.borderTopWidth, undefined) : undefined,
       borderStyle: cs && cs.borderTopStyle !== "none" ? cs.borderTopStyle : undefined,
       padding: cs ? num(cs.paddingTop, undefined) : undefined,
       shadow: cs && cs.boxShadow && cs.boxShadow !== "none" ? cs.boxShadow : "none",
@@ -1164,10 +1166,18 @@ export default function WidgetConfigSheet({
               onChange={(v) => onSettings(widget.instanceId, { radius: v })}
               onReset={() => onSettings(widget.instanceId, { radius: "" })} />
 
+            {/* Split (owner ask): Border width scales the borders INSIDE
+                the widget; Element outline is the widget's own box shell
+                (what Border width used to mean). */}
             <SliderRow label="Border width" value={settings.borderW} fallback={1}
               min={0} max={8} unit="px"
               onChange={(v) => onSettings(widget.instanceId, { borderW: v })}
               onReset={() => onSettings(widget.instanceId, { borderW: "" })} />
+
+            <SliderRow label="Element outline" value={settings.outlineW} fallback={1}
+              min={0} max={8} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { outlineW: v })}
+              onReset={() => onSettings(widget.instanceId, { outlineW: "" })} />
 
             <SliderRow label="Text size" value={settings.fontScale} fallback={100}
               min={70} max={160} unit="%"
@@ -1329,10 +1339,10 @@ export default function WidgetConfigSheet({
                       onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
                       onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
                   ))}
-                  {/* Per-side border widths — each side can depart from the
-                      uniform Border width on its own (owner ask). */}
-                  {[["borderTopW", "Top border"], ["borderBottomW", "Bottom border"], ["borderLeftW", "Left border"], ["borderRightW", "Right border"]].map(([key, label]) => (
-                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.borderW ?? 1}
+                  {/* Per-side OUTLINE widths — each side of the widget's
+                      box can depart from the uniform Element outline. */}
+                  {[["borderTopW", "Top outline"], ["borderBottomW", "Bottom outline"], ["borderLeftW", "Left outline"], ["borderRightW", "Right outline"]].map(([key, label]) => (
+                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.outlineW ?? 1}
                       min={0} max={8} unit="px"
                       onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
                       onReset={() => onSettings(widget.instanceId, { [key]: "" })} />

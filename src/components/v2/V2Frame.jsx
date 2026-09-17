@@ -1342,10 +1342,35 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
               ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
               : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
       >
-          {/* Top/bottom fold tabs RETIRED (owner) — visibility lives in
-              Display options; a collapsed bar reopens there or via the
-              set_front key's hold. Left/right keep their edge tab (it is
-              the vertical bar's only access). */}
+          {/* Top/bottom fold tabs are retired WHERE the split handle can
+              do the job. But the handle lives on the quick-actions strip,
+              which doesn't mount when the quick actions are a bubble or a
+              floating edge bar — a collapsed alters bar was then
+              unreachable (owner report). In exactly that case, a slim
+              fold tab appears so the bar can always be pulled back out. */}
+          {(() => {
+            const actionsMode = uiV2.tokens.actionsMode || "bar";
+            const actionsEdge = uiV2.tokens.actionsEdge || "bottom";
+            const swapped = (uiV2.tokens.barsSwap || "normal") === "swapped";
+            const handleOnThisEdge = altersPos === "top"
+              ? (uiV2.bars.actions && actionsMode === "bar" && actionsEdge === "top")
+              : (swapped ? uiV2.bars.tabs
+                : (uiV2.bars.actions && actionsMode === "bar" && actionsEdge !== "top"));
+            if (!altersBarCfg.collapsed || previewLift || handleOnThisEdge) return null;
+            return (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }))}
+                aria-label={applyTerms(t("nav.showAlterBar"), terms)}
+                title={applyTerms(t("nav.showAlterBar"), terms)}
+                className="pointer-events-auto flex items-center gap-1 px-4 py-1 rounded-full border border-border/60 bg-background/85 backdrop-blur text-muted-foreground hover:text-foreground shadow"
+              >
+                <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+                <ChevronUp className="w-3 h-3" style={{ transform: altersPos === "top" ? "rotate(180deg)" : "none" }} />
+                <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              </button>
+            );
+          })()}
           <AnimatePresence initial={false}>
             {(!altersBarCfg.collapsed || previewLift) && (
               <motion.div

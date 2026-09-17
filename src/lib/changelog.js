@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "fix", text: "Glow (and every widget shadow) no longer gets clipped at the widget's edge." },
+      { type: "feature", text: "Widget options: \"Border width\" now scales the borders INSIDE the widget (buttons, cards, dividers); the widget's own box is the new \"Element outline\" slider. Built-in styles updated to match." },
+      { type: "fix", text: "The pinned {{alters}} bar can't get stranded any more — when it's tucked away and the quick actions are a bubble or floating bar (so there's no handle), a slim pull tab appears to bring it back." },
+      { type: "fix", text: "Opening the app list from the top bar no longer hops you onto the widget board — it opens right over the home screen." },
       { type: "improve", text: "Undo/redo stay on screen the whole time you're editing the home screen or board — a small floating pair above the edit bar (hold either for the history list)." },
       { type: "improve", text: "Home screen's Display panel: the \"Back to classic\" button is now \"Reset to default…\" — it opens the same reset dialog as the ⚙ menu (the old button quietly turned the whole canvas off)." },
       { type: "fix", text: "Dragging right now works on the currently-{{fronting}} chips (and the set-{{front}} and check-in rows) too — they run their own gesture wiring and had been missed." },
