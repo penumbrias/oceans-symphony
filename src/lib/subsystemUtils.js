@@ -36,7 +36,7 @@ export function getMemberAlters(group, alters) {
   if (!group) return [];
   const memberSpIds = new Set(group.member_sp_ids || []);
   const groupId = group.id;
-  return (alters || []).filter((a) => {
+  const members = (alters || []).filter((a) => {
     if (a.id === group.owner_alter_id) return false; // owner is parent, not child
     // member_sp_ids holds the alter's sp_id when they came from an import and
     // their LOCAL id otherwise — every writer has always stored
@@ -53,6 +53,17 @@ export function getMemberAlters(group, alters) {
     );
     return inGroupMembers || inAlterGroups;
   });
+  // Per-group member arrangement (Manage groups, v0.235.0): ids in
+  // group.member_order come first, in that order; everyone else keeps
+  // their incoming position after them. Read here so EVERY member list
+  // (folders, profiles, nesting) shows the same arrangement.
+  const order = Array.isArray(group.member_order) ? group.member_order : [];
+  if (!order.length) return members;
+  const idx = new Map(order.map((id, i) => [id, i]));
+  return members
+    .map((a, i) => [a, idx.has(a.id) ? idx.get(a.id) : order.length + i])
+    .sort((x, y) => x[1] - y[1])
+    .map(([a]) => a);
 }
 
 // Would assigning `ownerAlterId` as the owner of `groupId` create an

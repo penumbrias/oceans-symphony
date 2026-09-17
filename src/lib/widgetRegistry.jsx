@@ -673,6 +673,16 @@ export const WIDGET_REGISTRY = {
   },
 };
 
+// Classic components draw their own containers and never consume the look
+// variables (the v2 Section is what does that) — so on the home screen,
+// corner radius / borders / background / shadow / spacing set in a
+// widget's options silently did nothing (owner report). The canvas
+// wrapper paints the box for these widgets instead: every fallback is
+// transparent/zero, so nothing changes until the user sets something.
+for (const def of Object.values(WIDGET_REGISTRY)) {
+  if (def.paintBox === undefined) def.paintBox = true;
+}
+
 // Classic dashboard_layout element id → widget id (identity for everything
 // that exists in both worlds; the sub-toggle button ids intentionally have
 // no widget — they live on the action bar instead).

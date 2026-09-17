@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { byGroupOrder } from "@/lib/groupTreeUtils";
+import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
 import useLongPress from "@/hooks/useLongPress";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -215,17 +216,10 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
     ? alters.find((a) => a.id === currentGroup.owner_alter_id)
     : null;
 
-  // Get members in current group (check both alter's groups array and Group entity's member_sp_ids)
-  const memberAlters = currentGroup ?
-  alters.filter((a) => {
-    if (a.id === currentGroup.owner_alter_id) return false; // owner is the parent, not a child
-    // Check if alter's groups array contains this group
-    const inAlterGroups = (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey);
-    // Check if this group's member_sp_ids contains the alter's sp_id
-    const inGroupMembers = currentGroup.member_sp_ids?.includes(a.sp_id);
-    return inAlterGroups || inGroupMembers;
-  }) :
-  [];
+  // Members in the current group — through the canonical reader, which
+  // unions both stored membership shapes AND applies the group's own
+  // member arrangement (Manage groups → reorder members).
+  const memberAlters = currentGroup ? getMemberAlters(currentGroup, alters) : [];
 
   const navigateTo = (group) => {
     if (!group) return;

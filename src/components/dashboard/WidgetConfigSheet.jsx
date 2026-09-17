@@ -816,7 +816,9 @@ export default function WidgetConfigSheet({
         </DrawerHeader>
         <div
           className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
-          style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}
+          // Bottom-nav height included: on pages where the classic bottom
+          // bar is up, the sheet's last rows were hidden behind it.
+          style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}
         >
           {/* Rename */}
           {/* First thing in the sheet — moving is the most common intent
