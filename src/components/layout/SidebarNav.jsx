@@ -1,8 +1,8 @@
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import React, { useEffect, useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange , History } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange, History, LayoutGrid } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +68,22 @@ function buildSidebarGroups(altersLabel, systemLabel) {
 
 export default function SidebarNav({ open, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const terms = useTerms();
+
+  // List ⇄ grid: hop over to the app drawer (the grid of every page with
+  // folders). The drawer lives inside the home canvas, so away from "/"
+  // we park the same sessionStorage key the canvas consumes on mount and
+  // ride home first.
+  const openAppGrid = () => {
+    onClose();
+    if (location.pathname === "/") {
+      window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
+    } else {
+      try { sessionStorage.setItem("symphony_classic_open-apps", "1"); } catch { /* non-fatal */ }
+      navigate("/");
+    }
+  };
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
 
@@ -159,6 +174,15 @@ export default function SidebarNav({ open, onClose }) {
               </Link>
             </span>
             <div className="flex items-center gap-1">
+              <button
+                data-tour="nav-grid-toggle"
+                onClick={openAppGrid}
+                aria-label="Switch to the app grid"
+                title="App grid"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
               {/* Grocery list / privacy cover — relocated from the
                   dashboard header. Still openable via triple-tap or
                   the quick-action shortcuts. */}
