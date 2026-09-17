@@ -15,3 +15,14 @@ export function isValidHexColor(value) {
   if (typeof value !== "string") return false;
   return HEX_RE.test(value);
 }
+
+// Normalize what a user TYPED into a canonical "#rrggbb" — "#312e81",
+// "312e81", "#f80" and "f80" all count (3-digit shorthand expands).
+// Returns null when the text isn't a colour. Used by every hex text
+// input so a code pasted without its "#" still applies.
+export function normalizeHexInput(raw) {
+  const v = String(raw || "").trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{6}$/.test(v)) return `#${v.toLowerCase()}`;
+  if (/^[0-9a-fA-F]{3}$/.test(v)) return `#${v.toLowerCase().split("").map((c) => c + c).join("")}`;
+  return null;
+}

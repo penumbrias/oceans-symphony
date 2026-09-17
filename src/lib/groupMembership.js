@@ -166,3 +166,70 @@ export function removeGroupMember({ group, alterId }) {
     return doSetGroupMembers({ group: live, alterIds: [...next] });
   });
 }
+
+// A membership entry as stored on the alter — normally { id, name, color },
+// but be liberal in what we read: a bare id string counts as { id }.
+function entryKeys(entry) {
+  if (typeof entry === "string") return [entry];
+  return [entry?.id, entry?.sp_id].filter(Boolean);
+}
+
+/**
+ * Delete a group AND scrub its membership entries off every alter.
+ *
+ * Group.delete alone leaves the embedded { id, name, color } copies on the
+ * members' `groups` arrays, so the deleted group kept rendering as a chip
+ * that led to "Group not found" (tester report, v0.221.x). Every delete now
+ * goes through here so the confirm dialog's promise — "members just leave
+ * the group" — is actually true.
+ *
+ * If the alter sweep fails partway, the group row is still deleted; any
+ * leftovers are caught by pruneDanglingGroupEntries on the next boot.
+ */
+export function deleteGroupCascade(group) {
+  return enqueueMembershipWrite(async () => {
+    if (!group?.id) return;
+    const keys = new Set(groupKeys(group));
+    let alters = [];
+    try { alters = await base44.entities.Alter.list(); } catch { alters = []; }
+    for (const alter of alters || []) {
+      const entries = alter.groups || [];
+      const kept = entries.filter((g) => !entryKeys(g).some((k) => keys.has(k)));
+      if (kept.length !== entries.length) {
+        try { await base44.entities.Alter.update(alter.id, { groups: kept }); } catch { /* prune catches leftovers */ }
+      }
+    }
+    await base44.entities.Group.delete(group.id);
+  });
+}
+
+/**
+ * One-shot heal: strip membership entries that point at groups which no
+ * longer exist. Users who deleted groups before deleteGroupCascade existed
+ * still carry the dead references (and the chips they render). An entry is
+ * kept if ANY of its keys matches ANY existing group's id or sp_id — the
+ * same union every reader uses — so nothing that still resolves is touched.
+ * Both lists are read fresh inside the serialised write chain; if either
+ * read fails the sweep is skipped entirely.
+ */
+export function pruneDanglingGroupEntries() {
+  return enqueueMembershipWrite(async () => {
+    const [groups, alters] = await Promise.all([
+      base44.entities.Group.list(),
+      base44.entities.Alter.list(),
+    ]);
+    const keys = new Set();
+    for (const g of groups || []) for (const k of groupKeys(g)) keys.add(k);
+    let pruned = 0;
+    for (const alter of alters || []) {
+      const entries = alter.groups || [];
+      if (!entries.length) continue;
+      const kept = entries.filter((g) => entryKeys(g).some((k) => keys.has(k)));
+      if (kept.length !== entries.length) {
+        await base44.entities.Alter.update(alter.id, { groups: kept });
+        pruned += entries.length - kept.length;
+      }
+    }
+    return pruned;
+  });
+}

@@ -19,6 +19,7 @@ import {
 import { applyGetToKnowMeAnswer } from "@/lib/getToKnowMeWriteback";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import { formatInTimeZone } from "date-fns-tz";
+import { normalizeHexInput } from "@/lib/colorUtils";
 
 function nowLocalIso() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -584,17 +585,18 @@ export default function GetToKnowMe() {
                     <input
                       type="text"
                       value={colorDraft}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorDraft(v);
-                      }}
+                      // Free typing (the old filter swallowed keystrokes once
+                      // the field was full, and rejected codes without a "#");
+                      // validity gates the button below via normalizeHexInput.
+                      onChange={(e) => setColorDraft(e.target.value)}
+                      onFocus={(e) => { try { e.target.select(); } catch { /* non-fatal */ } }}
                       className="flex-1 h-10 px-3 rounded-md border border-border bg-background text-sm font-mono"
-                      maxLength={7}
+                      maxLength={9}
                     />
                   </div>
                   <Button
-                    onClick={() => submitAnswer(colorDraft)}
-                    disabled={!/^#[0-9a-fA-F]{6}$/.test(colorDraft) || saving || selectedAlterIds.length === 0}
+                    onClick={() => submitAnswer(normalizeHexInput(colorDraft) || colorDraft)}
+                    disabled={!normalizeHexInput(colorDraft) || saving || selectedAlterIds.length === 0}
                     className="w-full"
                   >
                     Save colour to {selectedAlterIds.length || "?"} {selectedAlterIds.length === 1 ? terms.alter || "alter" : terms.alters || "alters"}

@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "September 17, 2026",
+    changes: [
+      { type: "fix", text: "Deleting a group now truly removes it from its members — no more ghost group chips on {{alter}} profiles leading to \"Group not found\". Leftovers from past deletions are cleaned up automatically." },
+      { type: "fix", text: "Colour pickers: the code box now accepts typed and pasted colours properly — with or without the #, and tapping the box selects the old code so you can type right over it." },
+      { type: "fix", text: "If the app gets stuck on a blank white screen while opening, it now recovers by itself (or offers a Reload button) instead of staying stuck." },
+    ],
+  },
+  {
     date: "September 16, 2026",
+    version: "0.239.6",
     changes: [
       { type: "fix", text: "\"Delete All Local Data\" now truly deletes everything — every {{system}}'s data (not just the active one), the {{systems}} list itself, and uploaded images and fonts." },
       { type: "fix", text: "Brand-new installs get the widget board's starter widgets again — the welcome preset silently skipped seeding when no settings existed yet." },

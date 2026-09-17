@@ -24,6 +24,7 @@ import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import { deleteGroupCascade } from "@/lib/groupMembership";
 import GroupSelect from "@/components/groups/GroupSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection } from "@/components/settings/SettingsUI";
@@ -256,9 +257,12 @@ function GroupProfileInner() {
     if (!(await confirm(`Delete the group "${group.name}"? Members are not deleted — they just leave the group. This can't be undone.`))) return;
     setDeleting(true);
     try {
-      await base44.entities.Group.delete(group.id);
+      // Cascade: also scrubs the group's membership entries off every
+      // member, so no "Group not found" chips are left behind.
+      await deleteGroupCascade(group);
       toast.success("Group deleted.");
       queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
       navigate("/Home");
     } catch (e) { toast.error(e.message || "Failed to delete"); }
     finally { setDeleting(false); }

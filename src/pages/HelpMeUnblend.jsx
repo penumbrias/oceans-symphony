@@ -10,6 +10,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion, instantiateUserQuestion } from "@/lib/unblendQuestions";
 import { toast } from "sonner";
+import { normalizeHexInput } from "@/lib/colorUtils";
 import {
   timeOfDayBaseline,
   applyAnswer,
@@ -440,17 +441,18 @@ export default function HelpMeUnblend() {
                   <input
                     type="text"
                     value={colorDraft}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorDraft(v);
-                    }}
+                    // Free typing (the old filter swallowed keystrokes once
+                    // the field was full, and rejected codes without a "#");
+                    // validity gates the button below via normalizeHexInput.
+                    onChange={(e) => setColorDraft(e.target.value)}
+                    onFocus={(e) => { try { e.target.select(); } catch { /* non-fatal */ } }}
                     className="flex-1 h-10 px-3 rounded-md border border-border bg-background text-sm font-mono"
-                    maxLength={7}
+                    maxLength={9}
                   />
                 </div>
                 <Button
-                  onClick={() => handleColorPick(colorDraft)}
-                  disabled={!/^#[0-9a-fA-F]{6}$/.test(colorDraft)}
+                  onClick={() => handleColorPick(normalizeHexInput(colorDraft) || colorDraft)}
+                  disabled={!normalizeHexInput(colorDraft)}
                   className="w-full"
                 >
                   Use this colour

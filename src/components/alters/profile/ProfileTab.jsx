@@ -196,11 +196,24 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const navigate = useNavigate();
 
   // Subsystems this alter owns (groups with owner_alter_id === this alter).
-  const { data: allGroups = [] } = useQuery({
+  const { data: allGroups = [], isSuccess: groupsLoaded } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
   const ownedSubsystems = getSubsystemsOwnedBy(allGroups, alter.id);
+
+  // The alter's group chips, resolved against the LIVE groups list. The
+  // stored entries are embedded { id, name, color } copies, which go stale
+  // on rename/recolour and outlive a deleted group entirely (the "Group not
+  // found" chip). Resolving here keeps names fresh; dangling entries are
+  // dropped only once the groups query has actually loaded.
+  const resolvedGroups = React.useMemo(() => {
+    const entries = alter.groups || [];
+    if (!groupsLoaded) return entries;
+    return entries
+      .map((g) => allGroups.find((x) => x.id === g?.id || (g?.id && x.sp_id === g.id) || (g?.sp_id && x.id === g.sp_id)) || null)
+      .filter(Boolean);
+  }, [alter.groups, allGroups, groupsLoaded]);
 
   // Create a new subsystem owned by this alter. The term is "sub" + the
   // user's system term (subsystem / subcollective / …).
@@ -670,7 +683,7 @@ useEffect(() => {
                   const cf = alter.custom_fields || {};
                   if (!headerShowGroups && !headerShowSubsystems && !headerShowFields && !headerShowAlterFields) return null;
                   const chipMode = cf[HEADER_CHIP_MODE_KEY] || "both";
-                  const hgroups = headerShowGroups ? (alter.groups || []).map((g) => allGroups.find((x) => x.id === g.id || x.sp_id === g.id) || g) : [];
+                  const hgroups = headerShowGroups ? resolvedGroups : [];
                   const hsubs = headerShowSubsystems ? ownedSubsystems : [];
                   const fieldChips = [];
                   if (headerShowFields) {
@@ -753,7 +766,7 @@ useEffect(() => {
           </div>
         )}
 
-        {alter.groups && alter.groups.length > 0 && !headerShowGroups && (() => {
+        {resolvedGroups.length > 0 && !headerShowGroups && (() => {
           // Group chips render against the page background here (bio area).
           // When the group's user-picked colour is very close to the page
           // bg (e.g. a dark group colour in dark mode), the tinted fill
@@ -765,7 +778,7 @@ useEffect(() => {
           <div>
             <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
             <div className="flex flex-wrap gap-1.5">
-              {alter.groups.map((g) => {
+              {resolvedGroups.map((g) => {
                 const halo = g.color && needsHalo(g.color, pageBg);
                 const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
                 return (
@@ -1167,11 +1180,11 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             </div>
           )}
         </div>
-        {alter.groups && alter.groups.length > 0 ? (() => {
+        {resolvedGroups.length > 0 ? (() => {
           const pageBg = getPageBackground();
           return (
           <div className="flex flex-wrap gap-1.5">
-            {alter.groups.map((g) => {
+            {resolvedGroups.map((g) => {
               const halo = g.color && needsHalo(g.color, pageBg);
               const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
               return (
