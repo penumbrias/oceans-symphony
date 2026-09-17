@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "September 16, 2026",
     changes: [
+      { type: "fix", text: "Home screen widgets: the look controls all actually work now — corner radius, borders, background, gradient, blur, shadow and inner spacing were silently ignored by the classic cards." },
+      { type: "improve", text: "Press-and-hold a home screen widget now opens the page's full edit mode (edit bar at the bottom); each widget's options sit behind its gear there. The options menu also no longer hides its last rows behind the bottom bar." },
+      { type: "feature", text: "Manage groups, rebuilt: browse folders the same way as the {{alters}} page (tap in, breadcrumbs out), see what every group holds, reorder groups and their {{alters}} with arrows, rename in place, and Select many groups to move, recolour or delete together." },
+      { type: "feature", text: "Groups remember their own {{alter}} arrangement — the order you set in Manage groups shows everywhere that group's members are listed." },
       { type: "fix", text: "Widget font styles now actually show up — buttons and inputs silently ignored italic and small caps before, which made the style chips look dead on button-heavy widgets." },
       { type: "feature", text: "Widget fonts: the full style set — bold, light, italic, underline, strikethrough, small caps, all caps — for both the body and header font." },
       { type: "feature", text: "Quick action buttons can use an uploaded image as their icon; the icon picker now says the recommended size." },

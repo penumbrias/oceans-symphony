@@ -169,7 +169,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, flowView = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -203,7 +203,10 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       optionsHoldTimer.current = setTimeout(() => {
         optionsHoldTimer.current = null;
         try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-        onConfigure?.(widget.instanceId);
+        // Hold = enter the page's EDIT MODE, edit bar and all (owner call
+        // — the options sheet opened here directly, and bottom bars could
+        // cut it off; in edit mode every widget's gear is right there).
+        onEnterEdit?.();
       }, 600);
     },
     onPointerMove: (e) => {
@@ -425,6 +428,27 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         style={{
           ...lookStyle,
           borderRadius: "var(--v2-radius, 8px)",
+          // Classic-registry widgets have no v2 Section to consume the box
+          // look — the wrapper paints it for them (def.paintBox). Neutral
+          // fallbacks keep the default look pixel-identical; only values
+          // the user actually sets appear.
+          ...(def.paintBox ? {
+            borderTopWidth: "var(--v2-border-w-t, var(--v2-border-w, 0px))",
+            borderRightWidth: "var(--v2-border-w-r, var(--v2-border-w, 0px))",
+            borderBottomWidth: "var(--v2-border-w-b, var(--v2-border-w, 0px))",
+            borderLeftWidth: "var(--v2-border-w-l, var(--v2-border-w, 0px))",
+            borderStyle: "var(--v2-border-style, solid)",
+            // The colour fallback is visible on purpose: widths default to
+            // 0px, so nothing paints until the user sets a width — and a
+            // width set WITHOUT a colour must still show something.
+            borderColor: "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))",
+            boxShadow: "var(--v2-shadow, none)",
+            backgroundColor: "var(--v2-widget-bg, transparent)",
+            backdropFilter: "var(--v2-widget-blur, none)",
+            WebkitBackdropFilter: "var(--v2-widget-blur, none)",
+            padding: "var(--v2-pad-t, var(--v2-pad, 0px)) var(--v2-pad-r, var(--v2-pad, 0px)) var(--v2-pad-b, var(--v2-pad, 0px)) var(--v2-pad-l, var(--v2-pad, 0px))",
+            ...(lookStyle.backgroundImage ? {} : { backgroundImage: "var(--v2-widget-gradient, none)" }),
+          } : {}),
           // The content fills the widget's box in both layout modes, so the
           // border you see is the size you set; overflow scrolls inside it.
           ...(free || fixedHeight
@@ -1499,6 +1523,7 @@ export default function ExperimentalDashboard({
           onSettings={handleSettings}
           onMove={handleMove}
           onConfigure={openConfig}
+          onEnterEdit={() => setEditMode(true)}
           pickLookMode={!!pickLookFrom || multiMode}
           pickLookSelected={multiMode ? multiIds.includes(w.instanceId) : pickLookIds.includes(w.instanceId)}
           pickLookIsSource={!multiMode && pickLookFrom === w.instanceId}
