@@ -107,7 +107,11 @@ export function SearchableSelect({
     const updatePos = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const spaceBelow = window.innerHeight - rect.bottom;
+      // Visible-viewport aware: with the on-screen keyboard up the real
+      // bottom is visualViewport, not innerHeight (the cut-off report).
+      const vv = window.visualViewport;
+      const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const spaceBelow = visibleBottom - rect.bottom;
       const flipUp = spaceBelow < panelMaxHeight && rect.top > panelMaxHeight;
       setPanelPos({
         top: flipUp ? rect.top - Math.min(panelMaxHeight, rect.top - 8) - 4 : rect.bottom + 4,
@@ -119,9 +123,13 @@ export function SearchableSelect({
     updatePos();
     window.addEventListener("scroll", updatePos, true);
     window.addEventListener("resize", updatePos);
+    window.visualViewport?.addEventListener("resize", updatePos);
+    window.visualViewport?.addEventListener("scroll", updatePos);
     return () => {
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
+      window.visualViewport?.removeEventListener("resize", updatePos);
+      window.visualViewport?.removeEventListener("scroll", updatePos);
     };
   }, [open]);
 
@@ -350,7 +358,11 @@ export function SearchableMultiSelect({
     const updatePos = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const spaceBelow = window.innerHeight - rect.bottom;
+      // Visible-viewport aware: with the on-screen keyboard up the real
+      // bottom is visualViewport, not innerHeight (the cut-off report).
+      const vv = window.visualViewport;
+      const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const spaceBelow = visibleBottom - rect.bottom;
       const flipUp = spaceBelow < panelMaxHeight && rect.top > panelMaxHeight;
       setPanelPos({
         top: flipUp ? rect.top - Math.min(panelMaxHeight, rect.top - 8) - 4 : rect.bottom + 4,
@@ -362,9 +374,13 @@ export function SearchableMultiSelect({
     updatePos();
     window.addEventListener("scroll", updatePos, true);
     window.addEventListener("resize", updatePos);
+    window.visualViewport?.addEventListener("resize", updatePos);
+    window.visualViewport?.addEventListener("scroll", updatePos);
     return () => {
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
+      window.visualViewport?.removeEventListener("resize", updatePos);
+      window.visualViewport?.removeEventListener("scroll", updatePos);
     };
   }, [open]);
 

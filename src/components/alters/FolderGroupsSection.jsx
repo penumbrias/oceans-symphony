@@ -352,20 +352,21 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           </div>
         )}
 
-        {/* Group folders — tap to drill in, hold for the actions popup.
-            List or grid, matching the alters display-mode toggle; both honour
-            the anonymize blur. */}
+        {/* Group folders — tap opens the folder straight away (owner call:
+            tap-then-"Open" was a step too many); press-and-hold brings up
+            the actions popup. List or grid, matching the alters
+            display-mode toggle; both honour the anonymize blur. */}
         {childGroups.length > 0 && (
           displayMode === "list" ? (
             <div className="space-y-2">
               {childGroups.map((g) => (
-                <FolderRow key={g.id} group={g} onClick={(grp) => setMenuGroup(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+                <FolderRow key={g.id} group={g} onClick={(grp) => navigateTo(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
               ))}
             </div>
           ) : (
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${parseInt(displayMode) || 3}, minmax(0,1fr))` }}>
               {childGroups.map((g) => (
-                <FolderTile key={g.id} group={g} onClick={(grp) => setMenuGroup(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+                <FolderTile key={g.id} group={g} onClick={(grp) => navigateTo(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
               ))}
             </div>
           )

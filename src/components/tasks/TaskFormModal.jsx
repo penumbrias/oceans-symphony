@@ -180,6 +180,10 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       }
 
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      // Scheduling a to-do creates/updates its linked PLAN (an Activity)
+      // — without this, the Today widget and the tracker didn't learn
+      // about it until something else refetched activities.
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       onClose();
     } catch (error) {
       toast.error(error.message || "Failed to save task");
