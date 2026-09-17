@@ -138,6 +138,14 @@ export default function AppLayout() {
   // mid-full-tour).
   const [pageScopedTourRoute, setPageScopedTourRoute] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // The app drawer's list toggle (and anything else outside this layout)
+  // opens the sidebar through this event — the drawer lives inside the
+  // home canvas, far from this component's state.
+  useEffect(() => {
+    const open = () => setSidebarOpen(true);
+    window.addEventListener("os-open-sidebar", open);
+    return () => window.removeEventListener("os-open-sidebar", open);
+  }, []);
   useRemindersScheduler();
   // Three quick taps anywhere → open Grocery List as a privacy cover.
   useTripleTapPanic();

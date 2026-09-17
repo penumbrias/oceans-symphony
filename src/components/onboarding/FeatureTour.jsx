@@ -133,7 +133,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "☰",
       classicOnly: true,
       title: "Sidebar — opens from the logo",
-      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
+      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). Prefer tiles? The grid icon in the sidebar header switches to the app grid — and the list icon in the app grid's header switches back. The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
       route: "/", target: null,
       look: `the Oceans Symphony logo in the top-left of the header — tap it to open the full navigation drawer`, action: null,
     },

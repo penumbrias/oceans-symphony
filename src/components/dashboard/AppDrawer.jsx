@@ -11,7 +11,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, Pencil } from "lucide-react";
+import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, Pencil, List } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";
@@ -413,6 +413,13 @@ export default function AppDrawer({
               <LayoutGrid className="w-4 h-4 text-muted-foreground" /> Apps
             </p>
           )}
+          {/* Grid ⇄ list: hop over to the sidebar's grouped list of the
+              same pages. lg:hidden — the sidebar drawer only exists below
+              lg (desktop shows nav in the header instead). */}
+          <button type="button"
+            onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("os-open-sidebar")); }}
+            aria-label="Switch to the navigation list" title="List view"
+            className="p-2 text-muted-foreground hover:text-foreground lg:hidden"><List className="w-5 h-5" /></button>
           <button type="button" onClick={onClose} aria-label="Close"
             className="p-2 text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
