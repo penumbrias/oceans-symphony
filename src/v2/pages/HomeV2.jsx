@@ -16,7 +16,7 @@
 // carry them without any extra wiring.
 
 import React, { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
@@ -53,21 +53,38 @@ export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
   // First open of this device class: lay out a starting set instead of an
   // empty grid. Runs once per field, and only when nothing is saved yet —
   // a user who clears every widget keeps their empty canvas.
+  //
+  // Reads the settings query ITSELF (not just the prop): a brand-new
+  // system has NO SystemSettings row yet, and the old `settingsRow.id`
+  // guard silently skipped seeding forever — a fresh install's board
+  // opened empty (owner report). Now, once the query has resolved, a
+  // missing row is CREATED with the starter board (refetch-before-write,
+  // the app-wide singleton pattern).
+  const { data: settingsRows, isSuccess: settingsLoaded } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const liveRow = settingsRows?.[0] || settingsRow || null;
   useEffect(() => {
-    if (seeded.current[field]) return;
-    if (!settingsRow?.id) return;
-    if (settingsRow[field]) return;
+    if (!settingsLoaded || seeded.current[field]) return;
+    if (liveRow?.[field]) { seeded.current[field] = true; return; }
     seeded.current[field] = true;
-    const start = wide && settingsRow[V2_HOME_FIELD]
-      ? JSON.parse(JSON.stringify(settingsRow[V2_HOME_FIELD]))
+    const start = wide && liveRow?.[V2_HOME_FIELD]
+      ? JSON.parse(JSON.stringify(liveRow[V2_HOME_FIELD]))
       : seedV2Home();
     (async () => {
       try {
-        await base44.entities.SystemSettings.update(settingsRow.id, { [field]: start });
+        // Refetch before writing: another surface may have created the
+        // singleton row (or seeded this field) in the meantime.
+        const fresh = await base44.entities.SystemSettings.list();
+        const row = fresh[0] || null;
+        if (row?.[field]) return;
+        if (row) await base44.entities.SystemSettings.update(row.id, { [field]: start });
+        else await base44.entities.SystemSettings.create({ [field]: start });
         qc.invalidateQueries({ queryKey: ["systemSettings"] });
       } catch { /* non-fatal: the canvas just starts empty */ }
     })();
-  }, [settingsRow, field, wide, qc]);
+  }, [settingsLoaded, liveRow, field, wide, qc]);
 
   return (
     <ExperimentalDashboard
