@@ -837,7 +837,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (!classicBoardAvailable || boardOpen) return undefined;
     try {
-      const pending = ["edit-home", "open-apps", "home-settings", "bar-options"]
+      // The APP LIST is not a board feature — the classic canvas has the
+      // same drawer. Bridging it to the board hopped the user off their
+      // home page just to see the apps (owner report), so apps requests
+      // stay on the classic home; only genuinely board-owned actions
+      // (edit board, its display options, bar options) still open it.
+      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
+        // Translate the parked request to the classic canvas's own key —
+        // it consumes it on mount and opens its drawer.
+        sessionStorage.removeItem("symphony_v2_open-apps");
+        sessionStorage.setItem("symphony_classic_open-apps", "1");
+      }
+      const pending = ["edit-home", "home-settings", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");
       if (pending) { openBoard(); return undefined; }
     } catch { /* storage off */ }
@@ -846,7 +857,7 @@ export default function Dashboard() {
       openBoard();
     };
     const onEdit = mk("edit-home");
-    const onApps = mk("open-apps");
+    const onApps = () => window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
     const onHomeSettings = mk("home-settings");
     const onOpenBoard = () => { openBoard(); };
     window.addEventListener("os-v2-edit-home", onEdit);

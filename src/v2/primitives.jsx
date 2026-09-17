@@ -42,15 +42,16 @@ export function Page({ title, sub, children }) {
 // their own root. `borderFallback: false` is for tiles, which are
 // borderless until the user asks for a border.
 export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
-  // Per-side border vars (Advanced widget options) override the uniform
-  // width on their side only; unset sides keep following --v2-border-w —
-  // same chain the per-side padding uses.
+  // Box border chain: per-side vars → the widget's own "Element outline"
+  // (outlineW) → the app-wide border token. Per-widget "Border width"
+  // (borderW) no longer reaches the box — it scales the borders INSIDE
+  // the widget instead (index.css [data-own-bw] remaps).
   const bw = borderFallback ? "var(--v2-border-w, 1px)" : "var(--v2-border-w, 0px)";
   return {
-    borderTopWidth: `var(--v2-border-w-t, ${bw})`,
-    borderRightWidth: `var(--v2-border-w-r, ${bw})`,
-    borderBottomWidth: `var(--v2-border-w-b, ${bw})`,
-    borderLeftWidth: `var(--v2-border-w-l, ${bw})`,
+    borderTopWidth: `var(--v2-border-w-t, var(--v2-own-outline-w, ${bw}))`,
+    borderRightWidth: `var(--v2-border-w-r, var(--v2-own-outline-w, ${bw}))`,
+    borderBottomWidth: `var(--v2-border-w-b, var(--v2-own-outline-w, ${bw}))`,
+    borderLeftWidth: `var(--v2-border-w-l, var(--v2-own-outline-w, ${bw}))`,
     borderStyle: "var(--v2-border-style, solid)",
     borderColor: borderFallback
       ? "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))"

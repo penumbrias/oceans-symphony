@@ -51,7 +51,7 @@ import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
   pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
-  USER_STYLE_PREFIX, lookCoverage, OFF,
+  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -282,6 +282,14 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const halignItems = halign === "left" ? "flex-start" : halign === "right" ? "flex-end" : halign === "center" ? "center" : "stretch";
   const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
   const lookStyle = lookToStyle(look.bgImage ? { ...look, bgImage: bgUrl } : look);
+  // A widget's shadow is hoisted to the OUTER cell: the cell clips its
+  // content (overflow — the overlap fix), and a shadow drawn on the inner
+  // wrapper was cut off at the cell edge (the "glow gets clipped" report).
+  // The accent/radius vars ride along so glow colour and corner shape
+  // match; the inner copies are turned off so it doesn't paint twice.
+  const ownShadowCss = look.shadow != null && look.shadow !== ""
+    ? (SHADOW_PRESETS[look.shadow] ?? look.shadow)
+    : null;
   const handSized = widget.settings?.autoFit === false;
   // Flow view: everything is content-height unless the user explicitly
   // hand-sized it — grown rows from the fit pass are a GRID concept and
@@ -340,7 +348,16 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           borderColor: "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 60%, transparent)",
         }} />
     )}
-    <div ref={setNodeRef} data-widget-id={widget.instanceId} style={style} className="relative min-w-0">
+    <div ref={setNodeRef} data-widget-id={widget.instanceId}
+      style={{
+        ...style,
+        ...(ownShadowCss && !collapsed ? {
+          boxShadow: ownShadowCss,
+          borderRadius: lookStyle["--v2-radius"] || "var(--v2-radius, 8px)",
+          ...(lookStyle["--v2-accent"] ? { "--v2-accent": lookStyle["--v2-accent"] } : {}),
+        } : {}),
+      }}
+      className="relative min-w-0">
       {/* Look-copy selection: a full-tile button so the whole widget is the
           target, not a fiddly corner checkbox. */}
       {pickLookMode && !pickLookIsSource && (
@@ -396,6 +413,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       )}
       <div
         data-widget-content="1"
+        data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
           // Hold, then LET GO without moving = pick this widget for a
@@ -438,10 +456,10 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             // set app-wide, and reading them here gave every classic card
             // a default border + padding (owner report). Defaults are all
             // zero/none — untouched widgets look exactly as before.
-            borderTopWidth: "var(--v2-border-w-t, var(--v2-own-border-w, 0px))",
-            borderRightWidth: "var(--v2-border-w-r, var(--v2-own-border-w, 0px))",
-            borderBottomWidth: "var(--v2-border-w-b, var(--v2-own-border-w, 0px))",
-            borderLeftWidth: "var(--v2-border-w-l, var(--v2-own-border-w, 0px))",
+            borderTopWidth: "var(--v2-border-w-t, var(--v2-own-outline-w, 0px))",
+            borderRightWidth: "var(--v2-border-w-r, var(--v2-own-outline-w, 0px))",
+            borderBottomWidth: "var(--v2-border-w-b, var(--v2-own-outline-w, 0px))",
+            borderLeftWidth: "var(--v2-border-w-l, var(--v2-own-outline-w, 0px))",
             borderStyle: "var(--v2-border-style, solid)",
             // The colour fallback is visible on purpose: widths default to
             // 0px, so nothing paints until the user sets a width — and a
@@ -454,6 +472,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             padding: "var(--v2-pad-t, var(--v2-own-pad, 0px)) var(--v2-pad-r, var(--v2-own-pad, 0px)) var(--v2-pad-b, var(--v2-own-pad, 0px)) var(--v2-pad-l, var(--v2-own-pad, 0px))",
             ...(lookStyle.backgroundImage ? {} : { backgroundImage: "var(--v2-own-gradient, none)" }),
           } : {}),
+          // Shadow hoisted to the outer cell (it clips here) — silence
+          // every inner copy so it doesn't paint twice.
+          ...(ownShadowCss ? { "--v2-shadow": "none", "--v2-own-shadow": "none", boxShadow: "none" } : {}),
           // The content fills the widget's box in both layout modes, so the
           // border you see is the size you set; overflow scrolls inside it.
           ...(free || fixedHeight
