@@ -251,7 +251,11 @@ export function QuickNoteSheet({ open, onClose }) {
     setSaving(true);
     try {
       const { content: noteText } = await (await import("@/lib/logCommands")).applyLogCommands(text, { chips: false });
-      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText });
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText });
+      // @mentions notify like every other surface.
+      const { saveStatusMentions } = await import("@/lib/mentionUtils");
+      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id });
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success(t("note.saved"));
       setNote("");
