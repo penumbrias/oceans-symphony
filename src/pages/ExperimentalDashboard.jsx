@@ -1598,7 +1598,16 @@ export default function ExperimentalDashboard({
   );
 
   return (
-    <div className="pt-1 relative isolate overflow-x-clip" data-tour="experimental-home" data-home-style={home.styleMode}
+    // Clip carrier: sideways drags must not scroll the page (v0.93.0), but
+    // clipping ON the board root cropped widget glows/shadows at the
+    // content-gutter line — a hard vertical cut 16px in from the screen
+    // edge on the first and last columns ("content clipped on the left
+    // edge", tester report). The negative margin / padding pair widens the
+    // clip boundary to the screen edge (matching <main>'s own gutter) while
+    // leaving the board's geometry — and every absolute anchor inside it —
+    // exactly where it was.
+    <div className="-mx-4 lg:-mx-6 px-4 lg:px-6 overflow-x-clip">
+    <div className="pt-1 relative isolate" data-tour="experimental-home" data-home-style={home.styleMode}
       {...holdHandlers}>
       {/* Wallpaper — fixed under everything in this stacking context; the
           isolate on the root keeps the negative z-index from escaping.
@@ -2379,6 +2388,7 @@ export default function ExperimentalDashboard({
       )}
       <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)} initialTab={packSheetTab}
         home={home} currentPageId={page?.id} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
+    </div>
     </div>
   );
 }
