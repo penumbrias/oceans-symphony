@@ -8,6 +8,7 @@ import {
   Check, Loader2, BookOpen
 } from "lucide-react";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import { saveStatusMentions } from "@/lib/mentionUtils";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
@@ -777,10 +778,13 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
     setEditingStatus(false);
     setTempStatus("");
     // Each save creates a NEW immutable timestamped record — never overwrites old ones
-    await localEntities.StatusNote.create({
+    const created = await localEntities.StatusNote.create({
       timestamp: new Date().toISOString(),
       note,
     });
+    // @mentions notify like every other surface.
+    await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId: primaryAlterId });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     toast.success("Status saved");
   };

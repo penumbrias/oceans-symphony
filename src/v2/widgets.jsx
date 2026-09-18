@@ -42,7 +42,7 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
-import { saveMentions, htmlToPlainText } from "@/lib/mentionUtils";
+import { saveMentions, saveStatusMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
@@ -661,7 +661,10 @@ function StatusWidget() {
       // Same pipeline as the classic status card: inline ~commands run
       // (plain-label tokens — statuses render as plain text).
       const { content: note } = await applyLogCommands(text, { chips: false });
-      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
+      // @mentions notify like every other surface.
+      await saveStatusMentions({ note, alters, sourceId: created?.id });
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
     } catch (e) {

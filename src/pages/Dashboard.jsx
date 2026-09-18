@@ -717,7 +717,11 @@ export default function Dashboard() {
       const text = (extraData.text || "").trim();
       if (!text) return;
       // StatusNote is an immutable log — always create, never update.
-      await localEntities.StatusNote.create({ timestamp: now, note: text });
+      const createdStatus = await localEntities.StatusNote.create({ timestamp: now, note: text });
+      // @mentions notify like every other surface.
+      const { saveStatusMentions } = await import("@/lib/mentionUtils");
+      await saveStatusMentions({ note: text, alters, sourceId: createdStatus?.id, authorAlterId: currentAlterId });
+      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success("Status posted");
     } else if (action.type === "add_task") {

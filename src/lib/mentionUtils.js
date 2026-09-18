@@ -54,6 +54,27 @@ export async function saveAuthoredLog({ authorAlterId, sourceType, sourceId, sou
   });
 }
 
+// Status notes: one wrapper so every "Set a new status…" surface (classic
+// card, fronters panel, quick-action, v2 widget, quick-note sheet) logs
+// mentions identically. Statuses render the mention dropdown but never
+// wrote MentionLog rows, so the mentioned alter fronting later saw nothing
+// (tester report). Best-effort by design: a failed log never blocks the
+// status save. Statuses live in the Check-In Log, so that's where the
+// notification navigates.
+export async function saveStatusMentions({ note, alters, sourceId, authorAlterId = null }) {
+  try {
+    await saveMentions({
+      content: note,
+      alters,
+      sourceType: "status",
+      sourceId,
+      sourceLabel: "Status",
+      navigatePath: "/checkin-log",
+      authorAlterId,
+    });
+  } catch { /* notifications are best-effort */ }
+}
+
 // Rich content (journal bodies, bios) is HTML — flatten it before mention
 // extraction so tags/attributes can't split or fake an @token.
 export function htmlToPlainText(html) {

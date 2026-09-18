@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { localEntities, base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { applyLogCommands } from "@/lib/logCommands";
+import { saveStatusMentions } from "@/lib/mentionUtils";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -49,10 +50,14 @@ export default function StatusNoteCard() {
     let note;
     try { ({ content: note } = await applyLogCommands(raw, { chips: false })); }
     catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    await localEntities.StatusNote.create({
+    const created = await localEntities.StatusNote.create({
       timestamp: new Date().toISOString(),
       note,
     });
+    // @mentions notify like every other surface — the log row is what the
+    // "mentions for current fronters" banner and popups read.
+    await saveStatusMentions({ note, alters, sourceId: created?.id });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
     queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });

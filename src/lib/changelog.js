@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 17, 2026",
     changes: [
+      { type: "fix", text: "@mentions in a custom status now actually notify — the mentioned {{alter}} sees it when they {{front}} (including influencing). The status box showed the mention picker but never delivered." },
       { type: "improve", text: "Hop between the two navigation styles: a grid icon in the sidebar header opens the app grid, and a list icon in the app grid opens the sidebar." },
       { type: "fix", text: "Deleting a group now truly removes it from its members — no more ghost group chips on {{alter}} profiles leading to \"Group not found\". Leftovers from past deletions are cleaned up automatically." },
       { type: "fix", text: "Colour pickers: the code box now accepts typed and pasted colours properly — with or without the #, and tapping the box selects the old code so you can type right over it." },
