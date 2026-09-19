@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 19, 2026",
+    changes: [
+      { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },
+    ],
+  },
+  {
     date: "September 17, 2026",
+    version: "0.239.10",
     changes: [
       { type: "fix", text: "Widget glows, shadows and outlines no longer get sliced off at the left and right edges of the home screen — they now fade out into the screen margin like they should." },
       { type: "fix", text: "@mentions in a custom status now actually notify — the mentioned {{alter}} sees it when they {{front}} (including influencing). The status box showed the mention picker but never delivered." },

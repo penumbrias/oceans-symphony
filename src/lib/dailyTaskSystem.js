@@ -625,12 +625,27 @@ export async function toggleDailyProgressTasks({
 }) {
   const { base44 } = await import("@/api/base44Client");
   const fresh = await base44.entities.DailyProgress.list().catch(() => []);
-  const record = (fresh || []).find((p) =>
+  // ALL records for this period, not .find(): the pre-consolidation writers
+  // could leave duplicate rows for one period, and the surfaces read them in
+  // DIFFERENT sort orders — so a tick landed in the row the UI never reads
+  // and the checkbox refused to stick (tester report, "marking recurring
+  // tasks complete doesn't work"). Merge every duplicate into one row
+  // (union of ticks, earliest completion stamp wins, XP recomputed) and
+  // delete the extras, so every reader agrees from here on.
+  const matches = (fresh || []).filter((p) =>
     ((p.frequency || "daily") === frequency) &&
     (p.period_key === periodKey || (frequency === "daily" && p.date === dateKey))
   );
+  const record = matches[0] || null;
 
-  const ids = new Set(record?.completed_task_ids || []);
+  const ids = new Set();
+  const mergedTimes = {};
+  for (const p of matches) {
+    for (const id of p.completed_task_ids || []) ids.add(id);
+    for (const [id, t] of Object.entries(p.completion_times || {})) {
+      if (!mergedTimes[id] || new Date(t) < new Date(mergedTimes[id])) mergedTimes[id] = t;
+    }
+  }
   for (const id of setIds) ids.add(id);
   for (const id of clearIds) ids.delete(id);
   const newIds = [...ids];
@@ -638,7 +653,7 @@ export async function toggleDailyProgressTasks({
   const pointsFor = (id) => templates.find((t) => t.id === id)?.points || 0;
   const xp_earned = newIds.reduce((sum, id) => sum + pointsFor(id), 0);
 
-  const completion_times = { ...(record?.completion_times || {}) };
+  const completion_times = mergedTimes;
   const nowIso = new Date().toISOString();
   for (const id of setIds) {
     if (stampTimes && !completion_times[id]) completion_times[id] = nowIso;
@@ -649,6 +664,9 @@ export async function toggleDailyProgressTasks({
     await base44.entities.DailyProgress.update(record.id, {
       completed_task_ids: newIds, completion_times, xp_earned,
     });
+    for (const dup of matches.slice(1)) {
+      try { await base44.entities.DailyProgress.delete(dup.id); } catch { /* already-merged content is on the keeper */ }
+    }
     return { recordId: record.id, ids: newIds };
   }
   const created = await base44.entities.DailyProgress.create({
