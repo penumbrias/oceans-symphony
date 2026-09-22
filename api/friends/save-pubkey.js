@@ -3,14 +3,14 @@
 // Stores this system's E2E public key on its profile so friends can fetch it
 // (returned by /api/friends/list). The relay only ever holds the PUBLIC key —
 // the private key never leaves the user's device.
-import { kv, validateUser, getProfile, cors } from '../_kv.js';
+import { kv, validateUser, getProfile, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

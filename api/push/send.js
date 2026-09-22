@@ -13,7 +13,7 @@
 // target is ONLY the subscription stored server-side under that userId
 // (save-push-sub). A caller can never name a target.
 import webpush from 'web-push';
-import { kv, validateUser, cors } from '../_kv.js';
+import { kv, validateUser, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   if (!pub || !priv) {
     return res.status(503).json({ error: 'Push not configured — set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Vercel environment variables.' });
   }
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

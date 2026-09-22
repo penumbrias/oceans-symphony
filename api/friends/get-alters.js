@@ -4,7 +4,7 @@
 // Z's card, so it never rides the frequent friends poll. The blob is end-to-end
 // encrypted to X's key; the relay can't read it. Gated on a mutual approved
 // friendship as defence-in-depth.
-import { kv, validateUser, getFriends, cors } from '../_kv.js';
+import { kv, validateUser, getFriends, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   // is still accepted for clients that haven't updated yet.
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

@@ -1,14 +1,14 @@
 // POST /api/friends/update-front
 // Body: { userId, secret, fronters, terms, systemName, displayName, privacyLevel, perFriendFronters? }
 // Pushes current front status. Optionally stores per-friend filtered fronter lists.
-import { kv, validateUser, getFriends, cors, capStr, capTerms, capPrivacy, capFronters } from '../_kv.js';
+import { kv, validateUser, getFriends, cors, capStr, capTerms, capPrivacy, capFronters, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

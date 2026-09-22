@@ -19,8 +19,9 @@
 export const CHANGELOG = [
   {
     date: "September 22, 2026",
-    version: "0.240.2",
+    version: "0.241.0",
     changes: [
+      { type: "feature", text: "You can now point the app at your own Friends & reminders server instead of ours \u2014 Settings \u2192 Notifications & reminders. Everything to run one is in the repository." },
       { type: "fix", text: "Adding a to-do timed for earlier today no longer files it as something you already did \u2014 it stays a plan, and shows up in Today and Plan this day." },
       { type: "fix", text: "Widget alignment: \"Center\" now actually centres a widget's elements as a block, the way a text editor's centre button does \u2014 and the widget's box stays exactly where it is. Before, only Left and Right did anything." },
       { type: "feature", text: "Oceans Symphony is now a desktop app on Linux \u2014 its own window, and data that a browser cleanup can't touch. On first run, import a backup to bring your data across." },

@@ -344,6 +344,18 @@ Rules for keeping the targets healthy:
   desktop are not. Every server surface goes through `apiBase()` in
   `src/lib/apiBase.js`, which also carries the user's self-hosted-relay
   override.
+- **The relay handlers in `api/` are never forked.** A self-hosted relay
+  (`server/`, see `docs/self-hosting.md`) imports those exact files and
+  supplies only what Vercel otherwise would: a KV backend (installed on
+  `globalThis.__SYMPHONY_KV`, which `api/_kv.js` picks up) and the
+  `req.body` / `req.query` / `res.status().json()` shims. Guard
+  "is the store configured?" with `isKvConfigured()`, never by reading
+  `KV_REST_API_URL` directly — a self-hosted relay has no Upstash URL and
+  would report itself unconfigured. If you use a new `kv.*` method, add
+  it to `server/kvRedis.mjs` with matching Upstash semantics.
+- **Adding an origin the app is served from means adding it to
+  `ALLOWED_ORIGINS` in `api/_kv.js`.** Otherwise the browser drops every
+  relay response and Friends looks broken with no error worth reading.
 
 See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
 phasing plan.

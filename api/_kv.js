@@ -1,8 +1,20 @@
 // Shared utilities for Friends API endpoints
-import { kv } from '@vercel/kv';
+import { kv as vercelKv } from '@vercel/kv';
 import { randomBytes } from 'node:crypto';
 
-export { kv };
+// KV backend. On Vercel this is Upstash via @vercel/kv. A self-hosted
+// relay (server/index.mjs) installs a Redis-backed adapter on globalThis
+// BEFORE importing any handler, so the handlers themselves are never
+// forked — there is exactly one copy of the Friends logic and both
+// deployments run it. See docs/self-hosting.md.
+export const kv = globalThis.__SYMPHONY_KV || vercelKv;
+
+// Whether a KV backend is actually usable. Every endpoint guards on this
+// rather than reading KV_REST_API_URL directly, because a self-hosted
+// relay has no Upstash URL and would otherwise report itself unconfigured.
+export function isKvConfigured() {
+  return !!(globalThis.__SYMPHONY_KV || process.env.KV_REST_API_URL);
+}
 
 export function generateId(bytes = 16) {
   return randomBytes(bytes).toString('hex');
@@ -79,6 +91,8 @@ const ALLOWED_ORIGINS = new Set([
   'https://www.oceans-symphony.app',
   'https://oceans-symphony.vercel.app',
   'https://app.local.oceans-symphony',
+  // Electron desktop shell (electron/main.cjs serves the app from here).
+  'symphony://app',
   'capacitor://localhost',
   'http://localhost',
   'http://localhost:5173',
