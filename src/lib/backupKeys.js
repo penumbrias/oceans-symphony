@@ -102,6 +102,11 @@ export const BACKUP_LS_KEYS = [
   // localStorage. Mirrored so a wipe can't take them; kept out of portable
   // exports (see MIRROR_ONLY_KEYS) per the panic-cover design.
   "grocery_unlocked_store_v1",
+  // Self-hosted relay host (src/lib/apiBase.js). A user who points the app
+  // at their own Friends/reminder relay should keep pointing there after a
+  // restore on a new device — the alternative is silently falling back to
+  // the default relay, where their friend codes don't exist.
+  "symphony_api_host",
 ];
 
 // Keys that are mirrored on-device (survive a localStorage wipe) but are

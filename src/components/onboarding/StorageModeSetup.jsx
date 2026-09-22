@@ -7,6 +7,7 @@ import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
+import DesktopFirstRunNotice from "@/components/onboarding/DesktopFirstRunNotice";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import { scanForOrphanedData } from "@/lib/dataRecovery";
@@ -337,6 +338,11 @@ function FirstRunSetup({ onComplete }) {
           setTimeout(() => openImportPicker(), 50);
         }}
       />
+      {/* Desktop-only: explain the separate-origin database before the
+          user concludes their data is gone. Reuses the same import picker
+          as the "Import a backup file" button further down, so there is
+          only ever one import code path. Self-hides off-desktop. */}
+      <DesktopFirstRunNotice onImport={() => openImportPicker()} />
       <div className="rounded-xl bg-primary/5 border border-primary/20">
         <button
           type="button"

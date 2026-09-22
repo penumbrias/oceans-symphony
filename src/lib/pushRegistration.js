@@ -1,5 +1,5 @@
 import { localEntities } from "@/api/base44Client";
-import { isNative } from "@/lib/platform";
+import { isNative, isDesktop } from "@/lib/platform";
 import {
   requestNativePermission,
   isNativeNotificationsEnabled,
@@ -7,6 +7,7 @@ import {
   showNativeTestNotification,
   nativeNotificationDiagnostics,
 } from "@/lib/nativeNotifications";
+import { apiBase } from "@/lib/apiBase";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -28,6 +29,13 @@ export async function registerPush() {
     return result;
   }
 
+  // Desktop (Electron): there is no push service behind this shell, and
+  // the SW can't even install on the symphony:// scheme (see main.jsx).
+  // Fail with the honest reason rather than a scheme error from deep
+  // inside the Cache API. Local/OS notifications are unaffected.
+  if (isDesktop()) {
+    throw new Error('Push notifications are not available in the desktop app. Reminders still work while the app is open.');
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push notifications are not supported in this browser.');
   }
@@ -177,7 +185,7 @@ export async function pushDiagnostics() {
 
   // Server config — try a test send via the API.
   try {
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -260,7 +268,7 @@ export async function pushDeepDiagnostic() {
   navigator.serviceWorker.addEventListener('message', onMessage);
 
   try {
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -345,7 +353,7 @@ export async function sendPushNotification(payload) {
     const subscription = await getActivePushSubscription();
     if (!subscription) return false;
 
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription, payload }),

@@ -3,27 +3,22 @@
 import { localEntities } from "@/api/base44Client";
 import { getActivePushSubscription } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
+import { apiBase } from "@/lib/apiBase";
 import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
 import { getSharedFriendIdentity, setSharedFriendIdentity, clearSharedFriendIdentity } from "@/lib/friendIdentityStore";
 import { sanitizeFriendsListResponse, sanitizeFrontBlob } from "@/lib/remoteSanitize";
 
-// On web/TWA the Friends API lives at /api/friends on the same origin
-// the page was served from — relative paths work. On the Capacitor
-// native build the WebView is served from a private hostname
-// (app.local.oceans-symphony, see capacitor.config.ts) which doesn't
-// exist on the public internet, so relative /api/* requests return a
-// 404 HTML page → the JSON parser throws "Unexpected token '<', '<!doctype'…".
-// On native we point at the production Vercel deployment explicitly.
-// Exported so other callers (Friends.jsx's save-push-sub fetch) can
-// use the same base without re-implementing the platform check.
-// Must be oceans-symphony.app (the canonical production domain),
-// NOT .vercel.app — Chrome storage / CORS / cookies are scoped by
-// origin and the TWA was wrapping the .app origin, so anything else
-// would land us in a different storage scope from web users.
-const NATIVE_API_HOST = "https://oceans-symphony.app";
-export const FRIENDS_API_BASE = isNative()
-  ? `${NATIVE_API_HOST}/api/friends`
-  : "/api/friends";
+// Where the Friends relay lives. Relative on web/TWA (same origin as the
+// deploy that hosts the API); absolute in the packaged app targets, whose
+// pages are served from origins the API doesn't live on — the Capacitor
+// WebView's private hostname and the desktop shell's symphony://app. A
+// relative /api/* there returns a 404 HTML page and the JSON parser
+// throws "Unexpected token '<', '<!doctype'…".
+//
+// The rule (and the user's self-hosted-relay override) now lives in
+// src/lib/apiBase.js so all three server surfaces agree. Still exported
+// from here because several callers import it by this name.
+export const FRIENDS_API_BASE = apiBase("friends");
 
 const BASE = FRIENDS_API_BASE;
 

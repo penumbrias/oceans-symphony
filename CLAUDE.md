@@ -278,8 +278,8 @@ For round-target highlights (avatar circles etc.) use `.alter-bar-jump-halo` ins
 
 ## Build Targets — Web, TWA, Native (post v0.11.3)
 
-Single React codebase, three build targets. Native work must be **purely
-additive** — every web-only code path stays untouched unless a runtime
+Single React codebase, four build targets. Native and desktop work must be
+**purely additive** — every web-only code path stays untouched unless a runtime
 `isNative()` branch is needed.
 
 | Target | Built by | Distributed via | Background tasks? |
@@ -288,6 +288,7 @@ additive** — every web-only code path stays untouched unless a runtime
 | Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
 | Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
 | Capacitor native (iOS) | `npm run build && npx cap sync ios && npx cap open ios` (macOS + Xcode; SPM, no CocoaPods) | App Store / TestFlight under bundle id `app.oceans-symphony.ios` (Apple forbids underscores, so the Android id can't be reused) — see `docs/ios-setup.md` | Yes (BGTaskScheduler — opportunistic, not interval-guaranteed) |
+| Electron desktop (Linux) | `npm run desktop:build` → `release/` (AppImage + .deb) | Direct download, Linux first — see `docs/desktop-setup.md` | No (app must be open) |
 
 Rules for keeping the targets healthy:
 
@@ -327,6 +328,22 @@ Rules for keeping the targets healthy:
 - **PWA / TWA non-regression is non-negotiable.** At every native phase,
   the `git diff` of web-only code paths must remain empty or very near
   empty.
+- **The desktop origin and app name are the database address.** The
+  Electron shell serves the app from `symphony://app` and sets
+  `app.setName('Oceans Symphony')`. Chromium keys IndexedDB by origin,
+  and the app name decides `app.getPath('userData')` — so changing
+  either one orphans every existing desktop user's data. Both are pinned
+  and commented in `electron/main.cjs`.
+- **Desktop has no Service Worker and no web push** — the Cache API
+  rejects the `symphony://` scheme, so `src/main.jsx` skips SW
+  registration when `isDesktop()`. Avatars still work: `imageUrlResolver`
+  reads IndexedDB directly whenever no SW controls the page. Don't
+  "fix" this by reintroducing the registration.
+- **Never hardcode a server URL or a relative `/api/*` path.** Only the
+  web build is served by the deploy that hosts the API; native and
+  desktop are not. Every server surface goes through `apiBase()` in
+  `src/lib/apiBase.js`, which also carries the user's self-hosted-relay
+  override.
 
 See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
 phasing plan.

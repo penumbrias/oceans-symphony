@@ -18,6 +18,13 @@
 
 export const CHANGELOG = [
   {
+    date: "September 22, 2026",
+    version: "0.240.0",
+    changes: [
+      { type: "feature", text: "Oceans Symphony is now a desktop app on Linux \u2014 its own window, and data that a browser cleanup can't touch. On first run, import a backup to bring your data across." },
+    ],
+  },
+  {
     date: "September 19, 2026",
     changes: [
       { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },
