@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 22, 2026",
+    changes: [
+      { type: "fix", text: "The automatic recovery for a blank white screen on launch never actually ran — the app's own security policy was blocking it. It works now on every version of the app." },
+    ],
+  },
+  {
     date: "September 19, 2026",
+    version: "0.239.11",
     changes: [
       { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },
     ],
