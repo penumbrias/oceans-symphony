@@ -413,6 +413,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       )}
       <div
         data-widget-content="1"
+        data-halign={halign}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
@@ -489,7 +490,19 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // Right moves left-hugging elements to the right side and vice
           // versa (owner spec). Flex rows, margin-auto pushes and text
           // alignment all follow the direction; bidi keeps words readable.
-          ...(halign === "right" ? { direction: "rtl" } : halign === "left" ? { direction: "ltr" } : {}),
+          //
+          // "Center" needs textAlign as well (v0.240.1). The halign var
+          // only reaches Section's `align-items`, and align-items cannot
+          // move a child that is already full width — which nearly every
+          // widget row is. So Center did nothing and looked identical to
+          // Fill. Left/Right never had this problem because `direction`
+          // re-bases text alignment for free. Setting textAlign here gives
+          // Center the same reach, and still lets a widget that opts into
+          // its own alignment (the heading/text widgets) override it.
+          ...(halign === "right" ? { direction: "rtl" }
+            : halign === "left" ? { direction: "ltr" }
+            : halign === "center" ? { textAlign: "center" }
+            : {}),
           // Per-widget content size — index.css zooms the widget's body
           // wrapper by this, so every widget scales, not just tagged ones.
           "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),

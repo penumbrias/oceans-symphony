@@ -881,6 +881,20 @@ body > .fixed { pointer-events: auto; }
    remapped to its em equivalent (identical rendering at 100%). Bracketed
    sizes can't be caught here — widget code uses text-[0.625em]-style
    brackets, never rem (contract rule). */
+/* Per-widget "Horizontal: Center" (widget options → Alignment).
+   The halign variable only reaches Section's `align-items`, which cannot
+   move a row that is already full width, and the wrapper's `text-align`
+   only reaches ordinary text — the UA stylesheet pins form controls to
+   `text-align: start`, so they ignore it. Carry the centring across to
+   them explicitly. Left/Right don't need this: they set `direction`,
+   which re-bases alignment for form controls too. */
+[data-widget-content][data-halign="center"] input,
+[data-widget-content][data-halign="center"] textarea,
+[data-widget-content][data-halign="center"] select,
+[data-widget-content][data-halign="center"] [contenteditable="true"] {
+  text-align: center;
+}
+
 [data-widget-content] .text-xs   { font-size: 0.75em; }
 [data-widget-content] .text-sm   { font-size: 0.875em; }
 [data-widget-content] .text-base { font-size: 1em; }

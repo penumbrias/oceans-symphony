@@ -19,8 +19,10 @@
 export const CHANGELOG = [
   {
     date: "September 22, 2026",
-    version: "0.240.0",
+    version: "0.240.1",
     changes: [
+      { type: "fix", text: "Adding a to-do timed for earlier today no longer files it as something you already did \u2014 it stays a plan, and shows up in Today and Plan this day." },
+      { type: "fix", text: "Widget alignment: \"Center\" now actually centres a widget's contents. Before, only Left and Right did anything." },
       { type: "feature", text: "Oceans Symphony is now a desktop app on Linux \u2014 its own window, and data that a browser cleanup can't touch. On first run, import a backup to bring your data across." },
     ],
   },

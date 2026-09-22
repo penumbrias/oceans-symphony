@@ -7,9 +7,11 @@
 // today as a PLAN even if its time had passed, while the modal silently
 // logged it. This module is now the only writer; both surfaces call it.
 //
-// Divergence resolution (kept the composer's rule): a QUICK plan whose DATE
-// is today-or-later is a plan instance even if its time-of-day has passed —
-// quick plans are date-intentions, not timestamps.
+// Divergence resolution: a plan whose DATE is today-or-later is a plan
+// instance even if its time-of-day has passed. Plans are intentions, not
+// timestamps. (Originally only quick plans worked this way; timed plans
+// kept a `> Date.now()` rule that silently logged anything scheduled for
+// earlier the same day — see the note at the rule itself.)
 //
 // Callers own their UI concerns (validation, toasts, resets, query
 // invalidation); this owns exactly the writes.
@@ -72,11 +74,20 @@ export async function createPlan({
   for (const occ of occurrences) {
     // A recurring occurrence is always a PLAN instance to resolve later —
     // otherwise past/first occurrences silently auto-"log" and can't be
-    // managed. Single plans keep the past→logged rule, except quick plans,
-    // which are date-intentions (see header note).
-    const isPlanInstance = !!recurrenceGroupId || (isQuickPlan
-      ? format(occ, "yyyy-MM-dd") >= todayLocalISODate()
-      : occ.getTime() > Date.now());
+    // managed. Everything else is a plan when its DAY is today or later.
+    //
+    // Day-based, not timestamp-based (v0.240.1). The old rule
+    // (`occ.getTime() > Date.now()`) meant scheduling something for
+    // earlier today marked it as an activity you had already done: add a
+    // to-do at 10:57 for "9:00 today" and it was born LOGGED, while its
+    // linked Task stayed `completed: false`. The thing was simultaneously
+    // finished and unfinished — it vanished from Today and Plan-this-day
+    // (not scheduled) without ticking anything off (not completed).
+    //
+    // Creating a plan is stating an intention, never recording a
+    // completion. Logging what you actually did is ActivityLogModal's job
+    // and writes LOGGED directly, so nothing here needs to guess.
+    const isPlanInstance = !!recurrenceGroupId || format(occ, "yyyy-MM-dd") >= todayLocalISODate();
     for (const r of records) {
       await base44.entities.Activity.create({
         timestamp: occ.toISOString(),
