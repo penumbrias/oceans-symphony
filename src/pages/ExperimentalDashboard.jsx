@@ -414,6 +414,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       <div
         data-widget-content="1"
         data-halign={halign}
+        {...(def.paintBox ? { "data-widget-box": "1" } : {})}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
