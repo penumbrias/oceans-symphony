@@ -356,6 +356,24 @@ Rules for keeping the targets healthy:
 - **Adding an origin the app is served from means adding it to
   `ALLOWED_ORIGINS` in `api/_kv.js`.** Otherwise the browser drops every
   relay response and Friends looks broken with no error worth reading.
+- **Device sync is files only — never add a network path to it.** See
+  `docs/device-sync.md`. Platform differences live behind the adapter
+  interface in `src/lib/syncAdapters.js`; a new platform is a new
+  adapter, never a change to `deviceSync.js` or `deviceSyncRunner.js`.
+- **`symphony_sync_device_id` must stay OUT of `BACKUP_LS_KEYS`.**
+  Restoring a backup onto a second machine would clone the id, both
+  devices would write the same snapshot filename, and each would
+  silently overwrite the other — the one way per-device files can lose
+  data. Same rule as `FriendIdentity`.
+- **Sync never deletes.** `applyDataSnapshot` passes
+  `applyDeletions: false` deliberately: people sync precisely because
+  they want deleted data BACK. Deletions from the other device are
+  surfaced for review, never applied. Don't "fix" this into a
+  bidirectional delete.
+- **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
+  copy — its entity maps are the live database. Anything built from it
+  and then awaited on (encryption) can tear. `buildDataSnapshot` copies
+  synchronously before the first await; keep it that way.
 
 See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
 phasing plan.

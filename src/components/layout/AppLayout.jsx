@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import SystemBanner from "@/components/system/SystemBanner";
@@ -74,6 +75,10 @@ export default function AppLayout() {
   // foreground (fixes the "opened the app but it shows yesterday / a plan
   // that should be active isn't" staleness).
   useRefreshOnResume();
+  // Device sync (files only, no server). Self-disables unless a folder is
+  // configured and the platform can reach one — see the hook's header for
+  // why it lives here and not in App.jsx's boot path.
+  useAutoDeviceSync();
   // Refresh the friends list when a front-change push arrives on any page
   // (the Friends page's own listener only runs while it's mounted).
   useFriendsLiveRefresh();

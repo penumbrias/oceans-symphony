@@ -18,6 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "September 23, 2026",
+    version: "0.242.0",
+    changes: [
+      { type: "feature", text: "Sync between your own devices over USB \u2014 no cloud, no account, no server. Plug your phone into your computer, point the desktop app at it, and the two keep each other up to date." },
+      { type: "feature", text: "Syncing never deletes. If something is gone on one device but still on the other it comes back, and anything the other device dropped is listed for you to decide on." },
+    ],
+  },
+  {
     date: "September 22, 2026",
     version: "0.241.0",
     changes: [

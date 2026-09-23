@@ -1,0 +1,253 @@
+// Runs one sync pass: write our snapshot, read everyone else's, merge.
+//
+// Split from deviceSync.js (which owns the format) and syncAdapters.js
+// (which owns the platform) so this file is only the sequence — and so a
+// future transport can reuse the other two untouched.
+//
+// Order matters: WRITE FIRST, then read. If a cable is pulled halfway
+// through, the worst outcome is that our snapshot is on the other device
+// and we didn't get theirs — recoverable by syncing again. Reading first
+// and crashing before the write leaves the other device with nothing.
+
+import { getFullDbDump } from "@/lib/localDb";
+import {
+  buildDataSnapshot, buildMediaSnapshot, mediaFingerprint,
+  parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
+  parseSyncFileName, dataFileName, mediaFileName,
+  getDeviceId, SYNC_FORMAT, SYNC_MEDIA_FORMAT,
+} from "@/lib/deviceSync";
+import { getSyncAdapter } from "@/lib/syncAdapters";
+import { getActiveSystemId } from "@/lib/systems";
+
+const FOLDER_KEY = "symphony_sync_folder";
+const LAST_RUN_KEY = "symphony_sync_last_run";
+const MEDIA_FP_KEY = "symphony_sync_media_fp";
+const AUTO_KEY = "symphony_sync_auto";
+// Per-device-file positions we've already merged, so a folder that hasn't
+// changed costs one directory listing instead of a full merge.
+const SEEN_KEY = "symphony_sync_seen";
+// Deletions another device made that we still have. Held here rather than
+// in component state because a pass only merges a peer file ONCE (the
+// seen-marks skip unchanged files), so a review list that lived in the UI
+// would vanish the moment the panel closed and never come back.
+const PENDING_DEL_KEY = "symphony_sync_pending_deletions";
+
+// All of these are DEVICE-BOUND on purpose and must never be added to
+// BACKUP_LS_KEYS: the folder path is meaningless on another machine, and
+// the "seen" marks describe what THIS device has merged.
+export const SYNC_LOCAL_KEYS = [FOLDER_KEY, LAST_RUN_KEY, MEDIA_FP_KEY, AUTO_KEY, SEEN_KEY, PENDING_DEL_KEY];
+
+const readLs = (k, fallback = null) => {
+  try { const v = localStorage.getItem(k); return v === null ? fallback : v; } catch { return fallback; }
+};
+const writeLs = (k, v) => {
+  try { if (v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, String(v)); } catch { /* non-fatal */ }
+};
+const readJson = (k, fallback) => {
+  try { return JSON.parse(localStorage.getItem(k) || "") ?? fallback; } catch { return fallback; }
+};
+
+export const getSyncFolder = () => readLs(FOLDER_KEY, "") || "";
+export const setSyncFolder = (p) => writeLs(FOLDER_KEY, p || null);
+export const getLastRun = () => readLs(LAST_RUN_KEY, "") || "";
+export const isAutoSyncOn = () => readLs(AUTO_KEY, "1") === "1";
+export const setAutoSync = (on) => writeLs(AUTO_KEY, on ? "1" : "0");
+
+export async function pickSyncFolder() {
+  const adapter = getSyncAdapter();
+  const picked = await adapter.pickFolder();
+  if (picked) setSyncFolder(picked);
+  return picked;
+}
+
+// What's in the folder, grouped per device — powers the "devices seen
+// here" list without merging anything.
+export async function listSyncPeers() {
+  const adapter = getSyncAdapter();
+  if (!adapter.available) return [];
+  const dir = getSyncFolder();
+  if (!dir && adapter.canPickFolder) return [];
+  const files = await adapter.list(dir);
+  const mine = getDeviceId();
+  const system = String(getActiveSystemId() || "default");
+  const byDevice = new Map();
+  for (const f of files) {
+    const parsed = parseSyncFileName(f.name);
+    if (!parsed) continue;
+    // Only this system's snapshots. Another system's files sit in the
+    // same folder quite legitimately and must not be merged into this one.
+    if (parsed.systemId !== system.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)) continue;
+    const entry = byDevice.get(parsed.deviceId) || { deviceId: parsed.deviceId, isSelf: parsed.deviceId === mine };
+    entry[parsed.kind] = f;
+    byDevice.set(parsed.deviceId, entry);
+  }
+  return [...byDevice.values()];
+}
+
+// One full pass. Returns a plain report the UI can render.
+export async function runSync({ force = false } = {}) {
+  const adapter = getSyncAdapter();
+  if (!adapter.available) throw new Error(adapter.reason || "Sync is not available on this device.");
+  const dir = getSyncFolder();
+  if (!dir && adapter.canPickFolder) throw new Error("Choose a folder to sync through first.");
+
+  const report = {
+    startedAt: new Date().toISOString(),
+    wrote: [], merged: [], skipped: [], errors: [],
+    conflicts: [], pendingDeletions: [], media: { images: 0, fonts: 0 },
+  };
+
+  // ── 1. Write ours first (see header) ────────────────────────────────
+  try {
+    const snap = await buildDataSnapshot();
+    await adapter.write(dir, dataFileName(), JSON.stringify(snap));
+    report.wrote.push("data");
+  } catch (e) {
+    // A failed write is fatal for this pass: continuing to read would
+    // report "synced" while the other device never receives our changes.
+    report.errors.push({ stage: "write", message: e?.message || String(e) });
+    return report;
+  }
+
+  // Media only when it actually changed — this is the 40MB file.
+  try {
+    const fp = await mediaFingerprint();
+    if (force || (fp && fp !== readLs(MEDIA_FP_KEY, ""))) {
+      const mediaSnap = await buildMediaSnapshot();
+      await adapter.write(dir, mediaFileName(), JSON.stringify(mediaSnap));
+      if (fp) writeLs(MEDIA_FP_KEY, fp);
+      report.wrote.push("media");
+    }
+  } catch (e) {
+    // Non-fatal: data sync is the point; avatars can catch up next pass.
+    report.errors.push({ stage: "write-media", message: e?.message || String(e) });
+  }
+
+  // ── 2. Read the others ──────────────────────────────────────────────
+  let peers = [];
+  try {
+    peers = (await listSyncPeers()).filter((p) => !p.isSelf);
+  } catch (e) {
+    report.errors.push({ stage: "list", message: e?.message || String(e) });
+    return report;
+  }
+
+  const seen = readJson(SEEN_KEY, {});
+  for (const peer of peers) {
+    const f = peer.data;
+    if (!f) continue;
+    const mark = `${f.size}:${Math.round(f.mtimeMs || 0)}`;
+    if (!force && seen[`${peer.deviceId}:data`] === mark) {
+      report.skipped.push({ deviceId: peer.deviceId, reason: "unchanged" });
+      continue;
+    }
+    try {
+      const file = parseSnapshotFile(await adapter.read(dir, f.name));
+      if (file.__format !== SYNC_FORMAT) throw new Error("Not a data snapshot.");
+      const res = await applyDataSnapshot(file);
+      report.merged.push({
+        deviceId: peer.deviceId,
+        name: file.device?.name || peer.deviceId,
+        writtenAt: res.written_at,
+      });
+      report.conflicts.push(...res.conflicts);
+      report.pendingDeletions.push(...res.pendingDeletions.map((d) => ({ ...d, fromDevice: file.device?.name || peer.deviceId })));
+      seen[`${peer.deviceId}:data`] = mark;
+    } catch (e) {
+      report.errors.push({ stage: "merge", deviceId: peer.deviceId, message: e?.message || String(e) });
+      continue; // a bad file from one device must not stop the others
+    }
+
+    // Media is best-effort and only when that device's media changed.
+    const mf = peer.media;
+    if (!mf) continue;
+    const mediaMark = `${mf.size}:${Math.round(mf.mtimeMs || 0)}`;
+    if (!force && seen[`${peer.deviceId}:media`] === mediaMark) continue;
+    try {
+      const file = parseSnapshotFile(await adapter.read(dir, mf.name));
+      if (file.__format !== SYNC_MEDIA_FORMAT) throw new Error("Not a media snapshot.");
+      const res = await applyMediaSnapshot(file);
+      report.media.images += res.images;
+      report.media.fonts += res.fonts;
+      seen[`${peer.deviceId}:media`] = mediaMark;
+    } catch (e) {
+      report.errors.push({ stage: "merge-media", deviceId: peer.deviceId, message: e?.message || String(e) });
+    }
+  }
+
+  writeLs(SEEN_KEY, JSON.stringify(seen));
+  // Park anything the other device deleted for review — never applied here.
+  if (report.pendingDeletions.length) addPendingDeletions(report.pendingDeletions);
+  report.finishedAt = new Date().toISOString();
+  writeLs(LAST_RUN_KEY, report.finishedAt);
+  return report;
+}
+
+// Is there anything new in the folder? A cheap listing, for the poll.
+export async function hasIncomingChanges() {
+  try {
+    const peers = (await listSyncPeers()).filter((p) => !p.isSelf);
+    const seen = readJson(SEEN_KEY, {});
+    return peers.some((p) => {
+      if (!p.data) return false;
+      return seen[`${p.deviceId}:data`] !== `${p.data.size}:${Math.round(p.data.mtimeMs || 0)}`;
+    });
+  } catch {
+    return false;
+  }
+}
+
+// Local record count, so the UI can say what a sync actually changed.
+export function localRecordCount() {
+  try {
+    const dump = getFullDbDump();
+    let n = 0;
+    for (const [k, v] of Object.entries(dump || {})) {
+      if (k.startsWith("__")) continue;
+      if (v && typeof v === "object") n += Object.keys(v).length;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
+// ── Pending deletion review ───────────────────────────────────────────
+//
+// Sync never deletes. When another device's snapshot shows it deleted
+// something we still hold, that lands here for the user to decide. The
+// list is pruned against reality on every read: anything we no longer
+// have (deleted here too, in the meantime) simply drops off.
+
+export function getPendingDeletions() {
+  const raw = readJson(PENDING_DEL_KEY, []);
+  if (!Array.isArray(raw) || !raw.length) return [];
+  let dump = {};
+  try { dump = getFullDbDump() || {}; } catch { return raw; }
+  const live = raw.filter((d) => d && d.entity && d.id && dump?.[d.entity]?.[d.id]);
+  if (live.length !== raw.length) writeLs(PENDING_DEL_KEY, JSON.stringify(live));
+  return live;
+}
+
+export function addPendingDeletions(items) {
+  if (!items?.length) return;
+  const existing = readJson(PENDING_DEL_KEY, []);
+  const byKey = new Map((Array.isArray(existing) ? existing : []).map((d) => [`${d.entity}:${d.id}`, d]));
+  for (const it of items) {
+    if (!it?.entity || !it?.id) continue;
+    byKey.set(`${it.entity}:${it.id}`, it);
+  }
+  writeLs(PENDING_DEL_KEY, JSON.stringify([...byKey.values()].slice(0, 500)));
+}
+
+// Dismiss one from the review list without touching the record — "no,
+// I want to keep this here".
+export function keepPendingDeletion(entity, id) {
+  const existing = readJson(PENDING_DEL_KEY, []);
+  const next = (Array.isArray(existing) ? existing : []).filter((d) => !(d.entity === entity && d.id === id));
+  writeLs(PENDING_DEL_KEY, JSON.stringify(next));
+}
+
+export function clearPendingDeletions() {
+  writeLs(PENDING_DEL_KEY, null);
+}

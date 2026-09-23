@@ -912,7 +912,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
-      body: `Oceans Symphony is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded or synced by default; there is no account. The only ways anything leaves this device are: exporting a backup yourself, opting in to Friends mode (which sends your display name, ${t.system} name, friend code, friends list, push registration, public key and current ${t.front} at the privacy level you choose — plus any ${t.alters} you share, end-to-end encrypted), turning on cloud-backed reminders (reminder times, and their wording only if you allow it), or connecting a third-party import. For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. If file downloads are blocked (e.g. the Facebook or Instagram in-app browser), use the Copy/Paste Backup alternative right below the download button — it lets you split your data into text chunks you can paste anywhere safe. Your data is fully yours and always exportable. If backups ever go stale or start failing, a small amber card appears on your home screen (and a health line under Auto-backup here) — one tap backs up on the spot.`,
+      body: `Oceans Symphony is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded or synced by default; there is no account. The only ways anything leaves this device are: exporting a backup yourself, opting in to Friends mode (which sends your display name, ${t.system} name, friend code, friends list, push registration, public key and current ${t.front} at the privacy level you choose — plus any ${t.alters} you share, end-to-end encrypted), turning on cloud-backed reminders (reminder times, and their wording only if you allow it), connecting a third-party import, or turning on device sync (which copies your data to a folder you pick \u2014 a plugged-in phone or a USB stick \u2014 and never touches a network). For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. If file downloads are blocked (e.g. the Facebook or Instagram in-app browser), use the Copy/Paste Backup alternative right below the download button — it lets you split your data into text chunks you can paste anywhere safe. Your data is fully yours and always exportable. If backups ever go stale or start failing, a small amber card appears on your home screen (and a health line under Auto-backup here) — one tap backs up on the spot.`,
       route: "/settings", target: "settings-data",
       look: `the highlighted Data & Privacy section — tap its header to expand it`, action: null,
     },
@@ -923,6 +923,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Inside Data & Privacy, "See Your Data" is a plain, technical view of exactly what's stored on this device — category by category (${t.alters}, journals, bulletin posts, and so on), each with a record count and size. You can export just one category on its own, or delete one you don't need anymore — deleting always saves a backup of that category to your device first, and cancels the delete entirely if that backup fails, so you're never left without a copy.`,
       route: "/settings", target: "settings-data-inspector",
       look: `the highlighted "See Your Data" section inside Data & Privacy — tap its header to expand it`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
+      emoji: "🔌",
+      title: "Sync between devices",
+      body: `Keep two of your own devices in step without a cloud or an account. Plug your phone into your computer, point the desktop app at its storage (or use a USB stick), and each device writes its own snapshot file and reads the other's. Nothing is sent over a network — the app only reads and writes files. Syncing never deletes: if something was removed on one device but is still on the other, it comes back, and anything the other device dropped is listed for you to decide on rather than disappearing.`,
+      route: "/settings", target: "settings-device-sync",
+      look: `the highlighted "Sync between devices" section inside Data & Privacy — tap its header to expand it`, action: null,
     },
     {
       section: "settings", sectionLabel: "Settings",

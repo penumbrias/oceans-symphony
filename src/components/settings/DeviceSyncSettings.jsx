@@ -1,0 +1,305 @@
+import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import {
+  RefreshCw, FolderOpen, Loader2, Smartphone, Monitor, Check,
+  AlertTriangle, Trash2, Info,
+} from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
+import { base44 } from "@/api/base44Client";
+import { getSyncAdapter } from "@/lib/syncAdapters";
+import { getDeviceName, setDeviceName, getDeviceId } from "@/lib/deviceSync";
+import {
+  getSyncFolder, setSyncFolder, pickSyncFolder, runSync, listSyncPeers, getLastRun,
+  isAutoSyncOn, setAutoSync, getPendingDeletions, keepPendingDeletion,
+} from "@/lib/deviceSyncRunner";
+import { isEncryptionActive } from "@/lib/localDb";
+
+// Device sync — files only, no network. See src/lib/deviceSync.js.
+//
+// The flow this is built around: plug the phone into the computer, point
+// the desktop at the phone's storage, hit sync. Nothing leaves the two
+// devices, because nothing here can open a connection in the first place.
+
+const fmtWhen = (iso) => {
+  if (!iso) return "never";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "unknown";
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`;
+  return d.toLocaleDateString();
+};
+
+export default function DeviceSyncSettings() {
+  const t = useTerms();
+  const queryClient = useQueryClient();
+  const adapter = getSyncAdapter();
+
+  const [folder, setFolder] = useState(getSyncFolder());
+  const [folderDraft, setFolderDraft] = useState("");
+  const [name, setName] = useState(getDeviceName());
+  const [auto, setAuto] = useState(isAutoSyncOn());
+  const [busy, setBusy] = useState(false);
+  const [peers, setPeers] = useState([]);
+  const [report, setReport] = useState(null);
+  const [lastRun, setLastRun] = useState(getLastRun());
+  const [pending, setPending] = useState([]);
+
+  const refreshPeers = useCallback(async () => {
+    if (!adapter.available) return;
+    if (!folder && adapter.canPickFolder) { setPeers([]); return; }
+    try { setPeers(await listSyncPeers()); } catch { setPeers([]); }
+  }, [adapter, folder]);
+
+  useEffect(() => { refreshPeers(); }, [refreshPeers]);
+  useEffect(() => { setPending(getPendingDeletions()); }, [report]);
+
+  const handlePick = async () => {
+    try {
+      const picked = await pickSyncFolder();
+      if (picked) {
+        setFolder(picked);
+        toast.success("Sync folder set.");
+      }
+    } catch (e) {
+      toast.error(e?.message || "Couldn't pick a folder.");
+    }
+  };
+
+  const handleSync = async (force = false) => {
+    setBusy(true);
+    setReport(null);
+    try {
+      const res = await runSync({ force });
+      setReport(res);
+      setLastRun(res.finishedAt || getLastRun());
+      // Everything on screen is driven by react-query; without this the
+      // merge is invisible until the user navigates.
+      queryClient.invalidateQueries();
+      await refreshPeers();
+      const n = res.merged.length;
+      if (res.errors.length && !n) toast.error(res.errors[0].message);
+      else if (n) toast.success(`Synced with ${n} device${n === 1 ? "" : "s"}.`);
+      else toast.success("Your snapshot is up to date — nothing new from other devices.");
+    } catch (e) {
+      toast.error(e?.message || "Sync failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteHere = async (d) => {
+    try {
+      await base44.entities[d.entity].delete(d.id);
+      keepPendingDeletion(d.entity, d.id);
+      setPending(getPendingDeletions());
+      queryClient.invalidateQueries();
+      toast.success("Deleted here too — it's still in Recent changes if you want it back.");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't delete that.");
+    }
+  };
+
+  const handleKeep = (d) => {
+    keepPendingDeletion(d.entity, d.id);
+    setPending(getPendingDeletions());
+  };
+
+  if (!adapter.available) {
+    return (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Sync between your devices</h3>
+        <div className="rounded-lg border border-border bg-card p-3 flex items-start gap-2">
+          <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">{adapter.reason}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-semibold mb-2">Sync between your devices</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Plug your phone into your computer and point this at its storage, or use a USB stick.
+          Your {t.system}&apos;s data is copied between the two devices as files — nothing is sent
+          anywhere, and there is no server involved.
+        </p>
+      </div>
+
+      {/* This device */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          {adapter.id === "electron" ? <Monitor className="w-4 h-4 text-primary" /> : <Smartphone className="w-4 h-4 text-primary" />}
+          <span className="text-sm font-medium">This device</span>
+        </div>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => { setDeviceName(name); setName(getDeviceName()); }}
+          placeholder="Name this device"
+          aria-label="Name this device"
+        />
+        <p className="text-[0.6875rem] text-muted-foreground font-mono">id {getDeviceId().slice(0, 8)}</p>
+      </div>
+
+      {/* Where */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+        <p className="text-sm font-medium">{adapter.canPickFolder ? "Sync folder" : "Sync location"}</p>
+        {adapter.canPickFolder ? (
+          <>
+            <p className="text-xs text-muted-foreground break-all">{folder || "Not chosen yet"}</p>
+            <Button type="button" variant="outline" size="sm" onClick={handlePick} className="gap-1.5">
+              <FolderOpen className="w-3.5 h-3.5" /> {folder ? "Change folder" : "Choose folder"}
+            </Button>
+            {/* Paste-a-path as well as the picker: a phone mounted over USB
+                lands somewhere like
+                /run/user/1000/gvfs/mtp:host=.../Internal storage/Documents,
+                which is awkward to click through and which some file
+                dialogs don't list at all. */}
+            <div className="flex gap-2 pt-1">
+              <Input
+                value={folderDraft}
+                onChange={(e) => setFolderDraft(e.target.value)}
+                placeholder="…or paste a folder path"
+                spellCheck={false}
+                autoCapitalize="none"
+                autoCorrect="off"
+                aria-label="Paste a folder path"
+                className="text-xs"
+              />
+              <Button
+                type="button" variant="outline" size="sm"
+                disabled={!folderDraft.trim()}
+                onClick={() => {
+                  const v = folderDraft.trim();
+                  setSyncFolder(v);
+                  setFolder(v);
+                  setFolderDraft("");
+                  toast.success("Sync folder set.");
+                }}
+              >
+                Use
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {adapter.folderLabel} — reachable from a computer over USB.
+          </p>
+        )}
+      </div>
+
+      {/* Act */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" onClick={() => handleSync(false)} disabled={busy} className="gap-1.5">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          Sync now
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => handleSync(true)} disabled={busy}>
+          Re-read everything
+        </Button>
+        <span className="text-xs text-muted-foreground ml-auto">Last synced {fmtWhen(lastRun)}</span>
+      </div>
+
+      <label className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+        <Switch checked={auto} onCheckedChange={(v) => { setAuto(v); setAutoSync(v); }} />
+        <span className="flex-1 text-sm">Sync automatically while the app is open</span>
+      </label>
+
+      {isEncryptionActive() && (
+        <p className="text-xs text-muted-foreground flex items-start gap-2">
+          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+          Your snapshots are encrypted, because this device is. The other device needs the same passphrase to read them.
+        </p>
+      )}
+
+      {/* Devices seen */}
+      {peers.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Devices in this folder</p>
+          {peers.map((p) => (
+            <div key={p.deviceId} className="flex items-center gap-2 text-xs rounded-lg border border-border/60 p-2">
+              <span className="font-mono text-muted-foreground">{p.deviceId.slice(0, 8)}</span>
+              {p.isSelf && <span className="text-muted-foreground">(this device)</span>}
+              <span className="ml-auto text-muted-foreground">
+                {p.data ? fmtWhen(new Date(p.data.mtimeMs).toISOString()) : "no data file"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Result */}
+      {report && (
+        <div className="rounded-lg border border-border bg-card p-3 text-xs space-y-1">
+          {report.merged.length === 0 && report.errors.length === 0 && (
+            <p className="text-muted-foreground">Nothing new to bring in.</p>
+          )}
+          {report.merged.map((m) => (
+            <p key={m.deviceId}>Merged from <span className="font-medium">{m.name}</span>.</p>
+          ))}
+          {(report.media.images > 0 || report.media.fonts > 0) && (
+            <p className="text-muted-foreground">
+              {report.media.images} image{report.media.images === 1 ? "" : "s"}
+              {report.media.fonts > 0 ? `, ${report.media.fonts} font${report.media.fonts === 1 ? "" : "s"}` : ""} brought over.
+            </p>
+          )}
+          {report.conflicts.length > 0 && (
+            <p className="text-muted-foreground">
+              {report.conflicts.length} item{report.conflicts.length === 1 ? "" : "s"} existed on both devices —
+              the more recent edit was kept.
+            </p>
+          )}
+          {report.errors.map((e, i) => (
+            <p key={i} className="text-destructive">{e.message}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Deletions — reported, never applied. */}
+      {pending.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <p className="font-medium">Deleted on another device, still here</p>
+              <p className="text-muted-foreground">
+                Sync never deletes anything on its own. These are still safe on this device — remove them
+                only if you meant to.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {pending.slice(0, 20).map((d) => (
+              <div key={`${d.entity}:${d.id}`} className="flex items-center gap-2 text-xs rounded border border-border/60 bg-card p-2">
+                <span className="flex-1 min-w-0 truncate" title={`${d.entity} · ${d.label}`}>
+                  <span className="text-muted-foreground">{d.entity}</span> · {d.label}
+                </span>
+                <Button type="button" variant="ghost" size="sm" className="h-6 px-2" onClick={() => handleKeep(d)}>
+                  Keep
+                </Button>
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  className="h-6 px-2 text-destructive hover:text-destructive"
+                  onClick={() => handleDeleteHere(d)}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+            {pending.length > 20 && (
+              <p className="text-[0.6875rem] text-muted-foreground">+{pending.length - 20} more</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

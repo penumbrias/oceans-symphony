@@ -40,4 +40,15 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
   // the user can act on, not a claim.
   dataPath: info.dataPath || '',
   openDataFolder: () => ipcRenderer.invoke('symphony:open-data-folder'),
+
+  // Device sync (src/lib/deviceSync.js). Files only — there is no
+  // network call anywhere behind these. Main refuses any filename that
+  // isn't one of our own snapshot files, so this cannot be turned into a
+  // general-purpose filesystem for the renderer.
+  sync: Object.freeze({
+    pickFolder: () => ipcRenderer.invoke('symphony:sync:pick-folder'),
+    list: (dir) => ipcRenderer.invoke('symphony:sync:list', dir),
+    read: (dir, name) => ipcRenderer.invoke('symphony:sync:read', dir, name),
+    write: (dir, name, text) => ipcRenderer.invoke('symphony:sync:write', dir, name, text),
+  }),
 }));

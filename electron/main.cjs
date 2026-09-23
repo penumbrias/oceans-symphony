@@ -382,6 +382,98 @@ if (!app.requestSingleInstanceLock()) {
     // folder we already expose in the File menu.
     ipcMain.handle('symphony:open-data-folder', () => shell.openPath(app.getPath('userData')));
 
+    // ── Device sync (v0.242.0) ────────────────────────────────────────
+    //
+    // Files only. No sockets, no network — plug a phone in and point the
+    // app at its storage, or use a USB stick. See src/lib/deviceSync.js.
+    //
+    // CONTAINMENT: the renderer may name a directory, but every operation
+    // is refused unless the FILENAME is one of our own snapshot files.
+    // So even a compromised renderer can't read ~/.ssh or overwrite a
+    // user's documents through this channel — the worst it can do is
+    // read and write files it already owns.
+    const SYNC_FILE_RE = /^symphony-sync-[A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.(data|media)\.json$/;
+
+    const badName = (name) =>
+      typeof name !== 'string' || name.includes('/') || name.includes('\\')
+      || name.includes('\0') || !SYNC_FILE_RE.test(name);
+
+    async function usableDir(dir) {
+      if (typeof dir !== 'string' || !path.isAbsolute(dir)) return false;
+      try {
+        const st = await fsp.stat(dir);
+        return st.isDirectory();
+      } catch {
+        return false;
+      }
+    }
+
+    ipcMain.handle('symphony:sync:pick-folder', async () => {
+      const res = await dialog.showOpenDialog(mainWindow, {
+        title: 'Choose the folder to sync through',
+        properties: ['openDirectory', 'createDirectory'],
+        message: 'Pick a folder both devices can reach — a plugged-in phone, or a USB stick.',
+      });
+      if (res.canceled || !res.filePaths?.length) return { ok: true, path: null };
+      return { ok: true, path: res.filePaths[0] };
+    });
+
+    ipcMain.handle('symphony:sync:list', async (_e, dir) => {
+      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
+      try {
+        const names = await fsp.readdir(dir);
+        const files = [];
+        for (const name of names) {
+          if (badName(name)) continue;
+          try {
+            const st = await fsp.stat(path.join(dir, name));
+            if (st.isFile()) files.push({ name, size: st.size, mtimeMs: st.mtimeMs });
+          } catch { /* skip unreadable entries rather than failing the listing */ }
+        }
+        return { ok: true, files };
+      } catch (e) {
+        return { ok: false, error: e?.message || 'Could not read that folder.' };
+      }
+    });
+
+    ipcMain.handle('symphony:sync:read', async (_e, dir, name) => {
+      if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
+      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
+      try {
+        return { ok: true, text: await fsp.readFile(path.join(dir, name), 'utf8') };
+      } catch (e) {
+        return { ok: false, error: e?.message || 'Could not read that file.' };
+      }
+    });
+
+    ipcMain.handle('symphony:sync:write', async (_e, dir, name, text) => {
+      if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
+      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
+      if (typeof text !== 'string') return { ok: false, error: 'Nothing to write.' };
+      const dest = path.join(dir, name);
+      const tmp = `${dest}.part`;
+      try {
+        // Write-then-rename, so a yanked USB cable can never leave a
+        // half-written snapshot that the other device would then try to
+        // merge. The reader only ever sees a complete file.
+        await fsp.writeFile(tmp, text, 'utf8');
+        await fsp.rename(tmp, dest);
+        return { ok: true };
+      } catch (e) {
+        // MTP and some removable filesystems don't support rename. Fall
+        // back to a direct write rather than refusing to sync at all;
+        // the risk window is small and the alternative is no sync.
+        try {
+          await fsp.writeFile(dest, text, 'utf8');
+          try { await fsp.unlink(tmp); } catch { /* best effort */ }
+          return { ok: true, atomic: false };
+        } catch (e2) {
+          try { await fsp.unlink(tmp); } catch { /* best effort */ }
+          return { ok: false, error: e2?.message || e?.message || 'Could not write to that folder.' };
+        }
+      }
+    });
+
     buildMenu();
     createWindow();
 

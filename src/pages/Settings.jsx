@@ -30,6 +30,7 @@ import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSett
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import DataInspector from "@/components/settings/DataInspector";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
+import DeviceSyncSettings from "@/components/settings/DeviceSyncSettings";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
@@ -869,6 +870,13 @@ export default function Settings() {
             />
             <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
           </SubSection>
+
+          {/* Device sync sits beside backups because it solves the same
+              problem from the other end: a second device that holds your
+              data. Files only, no server — see src/lib/deviceSync.js. */}
+          <div data-tour="settings-device-sync">
+            <SubSection title="Sync between devices" defaultOpen={false}><DeviceSyncSettings /></SubSection>
+          </div>
 
           {/* ── STORAGE & ENCRYPTION ── (contains "Cache Images for Offline",
               which downloads remote-URL images — incl. imported avatars — into
