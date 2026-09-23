@@ -27,8 +27,10 @@ import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
-import { recordBackupAttempt } from "@/lib/backupHealth";
+import { recordBackupAttempt, snoozeBackupWarning } from "@/lib/backupHealth";
 import { hasMultipleSystems } from "@/lib/systems";
+import { isEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
+import { encryptStandardBackup } from "@/lib/backupFormat";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -68,6 +70,166 @@ export const BACKUP_DESTINATIONS = {
   DOCUMENTS: "documents",
   ASK: "ask",
 };
+
+// ── The backup DECISION (v0.240.0) ───────────────────────────────────
+// Auto-backup defaults to OFF, on purpose: a silent plaintext file in a
+// public Downloads folder can out a user whose phone someone else picks
+// up — the same threat the grocery-list panic cover exists for. But "off
+// because nobody asked" is how a tester lost everything to a storage
+// wipe. So the default stays off AND every user is asked, once, in a
+// step they can't skip past: automatic / remind me / not now. The answer
+// is recorded here so the app knows the question was actually put.
+//
+// Not mirrored into the DB blob: if a wipe erases it, re-asking is the
+// right outcome. Users from before this existed are inferred to have
+// decided if they already had an interval set.
+const DECISION_KEY = "symphony_backup_decision_v1";
+export const BACKUP_DECISIONS = {
+  AUTO: "auto",
+  REMINDER: "reminder",
+  DECLINED: "declined",
+};
+
+export function getBackupDecision() {
+  try {
+    const v = localStorage.getItem(DECISION_KEY);
+    if (Object.values(BACKUP_DECISIONS).includes(v)) return v;
+  } catch { /* storage off */ }
+  return null;
+}
+
+export function hasBackupDecision() {
+  if (getBackupDecision()) return true;
+  // Pre-decision installs that turned auto-backup on already chose.
+  return getAutoBackupInterval() > 0;
+}
+
+// Records the choice and applies it. "declined" snoozes the home-screen
+// health card for a few days so the user isn't nagged the moment after
+// saying "not now" — it comes back after that, which is the reminder they
+// consented to.
+export function recordBackupDecision(decision, { intervalDays = 7 } = {}) {
+  if (!Object.values(BACKUP_DECISIONS).includes(decision)) return;
+  if (decision === BACKUP_DECISIONS.DECLINED) {
+    setAutoBackupMode(BACKUP_MODES.OFF);
+    snoozeBackupWarning(3);
+  } else {
+    setAutoBackupInterval(intervalDays > 0 ? intervalDays : 7);
+    // Reminder mode is native-only; web falls back to auto (matches Settings).
+    setAutoBackupMode(decision === BACKUP_DECISIONS.REMINDER && isNative() ? BACKUP_MODES.REMINDER : BACKUP_MODES.AUTO);
+  }
+  try { localStorage.setItem(DECISION_KEY, decision); } catch { /* non-fatal */ }
+}
+
+// ── Backup-file privacy (v0.240.0) ───────────────────────────────────
+// Two independent knobs, both off by default so nothing changes for
+// existing files until the user opts in:
+//
+//   Locking — the whole standard envelope is sealed with AES-256-GCM
+//   (see encryptStandardBackup). "storage" reuses the at-rest password
+//   (never stored anywhere extra — read from the unlocked session);
+//   "custom" is a separate password kept in localStorage. The custom
+//   password key is deliberately NOT in BACKUP_LS_KEYS: mirroring it
+//   would write the password into the very file it protects, and into
+//   every plain export. If it goes missing the backup FAILS LOUDLY
+//   (health card → "failing" with the reason) rather than silently
+//   writing plaintext — the user's explicit choice wins over convenience.
+//
+//   Naming — the file name prefix. The default names the app; a plain
+//   name (e.g. "notes-2026-09-23.json") doesn't. On native a non-default
+//   name also moves the file out of "Downloads/Oceans Symphony" into a
+//   neutral "Downloads/Backups" folder. Restore detects format by file
+//   CONTENT, so any name imports fine.
+const ENCRYPT_KEY = "symphony_autobackup_encrypt";
+const CUSTOM_PW_KEY = "symphony_autobackup_pw_v1";
+export const BACKUP_ENCRYPTION = {
+  OFF: "off",
+  STORAGE: "storage",
+  CUSTOM: "custom",
+};
+
+export function getBackupEncryptionMode() {
+  try {
+    const v = localStorage.getItem(ENCRYPT_KEY);
+    if (Object.values(BACKUP_ENCRYPTION).includes(v)) return v;
+  } catch { /* non-fatal */ }
+  return BACKUP_ENCRYPTION.OFF;
+}
+
+export function setBackupEncryptionMode(mode) {
+  if (!Object.values(BACKUP_ENCRYPTION).includes(mode)) return;
+  try { localStorage.setItem(ENCRYPT_KEY, mode); } catch { /* non-fatal */ }
+  if (mode !== BACKUP_ENCRYPTION.CUSTOM) clearBackupCustomPassword();
+}
+
+export function hasBackupCustomPassword() {
+  try { return !!localStorage.getItem(CUSTOM_PW_KEY); } catch { return false; }
+}
+
+export function setBackupCustomPassword(pw) {
+  try { localStorage.setItem(CUSTOM_PW_KEY, String(pw || "")); } catch { /* non-fatal */ }
+}
+
+export function clearBackupCustomPassword() {
+  try { localStorage.removeItem(CUSTOM_PW_KEY); } catch { /* non-fatal */ }
+}
+
+// The password a backup should be sealed with right now, or a
+// human-readable reason there isn't one. Never returns plaintext when the
+// user asked for locking — a missing password is a failure, not a downgrade.
+function resolveBackupPassword() {
+  const mode = getBackupEncryptionMode();
+  if (mode === BACKUP_ENCRYPTION.OFF) return { password: null };
+  if (mode === BACKUP_ENCRYPTION.STORAGE) {
+    if (!isEncryptionEnabled()) {
+      return { error: "backup locking is set to your storage password, but storage encryption is off — pick a backup password in Settings → Data & privacy → Auto-backup" };
+    }
+    const pw = getSessionPassword();
+    if (!pw) return { error: "storage password isn't available this session — unlock the app again, then back up" };
+    return { password: pw };
+  }
+  let pw = null;
+  try { pw = localStorage.getItem(CUSTOM_PW_KEY); } catch { /* storage off */ }
+  if (!pw) return { error: "backup password is missing on this device — set it again in Settings → Data & privacy → Auto-backup" };
+  return { password: pw };
+}
+
+const NAME_KEY = "symphony_autobackup_name_v1";
+export const DEFAULT_BACKUP_NAME = "oceans-symphony-backup";
+export const DISCREET_BACKUP_NAME = "notes";
+const NEUTRAL_SUBDIR = "Backups";
+
+// Keeps a user-typed prefix safe as a file name: letters, digits, space,
+// dash, underscore; trimmed; bounded. Empty → default.
+export function sanitizeBackupName(raw) {
+  const cleaned = String(raw || "").replace(/[^A-Za-z0-9 _-]/g, "").trim().slice(0, 40);
+  return cleaned || DEFAULT_BACKUP_NAME;
+}
+
+export function getBackupName() {
+  try {
+    const v = localStorage.getItem(NAME_KEY);
+    if (v) return sanitizeBackupName(v);
+  } catch { /* non-fatal */ }
+  return DEFAULT_BACKUP_NAME;
+}
+
+export function setBackupName(raw) {
+  const name = sanitizeBackupName(raw);
+  try {
+    if (name === DEFAULT_BACKUP_NAME) localStorage.removeItem(NAME_KEY);
+    else localStorage.setItem(NAME_KEY, name);
+  } catch { /* non-fatal */ }
+}
+
+export function isDiscreetBackupName() {
+  return getBackupName() !== DEFAULT_BACKUP_NAME;
+}
+
+// Where a native backup lands, as shown to the user ("Downloads → …").
+export function describeBackupFolder() {
+  return isDiscreetBackupName() ? `Downloads → ${NEUTRAL_SUBDIR}` : "Downloads → Oceans Symphony";
+}
 
 // User-pickable backup intervals. 0 means off.
 export const AUTO_BACKUP_INTERVALS = [
@@ -212,11 +374,29 @@ async function buildFullBackupPayload() {
 // Returns the result string ("filesystem" | "shared" | "downloaded"
 // | "cancelled" | "failed").
 export async function runAutoBackupNow({ silent = false } = {}) {
-  const payload = await buildFullBackupPayload();
+  const kind = silent ? "auto" : "manual";
+  // Locking is resolved BEFORE the (expensive) payload is built, so a
+  // missing password fails fast and is recorded like any other failure.
+  const { password, error: pwError } = resolveBackupPassword();
+  if (pwError) {
+    recordBackupAttempt({ kind, ok: false, detail: pwError });
+    if (!silent) {
+      try { const { toast } = await import("sonner"); toast.error(`Backup failed: ${pwError}`); } catch { /* sonner not available */ }
+    }
+    const err = new Error(pwError);
+    err.deliveryResult = "failed";
+    throw err;
+  }
+  let payload = await buildFullBackupPayload();
   const caveats = payload.__caveats || {};
+  const locked = !!password;
+  if (locked) payload = await encryptStandardBackup(payload, password);
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
-  const filename = `oceans-symphony-backup-${date}.json`;
+  const name = getBackupName();
+  const discreet = name !== DEFAULT_BACKUP_NAME;
+  const filename = `${name}-${date}.json`;
+  const shareTitle = discreet ? "Backup" : "Oceans Symphony backup";
   const blob = new Blob([json], { type: "application/json" });
 
   const destination = getBackupDestination();
@@ -227,11 +407,13 @@ export async function runAutoBackupNow({ silent = false } = {}) {
   if (isNative() && destination === BACKUP_DESTINATIONS.DOCUMENTS) {
     // Preferred path: MediaStore.Downloads via our custom Java
     // plugin. Works without a permission prompt on Android 10+ AND
-    // survives uninstall (the whole point of an auto-backup).
+    // survives uninstall (the whole point of an auto-backup). A plain
+    // file name also gets a plain folder — see the naming note above.
     const mediaRes = await saveBlobToPublicDownloads({
       blob,
       filename,
       mimeType: "application/json",
+      ...(discreet ? { subdir: NEUTRAL_SUBDIR } : {}),
     });
     if (mediaRes.result === "filesystem") {
       result = mediaRes.result;
@@ -256,7 +438,7 @@ export async function runAutoBackupNow({ silent = false } = {}) {
         const fb = await shareFile({
           blob,
           filename,
-          title: "Oceans Symphony backup",
+          title: shareTitle,
           dialogTitle: "Save backup file",
         });
         result = fb.result;
@@ -267,7 +449,7 @@ export async function runAutoBackupNow({ silent = false } = {}) {
     const fb = await shareFile({
       blob,
       filename,
-      title: "Oceans Symphony backup",
+      title: shareTitle,
       dialogTitle: "Save backup file",
     });
     result = fb.result;
@@ -279,10 +461,10 @@ export async function runAutoBackupNow({ silent = false } = {}) {
     const notes = [];
     if (caveats.activeSystemOnly) notes.push("active system only");
     if (caveats.skippedHeavy) notes.push("images/fonts skipped (too large)");
-    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: true, detail: [location || result, ...notes].join(" · "), partial: notes.length > 0 });
+    recordBackupAttempt({ kind, ok: true, detail: [location || result, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {
     // "cancelled" is the user's choice, not a failure — don't count it.
-    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: false, detail: error || "delivery failed" });
+    recordBackupAttempt({ kind, ok: false, detail: error || "delivery failed" });
   }
   if (!silent) {
     try {

@@ -15,12 +15,13 @@ import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OctoconConnect from "@/components/settings/OctoconConnect";
 import WhatLeavesDevice from "@/components/shared/WhatLeavesDevice";
+import BackupDecisionStep from "@/components/onboarding/BackupDecisionStep";
 import {
   parseImportText,
-  decryptRawEncrypted,
+  decryptEncryptedImport,
+  isEncryptedFormat,
   FORMAT_STANDARD,
   FORMAT_RAW_PLAIN,
-  FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 
 function FirstRunSetup({ onComplete }) {
@@ -184,7 +185,9 @@ function FirstRunSetup({ onComplete }) {
         });
       } else if (parsed.format === FORMAT_RAW_PLAIN) {
         await applyDumpAndComplete({ data: parsed.data });
-      } else if (parsed.format === FORMAT_RAW_ENCRYPTED) {
+      } else if (isEncryptedFormat(parsed.format)) {
+        // Raw encrypted snapshot OR a password-locked backup — both wait
+        // for the password prompt below.
         setPendingEncryptedImport(parsed);
       }
     } catch (e) {
@@ -237,10 +240,19 @@ function FirstRunSetup({ onComplete }) {
     setImporting(true);
     setImportStatus(null);
     try {
-      const data = await decryptRawEncrypted(pendingEncryptedImport, importPassword);
+      const res = await decryptEncryptedImport(pendingEncryptedImport, importPassword);
       setPendingEncryptedImport(null);
       setImportPassword("");
-      await applyDumpAndComplete({ data });
+      if (res.format === FORMAT_STANDARD) {
+        await applyDumpAndComplete({
+          data: res.data,
+          localImages: res.localImages,
+          localFonts: res.localFonts,
+          localSettings: res.localSettings,
+        });
+      } else {
+        await applyDumpAndComplete({ data: res.data });
+      }
     } catch (e) {
       setImportStatus({ type: "error", text: `Decrypt failed: ${e.message}` });
     } finally {
@@ -369,6 +381,18 @@ function FirstRunSetup({ onComplete }) {
           Enter
         </Button>
         {error && <p className="text-xs text-destructive text-center mt-1.5">{error}</p>}
+        {/* Recovery-first, and visible without opening anything: someone who
+            lands here AFTER a storage wipe is exactly who this is for, and
+            they won't go hunting in a collapsed section. Opens the same scan
+            the boot path uses; restoring never deletes anything. */}
+        <button
+          type="button"
+          onClick={() => setShowRescue(true)}
+          className="w-full mt-3 text-left rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-foreground hover:bg-amber-500/10"
+        >
+          <span className="font-medium">Opened to an empty app after an update or reinstall?</span>{" "}
+          <span className="text-muted-foreground">Find my data — check for it here before setting up or importing over the top.</span>
+        </button>
       </div>
 
       <div className="border-t border-border/40 pt-4 mt-2">
@@ -378,21 +402,11 @@ function FirstRunSetup({ onComplete }) {
           aria-expanded={showImport || !!externalImport}
           className="w-full flex items-center gap-2 py-1 text-sm font-medium text-foreground"
         >
-          <span className="flex-1 text-left">Data import + find</span>
+          <span className="flex-1 text-left">Import data</span>
           <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${(showImport || externalImport) ? "rotate-180" : ""}`} />
         </button>
         {(showImport || externalImport) && (
         <div className="space-y-2 pt-3">
-        {/* Recovery-first: look for missing data here BEFORE re-importing over the
-            top (which is destructive). Opens the same scan the boot path uses. */}
-        <button
-          type="button"
-          onClick={() => setShowRescue(true)}
-          className="w-full text-left text-xs rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-foreground hover:bg-amber-500/10"
-        >
-          <span className="font-medium">Scan for missing data</span>{" "}
-          <span className="text-muted-foreground">Finds data from before an update — don't import over the top yet.</span>
-        </button>
         <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
         <input
           ref={fileInputRef}
@@ -613,6 +627,13 @@ function UnlockScreen({ onUnlock }) {
 
 export default function StorageModeSetup({ mode, onComplete }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
+  // First-run runs in two phases: "setup" (storage + optional import) then
+  // "backup" — the decision step every completion path funnels into (start
+  // fresh, file import, app import). Only its Continue calls onComplete, so
+  // nobody reaches the app without answering. A path that reloads the page
+  // (multi-system archive import) is caught by the Dashboard safety net.
+  const [phase, setPhase] = useState("setup");
+  const backupPhase = mode !== "unlock" && phase === "backup";
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-[100] overflow-y-auto overscroll-contain">
@@ -621,7 +642,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
 
         {/* Header — unlock is a simple lock prompt; first-run setup doubles as
             the welcome intro (the two used to be separate screens). */}
-        {mode === "unlock" ? (
+        {backupPhase ? null : mode === "unlock" ? (
           <div className="flex flex-col items-center mb-6">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
               <Lock className="w-6 h-6 text-primary" />
@@ -649,7 +670,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
         )}
 
         {/* Collapsible privacy notice — first run only */}
-        {mode !== "unlock" && (
+        {mode !== "unlock" && !backupPhase && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
             <button
               onClick={() => setNoticeOpen(p => !p)}
@@ -682,7 +703,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">💾 Backups</p>
-                  <p>Use Settings → Data &amp; privacy → Backup to save your data as a file (plain JSON, compact, or copy-paste chunks). Backups include your records and images; push registrations and "available when locked" grocery lists stay behind, and your Friends identity is left out unless you tick the box to bring it to a new device. Automatic backups cover your <strong className="text-foreground">active system</strong> only, and skip very large images — Settings shows when a backup was partial. Keep backups safe: local data is tied to this device and is lost if you clear app data without one.</p>
+                  <p>Use Settings → Data &amp; privacy → Backup to save your data as a file (plain JSON, compact, or copy-paste chunks). Backups include your records and images; push registrations and "available when locked" grocery lists stay behind, and your Friends identity is left out unless you tick the box to bring it to a new device. Automatic backups cover your <strong className="text-foreground">active system</strong> only, and skip very large images — Settings shows when a backup was partial. Automatic backup files can be <strong className="text-foreground">password-locked</strong> and given a plain file name; manual exports are plain files. Setup asks once how you want backups handled. Keep backups safe: local data is tied to this device and is lost if you clear app data without one.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🤖 Transparency</p>
@@ -713,7 +734,9 @@ export default function StorageModeSetup({ mode, onComplete }) {
         {/* Main content */}
         {mode === "unlock"
           ? <UnlockScreen onUnlock={onComplete} />
-          : <FirstRunSetup onComplete={onComplete} />
+          : backupPhase
+            ? <BackupDecisionStep onDone={onComplete} />
+            : <FirstRunSetup onComplete={() => setPhase("backup")} />
         }
       </div>
       </div>

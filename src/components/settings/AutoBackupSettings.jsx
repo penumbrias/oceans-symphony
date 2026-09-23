@@ -17,10 +17,12 @@ import {
   setBackupDestination,
   BACKUP_DESTINATIONS,
   runAutoBackupNow,
+  describeBackupFolder,
 } from "@/lib/autoBackup";
 import { reconcileNativeBackupReminder } from "@/lib/nativeBackupScheduler";
 import { isNative } from "@/lib/platform";
 import PersistentStorageStatus from "./PersistentStorageStatus";
+import BackupFileOptions from "./BackupFileOptions";
 
 const NATIVE = isNative();
 
@@ -72,6 +74,8 @@ export default function AutoBackupSettings() {
   const [destination, setDestinationState] = useState(BACKUP_DESTINATIONS.ASK);
   const [lastAt, setLastAt] = useState(null);
   const [running, setRunning] = useState(false);
+  // Bumped by BackupFileOptions so the destination copy re-reads the folder.
+  const [, setOptionsNonce] = useState(0);
 
   // Initial read of state from localStorage + browser.
   useEffect(() => {
@@ -138,7 +142,7 @@ export default function AutoBackupSettings() {
           <Download className="w-4 h-4 text-primary" /> Auto-backup
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Writes a backup of your <strong>active {terms.system}</strong> to your device on a schedule, skipping very large images and fonts. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios. For a complete file with every {terms.system} and all images, use Export in Data &amp; privacy. (Android's own cloud backup and device transfer are switched off for this app — this file is the only thing that moves.)
+          Writes a backup of your <strong>active {terms.system}</strong> to your device on a schedule, skipping very large images and fonts. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios. For a complete file with every {terms.system} and all images, use Export in Data &amp; privacy. (Android's own cloud backup and device transfer are switched off for this app — this file is the only thing that moves.) Backup files can be password-locked and given a plain name below.
         </p>
       </div>
 
@@ -160,7 +164,7 @@ export default function AutoBackupSettings() {
             icon={Zap}
             title={NATIVE ? "Back up automatically" : "Back up automatically (limited)"}
             body={NATIVE
-              ? "Silent. When you open the app and a backup is due, it writes straight to Downloads → Oceans Symphony — no prompts, no chooser."
+              ? `Silent. When you open the app and a backup is due, it writes straight to ${describeBackupFolder()} — no prompts, no chooser.`
               : "When you open the app and a backup is due, the system share sheet pops up so you can save the file. Truly automatic background backups need the native Android app — browsers and PWAs can't run on a clock."}
           />
           {NATIVE ? (
@@ -225,6 +229,11 @@ export default function AutoBackupSettings() {
         </Button>
       </div>
 
+      {/* Locking + file name apply to auto-backups AND "Back up now". */}
+      <div className="border-t border-border/30 pt-3">
+        <BackupFileOptions onChange={() => setOptionsNonce((n) => n + 1)} />
+      </div>
+
       {/* On native, the backup-destination picker is the actual
           user-meaningful control on this platform — the persistence
           status still renders below it (PersistentStorageStatus handles
@@ -238,7 +247,7 @@ export default function AutoBackupSettings() {
               active={destination === BACKUP_DESTINATIONS.DOCUMENTS}
               onClick={() => handleDestinationChange(BACKUP_DESTINATIONS.DOCUMENTS)}
               title="Save to device"
-              body={"Silent — no share-sheet prompt. Backups land in Downloads → Oceans Symphony (visible in the Files app). If Android blocks that, the app falls back to Documents, and then to its own external folder at Android → data → app.oceans_symphony.twa → files (still browsable, but wiped if you uninstall — keep an extra copy elsewhere if that matters)."}
+              body={`Silent — no share-sheet prompt. Backups land in ${describeBackupFolder()} (visible in the Files app). If Android blocks that, the app falls back to Documents, and then to its own external folder at Android → data → app.oceans_symphony.twa → files (still browsable, but wiped if you uninstall — keep an extra copy elsewhere if that matters).`}
             />
             <ModeCard
               id={BACKUP_DESTINATIONS.ASK}
@@ -258,7 +267,7 @@ export default function AutoBackupSettings() {
   );
 }
 
-function ModeCard({ active, onClick, icon: Icon, title, body }) {
+export function ModeCard({ active, onClick, icon: Icon, title, body }) {
   return (
     <button
       type="button"

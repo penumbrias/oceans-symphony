@@ -32,11 +32,11 @@ import { runAutoBackupNow } from "@/lib/autoBackup";
 import { shareFile } from "@/lib/shareFile";
 import {
   parseImportText,
-  decryptRawEncrypted,
+  decryptEncryptedImport,
+  isEncryptedFormat,
   wrapAsStandardBackup,
   FORMAT_STANDARD,
   FORMAT_RAW_PLAIN,
-  FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 
 // Shown when boot detects existing data on disk that we cannot use as-is
@@ -235,9 +235,9 @@ export default function RecoveryScreen({ reason, onResolved }) {
         await applyDump({ data: parsed.data });
         setStatus({ type: "success", text: "Raw plain file restored. Reloading…" });
         setTimeout(() => window.location.reload(), 900);
-      } else if (parsed.format === FORMAT_RAW_ENCRYPTED) {
-        // Defer to the password prompt — user submits password, then we
-        // decrypt and apply.
+      } else if (isEncryptedFormat(parsed.format)) {
+        // Raw encrypted snapshot or a password-locked backup — defer to the
+        // password prompt; the user submits, then we decrypt and apply.
         setPendingEncryptedImport(parsed);
       }
     } catch (e) {
@@ -252,9 +252,13 @@ export default function RecoveryScreen({ reason, onResolved }) {
     setBusy(true);
     setStatus(null);
     try {
-      const data = await decryptRawEncrypted(pendingEncryptedImport, password);
+      const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      await applyDump({ data });
+      if (res.format === FORMAT_STANDARD) {
+        await applyDump({ data: res.data, localImages: res.localImages, localFonts: res.localFonts, localSettings: res.localSettings });
+      } else {
+        await applyDump({ data: res.data });
+      }
       setStatus({ type: "success", text: "Encrypted file decrypted and restored. Reloading…" });
       setTimeout(() => window.location.reload(), 900);
     } catch (e) {
@@ -504,8 +508,9 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <h3 className="font-semibold text-lg">Encrypted file</h3>
         <p className="text-sm text-muted-foreground">
-          This is an encrypted raw on-device file. Enter the password used
-          when the file was created to decrypt and restore it.
+          This file is password-locked. Enter the password used when it was
+          created (a locked backup uses your backup password) to decrypt and
+          restore it.
         </p>
         <div className="relative">
           <input

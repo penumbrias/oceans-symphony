@@ -468,7 +468,7 @@ export default function Settings() {
           </div>
           <div className="space-y-1">
             <p className="font-medium text-foreground">💾 Backups</p>
-            <p>Use Backup under Data &amp; privacy to save your data as a file. Regular backups are <strong>plain files</strong> whatever your storage mode — store them somewhere safe. (The raw copy the recovery screen saves stays encrypted if your data was.) Automatic backups cover your active {terms.system} only and skip very large images; the health line there says when one was partial.</p>
+            <p>Use Backup under Data &amp; privacy to save your data as a file. Manual exports are <strong>plain files</strong> whatever your storage mode — store them somewhere safe. Automatic backups can be <strong>password-locked</strong> and given a plain file name (Auto-backup, below). (The raw copy the recovery screen saves stays encrypted if your data was.) Automatic backups cover your active {terms.system} only and skip very large images; the health line there says when one was partial.</p>
           </div>
           <div className="space-y-1">
             <p className="font-medium text-foreground">🤖 Transparency</p>
