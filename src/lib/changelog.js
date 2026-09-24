@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.242.1",
     changes: [
+      { type: "fix", text: "The automatic recovery for a blank white screen on launch never actually ran — the app's own security policy was blocking it. It works now on every version of the app." },
       { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
       { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },
       { type: "fix", text: "Desktop: the gap between the top bar and the sidebar is gone \u2014 the sidebar now lines up with whatever height your top bar actually is." },
@@ -48,6 +49,7 @@ export const CHANGELOG = [
   },
   {
     date: "September 19, 2026",
+    version: "0.239.11",
     changes: [
       { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },
     ],

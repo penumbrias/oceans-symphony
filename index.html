@@ -36,7 +36,18 @@
          without the app signalling __OS_ALIVE (set when boot completes), an
          empty #root triggers ONE automatic reload (sessionStorage-guarded
          against loops); otherwise a non-destructive overlay offers Reload,
-         and removes itself if the app comes alive late. -->
+         and removes itself if the app comes alive late.
+
+         COUPLED TO THE CSP — DO NOT EDIT THE SCRIPT BELOW WITHOUT REHASHING.
+         The app's Content-Security-Policy is script-src 'self' plus the
+         sha256 of this script's EXACT text, so changing so much as a space
+         invalidates the hash and the browser silently blocks the watchdog —
+         which is how it sat dead on every build target (web, TWA, Capacitor,
+         Electron) until v0.239.12. The hash lives in TWO places that must
+         stay in sync: CSP_POLICY in vite.config.js (meta tag, covers the
+         native + desktop builds) and the Content-Security-Policy header in
+         vercel.json (the real header on the web deploy). `npm run build`
+         fails with the correct new hash if either drifts. -->
     <script>
       (function () {
         setTimeout(function () {
