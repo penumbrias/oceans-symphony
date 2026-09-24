@@ -21,7 +21,7 @@
 // new-UI quick actions) and Diary bios (v0.183.0). Deliberately NOT bumped
 // to APP_VERSION: the widget home board, unified edit popup and home
 // notices still have no wiki pages, and the banner must say so honestly.
-export const WIKI_CONTENT_VERSION = "0.82.2";
+export const WIKI_CONTENT_VERSION = "0.82.3";
 
 // Registry metadata — one guided example. `wiki: true` keeps the banner's
 // "walkthrough up to date with vX.Y.Z" tag, since the alter profiles ARE the

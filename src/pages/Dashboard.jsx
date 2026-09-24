@@ -14,6 +14,10 @@ import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
+import EmptyAppRescueNotice from "@/components/dashboard/EmptyAppRescueNotice";
+import BackupDecisionStep from "@/components/onboarding/BackupDecisionStep";
+import { hasBackupDecision } from "@/lib/autoBackup";
+import { isPreviewActive } from "@/lib/previewMode";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
@@ -125,6 +129,14 @@ export default function Dashboard() {
     return false;
   });
   const [checklistState, setChecklistState] = useState(() => loadChecklist());
+  // Safety net for the backup decision (v0.240.0): first-run answers it in
+  // StorageModeSetup, but users from before the step existed, and setup
+  // paths that reload the page, arrive here without one. Ask once, before
+  // the Guide — the two would otherwise stack. Preview mode is a sandbox
+  // and never asks.
+  const [backupDecided, setBackupDecided] = useState(() => {
+    try { return hasBackupDecision() || isPreviewActive(); } catch { return true; }
+  });
   const [checklistDismissed, setChecklistDismissed] = useState(() => {
     try { return !!psGetItem(SETUP_CHIP_DISMISSED_KEY); } catch { return false; }
   });
@@ -146,9 +158,10 @@ export default function Dashboard() {
       // Auto-open the Guide on first-run (nothing set yet) or after a
       // new-system creation. Legacy users (terms already done + guide
       // marked done) never see it — they'll open it via the Guide button.
-      if ((!guidedDone && !termsDone) || pendingFromNewSystem) setShowTour(true);
+      // Waits for the backup decision so the two never stack.
+      if (backupDecided && ((!guidedDone && !termsDone) || pendingFromNewSystem)) setShowTour(true);
     } catch { /* storage off */ }
-  }, [pendingFromNewSystem]);
+  }, [pendingFromNewSystem, backupDecided]);
   const checklistIncomplete = !checklistComplete(checklistState);
   const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour;
   const checklistPct = checklistProgress(checklistState);
@@ -1000,6 +1013,7 @@ export default function Dashboard() {
       {/* The v2 board carries these in its own V2Notices stack — hide the
           classic overlays while the board page is showing too. */}
       {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
+      {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
       {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
       {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
       <NotificationHistoryModal
@@ -1109,6 +1123,20 @@ export default function Dashboard() {
         document.body
       )}
 
+      {!backupDecided && (
+        <Dialog open modal>
+          <DialogContent
+            showCloseButton={false}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            aria-describedby={undefined}
+            className="max-w-md"
+          >
+            <DialogTitle className="sr-only">Keep a backup copy?</DialogTitle>
+            <BackupDecisionStep onDone={() => setBackupDecided(true)} />
+          </DialogContent>
+        </Dialog>
+      )}
       <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
       <QuickCheckInModal
         isOpen={showEmotionModal}

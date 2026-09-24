@@ -14,10 +14,10 @@ import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, count
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
-  decryptRawEncrypted,
+  decryptEncryptedImport,
+  isEncryptedFormat,
   FORMAT_STANDARD,
   FORMAT_RAW_PLAIN,
-  FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
 import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
@@ -1124,8 +1124,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       await applyImportPayload({ data: parsed.data, friendBundle: parsed.friendBundle });
       return;
     }
-    if (parsed.format === FORMAT_RAW_ENCRYPTED) {
-      // Defer to the password modal — caller flow resumes there.
+    if (isEncryptedFormat(parsed.format)) {
+      // Raw encrypted snapshot or a password-locked backup — defer to the
+      // password modal; caller flow resumes there.
       traceStep("waiting for password");
       setPendingEncryptedImport(parsed);
       return;
@@ -1546,17 +1547,23 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     if (!pendingEncryptedImport) return;
     setImportLoading(true);
     try {
-      const data = await decryptRawEncrypted(pendingEncryptedImport, password);
+      // Unlocks either shape and normalises it: a locked standard backup
+      // comes back with images / fonts / settings; an old raw snapshot
+      // comes back raw with any FriendIdentity table surfaced as a bundle
+      // (the same consent prompt as every other path).
+      const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      // Old encrypted raw files can carry a FriendIdentity table — route
-      // it through the same consent prompt as every other path.
-      let rawBundle = null;
-      const fiTable = data?.FriendIdentity;
-      if (fiTable && typeof fiTable === "object") {
-        const rows = Array.isArray(fiTable) ? fiTable : Object.values(fiTable);
-        rawBundle = rows.find((r) => r && r.userId && r.secret) || null;
+      if (res.format === FORMAT_STANDARD) {
+        await applyImportPayload({
+          data: res.data,
+          localImages: res.localImages,
+          localFonts: res.localFonts,
+          localSettings: res.localSettings,
+          friendBundle: res.friendBundle,
+        });
+      } else {
+        await applyImportPayload({ data: res.data, friendBundle: res.friendBundle });
       }
-      await applyImportPayload({ data, friendBundle: rawBundle });
     } catch (e) {
       showStatus("error", `Decrypt failed: ${e.message}`);
     } finally {
@@ -2335,8 +2342,9 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <h3 className="font-semibold text-lg">Encrypted file</h3>
         <p className="text-sm text-muted-foreground">
-          This file is an encrypted raw on-device snapshot. Enter the password
-          you used when the file was created to decrypt and import it.
+          This file is password-locked. Enter the password used when it was
+          created (a locked backup uses your backup password) to decrypt and
+          import it.
         </p>
         <div className="relative">
           <input

@@ -19,8 +19,11 @@
 export const CHANGELOG = [
   {
     date: "September 23, 2026",
-    version: "0.242.1",
+    version: "0.243.0",
     changes: [
+      { type: "feature", text: "Setting up the app now asks how you want backups handled — automatic, a reminder, or not now — instead of quietly leaving them off. Everyone who hasn't chosen yet is asked once on the home screen." },
+      { type: "feature", text: "Auto-backup files can now be locked with a password (your storage password, or a separate one) and given a plain file name, so a backup in Downloads doesn't reveal what it is. Locked backups restore anywhere a backup does." },
+      { type: "improve", text: "\"Find my data\" now sits right on the welcome screen and on the home screen whenever the app looks empty — no need to dig through Settings after a storage wipe." },
       { type: "fix", text: "The automatic recovery for a blank white screen on launch never actually ran — the app's own security policy was blocking it. It works now on every version of the app." },
       { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
       { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },

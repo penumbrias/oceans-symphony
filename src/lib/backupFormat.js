@@ -17,17 +17,32 @@
 //      user had a password set. Requires the password to decrypt before
 //      it can be loaded.
 //
-// All three are accepted by the import paths so a raw file saved during
+//   4. Password-locked standard backup (v0.240.0):
+//        { __format: "symphony_backup_encrypted", __version: 1, __salt,
+//          __kdf_iterations, __encrypted: <ciphertext> }
+//      Produced by auto-backup / "Back up now" when the user has chosen to
+//      lock backup files. The ciphertext decrypts to shape (1) — a full
+//      standard envelope with images, fonts and local settings — so once
+//      unlocked it takes exactly the standard import path.
+//
+// All four are accepted by the import paths so a raw file saved during
 // recovery (or pulled out of the user's Downloads folder) can be
 // restored later without manual conversion. The standard envelope is
 // still the preferred long-term format because it also carries the
 // local images and the local UI settings.
 
-import { decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
+import { decryptData, deriveKey, encryptData, generateSalt, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 
 export const FORMAT_STANDARD = 'standard';
 export const FORMAT_RAW_PLAIN = 'raw_plain';
 export const FORMAT_RAW_ENCRYPTED = 'raw_encrypted';
+export const FORMAT_STANDARD_ENCRYPTED = 'standard_encrypted';
+
+// True for either shape that needs a password before it can be applied.
+// Import UIs branch on this to open the password prompt.
+export function isEncryptedFormat(format) {
+  return format === FORMAT_RAW_ENCRYPTED || format === FORMAT_STANDARD_ENCRYPTED;
+}
 
 // Detect which of the three shapes a parsed JSON object is. Returns
 // FORMAT_STANDARD, FORMAT_RAW_PLAIN, FORMAT_RAW_ENCRYPTED, or null if
@@ -35,6 +50,9 @@ export const FORMAT_RAW_ENCRYPTED = 'raw_encrypted';
 export function detectFormat(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
   if (parsed.__format === 'symphony_backup' && parsed.data) return FORMAT_STANDARD;
+  // Checked before the raw-encrypted shape: both carry `__encrypted`, but
+  // only the locked standard envelope names its format.
+  if (parsed.__format === 'symphony_backup_encrypted' && typeof parsed.__encrypted === 'string') return FORMAT_STANDARD_ENCRYPTED;
   if (parsed.__encrypted && typeof parsed.__encrypted === 'string') return FORMAT_RAW_ENCRYPTED;
   // Raw plain: entity-keyed object with no envelope markers. Any object
   // whose values are themselves objects keyed by record id qualifies.
@@ -48,17 +66,24 @@ export function detectFormat(parsed) {
   return null;
 }
 
-// Parses the file text into one of the three normalized shapes. Doesn't
+// Parses the file text into one of the normalized shapes. Doesn't
 // decrypt — that step is up to the caller because it needs a password
-// prompt. The shape returned for FORMAT_RAW_ENCRYPTED carries the
+// prompt. The shape returned for the two encrypted formats carries the
 // ciphertext and salt so the caller can decrypt after collecting the
-// password.
+// password (see decryptEncryptedImport).
 export function parseImportText(text) {
   let parsed;
   try { parsed = JSON.parse(text); }
   catch (e) {
     throw new Error('File is not valid JSON.');
   }
+  return normalizeImport(parsed);
+}
+
+// Same as parseImportText but for an already-parsed object — the step the
+// encrypted formats run AFTER decryption, so a locked standard backup
+// yields exactly what an unlocked one would.
+export function normalizeImport(parsed) {
   const format = detectFormat(parsed);
   if (!format) {
     throw new Error("Unrecognised file. Doesn't match the Symphony backup or raw on-device format.");
@@ -75,7 +100,7 @@ export function parseImportText(text) {
       friendBundle: parsed.__friend_identity || null,
     };
   }
-  if (format === FORMAT_RAW_ENCRYPTED) {
+  if (format === FORMAT_RAW_ENCRYPTED || format === FORMAT_STANDARD_ENCRYPTED) {
     return {
       format,
       ciphertext: parsed.__encrypted,
@@ -120,6 +145,41 @@ export async function decryptRawEncrypted({ ciphertext, salt, iterations = null 
     } catch { /* try next strength */ }
   }
   throw new Error('Incorrect password');
+}
+
+// Decrypts either encrypted import shape and returns the normalized
+// import object the caller would have got from an unencrypted file:
+//   raw encrypted      → { format: FORMAT_RAW_PLAIN, data, friendBundle }
+//   locked standard    → { format: FORMAT_STANDARD, data, localImages, … }
+// Throws the same errors as decryptRawEncrypted.
+export async function decryptEncryptedImport(parsed, password) {
+  const inner = await decryptRawEncrypted(parsed, password);
+  if (parsed.format === FORMAT_STANDARD_ENCRYPTED) {
+    const norm = normalizeImport(inner);
+    if (norm.format !== FORMAT_STANDARD) {
+      throw new Error('Unlocked the file, but its contents are not a Symphony backup.');
+    }
+    return norm;
+  }
+  return normalizeImport(inner);
+}
+
+// Seals a standard backup envelope (the object auto-backup builds) behind a
+// password: fresh salt per file, current KDF strength, AES-256-GCM via the
+// same primitives as at-rest encryption. The result is shape (4) above.
+export async function encryptStandardBackup(payload, password) {
+  if (!password) throw new Error('backup_password_missing');
+  const salt = await generateSalt();
+  const key = await deriveKey(password, salt, KDF_ITERATIONS);
+  const ciphertext = await encryptData(payload, key);
+  return {
+    __format: 'symphony_backup_encrypted',
+    __version: 1,
+    __exported_at: payload?.__exported_at || new Date().toISOString(),
+    __salt: salt,
+    __kdf_iterations: KDF_ITERATIONS,
+    __encrypted: ciphertext,
+  };
 }
 
 // Wraps a plaintext entity dump in the standard backup envelope so it
