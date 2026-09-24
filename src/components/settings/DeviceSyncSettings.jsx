@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   RefreshCw, FolderOpen, Loader2, Smartphone, Monitor, Check,
-  AlertTriangle, Trash2, Info, Link2, FileWarning,
+  AlertTriangle, Trash2, Info, Link2, FileWarning, Palette,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -15,7 +15,7 @@ import { getDeviceName, setDeviceName, getDeviceId } from "@/lib/deviceSync";
 import {
   getSyncFolder, setSyncFolder, pickSyncFolder, runSync, listSyncPeers, getLastRun,
   isAutoSyncOn, setAutoSync, getPendingDeletions, keepPendingDeletion, pairSystem,
-  removeSyncFile,
+  removeSyncFile, copyAppearanceFrom,
 } from "@/lib/deviceSyncRunner";
 import { isEncryptionActive } from "@/lib/localDb";
 
@@ -85,9 +85,21 @@ export default function DeviceSyncSettings() {
       queryClient.invalidateQueries();
       await refreshPeers();
       const n = res.merged.length;
+      const bad = res.unreadable?.length || 0;
       if (res.errors.length && !n) toast.error(res.errors[0].message);
       else if (n) toast.success(`Synced with ${n} device${n === 1 ? "" : "s"}.`);
-      else toast.success("Your snapshot is up to date — nothing new from other devices.");
+      else if (bad) {
+        // Don't report "nothing new" when files were skipped — that was
+        // the bug: a damaged snapshot read as everything being fine.
+        toast.error(`${bad} snapshot${bad === 1 ? "" : "s"} couldn't be read — see below.`);
+      } else if (res.needsPairing?.length) {
+        toast.message("Another device is here but isn't paired yet — pair it below.");
+      } else {
+        // Auto-sync runs every 30s, so a manual press often finds the
+        // work already done. Say that, rather than implying nothing
+        // arrived at all.
+        toast.success("Already up to date — nothing new since the last sync.");
+      }
     } catch (e) {
       toast.error(e?.message || "Sync failed.");
     } finally {
@@ -209,6 +221,27 @@ export default function DeviceSyncSettings() {
         </Button>
         <span className="text-xs text-muted-foreground ml-auto">Last synced {fmtWhen(lastRun)}</span>
       </div>
+
+      {peers.some((p) => !p.isSelf) && (
+        <Button
+          type="button" variant="outline" size="sm" className="w-full gap-1.5"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const { applied, from } = await copyAppearanceFrom();
+              toast.success(`Copied ${applied} appearance setting${applied === 1 ? "" : "s"} from ${from}. Restart to see them.`);
+            } catch (e) {
+              toast.error(e?.message || "Couldn't copy appearance.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Palette className="w-3.5 h-3.5" />
+          Use another device&apos;s appearance
+        </Button>
+      )}
 
       <label className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
         <Switch checked={auto} onCheckedChange={(v) => { setAuto(v); setAutoSync(v); }} />

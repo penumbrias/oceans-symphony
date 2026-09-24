@@ -13,6 +13,7 @@ import { getFullDbDump } from "@/lib/localDb";
 import {
   buildDataSnapshot, buildMediaSnapshot, mediaFingerprint,
   parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
+  readSnapshotSettings, applyPortableSettings,
   parseSyncFileName, dataFileName, mediaFileName,
   getDeviceId, SYNC_FORMAT, SYNC_MEDIA_FORMAT,
 } from "@/lib/deviceSync";
@@ -344,4 +345,35 @@ export async function removeSyncFile(name) {
   const seen = readJson(SEEN_KEY, {});
   for (const k of Object.keys(seen)) if (name.includes(k.split(":")[0])) delete seen[k];
   writeLs(SEEN_KEY, JSON.stringify(seen));
+}
+
+// "Make this device look like that one." Sync only ever FILLS missing
+// preferences, which is right for a device you're already using but
+// leaves no way to deliberately adopt another device's theme. This does
+// that, on request.
+//
+// Returns { applied, from } — or throws with a reason a person can act
+// on, the common one being that the other device is on a build old
+// enough that its snapshots carry no preferences at all.
+export async function copyAppearanceFrom() {
+  const adapter = getSyncAdapter();
+  const dir = getSyncFolder();
+  const peers = (await listSyncPeers()).filter((p) => !p.isSelf && p.data);
+  if (!peers.length) throw new Error("No other device's snapshot in that folder yet.");
+
+  for (const peer of peers) {
+    let settings = null;
+    let name = peer.deviceId;
+    try {
+      const file = parseSnapshotFile(await adapter.read(dir, peer.data.name));
+      name = file.device?.name || name;
+      settings = await readSnapshotSettings(file);
+    } catch {
+      continue; // unreadable snapshots are reported by the sync pass
+    }
+    if (settings && Object.keys(settings).length) {
+      return { applied: applyPortableSettings(settings, { overwrite: true }), from: name };
+    }
+  }
+  throw new Error("The other device's snapshot doesn't include appearance settings — it's running an older version. Update it and sync once, then try again.");
 }

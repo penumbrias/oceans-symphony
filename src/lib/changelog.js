@@ -21,6 +21,8 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.242.1",
     changes: [
+      { type: "improve", text: "Sync can copy another device's appearance on request \u2014 useful when the device you're on already has its own theme, since syncing otherwise leaves settings you've chosen alone." },
+      { type: "fix", text: "Sync no longer says \"nothing new\" when it actually skipped files it couldn't read, or when another device is waiting to be paired." },
       { type: "fix", text: "A damaged or leftover sync file no longer makes syncing look broken \u2014 it's named, skipped, and can be removed in one tap, while your other devices sync as normal." },
       { type: "fix", text: "Syncing to a new device now brings your theme and appearance settings across as well. Anything you'd already set on that device is left as it is." },
       { type: "fix", text: "Widget board: a back arrow now sits beside the page dots, and the Home button leaves the board. Previously the only way out was a swipe, which doesn't work with a mouse." },

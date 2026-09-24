@@ -289,6 +289,37 @@ export function summariseIncomingDeletions(incomingDump, localDump) {
   return out.sort((a, b) => String(b.deleted_at || "").localeCompare(String(a.deleted_at || "")));
 }
 
+
+// Apply portable preferences from a snapshot.
+//
+// overwrite:false (what sync does automatically) fills gaps only — the
+// same rule localSettingsMirror uses on boot, so syncing can never reach
+// over and restyle a device you are using. Preferences carry no
+// timestamps, so there is no way to tell "newer"; applying them
+// unconditionally would just mean last-device-to-sync wins.
+//
+// overwrite:true is for the deliberate "make this device look like that
+// one" action. Safe precisely because a human asked for it.
+export function applyPortableSettings(settings, { overwrite = false } = {}) {
+  if (!settings || typeof settings !== "object") return 0;
+  let n = 0;
+  for (const [key, value] of Object.entries(settings)) {
+    if (value == null) continue;
+    try {
+      if (!overwrite && localStorage.getItem(key) !== null) continue; // ours wins
+      localStorage.setItem(key, String(value));
+      n += 1;
+    } catch { /* storage off — preferences just don't travel */ }
+  }
+  return n;
+}
+
+// The preferences inside a snapshot, without merging any of its data.
+export async function readSnapshotSettings(file) {
+  const body = await unseal(file);
+  return body?.settings && typeof body.settings === "object" ? body.settings : null;
+}
+
 // Apply one device's data snapshot. Additive by design.
 export async function applyDataSnapshot(file) {
   const body = await unseal(file);
@@ -301,21 +332,7 @@ export async function applyDataSnapshot(file) {
   // applyDeletions stays FALSE. Always. See the header.
   const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
 
-  // Preferences: fill gaps, never overwrite. Same rule localSettingsMirror
-  // uses when restoring on boot — whatever this device has already chosen
-  // wins, so syncing can't reach over and restyle a device you're using.
-  let settingsFilled = 0;
-  const incomingSettings = body?.settings;
-  if (incomingSettings && typeof incomingSettings === "object") {
-    for (const [key, value] of Object.entries(incomingSettings)) {
-      if (value == null) continue;
-      try {
-        if (localStorage.getItem(key) !== null) continue; // ours wins
-        localStorage.setItem(key, String(value));
-        settingsFilled += 1;
-      } catch { /* storage off — preferences just don't travel */ }
-    }
-  }
+  const settingsFilled = applyPortableSettings(body?.settings, { overwrite: false });
 
   return {
     device: file.device || null,
