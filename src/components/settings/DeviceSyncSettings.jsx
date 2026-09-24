@@ -288,6 +288,12 @@ export default function DeviceSyncSettings() {
               {report.media.fonts > 0 ? `, ${report.media.fonts} font${report.media.fonts === 1 ? "" : "s"}` : ""} brought over.
             </p>
           )}
+          {report.settingsFilled > 0 && (
+            <p className="text-muted-foreground">
+              Appearance settings came over for this device — restart the app to see them.
+              Anything you&apos;d already set here was left alone.
+            </p>
+          )}
           {report.conflicts.length > 0 && (
             <p className="text-muted-foreground">
               {report.conflicts.length} item{report.conflicts.length === 1 ? "" : "s"} existed on both devices —

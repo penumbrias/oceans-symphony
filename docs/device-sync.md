@@ -54,10 +54,18 @@ Recent changes.
   stripped on write by `stripDeviceBound` and again on read inside
   `mergeDbDump`. Copying a Friends identity to a second device is
   impersonation, not sync.
-- **localStorage preferences** (theme, font size, nav layout). They are
-  per-device by nature; a phone should not inherit a desktop's font size.
-  Layout that lives in `SystemSettings` *does* sync, because it lives in
-  the database.
+- **localStorage preferences are sent, but fill gaps only.** Theme,
+  fonts and accessibility settings travel in the snapshot and are applied
+  ONLY to keys this device has no value for. They carry no timestamps, so
+  a real merge is impossible and applying them outright would make the
+  last device to sync win — flip-flopping a phone's font size against a
+  desktop's. Filling gaps means a fresh device inherits your theme (the
+  thing you actually want when setting one up) while an established
+  device is never restyled behind your back. Same rule
+  `localSettingsMirror` uses when restoring on boot.
+
+  Because theme and font are read at boot, a pull that fills them asks
+  for a restart; the first-run flow just reloads.
 - **The device id.** See below — this one matters.
 
 ## The device id must stay device-bound

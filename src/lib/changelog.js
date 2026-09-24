@@ -21,6 +21,8 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.242.1",
     changes: [
+      { type: "fix", text: "Syncing to a new device now brings your theme and appearance settings across as well. Anything you'd already set on that device is left as it is." },
+      { type: "fix", text: "Widget board: a back arrow now sits beside the page dots, and the Home button leaves the board. Previously the only way out was a swipe, which doesn't work with a mouse." },
       { type: "improve", text: "Setting up the desktop app can now pull your data straight from your phone over USB, instead of only offering to import a backup file." },
       { type: "fix", text: "Sync to a phone plugged in over USB failed to write. It works now, including when the two devices were set up separately \u2014 you're asked once to pair them." },
       { type: "feature", text: "Sync between your own devices over USB \u2014 no cloud, no account, no server. Plug your phone into your computer, point the desktop app at it, and the two keep each other up to date." },

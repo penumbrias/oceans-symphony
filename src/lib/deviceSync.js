@@ -40,10 +40,13 @@
 //   - Device-bound entities (FriendIdentity, PushSubscription) — stripped
 //     on write by stripDeviceBound AND on read by mergeDbDump. Copying a
 //     Friends identity to a second device is impersonation, not sync.
-//   - localStorage preferences (theme, font size, nav layout…). They are
-//     per-device by nature; a phone should not inherit a desktop's font
-//     size. SystemSettings-based layout DOES sync, because it lives in
-//     the database.
+//   - localStorage preferences are sent, but applied ONLY where this
+//     device has no value of its own (see applyDataSnapshot). They carry
+//     no timestamps, so a real merge is impossible and syncing them
+//     outright would make the last device to sync win, flip-flopping a
+//     phone's font size against a desktop's. Fill-the-gaps means a fresh
+//     device inherits your theme — the thing you actually want when
+//     setting one up — and an established device is never overwritten.
 //   - The device id itself. See deviceIdentity below.
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";
@@ -51,6 +54,7 @@ import { stripDeviceBound } from "@/lib/backupPolicy";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
+import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { APP_VERSION } from "@/lib/appVersion";
 import { getBuildTarget } from "@/lib/platform";
 
@@ -204,7 +208,12 @@ function snapshotCopy(value) {
 
 export async function buildDataSnapshot() {
   const dump = snapshotCopy(stripDeviceBound(getFullDbDump()));
-  const sealed = await seal({ data: dump });
+  // Portable preferences (theme, fonts, accessibility…) ride along, the
+  // same set a backup carries. See applyDataSnapshot for why sending them
+  // is safe even though they have no timestamps to merge on.
+  let settings = {};
+  try { settings = readBackupLocalSettings(); } catch { settings = {}; }
+  const sealed = await seal({ data: dump, settings });
   return {
     __format: SYNC_FORMAT,
     ...header(),
@@ -291,11 +300,29 @@ export async function applyDataSnapshot(file) {
   const pendingDeletions = summariseIncomingDeletions(incoming, localBefore);
   // applyDeletions stays FALSE. Always. See the header.
   const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
+
+  // Preferences: fill gaps, never overwrite. Same rule localSettingsMirror
+  // uses when restoring on boot — whatever this device has already chosen
+  // wins, so syncing can't reach over and restyle a device you're using.
+  let settingsFilled = 0;
+  const incomingSettings = body?.settings;
+  if (incomingSettings && typeof incomingSettings === "object") {
+    for (const [key, value] of Object.entries(incomingSettings)) {
+      if (value == null) continue;
+      try {
+        if (localStorage.getItem(key) !== null) continue; // ours wins
+        localStorage.setItem(key, String(value));
+        settingsFilled += 1;
+      } catch { /* storage off — preferences just don't travel */ }
+    }
+  }
+
   return {
     device: file.device || null,
     written_at: file.written_at || null,
     conflicts: conflicts || [],
     pendingDeletions,
+    settingsFilled,
   };
 }
 

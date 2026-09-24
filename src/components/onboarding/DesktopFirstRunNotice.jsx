@@ -54,8 +54,13 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
         toast.error(why || "Nothing could be read from that folder.");
         return;
       }
-      toast.success(`Brought your data over from ${report.merged[0].name}.`);
-      onDone?.();
+      toast.success(`Brought your data over from ${report.merged[0].name}. Starting up…`);
+      // Reload rather than continuing in place: a pull merges the whole
+      // database AND fills in appearance preferences, and theme/font are
+      // read at boot. Continuing would show the data with this device's
+      // default look and no obvious reason why. Same thing the backup
+      // importer does after a restore.
+      setTimeout(() => window.location.reload(), 1200);
     } catch (e) {
       toast.error(e?.message || "Couldn't sync from that device.");
     } finally {
