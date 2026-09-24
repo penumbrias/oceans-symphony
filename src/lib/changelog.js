@@ -23,7 +23,7 @@ export const CHANGELOG = [
     changes: [
       { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
       { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },
-      { type: "fix", text: "Desktop: the app grid has its own button at the top of the sidebar, and pressing the logo now just goes home instead of also opening the app list." },
+      { type: "fix", text: "Desktop: the logo in the top-left now just goes home \u2014 it used to open the app grid on top of that. The grid has its own button in the sidebar, with the grocery list beside it." },
       { type: "improve", text: "Sync can copy another device's appearance on request \u2014 useful when the device you're on already has its own theme, since syncing otherwise leaves settings you've chosen alone." },
       { type: "fix", text: "Sync no longer says \"nothing new\" when it actually skipped files it couldn't read, or when another device is waiting to be paired." },
       { type: "fix", text: "A damaged or leftover sync file no longer makes syncing look broken \u2014 it's named, skipped, and can be removed in one tap, while your other devices sync as normal." },

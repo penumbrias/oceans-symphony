@@ -39,6 +39,7 @@ import { barLookStyle } from "@/lib/widgetLook";
 import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
+import { isDesktop } from "@/lib/platform";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
@@ -330,9 +331,20 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const formatAlter = useAlterLabel();
   const clock = useClock();
   const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
-  const appsHold = useQuickActionsHold(() => (uiV2.appsView === "sidebar"
-    ? setSidebarOpen(true)
-    : requestHomeAction(navigate, location.pathname, "open-apps")));
+  // Upper-left button. Its default icon is the app logo, so people read it
+  // as "home" — and on the desktop it behaved as home AND opened the app
+  // grid on top, which looks like two actions from one press.
+  //
+  // On the desktop that grid now has its own button in the persistent
+  // sidebar, so here the logo means home and nothing else. On phones the
+  // sidebar isn't on screen, so this stays the way to the apps — removing
+  // it there would strand the grid behind a drawer.
+  const logoIsHome = isDesktop();
+  const appsHold = useQuickActionsHold(() => {
+    if (logoIsHome) { navigate("/"); return; }
+    if (uiV2.appsView === "sidebar") { setSidebarOpen(true); return; }
+    requestHomeAction(navigate, location.pathname, "open-apps");
+  });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
@@ -397,7 +409,8 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
             icon is the user's own if they've set one in Display options. */}
         <button type="button"
           {...appsHold}
-          aria-label={t("top.apps")} title={`${t("top.apps")} — hold for your quick actions`}
+          aria-label={logoIsHome ? "Home" : t("top.apps")}
+          title={logoIsHome ? "Home — hold for your quick actions" : `${t("top.apps")} — hold for your quick actions`}
           className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
           {appsIconUrl
             ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />

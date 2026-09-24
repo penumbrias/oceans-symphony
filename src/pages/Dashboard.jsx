@@ -863,11 +863,14 @@ export default function Dashboard() {
       // home page just to see the apps (owner report), so apps requests
       // stay on the classic home; only genuinely board-owned actions
       // (edit board, its display options, bar options) still open it.
-      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
+      if (sessionStorage.getItem("symphony_v2_open-apps")) {
         // Translate the parked request to the classic canvas's own key —
         // it consumes it on mount and opens its drawer.
+        const parkedAt = sessionStorage.getItem("symphony_v2_open-apps");
         sessionStorage.removeItem("symphony_v2_open-apps");
-        sessionStorage.setItem("symphony_classic_open-apps", "1");
+        // Carry the original timestamp so the hand-off can't refresh a
+        // stale request into a live one.
+        sessionStorage.setItem("symphony_classic_open-apps", String(Number(parkedAt) > 1 ? parkedAt : Date.now()));
       }
       const pending = ["edit-home", "home-settings", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");

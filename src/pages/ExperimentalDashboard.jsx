@@ -681,8 +681,18 @@ export default function ExperimentalDashboard({
     window.addEventListener(`${eventPrefix}-edit-home`, editHome);
     window.addEventListener(`${eventPrefix}-home-settings`, homeSettings);
     try {
-      if (sessionStorage.getItem(key("open-apps")) === "1") {
-        sessionStorage.removeItem(key("open-apps")); setDrawerOpen(true);
+      // A parked "open the app grid" request is only honoured if it was
+      // made SECONDS ago. It exists to survive one navigation home, which
+      // takes milliseconds. Without an expiry, any request that never got
+      // consumed (the canvas didn't mount, the board was showing) lingers
+      // and pops the drawer open on some later, unrelated trip home —
+      // which is what made the logo look like it opened the app list.
+      const parked = sessionStorage.getItem(key("open-apps"));
+      if (parked) {
+        sessionStorage.removeItem(key("open-apps"));
+        const at = Number(parked);
+        // Legacy "1" (no timestamp) is treated as stale, not honoured.
+        if (Number.isFinite(at) && at > 1 && Date.now() - at < 5000) setDrawerOpen(true);
       }
       if (sessionStorage.getItem(key("edit-home")) === "1") {
         sessionStorage.removeItem(key("edit-home")); setEditMode(true);

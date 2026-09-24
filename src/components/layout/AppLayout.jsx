@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { ShoppingCart, LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -889,17 +889,30 @@ const handleNotifClick = (mentionLog) => {
               is a SEPARATE render from SidebarNav (that one is the phone
               drawer), so the toggle was simply missing on desktop and the
               app grid had no entry point at all. */}
-          <button
-            type="button"
-            onClick={openAppGrid}
-            aria-label="Switch to the app grid"
-            title="App grid"
-            className="mx-2 mt-3 mb-1 px-2 py-2 flex items-center gap-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span className="text-sm font-medium">App grid</span>
-          </button>
-          <nav className="px-2 pb-4 space-y-5" aria-label="Sidebar navigation">
+          <div className="mx-2 mt-1 mb-0.5 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={openAppGrid}
+              aria-label="Switch to the app grid"
+              title="App grid"
+              className="flex-1 px-2 py-1.5 flex items-center gap-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-sm font-medium">App grid</span>
+            </button>
+            {/* Grocery list / privacy cover, matching the phone drawer.
+                Still openable by triple-tap anywhere. */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list"))}
+              aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
+              title="Grocery list · triple-tap anywhere to open"
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </button>
+          </div>
+          <nav className="px-2 pb-4 space-y-4" aria-label="Sidebar navigation">
             {[
               {
                 label: terms.System,
