@@ -50,5 +50,6 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
     list: (dir) => ipcRenderer.invoke('symphony:sync:list', dir),
     read: (dir, name) => ipcRenderer.invoke('symphony:sync:read', dir, name),
     write: (dir, name, text) => ipcRenderer.invoke('symphony:sync:write', dir, name, text),
+    remove: (dir, name) => ipcRenderer.invoke('symphony:sync:remove', dir, name),
   }),
 }));

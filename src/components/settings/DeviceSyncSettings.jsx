@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   RefreshCw, FolderOpen, Loader2, Smartphone, Monitor, Check,
-  AlertTriangle, Trash2, Info, Link2,
+  AlertTriangle, Trash2, Info, Link2, FileWarning,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -15,6 +15,7 @@ import { getDeviceName, setDeviceName, getDeviceId } from "@/lib/deviceSync";
 import {
   getSyncFolder, setSyncFolder, pickSyncFolder, runSync, listSyncPeers, getLastRun,
   isAutoSyncOn, setAutoSync, getPendingDeletions, keepPendingDeletion, pairSystem,
+  removeSyncFile,
 } from "@/lib/deviceSyncRunner";
 import { isEncryptionActive } from "@/lib/localDb";
 
@@ -302,6 +303,48 @@ export default function DeviceSyncSettings() {
           )}
           {report.errors.map((e, i) => (
             <p key={i} className="text-destructive">{e.message}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Snapshots that couldn't be read. Almost always a leftover from a
+          device that was reinstalled (a new install means a new id, so its
+          old file stays in the folder forever) or one cut off mid-write.
+          Nothing is wrong with YOUR data — the file just can't be used. */}
+      {report?.unreadable?.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <FileWarning className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <p className="font-medium">Some snapshots in the folder couldn&apos;t be read</p>
+              <p className="text-muted-foreground">
+                Usually left behind by a device that was reinstalled, or a copy that was
+                interrupted. Everything else synced normally — removing these just tidies the
+                folder, and nothing on either device is touched.
+              </p>
+            </div>
+          </div>
+          {report.unreadable.map((u) => (
+            <div key={u.name} className="flex items-center gap-2 text-xs rounded border border-border/60 p-2">
+              <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground" title={`${u.name} — ${u.reason}`}>
+                {u.name.replace(/^symphony-sync-/, "").slice(0, 34)}…
+              </span>
+              <Button
+                type="button" variant="ghost" size="sm" className="h-6 px-2"
+                onClick={async () => {
+                  try {
+                    await removeSyncFile(u.name);
+                    toast.success("Removed.");
+                    setReport({ ...report, unreadable: report.unreadable.filter((x) => x.name !== u.name) });
+                    await refreshPeers();
+                  } catch (e) {
+                    toast.error(e?.message || "Couldn't remove that file.");
+                  }
+                }}
+              >
+                Remove
+              </Button>
+            </div>
           ))}
         </div>
       )}

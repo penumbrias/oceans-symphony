@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.242.1",
     changes: [
+      { type: "fix", text: "A damaged or leftover sync file no longer makes syncing look broken \u2014 it's named, skipped, and can be removed in one tap, while your other devices sync as normal." },
       { type: "fix", text: "Syncing to a new device now brings your theme and appearance settings across as well. Anything you'd already set on that device is left as it is." },
       { type: "fix", text: "Widget board: a back arrow now sits beside the page dots, and the Home button leaves the board. Previously the only way out was a swipe, which doesn't work with a mouse." },
       { type: "improve", text: "Setting up the desktop app can now pull your data straight from your phone over USB, instead of only offering to import a backup file." },

@@ -151,6 +151,26 @@ unrecognised system is reported in the UI ("Another device is using a
 different system") and merged only after the user pairs it. Pairings are
 remembered per local system.
 
+## A bad snapshot must not look like a broken sync
+
+Two things leave unusable files in the folder: a device that gets
+reinstalled (a fresh install mints a new device id, so its old file stays
+behind forever) and a write that is cut off part-way.
+
+Both were originally reported to the user as a bare "That file isn't
+readable JSON", which reads as "sync is broken" when in fact every other
+device had synced fine. Now an unparseable snapshot is collected in
+`report.unreadable` with its filename, the rest of the pass continues,
+and the panel offers to remove it. Removal goes through the same
+filename-guarded channel as read and write, so it can only ever delete a
+snapshot.
+
+Writes are staged and moved into place on BOTH platforms so a partial
+write never becomes the live snapshot — `.part` then rename on desktop
+(with a `gio copy` fallback for MTP, which is not atomic), and the same
+on Capacitor. `.part` is deliberately outside the pattern readers accept,
+so a leftover fragment is invisible rather than merged.
+
 ## Order of operations
 
 The runner **writes before it reads**. If a cable is pulled halfway

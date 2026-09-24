@@ -46,6 +46,11 @@ const electronAdapter = {
     if (!res?.ok) throw new Error(res?.error || "Couldn't write to that folder.");
     return res;
   },
+  async remove(dir, name) {
+    const res = await globalThis.symphonyDesktop.sync.remove(dir, name);
+    if (!res?.ok) throw new Error(res?.error || "Couldn't remove that file.");
+    return res;
+  },
 };
 
 // ── Android / iOS (Capacitor) ─────────────────────────────────────────
@@ -102,13 +107,47 @@ const capacitorAdapter = {
   async write(_dir, name, text) {
     const { Filesystem, Directory, Encoding } = await this._fs();
     await this.ensureDir();
+    // Write to a .part file and move it into place, so an interrupted
+    // write (app killed, cable pulled, storage full) can never leave a
+    // TRUNCATED snapshot as the live one. That is not hypothetical: a
+    // phone snapshot was found cut off mid-string, which made the other
+    // device report the whole folder as unreadable.
+    //
+    // ".part" is deliberately outside the filename pattern readers accept,
+    // so a leftover fragment is invisible to sync rather than merged.
+    const finalPath = `${CAPACITOR_DIR}/${name}`;
+    const partPath = `${finalPath}.part`;
     await Filesystem.writeFile({
-      path: `${CAPACITOR_DIR}/${name}`,
+      path: partPath,
       directory: Directory.Documents,
       encoding: Encoding.UTF8,
       data: text,
       recursive: true,
     });
+    try {
+      // rename() won't overwrite on every Android version, so clear the
+      // way first. The window between the two is small, and a missing
+      // file is recoverable (next sync rewrites it) where a corrupt one
+      // silently poisons the other device.
+      try { await Filesystem.deleteFile({ path: finalPath, directory: Directory.Documents }); } catch { /* wasn't there */ }
+      await Filesystem.rename({ from: partPath, to: finalPath, directory: Directory.Documents });
+    } catch (e) {
+      // No rename support: fall back to writing in place, which is what
+      // this did before — worse, but better than not syncing at all.
+      await Filesystem.writeFile({
+        path: finalPath,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+        data: text,
+        recursive: true,
+      });
+      try { await Filesystem.deleteFile({ path: partPath, directory: Directory.Documents }); } catch { /* best effort */ }
+    }
+    return { ok: true };
+  },
+  async remove(_dir, name) {
+    const { Filesystem, Directory } = await this._fs();
+    await Filesystem.deleteFile({ path: `${CAPACITOR_DIR}/${name}`, directory: Directory.Documents });
     return { ok: true };
   },
 };
@@ -128,6 +167,7 @@ const unavailableAdapter = {
   async list() { return []; },
   async read() { throw new Error("Sync is not available in the browser."); },
   async write() { throw new Error("Sync is not available in the browser."); },
+  async remove() { throw new Error("Sync is not available in the browser."); },
 };
 
 export function getSyncAdapter() {

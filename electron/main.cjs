@@ -473,6 +473,21 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
+    // Removing a snapshot is how the app cleans up after a device that
+    // was reinstalled (new id = new filename, old file lingers forever)
+    // or after a half-written file. Same filename guard as everything
+    // else, so this can't be turned into "delete any file".
+    ipcMain.handle('symphony:sync:remove', async (_e, dir, name) => {
+      if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
+      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
+      try {
+        await fsp.unlink(path.join(dir, name));
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e?.message || 'Could not remove that file.' };
+      }
+    });
+
     ipcMain.handle('symphony:sync:write', async (_e, dir, name, text) => {
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };

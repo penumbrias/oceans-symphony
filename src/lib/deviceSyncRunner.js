@@ -153,7 +153,7 @@ export async function runSync({ force = false } = {}) {
 
   const report = {
     startedAt: new Date().toISOString(),
-    wrote: [], merged: [], skipped: [], errors: [], needsPairing: [],
+    wrote: [], merged: [], skipped: [], errors: [], needsPairing: [], unreadable: [],
     conflicts: [], pendingDeletions: [], media: { images: 0, fonts: 0 }, settingsFilled: 0,
   };
 
@@ -220,7 +220,16 @@ export async function runSync({ force = false } = {}) {
       report.pendingDeletions.push(...res.pendingDeletions.map((d) => ({ ...d, fromDevice: file.device?.name || peer.deviceId })));
       seen[`${peer.deviceId}:data`] = mark;
     } catch (e) {
-      report.errors.push({ stage: "merge", deviceId: peer.deviceId, message: e?.message || String(e) });
+      // A half-written or stale snapshot (a device that was reinstalled
+      // leaves its old file behind forever) must not read as "sync is
+      // broken". Name the file, keep going, and let the UI offer to
+      // remove it — telling someone to go delete a file on a phone over
+      // USB is not a fix.
+      report.unreadable.push({
+        deviceId: peer.deviceId,
+        name: f.name,
+        reason: e?.message || String(e),
+      });
       continue; // a bad file from one device must not stop the others
     }
 
@@ -237,7 +246,11 @@ export async function runSync({ force = false } = {}) {
       report.media.fonts += res.fonts;
       seen[`${peer.deviceId}:media`] = mediaMark;
     } catch (e) {
-      report.errors.push({ stage: "merge-media", deviceId: peer.deviceId, message: e?.message || String(e) });
+      report.unreadable.push({
+        deviceId: peer.deviceId,
+        name: mf.name,
+        reason: e?.message || String(e),
+      });
     }
   }
 
@@ -316,4 +329,19 @@ export function keepPendingDeletion(entity, id) {
 
 export function clearPendingDeletions() {
   writeLs(PENDING_DEL_KEY, null);
+}
+
+// Delete one snapshot file from the sync folder. Used to clear a stale
+// file left behind by a reinstalled device, or one that was cut off
+// mid-write. Only ever removes a file the folder listing produced, and
+// the desktop main process refuses any name that isn't a snapshot.
+export async function removeSyncFile(name) {
+  const adapter = getSyncAdapter();
+  if (!adapter.remove) throw new Error("This device can't remove sync files.");
+  await adapter.remove(getSyncFolder(), name);
+  // Forget any merge marks for it so a replacement with the same name is
+  // read fresh rather than skipped as "already seen".
+  const seen = readJson(SEEN_KEY, {});
+  for (const k of Object.keys(seen)) if (name.includes(k.split(":")[0])) delete seen[k];
+  writeLs(SEEN_KEY, JSON.stringify(seen));
 }
