@@ -345,6 +345,72 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ── Auto-update ───────────────────────────────────────────────────────
+//
+// AppImage ONLY. A .deb is a system-installed package that apt owns —
+// electron-updater cannot replace it, and trying produces a confusing
+// error for someone who installed the "proper" way. process.env.APPIMAGE
+// is set by the AppImage runtime itself, so it is the honest test for
+// "this build can replace itself".
+//
+// Nothing is installed behind the user's back: the download happens
+// quietly, and the swap only occurs when they say yes or when they next
+// quit. The one thing worse than a stale app for these users would be one
+// that restarts itself mid-journal-entry.
+function setUpAutoUpdate() {
+  if (!app.isPackaged) return;                 // dev runs are not updatable
+  if (process.platform !== 'linux') return;    // only target built today
+  if (!process.env.APPIMAGE) {
+    console.log('[update] not an AppImage (deb/source) — updates come from your package manager');
+    return;
+  }
+
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (e) {
+    console.warn('[update] electron-updater unavailable:', e?.message || e);
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  // Never swap the binary out from under someone mid-sentence.
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  let promptOpen = false;
+  autoUpdater.on('update-downloaded', async (info) => {
+    if (promptOpen || !mainWindow || mainWindow.isDestroyed()) return;
+    promptOpen = true;
+    try {
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        buttons: ['Restart now', 'Later'],
+        defaultId: 1,          // "Later" — an accidental Enter must not restart
+        cancelId: 1,
+        title: 'Update ready',
+        message: `Oceans Symphony ${info?.version || ''} is ready to install.`.trim(),
+        detail: 'It will be applied next time you quit, or you can restart now. Your data is not affected either way.',
+      });
+      if (response === 0) {
+        setImmediate(() => autoUpdater.quitAndInstall());
+      }
+    } finally {
+      promptOpen = false;
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    // Offline, rate-limited, no release yet — all normal. Log, never
+    // interrupt: a failed update check is not the user's problem.
+    console.warn('[update] check failed:', err?.message || err);
+  });
+
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  // Not at launch: first paint matters more than an update check.
+  setTimeout(check, 30_000);
+  setInterval(check, 6 * 60 * 60 * 1000).unref?.();
+}
+
 // ── Single instance ──
 //
 // Two instances would be two renderers holding two in-memory copies of the
@@ -534,6 +600,7 @@ if (!app.requestSingleInstanceLock()) {
 
     buildMenu();
     createWindow();
+    setUpAutoUpdate();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
