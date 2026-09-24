@@ -35,6 +35,15 @@ module.exports = {
   // existing desktop user's data. See electron/main.cjs's header.
   extraMetadata: {
     version: readAppVersion(),
+    // package.json's `name` is still the base44 scaffold's "base44-app",
+    // and electron-builder uses it for the .deb package name, the binary
+    // inside /opt, the installed icon filename and the WM class. Left
+    // alone, `apt` lists the app as "base44-app" and the launcher icon
+    // doesn't bind to the window. productName only fixes the DISPLAY name.
+    //
+    // Safe for existing installs: the data directory comes from
+    // app.setName('Oceans Symphony') in electron/main.cjs, not from this.
+    name: 'oceans-symphony',
     // Required by the .deb target (fpm refuses to build without it) and
     // used as the Homepage field in the package metadata. Without this
     // the AppImage still builds but the deb fails the whole task.
