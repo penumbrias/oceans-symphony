@@ -1,0 +1,45 @@
+# Self-hosted Oceans Symphony relay.
+#
+#   cp .env.example .env    # then edit it
+#   docker compose up -d
+#
+# Run this from the server/ directory; the build context is the repo root
+# because the image needs api/ as well as server/.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Persist to disk: the relay's Redis is not a cache. It holds friend
+    # identities, friend lists and pending requests. Losing it means every
+    # user's friend code stops working and every link has to be re-made.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - relay-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  relay:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      PORT: 8787
+    env_file:
+      - .env
+    ports:
+      # Bound to localhost on purpose. Put a TLS-terminating reverse proxy
+      # (Caddy, nginx, Traefik) in front — the app requires HTTPS, both
+      # because the page's CSP allows only https: connections and because
+      # the relay carries bearer credentials.
+      - "127.0.0.1:8787:8787"
+
+volumes:
+  relay-redis:

@@ -830,6 +830,23 @@ export default function Dashboard() {
     bootedBoardDefault.current = true;
     if (settings[0]?.ui_v2?.homeDefault === "board") setBoardOpen(true);
   }, [classicBoardAvailable, settings]);
+
+  // Pressing Home while the board is open must leave the board.
+  //
+  // The board is local state on a route that IS "/", so navigating Home
+  // re-renders the same component and nothing happened — the button
+  // looked dead, and with no swipe (a mouse, or anyone who can't drag)
+  // the board was a dead end. react-router mints a fresh location.key on
+  // every navigation, including one to the path you are already on, so
+  // that is the signal. The first run is skipped so this can't fight the
+  // homeDefault === "board" boot above.
+  const lastNavKey = useRef(null);
+  useEffect(() => {
+    if (lastNavKey.current === null) { lastNavKey.current = location.key; return; }
+    if (lastNavKey.current === location.key) return;
+    lastNavKey.current = location.key;
+    if (location.pathname === "/") closeBoard();
+  }, [location.key, location.pathname]);
   // The swipe-left-to-board gesture lives on the canvas now (the classic
   // home is an ExperimentalDashboard with onExitRight={openBoard}), so
   // it tracks and animates exactly like paging between board pages.
@@ -846,11 +863,14 @@ export default function Dashboard() {
       // home page just to see the apps (owner report), so apps requests
       // stay on the classic home; only genuinely board-owned actions
       // (edit board, its display options, bar options) still open it.
-      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
+      if (sessionStorage.getItem("symphony_v2_open-apps")) {
         // Translate the parked request to the classic canvas's own key —
         // it consumes it on mount and opens its drawer.
+        const parkedAt = sessionStorage.getItem("symphony_v2_open-apps");
         sessionStorage.removeItem("symphony_v2_open-apps");
-        sessionStorage.setItem("symphony_classic_open-apps", "1");
+        // Carry the original timestamp so the hand-off can't refresh a
+        // stale request into a live one.
+        sessionStorage.setItem("symphony_classic_open-apps", String(Number(parkedAt) > 1 ? parkedAt : Date.now()));
       }
       const pending = ["edit-home", "home-settings", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");

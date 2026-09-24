@@ -29,3 +29,48 @@ export function getNativePlatform() {
     return 'web';
   }
 }
+
+// ── Desktop (Electron) ──────────────────────────────────────────────────
+//
+// FOURTH build target (v0.240.0). The Electron preload exposes a frozen
+// `window.symphonyDesktop`; its presence IS the branch predicate, same
+// shape of check as isNative()'s Capacitor bridge probe. We do not sniff
+// the user agent (Electron's UA contains "Chrome", so UA sniffing would
+// mis-detect it as the web build).
+//
+// IMPORTANT: isDesktop() and isNative() are mutually exclusive — Capacitor
+// is not present in the Electron shell, so isNative() stays false there
+// and every existing native-only code path is skipped untouched. Anything
+// that must run on BOTH app targets (as opposed to "in a browser") should
+// check `isAppShell()`.
+
+export function isDesktop() {
+  try {
+    return !!globalThis.symphonyDesktop?.isDesktop;
+  } catch {
+    return false;
+  }
+}
+
+// True in either packaged app (Capacitor native or Electron desktop),
+// false in a browser tab / PWA / TWA. Use this for "we are not served
+// from our own web origin, so relative /api/* paths will 404" decisions.
+export function isAppShell() {
+  return isNative() || isDesktop();
+}
+
+// 'native' | 'desktop' | 'web' — for logging, reports and About screens.
+export function getBuildTarget() {
+  if (isNative()) return 'native';
+  if (isDesktop()) return 'desktop';
+  return 'web';
+}
+
+// The preload payload (versions + the userData path), or null off-desktop.
+export function getDesktopInfo() {
+  try {
+    return globalThis.symphonyDesktop || null;
+  } catch {
+    return null;
+  }
+}

@@ -33,3 +33,6 @@ dist-ssr
 .claude/settings.local.json
 android/keystore.properties
 android/local.properties
+
+# Electron desktop build output (electron-builder)
+release/

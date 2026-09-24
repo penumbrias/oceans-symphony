@@ -881,6 +881,48 @@ body > .fixed { pointer-events: auto; }
    remapped to its em equivalent (identical rendering at 100%). Bracketed
    sizes can't be caught here — widget code uses text-[0.625em]-style
    brackets, never rem (contract rule). */
+/* "Center" centres a widget's ELEMENTS, the way a text editor's centre
+   button centres a block — not just the text inside each element.
+   `align-items: center` alone can't do it: a row that is already full
+   width has no free space to be centred in. So shrink each of the box's
+   children to its content and let the stack's align-items (plus the auto
+   margins, for boxes that aren't flex) do the centring.
+
+   Scoped to [data-widget-box], which marks the ONE visible box per widget
+   the widget contract guarantees. That box is either an element inside the
+   widget (Section, or a tile root spreading boxStyle) or — for classic
+   registry widgets, which have no v2 box of their own — the widget wrapper
+   itself, which paints the box for them (def.paintBox). Hence the two
+   selectors: the box as a descendant, and the wrapper AS the box.
+
+   We centre the box's CHILDREN and never the box, so a centred widget
+   keeps its size and position on the grid. Alignment must not read as
+   having moved the widget — the user places widgets themselves.
+
+   Note: a grid-shaped widget (the month calendar) shrinks to its natural
+   width when centred. That is what centring a block does; "Fill" is the
+   way back. */
+[data-widget-content][data-halign="center"] [data-widget-box] > *,
+[data-widget-content][data-halign="center"][data-widget-box] > * {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* Per-widget "Horizontal: Center" (widget options → Alignment).
+   The halign variable only reaches Section's `align-items`, which cannot
+   move a row that is already full width, and the wrapper's `text-align`
+   only reaches ordinary text — the UA stylesheet pins form controls to
+   `text-align: start`, so they ignore it. Carry the centring across to
+   them explicitly. Left/Right don't need this: they set `direction`,
+   which re-bases alignment for form controls too. */
+[data-widget-content][data-halign="center"] input,
+[data-widget-content][data-halign="center"] textarea,
+[data-widget-content][data-halign="center"] select,
+[data-widget-content][data-halign="center"] [contenteditable="true"] {
+  text-align: center;
+}
+
 [data-widget-content] .text-xs   { font-size: 0.75em; }
 [data-widget-content] .text-sm   { font-size: 0.875em; }
 [data-widget-content] .text-base { font-size: 1em; }

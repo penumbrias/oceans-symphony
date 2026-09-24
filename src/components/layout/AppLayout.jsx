@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { ShoppingCart, LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import SystemBanner from "@/components/system/SystemBanner";
@@ -74,6 +75,34 @@ export default function AppLayout() {
   // foreground (fixes the "opened the app but it shows yesterday / a plan
   // that should be active isn't" staleness).
   useRefreshOnResume();
+  // Device sync (files only, no server). Self-disables unless a folder is
+  // configured and the platform can reach one — see the hook's header for
+  // why it lives here and not in App.jsx's boot path.
+  useAutoDeviceSync();
+
+
+  // The app grid is hosted by the home canvas, so reaching it from
+  // elsewhere means parking a request the canvas consumes when it mounts.
+  const openAppGrid = () => {
+    if (location.pathname === "/") {
+      window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
+    } else {
+      try { sessionStorage.setItem("symphony_classic_open-apps", "1"); } catch { /* non-fatal */ }
+      navigate("/");
+    }
+  };
+
+  // Pressing the logo means "take me home", nothing else. A parked
+  // app-grid request that never got consumed (the canvas didn't mount,
+  // or the board was showing) otherwise sat in sessionStorage and popped
+  // the app list open the next time home was reached — which read as the
+  // logo doing two things at once.
+  const goHomeClean = () => {
+    try {
+      sessionStorage.removeItem("symphony_classic_open-apps");
+      sessionStorage.removeItem("symphony_v2_open-apps");
+    } catch { /* non-fatal */ }
+  };
   // Refresh the friends list when a front-change push arrives on any page
   // (the Friends page's own listener only runs while it's mounted).
   useFriendsLiveRefresh();
@@ -387,6 +416,29 @@ useEffect(() => {
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
 }, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom]);
+  // The desktop sidebar is sticky under the top chrome, and its offset
+  // used to be a hardcoded 4rem — the CLASSIC header's height. With the
+  // v2 top bar that chrome is 49px, and a sticky element is clamped to
+  // its `top`, so the sidebar got shoved 15px down and left a gap under
+  // the bar. Bar heights are user-configurable too, so any constant is
+  // wrong for someone. Measure the real thing instead.
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      let h = 0;
+      for (const el of document.querySelectorAll("body header")) {
+        const cs = getComputedStyle(el);
+        if (cs.position !== "sticky" && cs.position !== "fixed") continue;
+        h += el.offsetHeight;
+      }
+      root.style.setProperty("--os-chrome-h", `${Math.round(h)}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    for (const el of document.querySelectorAll("body header")) ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [uiV2On, classicBarsOn]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -704,7 +756,12 @@ const handleNotifClick = (mentionLog) => {
       >
         <HeaderWaveBlock />
         <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
-          <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Oceans Symphony home">
+          <Link
+            to="/"
+            onClick={goHomeClean}
+            className="flex items-center gap-2.5 select-none"
+            aria-label="Oceans Symphony home"
+          >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
@@ -851,8 +908,41 @@ const handleNotifClick = (mentionLog) => {
             header) even when a page paints a full-viewport `fixed inset-0`
             background — e.g. an alter/group profile with a custom theme, whose
             background otherwise painted over the sidebar and made it vanish. */}
-        <aside className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
-          <nav className="px-2 py-4 space-y-5" aria-label="Sidebar navigation">
+        <aside
+          className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky self-start z-30 bg-background/85 backdrop-blur-xl"
+          style={{
+            top: "var(--os-chrome-h, 4rem)",
+            height: "calc(100vh - var(--os-chrome-h, 4rem))",
+          }}
+        >
+          {/* List ⇄ grid, same hop the mobile drawer has had. This sidebar
+              is a SEPARATE render from SidebarNav (that one is the phone
+              drawer), so the toggle was simply missing on desktop and the
+              app grid had no entry point at all. */}
+          <div className="mx-2 mt-1 mb-0.5 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={openAppGrid}
+              aria-label="Switch to the app grid"
+              title="App grid"
+              className="flex-1 px-2 py-1.5 flex items-center gap-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-sm font-medium">App grid</span>
+            </button>
+            {/* Grocery list / privacy cover, matching the phone drawer.
+                Still openable by triple-tap anywhere. */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list"))}
+              aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
+              title="Grocery list · triple-tap anywhere to open"
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </button>
+          </div>
+          <nav className="px-2 pb-4 space-y-4" aria-label="Sidebar navigation">
             {[
               {
                 label: terms.System,

@@ -30,6 +30,7 @@ import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSett
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import DataInspector from "@/components/settings/DataInspector";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
+import DeviceSyncSettings from "@/components/settings/DeviceSyncSettings";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
@@ -40,6 +41,7 @@ import { runAutoBackupNow } from "@/lib/autoBackup";
 // preset state stays in one component.
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import RemindersSettings from "@/components/settings/RemindersSettings";
+import RelayServerSettings from "@/components/settings/RelayServerSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
@@ -658,6 +660,10 @@ export default function Settings() {
         <Section id="notifications" icon={Bell} label="Notifications & reminders">
           <SubSection title="In-app notifications" defaultOpen={false}><NotificationSettings /></SubSection>
           <SubSection title="Reminders" defaultOpen={false}><RemindersSettings /></SubSection>
+          {/* The relay carries Friends, reminder delivery and push, so it
+              belongs with the things it powers rather than in a corner of
+              its own. Collapsed by default — most people never touch it. */}
+          <SubSection title="Friends & sync server" defaultOpen={false}><RelayServerSettings /></SubSection>
         </Section>
 
         {/* ── ACCESSIBILITY ── */}
@@ -864,6 +870,13 @@ export default function Settings() {
             />
             <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
           </SubSection>
+
+          {/* Device sync sits beside backups because it solves the same
+              problem from the other end: a second device that holds your
+              data. Files only, no server — see src/lib/deviceSync.js. */}
+          <div data-tour="settings-device-sync">
+            <SubSection title="Sync between devices" defaultOpen={false}><DeviceSyncSettings /></SubSection>
+          </div>
 
           {/* ── STORAGE & ENCRYPTION ── (contains "Cache Images for Offline",
               which downloads remote-URL images — incl. imported avatars — into

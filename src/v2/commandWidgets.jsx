@@ -75,6 +75,7 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
         title={`${label} — hold for your quick actions`}
         aria-label={label}
         className="h-full w-full flex items-center justify-center gap-2 transition-colors hover:bg-muted/30"
+        data-widget-box="1"
         style={{ ...boxStyle({ borderFallback: false }), color: "var(--v2-accent, hsl(var(--primary)))" }}
       >
         <Icon className="flex-shrink-0" style={{ width: "1.25em", height: "1.25em" }} />

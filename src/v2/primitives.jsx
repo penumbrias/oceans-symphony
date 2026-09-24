@@ -77,7 +77,7 @@ export function Section({ label, action, center, children }) {
     // Fills whatever box it's given — a widget resized taller should LOOK
     // taller, not sit content-sized inside a bigger empty cell. min-h-0 so
     // the list below can scroll instead of forcing the box open.
-    <section className="h-full flex flex-col min-h-0" style={boxStyle()}>
+    <section className="h-full flex flex-col min-h-0" data-widget-box="1" style={boxStyle()}>
       {(label || action) && (
         <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
           <h2 className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>

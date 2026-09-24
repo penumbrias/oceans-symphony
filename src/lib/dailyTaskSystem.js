@@ -414,7 +414,30 @@ export function getRecentPeriodKeys(frequency, count = 12) {
 // progress records — nothing about the stored records changes, so old
 // data and the history grid keep working. Templates without either field
 // keep today's behaviour exactly.
-const PERIOD_MS = { daily: 86400000, weekly: 7 * 86400000, monthly: 30 * 86400000, yearly: 365 * 86400000 };
+// Rolling reset counts DAYS, not milliseconds.
+//
+// It used to compare `now - lastCompletion < 7 days` in raw ms, which
+// means a weekly task ticked at 8pm last Thursday is not due again until
+// 8pm THIS Thursday — so for most of the day it still reads as done, on
+// the very day it is supposed to come back. Worse, the due moment drifts
+// later every cycle, because each completion is logged a little after the
+// last one became due.
+//
+// People read "every 7 days" as "the same weekday", so compare calendar
+// days in local time: due once N midnights have passed.
+const PERIOD_DAYS = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
+
+const startOfLocalDay = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+// Whole local days between two instants, DST-safe (round, don't floor —
+// a 23- or 25-hour day would otherwise slip a boundary).
+function daysBetween(from, to) {
+  return Math.round((startOfLocalDay(to) - startOfLocalDay(from)) / 86400000);
+}
 export const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 // A DAILY task can be scheduled for only some weekdays (active_days:
@@ -469,7 +492,8 @@ export function isCustomResetDone(template, allProgress = [], now = new Date()) 
   const last = lastCompletionOf(template.id, allProgress);
   if (!last) return false;
   if (template.reset_mode === "rolling") {
-    return now - last.time < (PERIOD_MS[template.frequency || "daily"] || PERIOD_MS.daily);
+    const period = PERIOD_DAYS[template.frequency || "daily"] || PERIOD_DAYS.daily;
+    return daysBetween(last.time, now) < period;
   }
   return last.time >= customWindowStart(template, now);
 }

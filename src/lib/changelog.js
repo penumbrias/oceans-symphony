@@ -18,6 +18,35 @@
 
 export const CHANGELOG = [
   {
+    date: "September 23, 2026",
+    version: "0.242.1",
+    changes: [
+      { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
+      { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },
+      { type: "fix", text: "Desktop: the gap between the top bar and the sidebar is gone \u2014 the sidebar now lines up with whatever height your top bar actually is." },
+      { type: "fix", text: "Desktop: the logo in the top-left now just goes home \u2014 it used to open the app grid on top of that. The grid has its own button in the sidebar, with the grocery list beside it." },
+      { type: "improve", text: "Sync can copy another device's appearance on request \u2014 useful when the device you're on already has its own theme, since syncing otherwise leaves settings you've chosen alone." },
+      { type: "fix", text: "Sync no longer says \"nothing new\" when it actually skipped files it couldn't read, or when another device is waiting to be paired." },
+      { type: "fix", text: "A damaged or leftover sync file no longer makes syncing look broken \u2014 it's named, skipped, and can be removed in one tap, while your other devices sync as normal." },
+      { type: "fix", text: "Syncing to a new device now brings your theme and appearance settings across as well. Anything you'd already set on that device is left as it is." },
+      { type: "fix", text: "Widget board: a back arrow now sits beside the page dots, and the Home button leaves the board. Previously the only way out was a swipe, which doesn't work with a mouse." },
+      { type: "improve", text: "Setting up the desktop app can now pull your data straight from your phone over USB, instead of only offering to import a backup file." },
+      { type: "fix", text: "Sync to a phone plugged in over USB failed to write. It works now, including when the two devices were set up separately \u2014 you're asked once to pair them." },
+      { type: "feature", text: "Sync between your own devices over USB \u2014 no cloud, no account, no server. Plug your phone into your computer, point the desktop app at it, and the two keep each other up to date." },
+      { type: "feature", text: "Syncing never deletes. If something is gone on one device but still on the other it comes back, and anything the other device dropped is listed for you to decide on." },
+    ],
+  },
+  {
+    date: "September 22, 2026",
+    version: "0.241.0",
+    changes: [
+      { type: "feature", text: "You can now point the app at your own Friends & reminders server instead of ours \u2014 Settings \u2192 Notifications & reminders. Everything to run one is in the repository." },
+      { type: "fix", text: "Adding a to-do timed for earlier today no longer files it as something you already did \u2014 it stays a plan, and shows up in Today and Plan this day." },
+      { type: "fix", text: "Widget alignment: \"Center\" now actually centres a widget's elements as a block, the way a text editor's centre button does \u2014 and the widget's box stays exactly where it is. Before, only Left and Right did anything." },
+      { type: "feature", text: "Oceans Symphony is now a desktop app on Linux \u2014 its own window, and data that a browser cleanup can't touch. On first run, import a backup to bring your data across." },
+    ],
+  },
+  {
     date: "September 19, 2026",
     changes: [
       { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },

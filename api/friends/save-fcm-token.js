@@ -4,14 +4,14 @@
 // friends can push a front-change notification to it (native app). Pass
 // token: null to remove it (e.g. when the user turns notifications off).
 // Mirrors save-push-sub.js (the Web Push equivalent for browser / TWA).
-import { kv, validateUser, cors } from '../_kv.js';
+import { kv, validateUser, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

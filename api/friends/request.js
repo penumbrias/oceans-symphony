@@ -1,14 +1,14 @@
 // POST /api/friends/request
 // Body: { fromUserId, fromSecret, toCode, fromDisplayName, fromSystemName }
 // Sends a friend request to the owner of toCode.
-import { kv, validateUser, getProfile, getFriends, getPending, setPending, cors, capStr } from '../_kv.js';
+import { kv, validateUser, getProfile, getFriends, getPending, setPending, cors, capStr, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 
