@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -79,6 +79,29 @@ export default function AppLayout() {
   // configured and the platform can reach one — see the hook's header for
   // why it lives here and not in App.jsx's boot path.
   useAutoDeviceSync();
+
+  // The app grid is hosted by the home canvas, so reaching it from
+  // elsewhere means parking a request the canvas consumes when it mounts.
+  const openAppGrid = () => {
+    if (location.pathname === "/") {
+      window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
+    } else {
+      try { sessionStorage.setItem("symphony_classic_open-apps", "1"); } catch { /* non-fatal */ }
+      navigate("/");
+    }
+  };
+
+  // Pressing the logo means "take me home", nothing else. A parked
+  // app-grid request that never got consumed (the canvas didn't mount,
+  // or the board was showing) otherwise sat in sessionStorage and popped
+  // the app list open the next time home was reached — which read as the
+  // logo doing two things at once.
+  const goHomeClean = () => {
+    try {
+      sessionStorage.removeItem("symphony_classic_open-apps");
+      sessionStorage.removeItem("symphony_v2_open-apps");
+    } catch { /* non-fatal */ }
+  };
   // Refresh the friends list when a front-change push arrives on any page
   // (the Friends page's own listener only runs while it's mounted).
   useFriendsLiveRefresh();
@@ -709,7 +732,12 @@ const handleNotifClick = (mentionLog) => {
       >
         <HeaderWaveBlock />
         <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
-          <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Oceans Symphony home">
+          <Link
+            to="/"
+            onClick={goHomeClean}
+            className="flex items-center gap-2.5 select-none"
+            aria-label="Oceans Symphony home"
+          >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
@@ -857,7 +885,21 @@ const handleNotifClick = (mentionLog) => {
             background — e.g. an alter/group profile with a custom theme, whose
             background otherwise painted over the sidebar and made it vanish. */}
         <aside className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
-          <nav className="px-2 py-4 space-y-5" aria-label="Sidebar navigation">
+          {/* List ⇄ grid, same hop the mobile drawer has had. This sidebar
+              is a SEPARATE render from SidebarNav (that one is the phone
+              drawer), so the toggle was simply missing on desktop and the
+              app grid had no entry point at all. */}
+          <button
+            type="button"
+            onClick={openAppGrid}
+            aria-label="Switch to the app grid"
+            title="App grid"
+            className="mx-2 mt-3 mb-1 px-2 py-2 flex items-center gap-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="text-sm font-medium">App grid</span>
+          </button>
+          <nav className="px-2 pb-4 space-y-5" aria-label="Sidebar navigation">
             {[
               {
                 label: terms.System,
