@@ -35,6 +35,15 @@ module.exports = {
   // existing desktop user's data. See electron/main.cjs's header.
   extraMetadata: {
     version: readAppVersion(),
+    // Required by the .deb target (fpm refuses to build without it) and
+    // used as the Homepage field in the package metadata. Without this
+    // the AppImage still builds but the deb fails the whole task.
+    homepage: 'https://oceans-symphony.app',
+    description: 'Journaling and organisation for plural systems',
+    // Window association: without this the desktop environment can't link
+    // the running window to the .desktop entry, so the dock/taskbar shows
+    // a generic icon instead of the app's.
+    desktopName: 'oceans-symphony.desktop',
     // electron-builder reads `main` from the packaged package.json.
     main: 'electron/main.cjs',
   },
@@ -62,6 +71,7 @@ module.exports = {
       { target: 'deb', arch: ['x64'] },
     ],
     category: 'Utility',
+    syncDesktopName: true,
     synopsis: 'Journaling and organisation for plural systems',
     description:
       'Oceans Symphony is a local-first journaling and organisation tool built for plural and dissociative systems. Your data stays on your device.',

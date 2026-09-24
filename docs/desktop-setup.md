@@ -46,9 +46,14 @@ Config: `electron-builder.config.cjs`. Notes:
 - `files` excludes `node_modules`: Vite already bundled every renderer
   dependency into `dist/`, and the main process uses only Electron
   built-ins.
-- The `.deb` target needs `dpkg` and `fakeroot` on the build machine.
-  Without them electron-builder skips the deb and still produces the
-  AppImage.
+- The `.deb` target does NOT need `dpkg`/`fakeroot` installed —
+  electron-builder downloads its own `fpm` on first use. It DOES need
+  `homepage` and `desktopName` in `extraMetadata` (both set): without
+  `homepage`, fpm refuses and the whole build task fails rather than
+  skipping the deb and keeping the AppImage.
+- Verified on Linux Mint: both artifacts build, and the packaged
+  AppImage runs from asar with the same origin and userData path as
+  `npm run desktop` (so it opens the same database, not a fresh one).
 - `linux.maintainer` is a placeholder (`noreply@oceans-symphony.app`).
   `.deb` requires the field; set it to a real project address before
   any public distribution.
@@ -104,6 +109,23 @@ exists to explain, alongside the existing "Import a backup file" path.
 Recovery bonus: on desktop the database is a directory you can copy.
 File → Open Data Folder (and the notice's folder button) opens
 `~/.config/Oceans Symphony`.
+
+## Testing with one device
+
+`scripts/sync-test-peer.mjs` impersonates a second device so sync can be
+exercised without two machines. Point the desktop app at a folder and
+press Sync once (so there is a snapshot to copy the system id from), then:
+
+```bash
+node scripts/sync-test-peer.mjs <folder>                   # list what's there
+node scripts/sync-test-peer.mjs <folder> --add "New name"  # peer sends a record
+node scripts/sync-test-peer.mjs <folder> --delete-last     # peer claims it deleted it
+```
+
+`--delete-last` is the interesting one: after syncing, the record must
+still be present AND listed under "Deleted on another device, still
+here". Unencrypted snapshots only — forging into an encrypted body would
+require the passphrase, which is the point of it.
 
 ## Not done yet
 
