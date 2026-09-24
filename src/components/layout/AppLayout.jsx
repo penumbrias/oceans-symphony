@@ -80,6 +80,7 @@ export default function AppLayout() {
   // why it lives here and not in App.jsx's boot path.
   useAutoDeviceSync();
 
+
   // The app grid is hosted by the home canvas, so reaching it from
   // elsewhere means parking a request the canvas consumes when it mounts.
   const openAppGrid = () => {
@@ -415,6 +416,29 @@ useEffect(() => {
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
 }, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom]);
+  // The desktop sidebar is sticky under the top chrome, and its offset
+  // used to be a hardcoded 4rem — the CLASSIC header's height. With the
+  // v2 top bar that chrome is 49px, and a sticky element is clamped to
+  // its `top`, so the sidebar got shoved 15px down and left a gap under
+  // the bar. Bar heights are user-configurable too, so any constant is
+  // wrong for someone. Measure the real thing instead.
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      let h = 0;
+      for (const el of document.querySelectorAll("body header")) {
+        const cs = getComputedStyle(el);
+        if (cs.position !== "sticky" && cs.position !== "fixed") continue;
+        h += el.offsetHeight;
+      }
+      root.style.setProperty("--os-chrome-h", `${Math.round(h)}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    for (const el of document.querySelectorAll("body header")) ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [uiV2On, classicBarsOn]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -884,7 +908,13 @@ const handleNotifClick = (mentionLog) => {
             header) even when a page paints a full-viewport `fixed inset-0`
             background — e.g. an alter/group profile with a custom theme, whose
             background otherwise painted over the sidebar and made it vanish. */}
-        <aside className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
+        <aside
+          className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky self-start z-30 bg-background/85 backdrop-blur-xl"
+          style={{
+            top: "var(--os-chrome-h, 4rem)",
+            height: "calc(100vh - var(--os-chrome-h, 4rem))",
+          }}
+        >
           {/* List ⇄ grid, same hop the mobile drawer has had. This sidebar
               is a SEPARATE render from SidebarNav (that one is the phone
               drawer), so the toggle was simply missing on desktop and the
