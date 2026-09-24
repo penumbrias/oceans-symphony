@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.243.0",
     changes: [
+      { type: "feature", text: "The Linux desktop app updates itself. It downloads quietly in the background and asks before restarting \u2014 or waits until you next quit. (AppImage only; a .deb updates through your package manager.)" },
       { type: "feature", text: "Setting up the app now asks how you want backups handled — automatic, a reminder, or not now — instead of quietly leaving them off. Everyone who hasn't chosen yet is asked once on the home screen." },
       { type: "feature", text: "Auto-backup files can now be locked with a password (your storage password, or a separate one) and given a plain file name, so a backup in Downloads doesn't reveal what it is. Locked backups restore anywhere a backup does." },
       { type: "improve", text: "\"Find my data\" now sits right on the welcome screen and on the home screen whenever the app looks empty — no need to dig through Settings after a storage wipe." },
