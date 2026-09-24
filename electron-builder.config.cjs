@@ -27,6 +27,29 @@ function readAppVersion() {
   return match[1];
 }
 
+
+// Every package electron-updater needs at runtime, walked from the real
+// node_modules. Returns electron-builder file globs.
+function updaterDependencyGlobs() {
+  const seen = new Set();
+  const walk = (name) => {
+    if (seen.has(name)) return;
+    let pkg;
+    try {
+      pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules', name, 'package.json'), 'utf8'));
+    } catch {
+      return; // optional/missing dep — electron-updater guards its own
+    }
+    seen.add(name);
+    for (const dep of Object.keys(pkg.dependencies || {})) walk(dep);
+  };
+  walk('electron-updater');
+  if (!seen.has('electron-updater')) {
+    throw new Error('[electron-builder] electron-updater is not installed — auto-update would break at runtime');
+  }
+  return [...seen].sort().map((n) => `node_modules/${n}/**/*`);
+}
+
 module.exports = {
   appId: 'app.oceans-symphony.desktop',
   productName: 'Oceans Symphony',
@@ -44,6 +67,11 @@ module.exports = {
     // Safe for existing installs: the data directory comes from
     // app.setName('Oceans Symphony') in electron/main.cjs, not from this.
     name: 'oceans-symphony',
+    // Declared so the packaged package.json is honest about what the main
+    // process requires. It does NOT control what gets copied —
+    // electron-builder resolves node_modules against the REAL
+    // package.json, so the `files` list below does the narrowing.
+    dependencies: { 'electron-updater': require('./package.json').dependencies['electron-updater'] },
     // Required by the .deb target (fpm refuses to build without it) and
     // used as the Homepage field in the package metadata. Without this
     // the AppImage still builds but the deb fails the whole task.
@@ -67,8 +95,32 @@ module.exports = {
     'electron/preload.cjs',
     'electron/build/icon.png',
     'package.json',
+    // node_modules is excluded wholesale and then electron-updater's
+    // dependency closure is added back. Vite has already bundled every
+    // RENDERER dependency into dist/; copying the tree again took the
+    // AppImage from 127MB to 230MB. The main process needs exactly one
+    // runtime package, so ship exactly that.
+    //
+    // The closure is computed at build time rather than hand-listed, so
+    // an electron-updater upgrade that adds a dependency can't silently
+    // produce a package that crashes on require().
     '!node_modules/**',
+    ...updaterDependencyGlobs(),
   ],
+  // Update feed. electron-builder also writes latest-linux.yml next to the
+  // artifacts, which is the file electron-updater polls.
+  //
+  // AppImage only — a .deb updates through apt, and electron-updater
+  // cannot replace a system-installed package. electron/main.cjs checks
+  // for the APPIMAGE env var before doing anything.
+  publish: [
+    {
+      provider: 'github',
+      owner: 'penumbrias',
+      repo: 'oceans-symphony',
+    },
+  ],
+
   linux: {
     target: [
       // AppImage first: runs on any distro with no root and no packaging
