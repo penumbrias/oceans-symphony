@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 23, 2026",
     version: "0.242.1",
     changes: [
+      { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
       { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },
       { type: "fix", text: "Desktop: the app grid has its own button at the top of the sidebar, and pressing the logo now just goes home instead of also opening the app list." },
       { type: "improve", text: "Sync can copy another device's appearance on request \u2014 useful when the device you're on already has its own theme, since syncing otherwise leaves settings you've chosen alone." },
