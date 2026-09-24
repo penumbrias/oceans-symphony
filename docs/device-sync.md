@@ -150,6 +150,36 @@ through, the worst outcome is that our snapshot reached the other device
 and we didn't get theirs — fixed by syncing again. Reading first and
 failing before the write leaves the other device with nothing.
 
+## Setting up a new device
+
+The desktop first-run screen (`DesktopFirstRunNotice`) offers "Sync from
+another device" above "Import a backup file", because if the other device
+is on the end of a cable then exporting a file, finding it and importing
+it is three steps of busywork for something sync already does.
+
+Pairing is implicit in that flow: choosing a folder to pull from IS the
+confirmation, so the usual "another device is using a different system"
+prompt would be asking again about a decision already made. A database
+has to exist before anything can merge into it, so the flow runs
+StorageModeSetup's `setupLocalStorage` first (passed in as `prepare`).
+
+## Testing with one device
+
+`scripts/sync-test-peer.mjs` impersonates a second device so sync can be
+exercised without two machines. Point the desktop app at a folder and
+press Sync once (so there is a snapshot to copy the system id from), then:
+
+```bash
+node scripts/sync-test-peer.mjs <folder>                   # list what's there
+node scripts/sync-test-peer.mjs <folder> --add "New name"  # peer sends a record
+node scripts/sync-test-peer.mjs <folder> --delete-last     # peer claims it deleted it
+```
+
+`--delete-last` is the interesting one: after syncing, the record must
+still be present AND listed under "Deleted on another device, still
+here". Unencrypted snapshots only — forging into an encrypted body would
+require the passphrase, which is the point of it.
+
 ## Not done yet
 
 - A LAN transport. The snapshot format and merge layer are transport

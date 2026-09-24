@@ -110,31 +110,13 @@ Recovery bonus: on desktop the database is a directory you can copy.
 File → Open Data Folder (and the notice's folder button) opens
 `~/.config/Oceans Symphony`.
 
-## Testing with one device
+Cross-device sync shipped in v0.242.0 — see `docs/device-sync.md`. The
+first-run notice offers "Sync from another device" (pull straight off a
+phone over USB) above the backup-file import.
 
-`scripts/sync-test-peer.mjs` impersonates a second device so sync can be
-exercised without two machines. Point the desktop app at a folder and
-press Sync once (so there is a snapshot to copy the system id from), then:
-
-```bash
-node scripts/sync-test-peer.mjs <folder>                   # list what's there
-node scripts/sync-test-peer.mjs <folder> --add "New name"  # peer sends a record
-node scripts/sync-test-peer.mjs <folder> --delete-last     # peer claims it deleted it
-```
-
-`--delete-last` is the interesting one: after syncing, the record must
-still be present AND listed under "Deleted on another device, still
-here". Unencrypted snapshots only — forging into an encrypted body would
-require the passphrase, which is the point of it.
 
 ## Not done yet
 
-- **Cross-device sync.** This target is the groundwork, not the feature.
-  The merge engine already exists (`mergeDbDump` — per-record newer-wins
-  on `updated_date`, `DeletionLog` tombstones, conflict review); what's
-  missing is transport. Planned next: one snapshot file per device in a
-  user-chosen folder, each device writing only its own file and reading
-  the others', so there are no shared-file write conflicts.
 - **Self-hosted Friends relay.** `apiBase.js` has the host override so
   this is a setting rather than a code change, but the server side
   (running `api/friends/*` off Vercel against a real Redis) and the fact
