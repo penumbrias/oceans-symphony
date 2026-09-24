@@ -342,7 +342,11 @@ function FirstRunSetup({ onComplete }) {
           user concludes their data is gone. Reuses the same import picker
           as the "Import a backup file" button further down, so there is
           only ever one import code path. Self-hides off-desktop. */}
-      <DesktopFirstRunNotice onImport={() => openImportPicker()} />
+      <DesktopFirstRunNotice
+        onImport={() => openImportPicker()}
+        prepare={setupLocalStorage}
+        onDone={onComplete}
+      />
       <div className="rounded-xl bg-primary/5 border border-primary/20">
         <button
           type="button"
