@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   RefreshCw, FolderOpen, Loader2, Smartphone, Monitor, Check,
-  AlertTriangle, Trash2, Info,
+  AlertTriangle, Trash2, Info, Link2,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -14,7 +14,7 @@ import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getDeviceName, setDeviceName, getDeviceId } from "@/lib/deviceSync";
 import {
   getSyncFolder, setSyncFolder, pickSyncFolder, runSync, listSyncPeers, getLastRun,
-  isAutoSyncOn, setAutoSync, getPendingDeletions, keepPendingDeletion,
+  isAutoSyncOn, setAutoSync, getPendingDeletions, keepPendingDeletion, pairSystem,
 } from "@/lib/deviceSyncRunner";
 import { isEncryptionActive } from "@/lib/localDb";
 
@@ -49,6 +49,7 @@ export default function DeviceSyncSettings() {
   const [report, setReport] = useState(null);
   const [lastRun, setLastRun] = useState(getLastRun());
   const [pending, setPending] = useState([]);
+  const unpaired = peers.filter((p) => !p.isSelf && !p.sameSystem && !p.paired);
 
   const refreshPeers = useCallback(async () => {
     if (!adapter.available) return;
@@ -218,6 +219,42 @@ export default function DeviceSyncSettings() {
           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
           Your snapshots are encrypted, because this device is. The other device needs the same passphrase to read them.
         </p>
+      )}
+
+      {/* A device in this folder belongs to a different {system}. Two
+          devices set up separately always differ, so this is the normal
+          first-time case — but it is confirmed rather than assumed, so a
+          multi-system user can't blend two systems by accident. */}
+      {unpaired.length > 0 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <Link2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <p className="font-medium">Another device is using a different {t.system}</p>
+              <p className="text-muted-foreground">
+                That&apos;s expected the first time — each device makes its own {t.system} id when
+                it&apos;s set up. Pair them and their data will merge from now on. Only do this if
+                it&apos;s really your own {t.system}.
+              </p>
+            </div>
+          </div>
+          {unpaired.map((p) => (
+            <div key={p.deviceId} className="flex items-center gap-2 text-xs rounded border border-border/60 bg-card p-2">
+              <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground">{p.deviceId.slice(0, 8)}</span>
+              <Button
+                type="button" size="sm" className="h-6 px-2"
+                onClick={async () => {
+                  pairSystem(p.systemId);
+                  await refreshPeers();
+                  toast.success("Paired — syncing now.");
+                  handleSync(true);
+                }}
+              >
+                Pair
+              </Button>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Devices seen */}

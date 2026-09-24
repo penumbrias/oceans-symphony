@@ -35,6 +35,8 @@ const { app, BrowserWindow, Menu, shell, protocol, session, dialog, ipcMain } = 
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
+const os = require('node:os');
+const { execFile } = require('node:child_process');
 
 // ── Pinned identity (see header: these ARE the database address) ──
 const APP_SCHEME = 'symphony';
@@ -392,6 +394,31 @@ if (!app.requestSingleInstanceLock()) {
     // So even a compromised renderer can't read ~/.ssh or overwrite a
     // user's documents through this channel — the worst it can do is
     // read and write files it already owns.
+    // A phone plugged in over USB mounts through gvfs, and gvfs's FUSE
+    // layer rejects EVERY POSIX write — writeFile, copyFile, streams and
+    // rename all fail with ENOTSUP, whether creating or overwriting.
+    // Reads and unlink work fine; it is writes specifically. Verified
+    // against a Samsung device: even `cp` fails, while `gio copy`
+    // succeeds, because GIO talks to the gvfs daemon directly instead of
+    // going through the FUSE mount.
+    //
+    // So: try POSIX first (fast, and what every normal disk wants), and
+    // fall back to staging a local temp file and handing it to `gio`.
+    // gio ships with glib2 and is by definition present when the path is
+    // a /gvfs/ mount, since that is what mounted it.
+    function gioCopy(src, dest) {
+      return new Promise((resolve, reject) => {
+        execFile('gio', ['copy', src, dest], { timeout: 180000 }, (err, _out, stderr) => {
+          if (err) {
+            const detail = String(stderr || err.message || '').trim();
+            reject(new Error(detail || 'gio copy failed'));
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+
     const SYNC_FILE_RE = /^symphony-sync-[A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.(data|media)\.json$/;
 
     const badName = (name) =>
@@ -469,6 +496,22 @@ if (!app.requestSingleInstanceLock()) {
           return { ok: true, atomic: false };
         } catch (e2) {
           try { await fsp.unlink(tmp); } catch { /* best effort */ }
+          // Last resort: a gvfs/MTP mount (a phone over USB). See gioCopy.
+          if (process.platform === 'linux') {
+            const staged = path.join(os.tmpdir(), `symphony-sync-${process.pid}-${Date.now()}.json`);
+            try {
+              await fsp.writeFile(staged, text, 'utf8');
+              await gioCopy(staged, dest);
+              return { ok: true, atomic: false, via: 'gio' };
+            } catch (e3) {
+              return {
+                ok: false,
+                error: `Couldn't write to that folder. Direct write failed (${e2?.code || e2?.message || 'unknown'}) and copying via gio failed too: ${e3?.message || e3}`,
+              };
+            } finally {
+              try { await fsp.unlink(staged); } catch { /* best effort */ }
+            }
+          }
           return { ok: false, error: e2?.message || e?.message || 'Could not write to that folder.' };
         }
       }

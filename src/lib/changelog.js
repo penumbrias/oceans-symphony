@@ -19,8 +19,9 @@
 export const CHANGELOG = [
   {
     date: "September 23, 2026",
-    version: "0.242.0",
+    version: "0.242.1",
     changes: [
+      { type: "fix", text: "Sync to a phone plugged in over USB failed to write. It works now, including when the two devices were set up separately \u2014 you're asked once to pair them." },
       { type: "feature", text: "Sync between your own devices over USB \u2014 no cloud, no account, no server. Plug your phone into your computer, point the desktop app at it, and the two keep each other up to date." },
       { type: "feature", text: "Syncing never deletes. If something is gone on one device but still on the other it comes back, and anything the other device dropped is listed for you to decide on." },
     ],

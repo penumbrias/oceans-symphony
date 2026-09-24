@@ -114,6 +114,35 @@ merge; the `.part` name is itself rejected by the filter, so it is never
 listed or read. MTP doesn't always support rename, so there is a direct-
 write fallback.
 
+## Writing to a phone over USB (gvfs / MTP)
+
+An Android phone mounted over USB appears under
+`/run/user/<uid>/gvfs/mtp:host=.../`, and that FUSE layer **rejects every
+POSIX write**. Verified against a Samsung device: `writeFile`,
+`copyFile`, write streams and `rename` all fail with `ENOTSUP`, whether
+creating or overwriting — and so does plain `cp`. Reads and `unlink`
+work fine; it is writes specifically.
+
+What does work is `gio copy`, because GIO talks to the gvfs daemon
+directly instead of going through the FUSE mount. So the desktop write
+path tries POSIX first (right for every normal disk) and falls back to
+staging a local temp file and handing it to `gio`. `gio` ships with
+glib2 and is by definition present when the path is a gvfs mount, since
+that is what mounted it.
+
+## Two devices, two system ids
+
+A system id is minted per install, not per person, so a phone and a
+desktop set up separately always have different ones. Scoping sync to
+"same system id" therefore meant the main use case could never work.
+
+Merging anything found in the folder would be wrong too — a multi-system
+user pointing two systems at one folder would have them blended
+irreversibly. So **the folder is the pairing, confirmed once**: an
+unrecognised system is reported in the UI ("Another device is using a
+different system") and merged only after the user pairs it. Pairings are
+remembered per local system.
+
 ## Order of operations
 
 The runner **writes before it reads**. If a cable is pulled halfway

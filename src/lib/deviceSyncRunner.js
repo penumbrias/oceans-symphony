@@ -31,11 +31,24 @@ const SEEN_KEY = "symphony_sync_seen";
 // seen-marks skip unchanged files), so a review list that lived in the UI
 // would vanish the moment the panel closed and never come back.
 const PENDING_DEL_KEY = "symphony_sync_pending_deletions";
+// Peer SYSTEMS this device has agreed to sync with.
+//
+// Two devices set up independently always have different system ids —
+// the id is minted per install, not per person. So scoping sync to
+// "same system id" (the first cut) meant a phone and a desktop could
+// never sync, which is the entire use case.
+//
+// But silently merging ANY system found in the folder is wrong too: a
+// multi-system user pointing two systems at one folder would have them
+// blended irreversibly. So the folder is the pairing, confirmed once:
+// an unrecognised system is reported, not merged, until the user says
+// yes. Keyed by local system so pairing one system doesn't pair another.
+const PAIRED_KEY = "symphony_sync_paired_systems";
 
 // All of these are DEVICE-BOUND on purpose and must never be added to
 // BACKUP_LS_KEYS: the folder path is meaningless on another machine, and
 // the "seen" marks describe what THIS device has merged.
-export const SYNC_LOCAL_KEYS = [FOLDER_KEY, LAST_RUN_KEY, MEDIA_FP_KEY, AUTO_KEY, SEEN_KEY, PENDING_DEL_KEY];
+export const SYNC_LOCAL_KEYS = [FOLDER_KEY, LAST_RUN_KEY, MEDIA_FP_KEY, AUTO_KEY, SEEN_KEY, PENDING_DEL_KEY, PAIRED_KEY];
 
 const readLs = (k, fallback = null) => {
   try { const v = localStorage.getItem(k); return v === null ? fallback : v; } catch { return fallback; }
@@ -48,7 +61,21 @@ const readJson = (k, fallback) => {
 };
 
 export const getSyncFolder = () => readLs(FOLDER_KEY, "") || "";
-export const setSyncFolder = (p) => writeLs(FOLDER_KEY, p || null);
+export function setSyncFolder(p) {
+  const next = p || null;
+  const prev = getSyncFolder();
+  writeLs(FOLDER_KEY, next);
+  // A different folder is a different conversation. The media fingerprint
+  // ("we already wrote the avatars") and the seen-marks ("we already
+  // merged that peer file") both describe the OLD folder — carried over,
+  // they make us skip work the new folder genuinely needs. The visible
+  // symptom was a new folder never receiving a media snapshot at all, so
+  // the other device got records but no avatars.
+  if ((prev || "") !== (next || "")) {
+    writeLs(MEDIA_FP_KEY, null);
+    writeLs(SEEN_KEY, null);
+  }
+}
 export const getLastRun = () => readLs(LAST_RUN_KEY, "") || "";
 export const isAutoSyncOn = () => readLs(AUTO_KEY, "1") === "1";
 export const setAutoSync = (on) => writeLs(AUTO_KEY, on ? "1" : "0");
@@ -58,6 +85,32 @@ export async function pickSyncFolder() {
   const picked = await adapter.pickFolder();
   if (picked) setSyncFolder(picked);
   return picked;
+}
+
+const slugSystem = (v) => String(v || "default").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+
+export function getPairedSystems() {
+  const all = readJson(PAIRED_KEY, {});
+  const key = slugSystem(getActiveSystemId());
+  const list = all && typeof all === "object" ? all[key] : null;
+  return Array.isArray(list) ? list : [];
+}
+
+export function pairSystem(peerSystemId) {
+  if (!peerSystemId) return;
+  const all = readJson(PAIRED_KEY, {}) || {};
+  const key = slugSystem(getActiveSystemId());
+  const list = Array.isArray(all[key]) ? all[key] : [];
+  if (!list.includes(peerSystemId)) list.push(peerSystemId);
+  all[key] = list;
+  writeLs(PAIRED_KEY, JSON.stringify(all));
+}
+
+export function unpairSystem(peerSystemId) {
+  const all = readJson(PAIRED_KEY, {}) || {};
+  const key = slugSystem(getActiveSystemId());
+  all[key] = (Array.isArray(all[key]) ? all[key] : []).filter((x) => x !== peerSystemId);
+  writeLs(PAIRED_KEY, JSON.stringify(all));
 }
 
 // What's in the folder, grouped per device — powers the "devices seen
@@ -70,14 +123,21 @@ export async function listSyncPeers() {
   const files = await adapter.list(dir);
   const mine = getDeviceId();
   const system = String(getActiveSystemId() || "default");
+  const localSystem = slugSystem(system);
+  const paired = getPairedSystems();
   const byDevice = new Map();
   for (const f of files) {
     const parsed = parseSyncFileName(f.name);
     if (!parsed) continue;
-    // Only this system's snapshots. Another system's files sit in the
-    // same folder quite legitimately and must not be merged into this one.
-    if (parsed.systemId !== system.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)) continue;
-    const entry = byDevice.get(parsed.deviceId) || { deviceId: parsed.deviceId, isSelf: parsed.deviceId === mine };
+    const entry = byDevice.get(parsed.deviceId) || {
+      deviceId: parsed.deviceId,
+      isSelf: parsed.deviceId === mine,
+      systemId: parsed.systemId,
+      // Same system, or one the user has explicitly paired. Anything else
+      // is surfaced for a decision rather than merged.
+      sameSystem: parsed.systemId === localSystem,
+      paired: paired.includes(parsed.systemId),
+    };
     entry[parsed.kind] = f;
     byDevice.set(parsed.deviceId, entry);
   }
@@ -93,7 +153,7 @@ export async function runSync({ force = false } = {}) {
 
   const report = {
     startedAt: new Date().toISOString(),
-    wrote: [], merged: [], skipped: [], errors: [],
+    wrote: [], merged: [], skipped: [], errors: [], needsPairing: [],
     conflicts: [], pendingDeletions: [], media: { images: 0, fonts: 0 },
   };
 
@@ -126,7 +186,12 @@ export async function runSync({ force = false } = {}) {
   // ── 2. Read the others ──────────────────────────────────────────────
   let peers = [];
   try {
-    peers = (await listSyncPeers()).filter((p) => !p.isSelf);
+    const all = (await listSyncPeers()).filter((p) => !p.isSelf);
+    // An unrecognised system is never merged silently — it is offered.
+    report.needsPairing = all
+      .filter((p) => !p.sameSystem && !p.paired)
+      .map((p) => ({ deviceId: p.deviceId, systemId: p.systemId }));
+    peers = all.filter((p) => p.sameSystem || p.paired);
   } catch (e) {
     report.errors.push({ stage: "list", message: e?.message || String(e) });
     return report;
