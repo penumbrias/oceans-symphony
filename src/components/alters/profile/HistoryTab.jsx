@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { format } from "date-fns";
-import { Clock, GitMerge, Split } from "lucide-react";
+import { Clock, GitMerge } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
 import SessionActionPopover from "@/components/fronting/SessionActionPopover";
@@ -55,9 +55,32 @@ export default function HistoryTab({ alterId }) {
     } catch {}
   };
 
+  // Scoped to this alter (plus, later, its inherited source alters): the
+  // old query pulled the newest 20,000 sessions of EVERY alter under the
+  // global key and filtered client-side on each render. Legacy group-shape
+  // rows (primary_alter_id / co_fronter_ids) can't be matched by the
+  // strict-equality filter on co-fronter membership, so a bounded scan of
+  // the legacy rows is kept for those.
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
+    queryKey: ["frontHistory", "alter", alterId],
+    queryFn: async () => {
+      const [own, legacyPrimary, legacyScan] = await Promise.all([
+        base44.entities.FrontingSession.filter({ alter_id: alterId }, "-start_time"),
+        base44.entities.FrontingSession.filter({ primary_alter_id: alterId }, "-start_time"),
+        base44.entities.FrontingSession.list("-start_time", 2000),
+      ]);
+      const seen = new Set();
+      const out = [];
+      for (const s of [...own, ...legacyPrimary, ...legacyScan]) {
+        if (!s || seen.has(s.id)) continue;
+        // Keep the legacy scan only for rows that actually involve someone
+        // (the inherited filter below picks its own alters from them).
+        seen.add(s.id);
+        out.push(s);
+      }
+      return out;
+    },
+    enabled: !!alterId,
   });
 
   const { data: alters = [] } = useQuery({

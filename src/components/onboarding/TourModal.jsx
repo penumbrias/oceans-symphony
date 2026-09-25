@@ -24,18 +24,18 @@
 // prop; passive slides are declared with body/features/tip.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users, BookOpen, BarChart2, Shield,
   FileText, Sparkles, Clock, CheckSquare, Activity,
-  MessageSquare, Zap, Package, Bell, ClipboardList,
+  MessageSquare, Zap, Bell, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";
-import { BundleList } from "@/components/symptoms/BundlePicker";
 import {
   TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, itemToSymptomFields,
 } from "@/lib/trackingPresets";
@@ -100,7 +100,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
     queryFn: () => base44.entities.SystemSettings.list(),
     enabled: !!open,
   });
-  const settingsRow = settingsList[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsList) || settingsList[0] || null;
 
   useEffect(() => {
     if (!open) setTermsSaved(false);

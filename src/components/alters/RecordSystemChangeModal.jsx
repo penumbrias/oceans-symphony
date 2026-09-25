@@ -132,11 +132,11 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
   // Fusion needs 2+ source alters; every other event type needs at least one.
   const requiresOne = type !== "fusion";
 
-  const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
-    : type === "split" ? "Which alter is splitting?"
-    : type === "dormancy" ? "Which alters are going dormant?"
-    : type === "emergence" ? "Which alters emerged or were first recognized?"
-    : "Which alters are returning?";
+  const label = type === "fusion" ? `${terms.Alters} involved in the fusion (select 2+)`
+    : type === "split" ? `Which ${terms.alter} is splitting?`
+    : type === "dormancy" ? `Which ${terms.alters} are going dormant?`
+    : type === "emergence" ? `Which ${terms.alters} emerged or were first recognized?`
+    : `Which ${terms.alters} are returning?`;
 
   return (
     <div className="space-y-3">
@@ -560,8 +560,8 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
 
   const noResultStep = type === "dormancy" || type === "return" || type === "emergence";
   const steps = noResultStep
-    ? ["Type", "Alters", "Details"]
-    : ["Type", "Alters", "Result", "Details", "Apply"];
+    ? ["Type", terms.Alters, "Details"]
+    : ["Type", terms.Alters, "Result", "Details", "Apply"];
   const totalSteps = steps.length;
 
   function toggleSource(id, single) {
@@ -693,7 +693,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Record {terms.System} Event</DialogTitle>
         </DialogHeader>

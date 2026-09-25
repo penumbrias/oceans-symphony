@@ -247,7 +247,7 @@ export default function PlannerSurface({
     const onKey = (e) => { if (e.key === "Escape") { requestCloseEditor(); setDetails(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [timing, activities]);
   const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
@@ -397,7 +397,7 @@ export default function PlannerSurface({
     if (when) setAnchor(new Date(when));
     setDetails(found);
     onOpenedActivity?.();
-  }, [openActivityId, activities]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [openActivityId, activities]);  
 
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -419,7 +419,10 @@ export default function PlannerSurface({
     const [h, m] = String(timeValue).split(":").map(Number);
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
-    const isPlan = when.getTime() > Date.now();
+    // Same rule as createPlan: anything from today onward is a plan (an
+    // intention), only earlier days are logged. The old time-based check
+    // said "Log" for earlier today while the write created a plan.
+    const isPlan = format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
     const catId = (timing.item.activity_category_ids || [])[0] || null;
     const cat = catId ? categories.find((c) => c.id === catId) : null;
     // One record per picked day — the primary day plus any extra chips,
@@ -655,7 +658,7 @@ export default function PlannerSurface({
     const [h, m] = String(timeValue).split(":").map(Number);
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
-    return when.getTime() > Date.now();
+    return format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
   }, [timing, timeValue]);
 
   const timingDirty = useMemo(() => {

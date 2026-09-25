@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
@@ -1032,7 +1033,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const uiV2On = UI_V2_ENABLED && settingsList[0]?.ui_v2?.enabled === true;
+  const uiV2On = UI_V2_ENABLED && (pickPrimarySystemSettings(settingsList) || settingsList[0])?.ui_v2?.enabled === true;
 
   const { data: existingAlters = [], isSuccess: altersLoaded } = useQuery({
     queryKey: ["alters"],

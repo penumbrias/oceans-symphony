@@ -1186,7 +1186,7 @@ function JournalWidget({ settings }) {
       {list.map((e) => (
         <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
           right={fmtTime(e.timestamp || e.created_date)}
-          onClick={() => navigate(`/journals?entry=${e.id}`)} />
+          onClick={() => navigate(`/journals?id=${e.id}`)} />
       ))}
     </Section>
   );
@@ -1434,7 +1434,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
       {!entry && <Muted>{tr("widget.book.empty")}</Muted>}
 
       {entry && (
-        <button type="button" onClick={() => navigate(`/journals?entry=${entry.id}`)}
+        <button type="button" onClick={() => navigate(`/journals?id=${entry.id}`)}
           className="text-left w-full min-w-0">
           <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
           <p className="text-[0.625em] text-muted-foreground mb-1">
@@ -2382,6 +2382,8 @@ function LogEmotionWidget({ mode, settings }) {
         emotions: picked,
         intensity: Number(intensity) || 3,
         alter_id: lead?.alter_id || null,
+        // Analytics, the check-in log and reports attribute by fronting_alter_ids.
+        fronting_alter_ids: lead?.alter_id ? [lead.alter_id] : [],
       });
       qc.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       toast.success(applyTerms(tr("widget.logEmotion.saved"), t));
@@ -2528,6 +2530,9 @@ function LogSymptomWidget({ settings }) {
       const created = await base44.entities.SymptomCheckIn.create({
         timestamp: new Date().toISOString(),
         symptom_id: symptom.id,
+        // `severity` is the field every reader uses (SymptomsSection,
+        // analytics, reports); intensity is kept for the widget's own recent-state.
+        severity: value,
         intensity: value,
         alter_id: lead?.alter_id || null,
       });

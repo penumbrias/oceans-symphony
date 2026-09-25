@@ -7,7 +7,7 @@ import PresenceForm from "./PresenceForm";
 export default function PresenceFormModal({ open, onClose, presence = null }) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}
         className="max-w-md flex flex-col overflow-hidden"
         style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}
       >

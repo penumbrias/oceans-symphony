@@ -1306,6 +1306,11 @@ export async function mergeDbDump(dump, options = {}) {
     // The settings mirror is THIS device's state — a merge from another
     // device's file must not overwrite it (their look isn't ours).
     if (isReservedDbKey(entityName)) continue;
+    // The undo drawer is THIS device's history, and another device's
+    // tombstones only mean something when the user opted into deletion
+    // sync — merging them in silently made the NEXT merge delete rows.
+    if (entityName === "HistoryEvent") continue;
+    if (entityName === "DeletionLog" && !applyDeletions) continue;
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
 
