@@ -14,7 +14,6 @@ import { applyWhisper } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
 import { useTerms } from "@/lib/useTerms";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { format } from "date-fns";
 
 const PRIORITIES = [
   { id: "low",    label: "Low",    cls: "border-blue-500/40 text-blue-500 bg-blue-500/10" },
@@ -79,7 +78,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     }
     // Keyed on id, not the object — a tasks invalidation mid-edit used to
     // reset every field to the stored record.
-  }, [editingTask?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingTask?.id, open]);  
 
   const savingRef = useRef(false); // synchronous re-entry guard vs duplicate tasks
   const handleSubmit = async (e) => {
@@ -97,7 +96,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     // A "/w @name [secret]" in the description hides that part behind a
     // whisper bar (no brackets warns first — a task is a personal record,
     // not a post). Done before setLoading so a "go back" leaves the form be.
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "task" });
+    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "task" });
     if (w === null) return;
     const description = w.content;
 

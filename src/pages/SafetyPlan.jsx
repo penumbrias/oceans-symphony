@@ -20,20 +20,16 @@ export default function SafetyPlan() {
     queryFn: () => base44.entities.SupportJournalEntry.list(),
   });
 
-  const safetyPlanEntry = useMemo(
-    () => entries.find(e => e.exercise_id === "m4_t3_safety_plan"),
-    [entries]
-  );
-
-  const copingCardsEntry = useMemo(
-    () => entries.find(e => e.exercise_id === "m6_t1_coping_cards"),
-    [entries]
-  );
-
-  const windowEntry = useMemo(
-    () => entries.find(e => e.exercise_id === "m6_t2_window_plan"),
-    [entries]
-  );
+  // Latest saved version of each exercise (list() is insertion order, so
+  // find() used to return the OLDEST). Ids must match the Learn curriculum
+  // in TopicView.jsx — the old ids didn't exist, so coping cards and the
+  // window plan never rendered here.
+  const latestFor = (exerciseId) => [...entries]
+    .filter(e => e.exercise_id === exerciseId)
+    .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))[0];
+  const safetyPlanEntry = useMemo(() => latestFor("m4_t3_safety_plan"), [entries]);
+  const copingCardsEntry = useMemo(() => latestFor("m6_t2_coping_cards"), [entries]);
+  const windowEntry = useMemo(() => latestFor("m7_t3_window_plan"), [entries]);
 
   const hasSafetyPlan = safetyPlanEntry || copingCardsEntry || windowEntry;
 
@@ -125,10 +121,10 @@ export default function SafetyPlan() {
               <div className="pt-3 border-t border-border/30">
                 <p className="text-sm font-semibold text-foreground mb-2">Increased risk signs</p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {warningSignsData.increased_risk_signs || "Not filled in yet"}
+                  {warningSignsData.increased_signs || "Not filled in yet"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  <strong>What I will do:</strong> {warningSignsData.increased_risk_response || "—"}
+                  <strong>What I will do:</strong> {warningSignsData.increased_response || "—"}
                 </p>
               </div>
 
@@ -200,11 +196,10 @@ export default function SafetyPlan() {
 
           {expandedSections.windowOfTolerance && (
             <div className="px-6 pb-6 space-y-3 border-t border-border/30">
-              {["level_1_calm", "level_2_alert", "level_3_coping", "level_4_activated", "level_5_crisis"].map(
-                (level, idx) => {
-                  const data = windowData[level];
-                  if (!data) return null;
-                  const levelNum = idx + 1;
+              {[1, 2, 3, 4, 5].map((levelNum, idx) => {
+                  const notice = windowData[`level${levelNum}_notice`];
+                  const helps = windowData[`level${levelNum}_helps`];
+                  if (!notice && !helps) return null;
                   const labels = [
                     "Calm & regulated",
                     "Alert & focused",
@@ -213,15 +208,19 @@ export default function SafetyPlan() {
                     "Crisis",
                   ];
                   return (
-                    <div key={level} className="bg-muted/30 border border-border/20 rounded-lg p-3">
+                    <div key={levelNum} className="bg-muted/30 border border-border/20 rounded-lg p-3">
                       <p className="text-xs font-semibold text-muted-foreground mb-2">
                         Level {levelNum}: {labels[idx]}
                       </p>
-                      <p className="text-sm text-foreground">{data}</p>
+                      {notice && <p className="text-sm text-foreground whitespace-pre-wrap">{notice}</p>}
+                      {helps && (
+                        <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
+                          <strong>What helps:</strong> {helps}
+                        </p>
+                      )}
                     </div>
                   );
-                }
-              )}
+                })}
             </div>
           )}
         </div>

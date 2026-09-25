@@ -24,10 +24,18 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
     queryFn: () => base44.entities.SupportJournalEntry.filter({ exercise_id: exerciseId }),
   });
 
-  const latestEntry = allEntries.sort((a, b) =>
+  const latestEntry = [...allEntries].sort((a, b) =>
     new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date)
   )[0];
   latestEntryRef.current = latestEntry;
+  // "Keep all responses": the first save in this editing session creates a
+  // NEW row and every later save (auto or manual) updates THAT row — so the
+  // previous version is never overwritten. Auto-save used to update the
+  // latest row 1.5 s after each keystroke, defeating the checkbox.
+  const keepHistoryRef = useRef(keepHistory);
+  keepHistoryRef.current = keepHistory;
+  const sessionEntryIdRef = useRef(null);
+  useEffect(() => { sessionEntryIdRef.current = null; }, [exerciseId]);
 
   useEffect(() => {
     if (latestEntry?.responses) setResponses(latestEntry.responses);
@@ -41,18 +49,20 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
     if (!hasContent) return;
     setSaving(true);
     try {
-      if (currentEntry) {
-        await base44.entities.SupportJournalEntry.update(currentEntry.id, {
+      const targetId = sessionEntryIdRef.current || (!keepHistoryRef.current && currentEntry ? currentEntry.id : null);
+      if (targetId) {
+        await base44.entities.SupportJournalEntry.update(targetId, {
           responses: currentResponses,
           exercise_title: exerciseTitle,
         });
       } else {
-        await base44.entities.SupportJournalEntry.create({
+        const created = await base44.entities.SupportJournalEntry.create({
           exercise_id: exerciseId,
           exercise_title: exerciseTitle,
           responses: currentResponses,
-          keep_history: false,
+          keep_history: keepHistoryRef.current,
         });
+        if (created?.id) sessionEntryIdRef.current = created.id;
       }
       queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
       queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
@@ -78,15 +88,17 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
     clearTimeout(autoSaveTimerRef.current);
     setSaving(true);
     try {
-      if (keepHistory || !latestEntry) {
-        await base44.entities.SupportJournalEntry.create({
+      const targetId = sessionEntryIdRef.current || (!keepHistory && latestEntry ? latestEntry.id : null);
+      if (!targetId) {
+        const created = await base44.entities.SupportJournalEntry.create({
           exercise_id: exerciseId,
           exercise_title: exerciseTitle,
           responses,
           keep_history: keepHistory,
         });
+        if (created?.id) sessionEntryIdRef.current = created.id;
       } else {
-        await base44.entities.SupportJournalEntry.update(latestEntry.id, {
+        await base44.entities.SupportJournalEntry.update(targetId, {
           responses,
           exercise_title: exerciseTitle,
         });
@@ -103,7 +115,7 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
   // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(autoSaveTimerRef.current), []);
 
-  const historyEntries = allEntries
+  const historyEntries = [...allEntries]
     .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))
     .slice(1);
 

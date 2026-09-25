@@ -67,11 +67,11 @@ function TriggerRow({ trigger, onDelete, onUpdate }) {
         {trigger.hint && <p className="text-xs text-muted-foreground truncate">{trigger.hint}</p>}
       </div>
       <button onClick={() => setEditing(true)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground flex-shrink-0">
+        className="hover-reveal transition-opacity text-muted-foreground hover:text-foreground flex-shrink-0">
         <Pencil className="w-3.5 h-3.5" />
       </button>
       <button onClick={() => onDelete(trigger.id)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive flex-shrink-0">
+        className="hover-reveal transition-opacity text-muted-foreground hover:text-destructive flex-shrink-0">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>

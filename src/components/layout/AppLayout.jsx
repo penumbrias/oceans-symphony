@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingCart, LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { ShoppingCart, LayoutGrid, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ import useRefreshOnResume from "@/hooks/useRefreshOnResume";
 import useFriendsLiveRefresh from "@/hooks/useFriendsLiveRefresh";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
-import SidebarNav from "@/components/layout/SidebarNav";
+import SidebarNav, { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import GlobalPullToRefresh from "@/components/layout/GlobalPullToRefresh";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
@@ -132,7 +132,7 @@ export default function AppLayout() {
       localStorage.removeItem("symphony_onboard_goto_encryption");
       navigate("/settings#data");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // v0.86.5: probe for legacy string entries in the image store on boot.
@@ -943,55 +943,10 @@ const handleNotifClick = (mentionLog) => {
             </button>
           </div>
           <nav className="px-2 pb-4 space-y-4" aria-label="Sidebar navigation">
-            {[
-              {
-                label: terms.System,
-                items: [
-                  { id: "alters",   label: terms.Alters,           icon: Users,       path: "/Home" },
-                  { id: "presences",label: "New Presences",        icon: Sparkles,    path: "/presences" },
-                  { id: "groups",   label: "Groups",               icon: Users,       path: "/groups" },
-                  { id: "system-history", label: `${terms.System} History`, icon: GitMerge, path: "/system-history" },
-                  { id: "settings", label: "Settings",             icon: Settings,    path: "/settings" },
-                ],
-              },
-              {
-                label: "Tracking",
-                items: [
-                  { id: "checkin-log",     label: "Check-In Log",           icon: Heart,       path: "/checkin-log" },
-                  { id: "activities",      label: "Activities",             icon: Zap,         path: "/activities" },
-                  { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare, path: "/tasks" },
-                  { id: "todo",            label: "To-Do List",             icon: ClipboardList,path: "/todo" },
-                  { id: "sleep",           label: "Sleep",                  icon: Activity,    path: "/sleep" },
-                  { id: "location-history",label: "Locations",              icon: MapPin,      path: "/location-history" },
-                  { id: "timeline",        label: "Timeline",               icon: Clock,       path: "/timeline" },
-                ],
-              },
-              {
-                label: "Journal & Content",
-                items: [
-                  { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
-                  { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
-                  { id: "checkin",  label: `${terms.System} Meeting`, icon: Sparkles, path: "/system-checkin" },
-                  { id: "friends",  label: "Friends",  icon: UserRound, path: "/friends" },
-                ],
-              },
-              {
-                label: "Tools",
-                items: [
-                  { id: "reminders",      label: "Reminders",       icon: Bell,     path: "/reminders" },
-                  { id: "therapy-report", label: "Therapy Report",  icon: FileText, path: "/therapy-report" },
-                  { id: "support",        label: "Support & Learn", icon: BookOpen, path: "/grounding" },
-                  { id: "safety-plan",    label: "Safety Plan",     icon: Shield,   path: "/safety-plan" },
-                ],
-              },
-              {
-                label: "Analytics",
-                items: [
-                  { id: "analytics",      label: "Analytics",              icon: BarChart2, path: "/analytics" },
-                  { id: "system-map",     label: `${terms.System} Map`,    icon: GitBranch, path: "/system-map" },
-                ],
-              },
-            ].map(({ label, items }) => (
+            {/* One list for both sidebars: buildSidebarGroups is the phone
+                drawer's source too, so a page added there is reachable here
+                (a second hard-coded copy here was missing 8 pages). */}
+            {buildSidebarGroups(terms.Alters, terms.System).map(({ label, items }) => (
               <div key={label}>
                 <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
                   {label}

@@ -55,7 +55,7 @@ export default function NotesTab({ alterId }) {
     let lc;
     try { lc = await applyLogCommands(newContent.trim(), { isRich: false }); }
     catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
+    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return; // user backed out of the whole-blur warning
     setSaving(true);
     const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: w.content });
@@ -71,7 +71,7 @@ export default function NotesTab({ alterId }) {
     let lc;
     try { lc = await applyLogCommands(editContent.trim(), { isRich: false }); }
     catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
+    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return;
     setSaving(true);
     await base44.entities.AlterNote.update(editingId, { content: w.content });

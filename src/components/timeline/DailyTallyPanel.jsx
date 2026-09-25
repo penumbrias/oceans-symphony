@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -93,19 +93,19 @@ export default function DailyTallyPanel({
 
   // ── Activities ────────────────────────────────────────────────────────────
   const dayActivities = useMemo(() =>
-    activities.filter(a => inDay(parseDate(a.timestamp)))
+    activities.filter(a => inDay(activityDate(a)))
   , [activities, dayStart, dayEnd]);
 
   // ── Emotions ──────────────────────────────────────────────────────────────
   const emotionTally = useMemo(() => {
     const tally = {};
-    emotions.filter(e => inDay(parseDate(e.timestamp))).forEach(e => {
+    emotions.filter(e => inDay(activityDate(e))).forEach(e => {
       (e.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; });
     });
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
   }, [emotions, dayStart, dayEnd]);
 
-  const dayEmotions = useMemo(() => emotions.filter(e => inDay(parseDate(e.timestamp))), [emotions, dayStart, dayEnd]);
+  const dayEmotions = useMemo(() => emotions.filter(e => inDay(activityDate(e))), [emotions, dayStart, dayEnd]);
   const dayCheckIns = useMemo(() => checkIns.filter(c => inDay(parseDate(c.created_date))), [checkIns, dayStart, dayEnd]);
 
   // ── Journals ──────────────────────────────────────────────────────────────

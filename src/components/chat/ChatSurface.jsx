@@ -718,7 +718,7 @@ export default function ChatSurface({
     const t = setTimeout(() => setHighlightId(null), 2500);
     onMessageFocused?.();
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [focusMessageId, sorted.length]);
 
   const grouped = useMemo(() => {
@@ -785,7 +785,7 @@ export default function ChatSurface({
         if (ok !== false) setReplyTo(null);
         return ok;
       }
-      const w = applyWhisper(content, alters, { rich: true, surfaceLabel: "message" });
+      const w = await applyWhisper(content, alters, { rich: true, surfaceLabel: "message" });
       if (w === null) return false; // backed out of the mid-message warning
       body = w.content;
       whisperRecipientIds = w.recipientIds || [];

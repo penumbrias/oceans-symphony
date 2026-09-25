@@ -6,7 +6,7 @@ import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Act
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
-function buildSidebarGroups(altersLabel, systemLabel) {
+export function buildSidebarGroups(altersLabel, systemLabel) {
   return [
     {
       label: systemLabel,
@@ -96,7 +96,7 @@ export default function SidebarNav({ open, onClose }) {
   useEffect(() => {
     if (firstRouteRef.current) { firstRouteRef.current = false; return; }
     onClose();
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.pathname]);  
 
   // Close on Escape
   useEffect(() => {

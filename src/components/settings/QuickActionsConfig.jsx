@@ -683,7 +683,7 @@ export default function QuickActionsConfig() {
                   <p className="text-sm font-medium truncate">{action.label}</p>
                   <p className="text-xs text-muted-foreground">{typeLabel(action.type)}</p>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 hover-reveal transition-opacity">
                   <button onClick={() => moveAction(i, -1)} disabled={i === 0} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
                   <button onClick={() => moveAction(i, 1)} disabled={i === sorted.length - 1} className="p-1 rounded hover:bg-muted disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setEditId(action.id)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>

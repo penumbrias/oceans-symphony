@@ -74,7 +74,9 @@ export async function mergeAlterInto(sourceId, targetId) {
   try {
     const rels = await localEntities.AlterRelationship.list();
     for (const r of rels) {
-      if (r && r.source_alter_id === targetId && r.target_alter_id === targetId) {
+      // AlterRelationship rows use alter_id_a / alter_id_b (source/target is the legacy shape).
+      const a = r?.alter_id_a ?? r?.source_alter_id, b = r?.alter_id_b ?? r?.target_alter_id;
+      if (r && a === targetId && b === targetId) {
         await localEntities.AlterRelationship.delete(r.id);
       }
     }

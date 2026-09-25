@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
+import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -157,7 +157,7 @@ export default function AssetsLibrary() {
       next.delete("alter");
       return next;
     }, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [searchParams, loadingImages, alters.length]);
 
   const loadImages = async () => {
@@ -271,8 +271,8 @@ export default function AssetsLibrary() {
   const toggleCollapse = (name) => setCollapsed((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
   const isUser = (name) => !AUTO_FOLDERS.has(name) && !name.startsWith(ALTER_FOLDER_PREFIX);
 
-  const createFolder = () => {
-    const name = window.prompt("New folder name:")?.trim();
+  const createFolder = async () => {
+    const name = (await promptText({ title: "New folder", placeholder: "Folder name" }))?.trim();
     if (!name) return;
     if (AUTO_FOLDERS.has(name)) { toast.error("That name is reserved."); return; }
     if (folderOrder.includes(name)) { toast.info("Folder already exists."); return; }
@@ -281,7 +281,7 @@ export default function AssetsLibrary() {
 
   const renameFolder = async (oldName) => {
     if (!isUser(oldName)) return;
-    const next = window.prompt("Rename folder:", oldName)?.trim();
+    const next = (await promptText({ title: "Rename folder", defaultValue: oldName }))?.trim();
     if (!next || next === oldName) return;
     if (AUTO_FOLDERS.has(next)) { toast.error("That name is reserved."); return; }
     // Move every asset in the folder, then update the order list.
@@ -347,9 +347,9 @@ export default function AssetsLibrary() {
   };
 
   const saveToLibrary = async (item) => {
-    const name = window.prompt("Name this image:", item.name && item.name !== item.id ? item.name : "");
+    const name = await promptText({ title: "Name this image", defaultValue: item.name && item.name !== item.id ? item.name : "" });
     if (name === null) return;
-    const folder = window.prompt("Folder (optional):", item.folder === autoFolderFor(item.id) ? "" : item.folder) || "";
+    const folder = (await promptText({ title: "Folder (optional)", placeholder: "Leave blank for none", defaultValue: item.folder === autoFolderFor(item.id) ? "" : item.folder })) || "";
     try {
       await base44.entities.ImageAsset.create({
         name: name.trim() || "Image", image_url: item.url, folder: folder.trim(), is_gif: item.isGif, created_date: new Date().toISOString(),
@@ -362,13 +362,13 @@ export default function AssetsLibrary() {
   };
   const renameAsset = async (item) => {
     if (!item.asset) return;
-    const name = window.prompt("Rename:", item.name);
+    const name = await promptText({ title: "Rename", defaultValue: item.name });
     if (name === null) return;
     try { await base44.entities.ImageAsset.update(item.asset.id, { name: name.trim() || "Image" }); qc.invalidateQueries({ queryKey: ["imageAssets"] }); } catch (e) { toast.error(e?.message || "Failed"); }
   };
   const moveAsset = async (item) => {
     if (!item.asset) return;
-    const folder = window.prompt("Move to folder (blank = none):", item.asset.folder || "");
+    const folder = await promptText({ title: "Move to folder", placeholder: "Leave blank for none", defaultValue: item.asset.folder || "" });
     if (folder === null) return;
     try { await base44.entities.ImageAsset.update(item.asset.id, { folder: folder.trim() }); qc.invalidateQueries({ queryKey: ["imageAssets"] }); } catch (e) { toast.error(e?.message || "Failed"); }
   };

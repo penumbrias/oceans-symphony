@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
   { label: "Headmates", system: "system", alter: "headmate", switch: "switch", front: "front" },
-  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influenc" },
+  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influence" }, // gerund()/agent() drop the silent e (influencing / influencer) — same as the Guide
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

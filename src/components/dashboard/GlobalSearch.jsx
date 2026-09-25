@@ -335,6 +335,13 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   }, [searchFocused]);
 
   const handleResultClick = (path) => {
+    if (path === "/grocery") {
+      // The grocery list is an overlay, not a route.
+      window.dispatchEvent(new CustomEvent("open-grocery-list"));
+      setQuery("");
+      setSearchFocused(false);
+      return;
+    }
     navigate(path);
     setQuery("");
     setSearchFocused(false);

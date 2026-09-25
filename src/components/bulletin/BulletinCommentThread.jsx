@@ -194,7 +194,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       whisperRecipientIds = [...whisperTo];
       isWhisper = true;
     } else {
-      const w = applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "comment" });
+      const w = await applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "comment" });
       if (w === null) { setSaving(false); return; } // user backed out of the whole-blur warning
       cleanContent = w.content;
       whisperRecipientIds = w.recipientIds || [];

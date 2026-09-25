@@ -9,7 +9,7 @@ import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { base44 } from "@/api/base44Client";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
@@ -780,6 +780,13 @@ export default function InfiniteTimeline({
   };
 
   const [collapsed, setCollapsed] = useState(!hasData);
+  // Days mount before their queries land on a cold cache (30 s staleTime,
+  // no prefetch) and used to stay folded forever. Un-fold once, the first
+  // time data appears; a fold the user made after that is respected.
+  const hadDataRef = useRef(hasData);
+  useEffect(() => {
+    if (hasData && !hadDataRef.current) { hadDataRef.current = true; setCollapsed(false); }
+  }, [hasData]);
   const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [showTally, setShowTally] = useState(false);
@@ -927,7 +934,7 @@ export default function InfiniteTimeline({
     const fromRecords = statusNotes.map(n => ({
       id: n.id,
       note: n.note,
-      startMins: Math.max(0, minutesInDay(parseDate(n.timestamp), dayStart)),
+      startMins: Math.max(0, minutesInDay(activityDate(n), dayStart)),
     }));
 
     // Legacy: localStorage notes for old sessions that predate the new system
@@ -979,7 +986,7 @@ export default function InfiniteTimeline({
     const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
 
     activities.forEach((act) => {
-      const actStart = parseDate(act.timestamp);
+      const actStart = activityDate(act);
       const actStartMs = actStart.getTime();
       // Fall back to actual_duration_minutes for resolved plans that never got a
       // planned duration, so they still draw a bar for the time they ran.
@@ -1050,7 +1057,7 @@ export default function InfiniteTimeline({
   const emotionEntries = useMemo(() => {
     return emotions
       .map((e, i) => {
-        const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+        const mins = minutesInDay(activityDate(e), dayStart);
         return { mins, type: "emotion", id: e.id, data: e, key: `em-${i}-${e.id}` };
       })
       .filter(e => e.mins >= 0 && e.mins < 24 * 60)
@@ -1061,7 +1068,7 @@ export default function InfiniteTimeline({
     if (!showLocations) return [];
     return locations
       .map((loc, i) => {
-        const mins = minutesInDay(parseDate(loc.timestamp), dayStart);
+        const mins = minutesInDay(activityDate(loc), dayStart);
         return { mins, type: "location", id: loc.id, data: loc, key: `loc-${i}-${loc.id}` };
       })
       .filter(e => e.mins >= 0 && e.mins < 24 * 60)
@@ -1199,7 +1206,7 @@ export default function InfiniteTimeline({
     // Group symptom check-ins by minute into single event entries
     const scByMinute = {};
     symptomCheckIns.forEach(sc => {
-      const mins = minutesInDay(parseDate(sc.timestamp), dayStart);
+      const mins = minutesInDay(activityDate(sc), dayStart);
       if (!inDay(mins)) return;
       const bucket = Math.floor(mins);
       if (!scByMinute[bucket]) scByMinute[bucket] = { mins: bucket, items: [], id: sc.id };
@@ -1970,7 +1977,7 @@ export default function InfiniteTimeline({
             <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
             {(() => {
               const act = entry.activity;
-              const start = parseDate(act.timestamp);
+              const start = activityDate(act);
               const durMin = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
               const end = durMin > 0 ? new Date(start.getTime() + durMin * 60000) : null;
               const durLabel = durMin >= 60 ? `${Math.round((durMin / 60) * 10) / 10}h` : `${durMin}m`;

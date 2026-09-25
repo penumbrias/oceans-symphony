@@ -171,7 +171,7 @@ export default function AlterScopeSection({ form, set, alters }) {
                 className="accent-primary mt-0.5"
               />
               <span className="text-xs text-muted-foreground">
-                If {selectedAlter?.name || `this ${terms.alter}`} wasn't ${terms.fronting} when this was due, fire the next time they take {terms.front} (expires after 24h)
+                If {selectedAlter?.name || `this ${terms.alter}`} wasn't {terms.fronting} when this was due, fire the next time they take {terms.front} (expires after 24h)
               </span>
             </label>
           )}

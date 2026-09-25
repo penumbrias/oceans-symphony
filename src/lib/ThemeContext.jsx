@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+
+// A corrupt value in one of the theme keys used to throw inside the
+// provider's mount effect and blank the whole app on boot.
+const safeParse = (raw, fallback) => { try { const v = JSON.parse(raw); return v ?? fallback; } catch { return fallback; } };
 const ThemeContext = createContext();
 
 export const FONT_OPTIONS = [
@@ -340,10 +344,10 @@ export function ThemeProvider({ children }) {
     const normalized = ['light', 'dark', 'system'].includes(saved) ? saved : 'dark';
     setThemeMode(normalized);
     setSelectedTheme(savedTheme || 'cool');
-    if (savedCustom) setCustomColors(JSON.parse(savedCustom));
+    if (savedCustom) setCustomColors(safeParse(savedCustom, null));
     if (savedFont) setSelectedFont(savedFont);
-    if (savedUserPresets) setUserCustomPresets(JSON.parse(savedUserPresets));
-    if (savedLinks) setAlterThemeLinks(JSON.parse(savedLinks));
+    if (savedUserPresets) setUserCustomPresets(safeParse(savedUserPresets, {}));
+    if (savedLinks) setAlterThemeLinks(safeParse(savedLinks, {}));
     
     const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
     setIsDarkOS(darkMq.matches);
@@ -359,12 +363,12 @@ export function ThemeProvider({ children }) {
       setThemeMode(['light', 'dark', 'system'].includes(raw) ? raw : 'dark');
       setSelectedTheme(localStorage.getItem('symphony_selectedTheme') || 'cool');
       const cc = localStorage.getItem('symphony_customColors');
-      setCustomColors(cc ? JSON.parse(cc) : null);
+      setCustomColors(cc ? safeParse(cc, null) : null);
       setSelectedFont(localStorage.getItem('symphony_selectedFont') || 'inter');
       const presetsRaw = localStorage.getItem('symphony_userCustomPresets');
-      setUserCustomPresets(presetsRaw ? JSON.parse(presetsRaw) : {});
+      setUserCustomPresets(presetsRaw ? safeParse(presetsRaw, {}) : {});
       const linksRaw = localStorage.getItem('symphony_alterThemeLinks');
-      setAlterThemeLinks(linksRaw ? JSON.parse(linksRaw) : {});
+      setAlterThemeLinks(linksRaw ? safeParse(linksRaw, {}) : {});
     };
     window.addEventListener('symphony-theme-storage-change', reload);
 

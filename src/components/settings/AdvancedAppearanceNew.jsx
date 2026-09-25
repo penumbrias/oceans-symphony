@@ -580,6 +580,7 @@ export default function AdvancedAppearance() {
 
   // Color editor state
   const [editingColor, setEditingColor] = useState(null);
+  const colorEditStartRef = useRef(null);
   const [hexInput, setHexInput] = useState('');
   const [pendingColors, setPendingColors] = useState(null);
   const [originalTheme, setOriginalTheme] = useState(selectedTheme);
@@ -735,8 +736,17 @@ export default function AdvancedAppearance() {
       });
       setPendingColors({ light, dark });
     }
+    // Every drag is applied live and persisted, so Cancel needs a snapshot
+    // of where the palette was when the swatch was opened.
+    colorEditStartRef.current = pendingColors ? { light: { ...pendingColors.light }, dark: { ...pendingColors.dark } } : null;
     setEditingColor(key);
     setHexInput(pendingColors?.[isDark ? 'dark' : 'light']?.[key] || currentColors[key] || '#000000');
+  };
+  const handleCancelColor = () => {
+    const start = colorEditStartRef.current;
+    if (start) { setPendingColors(start); updateCustomColorsFull(start.light, start.dark); }
+    colorEditStartRef.current = null;
+    setEditingColor(null);
   };
 
   const handleColorChange = (hex) => {
@@ -750,6 +760,7 @@ export default function AdvancedAppearance() {
   };
 
   const handleSaveColor = () => {
+    colorEditStartRef.current = null;
     if (!editingColor || !/^#[0-9A-F]{6}$/i.test(hexInput) || !pendingColors) return;
     const mode = isDark ? 'dark' : 'light';
     const updated = { ...pendingColors, [mode]: { ...pendingColors[mode], [editingColor]: hexInput } };
@@ -1236,7 +1247,7 @@ export default function AdvancedAppearance() {
               <div className="w-9 h-9 rounded-xl border-2 border-border flex-shrink-0" style={{ backgroundColor: hexInput }} />
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setEditingColor(null)}
+              <button type="button" onClick={handleCancelColor}
                 className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">
                 Cancel
               </button>

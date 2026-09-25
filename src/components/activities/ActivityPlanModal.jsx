@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createPlan } from "@/lib/planCreate";
-import { format, differenceInMinutes, addDays, addWeeks, addMonths } from "date-fns";
+import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -320,7 +320,7 @@ export default function ActivityPlanModal({
       });
       setSelectedAlters(Array.from(alterIds));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory, editingPlan]);
 
   const durationMinutes = useMemo(() => {
@@ -363,7 +363,7 @@ export default function ActivityPlanModal({
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — a plan note is a personal record). Done
     // before setIsLoading so a "go back" leaves the form untouched.
-    const w = applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "plan" });
+    const w = await applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "plan" });
     if (w === null) return;
     const finalNotes = w.content;
 

@@ -157,7 +157,7 @@ export default function SystemCheckInPage() {
         let lc;
         try { lc = await applyLogCommands(step.notes, { isRich: false }); }
         catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-        const ww = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "check-in note" });
+        const ww = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "check-in note" });
         if (ww === null) return; // user backed out of the whole-blur warning
         dataToSave[key] = { ...step, notes: ww.content };
       }

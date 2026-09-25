@@ -126,7 +126,11 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData, userT
       for (const ci of checkIns) {
         const ciTime = new Date(ci.timestamp || ci.created_date).getTime();
         if (ciTime < windowStart) break;
-        const hasMatch = matches.length === 0 || (ci.emotions || []).some(e => matches.includes(e));
+        // Case-insensitive: the editor and the seed reminder store lowercase
+        // names ("anxious"), the emotion wheel stores its labels as typed
+        // ("Anxious") — an exact compare never matched, so these never fired.
+        const wanted = new Set(matches.map(m => String(m).trim().toLowerCase()));
+        const hasMatch = matches.length === 0 || (ci.emotions || []).some(e => wanted.has(String(e).trim().toLowerCase()));
         if (!hasMatch) continue;
         const fireAt = ciTime + delayMs;
         if (nowMs >= fireAt && nowMs - fireAt < WINDOW) {

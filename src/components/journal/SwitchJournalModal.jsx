@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { parseSessionSymptoms } from "@/lib/perAlterSessionEntries";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Loader2, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 
 const SYMPTOMS = [
@@ -123,9 +124,15 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         const patch = {};
         if (trigger) { patch.is_triggered_switch = true; patch.trigger_label = trigger; }
         const symptomEntries = SYMPTOMS.map(s => ({ id: s.key, label: s.label, value: symptoms[s.key], type: "slider" }));
+        // Merge into whatever the fronter panel already logged on this
+        // session (this used to replace the whole array wholesale).
         // must be JSON-encoded string — perAlterSessionEntries.js JSON.parses on read
-        patch.session_symptoms = JSON.stringify(symptomEntries);
-        try { await base44.entities.FrontingSession.update(sessionId, patch); } catch {}
+        try {
+          const fresh = await base44.entities.FrontingSession.get(sessionId);
+          const existing = parseSessionSymptoms(fresh?.session_symptoms).filter(e => !SYMPTOMS.some(s => s.key === e?.id));
+          patch.session_symptoms = JSON.stringify([...existing, ...symptomEntries]);
+          await base44.entities.FrontingSession.update(sessionId, patch);
+        } catch {}
       }
       toast.success(`${terms.Switch} journal saved!`);
       onClose();

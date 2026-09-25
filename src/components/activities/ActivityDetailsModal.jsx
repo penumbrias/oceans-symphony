@@ -267,7 +267,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
+    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
     if (w === null) return;
     const notes = w.content;
     setIsLoading(true);
@@ -304,7 +304,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
             source_label: "Whisper in an activity note",
             source_date: new Date().toISOString(),
             preview_text: "🔒 private whisper",
-            navigate_path: "/activity-tracker",
+            navigate_path: "/activities",
           });
         } catch { /* best-effort */ }
       }

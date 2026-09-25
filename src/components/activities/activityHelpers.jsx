@@ -1,4 +1,4 @@
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 
 export const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -35,7 +35,7 @@ export function getActivitiesForSlot(date, hour, minute, intervalMinutes, activi
     // entirely here — without this, a quick plan's midnight
     // timestamp would surface in the 00:00 cell.
     if (a.is_quick_plan) return;
-    const actStart = parseDate(a.timestamp);
+    const actStart = activityDate(a);
     if (a.duration_minutes) {
       const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
       if (actStart < slotEnd && actEnd > slotStart) timed.push(a);
@@ -72,7 +72,7 @@ export function getLocationsForSlot(date, hour, minute, intervalMinutes, locatio
   slotStart.setHours(hour, minute, 0, 0);
   const slotEnd = new Date(slotStart.getTime() + intervalMinutes * 60 * 1000);
   return locationRecords.filter(loc => {
-    const t = parseDate(loc.timestamp);
+    const t = activityDate(loc);
     return t >= slotStart && t < slotEnd;
   });
 }
@@ -83,11 +83,11 @@ export function getEmotionsForSlot(date, hour, minute, intervalMinutes, activiti
   const slotEnd = new Date(slotStart.getTime() + intervalMinutes * 60 * 1000);
   const all = [];
   emotionCheckIns.forEach(e => {
-    const t = parseDate(e.timestamp);
+    const t = activityDate(e);
     if (t >= slotStart && t < slotEnd) all.push(...(e.emotions || []));
   });
   activities.forEach(a => {
-    const t = parseDate(a.timestamp);
+    const t = activityDate(a);
     if (t >= slotStart && t < slotEnd && (a.emotions || []).length > 0) {
       all.push(...(a.emotions || []));
     }

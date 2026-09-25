@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -37,11 +37,17 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
 
   // Fire deep-link action once instances are loaded
+  const consumedTriggerRef = useRef(null);
   useEffect(() => {
     if (!autoTriggerAction || !instances.length) return;
     const { instanceId, actionType } = autoTriggerAction;
+    // Once per deep link: `instances` refetches every 60 s and after every
+    // update, and the instance is still in the list — this used to re-open
+    // the check-in modal on every refetch.
+    if (consumedTriggerRef.current === instanceId) return;
     const instance = instances.find(i => i.id === instanceId);
     if (!instance) return;
+    consumedTriggerRef.current = instanceId;
     // Trigger the action as if the user tapped it
     handleAction(instance, { action_type: actionType });
   }, [autoTriggerAction, instances]);

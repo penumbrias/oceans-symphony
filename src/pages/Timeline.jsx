@@ -37,18 +37,23 @@ export default function Timeline() {
     sessions, alters, symptoms, categories, dailyTaskTemplates,
   } = src;
 
-  // Jump to date from URL param on mount
+  // Jump to date from URL param (search results, the Overview heatmap).
+  // Anchors the loaded window on that day the same way the Jump button
+  // does, then scrolls to it — the old version only scrolled, and only
+  // when jumpDate was empty, which it never was (it is seeded from the
+  // same param), so deep links always landed on today.
   useEffect(() => {
     const dateParam = searchParams.get("date");
-    if (dateParam && !jumpDate) {
-      const target = document.getElementById(`day-${dateParam}`);
-      if (target) {
-        setTimeout(() => {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
-      }
-    }
-  }, [searchParams, jumpDate]);
+    if (!dateParam) return;
+    const target = new Date(dateParam + "T00:00:00");
+    if (isNaN(target.getTime())) return;
+    setAnchorDate(target);
+    setDaysBack(CHUNK_DAYS);
+    const timer = setTimeout(() => {
+      document.getElementById(`day-${dateParam}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
   // Highlight a specific status note badge from search
   useEffect(() => {

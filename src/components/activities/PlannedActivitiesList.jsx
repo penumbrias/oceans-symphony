@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { format, isToday, isThisWeek, isThisMonth, isThisYear, formatDistanceToNow } from "date-fns";
 import { Calendar, Clock, Users, MapPin, Zap } from "lucide-react";
-import { parseDate } from "@/lib/dateUtils";
+import { activityDate } from "@/lib/dateUtils";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 /**
@@ -35,7 +35,7 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
     return activities
       .filter(a => {
         if (!a) return false;
-        const ts = parseDate(a.timestamp);
+        const ts = activityDate(a);
         if (!ts || isNaN(ts)) return false;
         // Phase 3: use the lifecycle status rather than the bare "ts > now"
         // check. A plan only belongs on the Planned tab while it's still
@@ -49,14 +49,14 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
         // resolved outcomes) and vanished entirely.
         return statusFor(a) === ACTIVITY_STATUSES.SCHEDULED;
       })
-      .sort((a, b) => parseDate(a.timestamp) - parseDate(b.timestamp));
+      .sort((a, b) => activityDate(a) - activityDate(b));
   }, [activities]);
 
   const past = useMemo(() => {
     return activities
       .filter(a => {
         if (!a) return false;
-        const ts = parseDate(a.timestamp);
+        const ts = activityDate(a);
         if (!ts || isNaN(ts)) return false;
         const status = statusFor(a);
         // Resolved-plan statuses (the user actually marked an outcome).
@@ -67,14 +67,14 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
       })
       // Most recent first — when reviewing past plans the user wants
       // the latest outcome at the top.
-      .sort((a, b) => parseDate(b.timestamp) - parseDate(a.timestamp));
+      .sort((a, b) => activityDate(b) - activityDate(a));
   }, [activities]);
 
   const filteredByHorizon = useMemo(() => {
     const source = view === "past" ? past : future;
     if (activeHorizon === "all") return source;
     return source.filter(a => {
-      const d = parseDate(a.timestamp);
+      const d = activityDate(a);
       switch (activeHorizon) {
         case "today": return isToday(d);
         case "week":  return isThisWeek(d, { weekStartsOn: 0 });
@@ -90,7 +90,7 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
   const grouped = useMemo(() => {
     const today = [], week = [], month = [], later = [];
     for (const a of items) {
-      const d = parseDate(a.timestamp);
+      const d = activityDate(a);
       if (isToday(d)) today.push(a);
       else if (isThisWeek(d, { weekStartsOn: 0 })) week.push(a);
       else if (isThisMonth(d)) month.push(a);
@@ -228,7 +228,7 @@ function Group({ label, items, altersById, onClick }) {
 }
 
 function ActivityRow({ activity, altersById, onClick, compact, showPastStatus }) {
-  const ts = parseDate(activity.timestamp);
+  const ts = activityDate(activity);
   const assigned = (activity.assigned_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const colorBar = activity.color || "hsl(var(--primary))";
   const status = statusFor(activity);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
@@ -7,11 +7,9 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Inbox, CheckSquare, HelpCircle, Sparkles, Compass } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
-import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
 import EmptyAppRescueNotice from "@/components/dashboard/EmptyAppRescueNotice";
@@ -22,9 +20,9 @@ import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import ClassicHomeCanvas from "@/components/dashboard/ClassicHomeCanvas";
-import { Grid2x2 } from "lucide-react";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import StartActivityModal from "@/components/activities/StartActivityModal";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
@@ -833,7 +831,7 @@ export default function Dashboard() {
     } else if (boardOpen) {
       closeBoard();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [location.key]);
   const boardShowing = classicBoardAvailable && boardOpen;
   const showClassic = !uiV2On && !experimentalOn && !boardShowing;
@@ -907,7 +905,7 @@ export default function Dashboard() {
       window.removeEventListener("os-v2-home-settings", onHomeSettings);
       window.removeEventListener("os-open-widget-board", onOpenBoard);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [classicBoardAvailable, boardOpen]);
   const hasUnreadMentions = mentionLogs.some(m =>
     m.log_type !== "authored" &&
@@ -1014,8 +1012,15 @@ export default function Dashboard() {
           classic overlays while the board page is showing too. */}
       {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
       {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
+      {/* "Top of Dashboard" / "Bottom of Dashboard" upcoming-plans
+          surfaces (Settings → Layout → Upcoming plans). UpcomingPlans
+          renders null unless its placement is enabled. These two toggles
+          had no mount site at all since the alters directory stopped
+          hosting them. */}
+      {!uiV2On && !boardShowing && <UpcomingPlans placement="home_top" />}
       {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
       {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
+      {!uiV2On && !boardShowing && <UpcomingPlans placement="home_bottom" />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}

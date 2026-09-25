@@ -15,7 +15,7 @@
 // view mode — it's navigate-only, not hidden.
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
+import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -657,11 +657,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         ))}
         {!viewOnly && (
           <>
-            <button onClick={async () => { const name = window.prompt("New map name", "New map"); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
+            <button onClick={async () => { const name = await promptText({ title: "New map", placeholder: "Map name", defaultValue: "New map" }); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
               className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map"><Plus className="w-3.5 h-3.5" /></button>
             {activeMap && (
               <>
-                <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
+                <button onClick={async () => { const n = await promptText({ title: "Rename map", defaultValue: activeMap.name }); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
                 {maps.length > 1 && (
                   <button onClick={async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`))) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
                 )}
@@ -696,7 +696,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
                         <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
+                        <button onClick={async (e) => { e.stopPropagation(); const n = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
                         {layers.length > 1 && (
                           <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
                         )}
@@ -706,7 +706,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 );
               })}
               {!viewOnly && (
-                <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
+                <button onClick={async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
               )}
             </div>
             {!viewOnly && (

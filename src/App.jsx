@@ -528,6 +528,9 @@ function App() {
                 setOrphanOverEmpty(false);
                 setSetupState('booting');
               } else {
+                // Remember the decline so first-run setup doesn't refuse
+                // to run because the same orphan blobs are still there.
+                orphanDeclined.current = true;
                 setSetupState('firstrun');
               }
             }}
@@ -542,7 +545,7 @@ function App() {
     return (
       <ThemeProvider>
         <QueryClientProvider client={queryClientInstance}>
-          <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+          <StorageModeSetup mode="setup" allowOrphans={orphanDeclined.current} onComplete={() => setSetupState(null)} />
           {/* Accessibility quick-access available from the very first screen,
               before Settings is reachable. Writes localStorage-backed prefs
               that apply instantly. zIndex must clear the welcome overlay

@@ -171,7 +171,8 @@ export default function ActivityLogModal({
     }
     setSelectedActivityCategories([]);
     setNotes("");
-    setActiveMode(false);
+    // (activeMode is seeded from initialActive at the top of this effect —
+    // a second reset here made "Start Activity" always open in Log mode.)
     setSelectedContactIds([]);
   }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute]);
 
@@ -230,7 +231,7 @@ export default function ActivityLogModal({
       });
       setSelectedAlters(Array.from(alterIds));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory]);
 
   // "After last" quick-set: end of the most recent logged activity. Read
@@ -324,7 +325,7 @@ export default function ActivityLogModal({
     const lc = await applyLogCommands(notes || "", { isRich: false });
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
+    const w = await applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
     if (w === null) return;
     const finalNotes = w.content;
 
@@ -386,7 +387,7 @@ export default function ActivityLogModal({
             source_label: "Whisper in an activity note",
             source_date: new Date().toISOString(),
             preview_text: "🔒 private whisper",
-            navigate_path: "/activity-tracker",
+            navigate_path: "/activities",
           });
         } catch { /* best-effort */ }
       }

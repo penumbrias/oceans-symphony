@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { localEntities } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -194,6 +195,7 @@ export default function LocationHistory() {
   const grouped = groupByDay(sorted);
 
   const handleDelete = async (id) => {
+    if (!(await confirm({ title: "Delete this location record?", body: "It can be restored from Recent Changes.", confirmLabel: "Delete", destructive: true }))) return;
     try {
       await localEntities.Location.delete(id);
       queryClient.invalidateQueries({ queryKey: ["locations"] });

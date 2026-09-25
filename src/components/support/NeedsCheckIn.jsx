@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -25,17 +25,18 @@ export default function NeedsCheckIn({ onBack }) {
   const { data: entries = [] } = useQuery({
     queryKey: ["supportJournal", EXERCISE_ID],
     queryFn: () => base44.entities.SupportJournalEntry.filter({ exercise_id: EXERCISE_ID }),
-    onSuccess: (data) => {
-      const latest = data.sort((a, b) =>
-        new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date)
-      )[0];
-      if (latest?.responses) setRatings(latest.responses);
-    }
   });
 
-  const latestEntry = entries.sort((a, b) =>
+  const latestEntry = [...entries].sort((a, b) =>
     new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date)
   )[0];
+
+  // Load the previous ratings once the query lands. (This used to be a
+  // useQuery onSuccess callback, which TanStack Query v5 removed — so the
+  // sliders always started at 5 and a save wiped the old answers.)
+  useEffect(() => {
+    if (latestEntry?.responses) setRatings(latestEntry.responses);
+  }, [latestEntry?.id]);
 
   const handleRate = (id, val) => {
     setRatings(prev => ({ ...prev, [id]: val }));

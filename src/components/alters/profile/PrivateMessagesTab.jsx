@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Mail, Pin, Trash2, X, Pencil } from "lucide-react";
+import { Mail, Pin, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 
 function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onEdit, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
@@ -297,17 +298,15 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">From</label>
-            <select
-              value={fromAlterId || ""}
-              onChange={(e) => setFromAlterId(e.target.value)}
-              className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs"
-            >
-              {alters?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            <AlterSearchSelect
+              alters={(alters || []).filter((a) => !a.is_archived)}
+              value={fromAlterId || null}
+              onChange={(id) => setFromAlterId(id)}
+              terms={terms}
+              showNone={false}
+              placeholder="Choose who this is from…"
+              zIndex={80}
+            />
           </div>
 
           <div>

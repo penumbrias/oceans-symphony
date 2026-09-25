@@ -7,6 +7,7 @@
 // "what belongs to this day", two renderers.
 
 import { useMemo } from "react";
+import { activityDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { startOfDay, endOfDay } from "date-fns";
 import { base44, localEntities } from "@/api/base44Client";
@@ -76,7 +77,7 @@ export function sliceTimelineDay(src, day, filters = {}) {
 
   const dayActivities = showActivities
     ? src.activities.filter((a) => {
-        const t = parseDate(a.timestamp);
+        const t = activityDate(a);
         const tMs = t.getTime();
         const duration = Math.max(a.duration_minutes || 0, 0);
         const endMs = duration > 0 ? tMs + duration * 60 * 1000 : tMs + 1;

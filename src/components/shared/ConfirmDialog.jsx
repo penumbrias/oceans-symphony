@@ -25,6 +25,25 @@ import {
 
 let _show = null;
 
+// Text-input variant of confirm(): resolves the trimmed string the user
+// entered, or null when they cancel. The house replacement for
+// window.prompt() (unstyled, blocks the thread, suppressed on some
+// Android WebViews and on desktop).
+//
+//   const name = await promptText({ title: "New folder", placeholder: "Folder name" });
+//   const name = await promptText({ title: "Rename", defaultValue: current });
+export function promptText(opts) {
+  const options = typeof opts === "string" ? { title: opts } : (opts || {});
+  if (!_show) {
+    return Promise.resolve(
+      typeof window !== "undefined" && typeof window.prompt === "function"
+        ? window.prompt(options.body || options.title || "", options.defaultValue || "")
+        : null
+    );
+  }
+  return _show({ ...options, input: true, confirmLabel: options.confirmLabel || "OK" });
+}
+
 export function confirm(opts) {
   const options = typeof opts === "string" ? { body: opts } : (opts || {});
   if (!_show) {
@@ -41,12 +60,14 @@ export function confirm(opts) {
 
 export function ConfirmRoot() {
   const [options, setOptions] = useState(null);
+  const [text, setText] = useState("");
   const resolveRef = useRef(null);
 
   useEffect(() => {
     _show = (opts) =>
       new Promise((resolve) => {
         resolveRef.current = resolve;
+        setText(opts?.input ? String(opts.defaultValue ?? "") : "");
         setOptions(opts);
       });
     return () => { _show = null; };
@@ -56,9 +77,12 @@ export function ConfirmRoot() {
   // onOpenChange(false) that Radix fires can't double-resolve.
   const settle = (result) => {
     const r = resolveRef.current;
+    const isInput = !!options?.input;
     resolveRef.current = null;
     setOptions(null);
-    if (r) r(result);
+    if (!r) return;
+    if (isInput) r(result ? text.trim() : null);
+    else r(result);
   };
 
   const o = options || {};
@@ -69,6 +93,17 @@ export function ConfirmRoot() {
           <AlertDialogTitle>{o.title || "Are you sure?"}</AlertDialogTitle>
           {o.body ? <AlertDialogDescription>{o.body}</AlertDialogDescription> : null}
         </AlertDialogHeader>
+        {o.input && (
+          <input
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); settle(true); } }}
+            placeholder={o.placeholder || ""}
+            aria-label={o.title || "Value"}
+            className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => settle(false)}>
             {o.cancelLabel || "Cancel"}

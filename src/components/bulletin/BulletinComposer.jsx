@@ -265,7 +265,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       whisperRecipientIds = [...whisperTo];
       isWhisper = true;
     } else {
-      const w = applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "bulletin" });
+      const w = await applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "bulletin" });
       if (w === null) return; // user backed out of the whole-blur warning (finally resets saving)
       cleanContent = w.content;
       whisperRecipientIds = w.recipientIds || [];

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format } from "date-fns";
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 import { datesForDay } from "@/lib/importantDates";
 import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -417,7 +417,7 @@ export default function ActivityWeeklyGrid({
       if (!a.is_quick_plan) continue;
       const st = statusFor(a);
       if (st === ACTIVITY_STATUSES.CANCELLED || st === ACTIVITY_STATUSES.SKIPPED) continue;
-      const dayKey = format(parseDate(a.timestamp), "yyyy-MM-dd");
+      const dayKey = format(activityDate(a), "yyyy-MM-dd");
       if (!m.has(dayKey)) m.set(dayKey, []);
       m.get(dayKey).push(a);
     }
@@ -445,7 +445,7 @@ export default function ActivityWeeklyGrid({
   const getEmotionsForSlot = useCallback((date, hour, minute) => _getEmotionsForSlot(date, hour, minute, gridInterval, activities, emotionCheckIns), [emotionCheckIns, activities, gridInterval]);
 
   const isFirstSlotForActivity = useCallback((act, date, hour, minute) => {
-    const actStart = parseDate(act.timestamp);
+    const actStart = activityDate(act);
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
     const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
@@ -453,7 +453,7 @@ export default function ActivityWeeklyGrid({
   }, [gridInterval]);
 
   const isLastSlotForActivity = useCallback((act, date, hour, minute) => {
-    const actEnd = new Date(parseDate(act.timestamp).getTime() + act.duration_minutes * 60 * 1000);
+    const actEnd = new Date(activityDate(act).getTime() + act.duration_minutes * 60 * 1000);
     const slotEnd = new Date(date);
     slotEnd.setHours(hour, minute, 0, 0);
     slotEnd.setTime(slotEnd.getTime() + gridInterval * 60 * 1000);
@@ -462,7 +462,7 @@ export default function ActivityWeeklyGrid({
 
   const getDayStats = useCallback((date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const dayActs = activities.filter(a => format(parseDate(a.timestamp), "yyyy-MM-dd") === dateStr);
+    const dayActs = activities.filter(a => format(activityDate(a), "yyyy-MM-dd") === dateStr);
     return {
       count: dayActs.length,
       duration: dayActs.reduce((s, a) => s + (a.duration_minutes || 0), 0),
@@ -722,7 +722,7 @@ if (isSameCell) {
       window.removeEventListener("pointerup", handleDragSelectPointerUp);
       window.removeEventListener("pointercancel", handleDragSelectPointerUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [dragSelectEnd, handleDragSelectPointerMove, handleDragSelectPointerUp]);
 
   // Mount-once non-passive touchmove listener. Has to be attached

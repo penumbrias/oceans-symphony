@@ -22,7 +22,7 @@ import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import AlterAssignChip from "@/components/shared/AlterAssignChip";
-import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
+import DiarySection, { hasDiaryData, extraDiaryGroups } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -926,7 +926,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
         } catch (e) {
           // Non-fatal — the emotion edit still saved.
-          // eslint-disable-next-line no-console
+           
           console.warn("Symptom edit propagation failed", e);
         }
         // Activities/diary/location added during edit are new records —
@@ -955,7 +955,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               self_harm_occurred: diaryData.skills.self_harm_occurred,
               substances_count: diaryData.skills.substances_count
             } : null,
-            notes: trimmedNote ? { optional: trimmedNote } : null
+            notes: trimmedNote ? { optional: trimmedNote } : null,
+            custom_groups: extraDiaryGroups(diaryData),
           });
           queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
         }
@@ -1139,7 +1140,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             substances_count: diaryData.skills.substances_count
           } :
           null,
-          notes: note.trim() ? { optional: note.trim() } : null
+          notes: note.trim() ? { optional: note.trim() } : null,
+          custom_groups: extraDiaryGroups(diaryData),
         });
         queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
       }
