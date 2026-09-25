@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { runAutoBackupNow } from "@/lib/autoBackup";
 import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -822,6 +824,27 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // wipe them). Done first, before touching anything, so cancelling is clean.
     let clearOtherSystemIds = null;
     if (importMode === "replace") {
+      // Storage invariant: a destructive restore confirms and saves a copy
+      // first — the same rails every other wipe path (Octocon, OpenPlural,
+      // Delete All, recovery reset) already has. This was the one path
+      // that deleted the active system on a single radio button.
+      const ok = await confirm({
+        title: "Replace all data?",
+        body: "This permanently deletes everything in the current system and restores the file in its place. A full backup of your current data is saved to your device first.",
+        confirmLabel: "Back up, then replace",
+        destructive: true,
+      });
+      if (!ok) { traceEnd("cancelled at replace confirm"); setImportLoading(false); return; }
+      try {
+        const backupResult = await runAutoBackupNow();
+        if (backupResult === "cancelled") {
+          toast.error("Backup was cancelled — nothing was replaced.");
+          traceEnd("cancelled at safety backup"); setImportLoading(false); return;
+        }
+      } catch (e) {
+        toast.error(`Couldn't save a safety backup, so nothing was replaced: ${e?.message || e}`);
+        traceEnd("safety backup failed"); setImportLoading(false); return;
+      }
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
       if (others.length > 0) {
         const decision = await promptKeepClearSystems(others);

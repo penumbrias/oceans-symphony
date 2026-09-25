@@ -9,6 +9,8 @@ import {
   isEncryptionEnabled, setEncryptionEnabled,
 } from "@/lib/storageMode";
 import { enableEncryption, disableEncryption, clearStoredData } from "@/lib/localDb";
+import { runAutoBackupNow } from "@/lib/autoBackup";
+import { BACKUP_LS_KEYS } from "@/lib/backupKeys";
 import PersistentStorageStatus from "./PersistentStorageStatus";
 
 export default function StorageModeSettings() {
@@ -32,6 +34,21 @@ export default function StorageModeSettings() {
     if (deleteInput.trim().toLowerCase() !== "delete my data") return;
     setDeleting(true);
     try {
+      // Storage invariant: anything that destroys data saves a copy first.
+      // Same path as the Octocon / OpenPlural wipes — cancelling the
+      // backup cancels the wipe, and a failed backup never deletes.
+      try {
+        const backupResult = await runAutoBackupNow();
+        if (backupResult === "cancelled") {
+          setError("Backup was cancelled — nothing was deleted.");
+          setDeleting(false);
+          return;
+        }
+      } catch (e) {
+        setError(`Couldn't save a safety backup, so nothing was deleted: ${e?.message || e}`);
+        setDeleting(false);
+        return;
+      }
       // Best-effort: tear down the Friends profile on the cloud relay first so
       // the user is unsynced from every friend before local data goes away.
       // (deleteIdentity itself already swallows network failures.)
@@ -52,8 +69,12 @@ export default function StorageModeSettings() {
       // onboarding. disclaimer_acknowledged_v1 is included deliberately —
       // it used to survive the wipe, so a fully-reset app skipped the
       // disclaimer while re-showing everything else (inconsistent).
+      // Every backed-up preference key too — some real content (the
+      // always-unlocked grocery lists) and several preferences don't use
+      // the symphony_ prefix and used to survive "Delete Everything".
+      const extraKeys = new Set([...BACKUP_LS_KEYS, "terms_setup_done", "tour_seen", "disclaimer_acknowledged_v1"]);
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen" || key === "disclaimer_acknowledged_v1") {
+        if (key.startsWith("symphony_") || extraKeys.has(key)) {
           localStorage.removeItem(key);
         }
       });
@@ -252,7 +273,7 @@ export default function StorageModeSettings() {
         {showDeleteConfirm && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
             <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
-            <p className="text-xs text-muted-foreground">All your local data will be permanently deleted. This cannot be undone. Make sure you have a backup first!</p>
+            <p className="text-xs text-muted-foreground">All your local data will be permanently deleted. This cannot be undone. A full backup is saved to your device first — cancelling that backup cancels the delete.</p>
             <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my data</span> to confirm:</p>
             <Input
               value={deleteInput}

@@ -18,6 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "September 25, 2026",
+    changes: [
+      { type: "fix", text: "Editing a private (encrypted) journal entry no longer wrecks it. Saving used to blank the entry or lock it behind a password that never worked again; it now re-encrypts with the password you opened it with." },
+      { type: "fix", text: "Editing a past System Meeting no longer kicks co-fronters off front or logs the meeting's feelings a second time. New meetings now log their \"feelings noticed\" to the check-in log as intended." },
+      { type: "fix", text: "Android + self-hosted relay: the background friends check now talks to your own relay instead of the default one, so your login details stay with your server and background notifications work." },
+      { type: "fix", text: "Fixed a freeze when opening \"Add to groups\" (or ticking \"Include alters from subgroups\") on a group tree that loops back on itself." },
+      { type: "fix", text: "\"Delete All Local Data\" now saves a full backup first and also clears the always-unlocked grocery lists and other settings it used to leave behind." },
+      { type: "fix", text: "\"Replace All\" when importing a backup now asks you to confirm and saves a full backup first, like every other replace." },
+    ],
+  },
+  {
     date: "September 23, 2026",
     version: "0.243.0",
     changes: [

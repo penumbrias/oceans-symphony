@@ -203,65 +203,30 @@ export default function SystemCheckInPage() {
       // check-in log exactly like a Quick Check-In does. Each participant
       // gets its own row (their feelings are recorded separately).
       await syncParticipantEmotions(formData.participants);
+      // Who's near comes from the "Notice who's near" section; old drafts
+      // may still carry step2_notice.alters_present, so fold both together.
+      const participantIds = normalizeParticipants(formData.participants).map((p) => p.alter_id);
+      const legacyPresent = formData.step2_notice?.alters_present || [];
+      const presentIds = [...new Set([...participantIds, ...legacyPresent])].filter((id) => alters.some((a) => a.id === id));
+      await syncStep2Feelings(presentIds);
       toast.success("Check-in saved!");
       setFormData({});
       setView("list");
       return;
     }
-    // Who's near now comes from the single "Notice who's near" participants
-    // section. Old records may still carry step2_notice.alters_present, so fold
-    // both together for back-compat. These ids update the active front session.
-    const participantIds = normalizeParticipants(formData.participants).map((p) => p.alter_id);
-    const legacyPresent = formData.step2_notice?.alters_present || [];
-    const altersPresent = [...new Set([...participantIds, ...legacyPresent])];
-    const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
-   if (alterIds.length > 0) {
-  try {
-    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-    if (activeSessions.length > 0) {
-      // Additive — merge noticed alters into existing session without ending it
-      const session = activeSessions[0];
-      const existing = [
-        session.primary_alter_id, 
-        ...(session.co_fronter_ids || [])
-      ].filter(Boolean);
-      const merged = [...new Set([...existing, ...alterIds])];
-      await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: merged[0],
-        co_fronter_ids: merged.slice(1),
-      });
-      // End any duplicate active sessions
-      for (const s of activeSessions.slice(1)) {
-        await base44.entities.FrontingSession.update(s.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-      }
-    } else {
-      // No active session — create one
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: alterIds[0],
-        co_fronter_ids: alterIds.slice(1),
-        start_time: new Date().toISOString(),
-        is_active: true,
-      });
-    }
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-  } catch (err) {
-    console.error("Failed to update front from check-in", err);
-  }
-}
+    // Editing an existing meeting stops here. A past meeting never touches
+    // the live front (this used to close every co-fronter's session and
+    // write the legacy primary/co-fronter shape onto a per-alter session),
+    // and its feelings were already logged when it was first saved.
+  };
 
-
-    // Sync feelings to EmotionCheckIn so they appear in analytics
-    // exactly the same way a Quick Check-In does — fronting alters from
-    // Step 2's "alters present" picker, plus the sensations and notes
-    // text folded into the EmotionCheckIn note so therapy reports,
-    // analytics, and the check-in log all show the context.
-    //
-    // Legacy back-compat: Step 2 used to store feelings as a comma/
-    // semicolon-separated string instead of an array.
+  // Step 2 "Feelings noticed" → one system-wide EmotionCheckIn so the
+  // meeting's feelings appear in analytics, the check-in log and reports
+  // exactly like a Quick Check-In does. New meetings only.
+  //
+  // Legacy back-compat: Step 2 used to store feelings as a comma/
+  // semicolon-separated string instead of an array.
+  const syncStep2Feelings = async (alterIds) => {
     const feelings = formData.step2_notice?.feelings;
     let emotionLabels = [];
     if (Array.isArray(feelings)) {
@@ -269,24 +234,23 @@ export default function SystemCheckInPage() {
     } else if (typeof feelings === "string" && feelings.trim()) {
       emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
     }
-    if (emotionLabels.length > 0) {
-      const sensations = (formData.step2_notice?.sensations || "").trim();
-      const stepNotes = (formData.step2_notice?.notes || "").trim();
-      const noteParts = ["From system check-in"];
-      if (sensations) noteParts.push(`Sensations: ${sensations}`);
-      if (stepNotes) noteParts.push(`Notes: ${stepNotes}`);
-      try {
-        await base44.entities.EmotionCheckIn.create({
-          timestamp: new Date().toISOString(),
-          emotions: emotionLabels,
-          fronting_alter_ids: alterIds,
-          note: noteParts.join(". "),
-        });
-        queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-      } catch (e) {
-        console.error("Failed to save check-in emotions", e);
-        toast.error("Couldn't save your emotions to the log.");
-      }
+    if (emotionLabels.length === 0) return;
+    const sensations = (formData.step2_notice?.sensations || "").trim();
+    const stepNotes = (formData.step2_notice?.notes || "").trim();
+    const noteParts = ["From system check-in"];
+    if (sensations) noteParts.push(`Sensations: ${sensations}`);
+    if (stepNotes) noteParts.push(`Notes: ${stepNotes}`);
+    try {
+      await base44.entities.EmotionCheckIn.create({
+        timestamp: new Date().toISOString(),
+        emotions: emotionLabels,
+        fronting_alter_ids: alterIds,
+        note: noteParts.join(". "),
+      });
+      queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+    } catch (e) {
+      console.error("Failed to save check-in emotions", e);
+      toast.error("Couldn't save your emotions to the log.");
     }
   };
 

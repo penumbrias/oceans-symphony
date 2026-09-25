@@ -36,7 +36,11 @@ const KEY_LAST_STATE = "friend_last_state_v1";
 // (src/lib/fcmPush.js + /api/friends/update-front) delivers the same
 // friend-front changes instantly, so notifying here too would double-buzz.
 const KEY_FCM_ACTIVE = "friend_fcm_active";
-const API_BASE = "https://oceans-symphony.app/api/friends";
+// Default relay only. The main app pushes the user's ACTUAL relay base
+// (their self-hosted override, or the default) with the identity — see
+// KEY_API_BASE / setIdentity. Never post credentials anywhere else.
+const DEFAULT_API_BASE = "https://oceans-symphony.app/api/friends";
+const KEY_API_BASE = "friend_api_base";
 // Mirrors REMINDERS_CHANNEL_ID / SWITCH_CHANNEL_ID over in
 // src/lib/nativeNotifications.js — kept in sync manually because this
 // file can't import from there. If you rename a channel id in the
@@ -78,7 +82,9 @@ addEventListener("checkFriends", async (resolve, reject) => {
       return;
     }
 
-    const url = `${API_BASE}/list`;
+    let apiBase = DEFAULT_API_BASE;
+    try { const stored = CapacitorKV.get(KEY_API_BASE); if (stored) apiBase = String(stored); } catch (_) { /* default */ }
+    const url = `${apiBase}/list`;
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, secret }) });
     if (!res || !res.ok) {
       resolve();
@@ -153,6 +159,10 @@ addEventListener("setIdentity", (resolve, reject, args) => {
     if (args && args.userId && args.secret) {
       CapacitorKV.set(KEY_USER_ID, String(args.userId));
       CapacitorKV.set(KEY_SECRET, String(args.secret));
+      // The relay these credentials belong to. A self-hosted relay's
+      // identity must never be posted to the default host.
+      if (args.apiBase) CapacitorKV.set(KEY_API_BASE, String(args.apiBase));
+      else { try { CapacitorKV.remove(KEY_API_BASE); } catch (_) { /* ignore */ } }
     }
     if (args && args.resetState) {
       try { CapacitorKV.remove(KEY_LAST_STATE); }
@@ -183,5 +193,6 @@ addEventListener("clearIdentity", (resolve) => {
   try { CapacitorKV.remove(KEY_SECRET); } catch (_) {}
   try { CapacitorKV.remove(KEY_LAST_STATE); } catch (_) {}
   try { CapacitorKV.remove(KEY_FCM_ACTIVE); } catch (_) {}
+  try { CapacitorKV.remove(KEY_API_BASE); } catch (_) {}
   resolve();
 });

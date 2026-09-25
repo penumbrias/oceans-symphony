@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
+import { toast } from "sonner";
 import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions, extractMentionedIds, htmlToPlainText } from "@/lib/mentionUtils";
@@ -319,8 +320,27 @@ useEffect(() => {
 
   const handleSave = async () => {
     let finalContent = content;
-    if (isEncrypted && encryptionPassword) {
-      finalContent = await encryptContent(content, encryptionPassword);
+    if (isEncrypted) {
+      // An existing encrypted entry keeps the password it was decrypted
+      // with, so saving re-encrypts with the same one. Never let a save
+      // through without a password: that used to write the plaintext
+      // (flagged encrypted, so unreadable forever) — or, before decrypting,
+      // an empty body over the ciphertext.
+      const editingEncrypted = !!editingEntryFinal?.is_encrypted;
+      if (editingEncrypted && showPasswordField) {
+        toast.error("Decrypt this entry before saving it.");
+        return;
+      }
+      const pw = editingEncrypted ? decryptionPassword : encryptionPassword;
+      if (!pw) {
+        toast.error("Enter the entry password before saving.");
+        return;
+      }
+      if (editingEncrypted && !content.trim() && editingEntryFinal.content) {
+        toast.error("This entry is empty — delete it instead of saving a blank version.");
+        return;
+      }
+      finalContent = await encryptContent(content, pw);
     }
     // Hashtags typed in the body become tags (merged with any existing).
     // Extraction runs on the PLAINTEXT content — an encrypted body can't be
@@ -663,7 +683,7 @@ useEffect(() => {
         <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
+            <Button onClick={handleSave} disabled={(isEncrypted && (editingEntryFinal?.is_encrypted ? (showPasswordField || !decryptionPassword) : !encryptionPassword)) || saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Entry
             </Button>
