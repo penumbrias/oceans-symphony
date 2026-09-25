@@ -443,11 +443,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose);
   useEffect(() => {
     onModalChange?.(anyModalOpen);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [anyModalOpen]);
   // If the host unmounts the toolbar anyway, don't leave it thinking a
   // modal is still up.
-  useEffect(() => () => onModalChange?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onModalChange?.(false), []);  
 
   const openWebLink = () => {
     saveSel();

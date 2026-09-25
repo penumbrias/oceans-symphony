@@ -15,7 +15,6 @@ import { detectLegacyCatalogue, planModernization, applyModernization, findCusto
 import { markBundlesChosen } from "@/utils/symptomDefaults";
 import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
-import { getSeedTerms } from "@/utils/symptomDefaults";
 
 const DISMISS_KEY = "symphony_legacy_catalogue_migration_dismissed_v1";
 

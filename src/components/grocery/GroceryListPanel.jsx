@@ -213,7 +213,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       window.removeEventListener("storage", handler);
     };
   }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const unlockedLists = useMemo(() => listUnlockedLists(), [unlockedNonce]);
 
   // ── Combined list catalogue.
@@ -256,7 +256,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
         toast.error(err?.message || "Couldn't create the default list");
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, lockedMode, idbAvailable, idbLists.length, unlockedLists.length, idbItems]);
 
   // Also backfill orphan items if a default list already exists.
@@ -274,7 +274,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       }
       qc.invalidateQueries({ queryKey: ["groceryItems"] });
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [idbAvailable, idbLists, idbItems]);
 
   // ── Resolve the active list. Fall back to the first visible one.
@@ -321,7 +321,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     // Only when the panel opens ONTO notes — a shopping list stays put.
     if (typeOf(activeList) !== "note") return;
     createQuickNote(activeList.source === "local");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, wantFreshNote, activeList]);
 
   // ── Items + favourites for the active list, routed through the
@@ -330,10 +330,10 @@ export default function GroceryListPanel({ lockedMode = false }) {
     if (!activeList) return [];
     if (activeList.source === "local") return listItemsForUnlockedList(activeList.id);
     return idbItems.filter((i) => i.list_id === activeList.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeList, idbItems, unlockedNonce]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const localFavorites = useMemo(() => listUnlockedFavorites(), [unlockedNonce]);
   const activeFavorites = activeList?.source === "local" ? localFavorites : idbFavorites;
 
@@ -395,7 +395,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       window.removeEventListener("open-grocery-list", onOpen);
       window.removeEventListener("close-grocery-list", onClose);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [lockOnClose, encryptionOn, lockedMode]);
 
   const handleCloseClick = () => {
@@ -1288,7 +1288,7 @@ function NotePad({ list, canAttach, onSave }) {
   // Flush any pending edit when the note unmounts (switching notes,
   // closing the panel) — auto-save must never lose the last keystrokes.
   useEffect(() => () => { clearTimeout(saveTimer.current); flush(); },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     []);
 
   const append = (addition) => {

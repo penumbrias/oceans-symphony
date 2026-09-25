@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { startOfDay, endOfDay, differenceInMinutes, getHours } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { startOfDay, endOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";

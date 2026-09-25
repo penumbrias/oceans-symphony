@@ -4,7 +4,7 @@
 // Setup checklist's Activity item alongside the "Add custom" button.
 
 import React, { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Check, Loader2, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";

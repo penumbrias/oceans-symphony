@@ -273,7 +273,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     // Deleting a description was the visible casualty: it came back on
     // the next refresh and then saved itself again (owner report —
     // "no matter what I do or how I edit it, it doesn't delete").
-  }, [alter?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [alter?.id]);  
 
   const bgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
   const bgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";

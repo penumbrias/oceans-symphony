@@ -125,7 +125,7 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
     if (!storeKey || navStack.length === 0 || allGroups.length === 0) return;
     const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
     if (valid.length !== navStack.length) setNavStack(valid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [allGroups, storeKey]);
 
   const current = navStack.length > 0 ? navStack[navStack.length - 1] : null;

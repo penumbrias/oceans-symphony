@@ -1,7 +1,7 @@
 // reportSections.js — data extraction and formatting for each report section
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
-import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import { format, differenceInMinutes, parseISO } from "date-fns";
 import { effectiveSeverity, isContextItem, deriveDirection } from "./trackingModel";
 import {
   computeSymptomBaseline,

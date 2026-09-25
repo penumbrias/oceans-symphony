@@ -292,6 +292,9 @@ const AuthenticatedApp = () => {
 function App() {
   // Privacy page is always accessible — bypass all setup/unlock state.
   // QueryClientProvider is required because <Privacy> uses useTerms() → useQuery().
+  // Split from MainApp so this early return doesn't sit ABOVE the boot
+  // hooks (a rules-of-hooks violation that only worked because the path
+  // never changes during a page's life).
   if (window.location.pathname === '/privacy') {
     return (
       <ThemeProvider>
@@ -305,7 +308,10 @@ function App() {
       </ThemeProvider>
     );
   }
+  return <MainApp />;
+}
 
+function MainApp() {
   // Boot states:
   //   'booting'  → initial: peek storage, decide route
   //   'firstrun' → no data anywhere; show setup

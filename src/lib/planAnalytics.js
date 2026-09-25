@@ -19,7 +19,6 @@
 import { startOfWeek, addDays, addWeeks, format } from "date-fns";
 import {
   statusFor,
-  isResolved,
   ACTIVITY_STATUSES,
 } from "@/lib/activityStatus";
 

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
-import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
@@ -176,7 +174,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     if (!storeKey || navStack.length === 0 || allGroups.length === 0) return;
     const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
     if (valid.length !== navStack.length) setNavStack(valid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [allGroups, storeKey]);
 
   const current = navStack.length > 0 ? navStack[navStack.length - 1] : null;

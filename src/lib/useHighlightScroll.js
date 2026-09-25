@@ -61,7 +61,7 @@ export function useHighlightScroll(readyDeps = [], options = {}) {
       clearTimeout(findTimer);
       cleanupRef.current?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [highlightId, ...readyDeps]);
 }
 

@@ -9,7 +9,6 @@ import {
   buildAutoCompletedTriggers,
   isTaskCompleted,
   totalPossiblePoints,
-  getLevelFromTotalXP,
   DEFAULT_TASK_TEMPLATES,
   applyTerms,
   FREQUENCY_LABELS,

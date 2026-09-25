@@ -22,7 +22,7 @@
 // in localStorage like the existing reminder log. It is INTENTIONALLY
 // NOT backed up — same rationale as PushSubscription / FriendIdentity.
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isNative } from "@/lib/platform";
 import { isPreviewActive } from "@/lib/previewMode";

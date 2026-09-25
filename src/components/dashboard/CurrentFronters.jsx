@@ -328,7 +328,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
       symptoms: buildSymptomArr(symptomValues),
       note: note,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [controlled, note, localEmotions, symptomValues, symptoms]);
 
   const addCustomEmotionMutation = useMutation({

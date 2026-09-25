@@ -249,7 +249,7 @@ export default function GetToKnowMe() {
       const colors = picked.map((a) => a.color).filter(Boolean);
       setColorDraft(colors[0] || "#8b5cf6");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [questionId, currentQuestion]);
 
   // Surface existing values for the selected alters next to the

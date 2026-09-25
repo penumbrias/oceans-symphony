@@ -1,5 +1,5 @@
 import { Heart, Star, Clock, Sparkles } from "lucide-react";
-import { CATEGORY_EMOJIS, CATEGORY_LABELS, resolveCategory } from "@/utils/groundingDefaults";
+import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
 
 function StarRating({ rating, onRate }) {
   return (

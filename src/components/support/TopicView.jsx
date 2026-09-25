@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Circle, ChevronLeft, BookOpen, Loader2 } from "lucide-react";
 import InteractiveExercise from "./InteractiveExercise";
-import { format } from "date-fns";
 
 // CURRICULUM DATA — all topics defined here with stable IDs
 export const CURRICULUM = [

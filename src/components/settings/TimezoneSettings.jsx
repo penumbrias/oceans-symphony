@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
-import { TIMEZONE_GROUPS, ALL_TIMEZONES } from "@/lib/timezoneHelpers";
+import { TIMEZONE_GROUPS } from "@/lib/timezoneHelpers";
 import { ChevronRight } from "lucide-react";
 
 export default function TimezoneSettings() {

@@ -4,12 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Hash, Plus, Pencil, Trash2, X, Check, MessageSquare, ChevronDown, ChevronRight, Lock, Folder, PanelLeft } from "lucide-react";
+import { Hash, Plus, Pencil, Trash2, Check, MessageSquare, ChevronDown, ChevronRight, Lock, Folder, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTerms } from "@/lib/useTerms";
-import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { buildChatTree, eligibleChatParents, chatCategoriesById, chatCategoryDepth, migrateLegacyChatCategories, CHAT_CATEGORY_MAX_DEPTH } from "@/lib/chatCategories";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { ColorPickerModal } from "@/components/shared/MiniToolbar";
@@ -17,7 +16,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { GripVertical } from "lucide-react";
 import { CSS } from "@dnd-kit/utilities";
-import ChatSurface, { AlterAvatar } from "@/components/chat/ChatSurface";
+import { AlterAvatar } from "@/components/chat/ChatSurface";
 import ChannelView from "@/components/chat/ChannelView";
 
 // System Chat — Discord-style multi-channel chat for the system.
@@ -97,7 +96,7 @@ export default function Chat() {
         }
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [channelsLoaded, channels.length]);
 
   // One-time, non-destructive migration of legacy string categories into real
@@ -113,7 +112,7 @@ export default function Chat() {
         qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [channelsLoaded, categoriesLoaded]);
 
   const sortedChannels = useMemo(
@@ -183,14 +182,14 @@ export default function Chat() {
       if (match) return match;
     }
     return sortedChannels[0] || null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [sortedChannels, urlChannelId]);
 
   useEffect(() => {
     if (activeChannel && activeChannel.id !== urlChannelId) {
       setSearchParams({ channel: activeChannel.id }, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeChannel?.id]);
 
   const [createOpen, setCreateOpen] = useState(false);

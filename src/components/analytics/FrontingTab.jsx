@@ -458,7 +458,7 @@ function ReconnectionCard({ sessions, alters, altersById, terms, formatAlter, pr
 
   const list = useMemo(
     () => (optIn ? reconnectionList({ sessions, alters }).filter((r) => !muted.has(r.alterId)) : []),
-    [optIn, sessions, alters, prefs.analytics_reconnect_muted], // eslint-disable-line react-hooks/exhaustive-deps
+    [optIn, sessions, alters, prefs.analytics_reconnect_muted],  
   );
 
   return (

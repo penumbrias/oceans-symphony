@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, Plus, X, BookOpen, Loader2 } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, X, BookOpen, Loader2 } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -118,7 +118,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
     setSaveAsDream(!!sleep.journal_entry_id);
     // Keyed on id, not the object — an invalidation of the sleep list
     // mid-edit used to wipe typed notes back to the stored record.
-  }, [sleep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sleep?.id]);  
 
   const handleNightmareToggle = (val) => {
     setHadNightmare(val);

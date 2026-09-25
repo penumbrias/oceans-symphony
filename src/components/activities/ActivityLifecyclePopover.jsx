@@ -20,7 +20,6 @@ import {
   RECURRENCE_BRANCHES,
   membersForBranch,
   applyEditToSeries,
-  BRANCH_LABELS,
 } from "@/lib/recurrenceUtils";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import {

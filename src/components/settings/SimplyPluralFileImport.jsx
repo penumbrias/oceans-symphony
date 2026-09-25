@@ -165,7 +165,7 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
 
   useEffect(() => {
     if (presetFile) handleFile({ target: { files: [presetFile] } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [presetFile]);
 
   // Counts for the preview card.

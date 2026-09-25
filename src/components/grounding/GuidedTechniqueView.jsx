@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import { ArrowLeft, ArrowRight, Star, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";

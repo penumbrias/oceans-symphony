@@ -38,7 +38,7 @@ export function useBackupHealth() {
       window.removeEventListener("symphony-local-settings-restored", refresh);
       clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
   return health;
 }

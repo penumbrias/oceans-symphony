@@ -87,7 +87,7 @@ export default function BreathingExercise({
     setCircleSize(getTargetSize());
     const t = setTimeout(() => { snapRef.current = false; }, 200);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [maxSize]);
 
   useEffect(() => {

@@ -34,7 +34,7 @@ export function safeCssColor(value, fallback = null) {
 // Strip C0/C1 control characters and Unicode bidi-override/formatting marks
 // (U+202A–202E explicit overrides, U+2066–2069 isolates, U+200E/200F marks),
 // collapse leading/trailing whitespace, and cap the length.
-// eslint-disable-next-line no-control-regex
+ 
 const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069\u200E\u200F]/g;
 
 export function sanitizeRemoteText(value, maxLen = 120) {

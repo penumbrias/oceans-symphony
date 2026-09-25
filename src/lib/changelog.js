@@ -57,6 +57,10 @@ export const CHANGELOG = [
       { type: "fix", text: "Planner: the button says \"Plan\" (not \"Log\") for earlier today, matching what it actually creates." },
       { type: "fix", text: "Backup merge no longer imports another device's undo history, and only imports its deletion records when \"Also sync deletions\" is on." },
       { type: "hotfix", text: "Hotfix: terminology, the Guide, the tour and fronting levels all read the same settings row as the Profile; the lineage dialog uses your terms." },
+      { type: "fix", text: "Alter pickers now show names the way your alter-label setting says (name / alias / both) and search matches aliases too." },
+      { type: "fix", text: "Guide and tour: fixed directions that pointed at a \"Guide\" or \"Tour\" button that doesn't exist (they live in the ⚙ menu), a \"Delete member\" button that reads \"Delete alter\", and a promise about reminders that isn't true on the web app." },
+      { type: "fix", text: "The tour card no longer overlaps a taller bottom bar; the share-code message for setup packs is wrapped again; renaming a system you're not in now sticks." },
+      { type: "hotfix", text: "Hotfix: tooling — the whole source tree is linted now (hooks-dependency warnings on), 110 unused imports removed." },
     ],
   },
   {

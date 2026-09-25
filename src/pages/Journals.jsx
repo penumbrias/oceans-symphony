@@ -221,7 +221,7 @@ export default function Journals() {
       params.delete("compose");
       window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useMentionHighlight("id", entries.length > 0);
@@ -373,7 +373,7 @@ export default function Journals() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [fronterMenuOpen]);
 
   // Anchor + clamp the author dropdown to its trigger (fixed-positioned).

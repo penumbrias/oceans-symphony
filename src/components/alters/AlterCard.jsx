@@ -1,10 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";

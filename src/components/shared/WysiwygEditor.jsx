@@ -63,7 +63,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
 
   useEffect(() => {
     applyValue(value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {

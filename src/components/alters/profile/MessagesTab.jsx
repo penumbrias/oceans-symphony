@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText, Activity, Smile, StickyNote } from "lucide-react";
+import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, Activity, Smile, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";

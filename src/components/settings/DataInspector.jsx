@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Download, Trash2, Loader2, RefreshCw, ShieldCheck, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +59,7 @@ export default function DataInspector() {
     }
   };
 
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
 
   const handleExport = async (cat) => {
     setBusyCatId(cat.id);

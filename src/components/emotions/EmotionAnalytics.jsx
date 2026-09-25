@@ -104,7 +104,7 @@ export default function EmotionAnalytics({ from, to }) {
       out.push({ ts, labels, alterIds: alterId ? [alterId] : [] });
     }
     return out.sort((a, b) => a.ts - b.ts);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [checkIns, sessions, +from, +to, inferAlters]);
 
   // 1) Frequency counts (sorted, readable)
@@ -197,7 +197,7 @@ export default function EmotionAnalytics({ from, to }) {
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [events, activities, +from, +to]);
 
   // 5) Emotion ↔ symptom correlation (same ±90min window)
@@ -223,7 +223,7 @@ export default function EmotionAnalytics({ from, to }) {
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [events, symptomCheckIns, symptomsById, +from, +to]);
 
   // 6) Frequency over time. Auto-bucket: <=14 days = daily, <=120 = weekly,

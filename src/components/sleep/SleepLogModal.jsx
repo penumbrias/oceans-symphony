@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, Plus, X, BookOpen } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, X, BookOpen } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (

@@ -279,7 +279,7 @@ export default function CurrentSymptoms() {
       setPendingSessId(null);
       try { localStorage.removeItem(PENDING_SYMPTOM_MENU_KEY); } catch { /* */ }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pendingSessId, activeSessions, symptoms]);
 
   if (active.length === 0) return null;

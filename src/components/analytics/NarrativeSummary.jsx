@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { computeSymptomBaseline, generateWeeklyNarrative, computePreSwitchSignature, computeEarlyWarningStatus } from "@/lib/analyticsEngine";
-import { AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle } from "lucide-react";
 
 const STATUS_CONFIG = {
   warning: {

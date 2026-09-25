@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import { Activity, Heart } from "lucide-react";
-import { cn } from "@/lib/utils";
 import AlterAvatarInline from "@/components/shared/AlterAvatar";
 
 export default function TimelineItem({ item, alters, allItems }) {

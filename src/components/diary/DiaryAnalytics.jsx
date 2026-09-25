@@ -1,16 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { format, parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 import { SYMPTOMS } from "./SymptomsChecklistPanel";
-import RatingsChart from "./analytics/RatingsChart";
-import HabitImpactChart from "./analytics/HabitImpactChart";
 import AlterLoggingChart from "./analytics/AlterLoggingChart";
-import WellnessOverview from "./analytics/WellnessOverview";
 import DayOfWeekHeatmap from "./analytics/DayOfWeekHeatmap";
 import MetricFluctuationsChart from "./analytics/MetricFluctuationsChart";
 import DiaryHeatmap from "./analytics/DiaryHeatmap";
 import SymptomGridTable from "./analytics/SymptomGridTable";
 import SymptomTrendCharts from "./analytics/SymptomTrendCharts";
-import SymptomSelector from "./analytics/SymptomSelector";
 import EmotionsChart from "./analytics/EmotionsChart";
 import UrgesToChart from "./analytics/UrgesToChart";
 import MedicationChart from "./analytics/MedicationChart";

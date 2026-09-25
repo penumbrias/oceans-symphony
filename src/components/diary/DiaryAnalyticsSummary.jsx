@@ -252,7 +252,7 @@ export default function DiaryAnalyticsSummary({
     if (filteredCheckIns.length === 0) return null;
     const distressed = filteredCheckIns.filter(isCheckInDistressing).length;
     return Math.round((distressed / filteredCheckIns.length) * 100);
-  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filteredCheckIns, distressLabelSet]);  
 
   // Categorize a single emotion label using the merged builtin + custom
   // map. Unknown labels fall back to "neutral" — better than dropping
@@ -315,7 +315,7 @@ export default function DiaryAnalyticsSummary({
     for (const e of emotionEvents) counts[labelCategory(e.label)] += 1;
     const total = counts.good + counts.neutral + counts.bad + counts.body;
     return { counts, total };
-  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, emotionCategory]);  
 
   // Body & Nervous System breakdown — every body-category emotion falls
   // into one of Calm / Flight / Fight / Freeze / Collapse via
@@ -331,7 +331,7 @@ export default function DiaryAnalyticsSummary({
     }
     const total = BODY_SUB_ORDER.reduce((s, k) => s + counts[k], 0);
     return { counts, total };
-  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, emotionCategory]);  
 
   const bodyTrendByDay = useMemo(() => {
     const byDay = new Map();
@@ -349,7 +349,7 @@ export default function DiaryAnalyticsSummary({
       byDay.set(day, bucket);
     }
     return [...byDay.values()];
-  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, emotionCategory]);  
 
   // Time-of-day distribution (hour 0-23) for check-ins. Useful "when
   // do I tend to feel this way" pattern.
@@ -367,7 +367,7 @@ export default function DiaryAnalyticsSummary({
       if (isCheckInDistressing(ci)) buckets[h].distress += 1;
     }
     return buckets;
-  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filteredCheckIns, distressLabelSet]);  
 
   // Stacked emotional balance per day. Built from emotionEvents so
   // all three sources (check-ins, diary cards, session emotions)
@@ -382,7 +382,7 @@ export default function DiaryAnalyticsSummary({
       byDay.set(day, bucket);
     }
     return [...byDay.values()];
-  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, emotionCategory]);  
 
   // Distress trend (daily %).
   const distressTrend = useMemo(() => {
@@ -398,7 +398,7 @@ export default function DiaryAnalyticsSummary({
     return [...byDay.values()]
       .filter((b) => b.total > 0)
       .map((b) => ({ date: b.day, rate: Math.round((b.distress / b.total) * 100) }));
-  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filteredCheckIns, distressLabelSet]);  
 
   // Daily entry count (any kind).
   const frequencyTrend = useMemo(() => {
@@ -428,7 +428,7 @@ export default function DiaryAnalyticsSummary({
         count,
         category: labelCategory(label),
       }));
-  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, emotionCategory]);  
 
   // Top symptoms with severity averages and emotional context.
   const topSymptoms = useMemo(() => {
@@ -533,7 +533,7 @@ export default function DiaryAnalyticsSummary({
       })
       .sort((a, b) => (b.checkinCount + b.totalEmotions) - (a.checkinCount + a.totalEmotions))
       .slice(0, 10);
-  }, [emotionEvents, filteredCheckIns, filteredSessions, alterById, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [emotionEvents, filteredCheckIns, filteredSessions, alterById, emotionCategory]);  
 
   // Distress co-occurrence — what other things were logged around the
   // same time as distress check-ins? Looks within +/- 30 minutes of
@@ -593,7 +593,7 @@ export default function DiaryAnalyticsSummary({
       topSymptoms: top(cooccurringSymptoms),
       topActivities: top(cooccurringActivities),
     };
-  }, [filteredCheckIns, filteredSymptomCheckIns, filteredActivities, symptomById, categoryById, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filteredCheckIns, filteredSymptomCheckIns, filteredActivities, symptomById, categoryById, distressLabelSet]);  
 
   // Mood Trend (diary-only) — kept conditional so the page doesn't
   // get a "Need at least 2 rated diary entries" placeholder.

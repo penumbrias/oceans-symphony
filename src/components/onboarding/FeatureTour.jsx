@@ -151,8 +151,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     {
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "👥",
-      title: `Set ${t.Front}ers — Select`,
-      body: `The Set ${t.Front}ers window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar, pronouns, and their ${t.fronting} level — × removes them, and tapping any ${t.alter} in the list below adds them. Levels default to ${t.Fronting} / Co-${t.fronting}; add more (like Observing) in Settings → Tracking setup. Whoever sits at the topmost level leads automatically.`,
+      title: `Set ${t.Fronters} — Select`,
+      body: `The Set ${t.Fronters} window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar, pronouns, and their ${t.fronting} level — × removes them, and tapping any ${t.alter} in the list below adds them. Levels default to ${t.Fronting} / Co-${t.fronting}; add more (like Observing) in Settings → Tracking setup. Whoever sits at the topmost level leads automatically.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
       route: "/", target: null,
@@ -326,16 +326,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `The Options tab has Archive (hides the ${t.alter} from the main grid and ${t.fronting} counts without deleting them — useful for inactive ${t.alters}), Merge (ended up with a duplicate from an import? Move everything onto the original and remove the copy), and the Danger Zone delete button which permanently removes them and all their data.`,
       route: ai ? `/alter/${ai}?tab=options` : "/Home",
       target: ai ? "alter-profile-delete" : null,
-      look: ai ? `the highlighted "Delete member" button at the bottom of the Options tab` : `open an ${t.alter} profile, tap Options, and look for Archive and Delete`, action: null,
+      look: ai ? `the highlighted "Delete ${t.alter}" button at the bottom of the Options tab` : `open an ${t.alter} profile, tap Options, and look for Archive and Delete`, action: null,
     },
     ...(tourAlterWasCreated && ai ? [{
       section: "alters", sectionLabel: t.Alters,
       emoji: "🗑️",
       title: "Clean Up Demo Profile",
-      body: `The "Tour Demo" profile was created just for this tour. You're on the Options tab now — tap "Delete member" to remove it. The tour will also auto-delete it when you tap Done or close the tour, so it's safe to skip this step too.`,
+      body: `The "Tour Demo" profile was created just for this tour. You're on the Options tab now — tap "Delete ${t.alter}" to remove it. The tour will also auto-delete it when you tap Done or close the tour, so it's safe to skip this step too.`,
       route: `/alter/${ai}?tab=options`,
       target: "alter-profile-delete",
-      look: `the highlighted "Delete member" button — tap it to delete the demo profile`, action: null,
+      look: `the highlighted "Delete ${t.alter}" button — tap it to delete the demo profile`, action: null,
     }] : []),
 
     // ─── TIMELINE ───────────────────────────────────────────────────────────
@@ -992,7 +992,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "done", sectionLabel: "Done!",
       emoji: "💜",
       title: "Tour Complete 🎉",
-      body: `You've explored every page and feature of Oceans Symphony. The app is designed for dissociative ${t.system}s — log at your own pace, and nothing forgotten in the moment is lost forever. The Tour button on the dashboard is always there if you want to revisit. Take good care. 💜`,
+      body: `You've explored every page and feature of Oceans Symphony. The app is designed for dissociative ${t.system}s — log at your own pace, and nothing forgotten in the moment is lost forever. You can replay this tour any time from the ⚙ menu on the home screen (Feature tour) or Settings → About. Take good care. 💜`,
       route: null, target: null, look: null, action: null,
     },
   ];
@@ -1259,7 +1259,8 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
 
       {/* Tour card — portal-rendered as last body child so z-[100] always wins.
           Moves to top when the spotlight is in the bottom half of the screen. */}
-      <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : "bottom-16"}`}>
+      <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : ""}`}
+        style={cardAtTop ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">

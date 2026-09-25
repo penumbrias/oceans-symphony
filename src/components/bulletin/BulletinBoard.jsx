@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, Search, X, CheckSquare, MessageCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Pin, Search, X, MessageCircle } from "lucide-react";
 import TaskBulletinCard from "./TaskBulletinCard";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
@@ -10,7 +10,6 @@ import QuickTaskComposer from "./QuickTaskComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
-import { toast } from "sonner";
 import { getBulletinBatchSize } from "@/lib/bulletinLimit";
 
 export default function BulletinBoard({

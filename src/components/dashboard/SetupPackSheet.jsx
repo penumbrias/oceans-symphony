@@ -254,7 +254,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     setPageOpen(null);
     setStyleSel(new Set((userStyles || []).map((st) => st.id)));
     setIncLook(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
   const togglePage = (id) => setPageSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleStyle = (id) => setStyleSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -334,9 +334,9 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
   const copy = async () => {
     try {
       const code = await encodePackCompact(pack);
-      const message = code.startsWith("OSPACK1.") ? formatShareMessage(pack, code) : code;
+      const message = code.startsWith("OSPACK") ? formatShareMessage(pack, code) : code;
       await navigator.clipboard.writeText(message);
-      toast.success(code.startsWith("OSPACK1.") ? "Copied — paste the whole message to share it" : "Copied");
+      toast.success(code.startsWith("OSPACK") ? "Copied — paste the whole message to share it" : "Copied");
     } catch { toast.error("Couldn't copy — use Download instead"); }
   };
 
@@ -589,7 +589,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
               {manualPaste && (
                 <div className="space-y-1.5">
                   <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
-                    placeholder={'Long-press → Paste the share code (OSPACK1.…) or pack text here'}
+                    placeholder={'Long-press → Paste the share code (OSPACK2.…) or pack text here'}
                     rows={4}
                     className="w-full px-2.5 py-2 rounded-lg border border-border/50 bg-transparent text-[0.6875rem] font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
                   <button type="button" disabled={!manualText.trim()}

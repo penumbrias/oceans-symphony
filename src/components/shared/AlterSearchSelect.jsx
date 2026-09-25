@@ -2,6 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAlterSorter } from "@/lib/alterSort";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check, FolderTree } from "lucide-react";
@@ -80,11 +81,17 @@ export default function AlterSearchSelect({
   // {Alter} setup) when the user has one, otherwise A→Z, with a one-tap
   // toggle in the search row. Whoever is fronting stays on top either way.
   const sorter = useAlterSorter("alterSearchSelect_sort", { frontingFirst });
+  // Names follow the user's alter-label setting (name / alias / both).
+  const { formatAlter } = useAlterLabel();
   const selected = value ? alters.find((a) => a.id === value) : null;
   const list = sorter.sort(
     alters
       .filter((a) => !a.is_archived)
-      .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase())),
+      .filter((a) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (a.name || "").toLowerCase().includes(q) || (a.alias || "").toLowerCase().includes(q);
+      }),
   );
   // Nested view (rule 23): the same sections every grouped member list
   // uses — a header per group/subsystem in the user's own tree order.
@@ -114,7 +121,7 @@ export default function AlterSearchSelect({
         {selected ? (
           <>
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(selected) }} />
-            <span className="flex-1 truncate">{selected.name}</span>
+            <span className="flex-1 truncate">{formatAlter(selected)}</span>
           </>
         ) : (
           <span className="flex-1 truncate text-muted-foreground">{placeholder}</span>
@@ -171,7 +178,7 @@ export default function AlterSearchSelect({
                     return (
                       <div key={keyPrefix + a.id} title={disabledLabel} className="w-full px-3 py-2 text-xs opacity-50 flex items-center gap-2 cursor-not-allowed">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(a) }} />
-                        <span className="flex-1 truncate line-through">{a.name}</span>
+                        <span className="flex-1 truncate line-through">{formatAlter(a)}</span>
                         <span className="text-[0.5625rem] italic text-muted-foreground flex-shrink-0">{disabledLabel}</span>
                       </div>
                     );
@@ -184,7 +191,7 @@ export default function AlterSearchSelect({
                       className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${value === a.id ? "bg-primary/5 text-primary" : ""}`}
                     >
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColor(a) }} />
-                      <span className="flex-1 truncate">{a.name}</span>
+                      <span className="flex-1 truncate">{formatAlter(a)}</span>
                       {value === a.id && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                     </button>
                   );
