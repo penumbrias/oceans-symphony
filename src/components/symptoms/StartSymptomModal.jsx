@@ -9,6 +9,9 @@ import { Play, Search } from "lucide-react";
 import { toLocalDatetimeValue, fromLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { startSymptomSession } from "@/lib/symptomSessions";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
@@ -20,6 +23,8 @@ const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
 // ever starts a session — no mode toggle.
 export default function StartSymptomModal({ isOpen, onClose }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [tab, setTab] = useState("symptom");
   const [search, setSearch] = useState("");
   const [selectedSymptomId, setSelectedSymptomId] = useState(null);
@@ -84,26 +89,40 @@ export default function StartSymptomModal({ isOpen, onClose }) {
       toast.error("Set an end time after the start");
       return;
     }
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "symptom note" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const cleanNotes = prepared.content.trim() || null;
     setStarting(true);
     try {
+      let sessionId = "";
       if (when === "past") {
         // A finished episode is a plain record — no active-session rules.
-        await base44.entities.SymptomSession.create({
+        const row = await base44.entities.SymptomSession.create({
           symptom_id: selectedSymptomId,
           start_time: startDate.toISOString(),
           is_active: false,
           end_time: endDate.toISOString(),
           severity_snapshots: severity !== null ? [{ severity, timestamp: startDate.toISOString() }] : [],
-          notes: notes.trim() || null,
+          notes: cleanNotes,
+          author_alter_ids: prepared.authorIds,
         });
+        sessionId = row?.id || "";
       } else {
         // Reuses an already-active session instead of stacking a duplicate.
-        await startSymptomSession(selectedSymptomId, {
+        const res = await startSymptomSession(selectedSymptomId, {
           startTime: startDate.toISOString(),
           severity,
-          notes: notes.trim() || null,
+          notes: cleanNotes,
         });
+        sessionId = res?.session?.id || "";
+        if (sessionId && prepared.authorIds.length > 0) {
+          try { await base44.entities.SymptomSession.update(sessionId, { author_alter_ids: prepared.authorIds }); } catch { /* best-effort */ }
+        }
       }
+      await recordAuthoredText({ ...prepared, alters, sourceType: "symptom", sourceId: sessionId, sourceLabel: "Symptom note", navigatePath: "/checkin-log" });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       const sym = symptoms.find((s) => s.id === selectedSymptomId);
       toast.success(when === "past" ? `Logged ${sym?.label || "session"}` : `▶ Started ${sym?.label || "session"}`);
@@ -233,9 +252,11 @@ export default function StartSymptomModal({ isOpen, onClose }) {
 
           <div>
             <label className="text-sm font-medium text-foreground">Notes</label>
-            <textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
+              alters={alters}
+              signposts
               rows={2}
               placeholder="Notes about this session…"
               className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"

@@ -9,6 +9,8 @@ import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { fetchActiveContactRelationshipTypes, contactDisplayName } from "@/lib/contacts";
 import ContactRelationshipTypeField from "@/components/contacts/ContactRelationshipTypeField";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 
 // Phase 3 — relationships between a contact and the system / individual
 // alters / groups. The relationship TYPE comes from a SEPARATE, editable
@@ -73,17 +75,25 @@ export default function ContactRelationshipsTab({ contact }) {
   const save = async () => {
     if (!canSave || saving) return;
     const label = relType.trim();
+    // Notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(notes.trim(), { alters, terms: t, surfaceLabel: "contact relationship note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
-      await base44.entities.ContactRelationship.create({
+      const row = await base44.entities.ContactRelationship.create({
         contact_id: contactId,
         target_type: targetType,
         target_id: targetType === "system" ? null : targetId,
         relationship_type: label,
         has_met: !!hasMet,
-        notes: notes.trim(),
+        notes: prepared.content,
+        author_alter_ids: prepared.authorIds,
         created_date: new Date().toISOString(),
       });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: row.id, sourceLabel: "Contact relationship note", navigatePath: `/contacts/${contactId}` });
       // A typed-in type that isn't in the catalogue gets added, so it becomes a
       // reusable suggestion next time (and shows up in the manager to edit).
       if (label && !types.some((x) => (x.label || "").toLowerCase() === label.toLowerCase())) {
@@ -202,9 +212,11 @@ export default function ContactRelationshipsTab({ contact }) {
 
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes (optional)</label>
-            <textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
+              alters={alters}
+              signposts
               rows={2}
               placeholder="How they feel about each other, history, beliefs, boundaries…"
               className="mt-1.5 w-full bg-background border border-input rounded-lg px-2.5 py-1.5 text-sm resize-y outline-none"

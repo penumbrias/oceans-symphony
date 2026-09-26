@@ -1,4 +1,5 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
+import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import React, { useState, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
@@ -18,8 +19,6 @@ import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import MeetingParticipantsSection, { normalizeParticipants } from "@/components/system-checkin/MeetingParticipantsSection";
 import MeetingDialogue, { normalizeDialogue } from "@/components/system-checkin/MeetingDialogue";
 import { saveMentions } from "@/lib/mentionUtils";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
 import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
@@ -151,15 +150,16 @@ export default function SystemCheckInPage() {
     // @recipients are still caught by saveMentions below (it runs on the
     // original text, which still contains the @names), so they're notified.
     const dataToSave = { ...formData };
-    for (const key of ["step3_greet", "step4_share", "step5_closing"]) {
+    let meetingAuthorId = null;
+    for (const key of ["step1_arrive", "step2_notice", "step3_greet", "step4_share", "step5_closing"]) {
       const step = dataToSave[key];
       if (step?.notes) {
-        let lc;
-        try { lc = await applyLogCommands(step.notes, { isRich: false }); }
-        catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-        const ww = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "check-in note" });
-        if (ww === null) return; // user backed out of the whole-blur warning
-        dataToSave[key] = { ...step, notes: ww.content };
+        let prepared;
+        try { prepared = await prepareAuthoredText(step.notes, { alters, terms, surfaceLabel: "check-in note" }); }
+        catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+        if (prepared === null) return; // user backed out of the whole-blur warning
+        dataToSave[key] = { ...step, notes: prepared.content, author_alter_ids: prepared.authorIds };
+        if (!meetingAuthorId && prepared.authorIds[0]) meetingAuthorId = prepared.authorIds[0];
       }
     }
 
@@ -180,7 +180,7 @@ export default function SystemCheckInPage() {
           sourceId: currentCheckIn.id,
           sourceLabel: "System Check-In",
           navigatePath: `/system-checkin?id=${currentCheckIn.id}`,
-          authorAlterId: null,
+          authorAlterId: meetingAuthorId,
         });
       }
     } else {
@@ -195,7 +195,7 @@ export default function SystemCheckInPage() {
           sourceId: newCheckIn.id,
           sourceLabel: "System Check-In",
           navigatePath: `/system-checkin?id=${newCheckIn.id}`,
-          authorAlterId: null,
+          authorAlterId: meetingAuthorId,
         });
       }
       // Per-participant feelings → EmotionCheckIn, attributed to that alter,

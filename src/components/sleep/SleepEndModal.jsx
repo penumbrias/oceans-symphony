@@ -3,7 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -116,6 +119,8 @@ function toLocalDatetime(iso) {
 }
 
 export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [wakeTime, setWakeTime] = useState("");
   const [quality, setQuality] = useState(0);
   const [notes, setNotes] = useState("");
@@ -169,6 +174,12 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
       toast.error("No in-progress sleep to end");
       return;
     }
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "sleep note" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const cleanNotes = prepared.content;
     setIsLoading(true);
     try {
       const wakeTimeISO = new Date(wakeTime).toISOString();
@@ -184,7 +195,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
       // create-time behaviour so finalized sleeps look the same as
       // retroactively-logged ones.
       let journalEntryId = sleep.journal_entry_id || null;
-      if (saveAsDream && notes.trim() && !journalEntryId) {
+      if (saveAsDream && cleanNotes.trim() && !journalEntryId) {
         const DREAM_FOLDER = "Dreams";
         try {
           const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
@@ -194,7 +205,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
           const title = `Dream — ${format(new Date(sleep.date || bedtimeISO), "MMMM d, yyyy")}`;
           const journal = await base44.entities.JournalEntry.create({
             title,
-            content: notes.trim(),
+            content: cleanNotes.trim(),
             folder: DREAM_FOLDER,
             tags: [hadNightmare ? "nightmare" : "dream"],
             entry_type: "dream",
@@ -209,7 +220,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
       await base44.entities.Sleep.update(sleep.id, {
         wake_time: wakeTimeISO,
         quality: quality || null,
-        notes: notes || null,
+        notes: cleanNotes || null,
+        author_alter_ids: prepared.authorIds,
         is_interrupted: isInterrupted,
         interruption_count: isInterrupted ? (interruptionCount || interruptionTimes.length || null) : null,
         interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
@@ -218,6 +230,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         journal_entry_id: journalEntryId,
       });
 
+      await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: sleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
       // Create the linked Activity row. Mirrors SleepLogModal — the
       // Sleep entity is the source of truth, the Activity row is a
       // cosmetic mirror so the sleep block shows up on the Activity
@@ -234,7 +247,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
           await base44.entities.Activity.update(sleep.linked_activity_id, {
             timestamp: bedtimeISO,
             duration_minutes: durationMinutes,
-            notes: notes || null,
+            notes: cleanNotes || null,
           });
         } else {
           const newAct = await base44.entities.Activity.create({
@@ -248,7 +261,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
             duration_minutes: durationMinutes,
             activity_category_ids: [sleepCat.id],
             color: sleepCat.color,
-            notes: notes || null,
+            notes: cleanNotes || null,
             source_sleep_id: sleep.id,
           });
           await base44.entities.Sleep.update(sleep.id, { linked_activity_id: newAct.id });
@@ -380,9 +393,11 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
                 {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
               </button>
             </div>
-            <Textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
+              alters={alters}
+              signposts
               placeholder="How did you sleep? Any dreams?"
               rows={3}
             />

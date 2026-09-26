@@ -46,6 +46,17 @@ Whenever you render an alter's name in a list, dropdown, picker, mention popup, 
 
 ---
 
+## Critical: Every free-text field speaks the same grammar
+
+**Any field where the user writes and saves text must support inline `~commands`, `-name`/`+name` signposts and `@mentions` — the same grammar chat, bulletins and journals speak.** Two shared pieces make this a two-line job; never re-implement them:
+
+- **Input:** `MentionTextarea` (`src/components/shared/MentionTextarea.jsx`) with `alters` and `signposts` — gives the `@` / `-` / `+` / `~` autocomplete popups. Contract: `value` string, `onChange(stringValue)` (not an event). Do not add a plain `<Textarea>` for user-authored notes.
+- **Save:** `prepareAuthoredText` → save the record → `recordAuthoredText`, from `src/lib/authoredText.js` (its header documents the call). `prepareAuthoredText` runs the commands, peels `/w` whisper recipients, folds signposts into `authorIds` and strips the markers; it throws a user-facing `LogCommandFormatError` for a malformed command (a broken command BLOCKS the save — catch with `isLogCommandError(e)` and toast) and returns `null` when the user backs out of the whisper warning. Store `prepared.authorIds` as `author_alter_ids` (and set the record's own author field from it only when the user actually signposted). `recordAuthoredText` writes the MentionLog rows (mentions, whisper recipients, and the "authored" trail passive attribution reads) — best-effort, never fails the save.
+- Autosaving fields (Learn reflections) do NOT run the pipeline on autosave — only on an explicit Save.
+- Status notes pass `chips: false` (they render as plain text) and `whisper: false`.
+
+Wired as of v0.243.5: alter notes/messages/private messages, relationships (all three editors), lineage events, groups, presences, contacts, locations, activities (all modals, planner notes, lifecycle note), tasks, sleep, symptoms, per-alter session notes, switch journal, technique notes, check-in log edits, quick check-in notes, meeting steps 1–5, bulletin edit + comment edit, chat message edit, status notes (card, quick-note sheet, widget), journal body (`~commands`).
+
 ## Routing Gotcha — `/Home` is NOT the home page
 
 The route names are a base44 leftover and don't match what the user (or

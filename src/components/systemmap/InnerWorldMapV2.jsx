@@ -24,6 +24,8 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
 import { byGroupOrder } from "@/lib/groupTreeUtils";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
@@ -598,7 +600,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     setSelectedAlter(null);
   };
   const handleSaveRelationship = async (data) => {
-    await base44.entities.AlterRelationship.create(data);
+    // Relationship notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(data.notes || "", { alters: allAlters, terms, surfaceLabel: "relationship note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
+    const row = await base44.entities.AlterRelationship.create({ ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters: allAlters, sourceType: "relationship", sourceId: row.id, sourceLabel: "Relationship note", navigatePath: `/alter/${data.alter_id_a}?tab=relationships` });
     queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
     onRefreshRelationships?.();
     setCreateRelModal(null);
@@ -1101,7 +1110,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />
       )}
       {editingRelFromPopover && (
-        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
+        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} alters={allAlters} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
       )}
     </div>
   );
@@ -1150,7 +1159,8 @@ function DimensionInput({ label, symbol, value, min = 40, onCommit }) {
   );
 }
 
-function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
+function EditRelFromPopover({ rel, alterMap, alters = [], onClose, onSaved }) {
+  const terms = useTerms();
   const [direction, setDirection] = useState(rel.direction);
   const [relType, setRelType] = useState(rel.relationship_type);
   const [customLabel, setCustomLabel] = useState(rel.custom_label || "");
@@ -1163,7 +1173,13 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
     if (saving) return;
     setSaving(true);
     try {
-      await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes });
+      let prepared;
+      try {
+        prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "relationship note", chips: false });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (prepared === null) return; // user backed out of the whisper warning
+      await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes: prepared.content, author_alter_ids: prepared.authorIds });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "relationship", sourceId: rel.id, sourceLabel: "Relationship note", navigatePath: `/alter/${rel.alter_id_a}?tab=relationships` });
       toast.success("Relationship updated");
       onSaved();
     } catch (err) { toast.error(err.message || "Failed to update"); } finally { setSaving(false); }
@@ -1185,7 +1201,7 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
         </select>
         {relType === "Custom" && <input value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} placeholder="Custom label..." className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />}
         <ColorPicker value={color} onChange={setColor} />
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes" className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
+        <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts rows={2} placeholder="Notes" className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>Save</Button>

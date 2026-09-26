@@ -4,7 +4,9 @@ import { localEntities } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { useTerms } from "@/lib/useTerms";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,6 +41,8 @@ function formatDayLabel(dateStr) {
 }
 
 function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => localEntities.Alter.list() });
   const [name, setName] = useState(location?.name || "");
   const [category, setCategory] = useState(location?.category || "");
   const [lat, setLat] = useState(location?.latitude ?? null);
@@ -67,6 +71,12 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
       toast.error("Please select a category or enter a place name");
       return;
     }
+    // Notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(notes.trim(), { alters, terms, surfaceLabel: "location note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
       const data = {
@@ -76,15 +86,20 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
         latitude: lat ?? null,
         longitude: lng ?? null,
         source: lat != null ? "gps" : "manual",
-        notes: notes.trim() || null,
+        notes: prepared.content || null,
+        author_alter_ids: prepared.authorIds,
       };
+      let rowId;
       if (location?.id) {
         await localEntities.Location.update(location.id, data);
+        rowId = location.id;
         toast.success("Location updated");
       } else {
-        await localEntities.Location.create(data);
+        const row = await localEntities.Location.create(data);
+        rowId = row.id;
         toast.success("Location logged");
       }
+      await recordAuthoredText({ ...prepared, alters, sourceType: "location", sourceId: rowId, sourceLabel: "Location note", navigatePath: "/location-history" });
       onSave();
     } catch (err) {
       toast.error(err.message || "Failed to save location");
@@ -163,9 +178,11 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
 
       <div>
         <Label className="text-xs">Notes (optional)</Label>
-        <Textarea
+        <MentionTextarea
           value={notes}
-          onChange={e => setNotes(e.target.value)}
+          onChange={setNotes}
+          alters={alters}
+          signposts
           placeholder="Any notes about this location..."
           className="mt-1 h-16"
         />

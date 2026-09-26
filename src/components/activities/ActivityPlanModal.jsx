@@ -12,8 +12,8 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { Plus, MapPin, Zap, Repeat, Bell, UserPlus, X } from "lucide-react";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
@@ -356,16 +356,16 @@ export default function ActivityPlanModal({
     if (!isQuickPlan && !startTime) { toast.error("Set start time"); return; }
     if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
-    // Run inline ~commands first (each becomes a chip), then whisper handling.
-    let lc;
-    try { lc = await applyLogCommands(notes || "", { isRich: false }); }
-    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    // "/w @name [secret]" in the notes hides that part behind a whisper bar
-    // (no brackets warns first — a plan note is a personal record). Done
-    // before setIsLoading so a "go back" leaves the form untouched.
-    const w = await applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "plan" });
-    if (w === null) return;
-    const finalNotes = w.content;
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    // Done before setIsLoading so a "go back" leaves the form untouched.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters: alters || [], terms, surfaceLabel: "plan", baseAuthorIds: selectedAlters }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const finalNotes = prepared.content;
+    // Only a real "-name" / "+name" signpost overrides who the plan is for.
+    const signposted = parseSignpostAuthors(notes || "", alters || [], terms?.system ? [terms.system] : undefined).length > 0;
+    const finalAlters = signposted ? prepared.authorIds : selectedAlters;
 
     setIsLoading(true);
 
@@ -443,8 +443,9 @@ export default function ActivityPlanModal({
           ...(firstCat?.color ? { color: firstCat.color } : {}),
           task_id: effectiveLinkedTask?.id || null,
           duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
-          fronting_alter_ids: selectedAlters,
+          fronting_alter_ids: finalAlters,
           notes: finalNotes || null,
+          author_alter_ids: prepared.authorIds,
           location: location.trim() || null,
           is_planned: isPlanned,
           is_quick_plan: isQuickPlan,
@@ -516,6 +517,10 @@ export default function ActivityPlanModal({
           });
           toast.success("Plan updated");
         }
+        await recordAuthoredText({
+          ...prepared, alters: alters || [], sourceType: "activity", sourceId: editingPlan.id, sourceLabel: "Plan note",
+          navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${editingPlan.id}`,
+        });
 
         if (linkedTask) {
           try {
@@ -554,7 +559,7 @@ export default function ActivityPlanModal({
         records,
         timestamp,
         durationMinutes: durationMinutes > 0 ? durationMinutes : null,
-        alterIds: selectedAlters,
+        alterIds: finalAlters,
         notes: finalNotes,
         location,
         isQuickPlan,
@@ -569,6 +574,11 @@ export default function ActivityPlanModal({
         createTodo: false,
       });
       if (effectiveLinkedTask) queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      // createPlan doesn't hand back the created ids — land on the plan's day.
+      await recordAuthoredText({
+        ...prepared, alters: alters || [], sourceType: "activity", sourceId: recurrenceGroupId || "", sourceLabel: "Plan note",
+        navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}`,
+      });
 
       // No fronting-session updates here — plan-mode plans are future-
       // dated, so the alter isn't actually fronting yet. assigned_alter_ids
@@ -908,6 +918,7 @@ export default function ActivityPlanModal({
                   value={notes}
                   onChange={setNotes}
                   alters={alters || []}
+                  signposts
                   placeholder="Extra context… @ to mention, /w @name [secret] to whisper"
                   className="h-20"
                 />

@@ -42,6 +42,7 @@ export default function CheckInStep4({ data, onChange, alters = [], children }) 
                 Anything you would like to record?
               </Label>
               <MentionTextarea
+  signposts
   value={step.notes || ""}
   onChange={(val) => onChange({ step4_share: { ...step, notes: val } })}
   alters={alters}

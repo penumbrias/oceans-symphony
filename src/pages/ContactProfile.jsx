@@ -14,6 +14,9 @@ import { startEncounter, endEncounterForContact, lastSeenEncounter } from "@/lib
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import ContactRelationshipsTab from "@/components/contacts/ContactRelationshipsTab";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { useTerms } from "@/lib/useTerms";
 import {
   getSafetyMeta, getAwarenessMeta, contactDisplayName,
   contactMethodHref, getContactMethodMeta,
@@ -33,9 +36,11 @@ export default function ContactProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [tab, setTab] = useState("about");
   const [editOpen, setEditOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 
   // Keep the shared ["systemSettings"] cache an ARRAY — see the note in
   // Contacts.jsx. Returning a single object here pollutes the cache and
@@ -102,8 +107,15 @@ export default function ContactProfile() {
   const addNote = async () => {
     const text = newNote.trim();
     if (!text) return;
+    // Notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
     try {
-      await base44.entities.ContactNote.create({ contact_id: id, content: text, timestamp: new Date().toISOString() });
+      prepared = await prepareAuthoredText(text, { alters, terms, surfaceLabel: "contact note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
+    try {
+      const row = await base44.entities.ContactNote.create({ contact_id: id, content: prepared.content, author_alter_ids: prepared.authorIds, timestamp: new Date().toISOString() });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: row.id, sourceLabel: "Contact note", navigatePath: `/contacts/${id}` });
       setNewNote("");
       queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
     } catch (err) { toast.error(err?.message || "Couldn't save note"); }
@@ -257,9 +269,11 @@ export default function ContactProfile() {
       {tab === "notes" && (
         <div className="space-y-3">
           <div className="flex items-start gap-2">
-            <textarea
+            <MentionTextarea
               value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
+              onChange={setNewNote}
+              alters={alters}
+              signposts
               placeholder="Add a note (what happened, something to remember)…"
               rows={2}
               className="flex-1 bg-background border border-input rounded-lg px-2.5 py-1.5 text-sm resize-y outline-none"

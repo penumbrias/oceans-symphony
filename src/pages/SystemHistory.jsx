@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 
 const TYPE_META = {
@@ -32,7 +35,7 @@ function AlterPill({ alter }) {
   );
 }
 
-const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onDelete, onEdit, onToggleHidden, isLast }) {
+const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, alters = [], onDelete, onEdit, onToggleHidden, isLast }) {
   const meta = TYPE_META[event.type] || TYPE_META.fusion;
   const Icon = meta.icon;
 
@@ -60,8 +63,8 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onD
     }
     setSavingEdit(true);
     try {
-      await onEdit(event.id, { date: iso, year_only: dYearOnly, cause: dCause.trim() || null, notes: dNotes.trim() || null });
-      setEditing(false);
+      const ok = await onEdit(event.id, { date: iso, year_only: dYearOnly, cause: dCause.trim() || null, notes: dNotes.trim() || null });
+      if (ok !== false) setEditing(false);
     } finally {
       setSavingEdit(false);
     }
@@ -152,7 +155,7 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onD
             </div>
             <input value={dCause} onChange={(e) => setDCause(e.target.value)} placeholder="Cause (optional)"
               className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs" />
-            <textarea value={dNotes} onChange={(e) => setDNotes(e.target.value)} placeholder="Notes (optional)" rows={2}
+            <MentionTextarea value={dNotes} onChange={setDNotes} alters={alters} signposts placeholder="Notes (optional)" rows={2}
               className="w-full px-2 py-1.5 rounded-md border border-input bg-background text-xs resize-y" />
             <p className="text-[0.625rem] text-muted-foreground">Editing the date &amp; notes. To change the type or who's involved, delete and re-record the event.</p>
             <div className="flex gap-1.5">
@@ -344,10 +347,20 @@ export default function SystemHistory() {
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
   }, [queryClient]);
 
+  // Event notes render as plain text, so ~commands become "icon label" tokens.
+  // Returns false when the save was blocked (broken command / whisper cancelled)
+  // so the card stays in edit mode.
   const handleEditEvent = useCallback(async (eventId, patch) => {
-    await localEntities.SystemChangeEvent.update(eventId, patch);
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(patch.notes || "", { alters, terms: t, surfaceLabel: "lineage event note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return false; } throw e; }
+    if (prepared === null) return false;
+    await localEntities.SystemChangeEvent.update(eventId, { ...patch, notes: prepared.content || null, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters, sourceType: "lineage", sourceId: eventId, sourceLabel: "Lineage event note", navigatePath: "/system-history" });
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
-  }, [queryClient]);
+    return true;
+  }, [queryClient, alters, t]);
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24">
@@ -416,6 +429,7 @@ export default function SystemHistory() {
               <TimelineEvent
                 event={event}
                 altersById={altersById}
+                alters={alters}
                 onDelete={handleDelete}
                 onEdit={handleEditEvent}
                 onToggleHidden={handleToggleHidden}

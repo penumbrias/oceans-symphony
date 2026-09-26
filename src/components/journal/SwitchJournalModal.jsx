@@ -3,12 +3,14 @@ import { parseSessionSymptoms } from "@/lib/perAlterSessionEntries";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { BookOpen } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { useQuery } from "@tanstack/react-query";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 
 const SYMPTOMS = [
   { key: "anxiety", label: "Anxiety / worry" },
@@ -87,6 +89,7 @@ ${notes || "—"}`;
 
 export default function SwitchJournalModal({ open, onClose, sessionId, authorAlterId, defaultTrigger = "" }) {
   const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const now = new Date();
   const [title, setTitle] = useState(`${terms.Switch} Log — ${format(now, "MMM d, yyyy")}`);
   const [trigger, setTrigger] = useState(defaultTrigger);
@@ -106,23 +109,40 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
   const handleSave = async () => {
     if (saving) return;
+    // ONE pipeline for the notes: ~commands, whispers, signposts, @mentions.
+    let prepared, pTrigger, pBefore, pAfter;
+    try {
+      prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "journal", baseAuthorIds: authorAlterId ? [authorAlterId] : [] });
+      // The three prompts run the same pipeline (commands, whispers) but
+      // don't re-sign the entry — only the notes field carries signposts.
+      const promptOpts = { alters, terms, surfaceLabel: "journal", signposts: false };
+      pTrigger = await prepareAuthoredText(trigger || "", promptOpts);
+      pBefore = await prepareAuthoredText(before || "", promptOpts);
+      pAfter = await prepareAuthoredText(after || "", promptOpts);
+    }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null || pTrigger === null || pBefore === null || pAfter === null) return;
     setSaving(true);
     try {
-      const content = buildContent({ trigger, before, after, symptoms, notes });
-      await base44.entities.JournalEntry.create({
+      const cleanNotes = prepared.content;
+      const cleanTrigger = pTrigger.content, cleanBefore = pBefore.content, cleanAfter = pAfter.content;
+      const content = buildContent({ trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms, notes: cleanNotes });
+      const entry = await base44.entities.JournalEntry.create({
         title,
         content: `## ${title} (${format(now, "MMMM d, yyyy · h:mm a")})\n\n${content}`,
         entry_type: "switch_log",
         tags: ["switch"],
-        author_alter_id: authorAlterId || "",
+        author_alter_id: prepared.authorIds[0] || authorAlterId || "",
+        author_alter_ids: prepared.authorIds,
         fronting_session_id: sessionId || "",
         allowed_alter_ids: [],
-        switch_data: { trigger, before, after, symptoms },
+        switch_data: { trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms },
       });
+      await recordAuthoredText({ ...prepared, content: [cleanTrigger, cleanBefore, cleanAfter, cleanNotes].filter(Boolean).join("\n"), recipientIds: [...new Set([...(prepared.recipientIds || []), ...(pTrigger.recipientIds || []), ...(pBefore.recipientIds || []), ...(pAfter.recipientIds || [])])], alters, sourceType: "journal", sourceId: entry?.id || "", sourceLabel: `${terms.Switch} journal`, navigatePath: entry?.id ? `/journals?id=${entry.id}` : "/journals" });
       // Sync trigger info back to the fronting session for analytics
       if (sessionId) {
         const patch = {};
-        if (trigger) { patch.is_triggered_switch = true; patch.trigger_label = trigger; }
+        if (cleanTrigger) { patch.is_triggered_switch = true; patch.trigger_label = cleanTrigger; }
         const symptomEntries = SYMPTOMS.map(s => ({ id: s.key, label: s.label, value: symptoms[s.key], type: "slider" }));
         // Merge into whatever the fronter panel already logged on this
         // session (this used to replace the whole array wholesale).
@@ -163,9 +183,11 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">What triggered the {terms.switch}?</label>
-            <Textarea
+            <MentionTextarea
+              alters={alters}
+              signposts
               value={trigger}
-              onChange={(e) => setTrigger(e.target.value)}
+              onChange={setTrigger}
               placeholder="e.g. loud noise, stressful conversation..."
               className="resize-none min-h-[60px] text-sm"
             />
@@ -173,9 +195,11 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">How were you feeling before?</label>
-            <Textarea
+            <MentionTextarea
+              alters={alters}
+              signposts
               value={before}
-              onChange={(e) => setBefore(e.target.value)}
+              onChange={setBefore}
               placeholder={`Emotional state before the ${terms.switch}...`}
               className="resize-none min-h-[60px] text-sm"
             />
@@ -183,9 +207,11 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">How were you feeling after?</label>
-            <Textarea
+            <MentionTextarea
+              alters={alters}
+              signposts
               value={after}
-              onChange={(e) => setAfter(e.target.value)}
+              onChange={setAfter}
               placeholder={`Emotional state after the ${terms.switch}...`}
               className="resize-none min-h-[60px] text-sm"
             />
@@ -205,9 +231,11 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">Notes</label>
-            <Textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
+              alters={alters}
+              signposts
               placeholder="Anything else to note..."
               className="resize-none min-h-[60px] text-sm"
             />

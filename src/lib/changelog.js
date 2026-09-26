@@ -61,6 +61,8 @@ export const CHANGELOG = [
       { type: "fix", text: "Guide and tour: fixed directions that pointed at a \"Guide\" or \"Tour\" button that doesn't exist (they live in the ⚙ menu), a \"Delete member\" button that reads \"Delete alter\", and a promise about reminders that isn't true on the web app." },
       { type: "fix", text: "The tour card no longer overlaps a taller bottom bar; the share-code message for setup packs is wrapped again; renaming a system you're not in now sticks." },
       { type: "hotfix", text: "Hotfix: tooling — the whole source tree is linted now (hooks-dependency warnings on), 110 unused imports removed." },
+      { type: "feature", text: "Every note box now speaks the same language: ~commands (like ~activity: shower) create real records, -name / +name signposts sign the text, and @mentions notify — in alter notes and messages, relationships, lineage, groups, presences, contacts, locations, activities and plans, tasks, sleep, symptoms, session notes, switch journals, technique notes, meeting steps, status notes, and when editing bulletins, comments and chat messages." },
+      { type: "improve", text: "Journal entries run ~commands in the body, the Quick Check-In note and activity note get commands and mention notifications, and planner notes get all three (commands were switched off there)." },
     ],
   },
   {

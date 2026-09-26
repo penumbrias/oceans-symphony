@@ -7,6 +7,10 @@ import { X, Clock } from "lucide-react";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 
 function SeverityDots({ severity }) {
   return (
@@ -24,6 +28,8 @@ function SeverityDots({ severity }) {
 // this same menu (the classic pill behaviour) instead of navigating.
 export function SymptomActionMenu({ sess, symptom, onClose }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [saving, setSaving] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(sess.start_time));
@@ -49,10 +55,16 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
   };
 
   const handleSaveNotes = async () => {
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notesDraft || "", { alters, terms, surfaceLabel: "symptom note" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
     setSaving(true);
     try {
-      const trimmed = notesDraft.trim();
-      await base44.entities.SymptomSession.update(sess.id, { notes: trimmed || null });
+      const trimmed = prepared.content.trim();
+      await base44.entities.SymptomSession.update(sess.id, { notes: trimmed || null, author_alter_ids: prepared.authorIds });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "symptom", sourceId: sess.id, sourceLabel: "Symptom note", navigatePath: "/checkin-log" });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       setEditingNotes(false);
     } finally { setSaving(false); }
@@ -177,9 +189,11 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
         {editingNotes ? (
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">Note</p>
-            <textarea
+            <MentionTextarea
               value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
+              onChange={setNotesDraft}
+              alters={alters}
+              signposts
               rows={2}
               placeholder="Optional note about this session…"
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"

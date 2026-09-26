@@ -5,7 +5,10 @@ import { syncActivityResolved } from "@/lib/linkedCompletion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { useTerms } from "@/lib/useTerms";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CheckCircle2, CircleSlash2, XCircle, Ban, Calendar, Undo2, Play } from "lucide-react";
@@ -41,6 +44,8 @@ export default function ActivityLifecyclePopover({
   activity,
   onChanged,
 }) {
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [submode, setSubmode] = useState(null); // null | "partial" | "skipped" | "cancelled" | "reschedule"
   const [actualMinutes, setActualMinutes] = useState("");
   const [resolutionNote, setResolutionNote] = useState("");
@@ -120,11 +125,34 @@ export default function ActivityLifecyclePopover({
     onClose?.();
   };
 
+  // ONE pipeline for anything typed here: ~commands, whispers, signposts,
+  // @mentions. Returns null when the user backed out (or a command was
+  // malformed — already toasted). `authorPatch` carries who signed it.
+  const prepareNote = async (raw, surfaceLabel) => {
+    let prepared;
+    try { prepared = await prepareAuthoredText(raw || "", { alters, terms, surfaceLabel, baseAuthorIds: activity.fronting_alter_ids || [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+    if (prepared === null) return null;
+    const signposted = parseSignpostAuthors(raw || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
+    const authorPatch = {
+      author_alter_ids: prepared.authorIds,
+      ...(signposted ? { fronting_alter_ids: prepared.authorIds } : {}),
+    };
+    const record = () => recordAuthoredText({
+      ...prepared, alters, sourceType: "activity", sourceId: activity.id, sourceLabel: "Plan note",
+      navigatePath: `/activities?date=${format(new Date(activity.timestamp), "yyyy-MM-dd")}&highlight=${activity.id}`,
+    });
+    return { prepared, authorPatch, record };
+  };
+
   // Save the notes on their own — no status change, single instance.
   const saveNote = async () => {
+    const note = await prepareNote(noteDraft, "note");
+    if (!note) return;
     setSavingNote(true);
     try {
-      await base44.entities.Activity.update(activity.id, { notes: noteDraft.trim() || null });
+      await base44.entities.Activity.update(activity.id, { notes: note.prepared.content.trim() || null, ...note.authorPatch });
+      await note.record();
       toast.success("Note saved");
       onChanged?.();
     } catch (err) {
@@ -159,10 +187,11 @@ export default function ActivityLifecyclePopover({
   // Single-instance write. Used directly when the plan isn't part of a
   // recurrence series, and indirectly by the branch chooser after the
   // user picks "this only".
-  const writeStatus = async (patch, successMsg) => {
+  const writeStatus = async (patch, successMsg, afterWrite) => {
     setSaving(true);
     try {
       await base44.entities.Activity.update(activity.id, patch);
+      if (afterWrite) await afterWrite();
       // Resolving done/partial completes the linked to-do (Phase 1 sync).
       if (patch.status) await syncActivityResolved(activity, patch.status);
       // Reminder hygiene: resolving a plan cancels its pending OS
@@ -189,17 +218,17 @@ export default function ActivityLifecyclePopover({
   // branch chooser. Non-recurring plans drop straight into writeStatus.
   // The reschedule path bypasses this — rescheduling an entire series
   // doesn't make sense (would corrupt the audit trail).
-  const writeStatusMaybeBranched = (patch, successMsg, actionLabel = "mark") => {
+  const writeStatusMaybeBranched = (patch, successMsg, actionLabel = "mark", afterWrite = null) => {
     if (isRecurring) {
-      setPendingBranchAction({ patch, successMsg, actionLabel });
+      setPendingBranchAction({ patch, successMsg, actionLabel, afterWrite });
       return;
     }
-    return writeStatus(patch, successMsg);
+    return writeStatus(patch, successMsg, afterWrite);
   };
 
   const applyBranchChoice = async (branch) => {
     if (!pendingBranchAction) return;
-    const { patch, successMsg } = pendingBranchAction;
+    const { patch, successMsg, afterWrite } = pendingBranchAction;
     setPendingBranchAction(null);
     setSaving(true);
     try {
@@ -213,6 +242,7 @@ export default function ActivityLifecyclePopover({
         const count = await applyEditToSeries(members, patch);
         toast.success(`${successMsg} — ${count} ${count === 1 ? "instance" : "instances"} updated`);
       }
+      if (afterWrite) await afterWrite();
       // Mirror the reminder hygiene from writeStatus across every
       // affected instance — series resolution should clean up all the
       // pending OS notifications it implicates, not just the pivot.
@@ -259,31 +289,27 @@ export default function ActivityLifecyclePopover({
     );
   };
 
-  const markSkipped = () => {
-    const trimmed = resolutionNote.trim();
+  // Skipped / cancelled append a tagged resolution note to the existing
+  // notes; the resolution note goes through the same text pipeline.
+  const resolveWithNote = async (status, tag, successMsg, actionLabel) => {
+    const note = await prepareNote(resolutionNote, "note");
+    if (!note) return;
+    const trimmed = note.prepared.content.trim();
     const baseNote = activity.notes || "";
     const merged = trimmed
-      ? (baseNote ? `${baseNote}\n\n[Skipped] ${trimmed}` : `[Skipped] ${trimmed}`)
+      ? (baseNote ? `${baseNote}\n\n[${tag}] ${trimmed}` : `[${tag}] ${trimmed}`)
       : baseNote;
     return writeStatusMaybeBranched(
-      { status: ACTIVITY_STATUSES.SKIPPED, notes: merged || null },
-      "Marked skipped",
-      "mark skipped"
+      { status, notes: merged || null, ...(trimmed ? note.authorPatch : {}) },
+      successMsg,
+      actionLabel,
+      trimmed ? note.record : null
     );
   };
 
-  const markCancelled = () => {
-    const trimmed = resolutionNote.trim();
-    const baseNote = activity.notes || "";
-    const merged = trimmed
-      ? (baseNote ? `${baseNote}\n\n[Cancelled] ${trimmed}` : `[Cancelled] ${trimmed}`)
-      : baseNote;
-    return writeStatusMaybeBranched(
-      { status: ACTIVITY_STATUSES.CANCELLED, notes: merged || null },
-      "Cancelled",
-      "cancel"
-    );
-  };
+  const markSkipped = () => resolveWithNote(ACTIVITY_STATUSES.SKIPPED, "Skipped", "Marked skipped", "mark skipped");
+
+  const markCancelled = () => resolveWithNote(ACTIVITY_STATUSES.CANCELLED, "Cancelled", "Cancelled", "cancel");
 
   const undo = () => writeStatusMaybeBranched(
     {
@@ -388,11 +414,14 @@ export default function ActivityLifecyclePopover({
             <div className="text-sm font-medium">
               {submode === "skipped" ? "Mark skipped" : "Cancel plan"}
             </div>
-            <Input
+            <MentionTextarea
               value={resolutionNote}
-              onChange={e => setResolutionNote(e.target.value)}
+              onChange={setResolutionNote}
+              alters={alters}
+              signposts
               placeholder="Optional note (why?)"
-              className="h-9 text-sm"
+              className="text-sm min-h-[40px] resize-none"
+              rows={1}
             />
             <div className="flex gap-2">
               <Button variant="ghost" onClick={reset} className="flex-1">Back</Button>
@@ -448,9 +477,11 @@ export default function ActivityLifecyclePopover({
             {/* Notes — editable for any plan/activity, saved on its own. */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Notes</label>
-              <Textarea
+              <MentionTextarea
                 value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
+                onChange={setNoteDraft}
+                alters={alters}
+                signposts
                 placeholder="Add a note for this plan…"
                 className="text-sm min-h-[56px] resize-none"
               />

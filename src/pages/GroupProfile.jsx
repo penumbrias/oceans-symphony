@@ -35,7 +35,8 @@ import GroupIcon from "@/components/shared/GroupIcon";
 import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import AlterCard from "@/components/alters/AlterCard";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
@@ -687,8 +688,10 @@ function GroupProfileInner() {
 // from its bulletin board.
 function GroupNotesTab({ groupId }) {
   const qc = useQueryClient();
+  const t = useTerms();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: notes = [] } = useQuery({
     queryKey: ["groupNotes", groupId],
     queryFn: async () => {
@@ -698,9 +701,16 @@ function GroupNotesTab({ groupId }) {
   });
   const add = async () => {
     if (!text.trim()) return;
+    // Notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(text.trim(), { alters, terms: t, surfaceLabel: "group note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
-      await base44.entities.GroupNote.create({ group_id: groupId, content: text.trim(), created_date: new Date().toISOString() });
+      const row = await base44.entities.GroupNote.create({ group_id: groupId, content: prepared.content, author_alter_ids: prepared.authorIds, created_date: new Date().toISOString() });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "group", sourceId: row.id, sourceLabel: "Group note", navigatePath: `/group/${groupId}` });
       setText("");
       qc.invalidateQueries({ queryKey: ["groupNotes", groupId] });
     } catch (e) { toast.error(e?.message || "Couldn't save note"); }
@@ -713,7 +723,7 @@ function GroupNotesTab({ groupId }) {
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-border/50 bg-card p-2 space-y-2">
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note for this group…" className="min-h-[70px] text-sm resize-none" />
+        <MentionTextarea value={text} onChange={setText} alters={alters} signposts placeholder="Add a note for this group…" className="min-h-[70px] text-sm resize-none" />
         <div className="flex justify-end">
           <Button size="sm" onClick={add} disabled={saving || !text.trim()} className="bg-primary hover:bg-primary/90">
             {saving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />} Add note

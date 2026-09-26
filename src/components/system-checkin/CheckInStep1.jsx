@@ -1,14 +1,18 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Wind } from "lucide-react";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 
-export default function CheckInStep1({ data, onChange }) {
+export default function CheckInStep1({ data, onChange, alters: altersProp }) {
   const step = data?.step1_arrive || {};
+  const { data: fetchedAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !altersProp });
+  const alters = altersProp || fetchedAlters;
   const [showBreathing, setShowBreathing] = useState(false);
 
   const handleBreathingComplete = () => {
@@ -67,13 +71,13 @@ export default function CheckInStep1({ data, onChange }) {
                 <Label htmlFor="step1-notes" className="text-sm mb-2 block">
                   Notes
                 </Label>
-                <Textarea
+                <MentionTextarea
                   id="step1-notes"
                   placeholder="Any observations..."
                   value={step.notes || ""}
-                  onChange={(e) =>
-                    onChange({ step1_arrive: { ...step, notes: e.target.value } })
-                  }
+                  onChange={(v) => onChange({ step1_arrive: { ...step, notes: v } })}
+                  alters={alters}
+                  signposts
                   className="resize-none h-20"
                 />
               </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
 import useFormDraft from "@/hooks/useFormDraft";
 import { base44, localEntities } from "@/api/base44Client";
@@ -9,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
@@ -757,7 +757,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   };
 
-  const handleSaveActivities = async (timestamp) => {
+  const handleSaveActivities = async (timestamp, sharedNote = null) => {
+    let sharedNoteRecorded = false;
     if (selectedActivityCategories.length === 0) return;
     const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
     // Skip any activity that's currently running as an active session — that
@@ -768,13 +769,26 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       const cat = catById[catId];
       const d = activityDetails[catId] || {};
       const dur = d.duration || activityDuration;
-      const noteVal = (d.note || activityNote || "").trim();
-      await base44.entities.Activity.create({
+      // Per-activity note through the shared pipeline; the shared note
+      // (already prepared by the caller) is reused as-is and its mentions
+      // are logged once, on the first activity that carries it.
+      let noteVal = "";
+      let preparedActivity = null;
+      if ((d.note || "").trim()) {
+        preparedActivity = await prepareAuthoredText(d.note.trim(), { alters, terms, surfaceLabel: "activity note" });
+        if (preparedActivity === null) continue;
+        noteVal = preparedActivity.content;
+      } else if (sharedNote) {
+        noteVal = sharedNote.content;
+        if (!sharedNoteRecorded) { preparedActivity = sharedNote; sharedNoteRecorded = true; }
+      }
+      const created = await base44.entities.Activity.create({
         timestamp,
         activity_name: cat?.name || catId,
         activity_category_ids: [catId],
         duration_minutes: dur ? parseInt(dur) : null,
         fronting_alter_ids: selectedAlters,
+        ...(preparedActivity?.authorIds?.length ? { author_alter_ids: preparedActivity.authorIds } : {}),
         // Emotions are NOT copied onto the activity — they live on the
         // EmotionCheckIn this same save creates (the source of truth). Stamping
         // them here duplicated them onto every activity and made them appear to
@@ -782,6 +796,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // from the check-in, not the activity.
         notes: noteVal || null,
       });
+      if (preparedActivity) {
+        await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/activities?date=${format(new Date(timestamp), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
+      }
     }
   };
 
@@ -829,6 +846,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     savingRef.current = true;
     setSaving(true);
     try {
+      // Shared text pipeline for the notes: ~commands run, "/w" whispers peel
+      // recipients, "-name" signposts are stripped (the effect above already
+      // added them to the selection), and @mentions are logged once the
+      // record exists. A malformed command blocks the save.
+      let preparedNote, preparedActivityNote = null;
+      try {
+        preparedNote = await prepareAuthoredText(note, { alters, terms, surfaceLabel: "check-in note" });
+        if (activityNote.trim()) preparedActivityNote = await prepareAuthoredText(activityNote.trim(), { alters, terms, surfaceLabel: "activity note" });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (preparedNote === null || preparedActivityNote === null) return;
+      const noteOut = preparedNote.content;
+
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
 
       // Edit mode: update the existing EmotionCheckIn in place and exit
@@ -841,9 +870,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // Mirror the create-path's >50-word rule: long notes live in a
         // JournalEntry, the EmotionCheckIn holds a 300-char preview +
         // journal_entry_id. Update the existing journal entry, create
-        // a new one if the note crossed the threshold mid-edit, or
-        // detach the link if the note shrank below the threshold.
-        const trimmedNote = note.trim();
+        // a new one if the noteOut crossed the threshold mid-edit, or
+        // detach the link if the noteOut shrank below the threshold.
+        const trimmedNote = noteOut.trim();
         const wc = trimmedNote ? trimmedNote.split(/\s+/).filter(Boolean).length : 0;
         let journalEntryId = editingEntry.journal_entry_id || null;
         if (trimmedNote && wc > 50) {
@@ -893,6 +922,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           // so the company list is always written (empty clears it).
           contact_ids: selectedContactIds,
         });
+        await recordAuthoredText({ ...preparedNote, alters, sourceType: "checkin", sourceId: editingEntry.id, sourceLabel: "Check-in note", navigatePath: `/checkin-log?id=${editingEntry.id}` });
         queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
         // Propagate symptom changes attached to this check-in so
         // edits actually reflect on the Timeline / Current symptoms
@@ -937,7 +967,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // as the create-path). Issue #229: previously these were silently
         // dropped in edit mode, leaving the user thinking they'd saved.
         if (selectedActivityCategories.length > 0) {
-          await handleSaveActivities(now);
+          await handleSaveActivities(now, preparedActivityNote);
           queryClient.invalidateQueries({ queryKey: ["activities"] });
         }
         if (hasDiaryData(diaryData)) {
@@ -983,12 +1013,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
       // Pass `now` so retroactive check-ins stamp the activity at the
       // back-dated time, not the current wall clock.
-      await handleSaveActivities(now);
+      await handleSaveActivities(now, preparedActivityNote);
 
       // Fronting sync — if fronting section was opened at any point (even if later collapsed).
       // EDIT MODE gates on frontingActuallyChanged instead: the section seeds
       // from the OLD entry's recorded fronters, so an unrelated edit (fixing a
-      // typo in yesterday's note) used to reconcile the LIVE front back to that
+      // typo in yesterday's noteOut) used to reconcile the LIVE front back to that
       // historical list — silently ending whoever is fronting today. Only a
       // deliberate change to the fronter selection touches live sessions now.
       if (isEditing ? frontingActuallyChanged : (hadFrontingOpen || openSections.has("fronting"))) {
@@ -1011,13 +1041,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
       // EmotionCheckIn
       let checkInId = null;
-      if (selectedEmotions.length > 0 || note.trim() || selectedAlters.length > 0) {
-        const wordCount = note ? note.trim().split(/\s+/).filter(Boolean).length : 0;
+      if (selectedEmotions.length > 0 || noteOut.trim() || selectedAlters.length > 0) {
+        const wordCount = noteOut ? noteOut.trim().split(/\s+/).filter(Boolean).length : 0;
         let journalEntryId = null;
-        if (note && wordCount > 50) {
+        if (noteOut && wordCount > 50) {
           const entry = await base44.entities.JournalEntry.create({
             title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-            content: note,
+            content: noteOut,
             entry_type: "personal",
             tags: ["checkin"],
             folder: "Check-In Journals",
@@ -1041,11 +1071,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           // the live ContactEncounter sessions are managed separately in
           // commitContactChanges.
           ...(selectedContactIds.length > 0 ? { contact_ids: selectedContactIds } : {}),
-          note: wordCount <= 50 ? note : note.substring(0, 300) + "...",
+          note: wordCount <= 50 ? noteOut : noteOut.substring(0, 300) + "...",
           journal_entry_id: journalEntryId
         });
         checkInId = checkIn?.id || null;
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        await recordAuthoredText({ ...preparedNote, alters, sourceType: "checkin", sourceId: checkInId, sourceLabel: "Check-in note", navigatePath: checkInId ? `/checkin-log?id=${checkInId}` : "/checkin-log" });
       }
 
       // SymptomCheckIns — each row records WHO it belongs to: the per-item
@@ -1082,7 +1113,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             substances_count: diaryData.skills.substances_count
           } :
           null,
-          notes: note.trim() ? { optional: note.trim() } : null,
+          notes: noteOut.trim() ? { optional: noteOut.trim() } : null,
           custom_groups: extraDiaryGroups(diaryData),
         });
         queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
@@ -1555,10 +1586,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 </div>
               )}
 
-              <Textarea
+              <MentionTextarea
+                signposts
                 placeholder="General note for these activities... (optional)"
                 value={activityNote}
-                onChange={e => setActivityNote(e.target.value)}
+                onChange={setActivityNote}
+                alters={alters}
+                signposts
                 className="text-sm min-h-[60px] resize-none"
                 aria-label="Activity note"
               />
@@ -1610,7 +1644,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 value={note}
                 onChange={setNote}
                 alters={alters}
-                commands={false}
+                signposts
                 rows={3}
                 placeholder="Optional note… @ to mention, -name to signpost"
                 className="w-full rounded-lg border border-input bg-background text-xs p-2"

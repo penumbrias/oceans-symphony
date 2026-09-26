@@ -16,6 +16,7 @@
 // widgetLabel() through the user's own terminology.
 
 import React from "react";
+import { prepareAuthoredText } from "@/lib/authoredText";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -25,7 +26,6 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import { statusFor as statusForActivity } from "@/lib/activityStatus";
-import { applyLogCommands } from "@/lib/logCommands";
 import { Square,
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
@@ -660,10 +660,13 @@ function StatusWidget() {
     try {
       // Same pipeline as the classic status card: inline ~commands run
       // (plain-label tokens — statuses render as plain text).
-      const { content: note } = await applyLogCommands(text, { chips: false });
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
+      const prepared = await prepareAuthoredText(text, { alters, whisper: false, chips: false, surfaceLabel: "status" });
+      if (prepared === null) { setSaving(false); return; }
+      const note = prepared.content;
+      const authorAlterId = prepared.authorIds[0] || null;
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
       // @mentions notify like every other surface.
-      await saveStatusMentions({ note, alters, sourceId: created?.id });
+      await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId });
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
@@ -687,6 +690,7 @@ function StatusWidget() {
         <div className="flex-1 min-w-0">
           {/* @mentions and ~commands, exactly like the classic status box. */}
           <MentionTextarea
+            signposts
             value={draft}
             onChange={setDraft}
             alters={alters}

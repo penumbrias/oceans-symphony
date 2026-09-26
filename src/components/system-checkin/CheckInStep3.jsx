@@ -26,6 +26,7 @@ export default function CheckInStep3({ data, onChange, alters = [] }) {
                 Notes
               </Label>
              <MentionTextarea
+  signposts
   value={step.notes || ""}
   onChange={(val) => onChange({ step3_greet: { ...step, notes: val } })}
   alters={alters}

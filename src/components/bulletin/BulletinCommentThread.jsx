@@ -11,6 +11,8 @@ import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { parseAndStripSignposts, foldSignpostAuthors, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
@@ -294,21 +296,26 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     <div className="relative">
       <div className="relative flex gap-2 items-end">
         {richMode ? (
-          <textarea
+          <MentionTextarea
             ref={inputRef}
+            alters={alters}
+            signposts
             className="flex-1 min-h-[56px] max-h-40 px-3 py-2 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder={parentCommentId ? "Reply… @ mention, -name to sign, /w @name [secret]" : "Add a comment… @ mention, -name to sign, /w @name [secret]"}
             value={text}
-            onChange={handleChange}
+            onChange={setText}
             onKeyDown={handleKeyDown}
           />
         ) : (
-          <input
+          <MentionTextarea
             ref={inputRef}
-            className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            alters={alters}
+            signposts
+            rows={1}
+            className="flex-1 min-h-[32px] px-3 py-1.5 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder={parentCommentId ? "Reply… @ mention, -name, /w @name [secret] (Cmd+Enter)" : "Add a comment… @ mention, -name, /w @name [secret] (Cmd+Enter)"}
             value={text}
-            onChange={handleChange}
+            onChange={setText}
             onKeyDown={handleKeyDown}
           />
         )}
@@ -466,9 +473,29 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const [draft, setDraft] = useState(comment.content || "");
 
   const saveEdit = async () => {
-    const v = draft.trim();
+    if (!draft.trim()) return;
+    // ONE pipeline for the edit: ~commands, whispers, signposts (fold over
+    // the saved authors), @mentions — the same grammar the compose path speaks.
+    let prepared;
+    try { prepared = await prepareAuthoredText(draft, { alters, terms, rich: !!comment.is_rich, surfaceLabel: "comment", baseAuthorIds: authorIds }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const v = prepared.content.trim();
     if (!v) return;
-    await base44.entities.BulletinComment.update(comment.id, { content: v, edited_date: new Date().toISOString() });
+    await base44.entities.BulletinComment.update(comment.id, {
+      content: v,
+      author_alter_id: prepared.authorIds[0] || null,
+      author_alter_ids: prepared.authorIds,
+      // Chips and whisper bars are HTML — keep them rendering as such.
+      is_rich: !!comment.is_rich || prepared.isWhisper || prepared.logged.length > 0,
+      edited_date: new Date().toISOString(),
+    });
+    const sourceType = comment.parent_comment_id ? "reply" : "comment";
+    await recordAuthoredText({
+      ...prepared, alters, sourceType, sourceId: comment.id,
+      sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
+      navigatePath: `/bulletin/${bulletinId}?commentId=${comment.id}`,
+    });
     qc.invalidateQueries({ queryKey: ["bulletinComments", bulletinId] });
     qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
     setEditing(false);
@@ -555,9 +582,11 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
         </div>
         {editing ? (
           <div className="mt-1 space-y-1.5">
-            <textarea
+            <MentionTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              alters={alters}
+              signposts
               rows={3}
               autoFocus
               className="w-full text-xs p-2 rounded-lg border border-input bg-background resize-y"

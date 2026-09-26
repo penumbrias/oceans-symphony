@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Label } from "@/components/ui/label";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
@@ -94,15 +94,13 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
               <Label htmlFor="step2-sensations" className="text-sm mb-2 block">
                 Sensations, colors, or textures
               </Label>
-              <Textarea
+              <MentionTextarea
                 id="step2-sensations"
                 placeholder="Any physical sensations, colors, or textures?"
                 value={step.sensations || ""}
-                onChange={(e) =>
-                  onChange({
-                    step2_notice: { ...step, sensations: e.target.value }
-                  })
-                }
+                onChange={(v) => onChange({ step2_notice: { ...step, sensations: v } })}
+                alters={alters}
+                signposts
                 className="resize-none h-16"
               />
             </div>
@@ -111,15 +109,13 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
               <Label htmlFor="step2-notes" className="text-sm mb-2 block">
                 Additional notes
               </Label>
-              <Textarea
+              <MentionTextarea
                 id="step2-notes"
                 placeholder="Any other observations..."
                 value={step.notes || ""}
-                onChange={(e) =>
-                  onChange({
-                    step2_notice: { ...step, notes: e.target.value }
-                  })
-                }
+                onChange={(v) => onChange({ step2_notice: { ...step, notes: v } })}
+                alters={alters}
+                signposts
                 className="resize-none h-16"
               />
             </div>

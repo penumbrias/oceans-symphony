@@ -15,7 +15,8 @@ import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { toast } from "sonner";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
@@ -237,6 +238,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
   const terms = useTerms();
   const queryClient = useQueryClient();
   const controlled = !session && !!onChange;
+  const { data: panelAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 
   const [note, setNote] = useState(() =>
     controlled ? (participant?.note || "") : sessionNoteText(session)
@@ -351,16 +353,23 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
 
   const handleSave = async () => {
     if (!session) return;
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    // This alter signs their own note unless a signpost says otherwise.
+    let prepared;
+    try { prepared = await prepareAuthoredText(note || "", { alters: panelAlters, terms, surfaceLabel: "note", baseAuthorIds: alter?.id ? [alter.id] : [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const cleanNote = prepared.content.trim();
     setSaving(true);
     try {
       const nowIso = new Date().toISOString();
       const updates = {};
 
       // Note — alter-specific, appended to this session's note array (shows as 💬 on timeline)
-      if (note.trim()) {
+      if (cleanNote) {
         let existing = [];
         try { const parsed = JSON.parse(session.note || "[]"); existing = Array.isArray(parsed) ? parsed : []; } catch {}
-        updates.note = JSON.stringify([...existing, { text: note.trim(), timestamp: nowIso }]);
+        updates.note = JSON.stringify([...existing, { text: cleanNote, timestamp: nowIso }]);
       }
 
       if (localEmotions.length > 0) {
@@ -383,6 +392,9 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
       }
 
       await base44.entities.FrontingSession.update(session.id, updates);
+      if (cleanNote) {
+        await recordAuthoredText({ ...prepared, alters: panelAlters, sourceType: "session-note", sourceId: session.id, sourceLabel: "Session note", navigatePath: "/timeline" });
+      }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       // The edited row is an ACTIVE session — refresh the canonical query the
       // dashboard / notification / friends-sync read, or they'd show stale data.
@@ -438,9 +450,11 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
 
       {/* Note — bare textarea, no chrome */}
       <div className="px-3 pt-1 pb-2">
-        <Textarea
+        <MentionTextarea
           value={note}
-          onChange={e => setNote(e.target.value)}
+          onChange={setNote}
+          alters={panelAlters}
+          signposts
           placeholder={`Note for ${alter.name}... appears as 💬 on their timeline`}
           className="text-sm resize-none border-0 bg-transparent p-0 focus-visible:ring-0 min-h-[52px] placeholder:text-muted-foreground/40 placeholder:text-xs"
           rows={2}

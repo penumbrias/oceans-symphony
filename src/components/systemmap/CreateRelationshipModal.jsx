@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 // Kept for backward compat with RelationshipsPanel import
 export const RELATIONSHIP_PRESETS = DEFAULT_RELATIONSHIP_TYPES.map(t => ({ type: t.label, color: t.color }));
@@ -279,7 +280,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
         {/* Notes */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Notes (optional)</p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)}
+          <MentionTextarea value={notes} onChange={setNotes} alters={allAlters} signposts
             placeholder="Add context..."
             rows={2}
             className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />

@@ -251,11 +251,16 @@ export function QuickNoteSheet({ open, onClose }) {
     if (!text || saving) return;
     setSaving(true);
     try {
-      const { content: noteText } = await (await import("@/lib/logCommands")).applyLogCommands(text, { chips: false });
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText });
+      // Shared text pipeline: ~commands, "-name" signposts (sign the status), @mentions.
+      const { prepareAuthoredText } = await import("@/lib/authoredText");
+      const prepared = await prepareAuthoredText(text, { alters: qnAlters, whisper: false, chips: false, surfaceLabel: "status" });
+      if (prepared === null) { setSaving(false); return; }
+      const noteText = prepared.content;
+      const authorAlterId = prepared.authorIds[0] || null;
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
       // @mentions notify like every other surface.
       const { saveStatusMentions } = await import("@/lib/mentionUtils");
-      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id });
+      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id, authorAlterId });
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success(t("note.saved"));
@@ -277,7 +282,7 @@ export function QuickNoteSheet({ open, onClose }) {
           <div className="flex items-start gap-2">
             <StickyNote className="w-4 h-4 mt-2.5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <MentionTextarea value={note} onChange={setNote} alters={qnAlters}
+              <MentionTextarea value={note} onChange={setNote} alters={qnAlters} signposts
                 placeholder={t("note.placeholder")} rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>

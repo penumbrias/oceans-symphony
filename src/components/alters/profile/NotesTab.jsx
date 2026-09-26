@@ -6,30 +6,9 @@ import { Plus, Trash2, Pencil, X, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { useTerms } from "@/lib/useTerms";
 import { format } from "date-fns";
-
-// Notify the alters a whisper is addressed to (recipients are peeled off
-// the body, so they aren't in the saved content).
-async function notifyWhisper(recipientIds, { sourceId, alterId }) {
-  for (const rid of recipientIds || []) {
-    try {
-      await base44.entities.MentionLog.create({
-        mentioned_alter_id: rid,
-        author_alter_id: null,
-        log_type: "mention",
-        source_type: "note",
-        source_id: sourceId,
-        source_label: "Whisper in a note",
-        source_date: new Date().toISOString(),
-        preview_text: "🔒 private whisper",
-        navigate_path: `/alter/${alterId}`,
-      });
-    } catch { /* best-effort */ }
-  }
-}
 
 export default function NotesTab({ alterId }) {
   const queryClient = useQueryClient();
@@ -50,17 +29,24 @@ export default function NotesTab({ alterId }) {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  const navigatePath = `/alter/${alterId}?tab=notes`;
+  const sourceLabel = `${t.Alter} note`;
+
+  const prepare = async (text) => {
+    try {
+      return await prepareAuthoredText(text.trim(), { alters, terms: t, surfaceLabel: `${t.alter} note` });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+  };
+
   const createNote = async () => {
     if (!newContent.trim()) return;
-    let lc;
-    try { lc = await applyLogCommands(newContent.trim(), { isRich: false }); }
-    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
-    if (w === null) return; // user backed out of the whole-blur warning
+    const prepared = await prepare(newContent);
+    if (prepared === null) return; // malformed command or user backed out of the whisper warning
     setSaving(true);
-    const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: w.content });
-    await notifyWhisper(w.recipientIds, { sourceId: note.id, alterId });
+    const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters, sourceType: "note", sourceId: note.id, sourceLabel, navigatePath });
     queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     setNewContent("");
     setComposing(false);
     setSaving(false);
@@ -68,15 +54,13 @@ export default function NotesTab({ alterId }) {
 
   const saveEdit = async () => {
     if (!editContent.trim()) return;
-    let lc;
-    try { lc = await applyLogCommands(editContent.trim(), { isRich: false }); }
-    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    const w = await applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
-    if (w === null) return;
+    const prepared = await prepare(editContent);
+    if (prepared === null) return;
     setSaving(true);
-    await base44.entities.AlterNote.update(editingId, { content: w.content });
-    await notifyWhisper(w.recipientIds, { sourceId: editingId, alterId });
+    await base44.entities.AlterNote.update(editingId, { content: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters, sourceType: "note", sourceId: editingId, sourceLabel, navigatePath });
     queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     setEditingId(null);
     setSaving(false);
   };
@@ -103,6 +87,7 @@ export default function NotesTab({ alterId }) {
                 value={editContent}
                 onChange={setEditContent}
                 alters={alters}
+                signposts
                 placeholder={`Edit note… @ to mention, /w @name [secret] to whisper`}
                 className="min-h-[80px] text-sm"
                 autoFocus
@@ -142,6 +127,7 @@ export default function NotesTab({ alterId }) {
             value={newContent}
             onChange={setNewContent}
             alters={alters}
+            signposts
             className="min-h-[100px] text-sm"
             autoFocus
           />

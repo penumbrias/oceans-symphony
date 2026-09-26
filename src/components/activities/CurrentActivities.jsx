@@ -15,6 +15,10 @@ import {
   ACTIVE_ACTIVITY_EVENT,
 } from "@/lib/activitySession";
 import { getActiveSystemId } from "@/lib/systems";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { useTerms } from "@/lib/useTerms";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 function toLocalDatetimeValue(iso) {
   if (!iso) return "";
@@ -25,6 +29,8 @@ function toLocalDatetimeValue(iso) {
 // symptom menu: adjust the start time, end & log it, or discard it.
 export function ActivityActionMenu({ activity, onClose }) {
   const qc = useQueryClient();
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [busy, setBusy] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(activity.startTime));
@@ -42,8 +48,23 @@ export function ActivityActionMenu({ activity, onClose }) {
     } catch { /* keep editing */ }
   };
 
-  const handleSaveNote = () => {
-    updateActiveActivity(activity.id, { notes: noteDraft });
+  // The note rides on the running session and lands on the logged record
+  // when it ends — so ~commands / whispers / signposts / @mentions resolve
+  // here, at save time.
+  const handleSaveNote = async () => {
+    const baseAlterIds = activity.alterIds || (activity.alterId ? [activity.alterId] : []);
+    let prepared;
+    try { prepared = await prepareAuthoredText(noteDraft || "", { alters, terms, surfaceLabel: "note", baseAuthorIds: baseAlterIds }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const signposted = parseSignpostAuthors(noteDraft || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
+    updateActiveActivity(activity.id, { notes: prepared.content, ...(signposted ? { alterIds: prepared.authorIds } : {}) });
+    setNoteDraft(prepared.content);
+    const sourceId = activity.planActivityId || activity.id;
+    await recordAuthoredText({
+      ...prepared, alters, sourceType: "activity", sourceId, sourceLabel: "Activity note",
+      navigatePath: `/activities?date=${format(new Date(activity.startTime || Date.now()), "yyyy-MM-dd")}${activity.planActivityId ? `&highlight=${activity.planActivityId}` : ""}`,
+    });
     toast.success("Note saved");
   };
 
@@ -122,9 +143,11 @@ export function ActivityActionMenu({ activity, onClose }) {
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Note <span className="font-normal">(saved with the activity)</span></p>
-          <textarea
+          <MentionTextarea
             value={noteDraft}
-            onChange={(e) => setNoteDraft(e.target.value)}
+            onChange={setNoteDraft}
+            alters={alters}
+            signposts
             rows={3}
             placeholder="Add a note about this activity…"
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"

@@ -4,8 +4,8 @@ import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { Send, Pencil, Trash2, Reply, X, Check, User, ChevronDown, Lock, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
@@ -18,6 +18,7 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
 
 // Lift the composer so it rides just above the on-screen keyboard (and
@@ -292,11 +293,13 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
 
         {editing ? (
           <div className="flex flex-col gap-1 mt-0.5">
-            <Textarea
+            <MentionTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              alters={alters}
+              signposts
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmitEdit(draft); }
+                if (e.key === "Enter" && !e.shiftKey && !e.defaultPrevented) { e.preventDefault(); onSubmitEdit(draft); }
                 if (e.key === "Escape") onCancelEdit();
               }}
               autoFocus
@@ -820,10 +823,16 @@ export default function ChatSurface({
   const handleSubmitEdit = async (msg, nextContent) => {
     const trimmed = (nextContent || "").trim();
     if (!trimmed || trimmed === msg.content) { setEditing(null); return; }
+    // Inline ~commands become chips on edit too. Whisper state lives on the
+    // record from compose time (the host's edit contract can't change it),
+    // so only the command pass runs here; signposts fold below.
+    let withChips;
+    try { withChips = (await prepareAuthoredText(trimmed, { alters, terms, rich: true, surfaceLabel: "message", whisper: false, signposts: false })).content; }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
     const existingIds = Array.isArray(msg.author_alter_ids) && msg.author_alter_ids.length > 0
       ? msg.author_alter_ids
       : (msg.author_alter_id ? [msg.author_alter_id] : (msg.alter_id ? [msg.alter_id] : []));
-    const { cleanText, authorAlterIds } = resolveAuthors(trimmed, existingIds);
+    const { cleanText, authorAlterIds } = resolveAuthors(withChips, existingIds);
     if (!cleanText) { setEditing(null); return; }
     await onEdit?.(msg, { cleanText, authorAlterIds, mentionedIds: extractMentionedIds(cleanText, alters) });
     setEditing(null);

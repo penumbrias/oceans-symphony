@@ -7,6 +7,8 @@ import { CheckSquare, CalendarDays, Flag, Tag, Target, FileText, Pin, Zap, Plus,
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 
 const PRIORITIES = [
@@ -53,6 +55,7 @@ export default function QuickTaskComposer({
 }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 
   const [expanded, setExpanded] = useState(startWithWhen);
   const [title, setTitle] = useState("");
@@ -124,13 +127,20 @@ export default function QuickTaskComposer({
           if (liveIds.length > 0) authorIds = liveIds;
         } catch { /* fall through */ }
       }
+      // ONE pipeline for the description: ~commands, whispers, signposts
+      // (fold over the fronters), @mentions.
+      let prepared;
+      try { prepared = await prepareAuthoredText(note || "", { alters, terms, surfaceLabel: "task", baseAuthorIds: authorIds }); }
+      catch (e) { if (isLogCommandError(e)) { toast.error(e.message); setSaving(false); return; } throw e; }
+      if (prepared === null) { setSaving(false); return; }
+      authorIds = prepared.authorIds;
       // ONE task-create path (lib/taskCreate.js), shared with the full
       // TaskFormModal; the companion board post is an option of it.
       // ONE path for a thing to do (lib/thingSave.js): it writes the Task
       // and, when the thing has a day, the linked plan as well — so a to-do
       // with a time IS the plan, instead of a second, separate record the
       // user has to keep in sync by hand.
-      const { planned } = await saveThing({
+      const { task, planned } = await saveThing({
         title,
         when: {
           dueDate: dueDate || null,
@@ -140,7 +150,7 @@ export default function QuickTaskComposer({
         },
         priority,
         categoryIds: categoryId ? [categoryId] : [],
-        note,
+        note: prepared.content,
         pinned,
         urgent,
         goalTarget,
@@ -148,6 +158,12 @@ export default function QuickTaskComposer({
         alterIds: authorIds,
         companionBulletin: true,
         authorAlterIds: authorIds,
+      });
+      await recordAuthoredText({
+        ...prepared,
+        content: [title, prepared.content].filter(Boolean).join(" "),
+        alters, sourceType: "task", sourceId: task?.id || "", sourceLabel: "To-Do List",
+        navigatePath: task?.id ? `/todo?highlight=${task.id}` : "/todo",
       });
       queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -342,7 +358,7 @@ export default function QuickTaskComposer({
                     )}
 
                     {activePill === "note" && (
-                      <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a description (optional)…" rows={2}
+                      <MentionTextarea value={note} onChange={setNote} alters={alters} signposts placeholder="Add a description (optional)…" rows={2}
                         className="w-full bg-background border border-input rounded-lg px-2 py-1.5 text-sm text-foreground resize-none outline-none" />
                     )}
                   </div>

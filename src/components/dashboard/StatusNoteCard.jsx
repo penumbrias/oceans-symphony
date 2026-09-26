@@ -1,11 +1,12 @@
 import React, { useState } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Edit2, X } from "lucide-react";
 import { toast } from "sonner";
 import { localEntities, base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { saveStatusMentions } from "@/lib/mentionUtils";
 
 // Standalone "What's happening right now…" status note.
@@ -22,6 +23,7 @@ import { saveStatusMentions } from "@/lib/mentionUtils";
 // the latest entry; the full immutable history is the Tally panel +
 // timeline.
 export default function StatusNoteCard() {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [tempStatus, setTempStatus] = useState("");
@@ -48,15 +50,22 @@ export default function StatusNoteCard() {
     // Execute any inline ~commands (status notes render as plain text, so use
     // plain-label tokens rather than HTML chips).
     let note;
-    try { ({ content: note } = await applyLogCommands(raw, { chips: false })); }
-    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
+    // Shared text pipeline: ~commands run (plain tokens — statuses render as
+    // plain text), "-name" signposts sign the status, @mentions notify.
+    let prepared;
+    try { prepared = await prepareAuthoredText(raw, { alters, terms, whisper: false, chips: false, surfaceLabel: "status" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    note = prepared.content;
+    const authorAlterId = prepared.authorIds[0] || null;
     const created = await localEntities.StatusNote.create({
       timestamp: new Date().toISOString(),
       note,
+      ...(authorAlterId ? { author_alter_id: authorAlterId } : {}),
     });
     // @mentions notify like every other surface — the log row is what the
     // "mentions for current fronters" banner and popups read.
-    await saveStatusMentions({ note, alters, sourceId: created?.id });
+    await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId });
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
@@ -70,6 +79,7 @@ export default function StatusNoteCard() {
         <div className="flex items-start gap-2">
           <div className="flex-1">
             <MentionTextarea
+              signposts
               value={tempStatus}
               onChange={setTempStatus}
               alters={alters}

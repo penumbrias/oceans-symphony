@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { applyLogCommands } from "@/lib/logCommands";
+import { isLogCommandError } from "@/lib/authoredText";
 import useFormDraft from "@/hooks/useFormDraft";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -319,7 +321,18 @@ useEffect(() => {
   });
 
   const handleSave = async () => {
-    let finalContent = content;
+    // Inline ~commands in the body create real records (same grammar as
+    // chat, bulletins and notes); a malformed one blocks the save so the
+    // text stays editable. Runs on the plaintext, before any encryption.
+    let bodyContent = content;
+    try {
+      const lc = await applyLogCommands(content, { isRich: true });
+      bodyContent = lc.content;
+    } catch (e) {
+      if (isLogCommandError(e)) { toast.error(e.message); return; }
+      throw e;
+    }
+    let finalContent = bodyContent;
     if (isEncrypted) {
       // An existing encrypted entry keeps the password it was decrypted
       // with, so saving re-encrypts with the same one. Never let a save
@@ -340,12 +353,12 @@ useEffect(() => {
         toast.error("This entry is empty — delete it instead of saving a blank version.");
         return;
       }
-      finalContent = await encryptContent(content, pw);
+      finalContent = await encryptContent(bodyContent, pw);
     }
     // Hashtags typed in the body become tags (merged with any existing).
     // Extraction runs on the PLAINTEXT content — an encrypted body can't be
     // scanned, and shouldn't leak its tags anyway.
-    const extracted = isEncrypted ? [] : extractHashtags(`${title} ${content}`);
+    const extracted = isEncrypted ? [] : extractHashtags(`${title} ${bodyContent}`);
     saveMutation.mutate({
       title: title.trim() || new Date().toLocaleString(),
       content: finalContent,
