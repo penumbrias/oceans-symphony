@@ -97,11 +97,23 @@ small interface, so a new platform is a new adapter rather than a rewrite.
 - **Desktop (Electron)** — the user picks any folder. Point it at a
   plugged-in phone's storage or a USB stick. Fully implemented and
   verified end to end.
-- **Android / iOS (Capacitor)** — scoped storage means the app can't be
-  handed an arbitrary folder, so the location is fixed at
-  `Documents/OceansSymphony`. That is reachable from a computer over USB,
-  which is the point: the desktop does the reaching, the phone just keeps
-  its snapshot somewhere findable.
+- **Android (Storage Access Framework, v0.243.6)** — the user grants the
+  folder once through the system folder picker (opened at
+  `Documents/OceansSymphony`), and the native `SyncFolder` plugin
+  (`android/.../SyncFolderPlugin.java`, bridge `src/lib/nativeSyncFolder.js`)
+  lists, reads, writes and removes snapshots through that persisted grant.
+  This replaced a fixed-folder `@capacitor/filesystem` adapter that could
+  only sync ONE way: under scoped storage an app can't see files it didn't
+  create, so the desktop's snapshot (copied in over USB) was invisible to
+  the phone. Verified on a Galaxy S24 / Android 16 with `adb run-as`: the
+  desktop's file was in the folder and the app's listing omitted it. The
+  handle is stored as JSON `{ uri, docId, name }` in `symphony_sync_folder`;
+  if the user picks `Documents` itself, the plugin works inside its
+  `OceansSymphony` subfolder so both devices keep meeting in one place.
+  "All files access" (`MANAGE_EXTERNAL_STORAGE`) was rejected as the fix —
+  Play rarely approves it for this kind of app.
+- **iOS (Capacitor)** — fixed location `Documents/OceansSymphony` in the
+  app's own Documents, via `@capacitor/filesystem`.
 - **Web / TWA** — not offered. A browser tab can't keep access to a
   folder between visits. The panel says so instead of showing a button
   that won't work.
@@ -212,6 +224,18 @@ require the passphrase, which is the point of it.
 
 - A LAN transport. The snapshot format and merge layer are transport
   agnostic, so it would slot in beside the file adapters.
-- Android has not been verified on real hardware; the adapter is written
-  against the same Capacitor Filesystem API the backup path already uses,
-  but it needs a phone to confirm.
+- The Android SAF adapter compiles and the scoped-storage failure it fixes
+  was confirmed on hardware; the full desktop → phone round trip through
+  the picker still needs a pass on a real phone.
+
+## Peers are per device AND system
+
+`listSyncPeers` groups files by `deviceId:systemId`, and the seen-marks
+use the same key. One device can leave snapshots for two systems in the
+folder (a multi-system user, or an old system left behind after a
+reinstall). Grouped by device alone, the second file overwrote the
+first's data slot while the entry kept the first system's id — pairing
+one system could merge the other's data. The desktop first-run flow pairs
+only each device's newest system for the same reason, and the background
+"anything new?" poll ignores unpaired peers (an unpaired file is never
+marked seen, so it used to trigger a full pass every 30 seconds).

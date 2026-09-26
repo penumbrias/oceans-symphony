@@ -46,7 +46,17 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
       // The database must exist before a merge can land in it.
       if (prepare && !(await prepare())) return;
 
-      for (const p of peers) if (p.systemId) pairSystem(p.systemId);
+      // Choosing the folder is the pairing — but only with the system each
+      // device is using NOW. A device can leave an older system's snapshot
+      // behind (e.g. from before a reinstall); pairing every system found
+      // would blend that old one into this fresh install too.
+      const newestPerDevice = new Map();
+      for (const p of peers) {
+        if (!p.systemId || !p.data) continue;
+        const cur = newestPerDevice.get(p.deviceId);
+        if (!cur || (p.data.mtimeMs || 0) > (cur.data.mtimeMs || 0)) newestPerDevice.set(p.deviceId, p);
+      }
+      for (const p of newestPerDevice.values()) pairSystem(p.systemId);
       const report = await runSync({ force: true });
 
       if (!report.merged.length) {

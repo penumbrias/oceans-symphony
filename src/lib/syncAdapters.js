@@ -6,10 +6,13 @@
 // iOS later is a new adapter rather than a rewrite:
 //
 //   available       can this build sync at all
-//   canPickFolder   can the user choose where (desktop yes, Android no —
-//                   scoped storage means we use a fixed known folder)
+//   canPickFolder   can the user choose where (desktop: any folder;
+//                   Android: granted once through the system picker;
+//                   iOS: no — a fixed folder in the app's Documents)
+//   canPastePath    desktop only — a typed path as well as the picker
+//   describeFolder(folder) → what to show the user for the stored value
 //   folderLabel     what to call the location in the UI
-//   pickFolder()    → absolute path, or null if cancelled
+//   pickFolder()    → folder value to store (path or handle), or null if cancelled
 //   list(dir)       → [{ name, size, mtimeMs }]
 //   read(dir, name) → string
 //   write(dir, name, text)
@@ -18,7 +21,7 @@
 // and removable media, where inotify-style watching silently never fires.
 // The runner polls.
 
-import { isDesktop, isNative } from "@/lib/platform";
+import { isDesktop, isNative, getNativePlatform } from "@/lib/platform";
 
 // ── Desktop (Electron) ────────────────────────────────────────────────
 const electronAdapter = {
@@ -26,6 +29,8 @@ const electronAdapter = {
   available: true,
   canPickFolder: true,
   folderLabel: "Sync folder",
+  canPastePath: true,
+  describeFolder: (folder) => folder || "",
   async pickFolder() {
     const res = await globalThis.symphonyDesktop.sync.pickFolder();
     if (!res?.ok) throw new Error(res?.error || "Couldn't open the folder picker.");
@@ -53,10 +58,11 @@ const electronAdapter = {
   },
 };
 
-// ── Android / iOS (Capacitor) ─────────────────────────────────────────
+// ── iOS (Capacitor) ───────────────────────────────────────────────────
 //
-// Scoped storage means the app can't be handed an arbitrary folder, so
-// the location is FIXED: Documents/OceansSymphony. That is a folder the
+// Android used this adapter too until the SAF adapter below replaced it:
+// scoped storage hid the desktop's snapshot from it. On iOS the location is
+// FIXED: Documents/OceansSymphony. That is a folder the
 // desktop can reach over USB (Internal storage → Documents →
 // OceansSymphony), which is the whole point — the desktop does the
 // reaching, the phone just keeps its snapshot somewhere findable.
@@ -66,7 +72,9 @@ const capacitorAdapter = {
   id: "capacitor",
   available: true,
   canPickFolder: false,
+  canPastePath: false,
   folderLabel: "Documents/OceansSymphony",
+  describeFolder: () => "Documents/OceansSymphony",
   async pickFolder() {
     return CAPACITOR_DIR;
   },
@@ -152,6 +160,66 @@ const capacitorAdapter = {
   },
 };
 
+// ── Android (Storage Access Framework) ────────────────────────────────
+//
+// Scoped storage hides files the app didn't create — including the
+// snapshot the desktop drops into Documents/OceansSymphony over USB — so
+// the fixed-folder Filesystem adapter above could only ever sync one way
+// (phone → desktop). Verified on a Galaxy S24 / Android 16: the desktop's
+// file was in the folder and invisible to the app.
+//
+// Here the user grants the folder once through the system picker (opened
+// at Documents/OceansSymphony, so it's two taps), and the native
+// SyncFolder plugin reads and writes through that grant. The chosen
+// folder is stored as a JSON handle in the runner's folder key.
+const androidSafAdapter = {
+  id: "android-saf",
+  available: true,
+  canPickFolder: true,
+  canPastePath: false,
+  folderLabel: "Documents/OceansSymphony",
+  describeFolder(folder) {
+    if (!folder) return "";
+    try { return JSON.parse(folder)?.name || "Chosen folder"; } catch { return ""; }
+  },
+  async _bridge() {
+    return import("@/lib/nativeSyncFolder");
+  },
+  async _handle(dir) {
+    const b = await this._bridge();
+    const h = b.parseFolderHandle(dir);
+    if (!h) throw new Error("Choose a folder to sync through first.");
+    return { b, h };
+  },
+  async pickFolder() {
+    // Make sure Documents/OceansSymphony exists so the picker can open
+    // right on it. The app may create a folder in Documents (it can't read
+    // other apps' files there, which is the whole problem, but mkdir is fine).
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      await Filesystem.mkdir({ path: CAPACITOR_DIR, directory: Directory.Documents, recursive: true });
+    } catch { /* already there, or the picker opens one level up */ }
+    const b = await this._bridge();
+    return b.pickFolderHandle();
+  },
+  async list(dir) {
+    const { b, h } = await this._handle(dir);
+    return b.listFolder(h);
+  },
+  async read(dir, name) {
+    const { b, h } = await this._handle(dir);
+    return b.readFolderFile(h, name);
+  },
+  async write(dir, name, text) {
+    const { b, h } = await this._handle(dir);
+    return b.writeFolderFile(h, name, text);
+  },
+  async remove(dir, name) {
+    const { b, h } = await this._handle(dir);
+    return b.removeFolderFile(h, name);
+  },
+};
+
 // ── Web / TWA ─────────────────────────────────────────────────────────
 // A browser tab has no folder it can keep reading and writing across
 // sessions without re-prompting, so sync is not offered there. The
@@ -161,7 +229,9 @@ const unavailableAdapter = {
   id: "none",
   available: false,
   canPickFolder: false,
+  canPastePath: false,
   folderLabel: "",
+  describeFolder: () => "",
   reason: "Device sync needs the desktop app or the phone app — a browser tab can't keep access to a folder between visits. Use Export and Import instead.",
   async pickFolder() { return null; },
   async list() { return []; },
@@ -172,7 +242,7 @@ const unavailableAdapter = {
 
 export function getSyncAdapter() {
   if (isDesktop() && globalThis.symphonyDesktop?.sync) return electronAdapter;
-  if (isNative()) return capacitorAdapter;
+  if (isNative()) return getNativePlatform() === "android" ? androidSafAdapter : capacitorAdapter;
   return unavailableAdapter;
 }
 

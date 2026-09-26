@@ -63,6 +63,8 @@ export const CHANGELOG = [
       { type: "hotfix", text: "Hotfix: tooling — the whole source tree is linted now (hooks-dependency warnings on), 110 unused imports removed." },
       { type: "feature", text: "Every note box now speaks the same language: ~commands (like ~activity: shower) create real records, -name / +name signposts sign the text, and @mentions notify — in alter notes and messages, relationships, lineage, groups, presences, contacts, locations, activities and plans, tasks, sleep, symptoms, session notes, switch journals, technique notes, meeting steps, status notes, and when editing bulletins, comments and chat messages." },
       { type: "improve", text: "Journal entries run ~commands in the body, the Quick Check-In note and activity note get commands and mention notifications, and planner notes get all three (commands were switched off there)." },
+      { type: "fix", text: "Android: syncing from the desktop to your phone now works. Android was hiding the desktop's sync file from the app — choose the sync folder once in Settings → Sync between devices, and changes flow both ways." },
+      { type: "fix", text: "Sync no longer mixes up two systems from the same device (for example an old one left over from a reinstall), and the pairing list shows which system and when it was last updated." },
     ],
   },
   {

@@ -368,7 +368,10 @@ Rules for keeping the targets healthy:
   `ALLOWED_ORIGINS` in `api/_kv.js`.** Otherwise the browser drops every
   relay response and Friends looks broken with no error worth reading.
 - **Device sync is files only — never add a network path to it.** See
-  `docs/device-sync.md`. Platform differences live behind the adapter
+  `docs/device-sync.md`. On Android, folder access goes through the
+  Storage Access Framework (`SyncFolderPlugin.java`) — scoped storage hides
+  files the app didn't create, so plain `@capacitor/filesystem` reads of
+  `Documents` can never see the desktop's snapshot. Platform differences live behind the adapter
   interface in `src/lib/syncAdapters.js`; a new platform is a new
   adapter, never a change to `deviceSync.js` or `deviceSyncRunner.js`.
 - **`symphony_sync_device_id` must stay OUT of `BACKUP_LS_KEYS`.**

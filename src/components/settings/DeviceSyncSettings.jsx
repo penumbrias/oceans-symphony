@@ -50,7 +50,11 @@ export default function DeviceSyncSettings() {
   const [report, setReport] = useState(null);
   const [lastRun, setLastRun] = useState(getLastRun());
   const [pending, setPending] = useState([]);
-  const unpaired = peers.filter((p) => !p.isSelf && !p.sameSystem && !p.paired);
+  // Newest first: when one device left snapshots for two systems (e.g. an
+  // old system from before a reinstall), the one it's using today is on top.
+  const unpaired = peers
+    .filter((p) => !p.isSelf && !p.sameSystem && !p.paired)
+    .sort((a, b) => (b.data?.mtimeMs || 0) - (a.data?.mtimeMs || 0));
 
   const refreshPeers = useCallback(async () => {
     if (!adapter.available) return;
@@ -168,7 +172,7 @@ export default function DeviceSyncSettings() {
         <p className="text-sm font-medium">{adapter.canPickFolder ? "Sync folder" : "Sync location"}</p>
         {adapter.canPickFolder ? (
           <>
-            <p className="text-xs text-muted-foreground break-all">{folder || "Not chosen yet"}</p>
+            <p className="text-xs text-muted-foreground break-all">{adapter.describeFolder?.(folder) || folder || "Not chosen yet"}</p>
             <Button type="button" variant="outline" size="sm" onClick={handlePick} className="gap-1.5">
               <FolderOpen className="w-3.5 h-3.5" /> {folder ? "Change folder" : "Choose folder"}
             </Button>
@@ -176,8 +180,9 @@ export default function DeviceSyncSettings() {
                 lands somewhere like
                 /run/user/1000/gvfs/mtp:host=.../Internal storage/Documents,
                 which is awkward to click through and which some file
-                dialogs don't list at all. */}
-            <div className="flex gap-2 pt-1">
+                dialogs don't list at all. Desktop only — on Android the
+                system picker is the only way to grant a folder. */}
+            {adapter.canPastePath && <div className="flex gap-2 pt-1">
               <Input
                 value={folderDraft}
                 onChange={(e) => setFolderDraft(e.target.value)}
@@ -201,7 +206,7 @@ export default function DeviceSyncSettings() {
               >
                 Use
               </Button>
-            </div>
+            </div>}
           </>
         ) : (
           <p className="text-xs text-muted-foreground">
@@ -273,8 +278,13 @@ export default function DeviceSyncSettings() {
             </div>
           </div>
           {unpaired.map((p) => (
-            <div key={p.deviceId} className="flex items-center gap-2 text-xs rounded border border-border/60 bg-card p-2">
-              <span className="flex-1 min-w-0 truncate font-mono text-muted-foreground">{p.deviceId.slice(0, 8)}</span>
+            <div key={p.key} className="flex items-center gap-2 text-xs rounded border border-border/60 bg-card p-2">
+              <span className="flex-1 min-w-0 truncate">
+                <span className="font-mono text-muted-foreground">{p.deviceId.slice(0, 8)} · {t.system} {String(p.systemId).slice(0, 8)}</span>
+                <span className="block text-muted-foreground">
+                  {p.data ? `updated ${fmtWhen(new Date(p.data.mtimeMs).toISOString())}` : "no data file"}
+                </span>
+              </span>
               <Button
                 type="button" size="sm" className="h-6 px-2"
                 onClick={async () => {
@@ -296,8 +306,8 @@ export default function DeviceSyncSettings() {
         <div className="space-y-1.5">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Devices in this folder</p>
           {peers.map((p) => (
-            <div key={p.deviceId} className="flex items-center gap-2 text-xs rounded-lg border border-border/60 p-2">
-              <span className="font-mono text-muted-foreground">{p.deviceId.slice(0, 8)}</span>
+            <div key={p.key} className="flex items-center gap-2 text-xs rounded-lg border border-border/60 p-2">
+              <span className="font-mono text-muted-foreground">{p.deviceId.slice(0, 8)} · {String(p.systemId).slice(0, 8)}</span>
               {p.isSelf && <span className="text-muted-foreground">(this device)</span>}
               <span className="ml-auto text-muted-foreground">
                 {p.data ? fmtWhen(new Date(p.data.mtimeMs).toISOString()) : "no data file"}
@@ -314,7 +324,7 @@ export default function DeviceSyncSettings() {
             <p className="text-muted-foreground">Nothing new to bring in.</p>
           )}
           {report.merged.map((m) => (
-            <p key={m.deviceId}>Merged from <span className="font-medium">{m.name}</span>.</p>
+            <p key={m.key || m.deviceId}>Merged from <span className="font-medium">{m.name}</span>.</p>
           ))}
           {(report.media.images > 0 || report.media.fonts > 0) && (
             <p className="text-muted-foreground">
