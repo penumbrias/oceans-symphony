@@ -234,8 +234,9 @@ export default function DeviceSyncSettings() {
           onClick={async () => {
             setBusy(true);
             try {
-              const { applied, from } = await copyAppearanceFrom();
-              toast.success(`Copied ${applied} appearance setting${applied === 1 ? "" : "s"} from ${from}. Restart to see them.`);
+              const { applied, layoutFields, from } = await copyAppearanceFrom();
+              const parts = [applied && `${applied} appearance setting${applied === 1 ? "" : "s"}`, layoutFields && `${layoutFields} layout setting${layoutFields === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+              toast.success(`Copied ${parts || "appearance"} from ${from}. Restart to see them. Your previous layout is in Recent changes.`);
             } catch (e) {
               toast.error(e?.message || "Couldn't copy appearance.");
             } finally {
@@ -330,12 +331,6 @@ export default function DeviceSyncSettings() {
             <p className="text-muted-foreground">
               {report.media.images} image{report.media.images === 1 ? "" : "s"}
               {report.media.fonts > 0 ? `, ${report.media.fonts} font${report.media.fonts === 1 ? "" : "s"}` : ""} brought over.
-            </p>
-          )}
-          {report.settingsFilled > 0 && (
-            <p className="text-muted-foreground">
-              Appearance settings came over for this device — restart the app to see them.
-              Anything you&apos;d already set here was left alone.
             </p>
           )}
           {report.conflicts.length > 0 && (

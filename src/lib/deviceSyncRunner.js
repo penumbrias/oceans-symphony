@@ -13,12 +13,14 @@ import { getFullDbDump } from "@/lib/localDb";
 import {
   buildDataSnapshot, buildMediaSnapshot, mediaFingerprint,
   parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
-  readSnapshotSettings, applyPortableSettings,
+  readSnapshotSettings, readSnapshotLook, applyPortableSettings,
   parseSyncFileName, dataFileName, mediaFileName,
   getDeviceId, SYNC_FORMAT, SYNC_MEDIA_FORMAT,
 } from "@/lib/deviceSync";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getActiveSystemId } from "@/lib/systems";
+import { localEntities } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const FOLDER_KEY = "symphony_sync_folder";
 const LAST_RUN_KEY = "symphony_sync_last_run";
@@ -378,17 +380,34 @@ export async function copyAppearanceFrom() {
 
   for (const peer of peers) {
     let settings = null;
+    let look = null;
     let name = peer.deviceId;
     try {
       const file = parseSnapshotFile(await adapter.read(dir, peer.data.name));
       name = file.device?.name || name;
       settings = await readSnapshotSettings(file);
+      look = await readSnapshotLook(file);
     } catch {
       continue; // unreadable snapshots are reported by the sync pass
     }
-    if (settings && Object.keys(settings).length) {
-      return { applied: applyPortableSettings(settings, { overwrite: true }), from: name };
+    const hasSettings = settings && Object.keys(settings).length > 0;
+    const hasLook = look && Object.keys(look).length > 0;
+    if (!hasSettings && !hasLook) continue;
+    // The ONE place another device's look and layout are applied — because
+    // a person asked for it. The layout fields go through the normal
+    // entity update, so the previous layout lands in Recent changes and
+    // can be put back.
+    let layoutFields = 0;
+    if (hasLook) {
+      const rows = await localEntities.SystemSettings.list();
+      const row = pickPrimarySystemSettings(rows) || rows[0];
+      if (row?.id) {
+        await localEntities.SystemSettings.update(row.id, look);
+        layoutFields = Object.keys(look).length;
+      }
     }
+    const applied = hasSettings ? applyPortableSettings(settings, { overwrite: true }) : 0;
+    return { applied, layoutFields, from: name };
   }
   throw new Error("The other device's snapshot doesn't include appearance settings — it's running an older version. Update it and sync once, then try again.");
 }

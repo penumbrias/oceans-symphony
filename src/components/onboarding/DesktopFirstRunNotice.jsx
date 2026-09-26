@@ -66,10 +66,11 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
       }
       toast.success(`Brought your data over from ${report.merged[0].name}. Starting up…`);
       // Reload rather than continuing in place: a pull merges the whole
-      // database AND fills in appearance preferences, and theme/font are
-      // read at boot. Continuing would show the data with this device's
-      // default look and no obvious reason why. Same thing the backup
-      // importer does after a restore.
+      // database, and several boot-time caches (terms, systems registry)
+      // read it once. Same thing the backup importer does after a restore.
+      // Appearance does NOT come along (the desktop keeps its own look —
+      // see src/lib/syncLook.js); "Use another device's appearance" in the
+      // sync panel copies it on request.
       setTimeout(() => window.location.reload(), 1200);
     } catch (e) {
       toast.error(e?.message || "Couldn't sync from that device.");

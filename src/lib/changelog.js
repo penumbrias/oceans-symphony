@@ -65,6 +65,7 @@ export const CHANGELOG = [
       { type: "improve", text: "Journal entries run ~commands in the body, the Quick Check-In note and activity note get commands and mention notifications, and planner notes get all three (commands were switched off there)." },
       { type: "fix", text: "Android: syncing from the desktop to your phone now works. Android was hiding the desktop's sync file from the app — choose the sync folder once in Settings → Sync between devices, and changes flow both ways." },
       { type: "fix", text: "Sync no longer mixes up two systems from the same device (for example an old one left over from a reinstall), and the pairing list shows which system and when it was last updated." },
+      { type: "fix", text: "Sync no longer copies appearance or layout between devices — your phone and desktop can look different. Theme, fonts, home layout, bars and navigation stay on each device; \"Use another device's appearance\" in the sync panel copies them only when you ask." },
     ],
   },
   {

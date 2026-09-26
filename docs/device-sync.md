@@ -54,18 +54,26 @@ Recent changes.
   stripped on write by `stripDeviceBound` and again on read inside
   `mergeDbDump`. Copying a Friends identity to a second device is
   impersonation, not sync.
-- **localStorage preferences are sent, but fill gaps only.** Theme,
-  fonts and accessibility settings travel in the snapshot and are applied
-  ONLY to keys this device has no value for. They carry no timestamps, so
-  a real merge is impossible and applying them outright would make the
-  last device to sync win — flip-flopping a phone's font size against a
-  desktop's. Filling gaps means a fresh device inherits your theme (the
-  thing you actually want when setting one up) while an established
-  device is never restyled behind your back. Same rule
-  `localSettingsMirror` uses when restoring on boot.
+- **Appearance and layout are never synced automatically** (owner's
+  rule, v0.243.7: the desktop and the phone are meant to look
+  different). Each snapshot carries them in a separate `appearance`
+  section — the localStorage preferences (theme, fonts, accessibility)
+  plus the SystemSettings look/layout fields listed in
+  `src/lib/syncLook.js` (home boards, bars, navigation, dashboard layout,
+  pinned-alters strip, corners, wave, banner crop, plan surfaces, toast
+  prefs). Nothing applies that section except the explicit "Use another
+  device's appearance" button, which writes the layout through the normal
+  entity update so the previous layout lands in Recent changes.
 
-  Because theme and font are read at boot, a pull that fills them asks
-  for a restart; the first-run flow just reloads.
+  Incoming SystemSettings rows are also stripped of those fields before
+  the newer-wins merge, because peers on older builds still send them
+  inside the record. The merge only overwrites fields an incoming record
+  actually carries, so a device on an older build simply keeps its own
+  layout when it reads a new snapshot.
+
+  Before this, preferences filled gaps and the settings record merged
+  newer-wins: resizing a widget on the desktop rewrote the phone's home
+  layout on the next sync (seen Sept 25, 2026).
 - **The device id.** See below — this one matters.
 
 ## The device id must stay device-bound
