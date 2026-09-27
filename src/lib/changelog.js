@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "September 27, 2026",
+    changes: [
+      { type: "feature", text: "Desktop: the phone's bottom bars can now show beside the sidebar — switch on \"Show on wide screens\" in Appearance → Layout → Dashboard. Quick actions can be a bar, a floating edge bar or a bubble, and the pinned alters bar can run down the side." },
+      { type: "feature", text: "Customize the sidebar: pick which pages it lists and their order in Appearance → Layout → Sidebar. Each device keeps its own." },
+      { type: "improve", text: "Sync: \"Use look\" now sits on each device in the folder, so you choose whose theme and layout to copy instead of getting whichever device synced last." },
+    ],
+  },
+  {
     date: "September 25, 2026",
+    version: "0.243.7",
     changes: [
       { type: "fix", text: "Editing a private (encrypted) journal entry no longer wrecks it. Saving used to blank the entry or lock it behind a password that never worked again; it now re-encrypts with the password you opened it with." },
       { type: "fix", text: "Editing a past System Meeting no longer kicks co-fronters off front or logs the meeting's feelings a second time. New meetings now log their \"feelings noticed\" to the check-in log as intended." },

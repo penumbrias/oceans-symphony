@@ -195,6 +195,17 @@ body {
   }
 }
 
+/* The same chrome at DESKTOP width (data-classic-v2-wide — the user's
+   "Show on wide screens"): it sits beside the classic sidebar (w-52), and
+   content clears whatever bars are on. The classic tab bar is already
+   lg:hidden, so nothing needs hiding here. */
+@media (min-width: 1024px) {
+  [data-classic-v2-wide="1"] { --os-classic-sidebar-w: 13rem; }
+  [data-classic-v2-wide="1"] .app-content-main {
+    padding-bottom: calc(var(--v2-bottom-chrome-h, 0px) + 24px + var(--os-sab) + var(--v2-qa-float-bottom-h, 0px)) !important;
+  }
+}
+
 /* The v2 top bar hosted in classic replaces the classic headers only —
    the rest of the classic chrome (tab bar, sidebar) stays. */
 [data-classic-v2-top="1"] .os-classic-header { display: none !important; }

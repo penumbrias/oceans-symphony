@@ -1,4 +1,8 @@
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { applySidebarConfig } from "@/utils/navigationConfig";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
@@ -87,7 +91,17 @@ export default function SidebarNav({ open, onClose }) {
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
 
-  const groups = useMemo(() => buildSidebarGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  // User's sidebar customization (Settings → Navigation → Sidebar): hidden
+  // pages and in-group order. Same config the desktop sidebar reads.
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const sidebarCfg = (pickPrimarySystemSettings(settingsRows) || settingsRows[0])?.navigation_config?.sidebar;
+  const groups = useMemo(
+    () => applySidebarConfig(buildSidebarGroups(terms.Alters, terms.System), sidebarCfg),
+    [terms.Alters, terms.System, sidebarCfg]
+  );
 
   // Close on navigation
   // Close when the route CHANGES — not on mount. Running on mount too made

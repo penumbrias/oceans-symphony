@@ -368,13 +368,17 @@ export async function removeSyncFile(name) {
 // Returns { applied, from } — or throws with a reason a person can act
 // on, the common one being that the other device is on a build old
 // enough that its snapshots carry no preferences at all.
-export async function copyAppearanceFrom() {
+// `key` picks one device (listSyncPeers' `${deviceId}:${systemId}`). The
+// sync panel always passes it: "newest" is the wrong default when two
+// devices share a folder — the one that happens to have written last wins.
+export async function copyAppearanceFrom({ key = null } = {}) {
   const adapter = getSyncAdapter();
   const dir = getSyncFolder();
-  // Paired/same-system peers only, newest first — never restyle this
-  // device from a system the user hasn't agreed to sync with.
+  // Paired/same-system peers only — never restyle this device from a
+  // system the user hasn't agreed to sync with.
   const peers = (await listSyncPeers())
     .filter((p) => !p.isSelf && p.data && (p.sameSystem || p.paired))
+    .filter((p) => !key || p.key === key)
     .sort((a, b) => (b.data.mtimeMs || 0) - (a.data.mtimeMs || 0));
   if (!peers.length) throw new Error("No paired device's snapshot in that folder yet.");
 

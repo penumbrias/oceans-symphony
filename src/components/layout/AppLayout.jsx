@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
+import { useIsWide } from "@/lib/useIsWide";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, LayoutGrid, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -25,7 +26,7 @@ import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
-import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, applySidebarConfig } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
@@ -329,6 +330,11 @@ const classicAltersOn = (() => {
   return home?.altersBar?.enabled === true;
 })();
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
+// Desktop width with "Show on wide screens" on: the classic layout hosts
+// the phone's bars beside its sidebar instead of hiding them. Per device —
+// ui_v2 is a look field that never syncs (src/lib/syncLook.js).
+const isWide = useIsWide();
+const wideBars = !!classicBars && isWide && classicBars.wide === true;
 const classicBarsOn = !!classicBars && (classicBars.top || classicBars.bottom || (classicBars.alters && classicAltersOn));
 // The --v2-* tokens are emitted in classic mode UNCONDITIONALLY (not just
 // when bars are hosted): the widget board is one swipe left of the classic
@@ -355,6 +361,7 @@ useEffect(() => {
     root.removeAttribute("data-ui-v2");
     root.removeAttribute("data-classic-v2-bars");
     root.removeAttribute("data-classic-v2-top");
+    root.removeAttribute("data-classic-v2-wide");
     return undefined;
   }
   // Classic mode: emit ONLY the --v2-* namespace so the bars and the
@@ -369,6 +376,9 @@ useEffect(() => {
     else root.removeAttribute("data-classic-v2-bars");
     if (classicBars?.top) root.setAttribute("data-classic-v2-top", "1");
     else root.removeAttribute("data-classic-v2-top");
+    // Desktop-width bars: content clearance + the sidebar offset they sit beside.
+    if (wideBars) root.setAttribute("data-classic-v2-wide", "1");
+    else root.removeAttribute("data-classic-v2-wide");
     const applied = [];
     for (const [k, v] of Object.entries(uiV2Vars)) {
       if (!k.startsWith("--v2-")) continue;
@@ -378,6 +388,7 @@ useEffect(() => {
     return () => {
       root.removeAttribute("data-classic-v2-bars");
       root.removeAttribute("data-classic-v2-top");
+      root.removeAttribute("data-classic-v2-wide");
       for (const k of applied) root.style.removeProperty(k);
     };
   }
@@ -415,7 +426,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom]);
+}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom, wideBars]);
   // The desktop sidebar is sticky under the top chrome, and its offset
   // used to be a hardcoded 4rem — the CLASSIC header's height. With the
   // v2 top bar that chrome is 49px, and a sticky element is clamped to
@@ -946,7 +957,7 @@ const handleNotifClick = (mentionLog) => {
             {/* One list for both sidebars: buildSidebarGroups is the phone
                 drawer's source too, so a page added there is reachable here
                 (a second hard-coded copy here was missing 8 pages). */}
-            {buildSidebarGroups(terms.Alters, terms.System).map(({ label, items }) => (
+            {applySidebarConfig(buildSidebarGroups(terms.Alters, terms.System), navConfig?.sidebar).map(({ label, items }) => (
               <div key={label}>
                 <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
                   {label}
@@ -1051,7 +1062,7 @@ const handleNotifClick = (mentionLog) => {
           widths only (classic desktop keeps its sidebar; display:none on
           this wrapper hides the fixed children too). The classic tab bar
           is hidden via [data-classic-v2-bars] in index.css. */}
-      {classicBars?.bottom && (
+      {classicBars?.bottom && !wideBars && (
         <div className="lg:hidden">
           <V2BottomChrome
             uiV2={{
@@ -1062,10 +1073,32 @@ const handleNotifClick = (mentionLog) => {
           />
         </div>
       )}
-      {classicBars?.bottom && classicBars.actions && (
+      {classicBars?.bottom && classicBars.actions && !wideBars && (
         <div className="lg:hidden">
           <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
         </div>
+      )}
+
+      {/* Desktop width, "Show on wide screens" on: the SAME chrome, beside
+          the sidebar. Each bar follows its own switch here (the tab bar is
+          optional — the sidebar already navigates), and each keeps its own
+          display mode: quick actions as a bar, floating edge bar or bubble;
+          the {alters} bar docked top/bottom, as a vertical rail left/right,
+          or a bubble. Mounted INSTEAD of the phone-width instance, never
+          alongside it — two instances would both answer the alters-bar
+          toggle event (cancelling out) and both publish the bar height. */}
+      {wideBars && (classicBars.bottom || classicBars.actions || classicBars.alters) && (
+        <V2BottomChrome
+          uiV2={{
+            ...uiV2,
+            bars: { ...uiV2.bars, tabs: classicBars.bottom, rail: false, actions: uiV2.bars.actions && classicBars.actions },
+          }}
+          settingsRow={settings0}
+          insetLeft="var(--os-classic-sidebar-w, 0px)"
+        />
+      )}
+      {wideBars && classicBars.actions && (
+        <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
       )}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}

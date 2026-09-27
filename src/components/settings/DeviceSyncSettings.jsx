@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +124,25 @@ export default function DeviceSyncSettings() {
     }
   };
 
+  const handleCopyLook = async (peer) => {
+    const ok = await confirm({
+      title: "Use this device's look here?",
+      body: "Its theme, fonts and layout replace this device's. Your current layout goes to Recent changes, so you can put it back.",
+      confirmLabel: "Use look",
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const { applied, layoutFields, from } = await copyAppearanceFrom({ key: peer.key });
+      const parts = [applied && `${applied} appearance setting${applied === 1 ? "" : "s"}`, layoutFields && `${layoutFields} layout setting${layoutFields === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+      toast.success(`Copied ${parts || "appearance"} from ${from}. Restart to see them.`);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't copy appearance.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleKeep = (d) => {
     keepPendingDeletion(d.entity, d.id);
     setPending(getPendingDeletions());
@@ -227,27 +247,6 @@ export default function DeviceSyncSettings() {
         <span className="text-xs text-muted-foreground ml-auto">Last synced {fmtWhen(lastRun)}</span>
       </div>
 
-      {peers.some((p) => !p.isSelf) && (
-        <Button
-          type="button" variant="outline" size="sm" className="w-full gap-1.5"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const { applied, layoutFields, from } = await copyAppearanceFrom();
-              const parts = [applied && `${applied} appearance setting${applied === 1 ? "" : "s"}`, layoutFields && `${layoutFields} layout setting${layoutFields === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
-              toast.success(`Copied ${parts || "appearance"} from ${from}. Restart to see them. Your previous layout is in Recent changes.`);
-            } catch (e) {
-              toast.error(e?.message || "Couldn't copy appearance.");
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Palette className="w-3.5 h-3.5" />
-          Use another device&apos;s appearance
-        </Button>
-      )}
 
       <label className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
         <Switch checked={auto} onCheckedChange={(v) => { setAuto(v); setAutoSync(v); }} />
@@ -313,6 +312,18 @@ export default function DeviceSyncSettings() {
               <span className="ml-auto text-muted-foreground">
                 {p.data ? fmtWhen(new Date(p.data.mtimeMs).toISOString()) : "no data file"}
               </span>
+              {/* Appearance never syncs on its own; this is the explicit,
+                  per-device way to take another device's look + layout. */}
+              {!p.isSelf && p.data && (p.sameSystem || p.paired) && (
+                <Button
+                  type="button" variant="outline" size="sm" className="h-6 px-2 gap-1"
+                  disabled={busy}
+                  aria-label={`Use the appearance of device ${p.deviceId.slice(0, 8)}`}
+                  onClick={() => handleCopyLook(p)}
+                >
+                  <Palette className="w-3 h-3" /> Use look
+                </Button>
+              )}
             </div>
           ))}
         </div>

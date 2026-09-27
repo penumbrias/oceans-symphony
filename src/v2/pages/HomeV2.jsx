@@ -15,7 +15,8 @@
 // Both fields live on the same settings row, so backups and device sync
 // carry them without any extra wiring.
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
+import { useIsWide } from "@/lib/useIsWide";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
@@ -26,20 +27,8 @@ import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 export const V2_HOME_FIELD = "ui_v2_home";
 export const V2_HOME_FIELD_DESKTOP = "ui_v2_home_desktop";
 
-// Matches the `lg:` breakpoint the rest of the v2 chrome switches at, so
-// the rail and the desktop layout always appear together.
-function useIsWide() {
-  const [wide, setWide] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const on = (e) => setWide(e.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return wide;
-}
+// useIsWide matches the `lg:` breakpoint the rest of the v2 chrome switches
+// at, so the rail and the desktop layout always appear together.
 
 export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
   const qc = useQueryClient();

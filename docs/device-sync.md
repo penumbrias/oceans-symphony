@@ -211,6 +211,20 @@ prompt would be asking again about a decision already made. A database
 has to exist before anything can merge into it, so the flow runs
 StorageModeSetup's `setupLocalStorage` first (passed in as `prepare`).
 
+## Putting a device's old layout back
+
+`scripts/sync-restore-layout.mjs` lifts a layout value out of one device's
+undo history (its snapshot's `HistoryEvent` table) and writes it into the
+folder as a data-less "Layout restore" device for another system. On the
+target device, "Use look" on that entry applies it through the normal
+confirmed, undoable path. Written for the Sept 25, 2026 case where the
+desktop's widget resize overwrote the phone's home layout before look
+fields stopped syncing. `--list`, write, then `--remove` when done.
+
+"Use look" is per device (v0.243.8). It used to be one button that took
+the NEWEST device in the folder, which is whichever wrote last, so with two
+devices it could apply the wrong one's look.
+
 ## Testing with one device
 
 `scripts/sync-test-peer.mjs` impersonates a second device so sync can be
