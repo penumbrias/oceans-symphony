@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "September 27, 2026",
     changes: [
+      { type: "improve", text: "Hold an alter in the grid or the pinned alters bar, then slide onto the front button or the options list and lift to pick it — no second tap. The pinned bars now use the same hold bar as the grid." },
+      { type: "improve", text: "Edit menu: \"UI & text\" is now \"Text & layout\" — a live preview, matching Body and Headings cards (font, size, style), and the layout settings grouped below." },
       { type: "feature", text: "Flash cards: a new list type in the grocery list & notes panel. Cards can have text and photos on each side, and Study shuffles them — tap to flip, then \"Again\" or \"Got it\"." },
       { type: "fix", text: "Quick Check-In: Save did nothing unless an activity note was filled in. Fixed." },
       { type: "feature", text: "Quick Check-In: hold an emotion to choose which alters feel it — coloured dots mark emotions that belong to someone other than the default. \"Who feels what?\" is gone." },

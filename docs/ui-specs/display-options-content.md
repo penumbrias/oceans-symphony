@@ -10,11 +10,21 @@ Body = `UiEditSheet.jsx` (`SizeSection` → `BarsSection` → `ColorsSection` �
   internally (80/80/60/40px); never expose the px pair to the user.
   Changing it rescales every widget proportionally.
 
-## UI & TEXT (SizeSection)
+## TEXT & LAYOUT (SizeSection)
 
-Set-then-slide rows (SetRow/TokenSlider) for content width, touch spacing,
-border width, corner radius; Alignment as PillRows; body/header font
-pickers; Body style / Header style as flag chips. No explainer paragraphs.
+Two groups, in this order:
+
+- **Text** — a live preview (a real `<h3>` + body line, so it renders with
+  the app's own heading/body styles), then two `TextCard`s, **Body** and
+  **Headings**, with the SAME three rows in the same order: font
+  (SearchableSelect + FontUploadButton) · size (− value + `Stepper`; body
+  shows the root %, headings show % vs body) · style (flag buttons).
+  Never split a font from its own size/style again — that was the
+  "poorly laid out" complaint.
+- **Layout** — Content width, Alignment (PillRow), Touch target spacing,
+  Border width, Corner radius, as set-then-slide rows (SetRow/TokenSlider).
+
+No explainer paragraphs.
 
 ## Bars (BarsSection) — one SubSection per bar
 

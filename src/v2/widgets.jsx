@@ -16,6 +16,7 @@
 // widgetLabel() through the user's own terminology.
 
 import React from "react";
+import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
 import { prepareAuthoredText } from "@/lib/authoredText";
 import { useNavigate } from "react-router-dom";
@@ -62,7 +63,7 @@ import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
+import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
@@ -2274,37 +2275,9 @@ function PinnedAltersWidget({ api, settings }) {
     ? Math.max(24, Math.min(cfgSize, 160))
     : Math.max(24, Math.min(boxH - (showNamesNow ? 22 : 4), 96));
 
-  const levelCfg = useFrontLevels();
-  const suppressTapUntil = React.useRef(0);
-  const addOrLevel = async (alterId, levelId, extras = {}) => {
-    // Holding a non-fronter and picking a level ADDS them at that level.
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
-    if (!existing) {
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) await toggleFrontFor(alter, fresh, base44, qc, toast, t);
-    }
-    await commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg, solo: !!extras.solo });
-  };
-  const { rail, getHoldProps } = useHoldDragLevel({
-    cfg: levelCfg,
-    onCommit: (alterId, levelId, extras = {}) => {
-      suppressTapUntil.current = Date.now() + 400;
-      addOrLevel(alterId, levelId, extras);
-    },
-    onRemove: (alterId) => {
-      suppressTapUntil.current = Date.now() + 400;
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) removeFrontFor(alter, base44, qc, toast, t);
-    },
-    // Drag right = the options menu (unified grammar).
-    onOptions: (alterId) => {
-      suppressTapUntil.current = Date.now() + 400;
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) setMenuFor(alter);
-    },
-  });
-  const railAlter = rail ? alters.find((a) => a.id === rail.alterId) : null;
+  // Press-and-hold → the two-option rail (front button + options list),
+  // same as the alters grid; slide onto an option and lift to pick it.
+  const holdRail = useAlterHoldRail({ activeSessions: sessions });
 
   const [menuFor, setMenuFor] = React.useState(null);
   const lastTap = React.useRef({});
@@ -2323,9 +2296,9 @@ function PinnedAltersWidget({ api, settings }) {
             <button
               key={alter.id}
               type="button"
-              {...getHoldProps(alter.id, session?.front_level)}
+              {...holdRail.bind(alter)}
               onClick={() => {
-                if (rail || Date.now() < suppressTapUntil.current) return;
+                if (holdRail.suppressed()) return;
                 const now = Date.now();
                 if (lastTap.current.id === alter.id && now - lastTap.current.t < 350) {
                   lastTap.current = {};
@@ -2350,7 +2323,7 @@ function PinnedAltersWidget({ api, settings }) {
           );
         })}
       </div>
-      <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
+      {holdRail.node}
       {menuFor && (
         <AlterActionMenu alter={menuFor} activeSessions={sessions}
           session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id)}

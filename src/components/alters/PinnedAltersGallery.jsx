@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +19,6 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
-import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
@@ -495,7 +495,9 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   // = the level rail (Remove stop; holding a non-fronter adds them at the
   // level released on). The vertical swipes and the long-press menu are
   // gone — menu actions live on the profile page.
-  const gesture = useFrontGesture();
+  // Press-and-hold → the same two-option rail as the alters grid (front
+  // button + options list), slide-to-choose included.
+  const holdRail = useAlterHoldRail({ activeSessions });
   const look = useFrontLook();
 
   // A level's own colour (when set) marks who's fronting; otherwise the
@@ -506,12 +508,12 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
 
   return (
     <>
-    {gesture.node}
+    {holdRail.node}
     <button
       type="button"
-      {...gesture.getHoldProps(alter, mySession?.front_level)}
-      onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}
-      title={`${label} — tap to open, press and hold to set their ${terms.fronting} level or remove from ${terms.front}`}
+      {...holdRail.bind(alter)}
+      onClick={() => { if (!holdRail.suppressed()) navigate(`/alter/${alter.id}`); }}
+      title={`${label} — tap to open, press and hold for ${terms.front} and options`}
       className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
       style={{ width: Math.round(size * Math.max(1, frontingScale / 100)) }}
     >
