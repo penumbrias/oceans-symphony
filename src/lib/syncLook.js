@@ -27,7 +27,8 @@ export const DEVICE_LOOK_FIELDS = [
   "ui_v2_home_desktop",     // v2 home board, wide-screen variant
   "dashboard_layout",       // classic dashboard section order
   "navigation_config",      // top bar / bottom bar / dashboard grid
-  "pinned_alters_config",   // pinned alters strip
+  "pinned_alters_config",   // pinned alters strip (+ per-level looks)
+  "front_button_icon",      // custom icon on the front button
   "corner_mode",
   "wave_color_key",
   "wave_color_custom",

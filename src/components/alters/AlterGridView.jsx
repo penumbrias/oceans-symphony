@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,8 +11,10 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import SubsystemActionMenu from "./SubsystemActionMenu";
-import { useHoldMenu } from "@/components/fronting/FrontLevelRail";
+import { useHoldMenu, useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import AlterActionMenu from "./AlterActionMenu";
+import AlterHoldRail from "./AlterHoldRail";
+import { useFrontLook } from "@/lib/frontLook";
 import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
@@ -23,14 +25,19 @@ const EMPTY_SET = new Set();
 // fresh top-level view you can back out of, no redirect to its profile.
 const MAX_GRID_INLINE_DEPTH = 3;
 
-function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
+function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
   const formatAlter = useAlterLabel();
-  // Grid grammar (owner spec, v0.122.1): tap the avatar → profile,
-  // press-and-hold → the alter's action menu (fronting lives in that
-  // menu here — the grid has no bolt button).
+  // Grid grammar: tap the avatar → profile; press-and-hold → a small rail
+  // with the front button and the action list (the list view's two
+  // controls — the grid has no room for a bolt of its own).
   const [menuOpen, setMenuOpen] = useState(false);
-  const holdMenu = useHoldMenu(() => setMenuOpen(true));
+  const [railOpen, setRailOpen] = useState(false);
+  const avatarRef = useRef(null);
+  const gesture = useFrontGesture();
+  const holdMenu = useHoldMenu(() => setRailOpen(true));
+  const closeRail = useCallback(() => setRailOpen(false), []);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
+  const look = useFrontLook();
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
   // malformed alter doesn't render as a blank uncoloured tile next
@@ -40,10 +47,11 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "of
   const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
   const [imgError, setImgError] = useState(false);
 
+  // Fronting glow in the level's colour when it has one (no special
+  // primary colour — levels replaced the old primary/co-front split).
+  const activeColor = fronting ? look.activeColor(alter, mySession) : alterColor;
   const boxShadow = fronting
-    ? isPrimary
-      ? `inset 0 0 0 3px #fbbf24, inset 0 0 0 5px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 24px ${alterColor}ff`
-      : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
+    ? `inset 0 0 0 3px ${activeColor}, 0 0 0 1px ${activeColor}, 0 0 20px ${activeColor}ff`
     : `inset 0 0 0 2px ${alterColor}80`;
   const sizeClass = compact
     ? (fronting ? "w-16 h-16" : "w-14 h-14")
@@ -51,7 +59,9 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "of
 
   return (
     <div className="flex flex-col items-center gap-2 select-none">
+      {gesture.node}
       <div
+        ref={avatarRef}
         className="relative"
         {...holdMenu.bind}
         onClick={() => { if (!holdMenu.suppressed()) onTap?.(); }}
@@ -68,7 +78,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "of
         ) : (
           <div
             style={{
-              backgroundColor: fronting ? `${alterColor}30` : "hsl(var(--muted))",
+              backgroundColor: fronting ? `${activeColor}30` : "hsl(var(--muted))",
               boxShadow,
             }}
             className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${sizeClass} ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
@@ -86,6 +96,10 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "of
         >
           {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
         </span>
+      )}
+      {railOpen && (
+        <AlterHoldRail alter={alter} anchorEl={avatarRef.current} activeSessions={activeSessions}
+          gesture={gesture} onOpenMenu={() => setMenuOpen(true)} onClose={closeRail} />
       )}
       {menuOpen && (
         <AlterActionMenu alter={alter} activeSessions={activeSessions} session={mySession}
@@ -199,7 +213,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
-  const isPrimaryOf = (alterId) => activeSessions.some(s => s.alter_id === alterId && s.is_primary);
 
   const toggleExpand = (id) => {
     setExpandedOwners((prev) => {
@@ -220,7 +233,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   const cardProps = (alter) => ({
     fronting: isFronting(alter.id),
-    isPrimary: isPrimaryOf(alter.id),
     compact,
     onTap: () => navigate(`/alter/${alter.id}`),
     anonymize,

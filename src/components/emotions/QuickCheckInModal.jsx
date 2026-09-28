@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
 import useFormDraft from "@/hooks/useFormDraft";
@@ -22,14 +22,18 @@ import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
-import AlterAssignChip from "@/components/shared/AlterAssignChip";
+import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
+import RatingMeter from "@/components/emotions/RatingMeter";
+import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { emotionAttributionDefault, defaultEmotionAlterIds } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData, extraDiaryGroups } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
-import { useFrontLevels } from "@/lib/frontLevels";
+import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
@@ -143,6 +147,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   });
   const [sliderValue, setSliderValue] = useState(null);
   const [showSliderPicker, setShowSliderPicker] = useState(false);
+  // The side rating can be turned off (here, or Manage Check-In → Feelings).
+  const [sliderEnabled, setSliderEnabled] = useState(() => readQuickCheckinSliderEnabled());
+  useEffect(() => { if (isOpen) setSliderEnabled(readQuickCheckinSliderEnabled()); }, [isOpen]);
   // Touch-block on open. The original 200ms (PR #87) wasn't always
   // enough on Android — testers reported the modal would mount and the
   // touchend from the finger that opened it would land on whatever
@@ -176,6 +183,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // Per-emotion alter assignment overrides: { [emotionLabel]: [alterIds] }.
   // Emotions absent from the map inherit the check-in's fronters.
   const [emotionAlters, setEmotionAlters] = useState({});
+  // Emotion whose "who feels this" popup is open (press-and-hold a pill).
+  const [holdEmotion, setHoldEmotion] = useState(null);
+  const [sessionLevelById, setSessionLevelById] = useState({});
   // Fronting
   const [primaryId, setPrimaryId] = useState("");
   const [coFronterIds, setCoFronterIds] = useState([]);
@@ -444,6 +454,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
         const newModel = active.filter(s => s.alter_id);
+        // Each fronter's CURRENT level — the default "who feels this" can
+        // be limited to one level (Manage Check-In → Feelings).
+        setSessionLevelById(Object.fromEntries(newModel.map((s) => [s.alter_id, getSessionLevel(s, levelCfg)?.id || null])));
         if (newModel.length > 0) {
           const primarySess = newModel.find(s => s.is_primary);
           const coSessions = newModel.filter(s => !s.is_primary);
@@ -497,6 +510,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const resetForm = () => {
     setSelectedEmotions([]);
     setEmotionAlters({});
+    setHoldEmotion(null);
+    setSessionLevelById({});
     setPrimaryId("");
     setCoFronterIds([]);
     setAlterSearch("");
@@ -685,6 +700,45 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setPrimaryId((p) => (p === alterId ? "" : p));
     setCoFronterIds((prev) => prev.filter((x) => x !== alterId));
   };
+  // Who an emotion belongs to when the user hasn't said otherwise: every
+  // fronter in this check-in, or only those at the level chosen in Manage
+  // Check-In → Feelings (falls back to everyone if nobody is at it).
+  const emotionDefaultSetting = emotionAttributionDefault(pickPrimarySystemSettings(ssList) || ssList?.[0], levelCfg);
+  const defaultEmotionIds = useMemo(() => defaultEmotionAlterIds({
+    fronterIds: selectedAlters,
+    setting: emotionDefaultSetting,
+    levelOf: (id) => levelById[id] || sessionLevelById[id]
+      || (id === primaryId ? levelCfg.levels?.[0]?.id : (levelCfg.levels?.[1] || levelCfg.levels?.[0])?.id),
+  }), [selectedAlters, emotionDefaultSetting, levelById, sessionLevelById, primaryId, levelCfg]);
+  const alterColorById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.color || "#8b5cf6"])), [alters]);
+  // Dots only when an emotion's people differ from the default.
+  const emotionDots = useCallback((label) => {
+    const ids = emotionAlters[label];
+    if (!Array.isArray(ids)) return null;
+    if (ids.length === 0) return "nobody";
+    const def = new Set(defaultEmotionIds);
+    if (ids.length === def.size && ids.every((id) => def.has(id))) return null;
+    return ids.map((id) => alterColorById[id]).filter(Boolean);
+  }, [emotionAlters, defaultEmotionIds, alterColorById]);
+  const holdEmotionOpen = useCallback((label) => {
+    setSelectedEmotions((prev) => (prev.includes(label) ? prev : [...prev, label]));
+    setHoldEmotion(label);
+  }, []);
+  const emotionHoldAria = useCallback((label, selected) =>
+    `${selected ? "Remove" : "Add"} ${label}. Hold to choose which ${terms.alters} feel it.`, [terms.alters]);
+  // Emotions with no explicit assignment are written with the default when
+  // the default isn't simply "everyone in the check-in" — readers treat a
+  // missing entry as all of fronting_alter_ids.
+  const resolvedEmotionAlters = () => {
+    const out = {};
+    const defaultIsEveryone = defaultEmotionIds.length === selectedAlters.length;
+    for (const label of selectedEmotions) {
+      const ids = emotionAlters[label];
+      if (Array.isArray(ids)) out[label] = ids; /* [] kept: explicit "nobody" */
+      else if (!defaultIsEveryone) out[label] = defaultEmotionIds;
+    }
+    return out;
+  };
   const suppressRowTap = useRef(0);
   // Drag right on a row = the alter's options menu (unified grammar).
   const rowOptionsMenu = useFrontOptionsMenu((id) => activeAlters.find((a) => a.id === id) || null);
@@ -823,7 +877,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     // Fold in the Feeling-section slider, unless the user already logged that
     // same symptom in the Symptoms / Habits section (avoid double-logging).
-    if (sliderValue != null && effectiveSliderSymptomId &&
+    if (sliderEnabled && sliderValue != null && effectiveSliderSymptomId &&
         !symptomCheckIns.some((s) => s.symptom_id === effectiveSliderSymptomId)) {
       symptomCheckIns.push({ symptom_id: effectiveSliderSymptomId, severity: sliderValue });
     }
@@ -855,7 +909,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         preparedNote = await prepareAuthoredText(note, { alters, terms, surfaceLabel: "check-in note" });
         if (activityNote.trim()) preparedActivityNote = await prepareAuthoredText(activityNote.trim(), { alters, terms, surfaceLabel: "activity note" });
       } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-      if (preparedNote === null || preparedActivityNote === null) return;
+      // null = the user backed out of a whisper warning. The activity note
+      // is only prepared when there is one — an absent note is not a back-out.
+      if (preparedNote === null || (activityNote.trim() && preparedActivityNote === null)) return;
       const noteOut = preparedNote.content;
 
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
@@ -911,11 +967,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           fronting_alter_ids: selectedAlters,
           // Always write the map on edit (empty object clears removed
           // overrides — an edit is an explicit re-statement of the record).
-          emotion_alters: Object.fromEntries(
-            Object.entries(emotionAlters).filter(([label, ids]) =>
-              selectedEmotions.includes(label) && Array.isArray(ids) /* [] kept: explicit "nobody"; absent = inherit */
-            )
-          ),
+          emotion_alters: resolvedEmotionAlters(),
           note: noteForCheckIn,
           journal_entry_id: journalEntryId,
           // Like emotion_alters above: an edit is an explicit re-statement,
@@ -1002,7 +1054,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           });
           queryClient.invalidateQueries({ queryKey: ["locations"] });
         }
-        await commitContactChanges();
+      await commitContactChanges();
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["timeline"] });
@@ -1057,11 +1109,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         }
         // Per-emotion assignment overrides (only for still-selected emotions
         // with a non-empty explicit assignment — everything else inherits).
-        const cleanEmotionAlters = Object.fromEntries(
-          Object.entries(emotionAlters).filter(([label, ids]) =>
-            selectedEmotions.includes(label) && Array.isArray(ids) /* [] kept: explicit "nobody"; absent = inherit */
-          )
-        );
+        const cleanEmotionAlters = resolvedEmotionAlters();
         const checkIn = await base44.entities.EmotionCheckIn.create({
           timestamp: now,
           emotions: selectedEmotions,
@@ -1252,18 +1300,21 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-destructive" />
-              <span className="flex-1">{isEditing ? "Edit Check-In" : "Quick Check-In"}</span>
+              {/* Far from the close X on purpose — side by side, a slightly
+                  off tap on "manage" closed the whole check-in. */}
               {!isEditing && (
                 <button
                   type="button"
                   onClick={() => { onClose(); navigate("/manage-checkin"); }}
                   aria-label="Open check-in manager"
                   title="Open check-in manager"
-                  className="text-muted-foreground hover:text-foreground transition-colors mr-6"
+                  className="p-1.5 -my-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
                 </button>
               )}
+              <span className="flex-1">{isEditing ? "Edit Check-In" : "Quick Check-In"}</span>
+              <span className="w-6 flex-shrink-0" aria-hidden />
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
               <input
@@ -1325,78 +1376,42 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   selectedEmotions={selectedEmotions}
                   onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
                   customEmotions={customEmotions}
-                  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
-
-                  {/* Per-emotion alter assignment — each selected emotion can
-                      belong to specific alters (default: the whole check-in's
-                      fronters). "Anxious = one alter, Excited = another." */}
-                  {selectedEmotions.length > 0 && alters.length > 0 &&
-                  <div className="space-y-1 pt-1 border-t border-border/40">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[0.6875rem] text-muted-foreground">Who feels what? (optional)</p>
-                        {/* Whole-section shortcuts: empty every emotion, or put
-                            every emotion back to following the check-in. */}
-                        <span className="flex items-center gap-1">
-                          {selectedEmotions.some((l) => ((emotionAlters[l] ?? selectedAlters) || []).length > 0) && (
-                            <button type="button"
-                              onClick={() => setEmotionAlters(Object.fromEntries(selectedEmotions.map((l) => [l, []])))}
-                              className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
-                              Clear all
-                            </button>
-                          )}
-                          {Object.keys(emotionAlters).length > 0 && (
-                            <button type="button"
-                              onClick={() => setEmotionAlters({})}
-                              className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-primary hover:underline">
-                              Reset all
-                            </button>
-                          )}
-                        </span>
-                      </div>
-                      <div className="space-y-0.5">
-                        {selectedEmotions.map((label) =>
-                      <div key={label} className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs flex-1 truncate">{label}</span>
-                            <AlterAssignChip
-                          alters={alters}
-                          value={emotionAlters[label] ?? null}
-                          defaultIds={selectedAlters}
-                          onChange={(ids) => setEmotionAlters((prev) => {
-                            const next = { ...prev };
-                            if (ids === null) delete next[label]; else next[label] = ids;
-                            return next;
-                          })} />
-                          </div>
-                      )}
-                      </div>
-                    </div>
-                  }
+                  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+                  onEmotionHold={alters.length > 0 ? holdEmotionOpen : null}
+                  emotionDots={emotionDots}
+                  holdAriaLabel={emotionHoldAria} />
+                  <AlterAssignPopup
+                    open={!!holdEmotion}
+                    onOpenChange={(o) => { if (!o) setHoldEmotion(null); }}
+                    title={holdEmotion ? `Who feels ${holdEmotion}?` : null}
+                    alters={alters}
+                    value={holdEmotion ? (emotionAlters[holdEmotion] ?? null) : null}
+                    defaultIds={defaultEmotionIds}
+                    onChange={(ids) => setEmotionAlters((prev) => {
+                      const next = { ...prev };
+                      if (ids === null) delete next[holdEmotion]; else next[holdEmotion] = ids;
+                      return next;
+                    })} />
                 </div>
 
-                {/* Side rating slider — defaults to Energy level; tap the label
-                    to track any other rating-type symptom/habit. 0–5, untouched
+                {/* Side rating — defaults to Energy level; tap the label to
+                    track any other rating-type symptom/habit. 0–5, untouched
                     logs nothing. Merged into the symptom check-ins on save. */}
+                {sliderEnabled && (
                 <div className="flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
                   <button type="button" onClick={() => setShowSliderPicker(true)}
-                    title={sliderSymptom ? `Tracking ${sliderSymptom.label} — tap to change` : "Choose what to track"}
+                    aria-label={`Rating tracks ${sliderSymptom?.label || "Energy"} — change`}
                     className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] truncate leading-tight text-center flex items-center gap-0.5">
                     {sliderSymptom?.label || "Energy"}<ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
                   </button>
-                  <input
-                    type="range" min="0" max="5" step="1"
-                    value={sliderValue ?? 0}
-                    onChange={(e) => setSliderValue(Number(e.target.value))}
-                    className="qci-vertical-slider"
-                    style={{ accentColor: sliderSymptom?.color || "#F59E0B" }}
-                    aria-label={`${sliderSymptom?.label || "Energy"} rating, 0 to 5`}
+                  <RatingMeter
+                    value={sliderValue}
+                    onChange={setSliderValue}
+                    color={sliderSymptom?.color || "#F59E0B"}
+                    label={`${sliderSymptom?.label || "Energy"} rating`}
                   />
-                  <span className="text-sm font-bold leading-none" style={{ color: sliderSymptom?.color || "#F59E0B" }}>
-                    {sliderValue ?? "—"}
-                  </span>
-                  {sliderValue != null
-                    ? <button type="button" onClick={() => setSliderValue(null)} className="text-[0.5625rem] text-muted-foreground hover:text-foreground underline">clear</button>
-                    : <span className="text-[0.5625rem] text-muted-foreground/50">drag</span>}
                 </div>
+                )}
               </div>
             </div>
           }
@@ -1749,7 +1764,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         {showSliderPicker && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowSliderPicker(false)}>
             <div className="bg-card border border-border rounded-xl w-full max-w-xs max-h-[70vh] overflow-y-auto p-3 space-y-1" onClick={(e) => e.stopPropagation()}>
-              <p className="text-sm font-medium px-1 pb-1">Side slider tracks…</p>
+              <p className="text-sm font-medium px-1 pb-1">Side rating tracks…</p>
               {ratingSymptoms.length === 0 ? (
                 <p className="text-xs text-muted-foreground px-1 py-2">
                   No rating-type symptoms or habits yet. Add one with type “Rating” in the Symptoms / Habits section and it'll show up here.
@@ -1764,6 +1779,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   </button>
                 ))
               )}
+              <button type="button"
+                onClick={() => { writeQuickCheckinSliderEnabled(false); setSliderEnabled(false); setSliderValue(null); setShowSliderPicker(false); }}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted/50 border-t border-border/40 mt-1">
+                Turn off the side rating
+              </button>
             </div>
           </div>
         )}

@@ -103,6 +103,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_planner_overlays_v1",
   "symphony_dailytasks_hide_completed_v1",
   "symphony_emotion_picker_mode",
+  "symphony_quickcheckin_slider_enabled_v1",
+  "symphony_quickcheckin_slider_symptom_v1",
   "symphony_analyticsGrouping",
   "symphony_anonymize_mode",
   "symphony_display_options_dock",

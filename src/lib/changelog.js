@@ -20,6 +20,14 @@ export const CHANGELOG = [
   {
     date: "September 27, 2026",
     changes: [
+      { type: "fix", text: "Quick Check-In: Save did nothing unless an activity note was filled in. Fixed." },
+      { type: "feature", text: "Quick Check-In: hold an emotion to choose which alters feel it — coloured dots mark emotions that belong to someone other than the default. \"Who feels what?\" is gone." },
+      { type: "feature", text: "Emotions can default to all fronters or only one fronting level, set in the Check-in manager's new Feelings tab (which also holds the emotions editor)." },
+      { type: "improve", text: "Quick Check-In's side rating is a cleaner tap-or-drag meter and can be turned off." },
+      { type: "fix", text: "The alter picker for an emotion now takes taps and typing." },
+      { type: "fix", text: "The check-in manager button moved away from the X, so it no longer closes the check-in by mistake." },
+      { type: "feature", text: "Alters grid: press and hold an avatar for a small bar with the front button and their options list." },
+      { type: "improve", text: "Front levels can have their own colour, and the front button can use any icon or image. The old gold \"primary\" highlight is gone." },
       { type: "feature", text: "Desktop: the phone's bottom bars can now show beside the sidebar — switch on \"Show on wide screens\" in Appearance → Layout → Dashboard. Quick actions can be a bar, a floating edge bar or a bubble, and the pinned alters bar can run down the side." },
       { type: "feature", text: "Customize the sidebar: pick which pages it lists and their order in Appearance → Layout → Sidebar. Each device keeps its own." },
       { type: "improve", text: "Sync: \"Use look\" now sits on each device in the folder, so you choose whose theme and layout to copy instead of getting whichever device synced last." },

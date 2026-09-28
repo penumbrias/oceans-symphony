@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useFrontLook } from "@/lib/frontLook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -495,9 +496,12 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   // level released on). The vertical swipes and the long-press menu are
   // gone — menu actions live on the profile page.
   const gesture = useFrontGesture();
+  const look = useFrontLook();
 
+  // A level's own colour (when set) marks who's fronting; otherwise the
+  // alter's colour. No gold "primary" — front levels replaced that split.
   const ringColor = fronting
-    ? (isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6"))
+    ? look.activeColor(alter, mySession)
     : (alter.color || "var(--color-muted)");
 
   return (
@@ -517,7 +521,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         // ring as a padded backing layer (a border would be clipped off).
         // A specific front level's own styling wins over the general
         // "when fronting" behaviour (shape / size / ring per level).
-        const ls = (fronting && levelStyles[mySession?.front_level]) || {};
+        const ls = (fronting && (levelStyles[mySession?.front_level] || look.styleFor(mySession))) || {};
         const shape = ls.shape || (fronting && emphasis === "shape" ? frontingShape : iconShape);
         const layers = shapeLayerStyles(shape);
         const scale = Number.isFinite(ls.scale) ? ls.scale : (fronting && emphasis === "grow" ? frontingScale : 100);
@@ -547,7 +551,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         {fronting && (
           <span
             className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card"
-            style={{ backgroundColor: isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6") }}
+            style={{ backgroundColor: ringColor }}
           >
             {isPrimary ? <Star className="w-2.5 h-2.5 text-white" fill="white" /> : <Zap className="w-2.5 h-2.5 text-white" fill="white" />}
           </span>

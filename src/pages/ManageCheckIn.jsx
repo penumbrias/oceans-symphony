@@ -15,6 +15,12 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
 import LegacyCatalogueMigrationCard from "@/components/settings/LegacyCatalogueMigrationCard";
+import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
+import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
+import { useTerms } from "@/lib/useTerms";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { EMOTION_ATTRIBUTION_ALL, emotionAttributionDefault } from "@/lib/emotionAttribution";
+import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
 
 // Toggle which section pills appear in the Quick Check-In modal.
 function SectionsTab() {
@@ -57,6 +63,69 @@ function SectionsTab() {
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Feelings: who emotions belong to by default, the side rating, and the
+// emotion catalogue itself (the same editor as Settings → Emotions).
+function FeelingsTab() {
+  const qc = useQueryClient();
+  const t = useTerms();
+  const levelCfg = useFrontLevels();
+  const { data: list = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settings = pickPrimarySystemSettings(list) || list?.[0] || null;
+  const current = emotionAttributionDefault(settings, levelCfg);
+  const [saving, setSaving] = useState(false);
+  const [sliderOn, setSliderOn] = useState(() => readQuickCheckinSliderEnabled());
+
+  const choose = async (value) => {
+    if (saving || value === current) return;
+    setSaving(true);
+    try {
+      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { emotion_attribution_default: value });
+      else await base44.entities.SystemSettings.create({ emotion_attribution_default: value });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const options = [
+    { id: EMOTION_ATTRIBUTION_ALL, label: `All ${t.fronters}` },
+    ...levelCfg.levels.map((l) => {
+      const name = frontLevelLabel(l, t);
+      return { id: l.id, label: `Only ${name.charAt(0).toLowerCase()}${name.slice(1)}` };
+    }),
+  ];
+
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">Emotions belong to</h2>
+        <p className="text-xs text-muted-foreground">
+          Hold an emotion in Quick Check-In to choose exactly which {t.alters} feel it.
+        </p>
+        <div role="radiogroup" aria-label="Emotions belong to" className="bg-card border border-border/50 rounded-xl divide-y divide-border/40">
+          {options.map((o) => (
+            <button key={o.id} type="button" role="radio" aria-checked={current === o.id} disabled={saving}
+              onClick={() => choose(o.id)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm">
+              <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${current === o.id ? "border-primary" : "border-muted-foreground/40"}`}>
+                {current === o.id && <span className="w-2 h-2 rounded-full bg-primary" />}
+              </span>
+              <span className="flex-1">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <label className="flex items-center justify-between gap-3 bg-card border border-border/50 rounded-xl px-4 py-3 cursor-pointer">
+        <span className="text-sm font-medium">Side rating beside Feeling</span>
+        <Switch checked={sliderOn} onCheckedChange={(on) => { writeQuickCheckinSliderEnabled(on); setSliderOn(on); }} />
+      </label>
+
+      <CustomEmotionsManager />
     </div>
   );
 }
@@ -325,6 +394,7 @@ export default function ManageCheckIn() {
 
   const TABS = [
     { id: "sections", label: "Sections" },
+    { id: "feelings", label: "Feelings" },
     { id: "symptoms", label: "Symptoms" },
     { id: "habits", label: "Habits" },
     { id: "context", label: "Context" },
@@ -339,14 +409,14 @@ export default function ManageCheckIn() {
         </Button>
         <div>
           <h1 className="font-display text-2xl font-semibold">Manage Check-In</h1>
-          <p className="text-muted-foreground text-xs">Configure symptoms and habits tracked in Quick Check-In</p>
+          <p className="text-muted-foreground text-xs">Configure what Quick Check-In tracks</p>
         </div>
       </div>
 
-      <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+      <div className="grid grid-cols-3 gap-1 bg-muted/50 rounded-xl p-1">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <button key={t.id} onClick={() => setTab(t.id)} data-tour={t.id === "feelings" ? "checkin-feelings-tab" : undefined}
+            className={`py-2 px-1 rounded-lg text-sm font-medium transition-all truncate ${tab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             {t.label}
           </button>
         ))}
@@ -361,6 +431,7 @@ export default function ManageCheckIn() {
       )}
 
       {tab === "sections" && <SectionsTab />}
+      {tab === "feelings" && <FeelingsTab />}
       {tab === "symptoms" && <SymptomTab category="symptom" />}
       {tab === "habits" && <SymptomTab category="habit" />}
       {tab === "context" && <SymptomTab category="symptom" contextOnly />}

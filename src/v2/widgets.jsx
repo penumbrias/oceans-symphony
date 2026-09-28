@@ -16,6 +16,7 @@
 // widgetLabel() through the user's own terminology.
 
 import React from "react";
+import { useFrontLook } from "@/lib/frontLook";
 import { prepareAuthoredText } from "@/lib/authoredText";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -2206,10 +2207,12 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
 // at the picked level; with levels off, hold simply toggles front).
 // Tap = profile · double-tap = the action menu. Widget contract: Section
 // is the visible box; names via useAlterLabel; avatars resolved.
-function PinnedAvatar({ alter, size, fronting, isPrimary, blurAvatar }) {
+function PinnedAvatar({ alter, size, fronting, session = null, blurAvatar }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  const look = useFrontLook();
+  // The level's colour when it has one, else the alter's — no gold primary.
   const ring = fronting
-    ? (isPrimary ? "#f59e0b" : (alter.color || "var(--v2-accent)"))
+    ? (look.styleFor(session)?.color || alter.color || "var(--v2-accent)")
     : "hsl(var(--border))";
   return (
     <span
@@ -2336,8 +2339,8 @@ function PinnedAltersWidget({ api, settings }) {
               style={{ width: Math.max(size + 8, 44) }}
               title={formatAlter(alter)}
             >
-              <PinnedAvatar alter={alter} size={size} fronting={!!session}
-                isPrimary={!!session?.is_primary} blurAvatar={anonymizeBlurAvatars(anonymize)} />
+              <PinnedAvatar alter={alter} size={size} fronting={!!session} session={session}
+                blurAvatar={anonymizeBlurAvatars(anonymize)} />
               {showNamesNow && (
                 <span className={`text-[0.625em] text-center truncate w-full mt-0.5 ${anonymizeBlurNames(anonymize) ? "blur-sm" : "text-muted-foreground"}`}>
                   {formatAlter(alter)}
