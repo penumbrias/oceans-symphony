@@ -362,8 +362,17 @@ useEffect(() => {
     root.removeAttribute("data-classic-v2-bars");
     root.removeAttribute("data-classic-v2-top");
     root.removeAttribute("data-classic-v2-wide");
+    root.removeAttribute("data-v2-bstyle");
+    root.removeAttribute("data-v2-hstyle");
     return undefined;
   }
+  // Body / heading style flags (Text & layout sheet) apply in BOTH modes —
+  // the sheet edits the classic home too, and a flag that did nothing there
+  // read as broken (owner report). Only set while a flag is picked.
+  const bstyle = uiV2.tokens.bodyStyle?.length ? uiV2.tokens.bodyStyle.join(" ") : "";
+  const hstyle = uiV2.tokens.headerStyle?.length ? uiV2.tokens.headerStyle.join(" ") : "";
+  if (bstyle) root.setAttribute("data-v2-bstyle", bstyle); else root.removeAttribute("data-v2-bstyle");
+  if (hstyle) root.setAttribute("data-v2-hstyle", hstyle); else root.removeAttribute("data-v2-hstyle");
   // Classic mode: emit ONLY the --v2-* namespace so the bars and the
   // swipe-left board can render, and none of the app-skinning writes
   // below — the classic app must not visibly re-skin (radius, primary
@@ -426,7 +435,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom, wideBars]);
+}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom, wideBars, uiV2.tokens.bodyStyle, uiV2.tokens.headerStyle]);
   // The desktop sidebar is sticky under the top chrome, and its offset
   // used to be a hardcoded 4rem — the CLASSIC header's height. With the
   // v2 top bar that chrome is 49px, and a sticky element is clamped to

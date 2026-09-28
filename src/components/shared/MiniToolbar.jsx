@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useKeyboardState } from "@/hooks/useKeyboardInset";
 import { createPortal } from "react-dom";
 import { HexColorPicker } from "react-colorful";
 import {
@@ -547,19 +548,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   // Keyboard tracking for float="keyboard". kb stays 0 with no keyboard (or
   // no visualViewport), so the toolbar renders inline exactly as before.
-  const [kb, setKb] = useState(0);
+  // Keyboard up? useKeyboardState also catches the Android app, where the
+  // WebView resizes and the plain inset reads ~0.
+  const kbState = useKeyboardState();
   const dockRef = useRef(null);
-  useDockHeightVar(dockRef, float === "keyboard" && kb > 40);
-  useEffect(() => {
-    if (float !== "keyboard") return undefined;
-    const vv = window.visualViewport;
-    if (!vv) return undefined;
-    const on = () => setKb(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
-    vv.addEventListener("resize", on);
-    vv.addEventListener("scroll", on);
-    on();
-    return () => { vv.removeEventListener("resize", on); vv.removeEventListener("scroll", on); };
-  }, [float]);
+  useDockHeightVar(dockRef, float === "keyboard" && kbState.open);
 
   const body = (
     <>
@@ -769,12 +762,12 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   );
 
   // >40px filters out browser-chrome jitter that isn't a real keyboard.
-  if (float === "keyboard" && kb > 40) {
+  if (float === "keyboard" && kbState.open) {
     return createPortal(
       <div
         ref={dockRef}
         className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
-        style={{ bottom: kb }}
+        style={{ bottom: kbState.inset }}
         // Keep the composer focused (selection alive) while tapping styles.
         onPointerDown={(e) => e.preventDefault()}
         onMouseDown={(e) => e.preventDefault()}

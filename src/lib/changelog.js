@@ -18,7 +18,18 @@
 
 export const CHANGELOG = [
   {
+    date: "September 28, 2026",
+    changes: [
+      { type: "fix", text: "Home: \"Coming up\" no longer shows twice (the extra copy at the very top is gone, along with its gap)." },
+      { type: "fix", text: "Text toolbars now sit right on top of the keyboard in the Android app, with no gap." },
+      { type: "fix", text: "Display options opens right where you are instead of jumping to the widget board." },
+      { type: "fix", text: "Bold, italic, underline, strikethrough and small caps for body text and headings now work on the classic home too, along with heading size." },
+      { type: "fix", text: "Save & close in edit mode now also closes any open settings windows." },
+    ],
+  },
+  {
     date: "September 27, 2026",
+    version: "0.246.0",
     changes: [
       { type: "fix", text: "Sync: switching front on one device now ends the old front on the other too, and fronts are never cut down to 0 minutes." },
       { type: "fix", text: "Sync: dragging a widget on one device no longer brings back an old system name or terms on the other." },

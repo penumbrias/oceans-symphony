@@ -22,7 +22,6 @@ import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import ClassicHomeCanvas from "@/components/dashboard/ClassicHomeCanvas";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
-import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import StartActivityModal from "@/components/activities/StartActivityModal";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
@@ -850,7 +849,13 @@ export default function Dashboard() {
         // stale request into a live one.
         sessionStorage.setItem("symphony_classic_open-apps", String(Number(parkedAt) > 1 ? parkedAt : Date.now()));
       }
-      const pending = ["edit-home", "home-settings", "bar-options"]
+      // A Display-options request parked while on another page opens the
+      // classic sheet here, not the board (see onHomeSettings below).
+      if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
+        sessionStorage.removeItem("symphony_v2_home-settings");
+        setTimeout(() => window.dispatchEvent(new CustomEvent("os-classic-home-settings")), 300);
+      }
+      const pending = ["edit-home", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");
       if (pending) { openBoard(); return undefined; }
     } catch { /* storage off */ }
@@ -860,7 +865,11 @@ export default function Dashboard() {
     };
     const onEdit = mk("edit-home");
     const onApps = () => window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
-    const onHomeSettings = mk("home-settings");
+    // Display options apply everywhere (they aren't a board feature), so
+    // on the classic home they open the classic canvas's own settings
+    // sheet — the same unified popup — in place. Hopping to the widget
+    // board to show them moved the user off the page they were styling.
+    const onHomeSettings = () => window.dispatchEvent(new CustomEvent("os-classic-home-settings"));
     const onOpenBoard = () => { openBoard(); };
     window.addEventListener("os-v2-edit-home", onEdit);
     window.addEventListener("os-v2-open-apps", onApps);
@@ -979,15 +988,12 @@ export default function Dashboard() {
           classic overlays while the board page is showing too. */}
       {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
       {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
-      {/* "Top of Dashboard" / "Bottom of Dashboard" upcoming-plans
-          surfaces (Settings → Layout → Upcoming plans). UpcomingPlans
-          renders null unless its placement is enabled. These two toggles
-          had no mount site at all since the alters directory stopped
-          hosting them. */}
-      {!uiV2On && !boardShowing && <UpcomingPlans placement="home_top" />}
+      {/* The "Top/Bottom of Dashboard" upcoming-plans surfaces are the
+          upcoming_top / upcoming_bottom WIDGETS on the home canvas — never
+          mount them here as well (0.243.x did, and "Coming up" showed
+          twice, the extra copy above the header). */}
       {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
       {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
-      {!uiV2On && !boardShowing && <UpcomingPlans placement="home_bottom" />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}

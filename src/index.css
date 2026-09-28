@@ -833,7 +833,9 @@ html[data-v2-peek="1"] body { pointer-events: auto !important; }
    picked one — so the app's own designed weights stay untouched by
    default (a var()-based version would have knocked out per-heading
    font-semibold through the cascade even when unset). */
-[data-ui-v2="1"] :is(h1, h2, h3, h4, h5, h6, .font-display) {
+:is(h1, h2, h3, h4, h5, h6, .font-display) {
+  /* Not gated on v2: the same Text & layout sheet styles the classic
+     home. 1 (no change) until the user sets a heading size. */
   --v2-hmult: var(--v2-heading-scale, 1);
 }
 /* When a custom heading font is chosen, EVERY heading uses it — not just
@@ -848,20 +850,20 @@ html[data-heading-font] :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-di
    decoration can't be cancelled by a descendant once an ancestor sets it,
    so underline / strike are applied per text element and skip anything
    inside a heading. */
-[data-ui-v2="1"][data-v2-bstyle~="bold"] { font-weight: 700; }
-[data-ui-v2="1"][data-v2-bstyle~="italic"] { font-style: italic; }
-[data-ui-v2="1"][data-v2-bstyle~="smallcaps"] { font-variant-caps: small-caps; }
-[data-ui-v2="1"][data-v2-bstyle~="italic"]:not([data-v2-hstyle~="italic"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: normal; }
-[data-ui-v2="1"][data-v2-bstyle~="smallcaps"]:not([data-v2-hstyle~="smallcaps"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-variant-caps: normal; }
-[data-ui-v2="1"][data-v2-bstyle~="underline"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline; }
-[data-ui-v2="1"][data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: line-through; }
-[data-ui-v2="1"][data-v2-bstyle~="underline"][data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline line-through; }
-[data-ui-v2="1"][data-v2-hstyle~="bold"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-weight: 700; }
-[data-ui-v2="1"][data-v2-hstyle~="italic"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: italic; }
-[data-ui-v2="1"][data-v2-hstyle~="underline"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: underline; }
-[data-ui-v2="1"][data-v2-hstyle~="strike"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: line-through; }
-[data-ui-v2="1"][data-v2-hstyle~="underline"][data-v2-hstyle~="strike"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: underline line-through; }
-[data-ui-v2="1"][data-v2-hstyle~="smallcaps"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-variant-caps: small-caps; }
+[data-v2-bstyle~="bold"] { font-weight: 700; }
+[data-v2-bstyle~="italic"] { font-style: italic; }
+[data-v2-bstyle~="smallcaps"] { font-variant-caps: small-caps; }
+[data-v2-bstyle~="italic"]:not([data-v2-hstyle~="italic"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: normal; }
+[data-v2-bstyle~="smallcaps"]:not([data-v2-hstyle~="smallcaps"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-variant-caps: normal; }
+[data-v2-bstyle~="underline"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline; }
+[data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: line-through; }
+[data-v2-bstyle~="underline"][data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline line-through; }
+[data-v2-hstyle~="bold"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-weight: 700; }
+[data-v2-hstyle~="italic"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: italic; }
+[data-v2-hstyle~="underline"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: underline; }
+[data-v2-hstyle~="strike"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: line-through; }
+[data-v2-hstyle~="underline"][data-v2-hstyle~="strike"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: underline line-through; }
+[data-v2-hstyle~="smallcaps"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-variant-caps: small-caps; }
 /* Desktop: the fixed side rail sits outside the flow, so the shell is
    inset by its width. Phones keep the bottom bar and no inset. */
 @media (min-width: 1024px) {

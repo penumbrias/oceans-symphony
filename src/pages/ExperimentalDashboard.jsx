@@ -926,10 +926,15 @@ export default function ExperimentalDashboard({
     try { window.dispatchEvent(new Event("symphony-home-edit-changed")); } catch { /* SSR */ }
     if (!editMode) setBarsPreview(false);
   }, [editMode, barsPreview]);
-  const exitSave = () => { editSnapshot.current = null; setEditMode(false); };
+  // Leaving edit mode closes every open edit surface too (widget config,
+  // Display options, pack sheet, drawer, menus). Their edits are written
+  // live, so closing them IS saving them; leaving them open after "Save &
+  // close" looked like the save hadn't happened (owner report).
+  const exitSave = () => { editSnapshot.current = null; closeEditSurfaces(); setEditMode(false); };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
     editSnapshot.current = null;
+    closeEditSurfaces();
     setEditMode(false);
     if (snap) { try { await persist(snap); } catch { /* board keeps live state */ } }
   };
