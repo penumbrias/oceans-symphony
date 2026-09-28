@@ -9,9 +9,9 @@
 // and we didn't get theirs — recoverable by syncing again. Reading first
 // and crashing before the write leaves the other device with nothing.
 
-import { getFullDbDump } from "@/lib/localDb";
+import { getFullDbDump, getLocalRevision } from "@/lib/localDb";
 import {
-  buildDataSnapshot, buildMediaSnapshot, mediaFingerprint,
+  buildDataSnapshotWithHash, buildMediaSnapshot, mediaFingerprint,
   parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
   readSnapshotSettings, readSnapshotLook, applyPortableSettings,
   parseSyncFileName, dataFileName, mediaFileName,
@@ -47,6 +47,18 @@ const PENDING_DEL_KEY = "symphony_sync_pending_deletions";
 // an unrecognised system is reported, not merged, until the user says
 // yes. Keyed by local system so pairing one system doesn't pair another.
 const PAIRED_KEY = "symphony_sync_paired_systems";
+// Hash of the content we last wrote, per data file. Device-bound (never in
+// BACKUP_LS_KEYS): it describes THIS device's file in the folder.
+const WRITTEN_HASH_KEY = "symphony_sync_written_hash";
+// Revision of the local database at the end of the last pass (in memory:
+// a fresh app start always runs one pass).
+let _revisionAtLastPass = null;
+
+// Has this device changed anything since the last sync pass? Merges done
+// BY that pass don't count — they're already in the folder.
+export function hasLocalChangesSinceSync() {
+  return _revisionAtLastPass === null || getLocalRevision() !== _revisionAtLastPass;
+}
 
 // All of these are DEVICE-BOUND on purpose and must never be added to
 // BACKUP_LS_KEYS: the folder path is meaningless on another machine, and
@@ -168,10 +180,20 @@ export async function runSync({ force = false } = {}) {
   };
 
   // ── 1. Write ours first (see header) ────────────────────────────────
+  // Skipped when the content is identical to the file already in the
+  // folder — an unchanged rewrite still changes its mtime, which made the
+  // other device re-merge everything, rewrite ITS file, and so on.
   try {
-    const snap = await buildDataSnapshot();
-    await adapter.write(dir, dataFileName(), JSON.stringify(snap));
-    report.wrote.push("data");
+    const { snap, hash } = await buildDataSnapshotWithHash();
+    const hashes = readJson(WRITTEN_HASH_KEY, {});
+    let ours = null;
+    try { ours = (await listSyncPeers()).find((p) => p.isSelf && p.data)?.data || null; } catch { ours = null; }
+    if (force || !ours || hashes[dataFileName()] !== hash) {
+      await adapter.write(dir, dataFileName(), JSON.stringify(snap));
+      hashes[dataFileName()] = hash;
+      writeLs(WRITTEN_HASH_KEY, JSON.stringify(hashes));
+      report.wrote.push("data");
+    }
   } catch (e) {
     // A failed write is fatal for this pass: continuing to read would
     // report "synced" while the other device never receives our changes.
@@ -266,6 +288,9 @@ export async function runSync({ force = false } = {}) {
   }
 
   writeLs(SEEN_KEY, JSON.stringify(seen));
+  // Merged changes are already in the folder (they came from it); only
+  // edits made after this point need the next pass.
+  _revisionAtLastPass = getLocalRevision();
   // Park anything the other device deleted for review — never applied here.
   if (report.pendingDeletions.length) addPendingDeletions(report.pendingDeletions);
   report.finishedAt = new Date().toISOString();

@@ -212,6 +212,24 @@ function snapshotCopy(value) {
 }
 
 export async function buildDataSnapshot() {
+  return (await buildDataSnapshotWithHash()).snap;
+}
+
+// FNV-1a over the plain content — cheap, and computed BEFORE sealing (an
+// encrypted body differs on every write, so it can't be compared).
+function contentHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${str.length}:${h.toString(16)}`;
+}
+
+// The snapshot plus a hash of what it contains, so the runner can skip
+// rewriting an identical file (sync audit F13: two open devices used to
+// rewrite and re-merge the whole database at each other every 30 s).
+export async function buildDataSnapshotWithHash() {
   const dump = snapshotCopy(stripDeviceBound(getFullDbDump()));
   // Look + layout travel apart from the data, and are never applied on
   // their own (see the header). snapshotCopy is a deep copy, so stripping
@@ -221,12 +239,19 @@ export async function buildDataSnapshot() {
   const systemSettings = stripLookFromDump(dump, pickPrimarySystemSettings);
   let settings = {};
   try { settings = readBackupLocalSettings(); } catch { settings = {}; }
+  // HistoryEvent is this device's own undo drawer — merges skip it, so a
+  // change there alone is nothing to publish.
+  const { HistoryEvent: _history, ...content } = dump;
+  const hash = contentHash(JSON.stringify({ data: content, appearance: { settings, systemSettings } }));
   const sealed = await seal({ data: dump, appearance: { settings, systemSettings } });
   return {
-    __format: SYNC_FORMAT,
-    ...header(),
-    encrypted: sealed.encrypted,
-    ...(sealed.encrypted ? { __encrypted: sealed.payload } : { body: sealed.body }),
+    hash,
+    snap: {
+      __format: SYNC_FORMAT,
+      ...header(),
+      encrypted: sealed.encrypted,
+      ...(sealed.encrypted ? { __encrypted: sealed.payload } : { body: sealed.body }),
+    },
   };
 }
 

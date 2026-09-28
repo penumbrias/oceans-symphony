@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "September 27, 2026",
     changes: [
+      { type: "fix", text: "Sync: switching front on one device now ends the old front on the other too, and fronts are never cut down to 0 minutes." },
+      { type: "fix", text: "Sync: dragging a widget on one device no longer brings back an old system name or terms on the other." },
+      { type: "improve", text: "Sync now sends this device's new edits on its own (not only after the other device changes), and stops rewriting when nothing changed." },
+      { type: "improve", text: "Anything a sync replaces is kept in Recent changes under \"Changed by sync\", ready to restore. Choices made in the import conflict review now stick." },
+      { type: "fix", text: "Tasks and symptoms set up separately on two devices now link up, so ticks and symptom logs from the other device show here. Presence sightings and session notes from both devices are all kept." },
+      { type: "fix", text: "Weekly tasks no longer look reset partway through the week around New Year." },
       { type: "fix", text: "Sync: edits on two devices now merge field by field — a change on one device no longer undoes a different change made on the other." },
       { type: "fix", text: "Sync: things you clear (tags, an avatar, a group) stay cleared instead of coming back from the other device." },
       { type: "fix", text: "Tasks ticked on two devices before syncing all stay ticked, and unticks now sync too. Duplicate task records are merged into one." },

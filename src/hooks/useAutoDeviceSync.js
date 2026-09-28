@@ -17,7 +17,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getSyncAdapter } from "@/lib/syncAdapters";
-import { getSyncFolder, isAutoSyncOn, runSync, hasIncomingChanges } from "@/lib/deviceSyncRunner";
+import { getSyncFolder, isAutoSyncOn, runSync, hasIncomingChanges, hasLocalChangesSinceSync } from "@/lib/deviceSyncRunner";
 
 // Long enough that an MTP-mounted phone isn't hammered, short enough that
 // "plug in, it syncs" feels true.
@@ -41,10 +41,12 @@ export function useAutoDeviceSync() {
 
       running.current = true;
       try {
-        // Cheap listing first: if no peer file changed, a full pass would
-        // still rewrite our snapshot on every tick for nothing.
+        // A pass when another device's file changed OR this device has
+        // edits of its own to publish (without the second, a week of phone
+        // edits never reached a desktop whose file hadn't changed — sync
+        // audit F13). runSync skips rewriting an unchanged file.
         const incoming = await hasIncomingChanges();
-        if (!incoming) return;
+        if (!incoming && !hasLocalChangesSinceSync()) return;
         const report = await runSync({ force: false });
         if (!cancelled && report?.merged?.length) queryClient.invalidateQueries();
       } catch {

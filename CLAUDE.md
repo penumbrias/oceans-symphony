@@ -393,7 +393,10 @@ Rules for keeping the targets healthy:
   sync and silently reverts the write. Task completions (`DailyProgress`)
   must go through `toggleDailyProgressTasks` (serialized, one record per
   period, unticks recorded in `cleared_times`). Never
-  `DailyProgress.create`/`update` directly.
+  `DailyProgress.create`/`update` directly. Fronting sessions merge
+  with "an end is a fact" (`mergeFrontingSession`). Log fields
+  (`LOG_FIELDS`) merge as unions. Anything a merge replaces is kept in
+  Recent changes ("Changed by sync").
 - **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
   copy — its entity maps are the live database. Anything built from it
   and then awaited on (encryption) can tear. `buildDataSnapshot` copies

@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   mergeRecordFields, stampCreate, stampUpdate, fieldTime,
   mergeDailyProgress, dailyProgressPeriod, pickDailyProgressKeeper,
+  mergeForEntity, mergeFrontingSession,
 } from "../src/lib/syncMerge.js";
 
 let passed = 0;
@@ -123,6 +124,65 @@ test("every device picks the same keeper for duplicates", () => {
   const recs = [{ id: "b", created_date: T(1) }, { id: "a", created_date: T(1) }, { id: "c", created_date: T(0) }];
   assert.equal(pickDailyProgressKeeper(recs).id, "c");
   assert.equal(pickDailyProgressKeeper([...recs].reverse()).id, "c");
+});
+
+console.log("fronting sessions");
+const sess = (extra) => created({ id: "s1", alter_id: "kai", is_primary: true, is_active: true, start_time: T(0), note: "[]", ...extra }, T(0));
+test("a switch on the other device ends the front here, at its time", () => {
+  const phone = sess();
+  const desk = updated(phone, { is_active: false, end_time: T(30) }, T(30));
+  const m = mergeFrontingSession(phone, desk);
+  assert.equal(m.is_active, false);
+  assert.equal(m.end_time, T(30));
+});
+test("a still-running copy never un-ends a session", () => {
+  const ended = updated(sess(), { is_active: false, end_time: T(30) }, T(30));
+  const stillLive = updated(sess(), { note: JSON.stringify([{ text: "hi", timestamp: T(40) }]) }, T(40));
+  const m = mergeFrontingSession(ended, stillLive);
+  assert.equal(m.is_active, false);
+  assert.equal(m.end_time, T(30));
+  assert.equal(JSON.parse(m.note).length, 1); // the note still arrives
+});
+test("a session is never rewritten to 0 minutes", () => {
+  const ended = updated(sess(), { is_active: false, end_time: T(30) }, T(30));
+  const other = updated(sess(), { front_level: "observing" }, T(45));
+  const m = mergeFrontingSession(ended, other);
+  assert.equal(m.end_time, T(30));
+  assert.equal(m.front_level, "observing");
+});
+test("per-alter notes added on both devices are all kept", () => {
+  const base = sess({ note: JSON.stringify([{ text: "a", timestamp: T(1) }]) });
+  const p = updated(base, { note: JSON.stringify([{ text: "a", timestamp: T(1) }, { text: "phone", timestamp: T(5) }]) }, T(5));
+  const d = updated(base, { note: JSON.stringify([{ text: "a", timestamp: T(1) }, { text: "desk", timestamp: T(6) }]) }, T(6));
+  const texts = JSON.parse(mergeFrontingSession(p, d).note).map((n) => n.text);
+  assert.deepEqual(texts, ["a", "phone", "desk"]);
+});
+
+console.log("logs and settings");
+test("presence sightings from both devices are all kept", () => {
+  const base = created({ id: "pr", name: "fog", sightings: [T(1)] }, T(1));
+  const a = updated(base, { sightings: [T(1), T(5)] }, T(5));
+  const b = updated(base, { sightings: [T(1), T(7)] }, T(7));
+  assert.deepEqual(mergeForEntity("Presence", a, b).sightings, [T(1), T(5), T(7)]);
+});
+test("old settings rows: a widget drag no longer carries stale terms across", () => {
+  // Both rows predate field times; the desktop's was bumped by a drag.
+  const phone = { id: "ss1", system_name: "Renamed", created_date: T(0), updated_date: T(10) };
+  const desk = { id: "ss2", system_name: "Old name", created_date: T(0), updated_date: T(50) };
+  assert.equal(mergeForEntity("SystemSettings", phone, desk).system_name, "Renamed");
+});
+test("settings: a real timed rename beats an old row", () => {
+  const phone = { id: "ss1", system_name: "Old", created_date: T(0), updated_date: T(50) };
+  const deskBase = { id: "ss2", system_name: "Old", created_date: T(0), updated_date: T(5) };
+  const desk = { ...deskBase, system_name: "New", updated_date: T(20), _ft: stampUpdate(deskBase, { system_name: "New" }, T(20), { legacyUntimed: true }) };
+  assert.equal(mergeForEntity("SystemSettings", phone, desk).system_name, "New");
+});
+test("settings: a look-only edit does not make the other fields newer", () => {
+  const base = { id: "ss", system_name: "A", created_date: T(0), updated_date: T(0) };
+  const renamed = { ...base, system_name: "B", updated_date: T(10), _ft: stampUpdate(base, { system_name: "B" }, T(10), { legacyUntimed: true }) };
+  const dragged = { ...base, ui_v2_home: { x: 1 }, updated_date: T(30), _ft: stampUpdate(base, { ui_v2_home: { x: 1 } }, T(30), { legacyUntimed: true }) };
+  assert.equal(mergeForEntity("SystemSettings", renamed, dragged).system_name, "B");
+  assert.equal(mergeForEntity("SystemSettings", dragged, renamed).system_name, "B");
 });
 
 // ── Real data: fold one device's duplicates and prove nothing is lost ──

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw } from "@/lib/localDb";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
@@ -974,8 +974,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         const c = review.conflicts[Number(idxStr)];
         if (!c || choice === c.kept) continue;
         try {
-          if (choice === "local" && c.local) await restoreRecord(c.entity, c.local);
-          else if (choice === "incoming" && c.incoming) await restoreRecord(c.entity, c.incoming);
+          // A choice is a NEW decision: stamped now, so the rejected
+          // version can't win the next sync by being "newer".
+          if (choice === "local" && c.local) await applyChosenVersion(c.entity, c.local, c.incoming);
+          else if (choice === "incoming" && c.incoming) await applyChosenVersion(c.entity, c.incoming, c.local);
           else if (choice === "deleted") await deleteRecordRaw(c.entity, c.id);
         } catch (e) { console.warn("conflict apply failed", c.entity, c.id, e); }
       }

@@ -14,7 +14,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import {
   History, Trash2, Undo2, ChevronDown, Users, BookOpen, Activity as ActivityIcon,
-  LayoutGrid, Archive,
+  LayoutGrid, Archive, RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -47,10 +47,11 @@ export default function HistoryArchive() {
     { id: "tracking", label: "Tracking & plans", icon: ActivityIcon },
     { id: "layout", label: "Layouts & screens", icon: LayoutGrid },
     { id: "other", label: "Everything else", icon: Archive },
+    { id: "sync", label: "Changed by sync", icon: RefreshCw },
   ]), [t]);
 
   const byCat = useMemo(() => {
-    const map = { alters: [], content: [], tracking: [], layout: [], other: [] };
+    const map = { alters: [], content: [], tracking: [], layout: [], other: [], sync: [] };
     for (const e of events) (map[e.category] || map.other).push(e);
     return map;
   }, [events]);
@@ -63,6 +64,7 @@ export default function HistoryArchive() {
   const actionLabel = (e) => {
     if (e.action === "deleted") return "Deleted";
     if (e.action === "edited") return "Edited";
+    if (e.action === "synced") return "Replaced by sync";
     return "Changed";
   };
   const subjectLabel = (e) => {
@@ -121,7 +123,7 @@ export default function HistoryArchive() {
           <History className="w-5 h-5 text-muted-foreground" /> Recent changes
         </h1>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Deletions, {t.alter} profile edits and layout rewrites are archived
+          Deletions, {t.alter} profile edits, layout rewrites and anything a sync replaced are archived
           here automatically, each bucket keeping its own recent window — so
           one kind of change can never flush the record of another. Anything
           listed can be restored.

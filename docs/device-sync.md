@@ -20,7 +20,7 @@ Two files per device, split deliberately:
 
 | File | Contents | Rewritten |
 |---|---|---|
-| `symphony-sync-<system>-<device>.data.json` | entities | whenever data changes |
+| `symphony-sync-<system>-<device>.data.json` | entities | on the next pass after data changes (content-hashed) |
 | `symphony-sync-<system>-<device>.media.json` | images + fonts | only when the media set changes |
 
 Without that split, saving a status note would rewrite every avatar you
@@ -48,6 +48,35 @@ so every device picks the same one. Writes go through the serialized
 
 (The pre-0.245 rule was whole-record newer-wins. Stage 1 of
 docs/audit-2026-09-25/sync-merge-audit.md explains why it lost data.)
+
+**Stage 2–3 rules (v0.246.0):**
+
+- **Fronting sessions:** sessions are never reopened, so an end is a
+  fact. A session ended on either device is ended on both, at that
+  device's end time; a still-running copy never un-ends it, and a session
+  is never rewritten to end at its own start. A session that is NEW here
+  and still live on the other device arrives as history (`sync_demoted`)
+  while a front is live here; the live front here is never replaced.
+- **Settings (`SystemSettings`):** in a row from an older build, a field
+  has no known age, because widget drags bump `updated_date`. So a
+  timed edit on either device wins over it, and two old rows keep their
+  own values. Incoming settings fold into the row the app reads
+  (`pickPrimarySystemSettings`).
+- **Logs union:** `Presence.sightings` and `FrontingSession.note` keep
+  every entry from both devices (`LOG_FIELDS` in syncMerge.js).
+- **Presets linked:** an incoming preset that matches a local one by
+  content (`MERGE_CONTENT_KEYS`) under a different id is aliased to the
+  local id throughout the incoming data before merging. The other
+  device's ticks and symptom logs then point at this device's rows.
+- **Recent changes → "Changed by sync":** every value a merge replaced
+  or cleared keeps the before-version there, restorable. Conflict-review
+  choices go through `applyChosenVersion`, which stamps them as new
+  edits so the rejected version can't win the next sync.
+- **Auto-sync publishes local edits:** a pass runs when another device's
+  file changed or when this device has written anything since the last
+  pass (`getLocalRevision`). Our data file is only rewritten when its
+  content hash changed. This ended the 30-second rewrite ping-pong
+  between two open devices.
 
 ## Sync never deletes
 

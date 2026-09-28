@@ -354,6 +354,18 @@ function getISOWeek(d) {
   return 1 + Math.round(((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
 }
 
+// The year an ISO week belongs to = the year of that week's Thursday.
+// Mon 29 Dec 2025 is in 2026's week 1; Fri 1 Jan 2027 is in 2026's week
+// 53. Pairing the CALENDAR year with the ISO week (as the weekly key used
+// to) filed late-December ticks under the previous January's week and
+// made weekly tasks look reset mid-week at New Year (sync audit F14).
+function getISOWeekYear(d) {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  return date.getFullYear();
+}
+
 /** Period key for a given frequency, based on current local time */
 export function getPeriodKey(frequency, date) {
   const d = date ? new Date(date) : new Date();
@@ -361,7 +373,7 @@ export function getPeriodKey(frequency, date) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   if (frequency === "daily") return `${yyyy}-${mm}-${dd}`;
-  if (frequency === "weekly") return `${yyyy}-W${String(getISOWeek(d)).padStart(2, "0")}`;
+  if (frequency === "weekly") return `${getISOWeekYear(d)}-W${String(getISOWeek(d)).padStart(2, "0")}`;
   if (frequency === "monthly") return `${yyyy}-${mm}`;
   if (frequency === "yearly") return `${yyyy}`;
   return `${yyyy}-${mm}-${dd}`;
