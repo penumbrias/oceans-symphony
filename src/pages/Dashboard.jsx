@@ -26,7 +26,7 @@ import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import StartActivityModal from "@/components/activities/StartActivityModal";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
-import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
+import { markQuickActionUsedToday, toggleTemplateDone } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 const LazyActivityPlanModal = React.lazy(() => import("@/components/activities/ActivityPlanModal"));
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -617,48 +617,15 @@ export default function Dashboard() {
       // nothing.
       const taskId = action.config?.task_id;
       if (!taskId) return;
-      const today = format(new Date(), "yyyy-MM-dd");
       const templates = await base44.entities.DailyTaskTemplate.list("sort_order", 200);
       const tpl = templates.find(t => t.id === taskId);
       if (!tpl || tpl.mode !== "MANUAL") {
         toast.error("That daily task can't be toggled from a shortcut");
         return;
       }
-      const allProgress = await base44.entities.DailyProgress.list("-date", 100);
-      const currentRecord = allProgress.find(p =>
-        (p.frequency === "daily" || !p.frequency) &&
-        (p.period_key === today || p.date === today)
-      );
-      const completedIds = new Set(currentRecord?.completed_task_ids || []);
-      const nowCompleted = !completedIds.has(taskId);
-      if (nowCompleted) completedIds.add(taskId);
-      else completedIds.delete(taskId);
-      // Per-task checkoff time so the Timeline places it at the moment it was
-      // ticked (mirrors DailyTasks.toggleManual) — without this, a task checked
-      // from the dashboard shortcut stays in the grouped "N done" marker.
-      const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
-      if (nowCompleted) completion_times[taskId] = new Date().toISOString();
-      else delete completion_times[taskId];
-      const currentXP = currentRecord?.xp_earned || 0;
-      const newXP = nowCompleted
-        ? currentXP + (tpl.points || 0)
-        : Math.max(0, currentXP - (tpl.points || 0));
-      if (currentRecord) {
-        await base44.entities.DailyProgress.update(currentRecord.id, {
-          completed_task_ids: [...completedIds],
-          completion_times,
-          xp_earned: newXP,
-        });
-      } else {
-        await base44.entities.DailyProgress.create({
-          date: today,
-          period_key: today,
-          frequency: "daily",
-          completed_task_ids: [...completedIds],
-          completion_times,
-          xp_earned: newXP,
-        });
-      }
+      // The task's OWN period and reset rule — a weekly task used to be
+      // filed under today's daily record here.
+      const nowCompleted = await toggleTemplateDone(tpl, { templates });
       queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
       toast.success(
         nowCompleted

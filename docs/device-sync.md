@@ -26,10 +26,28 @@ Two files per device, split deliberately:
 Without that split, saving a status note would rewrite every avatar you
 own. The media fingerprint is a cheap hash of the id set.
 
-**Merging is the existing engine.** `mergeDbDump` already does per-record
-newer-wins on `updated_date`, folds the `SystemSettings` singleton field
-by field, and guards active fronting sessions. Sync did not need a new
-merge strategy — only transport and scheduling.
+**Merging is field by field (v0.245.0).** `mergeDbDump` uses the rules in
+`src/lib/syncMerge.js`. Every record written by the entity proxy carries
+`_ft`, the time each field last changed (`_ft.__base` covers untouched
+fields). Two copies of a record merge per field, and the newer change to
+that field wins. An edit on one device therefore never drags the other
+device's stale copy of every other field along, and a deliberate clear
+stays cleared. Records from older builds have no `_ft`, so each of their
+fields counts as old as `updated_date`; their empty values never blank a
+local value, and an empty local field with no time of its own is still
+filled in.
+
+Task completions (`DailyProgress`) are one record per
+`frequency::period_key`. Incoming records fold into the local record for
+the same period, whatever its id, and the tick set merges task by task.
+A task stays ticked while its latest tick is newer than its latest
+untick (`cleared_times`). Duplicates of one period, left by an old create
+race, fold into one keeper: the earliest created, then the smallest id,
+so every device picks the same one. Writes go through the serialized
+`toggleDailyProgressTasks`.
+
+(The pre-0.245 rule was whole-record newer-wins. Stage 1 of
+docs/audit-2026-09-25/sync-merge-audit.md explains why it lost data.)
 
 ## Sync never deletes
 

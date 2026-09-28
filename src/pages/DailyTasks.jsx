@@ -723,17 +723,13 @@ export default function DailyTasks() {
     // individually (at when it was first recorded done) instead of being lumped
     // into one "N daily tasks done" entry. Auto-completed tasks are timestamped
     // when first observed satisfied; existing times are preserved.
-    const nowIso = new Date().toISOString();
+    // Through the ONE writer (serialized, refetch-before-write): this
+    // effect and the on-open check-in credit used to race each other and
+    // create two records for the same day.
     if (!currentRecord && todayXP > 0) {
-      const completion_times = {};
-      for (const id of allIds) completion_times[id] = nowIso;
-      base44.entities.DailyProgress.create({
-        date: TODAY,
-        period_key: currentPeriodKey,
-        frequency: "daily",
-        completed_task_ids: allIds,
-        completion_times,
-        xp_earned: todayXP,
+      toggleDailyProgressTasks({
+        periodKey: currentPeriodKey, dateKey: TODAY, frequency: "daily",
+        setIds: allIds, templates: activeTasks,
       }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
     } else if (currentRecord) {
       // Only persist auto IDs that have NEWLY become satisfied (not yet stored),
@@ -748,13 +744,9 @@ export default function DailyTasks() {
       const stored = new Set(currentRecord.completed_task_ids || []);
       const missingAuto = autoCompletedIds.filter(id => !stored.has(id));
       if (missingAuto.length) {
-        const merged = [...new Set([...stored, ...autoCompletedIds])];
-        const completion_times = { ...(currentRecord.completion_times || {}) };
-        for (const id of missingAuto) if (!completion_times[id]) completion_times[id] = nowIso;
-        base44.entities.DailyProgress.update(currentRecord.id, {
-          completed_task_ids: merged,
-          completion_times,
-          xp_earned: todayXP,
+        toggleDailyProgressTasks({
+          periodKey: currentPeriodKey, dateKey: TODAY, frequency: "daily",
+          setIds: missingAuto, templates: activeTasks,
         }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
       }
     }

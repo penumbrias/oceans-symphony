@@ -3,6 +3,7 @@
 // Falls back to migrating existing localStorage data on first run.
 
 import { openDB } from 'idb';
+import { FIELD_TIMES, stampCreate, stampUpdate, stampDiff, mergeRecordFields, mergeDailyProgress, dailyProgressPeriod, pickDailyProgressKeeper } from "./syncMerge";
 import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
@@ -886,7 +887,7 @@ export function createLocalDbEntities() {
         create: async (data) => {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
-          const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL };
+          const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
           col[record.id] = record;
           await saveDb();
           emit(entityName, { type: 'create', id: record.id, data: record });
@@ -896,7 +897,9 @@ export function createLocalDbEntities() {
           const col = getCollection(entityName);
           if (!col[id]) throw new Error(`Record ${id} not found in ${entityName}`);
           recordHistoryUpdate(entityName, col[id], data);
-          col[id] = { ...col[id], ...data, updated_date: new Date().toISOString() };
+          const now = new Date().toISOString();
+          // Per-field change times (syncMerge.js): sync merges field by field.
+          col[id] = { ...col[id], ...data, updated_date: now, [FIELD_TIMES]: stampUpdate(col[id], data, now) };
           await saveDb();
           emit(entityName, { type: 'update', id, data: col[id] });
           return col[id];
@@ -914,7 +917,7 @@ export function createLocalDbEntities() {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
           const created = items.map(data => {
-            const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL };
+            const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
             col[record.id] = record;
             return record;
           });
@@ -935,7 +938,7 @@ export function createLocalDbEntities() {
           const missing = [];
           for (const { id, data } of patches || []) {
             if (!id || !col[id]) { missing.push(id); continue; }
-            col[id] = { ...col[id], ...data, updated_date: now };
+            col[id] = { ...col[id], ...data, updated_date: now, [FIELD_TIMES]: stampUpdate(col[id], data, now) };
             updated.push(col[id]);
           }
           if (updated.length) await saveDb();
@@ -1136,13 +1139,7 @@ export async function clearStoredData() {
 // imported value, so nothing the user has actively set is ever
 // clobbered. The imported record itself is dropped (its data has been
 // absorbed into the local record), keeping the singleton invariant.
-function isEmptyValue(v) {
-  if (v === undefined || v === null) return true;
-  if (typeof v === "string") return v.trim() === "";
-  if (Array.isArray(v)) return v.length === 0;
-  if (typeof v === "object") return Object.keys(v).length === 0;
-  return false;
-}
+// isEmptyValue lives in syncMerge.js (shared with the field-level merge).
 
 // Content identity for entities whose default/preset rows auto-seed with
 // fresh RANDOM ids on first use (symptom presets, grounding techniques,
@@ -1218,27 +1215,16 @@ function _sanitizeIncomingFrontingSessions(incomingRecords, existingRecords) {
 //   - id / created_date never change; updated_date takes the newer.
 // Exported for the merge test harness.
 export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) {
-  if (!incoming || typeof incoming !== "object") return local;
-  if (!local || typeof local !== "object") return incoming;
-  const localTime = Date.parse(local.updated_date || "") || 0;
-  const incomingTime = Date.parse(incoming.updated_date || "") || 0;
-  const incomingNewer = newerWins && incomingTime > localTime;
-  const out = { ...local };
-  let changed = false;
-  for (const [field, value] of Object.entries(incoming)) {
-    if (field === "id" || field === "created_date" || field === "updated_date") continue;
-    if (isEmptyValue(value)) continue;
-    if (incomingNewer || isEmptyValue(out[field])) {
-      if (out[field] !== value) { out[field] = value; changed = true; }
-    }
-  }
-  if (incomingNewer && changed) out.updated_date = incoming.updated_date;
-  return out;
+  // v0.245.0: decided FIELD BY FIELD from per-field change times, so a
+  // newer edit to one field never drags the other side's stale copy of
+  // every other field along, and a deliberate clear stays cleared. The
+  // rules (and the legacy-record fallbacks) are documented in syncMerge.js.
+  return mergeRecordFields(local, incoming, { newerWins });
 }
 
 // Fields ignored when deciding whether two versions of a record actually
 // differ (metadata that always differs harmlessly).
-const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by"]);
+const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by", FIELD_TIMES]);
 function recordsMateriallyDiffer(a, b) {
   const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
   for (const k of keys) {
@@ -1318,6 +1304,15 @@ export async function mergeDbDump(dump, options = {}) {
     const records = entityName === "FrontingSession"
       ? _sanitizeIncomingFrontingSessions(incoming, _db[entityName])
       : incoming;
+
+    // Task completions: one record per period. An incoming record folds
+    // into the local record for the SAME period (same id or not), merging
+    // the tick set task by task — see mergeDailyProgress. Never added as
+    // a second record for a period this device already has.
+    if (entityName === "DailyProgress") {
+      mergeIncomingDailyProgress(records);
+      continue;
+    }
 
     if (entityName === "SystemSettings") {
       const localIds = Object.keys(_db[entityName]);
@@ -1444,8 +1439,74 @@ export async function mergeDbDump(dump, options = {}) {
       }
     }
   }
+  // Same-period duplicates already on this device (a create race in older
+  // builds left pairs 14–80 ms apart) fold into one record, so every
+  // screen reads the same ticks.
+  consolidateDailyProgress();
   await saveDb();
   return { conflicts };
+}
+
+function dailyProgressPointsFor() {
+  const tpls = _db?.DailyTaskTemplate || {};
+  return (id) => Number(tpls[id]?.points) || 0;
+}
+
+function mergeIncomingDailyProgress(records) {
+  const col = _db.DailyProgress || (_db.DailyProgress = {});
+  const pointsFor = dailyProgressPointsFor();
+  const byPeriod = new Map();
+  for (const r of Object.values(col)) {
+    const k = r && typeof r === "object" ? dailyProgressPeriod(r) : null;
+    if (!k) continue;
+    const cur = byPeriod.get(k);
+    byPeriod.set(k, cur ? pickDailyProgressKeeper([cur, r]) : r);
+  }
+  for (const [id, record] of Object.entries(records || {})) {
+    if (!record || typeof record !== "object") continue;
+    const target = col[id] || byPeriod.get(dailyProgressPeriod(record)) || null;
+    if (!target) {
+      col[id] = record;
+      const k = dailyProgressPeriod(record);
+      if (k) byPeriod.set(k, record);
+      continue;
+    }
+    const merged = mergeDailyProgress(target, record, { pointsFor });
+    col[target.id] = merged;
+    const k = dailyProgressPeriod(merged);
+    if (k) byPeriod.set(k, merged);
+  }
+}
+
+// Fold every period's duplicates into its keeper (the same keeper on
+// every device — pickDailyProgressKeeper). No ticks are lost: the tick
+// sets merge. The extras are removed without a tombstone; the other
+// device folds its own copies the same way on its next merge.
+export function consolidateDailyProgress() {
+  const col = _db?.DailyProgress;
+  if (!col) return 0;
+  const groups = new Map();
+  for (const r of Object.values(col)) {
+    const k = r && typeof r === "object" ? dailyProgressPeriod(r) : null;
+    if (!k) continue;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  const pointsFor = dailyProgressPointsFor();
+  let folded = 0;
+  for (const recs of groups.values()) {
+    if (recs.length < 2) continue;
+    const keeper = pickDailyProgressKeeper(recs);
+    let merged = keeper;
+    for (const r of recs) {
+      if (r.id === keeper.id) continue;
+      merged = mergeDailyProgress(merged, r, { pointsFor });
+      delete col[r.id];
+      folded++;
+    }
+    col[keeper.id] = merged;
+  }
+  return folded;
 }
 
 // Recursively dedupe string arrays that ended up holding `id` more than once
@@ -1491,8 +1552,11 @@ export async function replaceIdReferences(oldId, newId, { skipEntities = [] } = 
       if (!rec || typeof rec !== "object") continue;
       const str = JSON.stringify(rec);
       if (!str.includes(oldId)) continue;
-      const replaced = JSON.parse(str.split(oldId).join(newId));
-      col[rid] = dedupeIdInArrays(replaced, newId);
+      const replaced = dedupeIdInArrays(JSON.parse(str.split(oldId).join(newId)), newId);
+      // A reference rewrite is an edit: stamp it, or the other device's
+      // older copy would win the next sync and put the old id back.
+      const now = new Date().toISOString();
+      col[rid] = { ...replaced, updated_date: now, [FIELD_TIMES]: stampDiff(rec, replaced, now) };
       changed++;
     }
   }

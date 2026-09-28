@@ -638,7 +638,19 @@ export function hasStreakMilestoneHitToday() {
 //     idempotent; incremental add/subtract is how drift happened.
 //   • completion_times: stamped for newly-set ids when stampTimes is true,
 //     always cleared for cleared ids.
-export async function toggleDailyProgressTasks({
+// Writes run ONE AT A TIME (v0.245.0). Two writers firing together (the
+// on-open check-in credit and the Daily Tasks auto-persist) each saw "no
+// record yet" and each created one — the owner's phone had 21 same-period
+// pairs made 14–80 ms apart, and different screens read different copies.
+let _progressQueue = Promise.resolve();
+
+export function toggleDailyProgressTasks(args) {
+  const run = _progressQueue.then(() => writeDailyProgress(args));
+  _progressQueue = run.catch(() => {});
+  return run;
+}
+
+async function writeDailyProgress({
   periodKey,
   dateKey = periodKey,
   frequency = "daily",
@@ -648,54 +660,99 @@ export async function toggleDailyProgressTasks({
   stampTimes = true,
 }) {
   const { base44 } = await import("@/api/base44Client");
+  const { mergeDailyProgress, pickDailyProgressKeeper } = await import("@/lib/syncMerge");
   const fresh = await base44.entities.DailyProgress.list().catch(() => []);
-  // ALL records for this period, not .find(): the pre-consolidation writers
-  // could leave duplicate rows for one period, and the surfaces read them in
-  // DIFFERENT sort orders — so a tick landed in the row the UI never reads
-  // and the checkbox refused to stick (tester report, "marking recurring
-  // tasks complete doesn't work"). Merge every duplicate into one row
-  // (union of ticks, earliest completion stamp wins, XP recomputed) and
-  // delete the extras, so every reader agrees from here on.
+  // ALL records for this period, not .find(): older builds could leave
+  // duplicate rows for one period, and the surfaces read them in DIFFERENT
+  // sort orders — so a tick landed in the row the UI never reads. Fold
+  // every duplicate into one keeper (the same keeper sync picks, so
+  // devices converge) and delete the extras.
   const matches = (fresh || []).filter((p) =>
     ((p.frequency || "daily") === frequency) &&
     (p.period_key === periodKey || (frequency === "daily" && p.date === dateKey))
   );
-  const record = matches[0] || null;
+  const record = matches.length ? pickDailyProgressKeeper(matches) : null;
+  const folded = record
+    ? matches.filter((p) => p.id !== record.id).reduce((acc, p) => mergeDailyProgress(acc, p), record)
+    : null;
 
-  const ids = new Set();
-  const mergedTimes = {};
-  for (const p of matches) {
-    for (const id of p.completed_task_ids || []) ids.add(id);
-    for (const [id, t] of Object.entries(p.completion_times || {})) {
-      if (!mergedTimes[id] || new Date(t) < new Date(mergedTimes[id])) mergedTimes[id] = t;
+  const ids = new Set(folded?.completed_task_ids || []);
+  const completion_times = { ...(folded?.completion_times || {}) };
+  // Unticks are recorded with a time, so a sync can tell "unticked here
+  // after it was ticked there" from "never ticked here".
+  const cleared_times = { ...(folded?.cleared_times || {}) };
+  const nowIso = new Date().toISOString();
+  for (const id of setIds) {
+    ids.add(id);
+    if (stampTimes && (!completion_times[id] || (cleared_times[id] && completion_times[id] <= cleared_times[id]))) {
+      completion_times[id] = nowIso;
     }
   }
-  for (const id of setIds) ids.add(id);
-  for (const id of clearIds) ids.delete(id);
+  for (const id of clearIds) {
+    ids.delete(id);
+    delete completion_times[id];
+    cleared_times[id] = nowIso;
+  }
   const newIds = [...ids];
 
   const pointsFor = (id) => templates.find((t) => t.id === id)?.points || 0;
   const xp_earned = newIds.reduce((sum, id) => sum + pointsFor(id), 0);
-
-  const completion_times = mergedTimes;
-  const nowIso = new Date().toISOString();
-  for (const id of setIds) {
-    if (stampTimes && !completion_times[id]) completion_times[id] = nowIso;
-  }
-  for (const id of clearIds) delete completion_times[id];
+  const patch = { completed_task_ids: newIds, completion_times, xp_earned };
+  if (Object.keys(cleared_times).length) patch.cleared_times = cleared_times;
 
   if (record) {
-    await base44.entities.DailyProgress.update(record.id, {
-      completed_task_ids: newIds, completion_times, xp_earned,
-    });
-    for (const dup of matches.slice(1)) {
+    await base44.entities.DailyProgress.update(record.id, patch);
+    for (const dup of matches) {
+      if (dup.id === record.id) continue;
       try { await base44.entities.DailyProgress.delete(dup.id); } catch { /* already-merged content is on the keeper */ }
     }
     return { recordId: record.id, ids: newIds };
   }
   const created = await base44.entities.DailyProgress.create({
-    date: dateKey, period_key: periodKey, frequency,
-    completed_task_ids: newIds, completion_times, xp_earned,
+    date: dateKey, period_key: periodKey, frequency, ...patch,
   });
   return { recordId: created.id, ids: newIds };
+}
+
+// ── One task, its own period ──────────────────────────────────────────
+// Surfaces that show a single task outside the Daily Tasks page (quick
+// actions, home-screen shortcuts) used to look only at TODAY'S daily
+// record — so a weekly task always read "not done" there, and ticking it
+// filed a weekly task under today's daily record where the Weekly view
+// never looked (sync audit #10). These two use the task's own frequency
+// and reset rule, exactly like the Daily Tasks page and the home widget.
+export function isTemplateDoneNow(template, allProgress = [], now = new Date()) {
+  if (!template) return false;
+  if (hasCustomReset(template)) return isCustomResetDone(template, allProgress, now);
+  const f = template.frequency || "daily";
+  const pk = getPeriodKey(f, now);
+  return (allProgress || []).some((p) =>
+    ((p.frequency || "daily") === f) &&
+    (p.period_key === pk || (f === "daily" && p.date === pk)) &&
+    (p.completed_task_ids || []).includes(template.id));
+}
+
+// Tick or untick one task in its own period. Returns true when it is now
+// done. `templates` = every template (XP is recomputed per frequency).
+export async function toggleTemplateDone(template, { templates = [], allProgress = null } = {}) {
+  const { base44 } = await import("@/api/base44Client");
+  const progress = allProgress || await base44.entities.DailyProgress.list().catch(() => []);
+  const f = template.frequency || "daily";
+  const templatesFor = (templates || []).filter((t) => t.is_active !== false && (t.frequency || "daily") === f);
+  const done = isTemplateDoneNow(template, progress);
+  if (done && hasCustomReset(template)) {
+    // Un-doing a custom-reset task clears the record that holds its latest
+    // completion (which may be an earlier period's).
+    const rec = lastCompletionOf(template.id, progress)?.record;
+    await toggleDailyProgressTasks({
+      periodKey: rec?.period_key || getPeriodKey(f), dateKey: rec?.date || getTodayString(), frequency: f,
+      clearIds: [template.id], templates: templatesFor,
+    });
+    return false;
+  }
+  await toggleDailyProgressTasks({
+    periodKey: getPeriodKey(f), dateKey: getTodayString(), frequency: f,
+    setIds: done ? [] : [template.id], clearIds: done ? [template.id] : [], templates: templatesFor,
+  });
+  return !done;
 }

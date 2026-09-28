@@ -384,6 +384,16 @@ Rules for keeping the targets healthy:
   they want deleted data BACK. Deletions from the other device are
   surfaced for review, never applied. Don't "fix" this into a
   bidirectional delete.
+- **Sync merges field by field (v0.245.0).** Every record carries `_ft`,
+  its per-field change times, and `src/lib/syncMerge.js` merges on them.
+  **Any code that writes a record OUTSIDE the entity proxy's
+  create/update, for example by mutating `_db` directly like
+  `replaceIdReferences`, must stamp `_ft` (`stampDiff`) and
+  `updated_date`.** Otherwise the other device's older copy wins the next
+  sync and silently reverts the write. Task completions (`DailyProgress`)
+  must go through `toggleDailyProgressTasks` (serialized, one record per
+  period, unticks recorded in `cleared_times`). Never
+  `DailyProgress.create`/`update` directly.
 - **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
   copy — its entity maps are the live database. Anything built from it
   and then awaited on (encryption) can tear. `buildDataSnapshot` copies

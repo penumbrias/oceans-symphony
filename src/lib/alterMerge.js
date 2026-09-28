@@ -45,7 +45,7 @@ export async function mergeAlterInto(sourceId, targetId) {
   if (!target) throw new Error("The destination profile no longer exists");
 
   // 1. Fill-empty field merge (target wins; unions for tags/groups).
-  const SKIP_FIELDS = new Set(["id", "created_date", "updated_date", "created_by"]);
+  const SKIP_FIELDS = new Set(["id", "created_date", "updated_date", "created_by", "_ft"]);
   const patch = {};
   for (const [field, value] of Object.entries(source)) {
     if (SKIP_FIELDS.has(field) || isEmpty(value)) continue;

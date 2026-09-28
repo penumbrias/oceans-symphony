@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "September 27, 2026",
     changes: [
+      { type: "fix", text: "Sync: edits on two devices now merge field by field — a change on one device no longer undoes a different change made on the other." },
+      { type: "fix", text: "Sync: things you clear (tags, an avatar, a group) stay cleared instead of coming back from the other device." },
+      { type: "fix", text: "Tasks ticked on two devices before syncing all stay ticked, and unticks now sync too. Duplicate task records are merged into one." },
+      { type: "fix", text: "Weekly and monthly tasks shown in quick actions and home shortcuts now show and save their real state." },
       { type: "improve", text: "Hold an alter in the grid or the pinned alters bar, then slide onto the front button or the options list and lift to pick it — no second tap. The pinned bars now use the same hold bar as the grid." },
       { type: "improve", text: "Edit menu: \"UI & text\" is now \"Text & layout\" — a live preview, matching Body and Headings cards (font, size, style), and the layout settings grouped below." },
       { type: "feature", text: "Flash cards: a new list type in the grocery list & notes panel. Cards can have text and photos on each side, and Study shuffles them — tap to flip, then \"Again\" or \"Got it\"." },
