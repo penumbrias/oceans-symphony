@@ -255,7 +255,11 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove, onSolePrimary 
 // participants rather than starting a front. All the switch-meta extras
 // (journal / triggered / unsure) are hidden in this mode since there's no
 // session to attach them to. When the prop is absent, behaviour is unchanged.
-export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel, allowPresenceTab = false }) {
+// `withLevels` (selection mode only): also pick a fronting level per chosen
+// alter; onConfirm then receives (ids, { levels: { [alterId]: levelId } }).
+// Used by the timeline's retroactive "who was fronting" picker.
+// `selectionTitle` / `selectionHint` override the meeting wording.
+export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel, allowPresenceTab = false, withLevels = false, preselectedLevels = null, selectionTitle = null, selectionHint = null }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
@@ -333,7 +337,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
     enabled: !!open,
   });
-  useEffect(() => { if (open) setPendingLevels({}); }, [open]);
+  useEffect(() => { if (open) setPendingLevels(selectionMode && preselectedLevels ? { ...preselectedLevels } : {}); }, [open]);
 
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
@@ -577,7 +581,12 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     // the meeting just ends up with no participants added from here.
     if (selectionMode) {
       const ids = [...selectedIds];
-      onConfirm?.(ids);
+      if (withLevels) {
+        const levels = Object.fromEntries(ids.map((id) => [id, pendingLevels[id] ?? levelCfg.levels[0]?.id]));
+        onConfirm?.(ids, { levels });
+      } else {
+        onConfirm?.(ids);
+      }
       onClose();
       return;
     }
@@ -649,7 +658,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             {/* Right-pad past the 44x44 close X (positioned right-2)
                 so the label-mode toggle pill doesn't end up under it. */}
             <div className="flex items-center justify-between gap-2 pr-14">
-              <DialogTitle>{selectionMode ? `Notice who's near` : `Set ${terms.Front}ers`}</DialogTitle>
+              <DialogTitle>{selectionMode ? (selectionTitle || `Notice who's near`) : `Set ${terms.Front}ers`}</DialogTitle>
               <AlterLabelToggle size="xs" />
             </div>
           </DialogHeader>
@@ -711,13 +720,15 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               </div>
               {/* Fronting levels (opt-in) — per-alter closeness pick, applied
                   when the front is saved. */}
-              {!selectionMode && !isUnsure && levelCfg.enabled && selectedIds.size > 0 && (
+              {(!selectionMode || withLevels) && !isUnsure && levelCfg.enabled && selectedIds.size > 0 && (
                 <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
                   <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wide">{terms.Front} levels</p>
                   {[...selectedIds].map((id) => {
                     const a = (alters || []).find((x) => x.id === id);
                     if (!a) return null;
-                    const existing = modalActiveSessions.find(s => (s.alter_id || s.primary_alter_id) === id);
+                    // Picking for the past (selection mode): today's live
+                    // front says nothing about then — default to the top level.
+                    const existing = selectionMode ? null : modalActiveSessions.find(s => (s.alter_id || s.primary_alter_id) === id);
                     const value = pendingLevels[id] ?? existing?.front_level ?? levelCfg.levels[0]?.id;
                     return (
                       <div key={id} className="flex items-center gap-2">
@@ -742,7 +753,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
           <div className="text-xs text-muted-foreground space-y-1">
             {selectionMode ? (
-              <p>Tap an {terms.alter} to add or remove them from this meeting.</p>
+              <p>{selectionHint || `Tap an ${terms.alter} to add or remove them from this meeting.`}</p>
             ) : (
               <>
                 <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>

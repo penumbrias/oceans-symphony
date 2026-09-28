@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "September 28, 2026",
     changes: [
+      { type: "improve", text: "Timeline: adding a past front session now uses the full picker — pick several alters, browse by subsystem or group, and set each one's fronting level." },
+      { type: "feature", text: "Image assets: folders open as tiles you tap into, search covers every folder, and Select lets you move or delete many images at once." },
+      { type: "fix", text: "Dropdowns inside popups can be typed into and scrolled again, and picking an option no longer closes the popup." },
       { type: "fix", text: "Home: \"Coming up\" no longer shows twice (the extra copy at the very top is gone, along with its gap)." },
       { type: "fix", text: "Text toolbars now sit right on top of the keyboard in the Android app, with no gap." },
       { type: "fix", text: "Display options opens right where you are instead of jumping to the widget board." },

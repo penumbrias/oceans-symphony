@@ -63,7 +63,7 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
         if (window.__tourActive) { e.preventDefault(); return; }
         const target = e.detail?.originalEvent?.target || e.target;
         if (target instanceof Element &&
-            target.closest('[data-overlay-notification], [data-sonner-toaster]')) {
+            target.closest('[data-overlay-notification], [data-sonner-toaster], [data-searchable-dropdown]')) {
           e.preventDefault();
           return;
         }
