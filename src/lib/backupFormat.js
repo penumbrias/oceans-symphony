@@ -95,6 +95,9 @@ export function normalizeImport(parsed) {
       localImages: parsed.__local_images || null,
       localFonts: parsed.__local_fonts || null,
       localSettings: parsed.__local_settings || null,
+      // Categories the file declares it covers (v0.243.1+; null on older
+      // files) — Replace All only replaces these. See backupScope.js.
+      categories: Array.isArray(parsed.__categories) ? parsed.__categories : null,
       // Opt-in Friends identity bundle (v0.95.2) — the import flow shows
       // an explicit adoption prompt; it is never applied automatically.
       friendBundle: parsed.__friend_identity || null,

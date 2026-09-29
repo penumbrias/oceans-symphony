@@ -25,7 +25,8 @@
 
 import { openDB } from 'idb';
 import { getActiveStorageKey } from './localDb';
-import { LEGACY_STORAGE_KEY, listSystems, storageKeyForSystem } from './systems';
+import { LEGACY_STORAGE_KEY, listSystems, storageKeyForSystem, adoptStorageKeyAsActive } from './systems';
+import { listAllDbMirrorCopies, mirrorDbBlob } from './nativeMirror';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
 
 const IDB_NAME = 'oceans_symphony';
@@ -154,6 +155,41 @@ function classifyBlob({ key, raw, source }, { skipEmpty, isActive = false }) {
   return { key, systemId: systemIdFromKey(key), source, isActive, encrypted: false, entityCount, alterCount, sizeBytes: rawStr.length, name, raw: rawStr };
 }
 
+// Copies held in the installed app's private files (nativeMirror.js). A copy
+// identical to the live blob under the same key adds nothing and is
+// skipped; everything else — a current copy whose web view blob is gone or
+// empty, and every "kept" copy — is offered. Candidates carry a unique
+// `key` for the list plus the real `storageKey`; adoptCandidate() writes
+// them into a NEW slot, never over an existing one. Native only.
+async function readAppFileCandidates(liveByKey, opts) {
+  let copies = [];
+  try { copies = await listAllDbMirrorCopies(); } catch { copies = []; }
+  const out = [];
+  for (const c of copies) {
+    if (c.kind === 'current' && liveByKey.get(c.key) === c.raw) continue;
+    const rec = classifyBlob({ key: c.key, raw: c.raw, source: 'appFiles' }, opts);
+    if (!rec) continue;
+    out.push({ ...rec, key: `appfiles:${c.kind}:${c.at || ''}:${c.key}`, storageKey: c.key, copyKind: c.kind, savedAt: c.at });
+  }
+  return out;
+}
+
+// Restore a candidate from any source. Web view blobs are adopted in place
+// (registry pointer only); app-file copies are first written into a brand
+// new slot, so restoring can never overwrite anything.
+export async function adoptCandidate(candidate) {
+  if (candidate?.source !== 'appFiles') {
+    return adoptStorageKeyAsActive(candidate.key, candidate.name);
+  }
+  const idb = await getIdb();
+  let key;
+  do { key = `${LEGACY_STORAGE_KEY}__restored${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; }
+  while ((await idb.get(IDB_STORE, key)) !== undefined);
+  await idb.put(IDB_STORE, candidate.raw, key);
+  mirrorDbBlob(key, candidate.raw);
+  return adoptStorageKeyAsActive(key, candidate.name || 'Restored data');
+}
+
 // Scan BOTH stores for data blobs that are NOT the (empty) active slot. Returns
 // candidates sorted richest-first:
 //   { key, systemId, source, encrypted, entityCount, alterCount, sizeBytes, name, raw }
@@ -201,6 +237,8 @@ export async function scanForOrphanedData() {
     const c = classifyBlob(b, { skipEmpty: true });
     if (c) candidates.push(c);
   }
+  const liveByKey = new Map(blobs.map((b) => [b.key, typeof b.raw === 'string' ? b.raw : null]));
+  candidates.push(...await readAppFileCandidates(liveByKey, { skipEmpty: true }));
   // Richest first: real record counts beat encrypted-unknown, then by size.
   candidates.sort((a, b) => {
     const ae = a.entityCount ?? -1;
@@ -226,6 +264,8 @@ export async function listAllStorageBlobs() {
     const rec = classifyBlob(b, { skipEmpty: false, isActive: b.key === activeKey });
     if (rec) out.push(rec);
   }
+  const liveByKey = new Map(blobs.map((b) => [b.key, typeof b.raw === 'string' ? b.raw : null]));
+  out.push(...await readAppFileCandidates(liveByKey, { skipEmpty: true }));
   // Active first, then richest — so the user sees "the one you're in" up top,
   // then any other copies ranked by how much data they hold.
   out.sort((a, b) => {

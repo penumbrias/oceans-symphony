@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { adoptCandidate } from "@/lib/dataRecovery";
 import { HeartHandshake, Database, Download, Loader2, Lock, ArrowRight } from "lucide-react";
-import { adoptStorageKeyAsActive } from "@/lib/systems";
 import { shareFile } from "@/lib/shareFile";
 
 // Shown when boot found NO data at the active system slot BUT the scanner
@@ -17,7 +17,16 @@ export default function OrphanRecoveryScreen({ candidates, onSetupNew, overExist
   const list = Array.isArray(candidates) ? candidates : [];
   const best = list[0];
 
+  // Copies from the app's private files (nativeMirror) say so, with when
+  // they were saved — "kept" copies are earlier versions set aside.
   const describe = (c) => {
+    const base = describeBase(c);
+    if (c?.source !== "appFiles") return base;
+    const when = c.savedAt ? new Date(c.savedAt).toLocaleString() : "";
+    const label = c.copyKind === "kept" ? "Earlier copy kept in the app's files" : "Copy in the app's files";
+    return `${label}${when ? ` (${when})` : ""} · ${base}`;
+  };
+  const describeBase = (c) => {
     if (!c) return "";
     if (c.encrypted) return "Encrypted data (locked — you'll enter your password after restoring)";
     const parts = [];
@@ -37,7 +46,7 @@ export default function OrphanRecoveryScreen({ candidates, onSetupNew, overExist
     setBusy(true);
     setStatus(null);
     try {
-      await adoptStorageKeyAsActive(candidate.key, candidate.name);
+      await adoptCandidate(candidate);
       // Reload so the boot path re-points localDb at the adopted key and loads
       // it cleanly (unlock screen next if it was encrypted).
       window.location.reload();

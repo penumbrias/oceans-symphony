@@ -27,6 +27,14 @@ import { setActiveStorageKey, isEncryptionActive, getActiveSalt, encryptWithActi
 import { encryptData, decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
 import { getSessionPassword } from './storageMode';
+import { mirrorDbBlob, mirrorRegistry, deleteDbMirror, wipeMirror } from './nativeMirror';
+
+// Every data-blob write in this module goes through here so the native
+// private-file copy (nativeMirror.js) never misses one.
+async function putBlob(idb, value, key) {
+  await idb.put(IDB_STORE, value, key);
+  try { mirrorDbBlob(key, typeof value === 'string' ? value : JSON.stringify(value)); } catch { /* best effort */ }
+}
 
 const IDB_NAME = 'oceans_symphony';
 const IDB_STORE = 'keyval';
@@ -116,6 +124,7 @@ async function loadRegistry() {
 async function saveRegistry(reg) {
   _cachedRegistry = reg;
   writeLocalMirror(reg);
+  mirrorRegistry(reg); // native private-file copy — never throws
   try {
     const idb = await getIdb();
     await idb.put(IDB_STORE, reg, REGISTRY_KEY);
@@ -433,7 +442,7 @@ export async function appendEntitiesToSystem(systemId, entitiesByType) {
   } else {
     blob = JSON.stringify(data);
   }
-  await idb.put(IDB_STORE, blob, key);
+  await putBlob(idb, blob, key);
   return written;
 }
 
@@ -450,7 +459,7 @@ export async function createSystemWithData(name, dataObj) {
   } else {
     blob = JSON.stringify(dataObj || {});
   }
-  await idb.put(IDB_STORE, blob, storageKeyForSystem(sys));
+  await putBlob(idb, blob, storageKeyForSystem(sys));
   return sys;
 }
 
@@ -479,6 +488,8 @@ export async function wipeAllSystemsData() {
   for (const name of ['symphony_images', 'symphony_fonts']) {
     try { indexedDB.deleteDatabase(name); } catch { /* ignore */ }
   }
+  // …and the native private-file copies of all of it.
+  try { await wipeMirror(); } catch { /* best effort */ }
 }
 
 export async function deleteSystem(id) {
@@ -489,6 +500,7 @@ export async function deleteSystem(id) {
   try {
     const idb = await getIdb();
     await idb.delete(IDB_STORE, storageKeyForSystem(sys));
+    await deleteDbMirror(storageKeyForSystem(sys));
   } catch { /* best effort — still drop the registry entry */ }
   reg.systems = reg.systems.filter((s) => s.id !== id);
   await saveRegistry(reg);
@@ -520,7 +532,7 @@ export async function writeSystemDisplayName(system, name) {
         } else {
           parsed.SystemSettings[ids[0]] = { ...parsed.SystemSettings[ids[0]], system_name: trimmed };
         }
-        await idb.put(IDB_STORE, typeof raw === 'string' ? JSON.stringify(parsed) : parsed, storageKeyForSystem(sys));
+        await putBlob(idb, typeof raw === 'string' ? JSON.stringify(parsed) : parsed, storageKeyForSystem(sys));
       }
     }
   } catch { /* fall through to registry-only */ }
@@ -548,7 +560,7 @@ export async function encryptOtherSystemBlobs({ activeStorageKey, key, salt }) {
       // `key` comes from localDb.enableEncryption, which always derives at
       // KDF_ITERATIONS — stamp the envelope to match.
       const envelope = JSON.stringify({ __encrypted: await encryptData(parsed, key), __salt: salt, __format_version: 2, __kdf_iterations: KDF_ITERATIONS });
-      await idb.put(IDB_STORE, envelope, k);
+      await putBlob(idb, envelope, k);
       done++;
     } catch { failed++; }
   }
@@ -597,7 +609,7 @@ export async function decryptOtherSystemBlobs({ activeStorageKey, key, password 
         try { data = await decryptData(parsed.__encrypted, blobKey); break; } catch (e) { lastErr = e; }
       }
       if (data === null) throw lastErr || new Error("undecryptable");
-      await idb.put(IDB_STORE, JSON.stringify(data), k);
+      await putBlob(idb, JSON.stringify(data), k);
       done++;
     } catch { failed++; }
   }

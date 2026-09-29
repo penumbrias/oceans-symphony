@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HeartHandshake, Database, Download, Loader2, Lock, ArrowRight, X, RefreshCw, AlertTriangle } from "lucide-react";
-import { listAllStorageBlobs } from "@/lib/dataRecovery";
-import { adoptStorageKeyAsActive } from "@/lib/systems";
+import { listAllStorageBlobs, adoptCandidate } from "@/lib/dataRecovery";
 import { shareFile } from "@/lib/shareFile";
 
 // Manual "find my data" rescue tool. Reachable from Settings AND the Welcome
@@ -29,7 +28,16 @@ export default function DataRescuePanel({ onClose }) {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const titleFor = (b) => b.name || (b.systemId == null ? "Your main system" : "A saved system");
+  // Copies from the app's private files (nativeMirror) say so, with when
+  // they were saved — "kept" copies are earlier versions set aside.
   const describe = (b) => {
+    const base = describeBase(b);
+    if (b?.source !== "appFiles") return base;
+    const when = b.savedAt ? new Date(b.savedAt).toLocaleString() : "";
+    const label = b.copyKind === "kept" ? "Earlier copy kept in the app's files" : "Copy in the app's files";
+    return `${label}${when ? ` (${when})` : ""} · ${base}`;
+  };
+  const describeBase = (b) => {
     if (b.corrupted) return "Unreadable (corrupted) — download it and send it in for recovery";
     if (b.encrypted) return "Encrypted (locked — you'll enter your password after restoring)";
     const parts = [];
@@ -45,7 +53,7 @@ export default function DataRescuePanel({ onClose }) {
     setBusyKey(b.key);
     setStatus(null);
     try {
-      await adoptStorageKeyAsActive(b.key, b.name);
+      await adoptCandidate(b);
       window.location.reload();
     } catch (e) {
       setStatus({ type: "error", text: `Couldn't restore: ${e?.message || e}` });

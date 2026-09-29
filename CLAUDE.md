@@ -1,5 +1,18 @@
 # Oceans Symphony — Architecture Notes for Claude
 
+## RULE ZERO — Data Security Comes First. Always.
+
+**Keeping every user's data safe is the most important pillar of this app — above features, looks, speed, and convenience. Every user, every app version, every platform.** People trust this app with their system's history; losing it is the one failure that can't be apologised away.
+
+Before writing or approving ANY change, ask: *can this lose, overwrite, corrupt, or expose user data — on any platform, in any version, under any failure (crash, kill, full storage, two windows, wiped browser storage, wrong password)?* If the answer isn't a confident "no", stop and fix that first.
+
+- Data must live where the platform keeps it safest. On the installed apps that means the app's own private files — not only the web view's storage, which the browser engine can clear without warning (see "Native private-file mirror" under Storage Layer Invariants).
+- Never silently drop, overwrite, or empty data. Fail loudly, keep a copy, and let the user decide.
+- A data-safety fix outranks everything else in the queue.
+
+The detailed rules are in "User Data Preservation — Non-Negotiable" and "Storage Layer Invariants" below. This rule is also the last line of this file, on purpose.
+
+
 ## Critical: Always Respect User Terminology
 
 Users can customise the words used for their system, alters, fronting, and switching. **Every piece of new UI must use these terms — never hardcode "system", "alter", "alters", "fronting", "fronter", "switch", "headmate", "headmates", "member" (when referring to alters), etc.**
@@ -402,6 +415,9 @@ These rules came out of a critical bug where encrypted data became unreachable o
 - **`StorageModeSetup` must check `peekStoredData()` before completing setup.** If data exists, refuse to overwrite and instruct the user to reload. App.jsx's boot path should never reach setup when data exists — the check is defence-in-depth.
 - **Recovery actions that destroy data (reset, fresh start) must always save a raw copy to Downloads first.** `RecoveryScreen.handleReset` writes the raw blob (including encrypted ciphertext) before `loadDbDump({})`. Don't add a "fast reset" path that skips the backup.
 - **User preferences are mirrored INTO the DB blob (v0.177.0) — `src/lib/localSettingsMirror.js`.** Every key in `BACKUP_LS_KEYS` (`backupKeys.js`) is copied into `_db.__local_settings_mirror` (debounced, through the normal `saveDb` queue, so it rides encryption + backups + per-system scoping) and restored on boot for any key MISSING from localStorage — the fix for "my theme just disappeared" after an Android cache clear. Rules: localStorage always wins when present (restore only fills gaps); restore/mirror never throw into the boot path; `__local_settings_mirror` is a RESERVED top-level DB key (see `RESERVED_DB_KEYS` / `isReservedDbKey` in `localDb.js`) — every generic walk over the blob must skip reserved keys, merge-import ignores an incoming mirror, replace-import keeps this device's mirror unless it has none. **When you add a user-set localStorage preference, add it to `BACKUP_LS_KEYS` and it is durable automatically — do not invent a second persistence path.**
+- **Native private-file mirror (v0.244.0) — `src/lib/nativeMirror.js` + `nativeMirrorRestore.js`.** On the installed apps, web view storage (IndexedDB/localStorage) is NOT a safe sole home: the browser engine can clear it while the app is closed ("I woke up and everything was gone"). Every data blob, the systems registry, and every picture/font is also written to the app's private files (`Directory.Library` → `symphony-safe/`). Rules: (1) every write of a data blob goes through `saveToStorage` (localDb) or `putBlob` (systems.js) so the mirror never misses one — never `idb.put` a blob directly; (2) blobs use two alternating slots with a length-checked header, so a torn write falls back to the previous complete copy; (3) a blob that suddenly shrinks by half or more gets a `kept-` copy, never auto-deleted; (4) boot runs `restoreFromMirrorIfWiped()` BEFORE `initSystemsRegistry`, and it only writes into an EMPTY store — it never overwrites a live blob; partial cases surface through the recovery screens, which list app-file copies and adopt them into a NEW slot; (5) only deliberate user wipes remove mirror files — "Delete all local data" (`wipeMirror`) and deleting a system (`deleteDbMirror`); the recovery-screen reset only RETIRES the copy to a kept copy; (6) never mirror a non-object value (`"null"`); (7) boot records go to native Preferences (outside web view storage) — read them with `readBootRecords()` when diagnosing a loss report.
+- **Saves never write a non-object, and never race across tabs (v0.243.1).** `doSaveDb` captures `_db`/`_encKey` up front and skips if `_db` isn't an object (a queued save after `clearSession()` once wrote `"null"` over the encrypted blob). Saves hold a Web Lock per storage key; on a generation clash the other writer's disk-only records are MERGED in (tombstoned deletions respected) instead of being overwritten. Writes that deliberately remove records without tombstones (`loadDbDump`, `bulkDeleteEntities`) set `_authoritativeSave` so the merge doesn't resurrect them.
+- **Replace-All import only replaces what the file covers (v0.243.1).** Backups declare `__categories`; older files are inferred from which entities they carry. Anything not covered keeps this device's copy (`src/lib/backupScope.js`). Never reintroduce a whole-DB swap on import.
 - **`getDb()` throws if called before `initLocalDb` completes.** Don't reintroduce a synchronous `_db = {}` fallback — the previous one let early callers seed an empty in-memory DB that would overwrite real data on the next save.
 
 ### When you change anything in this layer
@@ -1079,3 +1095,9 @@ If you're dispatching three or more agents and any of them touch shared/release 
 4. Bump `android/app/build.gradle` `versionCode` (strictly > last Play release) AND set `versionName` to exactly match `APP_VERSION`.
 5. If a new UI surface was added, add a `FeatureTour` step (and matching `data-tour="…"` anchor).
 6. If a new entity was added, add it to BOTH `ENTITY_NAMES` and `EXPORT_CATEGORIES` in `src/components/settings/DataBackupRestore.jsx` (or document the device-bound exclusion).
+
+---
+
+## RULE ZERO, again — Data Security Is the Final Word
+
+Whatever else this file says, **user data safety wins every trade-off.** If a change could lose, overwrite, corrupt, or expose anyone's data — on any platform, in any version — it does not ship until that risk is gone.

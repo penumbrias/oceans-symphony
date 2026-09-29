@@ -18,6 +18,18 @@
 
 export const CHANGELOG = [
   {
+    date: "September 29, 2026",
+    changes: [
+      { type: "feature", text: "The Android and iPhone apps now keep a second copy of all your data — pictures and fonts included — in the app's own private files. If the phone clears the app's storage while it's closed, your data is put back automatically the next time you open it." },
+      { type: "improve", text: "“Find my data” and the recovery screens now also list those saved copies, including earlier versions kept after a sudden drop in data." },
+      { type: "fix", text: "Restoring a backup with Replace All no longer erases what the file doesn't include. A data-only or images-only backup used to wipe your image library, or everything else." },
+      { type: "fix", text: "The data-only backup now keeps your image library's names and folders (only the picture files are left out)." },
+      { type: "fix", text: "With the app open in two windows or tabs, entries saved in one could silently disappear. Both windows' entries are now kept." },
+      { type: "fix", text: "Fixed a rare case where locking the grocery cover, or mistyping your current password while changing it, could wipe encrypted data." },
+      { type: "hotfix", text: "Hotfix: image upgrades at launch no longer undo edits made at the same moment." },
+    ],
+  },
+  {
     date: "September 23, 2026",
     version: "0.243.0",
     changes: [

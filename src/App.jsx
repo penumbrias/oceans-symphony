@@ -1,4 +1,6 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
+import { toast } from "sonner";
+import { isNative } from "@/lib/platform";
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -346,6 +348,18 @@ function App() {
       // Best-effort, but call it before anything that depends on storage.
       try { await requestPersistentStorage(); } catch { /* non-fatal */ }
 
+      // Installed app: if the web view's storage was wiped while the app was
+      // closed (the "woke up and everything was gone" report), put the
+      // private-file copy back BEFORE anything reads storage — including the
+      // registry below, which would otherwise be recreated empty. Only ever
+      // writes into an EMPTY store; never overwrites. See nativeMirror.js.
+      if (isNative()) {
+        try {
+          const { restoreFromMirrorIfWiped } = await import('@/lib/nativeMirrorRestore');
+          await restoreFromMirrorIfWiped();
+        } catch { /* non-fatal — the normal boot + recovery paths still run */ }
+      }
+
       // Resolve which system (data slot) is active BEFORE any storage read, so
       // peek/init read the active system's blob. For existing users this is
       // "System 1" → the legacy key, i.e. exactly the data they already have.
@@ -477,6 +491,28 @@ function App() {
   // watchdog only rescues a boot that never leaves the spinner).
   useEffect(() => {
     if (setupState !== 'booting') window.__OS_ALIVE = true;
+  }, [setupState]);
+
+  // Installed app: keep the private-file copy complete (first copy for
+  // existing users, pictures / fonts the web view lost are put back) and
+  // say so if boot restored the data from it. Runs at the unlock screen
+  // too — it copies the stored (still-locked) blobs, no password needed.
+  useEffect(() => {
+    if (!isNative() || (setupState !== null && setupState !== 'unlock')) return;
+    import('@/lib/nativeMirrorRestore').then((m) => {
+      m.runMirrorMaintenance();
+      if (setupState !== null) return;
+      let notice = null;
+      try { notice = JSON.parse(localStorage.getItem(m.RESTORED_NOTICE_KEY) || 'null'); } catch { notice = null; }
+      if (!notice) return;
+      try { localStorage.removeItem(m.RESTORED_NOTICE_KEY); } catch { /* ok */ }
+      setTimeout(() => {
+        toast.success("Your data was restored from the app's own saved copy.", {
+          description: "The app's storage had been cleared while it was closed. Nothing was lost — you might want to export a backup now.",
+          duration: 12000,
+        });
+      }, 1500);
+    }).catch(() => {});
   }, [setupState]);
 
   useEffect(() => {

@@ -3,6 +3,8 @@
 // record (localEntities.CustomFont) uses its own id as the key into this
 // store — fonts have no legacy URL-scheme baggage to bridge, unlike images.
 
+import { mirrorMedia, deleteMediaMirror } from './nativeMirror';
+
 const DB_NAME = 'symphony_fonts';
 const STORE_NAME = 'fonts';
 
@@ -38,7 +40,9 @@ function putFont(idb, id, dataUrl) {
   });
 }
 
-export async function saveLocalFont(id, dataUrl) {
+export async function saveLocalFont(id, dataUrl, { mirror = true } = {}) {
+  // Native private-file copy (nativeMirror.js) — no-op on web, never throws.
+  if (mirror) mirrorMedia('font', id, dataUrl);
   try {
     const idb = await getIdb();
     return await putFont(idb, id, dataUrl);
@@ -70,6 +74,7 @@ export async function getLocalFont(id) {
 }
 
 export async function deleteLocalFont(id) {
+  deleteMediaMirror('font', id);
   try {
     const idb = await getIdb();
     return new Promise((resolve, reject) => {
@@ -83,6 +88,17 @@ export async function deleteLocalFont(id) {
     console.warn('deleteLocalFont: IDB unavailable:', e);
     return Promise.resolve();
   }
+}
+
+// Every stored font id. THROWS when the store can't be read (see
+// listLocalImageIds).
+export async function listLocalFontIds() {
+  const idb = await getIdb();
+  return new Promise((resolve, reject) => {
+    const req = idb.transaction([STORE_NAME], 'readonly').objectStore(STORE_NAME).getAllKeys();
+    req.onerror = () => reject(new Error('Failed to list fonts'));
+    req.onsuccess = () => resolve(req.result || []);
+  });
 }
 
 export async function getAllLocalFonts() {
