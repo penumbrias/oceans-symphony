@@ -17,7 +17,16 @@
 // blob (IndexedDB primary + a localStorage mirror) so an Android storage cleaner
 // wiping one store can't lose it. If the registry is ever lost entirely,
 // ensureRegistry() idempotently re-creates "System 1 → legacy key", so a
-// single-system user is unaffected.
+// single-system user is unaffected — and the boot path's unregistered-blob scan
+// (dataRecovery.scanForUnregisteredData) offers any other systems' blobs back.
+//
+// "Lost" means BOTH stores were read successfully and neither had one. A store
+// that could not be READ is not the same as a store that is empty: if IndexedDB
+// errors (even for a moment) and the localStorage mirror has been wiped, the
+// registry is unknown, not absent. Writing a fresh one-system registry then
+// would save over the real one and the user's other systems would vanish from
+// the list. loadRegistry throws RegistryReadError in that case instead, and the
+// boot path routes it to RecoveryScreen.
 //
 // This module imports ONLY `setActiveStorageKey` from localDb (one-way), so
 // there is no circular dependency; localDb knows nothing about systems.
@@ -39,6 +48,21 @@ const REGISTRY_VERSION = 1;
 
 // In-memory cache of the active system's storage key, set during init.
 let _cachedRegistry = null;
+
+// Thrown when the registry can't be established because a store could not be
+// READ (or held something unusable) — never for "no registry exists yet". The
+// caller must not fall back to writing a fresh registry. `corrupted` is true
+// when IndexedDB returned a value that isn't a registry at all.
+export class RegistryReadError extends Error {
+  constructor(cause, { corrupted = false } = {}) {
+    super(corrupted
+      ? 'The list of systems on this device is unreadable.'
+      : `Couldn't read the list of systems on this device${cause?.message ? `: ${cause.message}` : ''}`);
+    this.name = 'RegistryReadError';
+    this.cause = cause;
+    this.corrupted = corrupted;
+  }
+}
 
 function genId() {
   try {
@@ -62,7 +86,7 @@ export function storageKeyForSystem(system) {
 let _idbPromise = null;
 function getIdb() {
   if (!_idbPromise) {
-    _idbPromise = openDB(IDB_NAME, 1, {
+    const opening = openDB(IDB_NAME, 1, {
       upgrade(db) {
         // Mirror localDb's store creation so whichever module opens the db
         // first sets up the keyval store.
@@ -71,6 +95,11 @@ function getIdb() {
         }
       },
     });
+    // Don't cache a failed open — a transient error would otherwise stick for
+    // the whole session and "Try again" on the recovery screen could never
+    // succeed.
+    _idbPromise = opening;
+    opening.catch(() => { if (_idbPromise === opening) _idbPromise = null; });
   }
   return _idbPromise;
 }
@@ -91,23 +120,36 @@ function isValidRegistry(reg) {
 }
 
 // Load the registry from IndexedDB (primary), falling back to the localStorage
-// mirror if IDB is empty/unavailable. Returns null when neither store has one.
+// mirror if IDB is empty/unavailable.
+//   - returns the registry when either store has a valid one;
+//   - returns null ONLY when IDB was read successfully, holds nothing, and the
+//     mirror holds nothing either — i.e. there genuinely is no registry;
+//   - throws RegistryReadError when IDB could not be read (or held garbage) and
+//     the mirror can't stand in. "Unknown" must never be treated as "absent".
 async function loadRegistry() {
   let fromIdb;
+  let idbError = null;
   try {
     const idb = await getIdb();
     fromIdb = await idb.get(IDB_STORE, REGISTRY_KEY);
-  } catch { fromIdb = undefined; }
-  if (isValidRegistry(fromIdb)) {
+  } catch (e) { idbError = e || new Error('IndexedDB read failed'); }
+  if (!idbError && isValidRegistry(fromIdb)) {
     writeLocalMirror(fromIdb); // keep the fast/peekable mirror fresh
     return fromIdb;
   }
+  const idbEmpty = !idbError && fromIdb == null;
   const mirror = readLocalMirror();
   if (isValidRegistry(mirror)) {
-    // IDB lost it (e.g. cleared) but the mirror survived — restore IDB.
-    try { const idb = await getIdb(); await idb.put(IDB_STORE, mirror, REGISTRY_KEY); } catch { /* best effort */ }
+    // Only restore IDB from the mirror when IDB was READ and is genuinely
+    // empty (e.g. cleared). After a read error IDB may still hold a newer
+    // registry than the mirror — leave it alone.
+    if (idbEmpty) {
+      try { const idb = await getIdb(); await idb.put(IDB_STORE, mirror, REGISTRY_KEY); } catch { /* best effort */ }
+    }
     return mirror;
   }
+  if (idbError) throw new RegistryReadError(idbError);
+  if (!idbEmpty) throw new RegistryReadError(null, { corrupted: true });
   return null;
 }
 
@@ -125,8 +167,19 @@ async function saveRegistry(reg) {
 // Create the registry the first time multi-system boots, recording the user's
 // existing data as "System 1" pointing at the LEGACY blob key. NON-DESTRUCTIVE:
 // it never reads, copies, moves, or writes any data blob — only the registry.
+//
+// A fresh registry is written ONLY when loadRegistry confirmed there is none.
+// On a read error we fall back to the registry already loaded this session (a
+// known-real one — mid-session mutators keep working through a transient IDB
+// blip); with no such registry the RegistryReadError propagates.
 async function ensureRegistry() {
-  const existing = await loadRegistry();
+  let existing;
+  try {
+    existing = await loadRegistry();
+  } catch (e) {
+    if (e instanceof RegistryReadError && isValidRegistry(_cachedRegistry)) return _cachedRegistry;
+    throw e;
+  }
   if (isValidRegistry(existing)) {
     _cachedRegistry = existing;
     return existing;
@@ -155,8 +208,10 @@ async function ensureRegistry() {
 
 // Boot entry point: ensure a registry exists, resolve the active system, and
 // point localDb at its blob — all BEFORE the boot path reads storage. Safe to
-// call repeatedly (idempotent). On any failure the caller falls back to the
-// legacy key (the default in localDb), so a single-system user always boots.
+// call repeatedly (idempotent). Throws RegistryReadError when the registry
+// could not be read — the boot path must route that to RecoveryScreen, NOT
+// carry on with the legacy key (that would boot a multi-system user into
+// whichever system happens to live there, with the rest missing from the list).
 export async function initSystemsRegistry() {
   const reg = await ensureRegistry();
   const active = reg.systems.find((s) => s.id === reg.activeSystemId) || reg.systems[0];
@@ -285,6 +340,31 @@ export async function setActiveSystem(id) {
   reg.activeSystemId = id;
   await saveRegistry(reg);
   return reg;
+}
+
+// Boot-recovery primitive: put an UNREGISTERED data blob back on the systems
+// list WITHOUT switching to it. Used when the boot scan finds blobs the
+// registry doesn't list (e.g. the registry was re-created after being lost).
+// NON-DESTRUCTIVE: only appends a registry entry pointing straight at the
+// found key — never reads, moves, or deletes the blob. A key that's already
+// registered is left as-is. Returns the (existing or new) system record.
+export async function registerStorageKey(key, fallbackName) {
+  const reg = await ensureRegistry();
+  const existing = reg.systems.find((s) => storageKeyForSystem(s) === key);
+  if (existing) return existing;
+  const id = genId();
+  const maxOrder = reg.systems.reduce((m, s) => Math.max(m, s.order ?? 0), -1);
+  const system = {
+    id,
+    name: (fallbackName && fallbackName.trim()) || 'Recovered System',
+    avatar: null,
+    storageKey: key, // explicit — the blob keeps its original key
+    order: maxOrder + 1,
+    createdAt: nowIso(),
+  };
+  reg.systems.push(system);
+  await saveRegistry(reg);
+  return system;
 }
 
 // Boot-recovery primitive (see dataRecovery.js): make the given storage key the

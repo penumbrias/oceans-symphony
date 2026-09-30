@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "September 29, 2026",
+    changes: [
+      { type: "fix", text: "Fixed a rare startup glitch that could open the app with only one {{system}} listed and the rest missing. You now get a \"Try again\" screen instead, and any {{systems}} already missing from the list are offered back on launch." },
+    ],
+  },
+  {
     date: "September 23, 2026",
     version: "0.243.0",
     changes: [

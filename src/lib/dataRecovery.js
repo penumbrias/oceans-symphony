@@ -47,11 +47,13 @@ function systemIdFromKey(key) {
 let _idbPromise = null;
 function getIdb() {
   if (!_idbPromise) {
-    _idbPromise = openDB(IDB_NAME, 1, {
+    const opening = openDB(IDB_NAME, 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
       },
     });
+    _idbPromise = opening;
+    opening.catch(() => { if (_idbPromise === opening) _idbPromise = null; });
   }
   return _idbPromise;
 }
@@ -109,8 +111,9 @@ function readLocalStorageBlobs() {
 
 // Every data-blob key across both stores. IndexedDB first (authoritative — it's
 // what loadFromStorage reads), then any localStorage-ONLY keys. Returns
-// [{ key, raw, source }] with source 'idb' | 'localStorage'.
-async function readAllBlobs() {
+// [{ key, raw, source }] with source 'idb' | 'localStorage'. `skipKey(key)`
+// excludes a key before its (possibly large) blob is read.
+async function readAllBlobs(skipKey = () => false) {
   const seen = new Set();
   const blobs = [];
   try {
@@ -118,6 +121,7 @@ async function readAllBlobs() {
     const keys = await idb.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
     for (const key of keys) {
       if (!isDataBlobKey(key)) continue;
+      if (skipKey(key)) continue;
       let raw;
       try { raw = await idb.get(IDB_STORE, key); } catch { continue; }
       if (raw == null) continue;
@@ -127,6 +131,7 @@ async function readAllBlobs() {
   } catch { /* IDB unreadable — still surface any localStorage copies below */ }
   for (const [key, raw] of readLocalStorageBlobs()) {
     if (seen.has(key)) continue; // an IDB copy under the same key wins
+    if (skipKey(key)) continue;
     blobs.push({ key, raw, source: 'localStorage' });
   }
   return blobs;
@@ -193,15 +198,19 @@ export async function scanForOrphanedData() {
   // disaster this scanner exists for), listSystems() is empty and every blob
   // stays a candidate, so the recovery net is unchanged.
   const registeredKeys = new Set(listSystems().map((s) => storageKeyForSystem(s)));
-  const blobs = await readAllBlobs();
+  // The active slot is the empty one that sent us here; registered keys are
+  // sibling systems' data.
+  const blobs = await readAllBlobs((key) => key === activeKey || registeredKeys.has(key));
+  return rankCandidates(blobs);
+}
+
+// Richest first: real record counts beat encrypted-unknown, then by size.
+function rankCandidates(blobs) {
   const candidates = [];
   for (const b of blobs) {
-    if (b.key === activeKey) continue; // the empty slot that sent us here
-    if (registeredKeys.has(b.key)) continue; // a sibling system's data
     const c = classifyBlob(b, { skipEmpty: true });
     if (c) candidates.push(c);
   }
-  // Richest first: real record counts beat encrypted-unknown, then by size.
   candidates.sort((a, b) => {
     const ae = a.entityCount ?? -1;
     const be = b.entityCount ?? -1;
@@ -209,6 +218,53 @@ export async function scanForOrphanedData() {
     return b.sizeBytes - a.sizeBytes;
   });
   return candidates;
+}
+
+// Data blobs the registry does NOT list, found while the active system is
+// loading normally. scanForOrphanedData only runs when the active slot is
+// empty, so a registry that was re-created with just "System 1" (both copies
+// lost to a storage cleaner) used to leave every other system's blob on disk
+// but off the list forever. The boot path calls this on every launch to offer
+// them back. Cheap in the common case: keys are listed first and a blob is
+// only read when its key isn't registered, so a healthy registry reads
+// nothing. Empty blobs are skipped; encrypted ones are still offered.
+// `<key>__rescue` stashes (localDb's concurrent-write backstop) are NOT
+// systems — they're older copies of a registered system, listed in Settings →
+// Data Rescue — so they're excluded here rather than re-offered every launch.
+// Only meaningful after initSystemsRegistry has populated the registry cache:
+// with no registry every blob would count, so it returns [] instead.
+export async function scanForUnregisteredData() {
+  const systems = listSystems();
+  if (systems.length === 0) return [];
+  const registeredKeys = new Set(systems.map((s) => storageKeyForSystem(s)));
+  const blobs = await readAllBlobs((key) => registeredKeys.has(key) || key.endsWith('__rescue'));
+  return rankCandidates(blobs);
+}
+
+// "Don't ask again" for unregistered blobs the user has decided aren't
+// systems they want listed (e.g. a leftover from a delete whose blob removal
+// failed). Stored per key WITH its size, so a blob that changes is offered
+// again. Device-local on purpose (it describes this device's storage) and
+// deliberately not mirrored: if it's wiped, the worst case is being asked
+// again — the safe direction.
+const DISMISSED_KEY = 'symphony_unregistered_blobs_dismissed_v1';
+
+function readDismissed() {
+  try {
+    const v = JSON.parse(localStorage.getItem(DISMISSED_KEY) || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch { return {}; }
+}
+
+export function withoutDismissedUnregistered(candidates) {
+  const dismissed = readDismissed();
+  return candidates.filter((c) => dismissed[c.key] !== c.sizeBytes);
+}
+
+export function dismissUnregistered(candidates) {
+  const dismissed = readDismissed();
+  for (const c of candidates) dismissed[c.key] = c.sizeBytes;
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed)); } catch { /* ask again next time */ }
 }
 
 // Like scanForOrphanedData, but returns EVERY data blob in the scope — including
