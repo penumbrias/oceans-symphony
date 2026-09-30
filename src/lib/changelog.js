@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 29, 2026",
     changes: [
       { type: "feature", text: "The Android and iPhone apps now keep a second copy of all your data — pictures and fonts included — in the app's own private files. If the phone clears the app's storage while it's closed, your data is put back automatically the next time you open it." },
+      { type: "fix", text: "Planner: plans that run past midnight can now be resized by dragging their start or end, including dragging the end back to an earlier day." },
       { type: "fix", text: "Planner: a plan's end date and time now stick in its edit sheet. Moving the end back to the same day used to jump to the next day, and a saved end time could snap back to an old length." },
       { type: "improve", text: "“Find my data” and the recovery screens now also list those saved copies, including earlier versions kept after a sudden drop in data." },
       { type: "fix", text: "Restoring a backup with Replace All no longer erases what the file doesn't include. A data-only or images-only backup used to wipe your image library, or everything else." },

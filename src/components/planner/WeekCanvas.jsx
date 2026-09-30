@@ -172,7 +172,12 @@ function DayColumn({
       // block can be stretched across midnight. Forward only (the start
       // stays put), and the top edge remains same-day.
       const overIdx = dayIndexAt ? dayIndexAt(e.clientX) : dayIndex;
-      const offset = Math.max(0, (overIdx == null ? dayIndex : overIdx) - dayIndex);
+      // A block that already spans days is resized from its REAL end,
+      // whose piece may sit days after the start — so its bottom edge may
+      // also move BACK into earlier columns (Wed 08:34 → Tue 19:34). The
+      // clamp below keeps the end after the start either way.
+      const rawOffset = (overIdx == null ? dayIndex : overIdx) - dayIndex;
+      const offset = resizing.spans ? rawOffset : Math.max(0, rawOffset);
       const now = snap(minuteAt(e.clientY)) + (resizing.edge === "bottom" ? offset * MINUTES_PER_DAY : 0);
       setResizing((r) => (r.edge === "top"
         ? { ...r, startMin: Math.min(Math.max(0, snap(minuteAt(e.clientY))), r.endMin - 15) }
@@ -448,11 +453,16 @@ function DayColumn({
         {blocks.map((b) => {
           const isLive = live?.id === b.id;
           const isArming = !isLive && armingId === b.id;
-          const top = isLive ? live.startMin : b.startMin;
-          // A live bottom-edge drag can run past midnight (endMin > 1440);
-          // paint clips at the day edge — the label carries the real end,
-          // and on release the block re-renders with continuation pieces.
-          const bottom = isLive ? Math.min(live.endMin, MINUTES_PER_DAY) : b.endMin;
+          // A live resize can run past midnight (endMin > 1440) or, for a
+          // block that started on an earlier day, sit before this day's
+          // midnight (startMin < 0, or even endMin < 0 once the end is
+          // dragged back into an earlier column). Paint clips to this day
+          // (never shorter than 15 min, so it stays visible); the label
+          // carries the real times.
+          const top = isLive ? Math.max(0, Math.min(live.startMin, MINUTES_PER_DAY - 15)) : b.startMin;
+          const bottom = isLive
+            ? Math.max(top + 15, Math.min(live.endMin, MINUTES_PER_DAY))
+            : b.endMin;
           const liveExtraDays = isLive ? Math.floor(live.endMin / MINUTES_PER_DAY) : 0;
           // A block that crosses midnight is drawn as two pieces. The cut
           // edge is square (it continues, it doesn't end) and NOT
@@ -512,6 +522,31 @@ function DayColumn({
                     onPointerDown={(e) => armResize(e, { id: b.id, edge: "bottom", startMin: b.startMin, endMin: b.endMin }, b)} />
                 </>
               )}
+              {/* A block that crosses midnight is resizable from its REAL
+                  ends only: the top of its first piece, the bottom of its
+                  last. The spec carries the whole block in THIS column's
+                  minutes (start may be negative, end past 1440), so the
+                  commit keeps the full span — the old reason these blocks
+                  had no handles was that one day's piece would have been
+                  committed as the whole record. Cut edges stay square and
+                  inert. */}
+              {bottom - top >= 30 && spansDays && !b._live && realEnd && (() => {
+                const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+                const rel = (d) => Math.round((d.getTime() - dayStart.getTime()) / 60000);
+                const spec = (edge) => ({ id: b.id, edge, startMin: rel(realStart), endMin: rel(realEnd), spans: true });
+                return (
+                  <>
+                    {!b.continuesBefore && (
+                      <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
+                        onPointerDown={(e) => armResize(e, spec("top"), b)} />
+                    )}
+                    {!b.continuesAfter && (
+                      <div className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+                        onPointerDown={(e) => armResize(e, spec("bottom"), b)} />
+                    )}
+                  </>
+                );
+              })()}
               <button type="button"
                 // A live block WITHOUT a linked plan used to swallow the tap
                 // entirely — a running quick-start activity sat in the grid
@@ -527,12 +562,24 @@ function DayColumn({
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
                   {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>
-                {isLive && (
+                {isLive && (live.spans ? (
+                  // Whole-block times with weekdays: the ends may be on
+                  // other days than this column.
+                  <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
+                    {(() => {
+                      const at = (min) => {
+                        const d = new Date(day); d.setHours(0, 0, 0, 0); d.setMinutes(min);
+                        return `${format(d, "EEE")} ${minutesToLabel(d.getHours() * 60 + d.getMinutes())}`;
+                      };
+                      return `${at(live.startMin)} → ${at(live.endMin)}`;
+                    })()}
+                  </span>
+                ) : (
                   <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
                     {minutesToLabel(top)}–{minutesToLabel(live.endMin % MINUTES_PER_DAY)}
                     {liveExtraDays > 0 && ` +${liveExtraDays}d`}
                   </span>
-                )}
+                ))}
                 {bottom - top >= 40 && !isLive && (
                   <span className="block truncate opacity-70">
                     {/* Real clock times, so the piece on day 2 still says

@@ -465,8 +465,13 @@ export default function PlannerSurface({
   const handleResize = async (id, day, startMin, endMin) => {
     const activity = activities.find((a) => a.id === id);
     if (!activity) return;
+    // Minutes from this column's midnight; may be NEGATIVE (a multi-day
+    // block resized from its last day starts on an earlier one).
+    // setMinutes normalises either direction; the old setHours(floor/60,
+    // %60) split mis-handled negatives.
     const start = new Date(day);
-    start.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    start.setMinutes(startMin);
     // No one-day ceiling: dragging the bottom edge sideways into later
     // days hands in endMin > 1440, and multi-day blocks already render
     // with continuation edges. 14 days is a sanity cap, not a feature.
