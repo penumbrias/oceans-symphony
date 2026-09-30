@@ -498,6 +498,15 @@ export default function PlannerSurface({
       const unchanged = from === when.toISOString()
         && prevMins === Math.max(5, Number(durValue) || 60);
       const dur = Math.max(5, Number(durValue) || 60);
+      // Write the length into whichever field the record already uses —
+      // same rule as drag-resize. The sheet and the grid both SHOW
+      // actual_duration_minutes when it's set, so writing only
+      // duration_minutes made an edited end time "not stick": the plan kept
+      // its old actual length (owner report: 12:00–19:34 saved, came back
+      // ending 08:34 the next day).
+      const lengthPatch = (rec) => (rec.actual_duration_minutes != null
+        ? { actual_duration_minutes: dur }
+        : { duration_minutes: dur });
       const members = seriesMembers();
       if (members.length > 1) {
         // Series reach: every member keeps its own DATE shifted by the same
@@ -511,7 +520,7 @@ export default function PlannerSurface({
           const iso = d.toISOString();
           return {
             timestamp: iso,
-            duration_minutes: dur,
+            ...lengthPatch(mem),
             ...(mem.status === "scheduled" && mem.timestamp && mem.timestamp !== iso
               ? { reschedule_history: [...(mem.reschedule_history || []), { from: mem.timestamp, to: iso, ts: new Date().toISOString() }] }
               : {}),
@@ -520,7 +529,7 @@ export default function PlannerSurface({
       } else {
         await base44.entities.Activity.update(timing.item.id, {
           timestamp: when.toISOString(),
-          duration_minutes: dur,
+          ...lengthPatch(timing.item),
           // Moving a plan is a reschedule, not a new plan: status stays
           // `scheduled` and the move is recorded, matching the tracker's model.
           ...(wasScheduled && from && from !== when.toISOString()
@@ -1440,19 +1449,28 @@ export default function PlannerSurface({
             </div>
             {timeMode === "range" && (() => {
               // Derive the end from day + start + duration; edits write back
-              // as a new duration (never negative — an end before the start
-              // rolls to the next day, matching what people mean at midnight).
+              // as a new duration (never negative). Typing an end TIME before
+              // the start rolls to the next day — what people mean at
+              // midnight. Picking an end DATE never rolls: moving the end
+              // back to the start's day used to bounce straight back to the
+              // next day (the old end time was before the start), so the
+              // date could never be set (owner report). The end lands just
+              // after the start instead, ready for the time to be typed.
               const startDt = (() => { const d = new Date(timing.day); const [h, m] = String(timeValue).split(":").map(Number); d.setHours(h || 0, m || 0, 0, 0); return d; })();
               const endDt = new Date(startDt.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
               const pad = (n) => String(n).padStart(2, "0");
               const endDate = `${endDt.getFullYear()}-${pad(endDt.getMonth() + 1)}-${pad(endDt.getDate())}`;
               const endTime = `${pad(endDt.getHours())}:${pad(endDt.getMinutes())}`;
-              const commitEnd = (dateStr, timeStr) => {
+              const commitEnd = (dateStr, timeStr, { dateEdit = false } = {}) => {
                 const [y, mo, da] = dateStr.split("-").map(Number);
                 const [h, mi] = timeStr.split(":").map(Number);
                 if (!y || !mo || !da) return;
                 let end = new Date(y, mo - 1, da, h || 0, mi || 0, 0, 0);
-                if (end <= startDt) end = new Date(end.getTime() + 86400000);
+                if (end <= startDt) {
+                  end = dateEdit
+                    ? new Date(startDt.getTime() + 5 * 60000)
+                    : new Date(end.getTime() + 86400000);
+                }
                 setDurValue(Math.max(5, Math.round((end - startDt) / 60000)));
               };
               const crossesDay = endDt.toDateString() !== startDt.toDateString();
@@ -1461,7 +1479,7 @@ export default function PlannerSurface({
                   <label className="flex-1 text-xs text-muted-foreground">
                     {tr("planner.endsAt")}
                     <div className="mt-1 flex gap-1">
-                      <input type="date" value={endDate} onChange={(e) => commitEnd(e.target.value, endTime)}
+                      <input type="date" value={endDate} onChange={(e) => commitEnd(e.target.value, endTime, { dateEdit: true })}
                         aria-label={tr("planner.endDate")}
                         className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-input bg-background text-sm" />
                       <input type="time" value={endTime} onChange={(e) => commitEnd(endDate, e.target.value)}
