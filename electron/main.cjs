@@ -31,7 +31,7 @@
 // files. Renaming it moves the database. Both values are pinned below and
 // documented in docs/desktop-setup.md.
 
-const { app, BrowserWindow, Menu, shell, protocol, session, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, protocol, session, dialog, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -45,6 +45,25 @@ const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 const APP_NAME = 'Oceans Symphony';
 
 app.setName(APP_NAME);
+
+// ── Platform ──
+// Linux and Windows are both built. Every difference between them is a
+// runtime branch on process.platform in this file — never a second entry
+// point, never a build-time switch (CLAUDE.md "Build Targets").
+//
+// On Windows, userData is %APPDATA%\Oceans Symphony — the same
+// app.setName() above decides it, so nothing here moves anyone's data.
+const IS_WINDOWS = process.platform === 'win32';
+const IS_LINUX = process.platform === 'linux';
+
+// Windows ties notifications and taskbar grouping to an App User Model ID.
+// Without one, toasts either don't appear or are attributed to "Electron".
+// It MUST equal electron-builder's `appId`, because that is the id the
+// NSIS installer stamps on the Start-menu shortcut — a mismatch makes the
+// pinned taskbar icon and the running window two separate buttons. This
+// has no effect on storage (userData comes from the app name, not this).
+const WINDOWS_APP_USER_MODEL_ID = 'app.oceans-symphony.desktop';
+if (IS_WINDOWS) app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
 
 // Renderer assets. Packaged: resources/app.asar/dist. Dev: <repo>/dist.
 const DIST_DIR = path.join(__dirname, '..', 'dist');
@@ -202,10 +221,40 @@ function saveWindowState(win) {
   }
 }
 
+// Windows only: a laptop that was last used on an external monitor
+// reopens with saved x/y pointing at a screen that no longer exists, and
+// the window opens invisibly off to the side — which reads as "the app
+// won't start". If the saved top-left isn't on any current display, drop
+// the position (keep the size) and let the OS place the window.
+// Linux behaviour is left exactly as it was.
+function onScreenPosition(saved) {
+  if (!saved || typeof saved.x !== 'number' || typeof saved.y !== 'number') return saved;
+  if (!IS_WINDOWS) return saved;
+  try {
+    const visible = screen.getAllDisplays().some(({ workArea: a }) =>
+      saved.x >= a.x - 50 && saved.x < a.x + a.width - 50
+      && saved.y >= a.y - 10 && saved.y < a.y + a.height - 50);
+    if (visible) return saved;
+    return { width: saved.width, height: saved.height, maximized: saved.maximized };
+  } catch {
+    return saved;
+  }
+}
+
+// Window/taskbar icon. Windows renders .ico crisply at every size it
+// needs (title bar 16px, taskbar 32px, Alt-Tab 48px+); a PNG gets
+// rescaled and blurs. The installer's own icon comes from
+// electron-builder.config.cjs, not from here.
+function windowIconPath() {
+  const ico = path.join(__dirname, 'build', 'icon.ico');
+  if (IS_WINDOWS && fs.existsSync(ico)) return ico;
+  return path.join(__dirname, 'build', 'icon.png');
+}
+
 let mainWindow = null;
 
 function createWindow() {
-  const saved = readWindowState();
+  const saved = onScreenPosition(readWindowState());
 
   mainWindow = new BrowserWindow({
     width: saved?.width ?? 1280,
@@ -220,7 +269,7 @@ function createWindow() {
     title: APP_NAME,
     backgroundColor: '#0b1220',
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: windowIconPath(),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -347,11 +396,17 @@ function buildMenu() {
 
 // ── Auto-update ───────────────────────────────────────────────────────
 //
-// AppImage ONLY. A .deb is a system-installed package that apt owns —
-// electron-updater cannot replace it, and trying produces a confusing
-// error for someone who installed the "proper" way. process.env.APPIMAGE
-// is set by the AppImage runtime itself, so it is the honest test for
-// "this build can replace itself".
+// Linux: AppImage ONLY. A .deb is a system-installed package that apt
+// owns — electron-updater cannot replace it, and trying produces a
+// confusing error for someone who installed the "proper" way.
+// process.env.APPIMAGE is set by the AppImage runtime itself, so it is the
+// honest test for "this build can replace itself".
+//
+// Windows: the NSIS installer. electron-updater reads latest.yml from the
+// same GitHub release the Linux build uses (Linux reads latest-linux.yml),
+// downloads the new installer and runs it. The installer is per-user, so
+// updating never needs an admin prompt. A portable .exe (not built today)
+// can't replace itself, so it is skipped the same way a .deb is.
 //
 // Nothing is installed behind the user's back: the download happens
 // quietly, and the swap only occurs when they say yes or when they next
@@ -359,10 +414,18 @@ function buildMenu() {
 // that restarts itself mid-journal-entry.
 function setUpAutoUpdate() {
   if (!app.isPackaged) return;                 // dev runs are not updatable
-  if (process.platform !== 'linux') return;    // only target built today
-  if (!process.env.APPIMAGE) {
-    console.log('[update] not an AppImage (deb/source) — updates come from your package manager');
-    return;
+  if (IS_LINUX) {
+    if (!process.env.APPIMAGE) {
+      console.log('[update] not an AppImage (deb/source) — updates come from your package manager');
+      return;
+    }
+  } else if (IS_WINDOWS) {
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      console.log('[update] portable build — download the new version by hand');
+      return;
+    }
+  } else {
+    return;                                    // macOS: not built yet
   }
 
   let autoUpdater;
@@ -392,7 +455,10 @@ function setUpAutoUpdate() {
         detail: 'It will be applied next time you quit, or you can restart now. Your data is not affected either way.',
       });
       if (response === 0) {
-        setImmediate(() => autoUpdater.quitAndInstall());
+        // Windows: run the installer silently and reopen the app, so the
+        // user sees the app close and come back, not an installer window.
+        // Linux keeps electron-updater's defaults (AppImage swap).
+        setImmediate(() => (IS_WINDOWS ? autoUpdater.quitAndInstall(true, true) : autoUpdater.quitAndInstall()));
       }
     } finally {
       promptOpen = false;
@@ -491,6 +557,39 @@ if (!app.requestSingleInstanceLock()) {
       typeof name !== 'string' || name.includes('/') || name.includes('\\')
       || name.includes('\0') || !SYNC_FILE_RE.test(name);
 
+    // Windows: Explorer's "Copy as path" wraps the path in double quotes
+    // ("D:\My Sync"), and a bare drive ("E:") is not absolute to Node —
+    // it means "the current directory on E:". Both are what a person
+    // naturally pastes for a USB stick, so accept them. Spaces and drive
+    // letters need nothing else: every path below goes through path.join.
+    // Linux paths pass through untouched.
+    function normDir(dir) {
+      if (!IS_WINDOWS || typeof dir !== 'string') return dir;
+      let d = dir.trim();
+      if (d.length >= 2 && d.startsWith('"') && d.endsWith('"')) d = d.slice(1, -1).trim();
+      if (/^[A-Za-z]:$/.test(d)) d += '\\';
+      return d;
+    }
+
+    // Windows: renaming over a file that something else has open (the
+    // search indexer, antivirus, a cloud-sync client, Explorer's preview
+    // pane) fails briefly with EPERM/EBUSY/EACCES and succeeds a moment
+    // later. Retry a few times before giving up on the atomic write — the
+    // same thing graceful-fs does. Linux never retries: a POSIX rename
+    // that fails won't succeed 100ms later.
+    async function renameWithRetry(from, to) {
+      const transient = new Set(['EPERM', 'EBUSY', 'EACCES']);
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await fsp.rename(from, to);
+          return;
+        } catch (e) {
+          if (!IS_WINDOWS || attempt >= 5 || !transient.has(e?.code)) throw e;
+          await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+        }
+      }
+    }
+
     async function usableDir(dir) {
       if (typeof dir !== 'string' || !path.isAbsolute(dir)) return false;
       try {
@@ -511,7 +610,8 @@ if (!app.requestSingleInstanceLock()) {
       return { ok: true, path: res.filePaths[0] };
     });
 
-    ipcMain.handle('symphony:sync:list', async (_e, dir) => {
+    ipcMain.handle('symphony:sync:list', async (_e, rawDir) => {
+      const dir = normDir(rawDir);
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
       try {
         const names = await fsp.readdir(dir);
@@ -529,7 +629,8 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    ipcMain.handle('symphony:sync:read', async (_e, dir, name) => {
+    ipcMain.handle('symphony:sync:read', async (_e, rawDir, name) => {
+      const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
       try {
@@ -543,7 +644,8 @@ if (!app.requestSingleInstanceLock()) {
     // was reinstalled (new id = new filename, old file lingers forever)
     // or after a half-written file. Same filename guard as everything
     // else, so this can't be turned into "delete any file".
-    ipcMain.handle('symphony:sync:remove', async (_e, dir, name) => {
+    ipcMain.handle('symphony:sync:remove', async (_e, rawDir, name) => {
+      const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
       try {
@@ -554,7 +656,8 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    ipcMain.handle('symphony:sync:write', async (_e, dir, name, text) => {
+    ipcMain.handle('symphony:sync:write', async (_e, rawDir, name, text) => {
+      const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
       if (typeof text !== 'string') return { ok: false, error: 'Nothing to write.' };
@@ -565,7 +668,7 @@ if (!app.requestSingleInstanceLock()) {
         // half-written snapshot that the other device would then try to
         // merge. The reader only ever sees a complete file.
         await fsp.writeFile(tmp, text, 'utf8');
-        await fsp.rename(tmp, dest);
+        await renameWithRetry(tmp, dest);
         return { ok: true };
       } catch (e) {
         // MTP and some removable filesystems don't support rename. Fall
@@ -578,7 +681,7 @@ if (!app.requestSingleInstanceLock()) {
         } catch (e2) {
           try { await fsp.unlink(tmp); } catch { /* best effort */ }
           // Last resort: a gvfs/MTP mount (a phone over USB). See gioCopy.
-          if (process.platform === 'linux') {
+          if (IS_LINUX) {
             const staged = path.join(os.tmpdir(), `symphony-sync-${process.pid}-${Date.now()}.json`);
             try {
               await fsp.writeFile(staged, text, 'utf8');
