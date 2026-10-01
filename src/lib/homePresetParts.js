@@ -8,8 +8,8 @@
 // second theme replaced the board wholesale. Their wish is exactly the
 // split below: keep ONE layout, let each theme bring its own background.
 //
-// Both AdvancedAppearanceNew (manual apply) and AppLayout (apply on
-// fronter change) MUST go through applyHomePresetToBoard so they can't
+// AdvancedAppearanceNew + UiEditSheet (manual apply) and AppLayout (apply
+// on fronter change) MUST go through applyHomePresetToBoard so they can't
 // diverge. Legacy presets that carry a full `uiV2Home` still apply whole
 // (unchanged behaviour), so nothing already saved breaks.
 
@@ -42,8 +42,9 @@ export function captureHomeLook(board) {
 //   preset.uiV2HomeLook   → look keys only, current layout kept
 // When both new parts are present they compose. `current` may be undefined
 // on a fresh install; the result is still well-formed.
-export function applyHomePresetToBoard(preset, current) {
-  if (!preset || typeof preset !== "object") return null;
+export function applyHomePresetToBoard(rawPreset, current, { wide = isWideScreen() } = {}) {
+  if (!rawPreset || typeof rawPreset !== "object") return null;
+  const preset = presetBoardParts(rawPreset, wide);
   const cur = current && typeof current === "object" ? current : {};
   if (preset.uiV2Home && typeof preset.uiV2Home === "object") return preset.uiV2Home;
   let next = null;
@@ -55,17 +56,21 @@ export function applyHomePresetToBoard(preset, current) {
   }
   return next;
 }
-// Same for the desktop board field.
-export function applyHomePresetToDesktopBoard(preset, current) {
-  if (!preset || typeof preset !== "object") return null;
-  const cur = current && typeof current === "object" ? current : {};
-  if (preset.uiV2HomeDesktop && typeof preset.uiV2HomeDesktop === "object") return preset.uiV2HomeDesktop;
-  let next = null;
-  if (preset.uiV2HomeDesktopLayout && typeof preset.uiV2HomeDesktopLayout === "object") {
-    next = { ...cur, ...preset.uiV2HomeDesktopLayout, ...pick(cur, HOME_LOOK_KEYS) };
-  }
-  if (preset.uiV2HomeDesktopLook && typeof preset.uiV2HomeDesktopLook === "object") {
-    next = { ...(next || cur), ...preset.uiV2HomeDesktopLook };
-  }
-  return next;
+// One board per device (v0.248.0): presets saved before then may carry a
+// separate desktop board (uiV2HomeDesktop*). On a wide screen those desktop
+// parts are what the person was looking at when they saved, so they win;
+// on a phone the phone parts do. Returns a preset with only the main keys.
+export function presetBoardParts(preset, wide) {
+  if (!preset || typeof preset !== "object") return preset;
+  const hasDesk = preset.uiV2HomeDesktop || preset.uiV2HomeDesktopLayout || preset.uiV2HomeDesktopLook;
+  if (!wide || !hasDesk) return preset;
+  return {
+    ...preset,
+    uiV2Home: preset.uiV2HomeDesktop || null,
+    uiV2HomeLayout: preset.uiV2HomeDesktopLayout || (preset.uiV2HomeDesktop ? null : preset.uiV2HomeLayout),
+    uiV2HomeLook: preset.uiV2HomeDesktopLook || (preset.uiV2HomeDesktop ? null : preset.uiV2HomeLook),
+  };
 }
+
+export const isWideScreen = () =>
+  typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 1024px)").matches;

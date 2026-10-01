@@ -19,6 +19,7 @@ import { LOOK_KEYS } from "@/lib/widgetLook";
 import { V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { findFreeCell } from "@/lib/experimentalHome";
 import { getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
+import { isWideScreen } from "@/lib/homePresetParts";
 
 export const PACK_FORMAT = "symphony_setup_pack";
 export const PACK_VERSION = 1;
@@ -627,7 +628,6 @@ export function buildRestorePoint({ settingsRow, appTheme, title = "import" }) {
     title: `Before ${title}`,
     created: new Date().toISOString(),
     ui_v2_home: settingsRow?.ui_v2_home ? JSON.parse(JSON.stringify(settingsRow.ui_v2_home)) : null,
-    ui_v2_home_desktop: settingsRow?.ui_v2_home_desktop ? JSON.parse(JSON.stringify(settingsRow.ui_v2_home_desktop)) : null,
     ui_v2_styles: Array.isArray(settingsRow?.ui_v2_styles) ? JSON.parse(JSON.stringify(settingsRow.ui_v2_styles)) : [],
     ui_v2: settingsRow?.ui_v2 ? JSON.parse(JSON.stringify(settingsRow.ui_v2)) : null,
     appTheme: appTheme ? { ...appTheme } : null,
@@ -640,7 +640,9 @@ export function restorePatchFrom(point) {
   if (!point) return null;
   const patch = {};
   if (point.ui_v2_home) patch.ui_v2_home = point.ui_v2_home;
-  if (point.ui_v2_home_desktop) patch.ui_v2_home_desktop = point.ui_v2_home_desktop;
+  // Restore points from before one-board-per-device (v0.248.0) may hold a
+  // separate desktop board; on a wide screen that's the one that was shown.
+  if (point.ui_v2_home_desktop && isWideScreen()) patch.ui_v2_home = point.ui_v2_home_desktop;
   if (Array.isArray(point.ui_v2_styles)) patch.ui_v2_styles = point.ui_v2_styles;
   if (point.ui_v2) patch.ui_v2 = point.ui_v2;
   return patch;

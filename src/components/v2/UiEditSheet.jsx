@@ -42,7 +42,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/setupPacks";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
-import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
+import { applyHomePresetToBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
@@ -540,8 +540,7 @@ function BarsSection({ v2, alignX }) {
   const waveCustom = settingsRow?.wave_color_custom || "";
 
   // The alter bar lives on the home board's own field, per device.
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const altersBar = settingsRow?.[homeField]?.altersBar || {};
   // The pinned bar's own size/label config — the same singleton the
   // gallery's gear writes, so both editors agree.
@@ -1134,8 +1133,7 @@ function PresetsSection({ v2 }) {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsRows[0] || null;
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const currentStyleMode = settingsRow?.[homeField]?.styleMode || "current";
 
   // ONE list, TWO tabs (the user's call — "one thing, maybe two: style
@@ -1234,8 +1232,6 @@ function PresetsSection({ v2 }) {
       uiV2Tokens: Object.fromEntries(SIZE_TOKEN_IDS.filter((id) => v2.uiV2.tokens[id] !== undefined).map((id) => [id, v2.uiV2.tokens[id]])),
       uiV2HomeLook: captureHomeLook(settingsRow?.ui_v2_home),
       uiV2HomeLayout: captureHomeLayout(settingsRow?.ui_v2_home),
-      uiV2HomeDesktopLook: captureHomeLook(settingsRow?.ui_v2_home_desktop),
-      uiV2HomeDesktopLayout: captureHomeLayout(settingsRow?.ui_v2_home_desktop),
     };
   };
   const [history, setHistory] = useState(() => listLookHistory());
@@ -1279,11 +1275,9 @@ function PresetsSection({ v2 }) {
     // applyHomePresetToBoard helper).
     if (parts.widgets) {
       payload.uiV2HomeLook = captureHomeLook(settingsRow?.ui_v2_home);
-      payload.uiV2HomeDesktopLook = captureHomeLook(settingsRow?.ui_v2_home_desktop);
     }
     if (parts.layout) {
       payload.uiV2HomeLayout = captureHomeLayout(settingsRow?.ui_v2_home);
-      payload.uiV2HomeDesktopLayout = captureHomeLayout(settingsRow?.ui_v2_home_desktop);
     }
     saveCustomPreset(trimmed, payload);
     if (linkAlterId) linkAlterTheme(linkAlterId, trimmed);
@@ -1330,8 +1324,6 @@ function PresetsSection({ v2 }) {
     }
     const nextHome = applyHomePresetToBoard(preset, settingsRow?.ui_v2_home);
     if (nextHome) patch.ui_v2_home = nextHome;
-    const nextDesk = applyHomePresetToDesktopBoard(preset, settingsRow?.ui_v2_home_desktop);
-    if (nextDesk) patch.ui_v2_home_desktop = nextDesk;
     await writeSettings(patch);
     // A theme brings its widget look along only when the user asked for it.
     if (presetName && themeRestylesWidgets && allPresets[presetName] && (preset.light || preset.dark)) {
@@ -1664,8 +1656,7 @@ export default function UiEditSheet() {
   const settingsRow = settingsRows[0] || null;
 
   // Which home board this device edits — same breakpoint HomeV2 uses.
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const background = resolveBackground(settingsRow?.[homeField]?.background);
   const writeBackground = async (next) => {
     if (!settingsRow?.id) return;

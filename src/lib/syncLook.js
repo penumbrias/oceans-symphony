@@ -24,7 +24,8 @@ export const DEVICE_LOOK_FIELDS = [
   "experimental_home",      // legacy widget board
   "ui_v2",                  // v2 display tokens, bars, dock
   "ui_v2_home",             // v2 home board
-  "ui_v2_home_desktop",     // v2 home board, wide-screen variant
+  "ui_v2_home_desktop",     // RETIRED (v0.248.0, one board per device) — still
+                            // stripped, so an older peer's copy can't land here
   "dashboard_layout",       // classic dashboard section order
   "navigation_config",      // top bar / bottom bar / dashboard grid
   "pinned_alters_config",   // pinned alters strip (+ per-level looks)

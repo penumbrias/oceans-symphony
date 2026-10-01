@@ -21,7 +21,7 @@ import { formatDistanceToNow } from "date-fns";
 const FIELD_LABELS = {
   classic_home: "Home screen layout",
   ui_v2_home: "Widget board layout",
-  ui_v2_home_desktop: "Widget board layout (desktop)",
+  ui_v2_home_desktop: "Widget board layout (old separate desktop board)",
   dashboard_layout: "Classic card list",
   navigation_config: "Navigation setup",
   experimental_home: "Experimental home layout",

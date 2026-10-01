@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 1, 2026",
+    changes: [
+      { type: "improve", text: "Each device now has one widget board that fits any screen size. If you had a separate desktop board, the one you weren't seeing is kept as a saved preset." },
+      { type: "fix", text: "Using another device's appearance now brings over the widget board you actually see there." },
+    ],
+  },
+  {
     date: "September 30, 2026",
+    version: "0.247.3",
     changes: [
       { type: "fix", text: "Device sync: fixed a sync ending the people who were fronting on the other device. If yours vanished, restore them from Recent changes → \"Changed by sync\"." },
       { type: "fix", text: "Recent changes: restoring an earlier version now puts back the whole record, not just some of its fields." },

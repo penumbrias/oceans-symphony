@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
-import { captureHomeLayout, captureHomeLook, applyHomePresetToBoard, applyHomePresetToDesktopBoard } from "@/lib/homePresetParts";
+import { captureHomeLayout, captureHomeLook, applyHomePresetToBoard } from "@/lib/homePresetParts";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/lib/ThemeContext';
@@ -699,8 +699,6 @@ export default function AdvancedAppearance() {
       // AppLayout's fronter-change apply uses the same one).
       const nextHome = applyHomePresetToBoard(preset, systemSettings?.ui_v2_home);
       if (nextHome) settingsPatch.ui_v2_home = nextHome;
-      const nextDesk = applyHomePresetToDesktopBoard(preset, systemSettings?.ui_v2_home_desktop);
-      if (nextDesk) settingsPatch.ui_v2_home_desktop = nextDesk;
     }
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
@@ -805,12 +803,10 @@ export default function AdvancedAppearance() {
       // per-headmate theme can bring its own background while every theme
       // shares one layout (v0.186.0). Legacy presets carry `uiV2Home` whole.
       payload.uiV2HomeLayout = captureHomeLayout(systemSettings?.ui_v2_home);
-      payload.uiV2HomeDesktopLayout = captureHomeLayout(systemSettings?.ui_v2_home_desktop);
       payload.upcomingPlansSurfaces = systemSettings?.upcoming_plans_surfaces;
     }
     if (presetParts.homeLook) {
       payload.uiV2HomeLook = captureHomeLook(systemSettings?.ui_v2_home);
-      payload.uiV2HomeDesktopLook = captureHomeLook(systemSettings?.ui_v2_home_desktop);
     }
     if (presetParts.navigation) payload.navigationConfig = systemSettings?.navigation_config;
     if (presetParts.terms) {

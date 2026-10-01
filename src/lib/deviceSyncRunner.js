@@ -21,6 +21,7 @@ import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getActiveSystemId } from "@/lib/systems";
 import { localEntities } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { unifyHomeBoards, RETIRED_DESKTOP_FIELD } from "@/lib/homeBoardUnify";
 
 const FOLDER_KEY = "symphony_sync_folder";
 const LAST_RUN_KEY = "symphony_sync_last_run";
@@ -396,6 +397,15 @@ export async function removeSyncFile(name) {
 // `key` picks one device (listSyncPeers' `${deviceId}:${systemId}`). The
 // sync panel always passes it: "newest" is the wrong default when two
 // devices share a folder — the one that happens to have written last wins.
+// The one board a peer's look should bring: its own single board, or —
+// from an older peer that still has two — the one that peer displays.
+export function boardYouSee(look, platform) {
+  if (!look || typeof look !== "object" || !look[RETIRED_DESKTOP_FIELD]) return look;
+  const { [RETIRED_DESKTOP_FIELD]: desk, ...rest } = look;
+  if (platform === "desktop" || !rest.ui_v2_home) rest.ui_v2_home = desk;
+  return rest;
+}
+
 export async function copyAppearanceFrom({ key = null } = {}) {
   const adapter = getSyncAdapter();
   const dir = getSyncFolder();
@@ -411,14 +421,20 @@ export async function copyAppearanceFrom({ key = null } = {}) {
     let settings = null;
     let look = null;
     let name = peer.deviceId;
+    let platform = null;
     try {
       const file = parseSnapshotFile(await adapter.read(dir, peer.data.name));
       name = file.device?.name || name;
+      platform = file.device?.platform || null;
       settings = await readSnapshotSettings(file);
       look = await readSnapshotLook(file);
     } catch {
       continue; // unreadable snapshots are reported by the sync pass
     }
+    // "Use its appearance" means the board you SEE on that device. A
+    // device older than one-board-per-device (v0.248.0) still keeps a
+    // separate desktop board, which is the one its desktop app shows.
+    look = boardYouSee(look, platform);
     const hasSettings = settings && Object.keys(settings).length > 0;
     const hasLook = look && Object.keys(look).length > 0;
     if (!hasSettings && !hasLook) continue;
@@ -428,11 +444,15 @@ export async function copyAppearanceFrom({ key = null } = {}) {
     // can be put back.
     let layoutFields = 0;
     if (hasLook) {
+      // Fold this device's own two boards first (keeping the spare as a
+      // preset), so the copied board can't lose to a stale local one.
+      await unifyHomeBoards();
       const rows = await localEntities.SystemSettings.list();
       const row = pickPrimarySystemSettings(rows) || rows[0];
       if (row?.id) {
         await localEntities.SystemSettings.update(row.id, look);
         layoutFields = Object.keys(look).length;
+        await unifyHomeBoards();
       }
     }
     const applied = hasSettings ? applyPortableSettings(settings, { overwrite: true }) : 0;

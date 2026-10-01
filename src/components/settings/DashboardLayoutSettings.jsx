@@ -73,7 +73,7 @@ export function ClassicBarsToggles() {
   const actionsOn = cb.actions !== false;
   const wideOn = cb.wide === true;
   const wide = useIsWide();
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const altersOn = cb.alters !== false && record?.[homeField]?.altersBar?.enabled === true;
   const writeCb = async (patch, alsoAlters = null) => {
     try {
@@ -174,8 +174,7 @@ export function HomeScreenResetDialog({ open, onClose }) {
       if (!record?.id) return;
       const stored = record.classic_home;
       if (keepAsPage && stored && Array.isArray(stored.pages) && stored.pages.length) {
-        const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-        const boardField = wide && record.ui_v2_home_desktop ? "ui_v2_home_desktop" : "ui_v2_home";
+        const boardField = "ui_v2_home";
         const board = record[boardField] && typeof record[boardField] === "object" ? record[boardField] : seedV2Home();
         // Board pages hold V2 widgets — classic-card widgets are mapped to
         // their board twins; anything unmappable is left out of the copy.

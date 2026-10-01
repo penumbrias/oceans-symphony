@@ -19,7 +19,7 @@ import { Undo2, Redo2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTheme } from "@/lib/ThemeContext";
 
-const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_home_desktop", "ui_v2_styles"];
+const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_styles"];
 const MAX = 40;
 const HOLD_MS = 450;
 
@@ -60,7 +60,7 @@ function diffLabel(prev, next) {
   if (JSON.stringify(prev.settings.ui_v2) !== JSON.stringify(next.settings.ui_v2)) {
     parts.push(...subDiff(prev.settings.ui_v2, next.settings.ui_v2, UI_V2_AREAS, "UI theme"));
   }
-  for (const [field, label] of [["ui_v2_home", "Home board"], ["ui_v2_home_desktop", "Desktop board"]]) {
+  for (const [field, label] of [["ui_v2_home", "Home board"]]) {
     if (JSON.stringify(prev.settings[field]) !== JSON.stringify(next.settings[field])) {
       parts.push(...subDiff(prev.settings[field], next.settings[field], HOME_AREAS, label));
     }

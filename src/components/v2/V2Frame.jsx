@@ -924,8 +924,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
     ? <TabButtons items={tabItems} uiV2={uiV2} isActive={isActiveTab} navigate={navigate} t={t} />
     : <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
         onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />;
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
   const altersInNav = altersBarCfg.enabled === true;
   // The alters half of the split handle lives ONLY on the edge the alters
@@ -1171,8 +1170,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
 // swipe-or-tap grammar and the same toggle events as the split handle, so
 // "swipe up on the bottom bar" works in every configuration (owner ask).
 function AltersFoldHandle({ uiV2, settingsRow, terms }) {
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const cfg = settingsRow?.[homeField]?.altersBar || {};
   const dragY = useRef(null);
   const open = !cfg.collapsed;
@@ -1292,8 +1290,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
   // bar is off (the user's spec: it should copy the QUICK ACTIONS bar's
   // display, not float like the support bubble). Config lives on the
   // device's home board, same field the board itself reads.
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const homeField = "ui_v2_home";
   const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
   // Hosted here on EVERY page whenever it's switched on (v0.189.1 — the
   // user's spec: it works like the quick-actions bar). It used to live on
@@ -1549,8 +1546,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         // No strip (quick actions bubble/floating/off) — the alters bar
         // still gets its fold handle on the bottom bar, so swipe-up works
         // in every configuration (owner ask).
-        const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-        const abCfg = settingsRow?.[wide ? "ui_v2_home_desktop" : "ui_v2_home"]?.altersBar || {};
+        const abCfg = settingsRow?.ui_v2_home?.altersBar || {};
         const wantsHandle = abCfg.enabled === true && abCfg.mode !== "bubble"
           && (!["top", "left", "right"].includes(abCfg.position));
         return wantsHandle

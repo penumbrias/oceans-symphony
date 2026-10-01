@@ -44,7 +44,7 @@ import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
-import { applyHomePresetToBoard, applyHomePresetToDesktopBoard } from "@/lib/homePresetParts";
+import { applyHomePresetToBoard } from "@/lib/homePresetParts";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock } from "@/components/v2/V2Frame";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
@@ -325,8 +325,7 @@ const uiV2On = UI_V2_ENABLED && uiV2.enabled;
 // header only when chosen. Wait for settings to load (settings0 defined)
 // so the bars never flash in before a user's saved "off" arrives.
 const classicAltersOn = (() => {
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const home = settings0?.[wide ? "ui_v2_home_desktop" : "ui_v2_home"];
+  const home = settings0?.ui_v2_home;
   return home?.altersBar?.enabled === true;
 })();
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
@@ -601,8 +600,6 @@ useEffect(() => {
     const cur = systemSettings?.[0];
     const nextHome = applyHomePresetToBoard(preset, cur?.ui_v2_home);
     if (nextHome) settingsPatch.ui_v2_home = nextHome;
-    const nextDesk = applyHomePresetToDesktopBoard(preset, cur?.ui_v2_home_desktop);
-    if (nextDesk) settingsPatch.ui_v2_home_desktop = nextDesk;
   }
   if (Object.keys(settingsPatch).length > 0) {
     const settings = systemSettings?.[0];

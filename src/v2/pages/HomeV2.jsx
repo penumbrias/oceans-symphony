@@ -7,33 +7,28 @@
 // widget through the new v2 primitives instead of embedding the legacy
 // dashboard components.
 //
-// PER-DEVICE LAYOUTS. A phone screen and a monitor want different
-// arrangements, so each keeps its own layout in its own SystemSettings
-// field. A desktop opening for the first time starts from a COPY of the
-// phone layout (never an empty grid), and from then on the two are
-// independent — rearranging on the laptop doesn't disturb the phone.
-// Both fields live on the same settings row, so backups and device sync
-// carry them without any extra wiring.
+// ONE BOARD PER DEVICE (v0.248.0). Each device's look and layout is its
+// own (sync never carries it), and the grid adapts to the width, so the
+// old separate desktop board (ui_v2_home_desktop) is retired — see
+// src/lib/homeBoardUnify.js, which folds it in wherever it still exists.
 
 import React, { useEffect, useRef } from "react";
-import { useIsWide } from "@/lib/useIsWide";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
 import V2Notices from "@/v2/notices";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { unifyHomeBoards, RETIRED_DESKTOP_FIELD } from "@/lib/homeBoardUnify";
 
 export const V2_HOME_FIELD = "ui_v2_home";
-export const V2_HOME_FIELD_DESKTOP = "ui_v2_home_desktop";
 
 // useIsWide matches the `lg:` breakpoint the rest of the v2 chrome switches
 // at, so the rail and the desktop layout always appear together.
 
 export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
   const qc = useQueryClient();
-  const wide = useIsWide();
-  const field = wide ? V2_HOME_FIELD_DESKTOP : V2_HOME_FIELD;
+  const field = V2_HOME_FIELD;
   // The frame's command bar is THE quick-action bar under v2; the board's
   // edit toolbar edits these keys (see ExperimentalDashboard's commandBar).
   const uiV2 = resolveUiV2(settingsRow?.ui_v2);
@@ -54,13 +49,18 @@ export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const liveRow = settingsRows?.[0] || settingsRow || null;
+  // An import or "use another device's appearance" can bring an old
+  // separate desktop board back in — fold it before seeding anything.
+  const hasRetired = !!liveRow?.[RETIRED_DESKTOP_FIELD];
   useEffect(() => {
-    if (!settingsLoaded || seeded.current[field]) return;
+    if (!hasRetired) return;
+    unifyHomeBoards().then(() => qc.invalidateQueries({ queryKey: ["systemSettings"] }));
+  }, [hasRetired, qc]);
+  useEffect(() => {
+    if (!settingsLoaded || hasRetired || seeded.current[field]) return;
     if (liveRow?.[field]) { seeded.current[field] = true; return; }
     seeded.current[field] = true;
-    const start = wide && liveRow?.[V2_HOME_FIELD]
-      ? JSON.parse(JSON.stringify(liveRow[V2_HOME_FIELD]))
-      : seedV2Home();
+    const start = seedV2Home();
     (async () => {
       try {
         // Refetch before writing: another surface may have created the
@@ -73,7 +73,7 @@ export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
         qc.invalidateQueries({ queryKey: ["systemSettings"] });
       } catch { /* non-fatal: the canvas just starts empty */ }
     })();
-  }, [settingsLoaded, liveRow, field, wide, qc]);
+  }, [settingsLoaded, hasRetired, liveRow, field, qc]);
 
   return (
     <ExperimentalDashboard

@@ -109,6 +109,7 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
+import { unifyHomeBoards } from "@/lib/homeBoardUnify";
 
 // Shown while a lazily-loaded page chunk downloads. Sits in the page slot
 // (inside AppLayout's <Outlet/> position via Suspense above Routes), so
@@ -574,6 +575,10 @@ function MainApp() {
       // SystemSettings (backed-up copy) — adopts a restored backup's set on
       // a fresh device, migrates pre-B2 device-local customisations up.
       reconcileDistressStore().catch(() => {});
+      // One home board per device (v0.248.0): fold a separate desktop
+      // board in, keeping the one this device doesn't show as a preset.
+      // Also catches one brought back by an import (imports reload).
+      if (!isPreviewActive()) unifyHomeBoards().catch(() => {});
       // Skip auto-backup while preview mode is active — preview's
       // in-memory snapshot is not the user's real data, exporting it
       // would overwrite their last real backup file with junk.
