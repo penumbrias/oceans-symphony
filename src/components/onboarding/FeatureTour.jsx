@@ -628,10 +628,10 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     {
       section: "reminders", sectionLabel: "Reminders",
       emoji: "📌",
-      title: "Persistent status notifications",
-      body: `On the Android app you can pin always-on notifications in Settings → Notifications: one showing who's ${t.fronting} right now (updates the instant a ${t.switch} happens), one listing your active symptoms, and an activity timer you can end & log straight from the tray. They're silent and stay put until you turn them off.`,
+      title: "Status bar notifications",
+      body: `On the Android app you can keep notifications in your status bar (Settings → Notifications & reminders → Status bar): who's ${t.fronting} right now (updates the instant a ${t.switch} happens), your active symptoms, and a running activity you can end & log straight from there. If anything is stopping notifications on your phone — they're off, reminders may arrive late, or battery saver could stop them — the top of that section and the Reminders page show it with a one-tap fix.`,
       route: "/reminders", target: null,
-      look: `Settings → Notifications → "Persistent status notifications" (Android app only)`, action: null,
+      look: `Settings → Notifications & reminders → "Status bar" (Android app only)`, action: null,
     },
 
     // ─── ANALYTICS ──────────────────────────────────────────────────────────

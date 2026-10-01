@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import RemindersInbox from "@/components/reminders/RemindersInbox";
 import RemindersManage from "@/components/reminders/RemindersManage";
 import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
+import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
 
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
@@ -61,6 +62,9 @@ export default function Reminders() {
           </div>
         </div>
       </div>
+
+      {/* Only when something would stop reminders reaching this device. */}
+      <NotificationStatusCard onlyWhenIssues />
 
       {showOnboarding ? (
         <RemindersOnboarding onDone={() => queryClient.invalidateQueries({ queryKey: ["reminders"] })} />

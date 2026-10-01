@@ -38,7 +38,9 @@ import { runAutoBackupNow } from "@/lib/autoBackup";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import RelayServerSettings from "@/components/settings/RelayServerSettings";
-import NotificationSettings from "@/components/settings/NotificationSettings";
+import { PopupMessagesSection, PersistentNotificationsSection, ServerDeliverySection, NotificationTests } from "@/components/settings/NotificationSettings";
+import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
+import { isNative } from "@/lib/platform";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
 import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, Download, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Boxes, Info, Link2, Bug } from "lucide-react";
@@ -654,8 +656,20 @@ export default function Settings() {
 
         {/* ── NOTIFICATIONS & REMINDERS ── */}
         <Section id="notifications" icon={Bell} label="Notifications & reminders">
-          <SubSection title="In-app notifications" defaultOpen={false}><NotificationSettings /></SubSection>
+          {/* What's stopping notifications right now, each with its fix —
+              instead of paragraphs of phone instructions (owner, 2026-10-01). */}
+          <NotificationStatusCard includeBattery className="mb-3" />
           <SubSection title="Reminders" defaultOpen={false}><RemindersSettings /></SubSection>
+          {isNative() && (
+            <SubSection title="Status bar" defaultOpen={false}><PersistentNotificationsSection /></SubSection>
+          )}
+          <SubSection title="Pop-up messages" defaultOpen={false}><PopupMessagesSection /></SubSection>
+          <SubSection title="Advanced" defaultOpen={false}>
+            <div className="space-y-4">
+              <ServerDeliverySection />
+              <NotificationTests />
+            </div>
+          </SubSection>
           {/* The relay carries Friends, reminder delivery and push, so it
               belongs with the things it powers rather than in a corner of
               its own. Collapsed by default — most people never touch it. */}

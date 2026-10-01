@@ -12,9 +12,10 @@ import { CATEGORY_ICONS } from "./reminderHelpers";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import AlterScopeSection from "./AlterScopeSection";
-import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
+import { isPushEnabled } from "@/lib/pushRegistration";
 import { useTerms } from "@/lib/useTerms";
 import { toast } from "sonner";
+import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
 
 const CATEGORIES = ["check_in", "habit", "meds", "grounding", "appointment", "custom"];
 const TRIGGER_TYPES = ["scheduled", "interval", "contextual", "event"];
@@ -431,15 +432,6 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
     o.labelKey === "front" ? { ...o, label: `${terms.Front} updated` } : o
   );
 
-  const handlePushRequest = async () => {
-    try {
-      await registerPush();
-      toast.success("Push notifications enabled!");
-    } catch (err) {
-      toast.error(err.message || "Could not enable push notifications.");
-    }
-  };
-
   const handleSave = async () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
     if (!form.delivery_channels.length) { toast.error("Choose at least one delivery channel"); return; }
@@ -567,11 +559,10 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                 </label>
               ))}
             </div>
-            {(form.delivery_channels || []).includes("push") && typeof Notification !== "undefined" && Notification.permission !== "granted" && (
-              <button type="button" onClick={handlePushRequest}
-                className="mt-2 text-xs text-primary underline hover:text-primary/80">
-                Enable browser notifications →
-              </button>
+            {/* The same status card as Settings — it knows the phone's
+                permission too (the old link only checked the browser's). */}
+            {(form.delivery_channels || []).includes("push") && (
+              <NotificationStatusCard onlyWhenIssues className="mt-2" />
             )}
           </div>
 

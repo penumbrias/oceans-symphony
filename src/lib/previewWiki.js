@@ -525,7 +525,7 @@ const bioReminders = `
   ${section("Snooze",
     `Per-reminder snooze options as removable chips (10 min, 1h, 4h, Tomorrow 9am, Next Monday 9am, custom). Snoozed instances re-fire when their snoozed_until timestamp passes.`)}
   ${section("Push diagnostics",
-    `Settings → Reminders has a "Test push notification" link that walks the full pipeline (service worker, PushManager, VAPID key, browser permission, registration, subscription, server send) and surfaces the failing step. A second link, "Show local test notification", bypasses push entirely and asks the SW to display directly — if that also doesn't appear, the problem is OS-side (Chrome notification permission, battery optimisation, Do Not Disturb).`)}
+    `Settings → Notifications & reminders → Advanced has a "Test push" link that walks the full pipeline (service worker, PushManager, VAPID key, browser permission, registration, subscription, server send) and surfaces the failing step. A second link, "Show a test notification", bypasses push entirely and asks the SW to display directly — if that also doesn't appear, the problem is OS-side (Chrome notification permission, battery optimisation, Do Not Disturb).`)}
 `;
 
 // ── 15. Friends Mode ──────────────────────────────────────────────────

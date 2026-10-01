@@ -667,7 +667,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
   const SECTIONS = [
     ["system", "Profile", `${terms.System || "System"} name, banner, identity, pronouns`],
     ["appearance", "Appearance", "Theme, colours, fonts, wallpaper, presets, dashboard layout, navigation, corner style, home screen, widgets"],
-    ["notifications", "Notifications & reminders", "Reminders, push notifications, persistent notification, alerts"],
+    ["notifications", "Notifications & reminders", "Reminders, push notifications, notifications off, allow notifications, status bar, persistent notification, pop-up messages, alerts, battery"],
     ["accessibility", "Accessibility", "Font size, text size, contrast, bottom bar height, motion"],
     ["alters", `${Alter} setup`, `Custom fields, relationship types, archived ${Alters}, ${Alter} order, arrangement, labels, ${fronting} levels, profile songs, duplicates`],
     ["checkin", "Tracking setup", "Custom emotions, symptoms, diary card templates, quick actions, triggers, check-in"],
