@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "improve", text: "Wherever the {{fronting}} levels open, swipe right to get the {{alter}}'s options menu instead." },
       { type: "feature", text: "Starting a plan or marking it done now asks when — \"started on time\", \"finished on time\", now, or another time — instead of always using the current time." },
       { type: "fix", text: "\"Start now\" from a plan's details in the planner now actually starts it." },
       { type: "improve", text: "Pinned {{alters}} bar and widget: press and hold goes straight to the {{fronting}} levels, and a tap opens the {{alter}}'s options." },

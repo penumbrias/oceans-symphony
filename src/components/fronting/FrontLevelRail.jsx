@@ -38,6 +38,8 @@ const HOLD_MS = 350;
 // instead"). Touch gets a wide slop and lets the browser's own scroll
 // detection (pointercancel) be the real judge of "this was a scroll".
 const SLOP_PX = 8;
+// Sideways distance (px) on an open rail that leaves it for the options menu.
+const MENU_SWIPE_PX = 80;
 const TOUCH_SLOP_PX = 24;
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
@@ -154,10 +156,22 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     // makes this alter the only one at the level (or outright).
     const soloDir = cfg.solo_swipe?.direction === "right" ? 1 : -1;
     const soloOn = cfg.solo_swipe?.enabled !== false;
+    // The OTHER sideways direction (right, unless "sole" was set to the
+    // right) leaves the rail for the alter's options menu — wherever the
+    // rail opens, the menu is one swipe away (owner, 2026-10-01).
+    const menuDir = -soloDir;
     const pick = (ev) => {
+      const dx = ev.clientX - state.x;
+      if (onOptions && dx * menuDir > MENU_SWIPE_PX) {
+        teardown();
+        try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+        onOptions(alterId);
+        return;
+      }
       const idx = pickAt(ev.clientY);
-      const solo = soloOn && (ev.clientX - state.x) * soloDir > 64;
-      setRail((r) => (r ? { ...r, pickedIndex: idx, solo } : r));
+      const solo = soloOn && dx * soloDir > 64;
+      const towardMenu = !!onOptions && dx * menuDir > MENU_SWIPE_PX / 3;
+      setRail((r) => (r ? { ...r, pickedIndex: idx, solo, towardMenu } : r));
       state.pickedIndex = idx;
       state.solo = solo;
     };
@@ -571,6 +585,9 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
         <div className="absolute px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium whitespace-nowrap"
           style={{ ...(flip ? { right: window.innerWidth - left - 20 } : { left }), top: Math.max(2, top - 26) }}>
           {alterName}
+          {rail.towardMenu && !rail.solo && (
+            <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>options ›</span>
+          )}
           {rail.solo && (
             <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>
               {(cfg.solo_swipe?.scope || "level") === "all"
