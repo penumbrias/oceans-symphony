@@ -272,6 +272,7 @@ export default function TherapyReportPage() {
         symptoms,
         emotionCheckIns,
         sleepLogs,
+        includeAlterInfo,
       });
 
       // Collect alter IDs from report

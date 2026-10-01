@@ -122,6 +122,7 @@ export default function SleepTracker() {
   };
 
   const handleDelete = async (sleepId) => {
+    if (!(await confirm({ title: "Delete this sleep record?", body: "Its mirrored Sleep activity is removed too. A linked dream journal entry stays in Journals.", confirmLabel: "Delete", destructive: true }))) return;
     try {
       // Cascade-delete the linked "Sleep" Activity so the tracker's week
       // grid doesn't keep an orphaned bar after the underlying record is gone.

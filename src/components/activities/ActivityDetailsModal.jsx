@@ -15,8 +15,8 @@ import AlterAvatar from "@/components/shared/AlterAvatar";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -261,15 +261,14 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       toast.error("Select an activity");
       return;
     }
-    // Run inline ~commands first (each becomes a chip), then whisper handling.
-    let lc;
-    try { lc = await applyLogCommands(data.notes || "", { isRich: false }); }
-    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
-    // "/w @name [secret]" in the notes hides that part behind a whisper bar
-    // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
-    if (w === null) return;
-    const notes = w.content;
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(data.notes || "", { alters, terms, surfaceLabel: "note", baseAuthorIds: data.fronting_alter_ids || [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const notes = prepared.content;
+    // Only a real "-name" / "+name" signpost overrides who the activity is for.
+    const signposted = parseSignpostAuthors(data.notes || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
     setIsLoading(true);
     try {
       const startDt = applyTimeStr(act.timestamp, data.startTimeStr);
@@ -289,25 +288,14 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         activity_category_ids: catIds,
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
-        fronting_alter_ids: data.fronting_alter_ids,
+        fronting_alter_ids: signposted ? prepared.authorIds : data.fronting_alter_ids,
         notes,
+        author_alter_ids: prepared.authorIds,
       });
-      // Whisper recipients are peeled off the note — notify them.
-      for (const rid of (w.recipientIds || [])) {
-        try {
-          await base44.entities.MentionLog.create({
-            mentioned_alter_id: rid,
-            author_alter_id: null,
-            log_type: "mention",
-            source_type: "activity",
-            source_id: act.id,
-            source_label: "Whisper in an activity note",
-            source_date: new Date().toISOString(),
-            preview_text: "🔒 private whisper",
-            navigate_path: "/activity-tracker",
-          });
-        } catch { /* best-effort */ }
-      }
+      await recordAuthoredText({
+        ...prepared, alters, sourceType: "activity", sourceId: act.id, sourceLabel: "Activity note",
+        navigatePath: `/activities?date=${format(startDt, "yyyy-MM-dd")}&highlight=${act.id}`,
+      });
 
       // If this is the auto-created Activity that mirrors a Sleep record,
       // reflect the timestamp / wake_time / notes back so the Sleep page
@@ -482,6 +470,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     value={(editDataMap[act.id] || {}).notes || ""}
                     onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
                     alters={alters}
+                    signposts
                     placeholder={`Add notes… @ to mention, /w @name [secret] to whisper`}
                     className="h-20"
                   />

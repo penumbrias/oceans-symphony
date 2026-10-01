@@ -153,7 +153,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
 
   useEffect(() => {
     if (presetFile) handleFile({ target: { files: [presetFile] } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [presetFile]);
 
   // Counts for the preview card. is_custom_front members are NOT real alters.

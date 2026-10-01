@@ -16,6 +16,9 @@
 // widgetLabel() through the user's own terminology.
 
 import React from "react";
+import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
+import { useFrontLook } from "@/lib/frontLook";
+import { prepareAuthoredText } from "@/lib/authoredText";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -25,7 +28,6 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import { statusFor as statusForActivity } from "@/lib/activityStatus";
-import { applyLogCommands } from "@/lib/logCommands";
 import { Square,
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
@@ -61,7 +63,7 @@ import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
+import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
@@ -660,10 +662,13 @@ function StatusWidget() {
     try {
       // Same pipeline as the classic status card: inline ~commands run
       // (plain-label tokens — statuses render as plain text).
-      const { content: note } = await applyLogCommands(text, { chips: false });
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
+      const prepared = await prepareAuthoredText(text, { alters, whisper: false, chips: false, surfaceLabel: "status" });
+      if (prepared === null) { setSaving(false); return; }
+      const note = prepared.content;
+      const authorAlterId = prepared.authorIds[0] || null;
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
       // @mentions notify like every other surface.
-      await saveStatusMentions({ note, alters, sourceId: created?.id });
+      await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId });
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
@@ -687,6 +692,7 @@ function StatusWidget() {
         <div className="flex-1 min-w-0">
           {/* @mentions and ~commands, exactly like the classic status box. */}
           <MentionTextarea
+            signposts
             value={draft}
             onChange={setDraft}
             alters={alters}
@@ -1186,7 +1192,7 @@ function JournalWidget({ settings }) {
       {list.map((e) => (
         <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
           right={fmtTime(e.timestamp || e.created_date)}
-          onClick={() => navigate(`/journals?entry=${e.id}`)} />
+          onClick={() => navigate(`/journals?id=${e.id}`)} />
       ))}
     </Section>
   );
@@ -1434,7 +1440,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
       {!entry && <Muted>{tr("widget.book.empty")}</Muted>}
 
       {entry && (
-        <button type="button" onClick={() => navigate(`/journals?entry=${entry.id}`)}
+        <button type="button" onClick={() => navigate(`/journals?id=${entry.id}`)}
           className="text-left w-full min-w-0">
           <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
           <p className="text-[0.625em] text-muted-foreground mb-1">
@@ -2202,10 +2208,12 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
 // at the picked level; with levels off, hold simply toggles front).
 // Tap = profile · double-tap = the action menu. Widget contract: Section
 // is the visible box; names via useAlterLabel; avatars resolved.
-function PinnedAvatar({ alter, size, fronting, isPrimary, blurAvatar }) {
+function PinnedAvatar({ alter, size, fronting, session = null, blurAvatar }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  const look = useFrontLook();
+  // The level's colour when it has one, else the alter's — no gold primary.
   const ring = fronting
-    ? (isPrimary ? "#f59e0b" : (alter.color || "var(--v2-accent)"))
+    ? (look.styleFor(session)?.color || alter.color || "var(--v2-accent)")
     : "hsl(var(--border))";
   return (
     <span
@@ -2267,37 +2275,9 @@ function PinnedAltersWidget({ api, settings }) {
     ? Math.max(24, Math.min(cfgSize, 160))
     : Math.max(24, Math.min(boxH - (showNamesNow ? 22 : 4), 96));
 
-  const levelCfg = useFrontLevels();
-  const suppressTapUntil = React.useRef(0);
-  const addOrLevel = async (alterId, levelId, extras = {}) => {
-    // Holding a non-fronter and picking a level ADDS them at that level.
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
-    if (!existing) {
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) await toggleFrontFor(alter, fresh, base44, qc, toast, t);
-    }
-    await commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg, solo: !!extras.solo });
-  };
-  const { rail, getHoldProps } = useHoldDragLevel({
-    cfg: levelCfg,
-    onCommit: (alterId, levelId, extras = {}) => {
-      suppressTapUntil.current = Date.now() + 400;
-      addOrLevel(alterId, levelId, extras);
-    },
-    onRemove: (alterId) => {
-      suppressTapUntil.current = Date.now() + 400;
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) removeFrontFor(alter, base44, qc, toast, t);
-    },
-    // Drag right = the options menu (unified grammar).
-    onOptions: (alterId) => {
-      suppressTapUntil.current = Date.now() + 400;
-      const alter = alters.find((a) => a.id === alterId);
-      if (alter) setMenuFor(alter);
-    },
-  });
-  const railAlter = rail ? alters.find((a) => a.id === rail.alterId) : null;
+  // Press-and-hold → the two-option rail (front button + options list),
+  // same as the alters grid; slide onto an option and lift to pick it.
+  const holdRail = useAlterHoldRail({ activeSessions: sessions });
 
   const [menuFor, setMenuFor] = React.useState(null);
   const lastTap = React.useRef({});
@@ -2316,9 +2296,9 @@ function PinnedAltersWidget({ api, settings }) {
             <button
               key={alter.id}
               type="button"
-              {...getHoldProps(alter.id, session?.front_level)}
+              {...holdRail.bind(alter)}
               onClick={() => {
-                if (rail || Date.now() < suppressTapUntil.current) return;
+                if (holdRail.suppressed()) return;
                 const now = Date.now();
                 if (lastTap.current.id === alter.id && now - lastTap.current.t < 350) {
                   lastTap.current = {};
@@ -2332,8 +2312,8 @@ function PinnedAltersWidget({ api, settings }) {
               style={{ width: Math.max(size + 8, 44) }}
               title={formatAlter(alter)}
             >
-              <PinnedAvatar alter={alter} size={size} fronting={!!session}
-                isPrimary={!!session?.is_primary} blurAvatar={anonymizeBlurAvatars(anonymize)} />
+              <PinnedAvatar alter={alter} size={size} fronting={!!session} session={session}
+                blurAvatar={anonymizeBlurAvatars(anonymize)} />
               {showNamesNow && (
                 <span className={`text-[0.625em] text-center truncate w-full mt-0.5 ${anonymizeBlurNames(anonymize) ? "blur-sm" : "text-muted-foreground"}`}>
                   {formatAlter(alter)}
@@ -2343,7 +2323,7 @@ function PinnedAltersWidget({ api, settings }) {
           );
         })}
       </div>
-      <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
+      {holdRail.node}
       {menuFor && (
         <AlterActionMenu alter={menuFor} activeSessions={sessions}
           session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id)}
@@ -2382,6 +2362,8 @@ function LogEmotionWidget({ mode, settings }) {
         emotions: picked,
         intensity: Number(intensity) || 3,
         alter_id: lead?.alter_id || null,
+        // Analytics, the check-in log and reports attribute by fronting_alter_ids.
+        fronting_alter_ids: lead?.alter_id ? [lead.alter_id] : [],
       });
       qc.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       toast.success(applyTerms(tr("widget.logEmotion.saved"), t));
@@ -2528,6 +2510,9 @@ function LogSymptomWidget({ settings }) {
       const created = await base44.entities.SymptomCheckIn.create({
         timestamp: new Date().toISOString(),
         symptom_id: symptom.id,
+        // `severity` is the field every reader uses (SymptomsSection,
+        // analytics, reports); intensity is kept for the widget's own recent-state.
+        severity: value,
         intensity: value,
         alter_id: lead?.alter_id || null,
       });

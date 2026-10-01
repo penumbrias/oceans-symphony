@@ -22,7 +22,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Users, Heart, ClipboardList, Zap, MessageSquare, Pin, Sparkles, Clock,
+  Users, Heart, Zap, Pin, Sparkles, Clock,
   Inbox, HelpCircle, LayoutGrid, Bell, StickyNote, Activity as ActivityIcon,
   Contact, CalendarDays, ListTodo, Megaphone, Lightbulb, Rocket, Compass,
 } from "lucide-react";

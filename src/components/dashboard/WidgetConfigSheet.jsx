@@ -560,7 +560,7 @@ function useLiveColors(open, instanceId, revision = "") {
       font: cs?.fontFamily || undefined,
       fontScale: 100,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, instanceId, tick]);
 }
 

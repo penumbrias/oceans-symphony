@@ -1,10 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Zap } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -14,6 +12,8 @@ import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMo
 import { useFrontGesture, useHoldMenu } from "@/components/fronting/FrontLevelRail";
 import AlterActionMenu from "./AlterActionMenu";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
+import { useFrontLook } from "@/lib/frontLook";
+import { IconSlot } from "@/components/shared/LucideByName";
 
 function getContrastColor(hex) {
   if (!hex) return "var(--color-text-secondary)";
@@ -25,7 +25,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export function FrontingToggleButton({ alter, activeSessions = [], gesture = null }) {
+export function FrontingToggleButton({ alter, activeSessions = [], gesture = null, onDone = null, size = "sm" }) {
   const terms = useTerms();
   // The standard front control (v0.122.0): tap while NOT fronting puts
   // them straight on at the TOP level; tap while fronting opens the
@@ -36,7 +36,10 @@ export function FrontingToggleButton({ alter, activeSessions = [], gesture = nul
   const g = gesture || own;
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
   const isFronting = !!mySession;
-  const isPrimary = mySession?.is_primary ?? false;
+  const look = useFrontLook();
+  const color = look.activeColor(alter, mySession);
+  const icon = look.frontButtonIcon;
+  const iconCls = size === "lg" ? "w-5 h-5" : "w-3.5 h-3.5";
 
   return (
     <>
@@ -48,24 +51,24 @@ export function FrontingToggleButton({ alter, activeSessions = [], gesture = nul
         e.stopPropagation();
         if (g.suppressed()) return;
         g.quickSet(alter, mySession);
+        onDone?.();
       }}
-      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+      aria-label={isFronting ? `${alter.name}: ${terms.fronting} — change level or remove` : `Add ${alter.name} to ${terms.front}`}
+      className={`flex-shrink-0 ${size === "lg" ? "w-11 h-11" : "w-8 h-8"} rounded-full flex items-center justify-center overflow-hidden transition-all hover:scale-110 active:scale-95`}
       style={{
-        backgroundColor: isFronting
-          ? isPrimary ? "#f59e0b20" : `${alter.color || "#9333ea"}20`
-          : "var(--color-muted)",
-        border: isFronting
-          ? isPrimary ? "2px solid #f59e0b" : `2px solid ${alter.color || "#9333ea"}`
-          : "2px solid var(--color-muted)",
+        backgroundColor: isFronting ? `${color}20` : "var(--color-muted)",
+        border: isFronting ? `2px solid ${color}` : "2px solid var(--color-muted)",
       }}
       title={isFronting
         ? `${terms.Fronting} — tap to adjust their level or remove, hold for the spectrum`
         : `Tap to add to ${terms.front} at the top level, hold to pick a level`}
     >
-      {isFronting ? (
-        <Zap className="w-3.5 h-3.5" style={{ color: isPrimary ? "#f59e0b" : alter.color || "#9333ea" }} fill={isPrimary ? "#f59e0b" : alter.color || "#9333ea"} />
+      {icon?.iconUrl ? (
+        <IconSlot override={icon} className={`${iconCls} ${isFronting ? "" : "opacity-50 grayscale"}`} />
+      ) : isFronting ? (
+        <IconSlot override={icon} Default={Zap} className={iconCls} style={{ color, fill: color }} />
       ) : (
-        <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+        <IconSlot override={icon} Default={Zap} className={`${iconCls} text-muted-foreground`} />
       )}
     </button>
     {!gesture && own.node}
@@ -100,14 +103,13 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const holdMenu = useHoldMenu(() => setMenuOpen(true));
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
   const fronting = !!mySession;
-  const isPrimary = mySession?.is_primary ?? false;
 
   // Per-front-level display styles (the pinned bar's levelStyles) reach
   // the alter lists too (owner ask): a fronting alter's avatar takes its
   // level's shape / size / ring here as well.
-  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const levelStyles = settingsRows[0]?.pinned_alters_config?.levelStyles || {};
-  const ls = (fronting && levelStyles[mySession?.front_level]) || null;
+  const look = useFrontLook();
+  const ls = (fronting && look.styleFor(mySession)) || null;
+  const ringColor = fronting ? look.activeColor(alter, mySession) : (alter.color || "var(--color-primary)");
   const lsShape = ls?.shape ? shapeLayerStyles(ls.shape) : null;
   const lsDim = ls && Number.isFinite(ls.scale) ? Math.round(40 * ls.scale / 100) : 40;
   const lsRing = ls && Number.isFinite(ls.ringW) ? ls.ringW : null;
@@ -138,7 +140,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             className={`overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""} ${lsShape ? "" : "rounded-xl"}`}
             style={{
               width: lsDim, height: lsDim,
-              backgroundColor: lsRing != null ? (alter.color || "var(--color-primary)") : (bgColor || "var(--color-muted)"),
+              backgroundColor: lsRing != null ? ringColor : (bgColor || "var(--color-muted)"),
               padding: lsRing != null ? lsRing : 0,
               ...(lsShape ? lsShape.ring : {}),
             }}>

@@ -458,7 +458,15 @@ export default {
   "notices.more": "{count} more — open Reminders",
 
   // ── Unified UI edit popup (docs/v2-edit-menu-spec.md) ──
-  "editSheet.size": "UI & text",
+  "editSheet.size": "Text & layout",
+  "editSheet.groupText": "Text",
+  "editSheet.groupLayout": "Layout",
+  "editSheet.textBody": "Body",
+  "editSheet.textHeadings": "Headings",
+  "editSheet.textStyle": "Style",
+  "editSheet.textSizeRelative": "Size (vs body)",
+  "editSheet.previewHeading": "A heading",
+  "editSheet.previewBody": "Body text looks like this.",
   "editSheet.touchSpacing": "Touch target spacing",
   "editSheet.fontBody": "Font — body",
   "editSheet.fontHeader": "Font — header",

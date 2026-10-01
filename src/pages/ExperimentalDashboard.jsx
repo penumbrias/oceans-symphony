@@ -262,7 +262,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     if (!free) return undefined;
     onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash } : null);
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.dragging]);
 
   const look = widgetLookFor(widget.settings, userStyles, styleMode);
@@ -715,7 +715,7 @@ export default function ExperimentalDashboard({
       window.removeEventListener(`${eventPrefix}-edit-home`, editHome);
       window.removeEventListener(`${eventPrefix}-home-settings`, homeSettings);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [eventPrefix]);
 
   const home = useMemo(
@@ -915,7 +915,7 @@ export default function ExperimentalDashboard({
       try { editSnapshot.current = JSON.parse(JSON.stringify(home)); } catch { editSnapshot.current = null; }
     }
     if (!editMode) { editSnapshot.current = null; setSaveMenuOpen(false); setExitMenuOpen(false); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [editMode]);
   const [barsPreview, setBarsPreview] = useState(false);
   useEffect(() => {
@@ -926,10 +926,15 @@ export default function ExperimentalDashboard({
     try { window.dispatchEvent(new Event("symphony-home-edit-changed")); } catch { /* SSR */ }
     if (!editMode) setBarsPreview(false);
   }, [editMode, barsPreview]);
-  const exitSave = () => { editSnapshot.current = null; setEditMode(false); };
+  // Leaving edit mode closes every open edit surface too (widget config,
+  // Display options, pack sheet, drawer, menus). Their edits are written
+  // live, so closing them IS saving them; leaving them open after "Save &
+  // close" looked like the save hadn't happened (owner report).
+  const exitSave = () => { editSnapshot.current = null; closeEditSurfaces(); setEditMode(false); };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
     editSnapshot.current = null;
+    closeEditSurfaces();
     setEditMode(false);
     if (snap) { try { await persist(snap); } catch { /* board keeps live state */ } }
   };

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -35,6 +36,8 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
   }, [open, mentionLogs.length]);
 
   const handleClearAll = async () => {
+    const n = rawLogs.length;
+    if (!(await confirm({ title: "Clear all notifications?", body: `${n} notification${n === 1 ? "" : "s"} will be permanently removed from the history.`, confirmLabel: "Clear all", destructive: true }))) return;
     setClearing(true);
     try {
       await Promise.all(

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Cloud, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
-import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
+import { setMode, setEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
@@ -25,7 +25,7 @@ import {
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
 
-function FirstRunSetup({ onComplete }) {
+function FirstRunSetup({ onComplete, allowOrphans = false }) {
   const [step, setStep] = useState("choose");
   const [useEncryption, setUseEncryption] = useState(false);
   const [password, setPassword] = useState("");
@@ -290,7 +290,9 @@ function FirstRunSetup({ onComplete }) {
       // but a stale tab or a race could land here — so re-check the WHOLE
       // storage scope and refuse rather than overwrite a recoverable copy.
       let orphans = [];
-      try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
+      if (!allowOrphans) {
+        try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
+      }
       if (orphans.length > 0) {
         setError(
           "Other data was found on this device. To protect it from being overwritten, setup can't continue. Please reload — you should be offered to recover it."
@@ -298,9 +300,17 @@ function FirstRunSetup({ onComplete }) {
         return false;
       }
       setMode("local");
+      // "One password for the whole app": a system created while the app
+      // is unlocked with a storage password must be encrypted with that
+      // same password. This path used to always write plain text AND flip
+      // the device-wide encryption flag off.
+      const sessionPw = getSessionPassword();
       if (useEncryption) {
         setEncryptionEnabled(true);
         await initLocalDb(password);
+      } else if (sessionPw) {
+        setEncryptionEnabled(true);
+        await initLocalDb(sessionPw);
       } else {
         setEncryptionEnabled(false);
         await initLocalDb(null);
@@ -635,7 +645,10 @@ function UnlockScreen({ onUnlock }) {
   );
 }
 
-export default function StorageModeSetup({ mode, onComplete }) {
+// allowOrphans: the user has already been shown the orphan-recovery screen
+// and explicitly chose "set up as a new system" — don't refuse setup again
+// because those same blobs are still there (that refusal looped forever).
+export default function StorageModeSetup({ mode, onComplete, allowOrphans = false }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
   // First-run runs in two phases: "setup" (storage + optional import) then
   // "backup" — the decision step every completion path funnels into (start
@@ -746,7 +759,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
           ? <UnlockScreen onUnlock={onComplete} />
           : backupPhase
             ? <BackupDecisionStep onDone={onComplete} />
-            : <FirstRunSetup onComplete={() => setPhase("backup")} />
+            : <FirstRunSetup onComplete={() => setPhase("backup")} allowOrphans={allowOrphans} />
         }
       </div>
       </div>

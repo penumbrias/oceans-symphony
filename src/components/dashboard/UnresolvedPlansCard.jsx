@@ -142,7 +142,7 @@ export default function UnresolvedPlansCard() {
     for (const act of acts) {
       // Sequential on purpose: each write appends history; racing them
       // against the same list invites lost updates.
-      await rescheduleTo(act, tomorrowSameTime(act)); // eslint-disable-line no-await-in-loop
+      await rescheduleTo(act, tomorrowSameTime(act));  
     }
   };
 

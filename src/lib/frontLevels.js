@@ -25,6 +25,7 @@
 // everywhere in code to keep the two apart.
 
 import { useQuery } from "@tanstack/react-query";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -111,7 +112,7 @@ export function useFrontLevels() {
     queryFn: () => base44.entities.SystemSettings.list(),
     staleTime: 0,
   });
-  const row = settingsList[0];
+  const row = pickPrimarySystemSettings(settingsList) || settingsList[0];
   return useMemo(
     () => ({ ...resolveFrontLevels(row), _settingsId: row?.id || null }),
     [row]

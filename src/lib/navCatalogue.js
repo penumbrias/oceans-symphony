@@ -9,10 +9,7 @@
 // (`useTerms()`) and pass the labels in, same as navigationConfig's
 // resolveLabel pattern.
 
-import {
-  Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList,
-  Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote,
-  Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History } from "lucide-react";
 
 export function buildNavGroups(altersLabel, systemLabel) {
   return {
@@ -25,6 +22,8 @@ export function buildNavGroups(altersLabel, systemLabel) {
       { id: "contacts", label: "Contacts",             icon: Contact,       path: "/contacts" },
       { id: "groups",   label: "Groups",               icon: Users,         path: "/groups" },
       { id: "assets",   label: "Image Assets",         icon: Images,        path: "/assets" },
+      { id: "unblend",  label: "Help me unblend",      icon: Heart,         path: "/unblend" },
+      { id: "get-to-know-me", label: "Get to know me", icon: Sparkles,      path: "/get-to-know-me" },
       { id: "settings", label: "Settings",             icon: Settings,      path: "/settings" },
     ],
     "Tracking": [
@@ -37,6 +36,7 @@ export function buildNavGroups(altersLabel, systemLabel) {
     ],
     "Journal & Content": [
       { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
+      { id: "bulletins",label: "Bulletin Board", icon: Pin, path: "/bulletins" },
       { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
     ],
     "Tools": [

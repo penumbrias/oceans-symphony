@@ -11,6 +11,7 @@
 
 import { isNative } from "@/lib/platform";
 import { getLocalIdentity } from "@/lib/friendsApi";
+import { apiBase } from "@/lib/apiBase";
 
 const RUNNER_LABEL = "app.oceans_symphony.twa.friends";
 
@@ -42,6 +43,10 @@ export async function pushIdentityToBackgroundRunner({ resetState = false } = {}
   return dispatchRunnerEvent("setIdentity", {
     userId: identity.userId,
     secret: identity.secret,
+    // The relay this identity belongs to (self-hosted override or the
+    // default). The runner used to hardcode the default host, so a
+    // self-hoster's secret was posted to oceans-symphony.app every poll.
+    apiBase: apiBase("friends"),
     resetState,
   });
 }

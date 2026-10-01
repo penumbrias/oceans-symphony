@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Upload, X, Palette, User, Plus, LifeBuoy } from "lucide-react";
+import { Loader2, Save, Upload, X, Palette, Plus, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
@@ -13,6 +13,9 @@ import { SearchableMultiSelect } from "@/components/shared/SearchableSelect";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import {
   DEFAULT_SAFETY_KEY,
   AWARENESS_OPTIONS,
@@ -45,6 +48,8 @@ const BLANK = {
 
 export default function ContactEditModal({ open, onClose, contact = null, onSaved }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const isNew = !contact;
   const [form, setForm] = useState(BLANK);
   const [saving, setSaving] = useState(false);
@@ -152,9 +157,27 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
     } catch (err) { toast.error(err?.message || "Couldn't add category"); }
   };
 
+  // The four free-text blocks all go through the shared authored-text
+  // pipeline (commands / signposts / mentions). They render as plain text, so
+  // ~commands become "icon label" tokens rather than HTML chips.
+  const TEXT_BLOCKS = [
+    ["about", "About"],
+    ["safe_to_share", "Safe to share"],
+    ["boundaries", "Boundaries"],
+    ["system_rules", `${terms.System} rules`],
+  ];
+
   const handleSave = async () => {
     const name = form.name.trim();
     if (!name) { toast.error("Give this contact a name"); return; }
+    const preparedBlocks = {};
+    for (const [key, label] of TEXT_BLOCKS) {
+      try {
+        preparedBlocks[key] = await prepareAuthoredText((form[key] || "").trim(), { alters, terms, surfaceLabel: `contact ${label.toLowerCase()}`, chips: false });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (preparedBlocks[key] === null) return; // user backed out of the whisper warning
+    }
+    const authorIds = [...new Set(TEXT_BLOCKS.flatMap(([key]) => preparedBlocks[key].authorIds))];
     setSaving(true);
     try {
       const cleanMethods = form.contact_methods
@@ -170,10 +193,11 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         awareness: form.awareness || DEFAULT_AWARENESS_KEY,
         contact_methods: cleanMethods,
         is_emergency_support: !!form.is_emergency_support,
-        about: form.about.trim() || null,
-        safe_to_share: form.safe_to_share.trim() || null,
-        boundaries: form.boundaries.trim() || null,
-        system_rules: form.system_rules.trim() || null,
+        about: preparedBlocks.about.content || null,
+        safe_to_share: preparedBlocks.safe_to_share.content || null,
+        boundaries: preparedBlocks.boundaries.content || null,
+        system_rules: preparedBlocks.system_rules.content || null,
+        author_alter_ids: authorIds,
         custom_fields: Object.fromEntries(
           Object.entries(form.custom_fields || {}).filter(([, v]) => v != null && String(v).trim() !== "")
         ),
@@ -184,6 +208,11 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         saved = await base44.entities.Contact.create({ ...payload, is_archived: false, is_pinned: false });
       } else {
         saved = await base44.entities.Contact.update(contact.id, payload);
+      }
+      const contactId = saved?.id || contact?.id;
+      for (const [key, label] of TEXT_BLOCKS) {
+        if (!preparedBlocks[key].content) continue;
+        await recordAuthoredText({ ...preparedBlocks[key], alters, sourceType: "contact", sourceId: contactId, sourceLabel: `Contact — ${label}`, navigatePath: `/contacts/${contactId}` });
       }
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       toast.success(isNew ? "Contact added!" : "Contact updated");
@@ -351,10 +380,10 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
           </div>
 
           {/* Text blocks (system-wide) */}
-          <TextBlock label="About" value={form.about} onChange={(v) => set("about", v)} placeholder="Who they are, how we know them…" />
-          <TextBlock label="Safe to share" value={form.safe_to_share} onChange={(v) => set("safe_to_share", v)} placeholder="What's okay to tell / show them…" />
-          <TextBlock label="Boundaries" value={form.boundaries} onChange={(v) => set("boundaries", v)} placeholder="Boundaries we keep with them…" />
-          <TextBlock label="System rules" value={form.system_rules} onChange={(v) => set("system_rules", v)} placeholder="Rules for the whole system about this person…" />
+          <TextBlock label="About" value={form.about} onChange={(v) => set("about", v)} alters={alters} placeholder="Who they are, how we know them…" />
+          <TextBlock label="Safe to share" value={form.safe_to_share} onChange={(v) => set("safe_to_share", v)} alters={alters} placeholder="What's okay to tell / show them…" />
+          <TextBlock label="Boundaries" value={form.boundaries} onChange={(v) => set("boundaries", v)} alters={alters} placeholder="Boundaries we keep with them…" />
+          <TextBlock label={`${terms.System} rules`} value={form.system_rules} onChange={(v) => set("system_rules", v)} alters={alters} placeholder={`Rules for the whole ${terms.system} about this person…`} />
 
           {/* Custom fields — a separate set from alter custom fields. */}
           <div>
@@ -411,13 +440,15 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
   );
 }
 
-function TextBlock({ label, value, onChange, placeholder }) {
+function TextBlock({ label, value, onChange, alters = [], placeholder }) {
   return (
     <div>
       <Label className="text-xs">{label} <span className="text-muted-foreground">(optional)</span></Label>
-      <textarea
+      <MentionTextarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
+        alters={alters}
+        signposts
         placeholder={placeholder}
         rows={2}
         className="w-full bg-background border border-input rounded-lg px-2.5 py-1.5 text-sm text-foreground resize-y outline-none mt-0.5"

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { startOfDay, endOfDay } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card } from "@/components/ui/card";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 

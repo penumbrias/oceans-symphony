@@ -3,7 +3,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { Smile, Activity, AlertTriangle, Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
@@ -28,6 +29,7 @@ const TRIGGER_CATEGORIES = [
 export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, focusKind }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -156,6 +158,12 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
 
   const handleSave = async () => {
     if (!session) return;
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    // The alter whose note this is signs it unless a signpost says otherwise.
+    let prepared;
+    try { prepared = await prepareAuthoredText(note || "", { alters, terms, surfaceLabel: "note", baseAuthorIds: alter?.id ? [alter.id] : [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
     setSaving(true);
     try {
       const updates = {};
@@ -168,7 +176,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
         const parsed = JSON.parse(session.note || "[]");
         noteArr = Array.isArray(parsed) ? parsed : [];
       } catch { noteArr = []; }
-      const cleanText = note.trim();
+      const cleanText = prepared.content.trim();
       if (noteEditIndex != null && noteEditIndex >= 0 && noteEditIndex < noteArr.length) {
         if (cleanText) {
           noteArr = noteArr.map((n, i) => i === noteEditIndex ? { ...n, text: cleanText } : n);
@@ -211,6 +219,9 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
       }
 
       await base44.entities.FrontingSession.update(session.id, updates);
+      if (cleanText) {
+        await recordAuthoredText({ ...prepared, alters, sourceType: "session-note", sourceId: session.id, sourceLabel: "Session note", navigatePath: "/timeline" });
+      }
       invalidateAll();
       toast.success("Saved");
       onClose();
@@ -236,9 +247,11 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
           ) : (
             <>
               <div className="px-4 pt-4 pb-2">
-                <Textarea
+                <MentionTextarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={setNote}
+                  alters={alters}
+                  signposts
                   placeholder={`Note for ${alter?.name || terms.alter || "alter"}… appears as 💬 on their timeline`}
                   className="text-sm resize-none min-h-[60px] placeholder:text-muted-foreground/40 placeholder:text-xs"
                   rows={2}

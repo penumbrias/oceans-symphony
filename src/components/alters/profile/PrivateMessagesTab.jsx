@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Mail, Pin, Trash2, X, Pencil } from "lucide-react";
+import { Mail, Pin, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { format, formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { formatDistanceToNow } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 
 function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onEdit, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
@@ -22,8 +25,8 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
   const saveEdit = async () => {
     const v = draft.trim();
     if (!v) return;
-    await onEdit(message.id, v);
-    setEditing(false);
+    const ok = await onEdit(message.id, v);
+    if (ok !== false) setEditing(false);
   };
 
   return (
@@ -69,9 +72,11 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
           </div>
           {editing ? (
             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-              <Textarea
+              <MentionTextarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
+                alters={alters || []}
+                signposts
                 className="text-sm min-h-[60px]"
                 autoFocus
               />
@@ -189,31 +194,46 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
     return () => clearTimeout(timer);
   }, [highlightMessageId, messages]);
 
+  // Messages render as plain text, so ~commands become "icon label" tokens
+  // rather than HTML chips. The From picker is the default signer; a "-name"
+  // signpost overrides it, "+name" co-signs.
+  const prepare = async (text, baseAuthorIds) => {
+    try {
+      return await prepareAuthoredText(text.trim(), { alters: alters || [], terms, surfaceLabel: "private message", baseAuthorIds, chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+  };
+
   const handleSendMessage = async () => {
     if (!content.trim() || !fromAlterId) return;
+    const prepared = await prepare(content, [fromAlterId]);
+    if (prepared === null) return; // malformed command or user backed out of the whisper warning
+    const authorId = prepared.authorIds[0] || fromAlterId;
     setSaving(true);
     try {
       const msg = await base44.entities.AlterMessage.create({
-        from_alter_id: fromAlterId,
+        from_alter_id: authorId,
         to_alter_id: alterId,
-        content: content.trim(),
+        content: prepared.content,
+        author_alter_ids: prepared.authorIds,
         is_read: false,
         pinned: pinToggle,
       });
+      const navigatePath = `/alter/${alterId}?tab=private-messages&messageId=${msg.id}`;
 
       // Create MentionLog for notification
-      const fromAlter = altersById[fromAlterId];
+      const fromAlter = altersById[authorId];
       await base44.entities.MentionLog.create({
         mentioned_alter_id: alterId,
-        author_alter_id: fromAlterId,
+        author_alter_id: authorId,
         log_type: "mention",
         source_type: "message",
         source_id: msg.id,
         source_label: `Message from ${fromAlter?.name || "Unknown"}`,
         source_date: new Date().toISOString(),
-        preview_text: content.trim().slice(0, 120),
-        navigate_path: `/alter/${alterId}?tab=private-messages&messageId=${msg.id}`,
+        preview_text: prepared.isWhisper ? "🔒 private whisper" : prepared.content.slice(0, 120),
+        navigate_path: navigatePath,
       });
+      await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: msg.id, sourceLabel: "Private message", navigatePath });
 
       queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
       queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
@@ -233,9 +253,21 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
   };
 
   const handleEdit = async (messageId, content) => {
-    await base44.entities.AlterMessage.update(messageId, { content, edited_date: new Date().toISOString() });
+    const existing = messages.find((m) => m.id === messageId);
+    const prepared = await prepare(content, [existing?.from_alter_id]);
+    if (prepared === null) return false;
+    const authorId = prepared.authorIds[0] || existing?.from_alter_id;
+    await base44.entities.AlterMessage.update(messageId, {
+      content: prepared.content,
+      author_alter_ids: prepared.authorIds,
+      ...(authorId ? { from_alter_id: authorId } : {}),
+      edited_date: new Date().toISOString(),
+    });
+    await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: messageId, sourceLabel: "Private message", navigatePath: `/alter/${alterId}?tab=private-messages&messageId=${messageId}` });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
     queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
+    return true;
   };
 
   const handleTogglePinned = async (messageId, pinned) => {
@@ -297,24 +329,24 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">From</label>
-            <select
-              value={fromAlterId || ""}
-              onChange={(e) => setFromAlterId(e.target.value)}
-              className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs"
-            >
-              {alters?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            <AlterSearchSelect
+              alters={(alters || []).filter((a) => !a.is_archived)}
+              value={fromAlterId || null}
+              onChange={(id) => setFromAlterId(id)}
+              terms={terms}
+              showNone={false}
+              placeholder="Choose who this is from…"
+              zIndex={80}
+            />
           </div>
 
           <div>
-            <Textarea
+            <MentionTextarea
               placeholder={`Leave a message for this ${terms.alter}...`}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={setContent}
+              alters={alters || []}
+              signposts
               className="min-h-[80px] text-sm"
               autoFocus
             />

@@ -135,7 +135,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
           <DialogHeader>
             <DialogTitle>Add New Group{parentGroup ? ` in ${parentGroup.name}` : ""}</DialogTitle>

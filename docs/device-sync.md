@@ -20,16 +20,63 @@ Two files per device, split deliberately:
 
 | File | Contents | Rewritten |
 |---|---|---|
-| `symphony-sync-<system>-<device>.data.json` | entities | whenever data changes |
+| `symphony-sync-<system>-<device>.data.json` | entities | on the next pass after data changes (content-hashed) |
 | `symphony-sync-<system>-<device>.media.json` | images + fonts | only when the media set changes |
 
 Without that split, saving a status note would rewrite every avatar you
 own. The media fingerprint is a cheap hash of the id set.
 
-**Merging is the existing engine.** `mergeDbDump` already does per-record
-newer-wins on `updated_date`, folds the `SystemSettings` singleton field
-by field, and guards active fronting sessions. Sync did not need a new
-merge strategy — only transport and scheduling.
+**Merging is field by field (v0.245.0).** `mergeDbDump` uses the rules in
+`src/lib/syncMerge.js`. Every record written by the entity proxy carries
+`_ft`, the time each field last changed (`_ft.__base` covers untouched
+fields). Two copies of a record merge per field, and the newer change to
+that field wins. An edit on one device therefore never drags the other
+device's stale copy of every other field along, and a deliberate clear
+stays cleared. Records from older builds have no `_ft`, so each of their
+fields counts as old as `updated_date`; their empty values never blank a
+local value, and an empty local field with no time of its own is still
+filled in.
+
+Task completions (`DailyProgress`) are one record per
+`frequency::period_key`. Incoming records fold into the local record for
+the same period, whatever its id, and the tick set merges task by task.
+A task stays ticked while its latest tick is newer than its latest
+untick (`cleared_times`). Duplicates of one period, left by an old create
+race, fold into one keeper: the earliest created, then the smallest id,
+so every device picks the same one. Writes go through the serialized
+`toggleDailyProgressTasks`.
+
+(The pre-0.245 rule was whole-record newer-wins. Stage 1 of
+docs/audit-2026-09-25/sync-merge-audit.md explains why it lost data.)
+
+**Stage 2–3 rules (v0.246.0):**
+
+- **Fronting sessions:** sessions are never reopened, so an end is a
+  fact. A session ended on either device is ended on both, at that
+  device's end time; a still-running copy never un-ends it, and a session
+  is never rewritten to end at its own start. A session that is NEW here
+  and still live on the other device arrives as history (`sync_demoted`)
+  while a front is live here; the live front here is never replaced.
+- **Settings (`SystemSettings`):** in a row from an older build, a field
+  has no known age, because widget drags bump `updated_date`. So a
+  timed edit on either device wins over it, and two old rows keep their
+  own values. Incoming settings fold into the row the app reads
+  (`pickPrimarySystemSettings`).
+- **Logs union:** `Presence.sightings` and `FrontingSession.note` keep
+  every entry from both devices (`LOG_FIELDS` in syncMerge.js).
+- **Presets linked:** an incoming preset that matches a local one by
+  content (`MERGE_CONTENT_KEYS`) under a different id is aliased to the
+  local id throughout the incoming data before merging. The other
+  device's ticks and symptom logs then point at this device's rows.
+- **Recent changes → "Changed by sync":** every value a merge replaced
+  or cleared keeps the before-version there, restorable. Conflict-review
+  choices go through `applyChosenVersion`, which stamps them as new
+  edits so the rejected version can't win the next sync.
+- **Auto-sync publishes local edits:** a pass runs when another device's
+  file changed or when this device has written anything since the last
+  pass (`getLocalRevision`). Our data file is only rewritten when its
+  content hash changed. This ended the 30-second rewrite ping-pong
+  between two open devices.
 
 ## Sync never deletes
 
@@ -54,18 +101,26 @@ Recent changes.
   stripped on write by `stripDeviceBound` and again on read inside
   `mergeDbDump`. Copying a Friends identity to a second device is
   impersonation, not sync.
-- **localStorage preferences are sent, but fill gaps only.** Theme,
-  fonts and accessibility settings travel in the snapshot and are applied
-  ONLY to keys this device has no value for. They carry no timestamps, so
-  a real merge is impossible and applying them outright would make the
-  last device to sync win — flip-flopping a phone's font size against a
-  desktop's. Filling gaps means a fresh device inherits your theme (the
-  thing you actually want when setting one up) while an established
-  device is never restyled behind your back. Same rule
-  `localSettingsMirror` uses when restoring on boot.
+- **Appearance and layout are never synced automatically** (owner's
+  rule, v0.243.7: the desktop and the phone are meant to look
+  different). Each snapshot carries them in a separate `appearance`
+  section — the localStorage preferences (theme, fonts, accessibility)
+  plus the SystemSettings look/layout fields listed in
+  `src/lib/syncLook.js` (home boards, bars, navigation, dashboard layout,
+  pinned-alters strip, corners, wave, banner crop, plan surfaces, toast
+  prefs). Nothing applies that section except the explicit "Use another
+  device's appearance" button, which writes the layout through the normal
+  entity update so the previous layout lands in Recent changes.
 
-  Because theme and font are read at boot, a pull that fills them asks
-  for a restart; the first-run flow just reloads.
+  Incoming SystemSettings rows are also stripped of those fields before
+  the newer-wins merge, because peers on older builds still send them
+  inside the record. The merge only overwrites fields an incoming record
+  actually carries, so a device on an older build simply keeps its own
+  layout when it reads a new snapshot.
+
+  Before this, preferences filled gaps and the settings record merged
+  newer-wins: resizing a widget on the desktop rewrote the phone's home
+  layout on the next sync (seen Sept 25, 2026).
 - **The device id.** See below — this one matters.
 
 ## The device id must stay device-bound
@@ -97,11 +152,23 @@ small interface, so a new platform is a new adapter rather than a rewrite.
 - **Desktop (Electron)** — the user picks any folder. Point it at a
   plugged-in phone's storage or a USB stick. Fully implemented and
   verified end to end.
-- **Android / iOS (Capacitor)** — scoped storage means the app can't be
-  handed an arbitrary folder, so the location is fixed at
-  `Documents/OceansSymphony`. That is reachable from a computer over USB,
-  which is the point: the desktop does the reaching, the phone just keeps
-  its snapshot somewhere findable.
+- **Android (Storage Access Framework, v0.243.6)** — the user grants the
+  folder once through the system folder picker (opened at
+  `Documents/OceansSymphony`), and the native `SyncFolder` plugin
+  (`android/.../SyncFolderPlugin.java`, bridge `src/lib/nativeSyncFolder.js`)
+  lists, reads, writes and removes snapshots through that persisted grant.
+  This replaced a fixed-folder `@capacitor/filesystem` adapter that could
+  only sync ONE way: under scoped storage an app can't see files it didn't
+  create, so the desktop's snapshot (copied in over USB) was invisible to
+  the phone. Verified on a Galaxy S24 / Android 16 with `adb run-as`: the
+  desktop's file was in the folder and the app's listing omitted it. The
+  handle is stored as JSON `{ uri, docId, name }` in `symphony_sync_folder`;
+  if the user picks `Documents` itself, the plugin works inside its
+  `OceansSymphony` subfolder so both devices keep meeting in one place.
+  "All files access" (`MANAGE_EXTERNAL_STORAGE`) was rejected as the fix —
+  Play rarely approves it for this kind of app.
+- **iOS (Capacitor)** — fixed location `Documents/OceansSymphony` in the
+  app's own Documents, via `@capacitor/filesystem`.
 - **Web / TWA** — not offered. A browser tab can't keep access to a
   folder between visits. The panel says so instead of showing a button
   that won't work.
@@ -191,6 +258,20 @@ prompt would be asking again about a decision already made. A database
 has to exist before anything can merge into it, so the flow runs
 StorageModeSetup's `setupLocalStorage` first (passed in as `prepare`).
 
+## Putting a device's old layout back
+
+`scripts/sync-restore-layout.mjs` lifts a layout value out of one device's
+undo history (its snapshot's `HistoryEvent` table) and writes it into the
+folder as a data-less "Layout restore" device for another system. On the
+target device, "Use look" on that entry applies it through the normal
+confirmed, undoable path. Written for the Sept 25, 2026 case where the
+desktop's widget resize overwrote the phone's home layout before look
+fields stopped syncing. `--list`, write, then `--remove` when done.
+
+"Use look" is per device (v0.243.8). It used to be one button that took
+the NEWEST device in the folder, which is whichever wrote last, so with two
+devices it could apply the wrong one's look.
+
 ## Testing with one device
 
 `scripts/sync-test-peer.mjs` impersonates a second device so sync can be
@@ -212,6 +293,18 @@ require the passphrase, which is the point of it.
 
 - A LAN transport. The snapshot format and merge layer are transport
   agnostic, so it would slot in beside the file adapters.
-- Android has not been verified on real hardware; the adapter is written
-  against the same Capacitor Filesystem API the backup path already uses,
-  but it needs a phone to confirm.
+- The Android SAF adapter compiles and the scoped-storage failure it fixes
+  was confirmed on hardware; the full desktop → phone round trip through
+  the picker still needs a pass on a real phone.
+
+## Peers are per device AND system
+
+`listSyncPeers` groups files by `deviceId:systemId`, and the seen-marks
+use the same key. One device can leave snapshots for two systems in the
+folder (a multi-system user, or an old system left behind after a
+reinstall). Grouped by device alone, the second file overwrote the
+first's data slot while the entry kept the first system's id — pairing
+one system could merge the other's data. The desktop first-run flow pairs
+only each device's newest system for the same reason, and the background
+"anything new?" poll ignores unpaired peers (an unpaired file is never
+marked seen, so it used to trigger a full pass every 30 seconds).

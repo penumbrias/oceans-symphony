@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
+import { useFrontLook } from "@/lib/frontLook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -17,7 +19,6 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
-import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
@@ -494,20 +495,25 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   // = the level rail (Remove stop; holding a non-fronter adds them at the
   // level released on). The vertical swipes and the long-press menu are
   // gone — menu actions live on the profile page.
-  const gesture = useFrontGesture();
+  // Press-and-hold → the same two-option rail as the alters grid (front
+  // button + options list), slide-to-choose included.
+  const holdRail = useAlterHoldRail({ activeSessions });
+  const look = useFrontLook();
 
+  // A level's own colour (when set) marks who's fronting; otherwise the
+  // alter's colour. No gold "primary" — front levels replaced that split.
   const ringColor = fronting
-    ? (isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6"))
+    ? look.activeColor(alter, mySession)
     : (alter.color || "var(--color-muted)");
 
   return (
     <>
-    {gesture.node}
+    {holdRail.node}
     <button
       type="button"
-      {...gesture.getHoldProps(alter, mySession?.front_level)}
-      onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}
-      title={`${label} — tap to open, press and hold to set their ${terms.fronting} level or remove from ${terms.front}`}
+      {...holdRail.bind(alter)}
+      onClick={() => { if (!holdRail.suppressed()) navigate(`/alter/${alter.id}`); }}
+      title={`${label} — tap to open, press and hold for ${terms.front} and options`}
       className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
       style={{ width: Math.round(size * Math.max(1, frontingScale / 100)) }}
     >
@@ -517,7 +523,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         // ring as a padded backing layer (a border would be clipped off).
         // A specific front level's own styling wins over the general
         // "when fronting" behaviour (shape / size / ring per level).
-        const ls = (fronting && levelStyles[mySession?.front_level]) || {};
+        const ls = (fronting && (levelStyles[mySession?.front_level] || look.styleFor(mySession))) || {};
         const shape = ls.shape || (fronting && emphasis === "shape" ? frontingShape : iconShape);
         const layers = shapeLayerStyles(shape);
         const scale = Number.isFinite(ls.scale) ? ls.scale : (fronting && emphasis === "grow" ? frontingScale : 100);
@@ -547,7 +553,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         {fronting && (
           <span
             className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card"
-            style={{ backgroundColor: isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6") }}
+            style={{ backgroundColor: ringColor }}
           >
             {isPrimary ? <Star className="w-2.5 h-2.5 text-white" fill="white" /> : <Zap className="w-2.5 h-2.5 text-white" fill="white" />}
           </span>

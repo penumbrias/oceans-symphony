@@ -11,7 +11,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, Pencil, List } from "lucide-react";
+import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, List } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";

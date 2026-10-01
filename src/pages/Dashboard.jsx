@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
@@ -7,11 +7,9 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Inbox, CheckSquare, HelpCircle, Sparkles, Compass } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
-import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
 import EmptyAppRescueNotice from "@/components/dashboard/EmptyAppRescueNotice";
@@ -22,13 +20,12 @@ import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import ClassicHomeCanvas from "@/components/dashboard/ClassicHomeCanvas";
-import { Grid2x2 } from "lucide-react";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import StartActivityModal from "@/components/activities/StartActivityModal";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
-import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
+import { markQuickActionUsedToday, toggleTemplateDone } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 const LazyActivityPlanModal = React.lazy(() => import("@/components/activities/ActivityPlanModal"));
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -619,48 +616,15 @@ export default function Dashboard() {
       // nothing.
       const taskId = action.config?.task_id;
       if (!taskId) return;
-      const today = format(new Date(), "yyyy-MM-dd");
       const templates = await base44.entities.DailyTaskTemplate.list("sort_order", 200);
       const tpl = templates.find(t => t.id === taskId);
       if (!tpl || tpl.mode !== "MANUAL") {
         toast.error("That daily task can't be toggled from a shortcut");
         return;
       }
-      const allProgress = await base44.entities.DailyProgress.list("-date", 100);
-      const currentRecord = allProgress.find(p =>
-        (p.frequency === "daily" || !p.frequency) &&
-        (p.period_key === today || p.date === today)
-      );
-      const completedIds = new Set(currentRecord?.completed_task_ids || []);
-      const nowCompleted = !completedIds.has(taskId);
-      if (nowCompleted) completedIds.add(taskId);
-      else completedIds.delete(taskId);
-      // Per-task checkoff time so the Timeline places it at the moment it was
-      // ticked (mirrors DailyTasks.toggleManual) — without this, a task checked
-      // from the dashboard shortcut stays in the grouped "N done" marker.
-      const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
-      if (nowCompleted) completion_times[taskId] = new Date().toISOString();
-      else delete completion_times[taskId];
-      const currentXP = currentRecord?.xp_earned || 0;
-      const newXP = nowCompleted
-        ? currentXP + (tpl.points || 0)
-        : Math.max(0, currentXP - (tpl.points || 0));
-      if (currentRecord) {
-        await base44.entities.DailyProgress.update(currentRecord.id, {
-          completed_task_ids: [...completedIds],
-          completion_times,
-          xp_earned: newXP,
-        });
-      } else {
-        await base44.entities.DailyProgress.create({
-          date: today,
-          period_key: today,
-          frequency: "daily",
-          completed_task_ids: [...completedIds],
-          completion_times,
-          xp_earned: newXP,
-        });
-      }
+      // The task's OWN period and reset rule — a weekly task used to be
+      // filed under today's daily record here.
+      const nowCompleted = await toggleTemplateDone(tpl, { templates });
       queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
       toast.success(
         nowCompleted
@@ -833,7 +797,7 @@ export default function Dashboard() {
     } else if (boardOpen) {
       closeBoard();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [location.key]);
   const boardShowing = classicBoardAvailable && boardOpen;
   const showClassic = !uiV2On && !experimentalOn && !boardShowing;
@@ -885,7 +849,13 @@ export default function Dashboard() {
         // stale request into a live one.
         sessionStorage.setItem("symphony_classic_open-apps", String(Number(parkedAt) > 1 ? parkedAt : Date.now()));
       }
-      const pending = ["edit-home", "home-settings", "bar-options"]
+      // A Display-options request parked while on another page opens the
+      // classic sheet here, not the board (see onHomeSettings below).
+      if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
+        sessionStorage.removeItem("symphony_v2_home-settings");
+        setTimeout(() => window.dispatchEvent(new CustomEvent("os-classic-home-settings")), 300);
+      }
+      const pending = ["edit-home", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");
       if (pending) { openBoard(); return undefined; }
     } catch { /* storage off */ }
@@ -895,7 +865,11 @@ export default function Dashboard() {
     };
     const onEdit = mk("edit-home");
     const onApps = () => window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
-    const onHomeSettings = mk("home-settings");
+    // Display options apply everywhere (they aren't a board feature), so
+    // on the classic home they open the classic canvas's own settings
+    // sheet — the same unified popup — in place. Hopping to the widget
+    // board to show them moved the user off the page they were styling.
+    const onHomeSettings = () => window.dispatchEvent(new CustomEvent("os-classic-home-settings"));
     const onOpenBoard = () => { openBoard(); };
     window.addEventListener("os-v2-edit-home", onEdit);
     window.addEventListener("os-v2-open-apps", onApps);
@@ -907,7 +881,7 @@ export default function Dashboard() {
       window.removeEventListener("os-v2-home-settings", onHomeSettings);
       window.removeEventListener("os-open-widget-board", onOpenBoard);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [classicBoardAvailable, boardOpen]);
   const hasUnreadMentions = mentionLogs.some(m =>
     m.log_type !== "authored" &&
@@ -1014,6 +988,10 @@ export default function Dashboard() {
           classic overlays while the board page is showing too. */}
       {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
       {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
+      {/* The "Top/Bottom of Dashboard" upcoming-plans surfaces are the
+          upcoming_top / upcoming_bottom WIDGETS on the home canvas — never
+          mount them here as well (0.243.x did, and "Coming up" showed
+          twice, the extra copy above the header). */}
       {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
       {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
       <NotificationHistoryModal

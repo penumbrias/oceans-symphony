@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { SYMPTOMS } from "../SymptomsChecklistPanel";
 
 const RATING_SYMPTOMS = SYMPTOMS.filter((s) => s.type === "rating");

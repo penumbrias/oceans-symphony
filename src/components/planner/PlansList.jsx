@@ -13,7 +13,7 @@
 // filter to them, read their names, tap one and give it a category.
 
 import React, { useMemo, useRef, useState } from "react";
-import { Repeat, Zap, ChevronRight, CheckCircle2, Circle, Trash2, Ban, Check, X } from "lucide-react";
+import { Repeat, Zap, ChevronRight, CheckCircle2, Circle, Trash2, Ban, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { CheckSquare } from "lucide-react";

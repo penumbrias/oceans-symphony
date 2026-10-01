@@ -610,7 +610,11 @@ export async function writeSystemDisplayName(system, name) {
           const nid = genId();
           parsed.SystemSettings[nid] = { id: nid, system_name: trimmed };
         } else {
-          parsed.SystemSettings[ids[0]] = { ...parsed.SystemSettings[ids[0]], system_name: trimmed };
+          // Same row every reader resolves (pickPrimarySystemSettings) —
+          // writing ids[0] landed on a stub when one shadowed the real row,
+          // so the rename "didn't stick".
+          const primary = pickPrimarySystemSettings(Object.values(parsed.SystemSettings)) || parsed.SystemSettings[ids[0]];
+          parsed.SystemSettings[primary.id] = { ...primary, system_name: trimmed };
         }
         await putBlob(idb, typeof raw === 'string' ? JSON.stringify(parsed) : parsed, storageKeyForSystem(sys));
       }

@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { Button } from "@/components/ui/button";
 import { Link2, Palette } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +58,12 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
       toast.error("Add at least one detail — a name, colour, emoji, vibe or note.");
       return;
     }
+    // Notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(notes.trim(), { alters, terms, surfaceLabel: "presence note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
       const fields = {
@@ -64,21 +71,26 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
         vibe: vibe.trim(),
         color: color || "",
         emoji: emoji.trim(),
-        notes: notes.trim(),
+        notes: prepared.content,
+        author_alter_ids: prepared.authorIds,
         associated_alter_ids: linkedIds,
         relationship_type: relType || "",
       };
+      let rowId;
       if (editing) {
         await base44.entities.Presence.update(presence.id, fields);
+        rowId = presence.id;
         toast.success("Presence updated");
       } else {
         const now = new Date().toISOString();
         // `sightings` accrues every time the presence is sensed — that's how
         // reoccurrence is sourced (recording it again, here or from Set Front),
         // so there's no manual "happened before" flag.
-        await base44.entities.Presence.create({ ...fields, timestamp: now, sightings: [now], resolved_alter_id: "" });
+        const row = await base44.entities.Presence.create({ ...fields, timestamp: now, sightings: [now], resolved_alter_id: "" });
+        rowId = row.id;
         toast.success("Presence recorded 🌫️");
       }
+      await recordAuthoredText({ ...prepared, alters, sourceType: "presence", sourceId: rowId, sourceLabel: "Presence note", navigatePath: `/presences?highlight=${rowId}` });
       qc.invalidateQueries({ queryKey: ["presences"] });
       onSaved?.();
     } catch (e) {
@@ -121,7 +133,7 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
         <Input value={emoji} onChange={(e) => setEmoji(e.target.value)} placeholder="🌫️" className="w-20 text-center" maxLength={4} />
       </div>
 
-      <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything else you noticed… (optional)" rows={2} />
+      <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts placeholder="Anything else you noticed… (optional)" rows={2} />
 
       <div>
         <button type="button" onClick={() => setShowLink((v) => !v)} className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80">

@@ -40,13 +40,16 @@
 //   - Device-bound entities (FriendIdentity, PushSubscription) — stripped
 //     on write by stripDeviceBound AND on read by mergeDbDump. Copying a
 //     Friends identity to a second device is impersonation, not sync.
-//   - localStorage preferences are sent, but applied ONLY where this
-//     device has no value of its own (see applyDataSnapshot). They carry
-//     no timestamps, so a real merge is impossible and syncing them
-//     outright would make the last device to sync win, flip-flopping a
-//     phone's font size against a desktop's. Fill-the-gaps means a fresh
-//     device inherits your theme — the thing you actually want when
-//     setting one up — and an established device is never overwritten.
+//   - Appearance and layout (owner's rule, Sept 2026: the desktop and the
+//     phone are meant to look different). localStorage preferences and
+//     the SystemSettings look/layout fields (src/lib/syncLook.js) travel
+//     in a separate `appearance` section that NOTHING applies
+//     automatically — only the explicit "Use another device's appearance"
+//     action. The look fields are also stripped from incoming
+//     SystemSettings rows, so an older peer that still sends them inside
+//     the record can't restyle this device. (Before: preferences filled
+//     gaps and the record merged newer-wins, so resizing a widget on the
+//     desktop rewrote the phone's home layout.)
 //   - The device id itself. See deviceIdentity below.
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";
@@ -55,6 +58,8 @@ import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
+import { stripLookFromDump, pickLookFields } from "@/lib/syncLook";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { APP_VERSION } from "@/lib/appVersion";
 import { getBuildTarget } from "@/lib/platform";
 
@@ -207,18 +212,46 @@ function snapshotCopy(value) {
 }
 
 export async function buildDataSnapshot() {
+  return (await buildDataSnapshotWithHash()).snap;
+}
+
+// FNV-1a over the plain content — cheap, and computed BEFORE sealing (an
+// encrypted body differs on every write, so it can't be compared).
+function contentHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${str.length}:${h.toString(16)}`;
+}
+
+// The snapshot plus a hash of what it contains, so the runner can skip
+// rewriting an identical file (sync audit F13: two open devices used to
+// rewrite and re-merge the whole database at each other every 30 s).
+export async function buildDataSnapshotWithHash() {
   const dump = snapshotCopy(stripDeviceBound(getFullDbDump()));
-  // Portable preferences (theme, fonts, accessibility…) ride along, the
-  // same set a backup carries. See applyDataSnapshot for why sending them
-  // is safe even though they have no timestamps to merge on.
+  // Look + layout travel apart from the data, and are never applied on
+  // their own (see the header). snapshotCopy is a deep copy, so stripping
+  // here can't touch the live database. `settings` is deliberately NOT
+  // written at the top level any more: builds before 0.243.7 fill gaps
+  // from it automatically.
+  const systemSettings = stripLookFromDump(dump, pickPrimarySystemSettings);
   let settings = {};
   try { settings = readBackupLocalSettings(); } catch { settings = {}; }
-  const sealed = await seal({ data: dump, settings });
+  // HistoryEvent is this device's own undo drawer — merges skip it, so a
+  // change there alone is nothing to publish.
+  const { HistoryEvent: _history, ...content } = dump;
+  const hash = contentHash(JSON.stringify({ data: content, appearance: { settings, systemSettings } }));
+  const sealed = await seal({ data: dump, appearance: { settings, systemSettings } });
   return {
-    __format: SYNC_FORMAT,
-    ...header(),
-    encrypted: sealed.encrypted,
-    ...(sealed.encrypted ? { __encrypted: sealed.payload } : { body: sealed.body }),
+    hash,
+    snap: {
+      __format: SYNC_FORMAT,
+      ...header(),
+      encrypted: sealed.encrypted,
+      ...(sealed.encrypted ? { __encrypted: sealed.payload } : { body: sealed.body }),
+    },
   };
 }
 
@@ -315,9 +348,21 @@ export function applyPortableSettings(settings, { overwrite = false } = {}) {
 }
 
 // The preferences inside a snapshot, without merging any of its data.
+// Current snapshots keep them under `appearance`; older ones at the top.
 export async function readSnapshotSettings(file) {
   const body = await unseal(file);
-  return body?.settings && typeof body.settings === "object" ? body.settings : null;
+  const s = body?.appearance?.settings ?? body?.settings;
+  return s && typeof s === "object" ? s : null;
+}
+
+// The look/layout fields inside a snapshot. Older snapshots carry them
+// inside the SystemSettings record itself.
+export async function readSnapshotLook(file) {
+  const body = await unseal(file);
+  const look = body?.appearance?.systemSettings;
+  if (look && typeof look === "object") return look;
+  const rows = Object.values(body?.data?.SystemSettings || {}).filter((r) => r && typeof r === "object");
+  return pickLookFields(pickPrimarySystemSettings(rows));
 }
 
 // Apply one device's data snapshot. Additive by design.
@@ -329,17 +374,21 @@ export async function applyDataSnapshot(file) {
   }
   const localBefore = getFullDbDump();
   const pendingDeletions = summariseIncomingDeletions(incoming, localBefore);
+  // Never take another device's look or layout on a sync. Older peers still
+  // send the look fields inside the SystemSettings record; drop them before
+  // the newer-wins merge can apply them. (incoming is freshly parsed from
+  // the file, so mutating it is safe.)
+  stripLookFromDump(incoming);
   // applyDeletions stays FALSE. Always. See the header.
   const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
-
-  const settingsFilled = applyPortableSettings(body?.settings, { overwrite: false });
 
   return {
     device: file.device || null,
     written_at: file.written_at || null,
     conflicts: conflicts || [],
     pendingDeletions,
-    settingsFilled,
+    // Preferences are no longer filled in automatically (see the header).
+    settingsFilled: 0,
   };
 }
 

@@ -8,6 +8,7 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { scopeBioStyles } from "@/lib/scopedBioStyle";
 import useDockHeightVar from "@/hooks/useDockHeightVar";
+import { useKeyboardState } from "@/hooks/useKeyboardInset";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -63,7 +64,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
 
   useEffect(() => {
     applyValue(value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -187,21 +188,14 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // help) is open. Those steal focus by design — the dock must stay mounted
   // through it or the modal unmounts with it the instant it opens.
   const [toolbarModal, setToolbarModal] = useState(false);
-  const [kbBottom, setKbBottom] = useState(0);
+  // Keyboard up? (useKeyboardState also catches the Android app, where the
+  // WebView resizes and the plain inset reads ~0.)
+  const kb = useKeyboardState();
   const dockRef = useRef(null);
   // Last touch on the dock — read by the blur handler's race guard above.
   const dockTouchAt = useRef(0);
   useDockHeightVar(dockRef, floatResolved && (focused || toolbarModal));
-  useEffect(() => {
-    if (!floatResolved) return undefined;
-    const vv = window.visualViewport;
-    if (!vv) return undefined;
-    const on = () => setKbBottom(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
-    vv.addEventListener("resize", on);
-    vv.addEventListener("scroll", on);
-    on();
-    return () => { vv.removeEventListener("resize", on); vv.removeEventListener("scroll", on); };
-  }, [floatResolved]);
+
 
   return (
     <div className="overflow-hidden"
@@ -269,7 +263,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             // CLOSED but the editor still focused, sit above the bottom
             // chrome instead — bottom:0 painted the toolbar OVER the nav
             // bar and key row (owner screenshot, "UI got kinda weird").
-            style={{ bottom: kbBottom > 40 ? kbBottom : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab, 0px))" }}
+            style={{ bottom: kb.open ? kb.inset : "calc(var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + var(--os-sab, 0px))" }}
             // Keep the editor focused (and the selection alive) while
             // tapping anything on the bar. The timestamp feeds the blur
             // handler's race guard — WebViews that blur ANYWAY get the

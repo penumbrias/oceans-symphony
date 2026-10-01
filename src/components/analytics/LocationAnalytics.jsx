@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { localEntities } from "@/api/base44Client";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { startOfDay, endOfDay, format } from "date-fns";
+import { startOfDay, endOfDay } from "date-fns";
 import { MapPin } from "lucide-react";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 

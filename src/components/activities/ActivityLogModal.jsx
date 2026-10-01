@@ -14,8 +14,8 @@ import ContactMultiSelect from "@/components/contacts/ContactMultiSelect";
 import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
@@ -171,7 +171,8 @@ export default function ActivityLogModal({
     }
     setSelectedActivityCategories([]);
     setNotes("");
-    setActiveMode(false);
+    // (activeMode is seeded from initialActive at the top of this effect —
+    // a second reset here made "Start Activity" always open in Log mode.)
     setSelectedContactIds([]);
   }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute]);
 
@@ -230,7 +231,7 @@ export default function ActivityLogModal({
       });
       setSelectedAlters(Array.from(alterIds));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory]);
 
   // "After last" quick-set: end of the most recent logged activity. Read
@@ -320,13 +321,15 @@ export default function ActivityLogModal({
 
     savingRef.current = true;
     try {
-    // Run inline ~commands first (each becomes a chip), then whisper handling.
-    const lc = await applyLogCommands(notes || "", { isRich: false });
-    // "/w @name [secret]" in the notes hides that part behind a whisper bar
-    // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
-    if (w === null) return;
-    const finalNotes = w.content;
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters: alters || [], terms, surfaceLabel: "note", baseAuthorIds: selectedAlters }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const finalNotes = prepared.content;
+    // Only a real "-name" / "+name" signpost overrides who the activity is for.
+    const signposted = parseSignpostAuthors(notes || "", alters || [], terms?.system ? [terms.system] : undefined).length > 0;
+    const finalAlters = signposted ? prepared.authorIds : selectedAlters;
 
     // Active mode — start an in-progress activity (timed until you End it).
     // Reuses the running-session mechanism; on End it logs an Activity that's
@@ -339,7 +342,7 @@ export default function ActivityLogModal({
         name: cat?.name || catId,
         color: cat?.color || null,
         startTime: parseTimeToDate(startDate, startTime).toISOString(),
-        alterIds: selectedAlters,
+        alterIds: finalAlters,
         contactIds: selectedContactIds,
         notes: finalNotes || "",
       });
@@ -366,30 +369,19 @@ export default function ActivityLogModal({
           activity_category_ids: [catId],
           ...(cat?.color ? { color: cat.color } : {}),
           duration_minutes: durationMinutes > 0 ? durationMinutes : null,
-          fronting_alter_ids: selectedAlters,
+          fronting_alter_ids: finalAlters,
           contact_ids: selectedContactIds,
           notes: finalNotes || null,
+          author_alter_ids: prepared.authorIds,
           is_planned: false,
           status: ACTIVITY_STATUSES.LOGGED,
         });
         if (!firstCreatedId) firstCreatedId = created?.id || null;
       }
-      // Whisper recipients are peeled off the note — notify them.
-      for (const rid of (w.recipientIds || [])) {
-        try {
-          await base44.entities.MentionLog.create({
-            mentioned_alter_id: rid,
-            author_alter_id: null,
-            log_type: "mention",
-            source_type: "activity",
-            source_id: firstCreatedId || "",
-            source_label: "Whisper in an activity note",
-            source_date: new Date().toISOString(),
-            preview_text: "🔒 private whisper",
-            navigate_path: "/activity-tracker",
-          });
-        } catch { /* best-effort */ }
-      }
+      await recordAuthoredText({
+        ...prepared, alters: alters || [], sourceType: "activity", sourceId: firstCreatedId || "", sourceLabel: "Activity note",
+        navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${firstCreatedId || ""}`,
+      });
 
       // Fronting-session sync — create an associated session for each selected
       // alter. The "Still fronting now" toggle decides whether that session is
@@ -713,6 +705,7 @@ export default function ActivityLogModal({
                   value={notes}
                   onChange={setNotes}
                   alters={alters || []}
+                  signposts
                   placeholder="Notes… @ to mention, /w @name [secret] to whisper"
                   className="h-20"
                 />

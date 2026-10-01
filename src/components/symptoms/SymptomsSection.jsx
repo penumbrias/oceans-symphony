@@ -80,7 +80,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
       }
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [initialChecked]);
 
   const handleAddNew = async () => {

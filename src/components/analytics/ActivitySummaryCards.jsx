@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { startOfDay, endOfDay, differenceInMinutes } from "date-fns";
+import { startOfDay, endOfDay } from "date-fns";
 import { Activity, Clock, Zap, TrendingUp } from "lucide-react";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 

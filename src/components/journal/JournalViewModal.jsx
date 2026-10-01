@@ -8,7 +8,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { decryptContent, encryptContent, isLegacyEncryptedContent } from "@/lib/encryption";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Edit2, Lock, AlertCircle, Loader2, BookOpen, Trash2 } from "lucide-react";
+import { Edit2, Lock, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 

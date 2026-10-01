@@ -1,4 +1,5 @@
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -219,6 +220,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   const privacyLevel = friend.front?.privacyLevel || 'names';
 
   const handleRemove = async () => {
+    if (!(await confirm({ title: `Remove ${friend.displayName || "this friend"}?`, body: "You are removed from each other's lists and everything shared between you is deleted on the relay. Adding each other again needs a new code exchange.", confirmLabel: "Remove", destructive: true }))) return;
     setRemoving(true);
     try {
       await onRemove(friend.userId);

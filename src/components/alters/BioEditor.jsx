@@ -214,7 +214,7 @@ export default function BioEditor({ value, onChange, label = "Description / Bio"
     originalValue.current = incoming;
     historyRef.current = { stack: [incoming], index: 0 };
     setCurrentHTML(incoming);
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value]);  
 
   const handleChange = useCallback((html) => {
     const h = historyRef.current;

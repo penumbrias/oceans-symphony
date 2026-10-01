@@ -4,7 +4,9 @@ import { localEntities, base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { toast } from "sonner";
 import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -132,11 +134,11 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
   // Fusion needs 2+ source alters; every other event type needs at least one.
   const requiresOne = type !== "fusion";
 
-  const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
-    : type === "split" ? "Which alter is splitting?"
-    : type === "dormancy" ? "Which alters are going dormant?"
-    : type === "emergence" ? "Which alters emerged or were first recognized?"
-    : "Which alters are returning?";
+  const label = type === "fusion" ? `${terms.Alters} involved in the fusion (select 2+)`
+    : type === "split" ? `Which ${terms.alter} is splitting?`
+    : type === "dormancy" ? `Which ${terms.alters} are going dormant?`
+    : type === "emergence" ? `Which ${terms.alters} emerged or were first recognized?`
+    : `Which ${terms.alters} are returning?`;
 
   return (
     <div className="space-y-3">
@@ -488,7 +490,7 @@ function StepApply({
   return null;
 }
 
-function StepDetails({ year, onYear, cause, onCause, notes, onNotes }) {
+function StepDetails({ year, onYear, cause, onCause, notes, onNotes, alters = [] }) {
   const currentYear = new Date().getFullYear();
   return (
     <div className="space-y-3">
@@ -515,9 +517,11 @@ function StepDetails({ year, onYear, cause, onCause, notes, onNotes }) {
       </div>
       <div>
         <p className="text-xs text-muted-foreground mb-1">Notes (optional)</p>
-        <Textarea
+        <MentionTextarea
           value={notes}
-          onChange={e => onNotes(e.target.value)}
+          onChange={onNotes}
+          alters={alters}
+          signposts
           placeholder="Any additional context..."
           rows={3}
           className="text-sm resize-none"
@@ -560,8 +564,8 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
 
   const noResultStep = type === "dormancy" || type === "return" || type === "emergence";
   const steps = noResultStep
-    ? ["Type", "Alters", "Details"]
-    : ["Type", "Alters", "Result", "Details", "Apply"];
+    ? ["Type", terms.Alters, "Details"]
+    : ["Type", terms.Alters, "Result", "Details", "Apply"];
   const totalSteps = steps.length;
 
   function toggleSource(id, single) {
@@ -587,6 +591,12 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
   }
 
   async function handleSave() {
+    // Event notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(notes.trim(), { alters, terms, surfaceLabel: "lineage event note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
       let resultAlterIds = [];
@@ -616,7 +626,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
       }
 
       const yearNum = parseInt(year, 10) || new Date().getFullYear();
-      await localEntities.SystemChangeEvent.create({
+      const event = await localEntities.SystemChangeEvent.create({
         type,
         date: new Date(yearNum, 0, 1).toISOString(),
         year_only: true,
@@ -625,8 +635,10 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         fusion_type: type === "fusion" ? fusionType : null,
         absorbed_into_alter_id: (type === "fusion" && fusionType === "absorption") ? absorptionTarget : null,
         cause: cause.trim(),
-        notes: notes.trim(),
+        notes: prepared.content,
+        author_alter_ids: prepared.authorIds,
       });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "lineage", sourceId: event.id, sourceLabel: "Lineage event note", navigatePath: "/system-history" });
 
       // Auto-create "Split from" relationships when a split event is recorded
       if (type === "split") {
@@ -693,7 +705,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Record {terms.System} Event</DialogTitle>
         </DialogHeader>
@@ -751,6 +763,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
             year={year} onYear={setYear}
             cause={cause} onCause={setCause}
             notes={notes} onNotes={setNotes}
+            alters={alters}
           />
         )}
         {step === 4 && !noResultStep && (

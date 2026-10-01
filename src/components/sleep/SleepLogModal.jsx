@@ -3,12 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, Plus, X, BookOpen } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, X, BookOpen } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -100,6 +103,8 @@ function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange 
 }
 
 export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate }) {
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [bedtime, setBedtime] = useState("");
   const [wakeTime, setWakeTime] = useState("");
   const [quality, setQuality] = useState(5);
@@ -151,6 +156,12 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       return;
     }
 
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "sleep note" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const cleanNotes = prepared.content;
     setIsLoading(true);
     try {
       const dateStr = sleepDate || format(selectedDate || new Date(), "yyyy-MM-dd");
@@ -170,7 +181,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       // If the journal create fails for any reason, we still create the Sleep
       // record — the journal is a side-effect, not a precondition.
       let journalEntryId = null;
-      if (saveAsDream && notes.trim()) {
+      if (saveAsDream && cleanNotes.trim()) {
         const DREAM_FOLDER = "Dreams";
         const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
         if (!saved.includes(DREAM_FOLDER)) {
@@ -180,7 +191,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         try {
           const journal = await base44.entities.JournalEntry.create({
             title,
-            content: notes.trim(),
+            content: cleanNotes.trim(),
             folder: DREAM_FOLDER,
             tags: [hadNightmare ? "nightmare" : "dream"],
             entry_type: "dream",
@@ -199,7 +210,8 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         bedtime: bedtimeISO,
         wake_time: wakeTimeISO,
         quality: quality || null,
-        notes: notes || null,
+        notes: cleanNotes || null,
+        author_alter_ids: prepared.authorIds,
         is_interrupted: isInterrupted,
         interruption_count: isInterrupted ? (interruptionCount || interruptionTimes.length || null) : null,
         interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
@@ -218,13 +230,14 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         activity_name: "Sleep",
         duration_minutes: durationMinutes,
         color: "#6366f1",
-        notes: notes || null,
+        notes: cleanNotes || null,
         activity_category_ids: [sleepCat.id],
         source_sleep_id: newSleep.id,
       });
 
       // Two-way FK so either side can find the other on later edits.
       await base44.entities.Sleep.update(newSleep.id, { linked_activity_id: newAct.id });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: newSleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
 
       toast.success("Sleep logged!");
       setBedtime("");
@@ -335,9 +348,11 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
                 {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
               </button>
             </div>
-            <Textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
+              alters={alters}
+              signposts
               placeholder="Any notes about your sleep..."
               className="mt-1 h-20"
             />

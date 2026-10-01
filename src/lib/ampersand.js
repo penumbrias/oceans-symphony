@@ -1,3 +1,4 @@
+/* global Buffer */
 // Ampersand (.ampar) archive importer.
 //
 // Ampersand (https://codeberg.org/Ampersand/app) is another plural-system app.

@@ -26,7 +26,7 @@ export function shouldShowTwaToNativeMigration() {
   // data to migrate, so the prompt is just noise. Flip this back to the
   // real check when re-enabling the TWA→native migration notice.
   return false;
-  // eslint-disable-next-line no-unreachable
+   
   if (!isNative()) return false;
   try { return !localStorage.getItem(FLAG_KEY); }
   catch { return false; }

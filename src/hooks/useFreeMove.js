@@ -96,7 +96,12 @@ export function useFreeMove({
       // The ghost follows the FINGER on screen: since the element rides the
       // grid, scrolled distance has to be added back to the visual offset.
       const scrolled = st.scroller ? st.scroller.scrollTop - st.scrollBase : 0;
-      const trash = trashSelector ? document.querySelector(trashSelector) : null;
+      // Only a VISIBLE trash zone can take a drop: the zone fades out
+      // (aria-hidden) whenever the board's drag flag isn't set, and on
+      // free-layout pages that flag never fires — so an invisible zone was
+      // silently removing widgets dragged toward the bottom of the screen.
+      const trashEl = trashSelector ? document.querySelector(trashSelector) : null;
+      const trash = trashEl && trashEl.getAttribute("aria-hidden") !== "true" ? trashEl : null;
       const tRect = trash?.getBoundingClientRect();
       const overTrash = !!tRect
         && clientX >= tRect.left && clientX <= tRect.right

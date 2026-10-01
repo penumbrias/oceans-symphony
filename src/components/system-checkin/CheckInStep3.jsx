@@ -1,6 +1,5 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
@@ -27,6 +26,7 @@ export default function CheckInStep3({ data, onChange, alters = [] }) {
                 Notes
               </Label>
              <MentionTextarea
+  signposts
   value={step.notes || ""}
   onChange={(val) => onChange({ step3_greet: { ...step, notes: val } })}
   alters={alters}

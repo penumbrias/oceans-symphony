@@ -15,6 +15,7 @@ import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
 
 // v0.87.7: list types — the panel is now a general list tool, not just
 // groceries. "shopping" keeps the full purchased/ran-out/frequent-items
@@ -31,6 +32,9 @@ const LIST_TYPES = {
   // panel broadened beyond lists. Auto-saves as you type; quick photo
   // attach and voice input live on the note toolbar.
   note: { emoji: "📝", label: "Note", doneHeader: "" },
+  // Flash-card deck: items are cards (name = front, back, optional
+  // front_image / back_image). Study mode lives in FlashCards.jsx.
+  flashcards: { emoji: "🃏", label: "Flash cards", doneHeader: "" },
 };
 const typeOf = (list) => LIST_TYPES[list?.list_type] ? list.list_type : "shopping";
 import {
@@ -213,7 +217,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       window.removeEventListener("storage", handler);
     };
   }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const unlockedLists = useMemo(() => listUnlockedLists(), [unlockedNonce]);
 
   // ── Combined list catalogue.
@@ -256,7 +260,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
         toast.error(err?.message || "Couldn't create the default list");
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, lockedMode, idbAvailable, idbLists.length, unlockedLists.length, idbItems]);
 
   // Also backfill orphan items if a default list already exists.
@@ -274,7 +278,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       }
       qc.invalidateQueries({ queryKey: ["groceryItems"] });
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [idbAvailable, idbLists, idbItems]);
 
   // ── Resolve the active list. Fall back to the first visible one.
@@ -321,7 +325,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     // Only when the panel opens ONTO notes — a shopping list stays put.
     if (typeOf(activeList) !== "note") return;
     createQuickNote(activeList.source === "local");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, wantFreshNote, activeList]);
 
   // ── Items + favourites for the active list, routed through the
@@ -330,10 +334,10 @@ export default function GroceryListPanel({ lockedMode = false }) {
     if (!activeList) return [];
     if (activeList.source === "local") return listItemsForUnlockedList(activeList.id);
     return idbItems.filter((i) => i.list_id === activeList.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeList, idbItems, unlockedNonce]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const localFavorites = useMemo(() => listUnlockedFavorites(), [unlockedNonce]);
   const activeFavorites = activeList?.source === "local" ? localFavorites : idbFavorites;
 
@@ -395,7 +399,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       window.removeEventListener("open-grocery-list", onOpen);
       window.removeEventListener("close-grocery-list", onClose);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [lockOnClose, encryptionOn, lockedMode]);
 
   const handleCloseClick = () => {
@@ -497,6 +501,27 @@ export default function GroceryListPanel({ lockedMode = false }) {
     }
   };
 
+  // ── Flash cards: same stores as items, extra fields on the record.
+  const addCard = async (patch) => {
+    if (!activeList) return;
+    if (activeList.source === "local") {
+      const created = createUnlockedItem(activeList.id, patch.name);
+      if (created) updateUnlockedItem(created.id, { back: patch.back, front_image: patch.front_image, back_image: patch.back_image });
+    } else {
+      await localEntities.GroceryItem.create({
+        list_id: activeList.id,
+        ...patch,
+        checked: false,
+        created_date: new Date().toISOString(),
+      });
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    }
+  };
+  const removeCard = async (card) => {
+    await remove(card.id);
+    await deleteCardImages(card);
+  };
+
   const restoreToBuy = async (item) => {
     await patchItem(item, { checked: false, purchased_at: null, ran_out_at: null });
   };
@@ -575,6 +600,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     } else {
       for (const item of idbItems.filter((i) => i.list_id === list.id)) {
         try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
+        await deleteCardImages(item);
       }
       // A note's photo attachments go with it — they're unreachable
       // once the note record is gone.
@@ -852,6 +878,15 @@ export default function GroceryListPanel({ lockedMode = false }) {
             canAttach={idbAvailable && activeList.source !== "local"}
             onSave={saveNote}
           />
+        ) : typeOf(activeList) === "flashcards" ? (
+          <FlashCards
+            key={`${activeList.source}-${activeList.id}`}
+            cards={activeItems}
+            canAttach={idbAvailable && activeList.source !== "local"}
+            onAdd={addCard}
+            onUpdate={patchItem}
+            onRemove={removeCard}
+          />
         ) : isEmpty ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">
             Nothing on this list yet. Add an item below.
@@ -915,8 +950,8 @@ export default function GroceryListPanel({ lockedMode = false }) {
         )}
       </div>
 
-      {/* Add input — item lists only; a note is its own editor. */}
-      {(!activeList || typeOf(activeList) !== "note") && (
+      {/* Add input — item lists only; notes and flash cards have their own editors. */}
+      {(!activeList || !["note", "flashcards"].includes(typeOf(activeList))) && (
       <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-2">
           <input
@@ -952,7 +987,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
                 You just opened the <strong>Grocery List</strong> — a quick-access <strong>privacy screen</strong>. Tapping the screen a few times in a row covers Oceans Symphony with a real-looking grocery list, so a glance reveals nothing about your system.
               </p>
               <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                It's also a fully <strong>functioning list &amp; notes tool</strong> — shopping lists, wishlists, checklists, and quick notes that save as you type. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
+                It's also a fully <strong>functioning list &amp; notes tool</strong> — shopping lists, wishlists, checklists, flash cards, and quick notes that save as you type. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
               </p>
             </div>
             <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
@@ -1288,7 +1323,7 @@ function NotePad({ list, canAttach, onSave }) {
   // Flush any pending edit when the note unmounts (switching notes,
   // closing the panel) — auto-save must never lose the last keystrokes.
   useEffect(() => () => { clearTimeout(saveTimer.current); flush(); },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     []);
 
   const append = (addition) => {

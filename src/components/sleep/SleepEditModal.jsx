@@ -3,12 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { Slider } from "@/components/ui/slider";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, Plus, X, BookOpen, Loader2 } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, X, BookOpen, Loader2 } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -86,6 +89,8 @@ function toLocalDatetime(iso) {
 }
 
 export default function SleepEditModal({ sleep, onClose, onSave }) {
+  const terms = useTerms();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [sleepDate, setSleepDate] = useState("");
   const [bedtime, setBedtime] = useState("");
   const [wakeTime, setWakeTime] = useState("");
@@ -118,7 +123,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
     setSaveAsDream(!!sleep.journal_entry_id);
     // Keyed on id, not the object — an invalidation of the sleep list
     // mid-edit used to wipe typed notes back to the stored record.
-  }, [sleep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sleep?.id]);  
 
   const handleNightmareToggle = (val) => {
     setHadNightmare(val);
@@ -135,6 +140,12 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       toast.error("Bedtime and wake time are required");
       return;
     }
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "sleep note" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const cleanNotes = prepared.content;
     setSaving(true);
     try {
       const bedtimeISO = new Date(bedtime).toISOString();
@@ -147,7 +158,8 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         bedtime: bedtimeISO,
         wake_time: wakeTimeISO,
         quality: quality || null,
-        notes: notes || null,
+        notes: cleanNotes || null,
+        author_alter_ids: prepared.authorIds,
         is_interrupted: isInterrupted,
         interruption_count: isInterrupted ? (interruptionCount || interruptionTimes.length || null) : null,
         interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
@@ -155,6 +167,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         had_nightmare: hadNightmare,
       });
 
+      await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: sleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
       // Mirror edits to the linked "Sleep" Activity so the activity tracker
       // doesn't drift. Backfill the FK lazily for legacy records that
       // pre-date the linkage.
@@ -175,7 +188,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
           await base44.entities.Activity.update(activityId, {
             timestamp: bedtimeISO,
             duration_minutes: durationMinutes,
-            notes: notes || null,
+            notes: cleanNotes || null,
           });
         } catch {}
       }
@@ -205,7 +218,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         try {
           await base44.entities.JournalEntry.update(sleep.journal_entry_id, {
             title: dreamTitle,
-            content: (notes || "").trim(),
+            content: cleanNotes.trim(),
             folder: DREAM_FOLDER,
             tags: dreamTags,
           });
@@ -213,14 +226,14 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
           console.warn("Failed to sync linked dream journal entry", err);
           toast.error("Sleep saved, but the linked dream journal couldn't be updated");
         }
-      } else if (saveAsDream && notes.trim()) {
+      } else if (saveAsDream && cleanNotes.trim()) {
         // Path 2: legacy unlinked sleep where the user is now adding dream
         // content. Create + link.
         ensureDreamFolder();
         try {
           const journal = await base44.entities.JournalEntry.create({
             title: dreamTitle,
-            content: notes.trim(),
+            content: cleanNotes.trim(),
             folder: DREAM_FOLDER,
             tags: dreamTags,
             entry_type: "dream",
@@ -300,7 +313,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
                 {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
               </button>
             </div>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)}
+            <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts
               placeholder="Any notes about your sleep..." className="mt-1 h-20" />
           </div>
           <div className="flex gap-2 justify-end">

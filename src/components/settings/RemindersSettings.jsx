@@ -77,7 +77,7 @@ export default function RemindersSettings() {
     setIncludeReminderText(settings.reminder_push_include_text !== false);
     // Keyed on id, not the object — see DiaryCardPresetsManager; a query
     // invalidation mid-edit used to reset the whole quiet-hours form.
-  }, [settings?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settings?.id]);  
 
   const save = async () => {
     setSaving(true);

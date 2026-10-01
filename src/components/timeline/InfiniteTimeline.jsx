@@ -7,9 +7,12 @@ import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import SearchableSelect from "@/components/shared/SearchableSelect";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
@@ -328,16 +331,18 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
   const [startTime, setStartTime] = useState(minsToTime(startMins));
   const [endTime, setEndTime] = useState("");
   const [stillFronting, setStillFronting] = useState(false);
-  const [selectedAlterId, setSelectedAlterId] = useState("");
-  // New sessions carry a fronting LEVEL (v0.122.0) — top level by default.
+  // WHO + LEVEL come from the standard Set Front picker (search, subsystem
+  // / group tree with "add all", multi-select, a level per alter) — the
+  // old single-select flat list here couldn't serve a large system.
   const levelCfg = useFrontLevels();
-  const [level, setLevel] = useState(null);
-  const [search, setSearch] = useState("");
-
-  const filtered = alters
-    .filter(a => !a.is_archived)
-    .filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
-
+  const formatAlter = useAlterLabel();
+  const [picked, setPicked] = useState({ ids: [], levels: {} });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const byId = useMemo(() => Object.fromEntries((alters || []).map((a) => [a.id, a])), [alters]);
+  const levelName = (id) => {
+    const l = levelCfg.levels.find((x) => x.id === id) || levelCfg.levels[0];
+    return l ? frontLevelLabel(l, terms) : "";
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
@@ -377,32 +382,22 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
 
         <div>
           <p className="text-xs text-muted-foreground mb-1">Who was {terms.fronting}?</p>
-          <input placeholder={`Search ${terms.alters}...`} value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm mb-1.5" />
-          <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5 bg-muted/20">
-            {filtered.map(a => (
-              <button key={a.id} onClick={() => setSelectedAlterId(a.id)}
-                className={`w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
-                  selectedAlterId === a.id ? "bg-primary/15 text-primary" : "hover:bg-muted/50"
-                }`}>
-                <AlterAvatarInline alter={a} size="xs" />
-                <span className="truncate">{a.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">{terms.Fronting} level</p>
-          <SearchableSelect
-            value={level || levelCfg.levels[0]?.id}
-            onChange={(v) => { if (v) setLevel(v); }}
-            options={levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
-            placeholder={`${terms.Front} level`}
-            searchPlaceholder="Search levels..."
-            zIndex={70}
-          />
+          {picked.ids.length > 0 && (
+            <div className="space-y-1 mb-1.5 max-h-40 overflow-y-auto overscroll-contain">
+              {picked.ids.map((id) => byId[id] && (
+                <div key={id} className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/30 text-sm">
+                  <AlterAvatarInline alter={byId[id]} size="xs" />
+                  <span className="truncate flex-1">{formatAlter(byId[id])}</span>
+                  {levelCfg.enabled && <span className="text-[0.6875rem] text-muted-foreground flex-shrink-0">{levelName(picked.levels[id])}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => setPickerOpen(true)}
+            className="w-full h-9 px-3 rounded-md border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 flex items-center justify-center gap-1.5">
+            <Users className="w-4 h-4" />
+            {picked.ids.length ? `Change ${terms.alters} or levels` : `Choose ${terms.alters}`}
+          </button>
         </div>
 
         <div className="flex gap-2">
@@ -410,12 +405,28 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             className="flex-1 px-3 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors">
             Cancel
           </button>
-          <button disabled={!selectedAlterId}
-            onClick={() => onSave({ startTime, endTime: stillFronting ? null : endTime, alterId: selectedAlterId, levelId: level || levelCfg.levels[0]?.id })}
+          <button disabled={!picked.ids.length}
+            onClick={() => onSave({
+              startTime,
+              endTime: stillFronting ? null : endTime,
+              selections: picked.ids.map((id) => ({ alterId: id, levelId: picked.levels[id] || levelCfg.levels[0]?.id })),
+            })}
             className="flex-1 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
             Save
           </button>
         </div>
+        <SetFrontModal
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          selectionMode
+          withLevels={levelCfg.enabled}
+          preselectedIds={picked.ids}
+          preselectedLevels={picked.levels}
+          selectionTitle={`Who was ${terms.fronting}?`}
+          selectionHint="Tap to add or remove."
+          confirmLabel="Done"
+          onConfirm={(ids, extra) => setPicked({ ids, levels: extra?.levels || {} })}
+        />
       </div>
     </div>
   );
@@ -780,6 +791,13 @@ export default function InfiniteTimeline({
   };
 
   const [collapsed, setCollapsed] = useState(!hasData);
+  // Days mount before their queries land on a cold cache (30 s staleTime,
+  // no prefetch) and used to stay folded forever. Un-fold once, the first
+  // time data appears; a fold the user made after that is respected.
+  const hadDataRef = useRef(hasData);
+  useEffect(() => {
+    if (hasData && !hadDataRef.current) { hadDataRef.current = true; setCollapsed(false); }
+  }, [hasData]);
   const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [showTally, setShowTally] = useState(false);
@@ -927,7 +945,7 @@ export default function InfiniteTimeline({
     const fromRecords = statusNotes.map(n => ({
       id: n.id,
       note: n.note,
-      startMins: Math.max(0, minutesInDay(parseDate(n.timestamp), dayStart)),
+      startMins: Math.max(0, minutesInDay(activityDate(n), dayStart)),
     }));
 
     // Legacy: localStorage notes for old sessions that predate the new system
@@ -979,7 +997,7 @@ export default function InfiniteTimeline({
     const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
 
     activities.forEach((act) => {
-      const actStart = parseDate(act.timestamp);
+      const actStart = activityDate(act);
       const actStartMs = actStart.getTime();
       // Fall back to actual_duration_minutes for resolved plans that never got a
       // planned duration, so they still draw a bar for the time they ran.
@@ -1050,7 +1068,7 @@ export default function InfiniteTimeline({
   const emotionEntries = useMemo(() => {
     return emotions
       .map((e, i) => {
-        const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+        const mins = minutesInDay(activityDate(e), dayStart);
         return { mins, type: "emotion", id: e.id, data: e, key: `em-${i}-${e.id}` };
       })
       .filter(e => e.mins >= 0 && e.mins < 24 * 60)
@@ -1061,7 +1079,7 @@ export default function InfiniteTimeline({
     if (!showLocations) return [];
     return locations
       .map((loc, i) => {
-        const mins = minutesInDay(parseDate(loc.timestamp), dayStart);
+        const mins = minutesInDay(activityDate(loc), dayStart);
         return { mins, type: "location", id: loc.id, data: loc, key: `loc-${i}-${loc.id}` };
       })
       .filter(e => e.mins >= 0 && e.mins < 24 * 60)
@@ -1199,7 +1217,7 @@ export default function InfiniteTimeline({
     // Group symptom check-ins by minute into single event entries
     const scByMinute = {};
     symptomCheckIns.forEach(sc => {
-      const mins = minutesInDay(parseDate(sc.timestamp), dayStart);
+      const mins = minutesInDay(activityDate(sc), dayStart);
       if (!inDay(mins)) return;
       const bucket = Math.floor(mins);
       if (!scByMinute[bucket]) scByMinute[bucket] = { mins: bucket, items: [], id: sc.id };
@@ -1420,8 +1438,9 @@ export default function InfiniteTimeline({
     setSplitPopover(null);
   };
 
-  const handleNewSessionSave = async ({ startTime, endTime, alterId, levelId }) => {
-    const levelIdx = levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0;
+  // One session per chosen alter, each at its own level (the retroactive
+  // picker is multi-select now).
+  const handleNewSessionSave = async ({ startTime, endTime, selections = [] }) => {
     try {
       const startDate = new Date(dayStart);
       const [sh, sm] = startTime.split(":").map(Number);
@@ -1432,21 +1451,23 @@ export default function InfiniteTimeline({
         const [eh, em] = endTime.split(":").map(Number);
         endDate.setHours(eh, em, 0, 0);
       }
-      // New individual model. The picked level rides on the row; for a
-      // still-active session the shared recompute below settles the lead
-      // (top occupied level wins) — same rule as every other write path.
-      await base44.entities.FrontingSession.create({
+      // The top occupied level leads (same rule as every other write path):
+      // only alters at the highest picked level are marked primary.
+      const idxOf = (levelId) => (levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0);
+      const topIdx = Math.min(...selections.map((x) => idxOf(x.levelId)));
+      await base44.entities.FrontingSession.bulkCreate(selections.map(({ alterId, levelId }) => ({
         alter_id: alterId,
         front_level: levelId,
-        is_primary: levelIdx === 0,
+        is_primary: idxOf(levelId) === topIdx && topIdx === 0,
         start_time: startDate.toISOString(),
         end_time: endDate?.toISOString() || null,
         is_active: !endDate,
-      });
+      })));
       queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
     } catch (err) {
       console.error("Create session failed", err);
+      toast.error(err?.message || "Couldn't save that session");
     }
     setNewSessionPopover(null);
   };
@@ -1970,7 +1991,7 @@ export default function InfiniteTimeline({
             <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
             {(() => {
               const act = entry.activity;
-              const start = parseDate(act.timestamp);
+              const start = activityDate(act);
               const durMin = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
               const end = durMin > 0 ? new Date(start.getTime() + durMin * 60000) : null;
               const durLabel = durMin >= 60 ? `${Math.round((durMin / 60) * 10) / 10}h` : `${durMin}m`;

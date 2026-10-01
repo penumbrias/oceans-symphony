@@ -33,6 +33,14 @@ export default function BulletinPage() {
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 100),
   });
+  // The list above is capped at the newest 100 — an older post reached
+  // from search, a notification or a pinned poll used to render
+  // "Bulletin not found". Fetch the one we were asked for directly.
+  const { data: bulletinById = null } = useQuery({
+    queryKey: ["bulletin", id],
+    queryFn: () => base44.entities.Bulletin.get(id),
+    enabled: !!id,
+  });
 
   const { data: comments = [], refetch: refetchComments } = useQuery({
     queryKey: ["bulletinComments", id],
@@ -51,7 +59,25 @@ export default function BulletinPage() {
     return () => clearTimeout(timer);
   }, [targetCommentId, comments.length]);
 
-  const bulletin = bulletins.find(b => b.id === id);
+  const bulletin = bulletins.find(b => b.id === id) || bulletinById;
+  // Newer bulletins link a Poll record and vote against it; the inline
+  // `bulletin.poll` copy is written once at creation with empty votes and
+  // never updated, so rendering it showed "0 votes" for every linked poll.
+  const { data: linkedPoll = null } = useQuery({
+    queryKey: ["poll", bulletin?.poll_id],
+    queryFn: () => base44.entities.Poll.get(bulletin.poll_id),
+    enabled: !!bulletin?.poll_id,
+  });
+  const pollView = (() => {
+    if (linkedPoll) {
+      const options = (linkedPoll.options || []).map((label, idx) => ({ label, votes: (linkedPoll.votes || {})[String(idx)] || [] }));
+      return { question: linkedPoll.question, options, isClosed: !!linkedPoll.is_closed };
+    }
+    if (bulletin?.poll && !bulletin.poll_id) {
+      return { question: bulletin.poll.question, options: (bulletin.poll.options || []).map(o => ({ label: o.label, votes: o.votes || [] })), isClosed: false };
+    }
+    return null;
+  })();
   const activeSessions = sessions.filter(s => s.is_active);
   const activeSession = activeSessions[0] || null;
   const currentAlterId = activeSession?.alter_id || activeSession?.primary_alter_id || null;
@@ -100,13 +126,13 @@ export default function BulletinPage() {
         </div>
 
         {/* Poll */}
-        {bulletin.poll && (() => {
-          const totalVotes = bulletin.poll.options.reduce((s, o) => s + (o.votes?.length || 0), 0);
+        {pollView && (() => {
+          const totalVotes = pollView.options.reduce((s, o) => s + (o.votes?.length || 0), 0);
           return (
             <div className="bg-muted/30 rounded-xl p-3 mb-4">
-              <p className="text-sm font-medium mb-2">{bulletin.poll.question}</p>
+              <p className="text-sm font-medium mb-2">{pollView.question}{pollView.isClosed ? " · closed" : ""}</p>
               <div className="space-y-1.5">
-                {bulletin.poll.options.map((opt, i) => {
+                {pollView.options.map((opt, i) => {
                   const votes = opt.votes?.length || 0;
                   const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                   return (

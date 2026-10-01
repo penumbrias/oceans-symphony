@@ -15,7 +15,7 @@
 // view mode — it's navigate-only, not hidden.
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
+import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -24,6 +24,8 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
 import { byGroupOrder } from "@/lib/groupTreeUtils";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
@@ -598,7 +600,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     setSelectedAlter(null);
   };
   const handleSaveRelationship = async (data) => {
-    await base44.entities.AlterRelationship.create(data);
+    // Relationship notes render as plain text, so ~commands become "icon label" tokens.
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(data.notes || "", { alters: allAlters, terms, surfaceLabel: "relationship note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return; // user backed out of the whisper warning
+    const row = await base44.entities.AlterRelationship.create({ ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters: allAlters, sourceType: "relationship", sourceId: row.id, sourceLabel: "Relationship note", navigatePath: `/alter/${data.alter_id_a}?tab=relationships` });
     queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
     onRefreshRelationships?.();
     setCreateRelModal(null);
@@ -657,11 +666,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         ))}
         {!viewOnly && (
           <>
-            <button onClick={async () => { const name = window.prompt("New map name", "New map"); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
+            <button onClick={async () => { const name = await promptText({ title: "New map", placeholder: "Map name", defaultValue: "New map" }); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
               className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map"><Plus className="w-3.5 h-3.5" /></button>
             {activeMap && (
               <>
-                <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
+                <button onClick={async () => { const n = await promptText({ title: "Rename map", defaultValue: activeMap.name }); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
                 {maps.length > 1 && (
                   <button onClick={async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`))) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
                 )}
@@ -696,7 +705,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
                         <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
+                        <button onClick={async (e) => { e.stopPropagation(); const n = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
                         {layers.length > 1 && (
                           <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
                         )}
@@ -706,7 +715,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 );
               })}
               {!viewOnly && (
-                <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
+                <button onClick={async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
               )}
             </div>
             {!viewOnly && (
@@ -1101,7 +1110,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />
       )}
       {editingRelFromPopover && (
-        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
+        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} alters={allAlters} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
       )}
     </div>
   );
@@ -1150,7 +1159,8 @@ function DimensionInput({ label, symbol, value, min = 40, onCommit }) {
   );
 }
 
-function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
+function EditRelFromPopover({ rel, alterMap, alters = [], onClose, onSaved }) {
+  const terms = useTerms();
   const [direction, setDirection] = useState(rel.direction);
   const [relType, setRelType] = useState(rel.relationship_type);
   const [customLabel, setCustomLabel] = useState(rel.custom_label || "");
@@ -1163,7 +1173,13 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
     if (saving) return;
     setSaving(true);
     try {
-      await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes });
+      let prepared;
+      try {
+        prepared = await prepareAuthoredText(notes || "", { alters, terms, surfaceLabel: "relationship note", chips: false });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (prepared === null) return; // user backed out of the whisper warning
+      await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes: prepared.content, author_alter_ids: prepared.authorIds });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "relationship", sourceId: rel.id, sourceLabel: "Relationship note", navigatePath: `/alter/${rel.alter_id_a}?tab=relationships` });
       toast.success("Relationship updated");
       onSaved();
     } catch (err) { toast.error(err.message || "Failed to update"); } finally { setSaving(false); }
@@ -1185,7 +1201,7 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
         </select>
         {relType === "Custom" && <input value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} placeholder="Custom label..." className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />}
         <ColorPicker value={color} onChange={setColor} />
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes" className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
+        <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts rows={2} placeholder="Notes" className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>Save</Button>

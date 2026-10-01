@@ -20,7 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
+import { SlidersHorizontal, Plus, Minus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -173,32 +173,75 @@ const STYLE_GLYPHS = {
   smallcaps: <span style={{ fontVariantCaps: "small-caps" }}>Aa</span>,
 };
 
-function StyleFlagsRow({ label, def, value = [], onChange, alignX }) {
-  const toggle = (f) => onChange(value.includes(f) ? value.filter((x) => x !== f) : [...value, f]);
+// UI-size steps (mirrors the a11y engine's discrete scale) and the root
+// font size each one sets (index.css html.a11y-text-*), shown as a %.
+const SIZE_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
+const SIZE_PCT = { xs3: 50, xs2: 62.5, xs: 75, sm: 87.5, default: 100, lg: 112.5, xl: 125, xl2: 137.5, xl3: 150, xl4: 175, xl5: 200 };
+const TOUCH_STEPS = ["default", "comfortable", "large"];
+
+// − value + stepper — font sizes read as a number you nudge, not a knob
+// hidden behind a button.
+function Stepper({ label, valueLabel, canDown, canUp, onDown, onUp }) {
   return (
-    <div className={`flex items-center gap-2.5 py-1 ${alignX === "right" ? "flex-row-reverse" : ""}`}>
-      <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
-      <div className="flex gap-1">
-        {def.options.map((o) => (
-          <button key={o.v} type="button" aria-pressed={value.includes(o.v)}
-            aria-label={o.label} title={o.label}
-            onClick={() => toggle(o.v)}
-            className={`w-8 h-8 rounded-lg border text-sm flex items-center justify-center ${
-              value.includes(o.v) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-            }`}>
-            {STYLE_GLYPHS[o.v] || o.label}
-          </button>
-        ))}
+    <div className="flex items-center gap-1" role="group" aria-label={label}>
+      <button type="button" onClick={onDown} disabled={!canDown} aria-label={`${label} smaller`}
+        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <span className="w-12 text-center text-xs tabular-nums" aria-live="polite">{valueLabel}</span>
+      <button type="button" onClick={onUp} disabled={!canUp} aria-label={`${label} larger`}
+        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// One kind of text (body or headings): font, size, style — the same three
+// rows in the same order for both, so the two cards read as a pair.
+function TextCard({ title, font, size, style }) {
+  return (
+    <div className="rounded-xl border border-border/50 p-2.5 space-y-2">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">{font.select}</div>
+        {font.upload}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium flex-1">{size.label}</span>
+        <Stepper {...size} />
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium flex-1">{style.label}</span>
+        {style.control}
       </div>
     </div>
   );
 }
 
-// UI-size steps (mirrors the a11y engine's discrete scale).
-const SIZE_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
-const TOUCH_STEPS = ["default", "comfortable", "large"];
+function StyleFlagButtons({ def, value = [], onChange }) {
+  const toggle = (f) => onChange(value.includes(f) ? value.filter((x) => x !== f) : [...value, f]);
+  return (
+    <div className="flex gap-1">
+      {def.options.map((o) => (
+        <button key={o.v} type="button" aria-pressed={value.includes(o.v)}
+          aria-label={o.label} title={o.label}
+          onClick={() => toggle(o.v)}
+          className={`w-8 h-8 rounded-lg border text-sm flex items-center justify-center ${
+            value.includes(o.v) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+          }`}>
+          {STYLE_GLYPHS[o.v] || o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-// ── SIZE section ───────────────────────────────────────────────────────
+// ── TEXT & LAYOUT section ──────────────────────────────────────────────
+// Two groups: TEXT (a live preview, then a Body card and a Headings card
+// with identical rows) and LAYOUT (width, alignment, touch spacing,
+// borders, corners). The old single list interleaved the two and split
+// each font from its own size and style.
 function SizeSection({ v2, alignX }) {
   const tr = useT();
   const fontOptions = useFontOptions({ includeInherit: false });
@@ -218,58 +261,96 @@ function SizeSection({ v2, alignX }) {
 
   const sizeIdx = Math.max(0, SIZE_STEPS.indexOf(a11y.fontSize || "default"));
   const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
+  const setBodySize = (i) => { setAccessibilityFontSize(SIZE_STEPS[i]); refresh(); };
+
+  const hDef = tokenById.headerScale;
+  const hScale = v2.uiV2.tokens.headerScale ?? hDef.default;
+  const setHeaderScale = (next) => v2.setToken("headerScale", Math.min(hDef.max, Math.max(hDef.min, next)));
+
+  const groupTitle = (text) => (
+    <p className="text-xs font-semibold pt-1">{text}</p>
+  );
 
   return (
     <SubSection title={tr("editSheet.size")} defaultOpen storageKey="edit-size">
-      <div className="space-y-1">
-        {tokenRow("contentW")}
-        {/* Touch target spacing — the engine today is one all-sides scale;
-            per-side values arrive with the engine work (spec notes this). */}
-        <SetRow label={tr("editSheet.touchSpacing")} valueLabel={TOUCH_STEPS[touchIdx]} alignX={alignX}>
-          <input type="range" min={0} max={TOUCH_STEPS.length - 1} step={1} value={touchIdx}
-            onChange={(e) => { setAccessibilityLargeTouch(TOUCH_STEPS[parseInt(e.target.value, 10)]); refresh(); }}
-            className="w-full" aria-label={tr("editSheet.touchSpacing")} />
-        </SetRow>
-        {tokenRow("borderW")}
-        {tokenRow("radius")}
-        <PillRow label={tokenById.alignX.label} options={tokenById.alignX.options}
-          value={v2.uiV2.tokens.alignX ?? "center"} onChange={(val) => v2.setToken("alignX", val)} alignX={alignX} />
-        <div className="pt-1 space-y-2">
-          <p className="text-xs font-medium">{tr("editSheet.fontBody")}</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <SearchableSelect
-                value={a11y.fontFamily || "inter"}
-                onChange={(id) => { setAccessibilityFontFamily(id); refresh(); }}
-                options={fontOptions}
-                placeholder={tr("editSheet.fontBody")}
-              />
-            </div>
-            <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />
+      <div className="space-y-3">
+        <div className="space-y-2">
+          {groupTitle(tr("editSheet.groupText"))}
+          {/* Live preview — rendered with the app's own heading and body
+              styles, so every change below shows here at once. */}
+          <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5" aria-hidden>
+            <h3 className="font-display font-semibold leading-tight" style={{ fontSize: `${1.125 * hScale / 100}em` }}>
+              {tr("editSheet.previewHeading")}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-0.5">{tr("editSheet.previewBody")}</p>
           </div>
-          <p className="text-xs font-medium">{tr("editSheet.fontHeader")}</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <SearchableSelect
-                value={a11y.headingFont || "default"}
-                onChange={(id) => { setAccessibilityHeadingFont(id); refresh(); }}
-                options={[{ id: "default", label: tr("editSheet.fontSameAsBody") }, ...fontOptions]}
-                placeholder={tr("editSheet.fontHeader")}
-              />
-            </div>
-            <FontUploadButton onUploaded={(family) => { setAccessibilityHeadingFont(family); refresh(); }} />
-          </div>
+          <TextCard
+            title={tr("editSheet.textBody")}
+            font={{
+              select: (
+                <SearchableSelect
+                  value={a11y.fontFamily || "inter"}
+                  onChange={(id) => { setAccessibilityFontFamily(id); refresh(); }}
+                  options={fontOptions}
+                  placeholder={tr("editSheet.fontBody")}
+                />
+              ),
+              upload: <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />,
+            }}
+            size={{
+              label: tr("editSheet.textSize"),
+              valueLabel: `${SIZE_PCT[SIZE_STEPS[sizeIdx]]}%`,
+              canDown: sizeIdx > 0, canUp: sizeIdx < SIZE_STEPS.length - 1,
+              onDown: () => setBodySize(sizeIdx - 1), onUp: () => setBodySize(sizeIdx + 1),
+            }}
+            style={{
+              label: tr("editSheet.textStyle"),
+              control: <StyleFlagButtons def={tokenById.bodyStyle} value={v2.uiV2.tokens.bodyStyle ?? []}
+                onChange={(val) => v2.setToken("bodyStyle", val)} />,
+            }}
+          />
+          <TextCard
+            title={tr("editSheet.textHeadings")}
+            font={{
+              select: (
+                <SearchableSelect
+                  value={a11y.headingFont || "default"}
+                  onChange={(id) => { setAccessibilityHeadingFont(id); refresh(); }}
+                  options={[{ id: "default", label: tr("editSheet.fontSameAsBody") }, ...fontOptions]}
+                  placeholder={tr("editSheet.fontHeader")}
+                />
+              ),
+              upload: <FontUploadButton onUploaded={(family) => { setAccessibilityHeadingFont(family); refresh(); }} />,
+            }}
+            size={{
+              label: tr("editSheet.textSizeRelative"),
+              valueLabel: `${hScale}%`,
+              canDown: hScale > hDef.min, canUp: hScale < hDef.max,
+              onDown: () => setHeaderScale(hScale - hDef.step), onUp: () => setHeaderScale(hScale + hDef.step),
+            }}
+            style={{
+              label: tr("editSheet.textStyle"),
+              control: <StyleFlagButtons def={tokenById.headerStyle} value={v2.uiV2.tokens.headerStyle ?? []}
+                onChange={(val) => v2.setToken("headerStyle", val)} />,
+            }}
+          />
         </div>
-        <SetRow label={tr("editSheet.fontSizeBody")} valueLabel={SIZE_STEPS[sizeIdx]} alignX={alignX}>
-          <input type="range" min={0} max={SIZE_STEPS.length - 1} step={1} value={sizeIdx}
-            onChange={(e) => { setAccessibilityFontSize(SIZE_STEPS[parseInt(e.target.value, 10)]); refresh(); }}
-            className="w-full" aria-label={tr("editSheet.fontSizeBody")} />
-        </SetRow>
-        {tokenRow("headerScale")}
-        <StyleFlagsRow label={tr("editSheet.styleBody")} def={tokenById.bodyStyle}
-          value={v2.uiV2.tokens.bodyStyle ?? []} onChange={(val) => v2.setToken("bodyStyle", val)} alignX={alignX} />
-        <StyleFlagsRow label={tr("editSheet.styleHeader")} def={tokenById.headerStyle}
-          value={v2.uiV2.tokens.headerStyle ?? []} onChange={(val) => v2.setToken("headerStyle", val)} alignX={alignX} />
+
+        <div className="space-y-1">
+          {groupTitle(tr("editSheet.groupLayout"))}
+          {tokenRow("contentW")}
+          <PillRow label={tokenById.alignX.label} options={tokenById.alignX.options}
+            value={v2.uiV2.tokens.alignX ?? "center"} onChange={(val) => v2.setToken("alignX", val)} alignX={alignX} />
+          {/* Touch target spacing — the engine today is one all-sides scale;
+              per-side values arrive with the engine work (spec notes this). */}
+          <SetRow label={tr("editSheet.touchSpacing")} valueLabel={TOUCH_STEPS[touchIdx]} alignX={alignX}>
+            <input type="range" min={0} max={TOUCH_STEPS.length - 1} step={1} value={touchIdx}
+              onChange={(e) => { setAccessibilityLargeTouch(TOUCH_STEPS[parseInt(e.target.value, 10)]); refresh(); }}
+              className="w-full" aria-label={tr("editSheet.touchSpacing")} />
+          </SetRow>
+          {tokenRow("borderW")}
+          {tokenRow("radius")}
+        </div>
       </div>
     </SubSection>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
@@ -37,7 +38,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "welcome", sectionLabel: "Welcome",
         emoji: "⚡",
         title: "Quick bars on the classic look",
-        body: `Just above the bottom tab bar sits a slim handle — tap or swipe it up to unfold the quick-action bar: one-tap keys for a check-in, a note, starting an activity or symptom, a task, or setting ${t.front}. Your pinned ${t.alters} can float there as a bar too, and a new top bar (${t.system} name, who's ${t.fronting}, clock, search, notifications) can replace this header. All three live in the setup guide and Settings → Appearance → Layout.`,
+        body: `Just above the bottom tab bar sits a slim handle — tap or swipe it up to unfold the quick-action bar: one-tap keys for a check-in, a note, starting an activity or symptom, a task, or setting ${t.front}. Your pinned ${t.alters} can float there as a bar too, and a new top bar (${t.system} name, who's ${t.fronting}, clock, search, notifications) can replace this header. All three live in the setup guide and Settings → Appearance → Layout → Dashboard. On a computer, "Show on wide screens" there puts the same bars beside the sidebar — each keeps its own display, so quick actions can float as a bubble and the ${t.alters} bar can run down the side.`,
         route: "/", target: null,
         look: `the slim dash-and-chevron handle just above the bottom tab bar`, action: null,
       },
@@ -133,7 +134,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "☰",
       classicOnly: true,
       title: "Sidebar — opens from the logo",
-      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). Prefer tiles? The grid icon in the sidebar header switches to the app grid — and the list icon in the app grid's header switches back. The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
+      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). Prefer tiles? The grid icon in the sidebar header switches to the app grid — and the list icon in the app grid's header switches back. The grocery list / privacy cover lives in the sidebar header too. Choose which pages it lists, and their order within each group, in Settings → Appearance → Layout → Sidebar — each device keeps its own. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
       route: "/", target: null,
       look: `the Oceans Symphony logo in the top-left of the header — tap it to open the full navigation drawer`, action: null,
     },
@@ -141,7 +142,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🛒",
       title: "Grocery list — also a privacy cover",
-      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list can be marked "Available when the app is locked" if you want it accessible from the unlock screen — handy when you're shopping and don't want to enter your password every time. Check off items to log when you bought them; tap again to mark "ran out" so you can see when the broccoli in the fridge actually came from. Star items to save them as frequent purchases. If you have encryption turned on, the lock icon in the header means closing the list also clears your session. It takes notes too: the ✎ button starts a fresh note that saves as you type, with one-tap timestamps, camera/photo attachments, and voice input where the platform has it — and "Notes open to" picks whether you land on your last note or a fresh one.`,
+      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list can be marked "Available when the app is locked" if you want it accessible from the unlock screen — handy when you're shopping and don't want to enter your password every time. Check off items to log when you bought them; tap again to mark "ran out" so you can see when the broccoli in the fridge actually came from. Star items to save them as frequent purchases. If you have encryption turned on, the lock icon in the header means closing the list also clears your session. It takes notes too: the ✎ button starts a fresh note that saves as you type, with one-tap timestamps, camera/photo attachments, and voice input where the platform has it — and "Notes open to" picks whether you land on your last note or a fresh one. Pick "Flash cards" as a new list's type for a study deck: each card has a front and back (text, a photo, or both), and Study shuffles them — tap to flip, then "Again" or "Got it".`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
     },
@@ -150,8 +151,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     {
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "👥",
-      title: `Set ${t.Front}ers — Select`,
-      body: `The Set ${t.Front}ers window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar, pronouns, and their ${t.fronting} level — × removes them, and tapping any ${t.alter} in the list below adds them. Levels default to ${t.Fronting} / Co-${t.fronting}; add more (like Observing) in Settings → Tracking setup. Whoever sits at the topmost level leads automatically.`,
+      title: `Set ${t.Fronters} — Select`,
+      body: `The Set ${t.Fronters} window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar, pronouns, and their ${t.fronting} level — × removes them, and tapping any ${t.alter} in the list below adds them. Levels default to ${t.Fronting} / Co-${t.fronting}; add more (like Observing) in Settings → Tracking setup. Whoever sits at the topmost level leads automatically.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
       route: "/", target: null,
@@ -227,7 +228,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "🔲",
       title: "List & Grid View",
-      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities. In grid view, tap an avatar to open their profile, press-and-hold it to set their ${t.fronting} level (drag past the end of the spectrum to remove them from ${t.front}), or drag it to the right to open their options menu.`,
+      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities. In list view, the button at the end of each row puts an ${t.alter} on ${t.front} (hold it for the level spectrum). In grid view, tap an avatar to open their profile, or press-and-hold it (or any pinned ${t.alter}) for a small bar with that same ${t.front} button and their options list — slide onto one and lift to pick it, or tap. The ${t.front} button's icon, and a colour for each ${t.fronting} level, can be changed in Tracking setup → ${t.Fronting} levels.`,
       route: "/Home", target: "alter-view-toggle",
       look: `the highlighted list/grid toggle icon at the top right of the ${t.Alters} section`, action: null,
     },
@@ -251,7 +252,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "🖼️",
       title: "Image Assets",
-      body: `Every image you've stored — avatars, banners, backgrounds, bio and chat pictures — lives here, auto-sorted into collapsible folders. Make your own folders, reorder and rename them, bulk-upload, and reuse any image anywhere a picture is accepted by tapping the 🖼 button on that upload. Any ${t.alter}'s rotating avatar/background pool also gets its own folder here (named after them), and opening this page from that ${t.alter}'s editor lands you scrolled straight to it. No re-uploading and no duplicate storage.`,
+      body: `Every image you've stored — avatars, banners, backgrounds, bio and chat pictures — lives here, auto-sorted into folders — tap a folder to open it, and search finds images in every folder. Make your own folders, reorder and rename them, bulk-upload, tap Select to move or delete many images at once, and reuse any image anywhere a picture is accepted by tapping the 🖼 button on that upload. Any ${t.alter}'s rotating avatar/background pool also gets its own folder here (named after them), and opening this page from that ${t.alter}'s editor lands you scrolled straight to it. No re-uploading and no duplicate storage.`,
       route: "/assets", target: "assets-library",
       look: "the Image Assets page", action: null,
     },
@@ -325,16 +326,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `The Options tab has Archive (hides the ${t.alter} from the main grid and ${t.fronting} counts without deleting them — useful for inactive ${t.alters}), Merge (ended up with a duplicate from an import? Move everything onto the original and remove the copy), and the Danger Zone delete button which permanently removes them and all their data.`,
       route: ai ? `/alter/${ai}?tab=options` : "/Home",
       target: ai ? "alter-profile-delete" : null,
-      look: ai ? `the highlighted "Delete member" button at the bottom of the Options tab` : `open an ${t.alter} profile, tap Options, and look for Archive and Delete`, action: null,
+      look: ai ? `the highlighted "Delete ${t.alter}" button at the bottom of the Options tab` : `open an ${t.alter} profile, tap Options, and look for Archive and Delete`, action: null,
     },
     ...(tourAlterWasCreated && ai ? [{
       section: "alters", sectionLabel: t.Alters,
       emoji: "🗑️",
       title: "Clean Up Demo Profile",
-      body: `The "Tour Demo" profile was created just for this tour. You're on the Options tab now — tap "Delete member" to remove it. The tour will also auto-delete it when you tap Done or close the tour, so it's safe to skip this step too.`,
+      body: `The "Tour Demo" profile was created just for this tour. You're on the Options tab now — tap "Delete ${t.alter}" to remove it. The tour will also auto-delete it when you tap Done or close the tour, so it's safe to skip this step too.`,
       route: `/alter/${ai}?tab=options`,
       target: "alter-profile-delete",
-      look: `the highlighted "Delete member" button — tap it to delete the demo profile`, action: null,
+      look: `the highlighted "Delete ${t.alter}" button — tap it to delete the demo profile`, action: null,
     }] : []),
 
     // ─── TIMELINE ───────────────────────────────────────────────────────────
@@ -374,7 +375,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "timeline", sectionLabel: "Timeline",
       emoji: "⏮️",
       title: "Retroactive Entries",
-      body: `Long-press (press and hold) anywhere on the timeline to add a retroactive entry for that specific day — a ${t.fronting} session, emotion check-in, symptom log, or activity. Nothing is lost just because you forgot to log it in the moment.`,
+      body: `Long-press (press and hold) anywhere on the timeline to add a retroactive entry for that specific day — a ${t.fronting} session (pick several ${t.alters}, browse by subsystem or group, and set each one's ${t.fronting} level), emotion check-in, symptom log, or activity. Nothing is lost just because you forgot to log it in the moment.`,
       route: "/timeline", target: "timeline-container",
       look: `press and hold on any day section to open the retroactive entry menu`, action: null,
     },
@@ -902,6 +903,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     },
     {
       section: "settings", sectionLabel: "Settings",
+      emoji: "💗",
+      title: "Feelings in Quick Check-In",
+      body: `The Feelings tab of the Check-in manager holds your emotions list and chooses who an emotion belongs to by default: all current ${t.fronters}, or only those at one ${t.fronting} level. In Quick Check-In, press and hold any emotion to pick exactly which ${t.alters} feel it — small coloured dots mark emotions that belong to someone other than the default. The side rating beside Feeling can be turned off here too.`,
+      route: "/manage-checkin", target: "checkin-feelings-tab",
+      look: `the highlighted Feelings tab`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
       emoji: "🔁",
       title: "Re-run Setup",
       body: `The guided setup you saw on first launch (terminology, tracking packs, emotions, backups) can be replayed any time from Settings → About & help → Tour & onboarding. It never deletes or overwrites anything — useful when a different ${t.alter} wants to walk through it, or after things change.`,
@@ -991,7 +1000,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "done", sectionLabel: "Done!",
       emoji: "💜",
       title: "Tour Complete 🎉",
-      body: `You've explored every page and feature of Oceans Symphony. The app is designed for dissociative ${t.system}s — log at your own pace, and nothing forgotten in the moment is lost forever. The Tour button on the dashboard is always there if you want to revisit. Take good care. 💜`,
+      body: `You've explored every page and feature of Oceans Symphony. The app is designed for dissociative ${t.system}s — log at your own pace, and nothing forgotten in the moment is lost forever. You can replay this tour any time from the ⚙ menu on the home screen (Feature tour) or Settings → About. Take good care. 💜`,
       route: null, target: null, look: null, action: null,
     },
   ];
@@ -1032,7 +1041,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const uiV2On = UI_V2_ENABLED && settingsList[0]?.ui_v2?.enabled === true;
+  const uiV2On = UI_V2_ENABLED && (pickPrimarySystemSettings(settingsList) || settingsList[0])?.ui_v2?.enabled === true;
 
   const { data: existingAlters = [], isSuccess: altersLoaded } = useQuery({
     queryKey: ["alters"],
@@ -1258,7 +1267,8 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
 
       {/* Tour card — portal-rendered as last body child so z-[100] always wins.
           Moves to top when the spotlight is in the bottom half of the screen. */}
-      <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : "bottom-16"}`}>
+      <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : ""}`}
+        style={cardAtTop ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">

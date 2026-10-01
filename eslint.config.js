@@ -7,12 +7,13 @@ import pluginUnusedImports from "eslint-plugin-unused-imports";
 export default [
   {
     files: [
-      "src/components/**/*.{js,mjs,cjs,jsx}",
-      "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/v2/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
+      "src/**/*.{js,mjs,cjs,jsx}",
     ],
-    ignores: ["src/lib/**/*", "src/components/ui/**/*"],
+    // Only the generated shadcn primitives are skipped. src/lib, src/hooks,
+    // src/utils, App.jsx and main.jsx used to be outside the globs — so the
+    // no-undef guard (which this config credits with catching a real crash)
+    // never covered them.
+    ignores: ["src/components/ui/**/*", "src/locales/**/*"],
     ...pluginJs.configs.recommended,
     ...pluginReact.configs.flat.recommended,
     languageOptions: {
@@ -62,6 +63,10 @@ export default [
         { ignore: ["cmdk-input-wrapper", "toast-close"] },
       ],
       "react-hooks/rules-of-hooks": "error",
+      // Was never enabled; the eslint-disable comments referencing it
+      // throughout the codebase were decorative. Warn, not error, so the
+      // backlog can be worked down without blocking builds.
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

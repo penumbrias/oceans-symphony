@@ -24,18 +24,19 @@
 // prop; passive slides are declared with body/features/tip.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { isNative } from "@/lib/platform";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users, BookOpen, BarChart2, Shield,
   FileText, Sparkles, Clock, CheckSquare, Activity,
-  MessageSquare, Zap, Package, Bell, ClipboardList,
+  MessageSquare, Zap, Bell, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";
-import { BundleList } from "@/components/symptoms/BundlePicker";
 import {
   TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, itemToSymptomFields,
 } from "@/lib/trackingPresets";
@@ -100,7 +101,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
     queryFn: () => base44.entities.SystemSettings.list(),
     enabled: !!open,
   });
-  const settingsRow = settingsList[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsList) || settingsList[0] || null;
 
   useEffect(() => {
     if (!open) setTermsSaved(false);
@@ -448,7 +449,9 @@ export default function TourModal({ open, onClose, openAt = null }) {
       icon: <Zap className="w-8 h-8" />,
       color: "from-yellow-500/20 to-orange-500/20",
       body: `Set scheduled reminders to log fronting, check in, or take care of yourself. Reminders can link directly to any part of the app — tap a notification and it opens the right thing instantly.`,
-      tip: "Reminders are delivered even when the app is closed, as long as you grant notification permission.",
+      tip: isNative()
+        ? "Reminders are delivered even when the app is closed, as long as you grant notification permission."
+        : "In the web app, reminders fire while the app is open; turn on \"Reliable reminders\" under Settings → Notifications to get them when it's closed.",
       features: [
         "Scheduled reminders",
         "Deep-link to any feature",
@@ -528,8 +531,8 @@ export default function TourModal({ open, onClose, openAt = null }) {
       subtitle: `Welcome to the ${t.system}`,
       icon: "💜",
       color: "from-violet-500/20 to-purple-500/20",
-      body: `Explore at your own pace. Every feature is designed with dissociative ${t.systems} in mind. You can reopen this guide anytime from the Guide button on the home screen.`,
-      tip: "Want a hands-on walkthrough of the UI itself? Tap the Tour ✨ button on the home screen for an interactive step-by-step tour that spotlights the actual UI.",
+      body: `Explore at your own pace. Every feature is designed with dissociative ${t.systems} in mind. You can reopen this guide anytime from the ⚙ menu on the home screen (Setup guide), or from Settings → About.`,
+      tip: "Want a hands-on walkthrough of the UI itself? Choose Feature tour from the ⚙ menu on the home screen for an interactive step-by-step tour that spotlights the actual UI.",
       nextLabel: "Start exploring 💜",
       onNext: handleFinish,
     },

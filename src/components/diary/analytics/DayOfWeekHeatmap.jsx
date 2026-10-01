@@ -1,5 +1,5 @@
 import React from "react";
-import { format, parseISO, getDay } from "date-fns";
+import { parseISO, getDay } from "date-fns";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

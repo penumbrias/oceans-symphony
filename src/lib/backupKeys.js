@@ -103,6 +103,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_planner_overlays_v1",
   "symphony_dailytasks_hide_completed_v1",
   "symphony_emotion_picker_mode",
+  "symphony_quickcheckin_slider_enabled_v1",
+  "symphony_quickcheckin_slider_symptom_v1",
   "symphony_analyticsGrouping",
   "symphony_anonymize_mode",
   "symphony_display_options_dock",
@@ -116,6 +118,13 @@ export const BACKUP_LS_KEYS = [
   // restore on a new device — the alternative is silently falling back to
   // the default relay, where their friend codes don't exist.
   "symphony_api_host",
+  // Upcoming-plans "how many to show" (src/lib/upcomingPlansLimit.js) and
+  // the installed extra font packs (src/lib/fontPacks.js) — user
+  // preferences that used to vanish on an Android cache clear.
+  "upcoming_plans_limit_mode",
+  "upcoming_plans_limit_count",
+  "upcoming_plans_limit_window",
+  "symphony_extra_fonts_installed_v1",
 ];
 
 // Keys that are mirrored on-device (survive a localStorage wipe) but are

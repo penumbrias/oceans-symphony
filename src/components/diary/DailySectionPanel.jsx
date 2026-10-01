@@ -1,7 +1,9 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import EmotionPicker from "./EmotionPicker";
 import RatingRow from "./RatingRow";
 import SymptomsChecklistPanel from "./SymptomsChecklistPanel";
@@ -10,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
 export default function DailySectionPanel({ section, data, onChange, onClose }) {
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   if (section === "checklist") {
     return (
       <SymptomsChecklistPanel
@@ -113,7 +116,7 @@ export default function DailySectionPanel({ section, data, onChange, onClose }) 
           </div>
           <div className="space-y-1.5">
             <Label>Optional context</Label>
-            <Textarea value={notes.optional || ""} onChange={(e) => set("optional", e.target.value)} placeholder="Any other details..." className="min-h-[80px]" />
+            <MentionTextarea value={notes.optional || ""} onChange={(v) => set("optional", v)} alters={alters} signposts placeholder="Any other details..." className="min-h-[80px]" />
           </div>
         </div>
       </PanelShell>

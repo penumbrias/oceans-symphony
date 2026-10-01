@@ -25,7 +25,7 @@ export default function DataRescuePanel({ onClose }) {
       setBlobs([]);
     }
   };
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
 
   const titleFor = (b) => b.name || (b.systemId == null ? "Your main system" : "A saved system");
   // Copies from the app's private files (nativeMirror) say so, with when

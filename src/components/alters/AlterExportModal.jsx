@@ -67,7 +67,8 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
     const chosen = liveAlters.filter((a) => selected.has(a.id));
     let resolvedAvatars = {};
     if (includeAvatars) {
-      const pairs = await Promise.all(chosen.map(async (a) => [a.id, a.image_url ? await resolveToDataUrl(a.image_url) : ""]));
+      // The record's picture field is avatar_url (image_url is a legacy alias) — reading only image_url meant "Include avatars" never included one.
+      const pairs = await Promise.all(chosen.map(async (a) => { const src = a.avatar_url || a.image_url; return [a.id, src ? await resolveToDataUrl(src) : ""]; }));
       resolvedAvatars = Object.fromEntries(pairs.filter(([, url]) => url));
     }
     const options = { detail, anonymize, includeAvatars, resolvedAvatars, groupBy: groupByGroup ? "group" : "none", systemName: systemIdentity.name || "" };

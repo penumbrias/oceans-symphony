@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useContext, createContext } from "react";
 import { X, ChevronLeft, Plus, Search } from "lucide-react";
+import useLongPress from "@/hooks/useLongPress";
 import { Input } from "@/components/ui/input";
 import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 
@@ -72,19 +73,65 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
-function EmotionPill({ label, selected, color, onToggle, small = false }) {
+// Optional press-and-hold per emotion (the Quick Check-In's "who feels
+// this"), plus the colour dots that show an emotion belongs to someone
+// other than the default. Provided once by the picker so every pill —
+// wheel, classic, search, selected chips — behaves the same.
+const EmotionHoldContext = createContext(null);
+
+// dots: array of colours, or "nobody" for an explicit empty assignment.
+function EmotionDots({ dots, onColor = false }) {
+  if (!dots) return null;
+  if (dots === "nobody") {
+    return <span aria-hidden className={`w-1.5 h-1.5 rounded-full border ${onColor ? "border-white/80" : "border-muted-foreground"}`} />;
+  }
+  const shown = dots.slice(0, 4);
   return (
-    <button
-      onClick={() => onToggle(label)}
-      className={`rounded-full font-medium transition-all border ${
-        small ? "px-2 py-0.5 text-xs" : "px-3 py-1.5 text-xs"
-      } ${selected
-        ? "text-white border-transparent"
-        : "bg-muted/60 text-foreground border-border/50 hover:border-border"
-      }`}
-      style={selected ? { backgroundColor: color, borderColor: color } : {}}
-    >
-      {label}
+    <span aria-hidden className="inline-flex items-center -space-x-0.5">
+      {shown.map((c, i) => (
+        <span key={i} className="w-1.5 h-1.5 rounded-full"
+          style={{ backgroundColor: c, boxShadow: `0 0 0 1px ${onColor ? "rgba(255,255,255,0.85)" : "hsl(var(--background))"}` }} />
+      ))}
+      {dots.length > shown.length && <span className="text-[0.5rem] leading-none pl-1">+{dots.length - shown.length}</span>}
+    </span>
+  );
+}
+
+// Button whose tap toggles and whose hold opens the assignment. Only used
+// when a hold handler exists — a plain button otherwise, so a slow tap
+// never gets eaten on surfaces with no hold action.
+function HoldableButton({ label, onTap, onHold, className, style, children, ariaLabel }) {
+  const press = useLongPress({ onClick: () => onTap(label), onLongPress: () => onHold(label), ms: 450 });
+  return (
+    <button type="button" {...press} onContextMenu={(e) => e.preventDefault()}
+      aria-label={ariaLabel} className={`${className} select-none [-webkit-touch-callout:none]`} style={style}>
+      {children}
+    </button>
+  );
+}
+
+function EmotionPill({ label, selected, color, onToggle, small = false }) {
+  const hold = useContext(EmotionHoldContext);
+  const dots = selected ? hold?.dotsFor?.(label) : null;
+  const className = `rounded-full font-medium transition-all border inline-flex items-center gap-1 ${
+    small ? "px-2 py-0.5 text-xs" : "px-3 py-1.5 text-xs"
+  } ${selected
+    ? "text-white border-transparent"
+    : "bg-muted/60 text-foreground border-border/50 hover:border-border"
+  }`;
+  const style = selected ? { backgroundColor: color, borderColor: color } : {};
+  const inner = <>{label}<EmotionDots dots={dots} onColor /></>;
+  if (hold?.onHold) {
+    return (
+      <HoldableButton label={label} onTap={onToggle} onHold={hold.onHold} className={className} style={style}
+        ariaLabel={hold.ariaFor?.(label, selected)}>
+        {inner}
+      </HoldableButton>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onToggle(label)} className={className} style={style}>
+      {inner}
     </button>
   );
 }
@@ -134,6 +181,11 @@ export default function EmotionWheelPicker({
   onToggle,
   customEmotions = [],
   onAddCustom,
+  // Press-and-hold an emotion → onEmotionHold(label). emotionDots(label)
+  // returns the dot colours for a selected emotion (or null / "nobody").
+  onEmotionHold = null,
+  emotionDots = null,
+  holdAriaLabel = null,
 }) {
   const [pickerMode,    setPickerMode]    = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
   const [activeValence, setActiveValence] = useState(null);
@@ -237,7 +289,13 @@ export default function EmotionWheelPicker({
     setCustomInput("");
   };
 
+  const holdCtx = useMemo(
+    () => (onEmotionHold ? { onHold: onEmotionHold, dotsFor: emotionDots, ariaFor: holdAriaLabel } : null),
+    [onEmotionHold, emotionDots, holdAriaLabel]
+  );
+
   return (
+    <EmotionHoldContext.Provider value={holdCtx}>
     <div className="space-y-3">
       {/* Mode toggle */}
       <div className="flex items-center gap-2">
@@ -297,7 +355,14 @@ export default function EmotionWheelPicker({
       {/* Selected chips */}
       {selectedEmotions.length > 0 && !search && (
         <div className="flex flex-wrap gap-1.5">
-          {selectedEmotions.map(e => (
+          {selectedEmotions.map(e => onEmotionHold ? (
+            <HoldableButton key={e} label={e} onTap={onToggle} onHold={onEmotionHold}
+              ariaLabel={holdAriaLabel?.(e, true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+              style={{ backgroundColor: colorFor(e) }}>
+              {e}<EmotionDots dots={emotionDots?.(e)} onColor /> <X className="w-2.5 h-2.5" />
+            </HoldableButton>
+          ) : (
             <button key={e} onClick={() => onToggle(e)}
               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
               style={{ backgroundColor: colorFor(e) }}>
@@ -519,5 +584,6 @@ export default function EmotionWheelPicker({
         </div>
       )}
     </div>
+    </EmotionHoldContext.Provider>
   );
 }

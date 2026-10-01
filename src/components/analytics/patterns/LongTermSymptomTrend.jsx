@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer } from "recharts";
 import { computeMonthlyTrend } from "@/lib/analyticsEngine";
 
 export default function LongTermSymptomTrend({ symptomCheckIns, symptoms, baseline }) {

@@ -21,6 +21,7 @@
 // as literal text.
 
 import { effectiveAlias } from "@/lib/alterLabel";
+import { confirm as houseConfirm } from "@/components/shared/ConfirmDialog";
 
 // "/w" or "/whisper" at a word boundary, anywhere in the text.
 export const WHISPER_RE = /\/(?:w|whisper)\b/i;
@@ -179,7 +180,10 @@ export function buildMidWhisperWarning(surfaceLabel = "entry") {
 // One-call helper for a surface's save handler. Returns:
 //   { content, recipientIds, isWhisper, mode } — use these to save + notify
 //   null                                       — user chose "go back" at the warning
-export function applyWhisper(content, alters, {
+// Async since the mid-message warning goes through the app's styled
+// confirm() (src/components/shared/ConfirmDialog.jsx) instead of the
+// browser's window.confirm — every caller awaits it.
+export async function applyWhisper(content, alters, {
   rich = false,
   surfaceLabel = "entry",
   confirm,
@@ -189,8 +193,8 @@ export function applyWhisper(content, alters, {
     return { content, recipientIds: [], isWhisper: false, mode: "none" };
   }
   if (parsed.needsConfirm) {
-    const fn = confirm || ((msg) => (typeof window !== "undefined" ? window.confirm(msg) : true));
-    const ok = fn(buildMidWhisperWarning(surfaceLabel), parsed);
+    const fn = confirm || houseConfirm;
+    const ok = await fn(buildMidWhisperWarning(surfaceLabel), parsed);
     if (!ok) return null;
   }
   return {

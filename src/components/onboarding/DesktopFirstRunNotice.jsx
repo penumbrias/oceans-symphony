@@ -46,7 +46,17 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
       // The database must exist before a merge can land in it.
       if (prepare && !(await prepare())) return;
 
-      for (const p of peers) if (p.systemId) pairSystem(p.systemId);
+      // Choosing the folder is the pairing — but only with the system each
+      // device is using NOW. A device can leave an older system's snapshot
+      // behind (e.g. from before a reinstall); pairing every system found
+      // would blend that old one into this fresh install too.
+      const newestPerDevice = new Map();
+      for (const p of peers) {
+        if (!p.systemId || !p.data) continue;
+        const cur = newestPerDevice.get(p.deviceId);
+        if (!cur || (p.data.mtimeMs || 0) > (cur.data.mtimeMs || 0)) newestPerDevice.set(p.deviceId, p);
+      }
+      for (const p of newestPerDevice.values()) pairSystem(p.systemId);
       const report = await runSync({ force: true });
 
       if (!report.merged.length) {
@@ -56,10 +66,11 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
       }
       toast.success(`Brought your data over from ${report.merged[0].name}. Starting up…`);
       // Reload rather than continuing in place: a pull merges the whole
-      // database AND fills in appearance preferences, and theme/font are
-      // read at boot. Continuing would show the data with this device's
-      // default look and no obvious reason why. Same thing the backup
-      // importer does after a restore.
+      // database, and several boot-time caches (terms, systems registry)
+      // read it once. Same thing the backup importer does after a restore.
+      // Appearance does NOT come along (the desktop keeps its own look —
+      // see src/lib/syncLook.js); "Use another device's appearance" in the
+      // sync panel copies it on request.
       setTimeout(() => window.location.reload(), 1200);
     } catch (e) {
       toast.error(e?.message || "Couldn't sync from that device.");

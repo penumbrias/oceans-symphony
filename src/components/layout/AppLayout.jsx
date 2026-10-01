@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
+import { useIsWide } from "@/lib/useIsWide";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingCart, LayoutGrid, Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { ShoppingCart, LayoutGrid, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -18,14 +19,14 @@ import useRefreshOnResume from "@/hooks/useRefreshOnResume";
 import useFriendsLiveRefresh from "@/hooks/useFriendsLiveRefresh";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
-import SidebarNav from "@/components/layout/SidebarNav";
+import SidebarNav, { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import GlobalPullToRefresh from "@/components/layout/GlobalPullToRefresh";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
-import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, applySidebarConfig } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
@@ -132,7 +133,7 @@ export default function AppLayout() {
       localStorage.removeItem("symphony_onboard_goto_encryption");
       navigate("/settings#data");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // v0.86.5: probe for legacy string entries in the image store on boot.
@@ -329,6 +330,11 @@ const classicAltersOn = (() => {
   return home?.altersBar?.enabled === true;
 })();
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
+// Desktop width with "Show on wide screens" on: the classic layout hosts
+// the phone's bars beside its sidebar instead of hiding them. Per device —
+// ui_v2 is a look field that never syncs (src/lib/syncLook.js).
+const isWide = useIsWide();
+const wideBars = !!classicBars && isWide && classicBars.wide === true;
 const classicBarsOn = !!classicBars && (classicBars.top || classicBars.bottom || (classicBars.alters && classicAltersOn));
 // The --v2-* tokens are emitted in classic mode UNCONDITIONALLY (not just
 // when bars are hosted): the widget board is one swipe left of the classic
@@ -355,8 +361,18 @@ useEffect(() => {
     root.removeAttribute("data-ui-v2");
     root.removeAttribute("data-classic-v2-bars");
     root.removeAttribute("data-classic-v2-top");
+    root.removeAttribute("data-classic-v2-wide");
+    root.removeAttribute("data-v2-bstyle");
+    root.removeAttribute("data-v2-hstyle");
     return undefined;
   }
+  // Body / heading style flags (Text & layout sheet) apply in BOTH modes —
+  // the sheet edits the classic home too, and a flag that did nothing there
+  // read as broken (owner report). Only set while a flag is picked.
+  const bstyle = uiV2.tokens.bodyStyle?.length ? uiV2.tokens.bodyStyle.join(" ") : "";
+  const hstyle = uiV2.tokens.headerStyle?.length ? uiV2.tokens.headerStyle.join(" ") : "";
+  if (bstyle) root.setAttribute("data-v2-bstyle", bstyle); else root.removeAttribute("data-v2-bstyle");
+  if (hstyle) root.setAttribute("data-v2-hstyle", hstyle); else root.removeAttribute("data-v2-hstyle");
   // Classic mode: emit ONLY the --v2-* namespace so the bars and the
   // swipe-left board can render, and none of the app-skinning writes
   // below — the classic app must not visibly re-skin (radius, primary
@@ -369,6 +385,9 @@ useEffect(() => {
     else root.removeAttribute("data-classic-v2-bars");
     if (classicBars?.top) root.setAttribute("data-classic-v2-top", "1");
     else root.removeAttribute("data-classic-v2-top");
+    // Desktop-width bars: content clearance + the sidebar offset they sit beside.
+    if (wideBars) root.setAttribute("data-classic-v2-wide", "1");
+    else root.removeAttribute("data-classic-v2-wide");
     const applied = [];
     for (const [k, v] of Object.entries(uiV2Vars)) {
       if (!k.startsWith("--v2-")) continue;
@@ -378,6 +397,7 @@ useEffect(() => {
     return () => {
       root.removeAttribute("data-classic-v2-bars");
       root.removeAttribute("data-classic-v2-top");
+      root.removeAttribute("data-classic-v2-wide");
       for (const k of applied) root.style.removeProperty(k);
     };
   }
@@ -415,7 +435,7 @@ useEffect(() => {
     // Give primary back to the theme when the highlight (or v2) goes away.
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
-}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom]);
+}, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom, wideBars, uiV2.tokens.bodyStyle, uiV2.tokens.headerStyle]);
   // The desktop sidebar is sticky under the top chrome, and its offset
   // used to be a hardcoded 4rem — the CLASSIC header's height. With the
   // v2 top bar that chrome is 49px, and a sticky element is clamped to
@@ -943,55 +963,10 @@ const handleNotifClick = (mentionLog) => {
             </button>
           </div>
           <nav className="px-2 pb-4 space-y-4" aria-label="Sidebar navigation">
-            {[
-              {
-                label: terms.System,
-                items: [
-                  { id: "alters",   label: terms.Alters,           icon: Users,       path: "/Home" },
-                  { id: "presences",label: "New Presences",        icon: Sparkles,    path: "/presences" },
-                  { id: "groups",   label: "Groups",               icon: Users,       path: "/groups" },
-                  { id: "system-history", label: `${terms.System} History`, icon: GitMerge, path: "/system-history" },
-                  { id: "settings", label: "Settings",             icon: Settings,    path: "/settings" },
-                ],
-              },
-              {
-                label: "Tracking",
-                items: [
-                  { id: "checkin-log",     label: "Check-In Log",           icon: Heart,       path: "/checkin-log" },
-                  { id: "activities",      label: "Activities",             icon: Zap,         path: "/activities" },
-                  { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare, path: "/tasks" },
-                  { id: "todo",            label: "To-Do List",             icon: ClipboardList,path: "/todo" },
-                  { id: "sleep",           label: "Sleep",                  icon: Activity,    path: "/sleep" },
-                  { id: "location-history",label: "Locations",              icon: MapPin,      path: "/location-history" },
-                  { id: "timeline",        label: "Timeline",               icon: Clock,       path: "/timeline" },
-                ],
-              },
-              {
-                label: "Journal & Content",
-                items: [
-                  { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
-                  { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
-                  { id: "checkin",  label: `${terms.System} Meeting`, icon: Sparkles, path: "/system-checkin" },
-                  { id: "friends",  label: "Friends",  icon: UserRound, path: "/friends" },
-                ],
-              },
-              {
-                label: "Tools",
-                items: [
-                  { id: "reminders",      label: "Reminders",       icon: Bell,     path: "/reminders" },
-                  { id: "therapy-report", label: "Therapy Report",  icon: FileText, path: "/therapy-report" },
-                  { id: "support",        label: "Support & Learn", icon: BookOpen, path: "/grounding" },
-                  { id: "safety-plan",    label: "Safety Plan",     icon: Shield,   path: "/safety-plan" },
-                ],
-              },
-              {
-                label: "Analytics",
-                items: [
-                  { id: "analytics",      label: "Analytics",              icon: BarChart2, path: "/analytics" },
-                  { id: "system-map",     label: `${terms.System} Map`,    icon: GitBranch, path: "/system-map" },
-                ],
-              },
-            ].map(({ label, items }) => (
+            {/* One list for both sidebars: buildSidebarGroups is the phone
+                drawer's source too, so a page added there is reachable here
+                (a second hard-coded copy here was missing 8 pages). */}
+            {applySidebarConfig(buildSidebarGroups(terms.Alters, terms.System), navConfig?.sidebar).map(({ label, items }) => (
               <div key={label}>
                 <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
                   {label}
@@ -1096,7 +1071,7 @@ const handleNotifClick = (mentionLog) => {
           widths only (classic desktop keeps its sidebar; display:none on
           this wrapper hides the fixed children too). The classic tab bar
           is hidden via [data-classic-v2-bars] in index.css. */}
-      {classicBars?.bottom && (
+      {classicBars?.bottom && !wideBars && (
         <div className="lg:hidden">
           <V2BottomChrome
             uiV2={{
@@ -1107,10 +1082,32 @@ const handleNotifClick = (mentionLog) => {
           />
         </div>
       )}
-      {classicBars?.bottom && classicBars.actions && (
+      {classicBars?.bottom && classicBars.actions && !wideBars && (
         <div className="lg:hidden">
           <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
         </div>
+      )}
+
+      {/* Desktop width, "Show on wide screens" on: the SAME chrome, beside
+          the sidebar. Each bar follows its own switch here (the tab bar is
+          optional — the sidebar already navigates), and each keeps its own
+          display mode: quick actions as a bar, floating edge bar or bubble;
+          the {alters} bar docked top/bottom, as a vertical rail left/right,
+          or a bubble. Mounted INSTEAD of the phone-width instance, never
+          alongside it — two instances would both answer the alters-bar
+          toggle event (cancelling out) and both publish the bar height. */}
+      {wideBars && (classicBars.bottom || classicBars.actions || classicBars.alters) && (
+        <V2BottomChrome
+          uiV2={{
+            ...uiV2,
+            bars: { ...uiV2.bars, tabs: classicBars.bottom, rail: false, actions: uiV2.bars.actions && classicBars.actions },
+          }}
+          settingsRow={settings0}
+          insetLeft="var(--os-classic-sidebar-w, 0px)"
+        />
+      )}
+      {wideBars && classicBars.actions && (
+        <V2QuickDock uiV2={{ ...uiV2, bars: { ...uiV2.bars, rail: false } }} settingsRow={settings0} />
       )}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}

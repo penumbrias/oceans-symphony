@@ -15,7 +15,21 @@ import React, { useRef, useState, useEffect } from "react";
 const MIN = 40;
 
 export default function MapImageNode({ image, isSelected, selectable = true, locked = false, zoom = 1, onSelect, onUpdate, onEdit, onInteractStart }) {
-  const { x = 0, y = 0, width = 320, height = 220, opacity = 1, rotation = 0, image_url } = image;
+  const { x: px = 0, y: py = 0, width: pw = 320, height: ph = 220, opacity = 1, rotation = 0, image_url } = image;
+
+  // Drag/resize are staged locally and written ONCE on release. Every
+  // pointer-move used to call onUpdate → an IndexedDB write (and a full
+  // re-encrypt when the vault is locked) per pixel.
+  const [live, setLive] = useState(null);
+  const liveRef = useRef(null);
+  const stage = (fields) => { liveRef.current = { ...(liveRef.current || {}), ...fields }; setLive(liveRef.current); };
+  const commitLive = () => {
+    const pending = liveRef.current;
+    liveRef.current = null;
+    setLive(null);
+    if (pending) onUpdate(pending);
+  };
+  const x = live?.x ?? px, y = live?.y ?? py, width = live?.width ?? pw, height = live?.height ?? ph;
   const [resolvedUrl, setResolvedUrl] = useState(image_url || null);
   const dragStart = useRef(null);
 
@@ -40,9 +54,10 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragStart.current.moved = true;
-      if (!locked) onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+      if (!locked) stage({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
     const onUp = () => {
+      commitLive();
       if (dragStart.current && !dragStart.current.moved) maybeSelect();
       dragStart.current = null;
       window.removeEventListener("mousemove", onMove);
@@ -65,11 +80,12 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
     const dx = (t.clientX - dragStart.current.mx) / zoom;
     const dy = (t.clientY - dragStart.current.my) / zoom;
     if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragStart.current.moved = true;
-    if (!locked) onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+    if (!locked) stage({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
   };
   const handleTouchEnd = (e) => {
     if (!dragStart.current) return;
     e.stopPropagation();
+    commitLive();
     if (!dragStart.current.moved && Date.now() - dragStart.current.time < 500) maybeSelect();
     dragStart.current = null;
   };
@@ -77,8 +93,8 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
   const handleResizeDown = (e) => {
     e.stopPropagation();
     const sx = e.clientX, sy = e.clientY, sw = width, sh = height;
-    const onMove = (ev) => onUpdate({ width: Math.max(MIN, sw + (ev.clientX - sx) / zoom), height: Math.max(MIN, sh + (ev.clientY - sy) / zoom) });
-    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    const onMove = (ev) => stage({ width: Math.max(MIN, sw + (ev.clientX - sx) / zoom), height: Math.max(MIN, sh + (ev.clientY - sy) / zoom) });
+    const onUp = () => { commitLive(); window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
@@ -86,8 +102,8 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
     e.stopPropagation();
     const t = e.touches[0];
     const sx = t.clientX, sy = t.clientY, sw = width, sh = height;
-    const onMove = (ev) => onUpdate({ width: Math.max(MIN, sw + (ev.touches[0].clientX - sx) / zoom), height: Math.max(MIN, sh + (ev.touches[0].clientY - sy) / zoom) });
-    const onUp = () => { window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp); };
+    const onMove = (ev) => stage({ width: Math.max(MIN, sw + (ev.touches[0].clientX - sx) / zoom), height: Math.max(MIN, sh + (ev.touches[0].clientY - sy) / zoom) });
+    const onUp = () => { commitLive(); window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp); };
     window.addEventListener("touchmove", onMove);
     window.addEventListener("touchend", onUp);
   };

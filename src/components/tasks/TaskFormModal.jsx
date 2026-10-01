@@ -9,12 +9,9 @@ import { Loader2, Pin, Zap } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions } from "@/lib/mentionUtils";
-import { applyWhisper } from "@/lib/whisperUtils";
-import { applyLogCommands } from "@/lib/logCommands";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { useTerms } from "@/lib/useTerms";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { format } from "date-fns";
 
 const PRIORITIES = [
   { id: "low",    label: "Low",    cls: "border-blue-500/40 text-blue-500 bg-blue-500/10" },
@@ -79,7 +76,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     }
     // Keyed on id, not the object — a tasks invalidation mid-edit used to
     // reset every field to the stored record.
-  }, [editingTask?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingTask?.id, open]);  
 
   const savingRef = useRef(false); // synchronous re-entry guard vs duplicate tasks
   const handleSubmit = async (e) => {
@@ -92,20 +89,20 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
 
     savingRef.current = true;
     try {
-    // Run inline ~commands first (each becomes a chip), then whisper handling.
-    const lc = await applyLogCommands(formData.description || "", { isRich: false });
-    // A "/w @name [secret]" in the description hides that part behind a
-    // whisper bar (no brackets warns first — a task is a personal record,
-    // not a post). Done before setLoading so a "go back" leaves the form be.
-    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "task" });
-    if (w === null) return;
-    const description = w.content;
+    // ONE pipeline for the description: ~commands, whispers, signposts,
+    // @mentions. Done before setLoading so a "go back" leaves the form be.
+    let prepared;
+    try { prepared = await prepareAuthoredText(formData.description || "", { alters, terms, surfaceLabel: "task" }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const description = prepared.content;
 
     setLoading(true);
     try {
       const data = {
         ...formData,
         description,
+        author_alter_ids: prepared.authorIds,
         parent_task_id: parentTaskId || null,
         goal_target: formData.goal_target ? parseInt(formData.goal_target) : null,
         // Normalise empty strings to nulls so filters that look for
@@ -153,31 +150,17 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         toast.success(res.planned ? "Added — and it's on your plan" : "Task created!");
       }
 
-      const fullContent = [formData.title, description].filter(Boolean).join(" ");
-      await saveMentions({
-        content: fullContent,
+      // The title takes part in the @mention scan too.
+      const taskId = savedTask?.id || editingTask?.id || "";
+      await recordAuthoredText({
+        ...prepared,
+        content: [formData.title, description].filter(Boolean).join(" "),
         alters,
         sourceType: "task",
-        sourceId: savedTask?.id || editingTask?.id || "",
+        sourceId: taskId,
         sourceLabel: "To-Do List",
-        navigatePath: "/todo",
+        navigatePath: taskId ? `/todo?highlight=${taskId}` : "/todo",
       });
-      // Whisper recipients are peeled off the description — notify them.
-      for (const rid of (w.recipientIds || [])) {
-        try {
-          await base44.entities.MentionLog.create({
-            mentioned_alter_id: rid,
-            author_alter_id: null,
-            log_type: "mention",
-            source_type: "task",
-            source_id: savedTask?.id || editingTask?.id || "",
-            source_label: "To-Do List (whisper)",
-            source_date: new Date().toISOString(),
-            preview_text: "🔒 private whisper",
-            navigate_path: "/todo",
-          });
-        } catch { /* best-effort */ }
-      }
 
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       // Scheduling a to-do creates/updates its linked PLAN (an Activity)
@@ -219,6 +202,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
               value={formData.description}
               onChange={(val) => setFormData({ ...formData, description: val })}
               alters={alters}
+              signposts
               placeholder={`Add details… @ to mention, /w @name [secret] to whisper`}
               rows={3}
             />

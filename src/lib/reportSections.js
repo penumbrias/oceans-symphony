@@ -1,7 +1,7 @@
 // reportSections.js — data extraction and formatting for each report section
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
-import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import { format, differenceInMinutes, parseISO } from "date-fns";
 import { effectiveSeverity, isContextItem, deriveDirection } from "./trackingModel";
 import {
   computeSymptomBaseline,
@@ -493,7 +493,7 @@ export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) 
 export function buildPatternsSummary({
   systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData,
   sessions = [], alters = [], symptomCheckIns = [], symptoms = [], emotionCheckIns = [],
-  sleepLogs = [],
+  sleepLogs = [], includeAlterInfo = true,
 }) {
   // Clinician summary (Phase 5): computed by the same engine as the
   // Analytics page, so report numbers == page numbers. Prepended as plain
@@ -540,8 +540,11 @@ export function buildPatternsSummary({
   try {
     const fromMs = new Date(dateFrom).setHours(0, 0, 0, 0);
     const toMs = new Date(dateTo).setHours(23, 59, 59, 999);
+    // Anonymized reports get no name map at all, so the narrative's
+    // "Most active fronters: …" line (and anything else keyed by name)
+    // drops out instead of leaking names past the anonymize switch.
     const altersById = {};
-    alters.forEach(a => { altersById[a.id] = a; });
+    if (includeAlterInfo) alters.forEach(a => { altersById[a.id] = a; });
 
     const baseline = computeSymptomBaseline(symptomCheckIns, symptoms);
     const narrativeParagraphs = generateWeeklyNarrative({

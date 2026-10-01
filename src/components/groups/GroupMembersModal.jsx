@@ -57,15 +57,19 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
   });
 
   // Get all group IDs including subgroups if needed
-  const getGroupIds = (groupId, includeSubgroups) => {
+  const getGroupIds = (groupId, includeSubgroups, seen = new Set()) => {
     if (!includeSubgroups) return [groupId];
+    // Cycle guard: a parent loop (A→B→A) used to overflow the stack the
+    // moment "Include alters from subgroups" was ticked.
+    if (seen.has(groupId)) return [];
+    seen.add(groupId);
     const ids = [groupId];
     // Check both parent === groupId and parent === sp_id of groupId
     const currentGroup = allGroups.find((g) => g.id === groupId);
     const parentMatch = currentGroup?.sp_id || groupId;
     const subgroups = allGroups.filter((g) => g.parent === groupId || g.parent === parentMatch);
     subgroups.forEach((sg) => {
-      ids.push(...getGroupIds(sg.id, true));
+      ids.push(...getGroupIds(sg.id, true, seen));
     });
     return ids;
   };

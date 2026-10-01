@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import { ArrowLeft, ArrowRight, Star, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
+import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 const LS_STEP_MODE = "symphony_grounding_step_mode";
 
@@ -27,6 +32,7 @@ export default function GuidedTechniqueView({
   onSaveNote,
   onToggleFavorite,
 }) {
+  const terms = useTerms();
   const [stepMode, setStepMode] = useState(() => {
     try { return localStorage.getItem(LS_STEP_MODE) || "one"; } catch { return "one"; }
   });
@@ -113,8 +119,19 @@ export default function GuidedTechniqueView({
     onRate?.(technique, r, selectedAlterId);
   };
 
-  const handleSaveNote = () => {
-    onSaveNote?.(technique, note, selectedAlterId);
+  // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+  // The "Saving as" alter signs it unless a signpost says otherwise.
+  const handleSaveNote = async () => {
+    let prepared;
+    try { prepared = await prepareAuthoredText(note || "", { alters, terms, surfaceLabel: "technique note", baseAuthorIds: selectedAlterId ? [selectedAlterId] : [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const signposted = parseSignpostAuthors(note || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
+    const alterId = signposted ? (prepared.authorIds[0] || null) : selectedAlterId;
+    if (signposted) setSelectedAlterId(alterId);
+    setNote(prepared.content);
+    await onSaveNote?.(technique, prepared.content, alterId);
+    await recordAuthoredText({ ...prepared, alters, sourceType: "technique", sourceId: technique?.id || "", sourceLabel: technique?.name ? `Note on ${technique.name}` : "Technique note", navigatePath: "/grounding" });
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 2000);
   };
@@ -251,9 +268,11 @@ export default function GuidedTechniqueView({
           </div>
 
           <div>
-            <textarea
+            <MentionTextarea
               value={note}
-              onChange={e => setNote(e.target.value)}
+              onChange={setNote}
+              alters={alters}
+              signposts
               placeholder="Optional: add a personal note about this technique..."
               rows={2}
               className="w-full text-sm px-3 py-2 rounded-xl border border-border bg-background resize-none text-foreground placeholder:text-muted-foreground"

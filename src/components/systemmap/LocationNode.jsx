@@ -9,7 +9,21 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const tapRef = useRef({ time: 0, timer: null });
   const longPressRef = useRef(null);
 
-  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked, opacity = 1, rotation = 0 } = location;
+  const { x: px, y: py, width: pw = 200, height: ph = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked, opacity = 1, rotation = 0 } = location;
+
+  // Drag/resize are staged locally and written ONCE on release. Every
+  // pointer-move used to call onUpdate → an IndexedDB write (and a full
+  // re-encrypt when the vault is locked) per pixel.
+  const [live, setLive] = useState(null);
+  const liveRef = useRef(null);
+  const stage = (fields) => { liveRef.current = { ...(liveRef.current || {}), ...fields }; setLive(liveRef.current); };
+  const commitLive = () => {
+    const pending = liveRef.current;
+    liveRef.current = null;
+    setLive(null);
+    if (pending) onUpdate(pending);
+  };
+  const x = live?.x ?? px, y = live?.y ?? py, width = live?.width ?? pw, height = live?.height ?? ph;
 
   const [resolvedBgUrl, setResolvedBgUrl] = useState(background_image_url || null);
   useEffect(() => {
@@ -66,9 +80,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         clearTimeout(longPressRef.current);
         setPressingId(false);
       }
-      onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+      stage({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
     const onUp = () => {
+      commitLive();
       clearTimeout(longPressRef.current);
       setPressingId(false);
       if (dragStart.current && !dragStart.current.moved) fireTap();
@@ -113,13 +128,14 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       setPressingId(false);
     }
     if (!viewOnly) {
-      onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+      stage({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     }
   };
 
   const handleTouchEnd = (e) => {
     if (!dragStart.current) return;
     e.stopPropagation();
+    commitLive();
     clearTimeout(longPressRef.current);
     setPressingId(false);
     const elapsed = Date.now() - dragStart.current.startTime;
@@ -142,9 +158,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     const onMove = (ev) => {
       const dw = (ev.clientX - startMx) / zoom;
       const dh = (ev.clientY - startMy) / zoom;
-      onUpdate({ width: Math.max(MIN_SIZE, startW + dw), height: Math.max(MIN_SIZE, startH + dh) });
+      stage({ width: Math.max(MIN_SIZE, startW + dw), height: Math.max(MIN_SIZE, startH + dh) });
     };
     const onUp = () => {
+      commitLive();
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -166,9 +183,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     const onMove = (ev) => {
       const dw = (ev.touches[0].clientX - startMx) / zoom;
       const dh = (ev.touches[0].clientY - startMy) / zoom;
-      onUpdate({ width: Math.max(MIN_SIZE, startW + dw), height: Math.max(MIN_SIZE, startH + dh) });
+      stage({ width: Math.max(MIN_SIZE, startW + dw), height: Math.max(MIN_SIZE, startH + dh) });
     };
     const onUp = () => {
+      commitLive();
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onUp);
     };

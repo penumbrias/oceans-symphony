@@ -17,6 +17,10 @@ import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { formatSeverityForSymptom } from "@/lib/trackingModel";
+import { useTerms } from "@/lib/useTerms";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 // Long-press / double-click helper for re-opening a check-in in the
 // Quick Check-In modal so the user can fix mistakes after the fact.
@@ -240,8 +244,16 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   const [noteDraft, setNoteDraft] = useState(note || "");
   const [savingNote, setSavingNote] = useState(false);
   useEffect(() => { setNoteDraft(note || ""); }, [note]);
+  const noteTerms = useTerms();
+  const noteAlters = useMemo(() => Object.values(altersById || {}), [altersById]);
   const handleSaveNote = async () => {
-    const next = noteDraft.trim();
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
+    let prepared;
+    try { prepared = await prepareAuthoredText(noteDraft || "", { alters: noteAlters, terms: noteTerms, surfaceLabel: "check-in note", baseAuthorIds: checkIn.fronting_alter_ids || [] }); }
+    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+    if (prepared === null) return;
+    const signposted = parseSignpostAuthors(noteDraft || "", noteAlters, noteTerms?.system ? [noteTerms.system] : undefined).length > 0;
+    const next = prepared.content.trim();
     setSavingNote(true);
     try {
       // Mirror the QuickCheckInModal create-path: long notes go in a
@@ -282,7 +294,12 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
       await base44.entities.EmotionCheckIn.update(checkIn.id, {
         note: noteForCheckIn,
         journal_entry_id: journalEntryId,
+        author_alter_ids: prepared.authorIds,
+        ...(signposted ? { fronting_alter_ids: prepared.authorIds } : {}),
       });
+      if (next) {
+        await recordAuthoredText({ ...prepared, alters: noteAlters, sourceType: "checkin", sourceId: checkIn.id, sourceLabel: "Check-in note", navigatePath: `/checkin-log?date=${format(ts, "yyyy-MM-dd")}` });
+      }
       queryClientForNote.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       queryClientForNote.invalidateQueries({ queryKey: ["journalEntry", journalEntryId] });
       queryClientForNote.invalidateQueries({ queryKey: ["journalEntries"] });
@@ -448,10 +465,12 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
           the editor when no note exists yet (a small + button). */}
       {editingNote ? (
         <div className="space-y-1.5">
-          <textarea
+          <MentionTextarea
             autoFocus
             value={noteDraft}
-            onChange={(e) => setNoteDraft(e.target.value)}
+            onChange={setNoteDraft}
+            alters={noteAlters}
+            signposts
             onKeyDown={(e) => {
               if (e.key === "Escape") { setNoteDraft(note || ""); setEditingNote(false); }
             }}

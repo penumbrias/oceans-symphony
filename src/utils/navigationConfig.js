@@ -83,3 +83,34 @@ export const DEFAULT_CONFIG = {
   // list).
   dashboardGridRemoved: ["bulletins"], // pages explicitly removed by the user — never auto-re-added
 };
+
+// ── Sidebar customization ──────────────────────────────────────────────
+// navigation_config.sidebar = { hidden: [pageId], order: [pageId] }.
+// The sidebar keeps its groups (System / Tracking / …); the user hides
+// pages and reorders them within their group. Read by BOTH the desktop
+// sidebar and the phone drawer. navigation_config is a per-device look
+// field (src/lib/syncLook.js), so the desktop and phone can differ.
+export function applySidebarConfig(groups, sidebarCfg) {
+  const hidden = new Set(Array.isArray(sidebarCfg?.hidden) ? sidebarCfg.hidden : []);
+  const order = Array.isArray(sidebarCfg?.order) ? sidebarCfg.order : [];
+  const rank = (id, fallback) => {
+    const i = order.indexOf(id);
+    return i >= 0 ? i : order.length + fallback;
+  };
+  return (groups || [])
+    .map((g) => ({
+      ...g,
+      items: (g.items || [])
+        .map((item, i) => ({ item, r: rank(item.id, i) }))
+        .filter(({ item }) => !hidden.has(item.id))
+        .sort((a, b) => a.r - b.r)
+        .map(({ item }) => item),
+    }))
+    .filter((g) => g.items.length > 0);
+}
+
+// Every group with ALL its items in the user's order (hidden ones kept, so
+// the editor can show them unticked in place).
+export function orderSidebarGroups(groups, sidebarCfg) {
+  return applySidebarConfig(groups, { order: sidebarCfg?.order || [] });
+}

@@ -210,7 +210,7 @@ export default function HelpMeUnblend() {
     setScores(baseline);
     // Re-seeding when alters or sessions change is fine — the user
     // hasn't answered anything yet at first paint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [alters.length, sessions.length]);
 
   const isExhausted = allQuestions.length > 0 && answeredIds.size >= allQuestions.length;

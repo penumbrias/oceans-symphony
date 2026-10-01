@@ -10,6 +10,9 @@ import CreateRelationshipModal from "@/components/systemmap/CreateRelationshipMo
 import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { toast } from "sonner";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 
 // Small avatar that resolves legacy local-image:// URLs (a raw <img src> on
 // those renders broken). Mirrors AlterAvatar in RelationshipsPanel.jsx.
@@ -60,7 +63,7 @@ function GroupedTypeOptions({ types }) {
 
 // Edit modal — mirrors EditRelationshipModal in RelationshipsPanel.jsx (that
 // one is not exported, so the pattern is reproduced here).
-function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
+function EditRelationshipModal({ rel, alterMap, alters = [], onSave, onClose }) {
   const [direction, setDirection] = useState(rel.direction);
   const [relType, setRelType] = useState(rel.relationship_type);
   const [color, setColor] = useState(rel.color || "#6b7280");
@@ -134,7 +137,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Notes</p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+          <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts rows={2}
             className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
         </div>
         <div className="flex gap-2">
@@ -198,14 +201,29 @@ export default function RelationshipsTab({ alter, alters }) {
     queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
   };
 
+  // Relationship notes render as plain text, so ~commands become "icon label"
+  // tokens rather than HTML chips.
+  const prepareNotes = async (notes) => {
+    try {
+      return await prepareAuthoredText(notes || "", { alters: allAlters, terms: t, surfaceLabel: "relationship note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+  };
+  const navigatePath = `/alter/${alter.id}?tab=relationships`;
+
   const handleSaveNew = async (data) => {
-    await base44.entities.AlterRelationship.create(data);
+    const prepared = await prepareNotes(data.notes);
+    if (prepared === null) return; // malformed command or user backed out of the whisper warning
+    const row = await base44.entities.AlterRelationship.create({ ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters: allAlters, sourceType: "relationship", sourceId: row.id, sourceLabel: "Relationship note", navigatePath });
     invalidate();
     setCreating(false);
   };
 
   const handleSaveEdit = async (data) => {
-    await base44.entities.AlterRelationship.update(editingRel.id, data);
+    const prepared = await prepareNotes(data.notes);
+    if (prepared === null) return;
+    await base44.entities.AlterRelationship.update(editingRel.id, { ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
+    await recordAuthoredText({ ...prepared, alters: allAlters, sourceType: "relationship", sourceId: editingRel.id, sourceLabel: "Relationship note", navigatePath });
     invalidate();
     setEditingRel(null);
   };
@@ -318,6 +336,7 @@ export default function RelationshipsTab({ alter, alters }) {
         <EditRelationshipModal
           rel={editingRel}
           alterMap={alterMap}
+          alters={allAlters}
           onSave={handleSaveEdit}
           onClose={() => setEditingRel(null)}
         />

@@ -171,7 +171,13 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     const groupById = Object.fromEntries(allGroups.map((g) => [g.id, g]));
     for (const id of selectedGroupIds) {
       let g = groupById[id];
+      // Cycle guard: a looping parent chain (possible from imports — the
+      // editor blocks it, groupTree.js tolerates it) used to spin this
+      // loop forever and freeze the app the moment the picker opened.
+      const seen = new Set();
       while (g && g.parent && g.parent !== "root" && g.parent !== "") {
+        if (seen.has(g.id)) break;
+        seen.add(g.id);
         const parentGroup = allGroups.find(x => x.id === g.parent || x.sp_id === g.parent);
         if (!parentGroup) break;
         ancestors.add(parentGroup.id);

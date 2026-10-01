@@ -3,6 +3,8 @@
 // Falls back to migrating existing localStorage data on first run.
 
 import { openDB } from 'idb';
+import { FIELD_TIMES, stampCreate, stampUpdate, stampDiff, mergeRecordFields, mergeForEntity, mergeFrontingSession, LEGACY_UNTIMED, overwrittenFields, stampChosenVersion, mergeDailyProgress, dailyProgressPeriod, pickDailyProgressKeeper } from "./syncMerge";
+import { pickPrimarySystemSettings } from "./systemSettingsSingleton";
 import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
@@ -407,7 +409,7 @@ const HISTORY_BUCKET_OF = (entityName) => {
     "FrontingSession"].includes(entityName)) return "tracking";
   return "other";
 };
-const HISTORY_CAPS = { alters: 50, content: 50, tracking: 50, layout: 15, other: 30 };
+const HISTORY_CAPS = { alters: 50, content: 50, tracking: 50, layout: 15, other: 30, sync: 60 };
 // Coalescing window for repeated edits of the same thing — a drag session
 // on the home screen or a bio being typed shouldn't write 50 snapshots.
 const HISTORY_COALESCE_MS = 10 * 60 * 1000;
@@ -419,6 +421,13 @@ const HISTORY_LAYOUT_FIELDS = [
 
 function historyLabelFor(entityName, record) {
   const s = (v) => (typeof v === "string" ? v.trim() : "");
+  if (entityName === "FrontingSession") {
+    // "Name · 27 Sep 14:05" — a session has no text of its own worth showing
+    // (its note field is a JSON array).
+    const alter = _db?.Alter?.[record?.alter_id || record?.primary_alter_id];
+    const when = record?.start_time ? new Date(record.start_time).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    return [s(alter?.name), when].filter(Boolean).join(" · ") || record?.id || "";
+  }
   const text = s(record?.name) || s(record?.title) || s(record?.activity_name)
     || s(record?.note) || s(record?.content) || s(record?.question) || "";
   const plain = text.replace(/<[^>]*>/g, "").slice(0, 60);
@@ -473,6 +482,24 @@ function recordHistoryDeletion(entityName, record) {
     record_id: record.id,
     label: historyLabelFor(entityName, record),
     snapshot: record,
+  });
+}
+
+// A sync / import merge replaced or cleared something this device had:
+// keep the version from before so Recent changes can put it back (audit
+// F10 — merges used to leave no trace at all). Own bucket, so a big sync
+// can't flush the user's real edit history.
+function recordSyncOverwrite(entityName, before, after) {
+  if (!before || HISTORY_SKIP.has(entityName) || entityName === "DailyProgress") return;
+  const fields = overwrittenFields(entityName, before, after);
+  if (!fields.length) return;
+  recordHistoryEvent({
+    category: "sync",
+    action: "synced",
+    entity: entityName,
+    record_id: before.id,
+    label: historyLabelFor(entityName, before),
+    snapshot: before,
   });
 }
 
@@ -569,7 +596,14 @@ export async function withBatch(fn) {
   }
 }
 
+// Bumped on every write (entity writes, merges, imports). Device sync
+// compares it to the revision at its last pass to tell whether THIS device
+// has anything new to publish (sync audit F13).
+let _localRevision = 0;
+export function getLocalRevision() { return _localRevision; }
+
 function saveDb() {
+  _localRevision++;
   if (_batchDepth > 0) { _batchDirty = true; return Promise.resolve(); }
   return _saveDbNow();
 }
@@ -991,7 +1025,7 @@ export function createLocalDbEntities() {
         create: async (data) => {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
-          const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL };
+          const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
           col[record.id] = record;
           await saveDb();
           emit(entityName, { type: 'create', id: record.id, data: record });
@@ -1001,7 +1035,9 @@ export function createLocalDbEntities() {
           const col = getCollection(entityName);
           if (!col[id]) throw new Error(`Record ${id} not found in ${entityName}`);
           recordHistoryUpdate(entityName, col[id], data);
-          col[id] = { ...col[id], ...data, updated_date: new Date().toISOString() };
+          const now = new Date().toISOString();
+          // Per-field change times (syncMerge.js): sync merges field by field.
+          col[id] = { ...col[id], ...data, updated_date: now, [FIELD_TIMES]: stampUpdate(col[id], data, now, { legacyUntimed: LEGACY_UNTIMED.has(entityName) }) };
           await saveDb();
           emit(entityName, { type: 'update', id, data: col[id] });
           return col[id];
@@ -1019,7 +1055,7 @@ export function createLocalDbEntities() {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
           const created = items.map(data => {
-            const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL };
+            const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
             col[record.id] = record;
             return record;
           });
@@ -1040,7 +1076,7 @@ export function createLocalDbEntities() {
           const missing = [];
           for (const { id, data } of patches || []) {
             if (!id || !col[id]) { missing.push(id); continue; }
-            col[id] = { ...col[id], ...data, updated_date: now };
+            col[id] = { ...col[id], ...data, updated_date: now, [FIELD_TIMES]: stampUpdate(col[id], data, now, { legacyUntimed: LEGACY_UNTIMED.has(entityName) }) };
             updated.push(col[id]);
           }
           if (updated.length) await saveDb();
@@ -1248,13 +1284,7 @@ export async function clearStoredData() {
 // imported value, so nothing the user has actively set is ever
 // clobbered. The imported record itself is dropped (its data has been
 // absorbed into the local record), keeping the singleton invariant.
-function isEmptyValue(v) {
-  if (v === undefined || v === null) return true;
-  if (typeof v === "string") return v.trim() === "";
-  if (Array.isArray(v)) return v.length === 0;
-  if (typeof v === "object") return Object.keys(v).length === 0;
-  return false;
-}
+// isEmptyValue lives in syncMerge.js (shared with the field-level merge).
 
 // Content identity for entities whose default/preset rows auto-seed with
 // fresh RANDOM ids on first use (symptom presets, grounding techniques,
@@ -1281,38 +1311,78 @@ const MERGE_CONTENT_KEYS = {
   ContactRelationshipType: (r) => String(r.label || "").trim().toLowerCase() || null,
 };
 
-// Entities whose "current state" flags must never be silently altered by an
-// Add-new import: FrontingSession's is_active / is_primary. If the local
-// system already has an active fronter, incoming active sessions come in as
-// HISTORICAL rows (is_active + is_primary flipped to false) so the user's
-// live front stays exactly as they left it. Without this, importing an
-// old / wrong backup silently reassigned who's fronting (tester report,
-// v0.86.7 → v0.86.8).
-function _hasActiveFrontingSession(existing) {
-  if (!existing || typeof existing !== "object") return false;
-  for (const row of Object.values(existing)) {
-    if (row && row.is_active === true) return true;
+// Presets seeded separately on two devices (task templates, symptoms,
+// grounding techniques, relationship types…) carry DIFFERENT ids for the
+// same thing. The content-key rule used to just drop the incoming row, so
+// everything the other device logged against ITS id — task ticks, symptom
+// sessions — pointed at nothing here (audit F8). Now the incoming id is
+// mapped to this device's id everywhere in the incoming data first; the
+// row then merges into the local one like any same-id record.
+function aliasContentKeyMatches(incoming) {
+  if (!incoming || typeof incoming !== "object") return incoming;
+  const aliases = new Map();
+  for (const [entityName, keyFn] of Object.entries(MERGE_CONTENT_KEYS)) {
+    const local = _db?.[entityName];
+    const inc = incoming[entityName];
+    if (!local || !inc || typeof inc !== "object") continue;
+    const localByKey = new Map();
+    for (const r of Object.values(local)) {
+      if (!r || typeof r !== "object") continue;
+      const k = keyFn(r);
+      if (!k) continue;
+      const cur = localByKey.get(k);
+      if (!cur || String(r.created_date || "") < String(cur.created_date || "")) localByKey.set(k, r);
+    }
+    for (const [id, r] of Object.entries(inc)) {
+      if (!r || typeof r !== "object" || local[id]) continue;
+      const match = localByKey.get(keyFn(r));
+      if (match && match.id !== id) aliases.set(id, match.id);
+    }
   }
-  return false;
+  if (!aliases.size) return incoming;
+  let json = JSON.stringify(incoming);
+  for (const [from, to] of aliases) json = json.split(from).join(to);
+  let out = JSON.parse(json);
+  for (const to of new Set(aliases.values())) out = dedupeIdInArrays(out, to);
+  return out;
 }
-function _sanitizeIncomingFrontingSessions(incomingRecords, existingRecords) {
-  if (!_hasActiveFrontingSession(existingRecords)) return incomingRecords;
-  const out = {};
-  for (const [id, record] of Object.entries(incomingRecords || {})) {
-    if (!record || typeof record !== "object") { out[id] = record; continue; }
-    if (record.is_active === true || record.is_primary === true) {
-      // Historical import — set end_time so the session isn't ambiguous.
-      out[id] = {
+
+// Fronting sessions (v0.245.x, sync audit F7).
+//   1. Sessions this device already has merge with mergeFrontingSession:
+//      an end made on either device is final (a switch on the desktop ends
+//      the old front here too); a still-running copy never un-ends one.
+//      A session is NEVER rewritten to end at its own start (the old
+//      sanitizer did that, turning a real front into 0 minutes).
+//   2. Sessions NEW to this device: if a front is still live here after
+//      step 1, incoming LIVE sessions arrive as history, never replacing
+//      the live front (tester report v0.86.7: an old backup reassigned
+//      who's fronting). Ended sessions arrive exactly as they are — their
+//      primary flag included.
+function mergeIncomingFrontingSessions(records, noteEditConflict) {
+  const col = _db.FrontingSession || (_db.FrontingSession = {});
+  const fresh = [];
+  for (const [id, record] of Object.entries(records || {})) {
+    if (!record || typeof record !== "object") continue;
+    const local = col[id];
+    if (!local) { fresh.push([id, record]); continue; }
+    noteEditConflict("FrontingSession", id, local, record);
+    col[id] = mergeFrontingSession(local, record);
+    recordSyncOverwrite("FrontingSession", local, col[id]);
+  }
+  const liveHere = Object.values(col).some((r) => r && r.is_active === true);
+  for (const [id, record] of fresh) {
+    if (liveHere && record.is_active === true) {
+      col[id] = {
         ...record,
         is_active: false,
         is_primary: false,
         end_time: record.end_time || record.start_time || new Date().toISOString(),
+        sync_demoted: true,
       };
     } else {
-      out[id] = record;
+      col[id] = record;
     }
   }
-  return out;
 }
 
 // Merge an incoming record into an existing SAME-ID local record.
@@ -1330,27 +1400,16 @@ function _sanitizeIncomingFrontingSessions(incomingRecords, existingRecords) {
 //   - id / created_date never change; updated_date takes the newer.
 // Exported for the merge test harness.
 export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) {
-  if (!incoming || typeof incoming !== "object") return local;
-  if (!local || typeof local !== "object") return incoming;
-  const localTime = Date.parse(local.updated_date || "") || 0;
-  const incomingTime = Date.parse(incoming.updated_date || "") || 0;
-  const incomingNewer = newerWins && incomingTime > localTime;
-  const out = { ...local };
-  let changed = false;
-  for (const [field, value] of Object.entries(incoming)) {
-    if (field === "id" || field === "created_date" || field === "updated_date") continue;
-    if (isEmptyValue(value)) continue;
-    if (incomingNewer || isEmptyValue(out[field])) {
-      if (out[field] !== value) { out[field] = value; changed = true; }
-    }
-  }
-  if (incomingNewer && changed) out.updated_date = incoming.updated_date;
-  return out;
+  // v0.245.0: decided FIELD BY FIELD from per-field change times, so a
+  // newer edit to one field never drags the other side's stale copy of
+  // every other field along, and a deliberate clear stays cleared. The
+  // rules (and the legacy-record fallbacks) are documented in syncMerge.js.
+  return mergeRecordFields(local, incoming, { newerWins });
 }
 
 // Fields ignored when deciding whether two versions of a record actually
 // differ (metadata that always differs harmlessly).
-const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by"]);
+const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by", FIELD_TIMES]);
 function recordsMateriallyDiffer(a, b) {
   const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
   for (const k of keys) {
@@ -1371,6 +1430,23 @@ export async function restoreRecord(entityName, record) {
   emit(entityName, { type: 'update', id: record.id, data: record });
 }
 
+// Apply the version the USER picked in a conflict review. Unlike
+// restoreRecord (which keeps the old timestamps, so the rejected version
+// won again on the very next sync — audit F9), every field that differs
+// from the rejected version is stamped now, and the replaced version is
+// kept in Recent changes.
+export async function applyChosenVersion(entityName, chosen, rejected) {
+  if (!chosen?.id) return;
+  if (!_db[entityName]) _db[entityName] = {};
+  const before = _db[entityName][chosen.id] || null;
+  const now = new Date().toISOString();
+  const record = { ...chosen, updated_date: now, [FIELD_TIMES]: stampChosenVersion(chosen, rejected, now) };
+  if (before) recordSyncOverwrite(entityName, before, record);
+  _db[entityName][chosen.id] = record;
+  await saveDb();
+  emit(entityName, { type: "update", id: chosen.id, data: record });
+}
+
 export async function deleteRecordRaw(entityName, id) {
   if (_db[entityName]?.[id] === undefined) return;
   delete _db[entityName][id];
@@ -1381,7 +1457,7 @@ export async function deleteRecordRaw(entityName, id) {
 
 export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
-  const sanitized = sanitizeIncomingDump(dump, options);
+  const sanitized = aliasContentKeyMatches(sanitizeIncomingDump(dump, options));
   const applyDeletions = options.applyDeletions === true;
   // Conflict collection (v0.95.4): every place the merge had to CHOOSE
   // between two real versions is recorded so the import UI can offer the
@@ -1418,13 +1494,32 @@ export async function mergeDbDump(dump, options = {}) {
     // The settings mirror is THIS device's state — a merge from another
     // device's file must not overwrite it (their look isn't ours).
     if (isReservedDbKey(entityName)) continue;
+    // The undo drawer is THIS device's history, and another device's
+    // tombstones only mean something when the user opted into deletion
+    // sync — merging them in silently made the NEXT merge delete rows.
+    if (entityName === "HistoryEvent") continue;
+    if (entityName === "DeletionLog" && !applyDeletions) continue;
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
 
-    // Guard the current-front state before anything is written.
-    const records = entityName === "FrontingSession"
-      ? _sanitizeIncomingFrontingSessions(incoming, _db[entityName])
-      : incoming;
+    const records = incoming;
+
+    // Fronting sessions: an END is a fact that syncs (mergeFrontingSession);
+    // a live front is never overridden by an incoming one — see
+    // mergeIncomingFrontingSessions.
+    if (entityName === "FrontingSession") {
+      mergeIncomingFrontingSessions(records, noteEditConflict);
+      continue;
+    }
+
+    // Task completions: one record per period. An incoming record folds
+    // into the local record for the SAME period (same id or not), merging
+    // the tick set task by task — see mergeDailyProgress. Never added as
+    // a second record for a period this device already has.
+    if (entityName === "DailyProgress") {
+      mergeIncomingDailyProgress(records);
+      continue;
+    }
 
     if (entityName === "SystemSettings") {
       const localIds = Object.keys(_db[entityName]);
@@ -1433,7 +1528,11 @@ export async function mergeDbDump(dump, options = {}) {
       // incoming row(s) into it field-by-field rather than adding a
       // second record alongside.
       if (localIds.length > 0 && incomingIds.length > 0) {
-        const targetId = localIds[0];
+        // Fold into the row the app actually READS (the same pick as
+        // pickPrimarySystemSettings over list() order), not whichever row
+        // happened to be inserted first — incoming settings used to land on
+        // a stub nobody read (sync audit F6).
+        const targetId = pickPrimarySystemSettings(sortRecords(Object.values(_db[entityName]), undefined))?.id || localIds[0];
         const before = { ..._db[entityName][targetId] };
         let target = { ...before };
         for (const incomingId of incomingIds) {
@@ -1455,9 +1554,10 @@ export async function mergeDbDump(dump, options = {}) {
           // system name/bio/terms edits silently lost on sync). The
           // singleton stays a single row; mergeExistingRecord keeps the
           // local value whenever it is the newer edit.
-          target = mergeExistingRecord(target, incoming);
+          target = mergeForEntity("SystemSettings", target, incoming);
         }
         _db[entityName][targetId] = target;
+        recordSyncOverwrite(entityName, before, target);
         // The fold is invisible when it rejects real differences — surface
         // them in the same conflict review the regular merge gets. The
         // incoming copy is re-keyed to the singleton's LOCAL id so choosing
@@ -1490,7 +1590,9 @@ export async function mergeDbDump(dump, options = {}) {
           if (_db[entityName][id]) {
             // Same id exists — update it in place (newer wins).
             noteEditConflict(entityName, id, _db[entityName][id], record);
-            _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+            const beforeMerge = _db[entityName][id];
+            _db[entityName][id] = mergeForEntity(entityName, beforeMerge, record);
+            recordSyncOverwrite(entityName, beforeMerge, _db[entityName][id]);
             continue;
           }
           const key = keyFn(record);
@@ -1514,21 +1616,14 @@ export async function mergeDbDump(dump, options = {}) {
           continue;
         }
         _db[entityName][id] = record;
-      } else if (entityName !== "FrontingSession") {
+      } else {
         // Same id exists locally — merge instead of skipping, so edits
         // made on another device (new avatar, changed role/tags/bio)
-        // actually arrive.
+        // actually arrive. Field by field (syncMerge.js).
         noteEditConflict(entityName, id, _db[entityName][id], record);
-        _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
-      } else if (_db[entityName][id].is_active !== true && record.is_active !== true) {
-        // FrontingSession (v0.95.3): CLOSED sessions now merge newer-wins
-        // so post-hoc edits (notes, per-member entries, trigger flags)
-        // made on another device arrive. Live state stays protected:
-        // any session that is active on EITHER side is left untouched
-        // (the active-session sanitizer above already demoted incoming
-        // actives when a local front is running).
-        noteEditConflict(entityName, id, _db[entityName][id], record);
-        _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+        const beforeMerge = _db[entityName][id];
+        _db[entityName][id] = mergeForEntity(entityName, beforeMerge, record);
+        recordSyncOverwrite(entityName, beforeMerge, _db[entityName][id]);
       }
     }
   }
@@ -1551,8 +1646,74 @@ export async function mergeDbDump(dump, options = {}) {
       }
     }
   }
+  // Same-period duplicates already on this device (a create race in older
+  // builds left pairs 14–80 ms apart) fold into one record, so every
+  // screen reads the same ticks.
+  consolidateDailyProgress();
   await saveDb();
   return { conflicts };
+}
+
+function dailyProgressPointsFor() {
+  const tpls = _db?.DailyTaskTemplate || {};
+  return (id) => Number(tpls[id]?.points) || 0;
+}
+
+function mergeIncomingDailyProgress(records) {
+  const col = _db.DailyProgress || (_db.DailyProgress = {});
+  const pointsFor = dailyProgressPointsFor();
+  const byPeriod = new Map();
+  for (const r of Object.values(col)) {
+    const k = r && typeof r === "object" ? dailyProgressPeriod(r) : null;
+    if (!k) continue;
+    const cur = byPeriod.get(k);
+    byPeriod.set(k, cur ? pickDailyProgressKeeper([cur, r]) : r);
+  }
+  for (const [id, record] of Object.entries(records || {})) {
+    if (!record || typeof record !== "object") continue;
+    const target = col[id] || byPeriod.get(dailyProgressPeriod(record)) || null;
+    if (!target) {
+      col[id] = record;
+      const k = dailyProgressPeriod(record);
+      if (k) byPeriod.set(k, record);
+      continue;
+    }
+    const merged = mergeDailyProgress(target, record, { pointsFor });
+    col[target.id] = merged;
+    const k = dailyProgressPeriod(merged);
+    if (k) byPeriod.set(k, merged);
+  }
+}
+
+// Fold every period's duplicates into its keeper (the same keeper on
+// every device — pickDailyProgressKeeper). No ticks are lost: the tick
+// sets merge. The extras are removed without a tombstone; the other
+// device folds its own copies the same way on its next merge.
+export function consolidateDailyProgress() {
+  const col = _db?.DailyProgress;
+  if (!col) return 0;
+  const groups = new Map();
+  for (const r of Object.values(col)) {
+    const k = r && typeof r === "object" ? dailyProgressPeriod(r) : null;
+    if (!k) continue;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  const pointsFor = dailyProgressPointsFor();
+  let folded = 0;
+  for (const recs of groups.values()) {
+    if (recs.length < 2) continue;
+    const keeper = pickDailyProgressKeeper(recs);
+    let merged = keeper;
+    for (const r of recs) {
+      if (r.id === keeper.id) continue;
+      merged = mergeDailyProgress(merged, r, { pointsFor });
+      delete col[r.id];
+      folded++;
+    }
+    col[keeper.id] = merged;
+  }
+  return folded;
 }
 
 // Recursively dedupe string arrays that ended up holding `id` more than once
@@ -1598,8 +1759,11 @@ export async function replaceIdReferences(oldId, newId, { skipEntities = [] } = 
       if (!rec || typeof rec !== "object") continue;
       const str = JSON.stringify(rec);
       if (!str.includes(oldId)) continue;
-      const replaced = JSON.parse(str.split(oldId).join(newId));
-      col[rid] = dedupeIdInArrays(replaced, newId);
+      const replaced = dedupeIdInArrays(JSON.parse(str.split(oldId).join(newId)), newId);
+      // A reference rewrite is an edit: stamp it, or the other device's
+      // older copy would win the next sync and put the old id back.
+      const now = new Date().toISOString();
+      col[rid] = { ...replaced, updated_date: now, [FIELD_TIMES]: stampDiff(rec, replaced, now) };
       changed++;
     }
   }

@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Target, AlertTriangle, ClipboardList, Bell, CheckSquare, Moon, MapPin, Sparkles } from "lucide-react";
-import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import {

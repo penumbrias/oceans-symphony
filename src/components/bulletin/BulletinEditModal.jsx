@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -100,14 +101,25 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
     if (!content.trim()) { toast.error("Bulletin can't be empty"); return; }
     setSaving(true);
     try {
-      const finalIds = systemAuthor ? [] : selectedAuthorIds;
+      // Same grammar as the composer: ~commands run, "/w" whispers peel their
+      // recipients, "-name"/"+name" signposts re-sign the post, @mentions notify.
+      let prepared;
+      try {
+        prepared = await prepareAuthoredText(content.trim(), {
+          alters: activeAlters, terms, rich: richMode, surfaceLabel: "bulletin",
+          baseAuthorIds: systemAuthor ? [] : selectedAuthorIds,
+        });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); setSaving(false); return; } throw e; }
+      if (prepared === null) { setSaving(false); return; }
+      const finalIds = systemAuthor && prepared.authorIds.length === 0 ? [] : prepared.authorIds;
       await base44.entities.Bulletin.update(bulletin.id, {
-        content: content.trim(),
+        content: prepared.content,
         author_alter_ids: finalIds,
-        author_alter_id: systemAuthor ? null : (finalIds[0] || null),
+        author_alter_id: finalIds[0] || null,
         // Carry the rich flag so formatting renders (and isn't stripped on edit).
         is_rich: richMode,
       });
+      await recordAuthoredText({ ...prepared, alters: activeAlters, sourceType: "bulletin", sourceId: bulletin.id, sourceLabel: "Bulletin", navigatePath: `/bulletin/${bulletin.id}` });
       qc.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success("Bulletin updated");
       onClose?.();
@@ -141,6 +153,7 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
               </div>
             </div>
             <MentionTextarea
+              signposts
               ref={textareaRef}
               value={content}
               onChange={setContent}

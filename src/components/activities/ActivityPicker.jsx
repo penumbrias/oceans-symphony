@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { X, ChevronRight } from "lucide-react";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
 

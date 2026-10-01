@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { configureSignpostSigns } from "@/lib/signpostAuthors";
@@ -78,7 +79,10 @@ export function useTerms() {
     staleTime: 0,
   });
 
-  const s = settingsList[0] || {};
+  // Same resolver as Settings → Profile (pickPrimarySystemSettings): with a
+  // stub row first in the list, terms used to save to a different row than
+  // the system name and bio.
+  const s = pickPrimarySystemSettings(settingsList) || settingsList[0] || {};
 
   // Defensive fallback: use defaults if empty/missing
   const safe = (val, fallback) => (val && val.trim()) ? val.trim() : fallback;

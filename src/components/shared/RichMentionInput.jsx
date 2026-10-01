@@ -87,7 +87,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
   // ── value <-> innerHTML sync (don't reset DOM while the user types) ──
   useEffect(() => {
     if (editorRef.current) editorRef.current.innerHTML = value || "";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
   useEffect(() => {
     if (editorRef.current && value !== lastHtml.current) {
@@ -160,7 +160,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
     const tok = detectToken(text, caret);
     if (!tok || (tok.type === "signpost" && !signposts)) { setMenu(null); return; }
     setMenu({ type: tok.type, query: tok.query });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [signposts, commands]);
 
   const commandMenu = useMemo(() => {

@@ -8,6 +8,7 @@
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
@@ -247,7 +248,7 @@ export default function PlannerSurface({
     const onKey = (e) => { if (e.key === "Escape") { requestCloseEditor(); setDetails(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [timing, activities]);
   const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
@@ -397,7 +398,7 @@ export default function PlannerSurface({
     if (when) setAnchor(new Date(when));
     setDetails(found);
     onOpenedActivity?.();
-  }, [openActivityId, activities]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [openActivityId, activities]);  
 
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -419,7 +420,10 @@ export default function PlannerSurface({
     const [h, m] = String(timeValue).split(":").map(Number);
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
-    const isPlan = when.getTime() > Date.now();
+    // Same rule as createPlan: anything from today onward is a plan (an
+    // intention), only earlier days are logged. The old time-based check
+    // said "Log" for earlier today while the write created a plan.
+    const isPlan = format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
     const catId = (timing.item.activity_category_ids || [])[0] || null;
     const cat = catId ? categories.find((c) => c.id === catId) : null;
     // One record per picked day — the primary day plus any extra chips,
@@ -427,11 +431,22 @@ export default function PlannerSurface({
     const days = [new Date(timing.day),
       ...extraDays.filter((d) => d.toDateString() !== new Date(timing.day).toDateString())];
     try {
+      // Shared text pipeline for the note: ~commands run once (not per
+      // occurrence), "-name" signposts sign the plan, @mentions notify.
+      let preparedNote = null;
+      if (noteValue.trim()) {
+        try { preparedNote = await prepareAuthoredText(noteValue.trim(), { alters, terms: t, surfaceLabel: "plan note" }); }
+        catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+        if (preparedNote === null) return;
+      }
+      const noteText = preparedNote ? preparedNote.content : "";
+      const signedIds = preparedNote?.authorIds?.length ? preparedNote.authorIds : null;
+      let firstCreatedId = null;
       let total = 0;
       for (const day of days) {
         const dayWhen = new Date(day);
         dayWhen.setHours(h || 0, m || 0, 0, 0);
-        const { occurrences } = await createPlan({
+        const { occurrences, createdIds } = await createPlan({
           records: [{
             activity_name: name,
             activity_category_ids: timing.item.activity_category_ids || [],
@@ -442,15 +457,20 @@ export default function PlannerSurface({
           }],
           timestamp: dayWhen,
           durationMinutes: Math.max(5, Number(durValue) || 60),
-          alterIds: timing.item.fronting_alter_ids || [],
-          notes: noteValue.trim() || null,
+          alterIds: signedIds || timing.item.fronting_alter_ids || [],
+          notes: noteText || null,
           location: extra.location.trim() || null,
           isCritical: extra.is_critical,
           leadSteps: extra.is_critical ? extra.critical_lead_steps : null,
           reminderOffset: extra.reminder_offset_minutes,
           recurrence: recur,
+          authorAlterIds: preparedNote?.authorIds || [],
         });
+        if (createdIds?.length && !firstCreatedId) firstCreatedId = createdIds[0];
         total += occurrences.length;
+      }
+      if (preparedNote) {
+        await recordAuthoredText({ ...preparedNote, alters, sourceType: "activity", sourceId: firstCreatedId, sourceLabel: "Plan note", navigatePath: `/activities?date=${format(new Date(timing.day), "yyyy-MM-dd")}${firstCreatedId ? `&highlight=${firstCreatedId}` : ""}` });
       }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
@@ -648,13 +668,20 @@ export default function PlannerSurface({
     setTiming(null);
   };
 
-  const saveNote = async (text) => {
+  const saveNote = async (rawText) => {
     if (!timing) return;
     if (timing.create) return; // held in noteValue until commit
     try {
+      let prepared;
+      try { prepared = await prepareAuthoredText(rawText, { alters, terms: t, surfaceLabel: "plan note" }); }
+      catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (prepared === null) return;
+      const text = prepared.content;
+      const patch = { notes: text, ...(prepared.authorIds.length ? { author_alter_ids: prepared.authorIds } : {}) };
       const members = seriesMembers();
-      if (members.length > 1) await applyEditToSeries(members, { notes: text });
-      else await base44.entities.Activity.update(timing.item.id, { notes: text });
+      if (members.length > 1) await applyEditToSeries(members, patch);
+      else await base44.entities.Activity.update(timing.item.id, patch);
+      await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: timing.item.id, sourceLabel: "Plan note", navigatePath: `/activities?highlight=${timing.item.id}` });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -669,7 +696,7 @@ export default function PlannerSurface({
     const [h, m] = String(timeValue).split(":").map(Number);
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
-    return when.getTime() > Date.now();
+    return format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
   }, [timing, timeValue]);
 
   const timingDirty = useMemo(() => {
@@ -1555,7 +1582,7 @@ export default function PlannerSurface({
                 value={noteValue}
                 onChange={setNoteValue}
                 alters={alters}
-                commands={false}
+                signposts
                 onBlur={() => { if (noteValue !== (timing.item.notes || "")) saveNote(noteValue); }}
                 rows={2}
                 placeholder={tr("planner.notesPlaceholder")}

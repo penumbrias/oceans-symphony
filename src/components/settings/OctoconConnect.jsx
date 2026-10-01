@@ -96,7 +96,7 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
 
   useEffect(() => {
     if (presetFile) handleFile({ target: { files: [presetFile] } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [presetFile]);
 
   const data = parsed?.data;

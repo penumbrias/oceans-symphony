@@ -1,7 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
@@ -43,6 +42,7 @@ export default function CheckInStep4({ data, onChange, alters = [], children }) 
                 Anything you would like to record?
               </Label>
               <MentionTextarea
+  signposts
   value={step.notes || ""}
   onChange={(val) => onChange({ step4_share: { ...step, notes: val } })}
   alters={alters}

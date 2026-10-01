@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Settings, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,7 +37,7 @@ export default function DiaryCardPresetsManager() {
     // constantly (now including cross-tab syncs) and every invalidation
     // hands back a NEW object — re-seeding then clobbered in-progress edits
     // (the "description wouldn't delete" class of bug).
-  }, [settings?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settings?.id]);  
 
   const handleToggle = (id) => {
     setSections(prev =>

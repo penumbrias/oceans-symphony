@@ -235,7 +235,7 @@ export function buildSupportJournalRecords({ items = [] }) {
       id: `sj-${j.id}`,
       title: j.title || "Support Journal Entry",
       subtitle: snippet(content) || formatDateLabel(j.created_date) || "",
-      path: `/quick-support`,
+      path: `/grounding`,
       searchableText: joinNonEmpty([j.title, content, dateSearchBlob(j.created_date)]).toLowerCase(),
       sortDate: j.created_date,
     };
@@ -293,7 +293,7 @@ export function buildTaskRecords({ items = [] }) {
     id: t.id,
     title: t.title || "Task",
     subtitle: snippet(t.notes) || formatDateLabel(t.due_date || t.created_date) || "",
-    path: `/tasks?id=${t.id}`,
+    path: `/todo?highlight=${t.id}`,
     searchableText: joinNonEmpty([
       t.title, t.notes, t.priority, t.status,
       dateSearchBlob(t.due_date), dateSearchBlob(t.created_date),
@@ -575,7 +575,7 @@ export function buildSleepRecords({ items = [] }) {
     id: `sl-${s.id}`,
     title: "Sleep",
     subtitle: snippet(s.notes) || formatDateLabel(s.start_time || s.date || s.created_date) || "",
-    path: `/activities`,
+    path: `/sleep`,
     searchableText: joinNonEmpty([
       "sleep", s.notes, s.quality,
       dateSearchBlob(s.start_time), dateSearchBlob(s.end_time),
@@ -607,7 +607,7 @@ export function buildPollRecords({ items = [] }) {
     title: p.question || "Poll",
     subtitle: snippet((p.options || []).map((o) => o?.text || o).filter(Boolean).join(" · "))
       || formatDateLabel(p.created_date) || "",
-    path: p.bulletin_id ? `/bulletin/${p.bulletin_id}` : `/bulletin`,
+    path: p.bulletin_id ? `/bulletin/${p.bulletin_id}` : `/polls?id=${p.id}`,
     searchableText: joinNonEmpty([
       p.question,
       (p.options || []).map((o) => (typeof o === "string" ? o : o?.text)).filter(Boolean).join(" "),

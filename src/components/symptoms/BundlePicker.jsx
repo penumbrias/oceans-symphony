@@ -10,7 +10,7 @@
 // offered, never asserted. The safety pack carries its own gentle note.
 
 import React, { useEffect, useMemo, useState } from "react";
-import { X, ChevronDown, ChevronRight, Check, Plus, Loader2 } from "lucide-react";
+import { X, ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";

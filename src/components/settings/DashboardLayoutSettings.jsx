@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useIsWide } from "@/lib/useIsWide";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -64,12 +66,13 @@ export function ClassicBarsToggles() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const record = rows[0];
+  const record = pickPrimarySystemSettings(rows) || rows[0];
   const cb = record?.ui_v2?.classicBars || {};
   const topOn = cb.top === true;
   const bottomOn = cb.bottom !== false;
   const actionsOn = cb.actions !== false;
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const wideOn = cb.wide === true;
+  const wide = useIsWide();
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const altersOn = cb.alters !== false && record?.[homeField]?.altersBar?.enabled === true;
   const writeCb = async (patch, alsoAlters = null) => {
@@ -101,6 +104,13 @@ export function ClassicBarsToggles() {
   );
   return (
     <div className="space-y-2">
+      {/* Only meaningful at desktop width, so only offered there. ui_v2 is
+          per device (never synced), so this changes this screen only. */}
+      {wide && (
+        <Row label="Show on wide screens"
+          hint={`The bottom bars below, beside the sidebar — each keeps its own display (bar, floating or bubble; the ${t.alters} bar can also be a side rail).`}
+          checked={wideOn} onChange={(v) => writeCb({ wide: !!v })} />
+      )}
       <Row label="New top bar"
         hint={`${t.System} name, who's ${t.fronting}, clock, search and notifications — replaces the classic header.`}
         checked={topOn} onChange={(v) => writeCb({ top: !!v })} />

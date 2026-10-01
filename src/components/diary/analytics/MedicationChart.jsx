@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export default function MedicationChart({ filteredCards }) {
   const data = useMemo(() => {

@@ -1,5 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+// The dropdown renders in a portal on <body>. Inside a modal dialog that
+// put it OUTSIDE the dialog's focus trap (the search box could never keep
+// focus: taps worked, typing didn't) and outside its scroll lock (the list
+// wouldn't scroll on touch). Both libraries keep a stack, so a scope/lock
+// mounted around the panel becomes the active one while it's open and
+// hands back to the dialog when it closes. Same copies the dialog uses.
+import { FocusScope } from "@radix-ui/react-focus-scope";
+import { RemoveScroll } from "react-remove-scroll";
+function DropdownLayer({ children }) {
+  return (
+    <FocusScope trapped={false} loop={false}
+      onMountAutoFocus={(e) => e.preventDefault()} onUnmountAutoFocus={(e) => e.preventDefault()}>
+      <RemoveScroll allowPinchZoom removeScrollBar={false}>{children}</RemoveScroll>
+    </FocusScope>
+  );
+}
 import { ChevronDown, Check, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -259,6 +275,7 @@ export function SearchableSelect({
 
       {/* Dropdown portal */}
       {open && panelPos && createPortal(
+        <DropdownLayer>
         <div
           ref={panelRef}
           data-searchable-dropdown=""
@@ -313,7 +330,8 @@ export function SearchableSelect({
              ))
            )}
          </div>
-       </div>,
+       </div>
+        </DropdownLayer>,
         document.body
       )}
     </div>
@@ -468,6 +486,7 @@ export function SearchableMultiSelect({
 
       {/* Dropdown portal */}
       {open && panelPos && createPortal(
+        <DropdownLayer>
         <div
           ref={panelRef}
           data-searchable-dropdown=""
@@ -511,7 +530,8 @@ export function SearchableMultiSelect({
               ))
             )}
           </div>
-        </div>,
+        </div>
+        </DropdownLayer>,
         document.body
       )}
     </div>

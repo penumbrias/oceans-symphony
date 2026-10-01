@@ -6,7 +6,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { parseDate } from "@/lib/dateUtils";
+import { parseDate, activityDate } from "@/lib/dateUtils";
 import { datesForDay } from "@/lib/importantDates";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import {
@@ -272,7 +272,7 @@ export default function ActivityDayView({
   const dayActivities = useMemo(() => {
     const dayStart = parseDate(dateStr);
     return activities.filter(a => {
-      const actStart = parseDate(a.timestamp);
+      const actStart = activityDate(a);
       if (format(actStart, "yyyy-MM-dd") === dateStr) return true;
       // Include activities that started the previous day and extend past midnight into this day
       if (a.duration_minutes > 0) {
@@ -299,7 +299,7 @@ export default function ActivityDayView({
       // Scheduled/skipped/cancelled return 0 from countableMinutes.
       const budget = countableMinutes(a);
       if (!budget) return s;
-      const actStart = parseDate(a.timestamp);
+      const actStart = activityDate(a);
       const actEnd = new Date(actStart.getTime() + budget * 60 * 1000);
       const clippedStart = actStart < dayStart ? dayStart : actStart;
       const clippedEnd = actEnd > dayEnd ? dayEnd : actEnd;

@@ -15,3 +15,13 @@ export function parseDate(str) {
   if (!s.endsWith('Z') && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
   return new Date(s);
 }
+
+/**
+ * The instant an Activity belongs to. Untimed plans ("Plan this day") carry
+ * only planned_date and no timestamp; parseDate(undefined) is "now", which
+ * put them on today's row on every classic surface. Falls back to
+ * planned_date (local midnight) before that default.
+ */
+export function activityDate(a) {
+  return parseDate(a?.timestamp || a?.planned_date);
+}

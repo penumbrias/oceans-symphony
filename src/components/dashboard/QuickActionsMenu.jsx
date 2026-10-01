@@ -10,7 +10,7 @@ import RatingRow from "@/components/diary/RatingRow";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
-import { getTodayString, applyTerms, toggleDailyProgressTasks } from "@/lib/dailyTaskSystem";
+import { applyTerms, isTemplateDoneNow, toggleTemplateDone } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
@@ -367,7 +367,6 @@ function DailyTaskRow({ action }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const { task_id } = action.config || {};
-  const TODAY = getTodayString();
 
   const { data: templates = [] } = useQuery({
     queryKey: ["dailyTaskTemplates"],
@@ -379,43 +378,21 @@ function DailyTaskRow({ action }) {
   });
 
   const template = templates.find(t => t.id === task_id);
-  const currentRecord = allProgress.find(p =>
-    (p.frequency === "daily" || !p.frequency) &&
-    (p.period_key === TODAY || p.date === TODAY)
-  );
-  const completedIds = new Set(currentRecord?.completed_task_ids || []);
-  const isCompleted = completedIds.has(task_id);
+  // The task's own period and reset rule (a weekly task read "not done"
+  // here forever, and ticking it filed it under today's daily record).
+  const isCompleted = isTemplateDoneNow(template, allProgress);
+  const [busy, setBusy] = useState(false);
 
   const handleToggle = async () => {
-    if (!template || template.mode !== "MANUAL") return;
-    const nowCompleted = !isCompleted;
-    const newCompleted = new Set(completedIds);
-    nowCompleted ? newCompleted.add(task_id) : newCompleted.delete(task_id);
-    const currentXP = currentRecord?.xp_earned || 0;
-    const newXP = nowCompleted
-      ? currentXP + (template.points || 0)
-      : Math.max(0, currentXP - (template.points || 0));
-
-    // Optimistic update
-    queryClient.setQueryData(["dailyProgress"], old =>
-      Array.isArray(old)
-        ? currentRecord
-          ? old.map(p => p.id === currentRecord.id ? { ...p, completed_task_ids: [...newCompleted], xp_earned: newXP } : p)
-          : [...old, { id: "__optimistic__", date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], xp_earned: newXP }]
-        : old
-    );
-
-    // Shared writer: refetch-before-write + XP recomputed from the final
-    // set (the old add/subtract here is exactly how XP drifted).
-    await toggleDailyProgressTasks({
-      periodKey: TODAY,
-      frequency: "daily",
-      setIds: nowCompleted ? [task_id] : [],
-      clearIds: nowCompleted ? [] : [task_id],
-      templates: (templates || []).filter((t) => t.is_active && (t.frequency || "daily") === "daily"),
-    });
-    queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
-    if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);
+    if (!template || template.mode !== "MANUAL" || busy) return;
+    setBusy(true);
+    try {
+      const nowCompleted = await toggleTemplateDone(template, { templates });
+      queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+      if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!template) return null;

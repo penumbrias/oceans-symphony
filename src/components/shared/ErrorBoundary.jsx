@@ -32,7 +32,7 @@ export default class ErrorBoundary extends React.Component {
     // reporting an issue, but don't crash the boundary itself if
     // logging fails.
     try {
-      // eslint-disable-next-line no-console
+       
       console.error("[ErrorBoundary] caught:", error, info);
     } catch { /* ignore */ }
     if (typeof this.props.onError === "function") {

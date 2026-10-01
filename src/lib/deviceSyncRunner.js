@@ -9,16 +9,18 @@
 // and we didn't get theirs — recoverable by syncing again. Reading first
 // and crashing before the write leaves the other device with nothing.
 
-import { getFullDbDump } from "@/lib/localDb";
+import { getFullDbDump, getLocalRevision } from "@/lib/localDb";
 import {
-  buildDataSnapshot, buildMediaSnapshot, mediaFingerprint,
+  buildDataSnapshotWithHash, buildMediaSnapshot, mediaFingerprint,
   parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
-  readSnapshotSettings, applyPortableSettings,
+  readSnapshotSettings, readSnapshotLook, applyPortableSettings,
   parseSyncFileName, dataFileName, mediaFileName,
   getDeviceId, SYNC_FORMAT, SYNC_MEDIA_FORMAT,
 } from "@/lib/deviceSync";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getActiveSystemId } from "@/lib/systems";
+import { localEntities } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const FOLDER_KEY = "symphony_sync_folder";
 const LAST_RUN_KEY = "symphony_sync_last_run";
@@ -45,6 +47,18 @@ const PENDING_DEL_KEY = "symphony_sync_pending_deletions";
 // an unrecognised system is reported, not merged, until the user says
 // yes. Keyed by local system so pairing one system doesn't pair another.
 const PAIRED_KEY = "symphony_sync_paired_systems";
+// Hash of the content we last wrote, per data file. Device-bound (never in
+// BACKUP_LS_KEYS): it describes THIS device's file in the folder.
+const WRITTEN_HASH_KEY = "symphony_sync_written_hash";
+// Revision of the local database at the end of the last pass (in memory:
+// a fresh app start always runs one pass).
+let _revisionAtLastPass = null;
+
+// Has this device changed anything since the last sync pass? Merges done
+// BY that pass don't count — they're already in the folder.
+export function hasLocalChangesSinceSync() {
+  return _revisionAtLastPass === null || getLocalRevision() !== _revisionAtLastPass;
+}
 
 // All of these are DEVICE-BOUND on purpose and must never be added to
 // BACKUP_LS_KEYS: the folder path is meaningless on another machine, and
@@ -126,11 +140,18 @@ export async function listSyncPeers() {
   const system = String(getActiveSystemId() || "default");
   const localSystem = slugSystem(system);
   const paired = getPairedSystems();
+  // Grouped per device AND system. One device can leave snapshots for two
+  // systems in the folder (a multi-system user, or an old system left
+  // behind after a reinstall). Keyed by device alone, the second file
+  // overwrote the first's data slot while the entry kept the FIRST
+  // system's id — so pairing one system could merge the other's data.
   const byDevice = new Map();
   for (const f of files) {
     const parsed = parseSyncFileName(f.name);
     if (!parsed) continue;
-    const entry = byDevice.get(parsed.deviceId) || {
+    const key = `${parsed.deviceId}:${parsed.systemId}`;
+    const entry = byDevice.get(key) || {
+      key,
       deviceId: parsed.deviceId,
       isSelf: parsed.deviceId === mine,
       systemId: parsed.systemId,
@@ -140,7 +161,7 @@ export async function listSyncPeers() {
       paired: paired.includes(parsed.systemId),
     };
     entry[parsed.kind] = f;
-    byDevice.set(parsed.deviceId, entry);
+    byDevice.set(key, entry);
   }
   return [...byDevice.values()];
 }
@@ -159,10 +180,20 @@ export async function runSync({ force = false } = {}) {
   };
 
   // ── 1. Write ours first (see header) ────────────────────────────────
+  // Skipped when the content is identical to the file already in the
+  // folder — an unchanged rewrite still changes its mtime, which made the
+  // other device re-merge everything, rewrite ITS file, and so on.
   try {
-    const snap = await buildDataSnapshot();
-    await adapter.write(dir, dataFileName(), JSON.stringify(snap));
-    report.wrote.push("data");
+    const { snap, hash } = await buildDataSnapshotWithHash();
+    const hashes = readJson(WRITTEN_HASH_KEY, {});
+    let ours = null;
+    try { ours = (await listSyncPeers()).find((p) => p.isSelf && p.data)?.data || null; } catch { ours = null; }
+    if (force || !ours || hashes[dataFileName()] !== hash) {
+      await adapter.write(dir, dataFileName(), JSON.stringify(snap));
+      hashes[dataFileName()] = hash;
+      writeLs(WRITTEN_HASH_KEY, JSON.stringify(hashes));
+      report.wrote.push("data");
+    }
   } catch (e) {
     // A failed write is fatal for this pass: continuing to read would
     // report "synced" while the other device never receives our changes.
@@ -191,7 +222,7 @@ export async function runSync({ force = false } = {}) {
     // An unrecognised system is never merged silently — it is offered.
     report.needsPairing = all
       .filter((p) => !p.sameSystem && !p.paired)
-      .map((p) => ({ deviceId: p.deviceId, systemId: p.systemId }));
+      .map((p) => ({ key: p.key, deviceId: p.deviceId, systemId: p.systemId }));
     peers = all.filter((p) => p.sameSystem || p.paired);
   } catch (e) {
     report.errors.push({ stage: "list", message: e?.message || String(e) });
@@ -203,7 +234,7 @@ export async function runSync({ force = false } = {}) {
     const f = peer.data;
     if (!f) continue;
     const mark = `${f.size}:${Math.round(f.mtimeMs || 0)}`;
-    if (!force && seen[`${peer.deviceId}:data`] === mark) {
+    if (!force && seen[`${peer.key}:data`] === mark) {
       report.skipped.push({ deviceId: peer.deviceId, reason: "unchanged" });
       continue;
     }
@@ -212,6 +243,7 @@ export async function runSync({ force = false } = {}) {
       if (file.__format !== SYNC_FORMAT) throw new Error("Not a data snapshot.");
       const res = await applyDataSnapshot(file);
       report.merged.push({
+        key: peer.key,
         deviceId: peer.deviceId,
         name: file.device?.name || peer.deviceId,
         writtenAt: res.written_at,
@@ -219,7 +251,7 @@ export async function runSync({ force = false } = {}) {
       report.conflicts.push(...res.conflicts);
       report.settingsFilled += res.settingsFilled || 0;
       report.pendingDeletions.push(...res.pendingDeletions.map((d) => ({ ...d, fromDevice: file.device?.name || peer.deviceId })));
-      seen[`${peer.deviceId}:data`] = mark;
+      seen[`${peer.key}:data`] = mark;
     } catch (e) {
       // A half-written or stale snapshot (a device that was reinstalled
       // leaves its old file behind forever) must not read as "sync is
@@ -238,14 +270,14 @@ export async function runSync({ force = false } = {}) {
     const mf = peer.media;
     if (!mf) continue;
     const mediaMark = `${mf.size}:${Math.round(mf.mtimeMs || 0)}`;
-    if (!force && seen[`${peer.deviceId}:media`] === mediaMark) continue;
+    if (!force && seen[`${peer.key}:media`] === mediaMark) continue;
     try {
       const file = parseSnapshotFile(await adapter.read(dir, mf.name));
       if (file.__format !== SYNC_MEDIA_FORMAT) throw new Error("Not a media snapshot.");
       const res = await applyMediaSnapshot(file);
       report.media.images += res.images;
       report.media.fonts += res.fonts;
-      seen[`${peer.deviceId}:media`] = mediaMark;
+      seen[`${peer.key}:media`] = mediaMark;
     } catch (e) {
       report.unreadable.push({
         deviceId: peer.deviceId,
@@ -256,6 +288,9 @@ export async function runSync({ force = false } = {}) {
   }
 
   writeLs(SEEN_KEY, JSON.stringify(seen));
+  // Merged changes are already in the folder (they came from it); only
+  // edits made after this point need the next pass.
+  _revisionAtLastPass = getLocalRevision();
   // Park anything the other device deleted for review — never applied here.
   if (report.pendingDeletions.length) addPendingDeletions(report.pendingDeletions);
   report.finishedAt = new Date().toISOString();
@@ -266,11 +301,14 @@ export async function runSync({ force = false } = {}) {
 // Is there anything new in the folder? A cheap listing, for the poll.
 export async function hasIncomingChanges() {
   try {
-    const peers = (await listSyncPeers()).filter((p) => !p.isSelf);
+    // Only devices we'd actually merge. An unpaired file is never marked
+    // seen, so counting it made every 30 s tick run a full pass (and
+    // rewrite our own snapshot) for as long as it sat in the folder.
+    const peers = (await listSyncPeers()).filter((p) => !p.isSelf && (p.sameSystem || p.paired));
     const seen = readJson(SEEN_KEY, {});
     return peers.some((p) => {
       if (!p.data) return false;
-      return seen[`${p.deviceId}:data`] !== `${p.data.size}:${Math.round(p.data.mtimeMs || 0)}`;
+      return seen[`${p.key}:data`] !== `${p.data.size}:${Math.round(p.data.mtimeMs || 0)}`;
     });
   } catch {
     return false;
@@ -355,25 +393,50 @@ export async function removeSyncFile(name) {
 // Returns { applied, from } — or throws with a reason a person can act
 // on, the common one being that the other device is on a build old
 // enough that its snapshots carry no preferences at all.
-export async function copyAppearanceFrom() {
+// `key` picks one device (listSyncPeers' `${deviceId}:${systemId}`). The
+// sync panel always passes it: "newest" is the wrong default when two
+// devices share a folder — the one that happens to have written last wins.
+export async function copyAppearanceFrom({ key = null } = {}) {
   const adapter = getSyncAdapter();
   const dir = getSyncFolder();
-  const peers = (await listSyncPeers()).filter((p) => !p.isSelf && p.data);
-  if (!peers.length) throw new Error("No other device's snapshot in that folder yet.");
+  // Paired/same-system peers only — never restyle this device from a
+  // system the user hasn't agreed to sync with.
+  const peers = (await listSyncPeers())
+    .filter((p) => !p.isSelf && p.data && (p.sameSystem || p.paired))
+    .filter((p) => !key || p.key === key)
+    .sort((a, b) => (b.data.mtimeMs || 0) - (a.data.mtimeMs || 0));
+  if (!peers.length) throw new Error("No paired device's snapshot in that folder yet.");
 
   for (const peer of peers) {
     let settings = null;
+    let look = null;
     let name = peer.deviceId;
     try {
       const file = parseSnapshotFile(await adapter.read(dir, peer.data.name));
       name = file.device?.name || name;
       settings = await readSnapshotSettings(file);
+      look = await readSnapshotLook(file);
     } catch {
       continue; // unreadable snapshots are reported by the sync pass
     }
-    if (settings && Object.keys(settings).length) {
-      return { applied: applyPortableSettings(settings, { overwrite: true }), from: name };
+    const hasSettings = settings && Object.keys(settings).length > 0;
+    const hasLook = look && Object.keys(look).length > 0;
+    if (!hasSettings && !hasLook) continue;
+    // The ONE place another device's look and layout are applied — because
+    // a person asked for it. The layout fields go through the normal
+    // entity update, so the previous layout lands in Recent changes and
+    // can be put back.
+    let layoutFields = 0;
+    if (hasLook) {
+      const rows = await localEntities.SystemSettings.list();
+      const row = pickPrimarySystemSettings(rows) || rows[0];
+      if (row?.id) {
+        await localEntities.SystemSettings.update(row.id, look);
+        layoutFields = Object.keys(look).length;
+      }
     }
+    const applied = hasSettings ? applyPortableSettings(settings, { overwrite: true }) : 0;
+    return { applied, layoutFields, from: name };
   }
   throw new Error("The other device's snapshot doesn't include appearance settings — it's running an older version. Update it and sync once, then try again.");
 }

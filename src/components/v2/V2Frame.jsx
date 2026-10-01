@@ -251,11 +251,16 @@ export function QuickNoteSheet({ open, onClose }) {
     if (!text || saving) return;
     setSaving(true);
     try {
-      const { content: noteText } = await (await import("@/lib/logCommands")).applyLogCommands(text, { chips: false });
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText });
+      // Shared text pipeline: ~commands, "-name" signposts (sign the status), @mentions.
+      const { prepareAuthoredText } = await import("@/lib/authoredText");
+      const prepared = await prepareAuthoredText(text, { alters: qnAlters, whisper: false, chips: false, surfaceLabel: "status" });
+      if (prepared === null) { setSaving(false); return; }
+      const noteText = prepared.content;
+      const authorAlterId = prepared.authorIds[0] || null;
+      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
       // @mentions notify like every other surface.
       const { saveStatusMentions } = await import("@/lib/mentionUtils");
-      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id });
+      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id, authorAlterId });
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success(t("note.saved"));
@@ -277,7 +282,7 @@ export function QuickNoteSheet({ open, onClose }) {
           <div className="flex items-start gap-2">
             <StickyNote className="w-4 h-4 mt-2.5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <MentionTextarea value={note} onChange={setNote} alters={qnAlters}
+              <MentionTextarea value={note} onChange={setNote} alters={qnAlters} signposts
                 placeholder={t("note.placeholder")} rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
@@ -1248,7 +1253,11 @@ function useBodyPointerWatchdog() {
 // includes the classic bar's height so the alters bar / floating card
 // stack exactly as they do under full v2. The caller passes uiV2 with
 // bars.tabs/rail forced off.
-export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
+// insetLeft: CSS length the fixed bars start from on the left — the classic
+// desktop sidebar's width when the classic layout hosts these bars at
+// desktop width (so they sit beside the sidebar, not under it). "0px"
+// everywhere else, which is exactly the old left-0.
+export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLeft = "0px" }) {
   useBodyPointerWatchdog();
   const homeEdit = useHomeEditMode();
   const barsHidden = homeEdit.editing && !homeEdit.preview;
@@ -1394,10 +1403,10 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
         // Attached: flush against the chrome, edge to edge — "included in
         // the bar" rather than a floating card (per-user choice).
         style={altersPos === "bottom"
-          ? { bottom: altersBarCfg.attached
+          ? { left: insetLeft, bottom: altersBarCfg.attached
               ? "calc(max(var(--v2-bottom-chrome-h, 56px) + var(--os-sab), var(--home-edit-bar-h, 0px)) + var(--v2-qa-float-bottom-h, 0px))"
               : "calc(max(var(--v2-bottom-chrome-h, 56px) + var(--os-sab), var(--home-edit-bar-h, 0px)) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
-          : { top: altersBarCfg.attached
+          : { left: insetLeft, top: altersBarCfg.attached
               ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
               : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
       >
@@ -1479,7 +1488,9 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
       <div
         className={`fixed z-40 flex items-center gap-1 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
         style={{
-          [altersPos]: `calc(env(safe-area-inset-${altersPos}, 0px) + 4px)`,
+          [altersPos]: altersPos === "left"
+            ? `calc(${insetLeft} + env(safe-area-inset-left, 0px) + 4px)`
+            : `calc(env(safe-area-inset-${altersPos}, 0px) + 4px)`,
           top: "50%", transform: "translateY(-50%)",
           flexDirection: altersPos === "left" ? "row" : "row-reverse",
         }}
@@ -1504,6 +1515,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false }) {
       className={`fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
+        left: insetLeft,
         // Classic host: park above the classic tab bar (which already
         // handles the safe-area inset itself).
         bottom: classicHost ? "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" : 0,

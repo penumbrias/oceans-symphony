@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { runAutoBackupNow } from "@/lib/autoBackup";
 import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
 import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategories } from "@/lib/backupScope";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
@@ -836,6 +838,27 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let clearOtherSystemIds = null;
     let keptLabels = [];
     if (importMode === "replace") {
+      // Storage invariant: a destructive restore confirms and saves a copy
+      // first — the same rails every other wipe path (Octocon, OpenPlural,
+      // Delete All, recovery reset) already has. This was the one path
+      // that deleted the active system on a single radio button.
+      const ok = await confirm({
+        title: "Replace all data?",
+        body: "This replaces the current system's data with the file's copy, for every category the file includes — anything it doesn't include stays as it is. A full backup of your current data is saved to your device first.",
+        confirmLabel: "Back up, then replace",
+        destructive: true,
+      });
+      if (!ok) { traceEnd("cancelled at replace confirm"); setImportLoading(false); return; }
+      try {
+        const backupResult = await runAutoBackupNow();
+        if (backupResult === "cancelled") {
+          toast.error("Backup was cancelled — nothing was replaced.");
+          traceEnd("cancelled at safety backup"); setImportLoading(false); return;
+        }
+      } catch (e) {
+        toast.error(`Couldn't save a safety backup, so nothing was replaced: ${e?.message || e}`);
+        traceEnd("safety backup failed"); setImportLoading(false); return;
+      }
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
       if (others.length > 0) {
         const decision = await promptKeepClearSystems(others);
@@ -981,8 +1004,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         const c = review.conflicts[Number(idxStr)];
         if (!c || choice === c.kept) continue;
         try {
-          if (choice === "local" && c.local) await restoreRecord(c.entity, c.local);
-          else if (choice === "incoming" && c.incoming) await restoreRecord(c.entity, c.incoming);
+          // A choice is a NEW decision: stamped now, so the rejected
+          // version can't win the next sync by being "newer".
+          if (choice === "local" && c.local) await applyChosenVersion(c.entity, c.local, c.incoming);
+          else if (choice === "incoming" && c.incoming) await applyChosenVersion(c.entity, c.incoming, c.local);
           else if (choice === "deleted") await deleteRecordRaw(c.entity, c.id);
         } catch (e) { console.warn("conflict apply failed", c.entity, c.id, e); }
       }

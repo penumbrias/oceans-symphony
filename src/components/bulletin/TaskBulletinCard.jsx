@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { syncTaskCompleted } from "@/lib/linkedCompletion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -90,6 +91,7 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
 
   const handleDelete = async (e) => {
     e.stopPropagation();
+    if (!(await confirm({ title: "Delete this task post?", body: "The linked task itself is not deleted.", confirmLabel: "Delete", destructive: true }))) return;
     await base44.entities.Bulletin.delete(bulletin.id);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
@@ -170,6 +172,7 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
           </button>
           <button
             onClick={handleDelete}
+            aria-label="Delete task post"
             className="text-muted-foreground hover:text-destructive p-1 opacity-50 hover:opacity-100 transition-opacity"
           >
             <Trash2 className="w-3.5 h-3.5" />

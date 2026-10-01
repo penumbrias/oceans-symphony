@@ -1,11 +1,16 @@
-// Per-front-level display styles — shape / size / ring per level, stored in
+// Per-front-level display styles — shape / size / ring / colour per level, stored in
 // pinned_alters_config.levelStyles. ONE editor, embedded by
 // FrontLevelsSettings (Settings → Tracking setup + the setup guide + the
 // pinned bar's config panel via its Front-levels section) so the controls
 // exist exactly once. Consumed by the pinned bar AND the alter lists
 // (AlterCard) — the level's look is a system-wide display fact.
 
-import React from "react";
+import React, { useState } from "react";
+import { Zap } from "lucide-react";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import IconPicker from "@/components/shared/IconPicker";
+import { IconSlot } from "@/components/shared/LucideByName";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -17,7 +22,19 @@ export default function FrontLevelStylesEditor() {
   const qc = useQueryClient();
   const levelCfg = useFrontLevels();
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = rows[0] || null;
+  const settings = pickPrimarySystemSettings(rows) || rows[0] || null;
+  const [colorFor, setColorFor] = useState(null);
+  const [iconOpen, setIconOpen] = useState(false);
+  const frontIcon = settings?.front_button_icon || null;
+
+  const setFrontIcon = async ({ iconName = "", iconUrl = "" }) => {
+    const value = iconName || iconUrl ? { iconName, iconUrl } : null;
+    try {
+      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { front_button_icon: value });
+      else await base44.entities.SystemSettings.create({ front_button_icon: value });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch { /* next interaction retries */ }
+  };
   const config = settings?.pinned_alters_config || {};
   const levelStyles = (config.levelStyles && typeof config.levelStyles === "object") ? config.levelStyles : {};
 
@@ -41,8 +58,27 @@ export default function FrontLevelStylesEditor() {
   return (
     <div className="space-y-2.5">
       <p className="text-[0.6875rem] text-muted-foreground">
-        Shape, size and ring per level — shown wherever {terms.fronting} {terms.alters} appear (pinned bar, {terms.alters} page).
+        Shape, size, ring and colour per level — shown wherever {terms.fronting} {terms.alters} appear (pinned bar, {terms.alters} page). A level colour replaces the {terms.alter}'s own colour while they're at that level.
       </p>
+      <div className="rounded-lg border border-border/40 p-2 flex items-center gap-2">
+        <span className="text-xs font-medium flex-1">{terms.Front} button icon</span>
+        <button type="button" onClick={() => setIconOpen(true)} aria-label={`Change the ${terms.front} button icon`}
+          className="w-8 h-8 rounded-full border-2 border-border/60 flex items-center justify-center hover:border-primary/60">
+          <IconSlot override={frontIcon} Default={Zap} className="w-4 h-4" />
+        </button>
+      </div>
+      <IconPicker open={iconOpen} onClose={() => setIconOpen(false)}
+        current={frontIcon?.iconName || frontIcon?.iconUrl || ""}
+        title={`${terms.Front} button icon`}
+        onPick={setFrontIcon} />
+      {colorFor && (
+        <ColorPickerModal
+          color={levelStyles[colorFor.id]?.color || "#8b5cf6"}
+          label={`${frontLevelLabel(colorFor, terms)} colour`}
+          onSave={(c) => { setLevelStyle(colorFor.id, { color: c }); setColorFor(null); }}
+          onClose={() => setColorFor(null)}
+        />
+      )}
       {levelCfg.levels.map((lv) => {
         const ls = levelStyles[lv.id] || {};
         return (
@@ -71,6 +107,18 @@ export default function FrontLevelStylesEditor() {
                   onClick={() => setLevelStyle(lv.id, { scale: v })}
                   className={`text-[0.6875rem] px-2 py-1 rounded-full border ${(ls.scale ?? "") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>{lab}</button>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[0.6875rem] text-muted-foreground w-8">Colour</span>
+              <button type="button" aria-pressed={!ls.color} title={`The ${terms.alter}'s own colour`}
+                onClick={() => setLevelStyle(lv.id, { color: "" })}
+                className={`text-[0.6875rem] px-2 py-1 rounded-full border ${!ls.color ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>{terms.Alter}'s</button>
+              <button type="button" aria-pressed={!!ls.color} aria-label={`Pick a colour for ${frontLevelLabel(lv, terms)}`}
+                onClick={() => setColorFor(lv)}
+                className={`h-6 px-1.5 rounded-full border flex items-center gap-1 ${ls.color ? "border-primary/60 bg-primary/10" : "border-border/50"}`}>
+                <span className="w-4 h-4 rounded-full border border-border/60"
+                  style={{ background: ls.color || "conic-gradient(#ef4444,#f59e0b,#22c55e,#0ea5e9,#8b5cf6,#ef4444)" }} />
+              </button>
             </div>
             <div className="flex flex-wrap items-center gap-1">
               <span className="text-[0.6875rem] text-muted-foreground w-8">Ring</span>

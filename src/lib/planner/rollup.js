@@ -103,7 +103,8 @@ export function goalProgress({ goals = [], rollupResult, categories = [] }) {
   const catMinutes = new Map(rollupResult.categories.map((c) => [c.key, c.minutes]));
   return goals
     .map((g) => {
-      const catId = g.category_id || g.parent_category_id;
+      // ActivityGoalsPanel writes activity_category_id (+ source_id); the older names are kept as fallbacks.
+      const catId = g.activity_category_id || g.category_id || g.parent_category_id || (g.source_type === "category" ? g.source_id : null);
       const target = Number(g.target_minutes) || Number(g.weekly_minutes) || (Number(g.target_hours) || 0) * 60;
       if (!catId || !target) return null;
       const done = catMinutes.get(catId) || 0;

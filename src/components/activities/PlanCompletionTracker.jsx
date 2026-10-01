@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { format, startOfWeek, startOfMonth, subMonths, addMonths } from "date-fns";
+import { startOfWeek, startOfMonth, subMonths } from "date-fns";
 import { Calendar, CheckCircle2, XCircle, RotateCcw, ClipboardList } from "lucide-react";
 import {
   summarisePlans,

@@ -646,6 +646,10 @@ export default function Grounding({ initialPath = null }) {
 
         <MedicalDisclaimerFooter />
 
+        {/* Crisis resources one tap from the Support entry screen (they used
+            to be five taps deep, behind the state-check flow). Starts folded. */}
+        <CrisisResourcesCard />
+
         <div className="space-y-3">
           <button
             data-tour="grounding-browse"

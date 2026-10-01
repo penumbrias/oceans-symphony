@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
-  format, isSameMonth, isToday, isSameDay,
+  format, isSameMonth, isToday,
 } from "date-fns";
-import { countableMinutes, statusFor, visualForStatus, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { countableMinutes, statusFor, visualForStatus } from "@/lib/activityStatus";
 import { datesForDay } from "@/lib/importantDates";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
 

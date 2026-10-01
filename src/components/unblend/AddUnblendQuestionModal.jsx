@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, X, Trash2 } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 
@@ -85,7 +85,7 @@ export default function AddUnblendQuestionModal({
         { id: "opt-2", label: "", alterIds: [] },
       ]);
     }
-  }, [editingRecord?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingRecord?.id, isOpen]);  
 
   // Surface every defined custom field so the user can build a
   // question for any of them — even ones with no data yet. Data

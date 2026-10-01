@@ -59,6 +59,17 @@ Whenever you render an alter's name in a list, dropdown, picker, mention popup, 
 
 ---
 
+## Critical: Every free-text field speaks the same grammar
+
+**Any field where the user writes and saves text must support inline `~commands`, `-name`/`+name` signposts and `@mentions` — the same grammar chat, bulletins and journals speak.** Two shared pieces make this a two-line job; never re-implement them:
+
+- **Input:** `MentionTextarea` (`src/components/shared/MentionTextarea.jsx`) with `alters` and `signposts` — gives the `@` / `-` / `+` / `~` autocomplete popups. Contract: `value` string, `onChange(stringValue)` (not an event). Do not add a plain `<Textarea>` for user-authored notes.
+- **Save:** `prepareAuthoredText` → save the record → `recordAuthoredText`, from `src/lib/authoredText.js` (its header documents the call). `prepareAuthoredText` runs the commands, peels `/w` whisper recipients, folds signposts into `authorIds` and strips the markers; it throws a user-facing `LogCommandFormatError` for a malformed command (a broken command BLOCKS the save — catch with `isLogCommandError(e)` and toast) and returns `null` when the user backs out of the whisper warning. Store `prepared.authorIds` as `author_alter_ids` (and set the record's own author field from it only when the user actually signposted). `recordAuthoredText` writes the MentionLog rows (mentions, whisper recipients, and the "authored" trail passive attribution reads) — best-effort, never fails the save.
+- Autosaving fields (Learn reflections) do NOT run the pipeline on autosave — only on an explicit Save.
+- Status notes pass `chips: false` (they render as plain text) and `whisper: false`.
+
+Wired as of v0.243.5: alter notes/messages/private messages, relationships (all three editors), lineage events, groups, presences, contacts, locations, activities (all modals, planner notes, lifecycle note), tasks, sleep, symptoms, per-alter session notes, switch journal, technique notes, check-in log edits, quick check-in notes, meeting steps 1–5, bulletin edit + comment edit, chat message edit, status notes (card, quick-note sheet, widget), journal body (`~commands`).
+
 ## Routing Gotcha — `/Home` is NOT the home page
 
 The route names are a base44 leftover and don't match what the user (or
@@ -370,7 +381,10 @@ Rules for keeping the targets healthy:
   `ALLOWED_ORIGINS` in `api/_kv.js`.** Otherwise the browser drops every
   relay response and Friends looks broken with no error worth reading.
 - **Device sync is files only — never add a network path to it.** See
-  `docs/device-sync.md`. Platform differences live behind the adapter
+  `docs/device-sync.md`. On Android, folder access goes through the
+  Storage Access Framework (`SyncFolderPlugin.java`) — scoped storage hides
+  files the app didn't create, so plain `@capacitor/filesystem` reads of
+  `Documents` can never see the desktop's snapshot. Platform differences live behind the adapter
   interface in `src/lib/syncAdapters.js`; a new platform is a new
   adapter, never a change to `deviceSync.js` or `deviceSyncRunner.js`.
 - **`symphony_sync_device_id` must stay OUT of `BACKUP_LS_KEYS`.**
@@ -383,6 +397,19 @@ Rules for keeping the targets healthy:
   they want deleted data BACK. Deletions from the other device are
   surfaced for review, never applied. Don't "fix" this into a
   bidirectional delete.
+- **Sync merges field by field (v0.245.0).** Every record carries `_ft`,
+  its per-field change times, and `src/lib/syncMerge.js` merges on them.
+  **Any code that writes a record OUTSIDE the entity proxy's
+  create/update, for example by mutating `_db` directly like
+  `replaceIdReferences`, must stamp `_ft` (`stampDiff`) and
+  `updated_date`.** Otherwise the other device's older copy wins the next
+  sync and silently reverts the write. Task completions (`DailyProgress`)
+  must go through `toggleDailyProgressTasks` (serialized, one record per
+  period, unticks recorded in `cleared_times`). Never
+  `DailyProgress.create`/`update` directly. Fronting sessions merge
+  with "an end is a fact" (`mergeFrontingSession`). Log fields
+  (`LOG_FIELDS`) merge as unions. Anything a merge replaces is kept in
+  Recent changes ("Changed by sync").
 - **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
   copy — its entity maps are the live database. Anything built from it
   and then awaited on (encryption) can tear. `buildDataSnapshot` copies

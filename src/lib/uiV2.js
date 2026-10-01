@@ -309,6 +309,9 @@ export function resolveUiV2(stored) {
       bottom: src.classicBars?.bottom !== false,
       actions: src.classicBars?.actions !== false,
       alters: src.classicBars?.alters !== false,
+      // Desktop width: host these bars beside the classic sidebar instead
+      // of hiding them. Off by default — the sidebar is the desktop default.
+      wide: src.classicBars?.wide === true,
     },
     // What "/" opens on while classic is active: the classic homescreen
     // (default, the leftmost "page") or straight onto the widget board.

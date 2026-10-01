@@ -43,6 +43,7 @@ export async function createPlan({
   leadSteps = null,
   reminderOffset = null,
   recurrence = { interval: "none", count: 1 },
+  authorAlterIds = [],          // who signed the note (signposts) — stored as author_alter_ids
   linkedTask = null,            // existing Task object to link + date-sync
   createTodo = false,           // derive a new Task when none is linked
   todoTitle = "",
@@ -71,6 +72,8 @@ export async function createPlan({
       )
     : [timestamp];
 
+  const createdIds = [];
+
   for (const occ of occurrences) {
     // A recurring occurrence is always a PLAN instance to resolve later —
     // otherwise past/first occurrences silently auto-"log" and can't be
@@ -89,7 +92,7 @@ export async function createPlan({
     // and writes LOGGED directly, so nothing here needs to guess.
     const isPlanInstance = !!recurrenceGroupId || format(occ, "yyyy-MM-dd") >= todayLocalISODate();
     for (const r of records) {
-      await base44.entities.Activity.create({
+      const created = await base44.entities.Activity.create({
         timestamp: occ.toISOString(),
         activity_name: r.activity_name,
         activity_category_ids: r.activity_category_ids || [],
@@ -110,7 +113,9 @@ export async function createPlan({
         actual_duration_minutes: null,
         reschedule_history: [],
         reminder_offset_minutes: reminderOffset,
+        ...(authorAlterIds.length ? { author_alter_ids: authorAlterIds } : {}),
       });
+      if (created?.id) createdIds.push(created.id);
     }
   }
 
@@ -124,5 +129,5 @@ export async function createPlan({
     } catch { /* non-fatal */ }
   }
 
-  return { occurrences, derivedTask, recurrenceGroupId };
+  return { occurrences, derivedTask, recurrenceGroupId, createdIds };
 }

@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText, Activity, Smile, StickyNote } from "lucide-react";
+import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, Activity, Smile, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
@@ -199,23 +201,33 @@ export default function MessagesTab({ alterId, alters }) {
 
 const postMessage = async () => {
   if (!newContent.trim()) return;
+  let prepared;
+  try {
+    prepared = await prepareAuthoredText(newContent.trim(), { alters: alters || [], terms, surfaceLabel: "board message" });
+  } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+  if (prepared === null) return; // user backed out of the whisper warning
   setSaving(true);
-  const msg = await base44.entities.AlterMessage.create({ 
-    alter_id: alterId, 
-    content: newContent.trim() 
+  const authorId = prepared.authorIds[0] || null;
+  const navigatePath = `/alter/${alterId}?tab=messages`;
+  const msg = await base44.entities.AlterMessage.create({
+    alter_id: alterId,
+    content: prepared.content,
+    author_alter_ids: prepared.authorIds,
+    ...(authorId ? { author_alter_id: authorId } : {}),
   });
   // Notify the alter whose board this is
   await base44.entities.MentionLog.create({
     mentioned_alter_id: alterId,
-    author_alter_id: null,
+    author_alter_id: authorId,
     log_type: "mention",
     source_type: "message",
-    source_id: alterId,
+    source_id: msg.id,
     source_label: "Board message",
     source_date: new Date().toISOString(),
-    preview_text: newContent.trim().slice(0, 120),
-    navigate_path: `/alter/${alterId}`,
+    preview_text: prepared.isWhisper ? "🔒 private whisper" : prepared.content.slice(0, 120),
+    navigate_path: navigatePath,
   });
+  await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: msg.id, sourceLabel: "Board message", navigatePath });
   queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
   queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
   setNewContent("");
@@ -286,10 +298,12 @@ const postMessage = async () => {
       {/* Compose */}
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
-          <Textarea
+          <MentionTextarea
             placeholder={`Leave a message for this ${terms.alter}...`}
             value={newContent}
-            onChange={e => setNewContent(e.target.value)}
+            onChange={setNewContent}
+            alters={alters || []}
+            signposts
             className="min-h-[80px] text-sm"
             autoFocus
           />

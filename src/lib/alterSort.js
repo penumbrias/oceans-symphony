@@ -67,19 +67,25 @@ export function useFrontersFirst({ enabled = true } = {}) {
   const { placedIndex, hasOrder } = useAlterOrder();
   const fronting = useFrontingIds(enabled);
   return useMemo(() => {
-    const rank = (a) => {
-      if (fronting?.has?.(a.id)) return -1;
-      if (hasOrder) {
-        const i = placedIndex?.[a.id];
+    return (list) => {
+      const items = [...(list || [])];
+      // placedIndex is a FUNCTION (list → Map of id → position). It used to
+      // be indexed like an object here, which always came back undefined —
+      // so the user's hand-set arrangement was silently ignored everywhere
+      // this hook sorts.
+      const placed = hasOrder && typeof placedIndex === "function" ? placedIndex(items) : null;
+      const rank = (a) => {
+        if (fronting?.has?.(a.id)) return -1;
+        const i = placed?.get(a.id);
         if (i !== undefined) return i;
-      }
-      return Number.MAX_SAFE_INTEGER;
+        return Number.MAX_SAFE_INTEGER;
+      };
+      return items.sort((a, b) => {
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        return (a.name || "").localeCompare(b.name || "");
+      });
     };
-    return (list) => [...(list || [])].sort((a, b) => {
-      const ra = rank(a), rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      return (a.name || "").localeCompare(b.name || "");
-    });
   }, [fronting, hasOrder, placedIndex]);
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images, Contact } from "lucide-react";
+import { LayoutGrid, X as XIcon, Plus as PlusIcon, Pencil, Check } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

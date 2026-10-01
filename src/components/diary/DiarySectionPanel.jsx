@@ -6,7 +6,9 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
@@ -35,6 +37,7 @@ function PanelShell({ title, subtitle, onClose, children }) {
 }
 
 export default function DiarySectionPanel({ section, data, onChange, onClose }) {
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { id, type, label, subtitle, data_key, scale_max = 5 } = section;
 
   if (id === "checklist") {
@@ -149,9 +152,11 @@ export default function DiarySectionPanel({ section, data, onChange, onClose }) 
             <div key={field.id} className="space-y-1.5">
               <Label>{field.label}</Label>
               {field.field_type === "long" ? (
-                <Textarea
+                <MentionTextarea
                   value={groupData[field.data_key] || ""}
-                  onChange={(e) => onChange(data_key, { ...groupData, [field.data_key]: e.target.value })}
+                  onChange={(v) => onChange(data_key, { ...groupData, [field.data_key]: v })}
+                  alters={alters}
+                  signposts
                   placeholder="Any other details..."
                   className="min-h-[80px]"
                 />
