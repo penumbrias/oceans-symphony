@@ -1,7 +1,12 @@
-// electron-builder configuration for the Linux desktop build.
+// electron-builder configuration for the desktop builds (Linux + Windows).
 //
-// Run via `npm run desktop:build` (which builds dist/ first — the packaged
-// app serves that exact directory, so a stale dist ships a stale app).
+// Run via `npm run desktop:build` (Linux) or `npm run desktop:build:win`
+// (Windows). Both build dist/ first — the packaged app serves that exact
+// directory, so a stale dist ships a stale app.
+//
+// The Windows installer is normally built on a Windows machine or by the
+// "Desktop (Windows)" GitHub workflow; cross-building it from Linux needs
+// wine for the exe's icon/version resources.
 //
 // ── Version ──
 // package.json's "version" is a base44 leftover stuck at 0.0.0, and the
@@ -94,6 +99,8 @@ module.exports = {
     'electron/main.cjs',
     'electron/preload.cjs',
     'electron/build/icon.png',
+    // Windows window/taskbar icon (electron/main.cjs picks it on win32).
+    'electron/build/icon.ico',
     'package.json',
     // node_modules is excluded wholesale and then electron-updater's
     // dependency closure is added back. Vite has already bundled every
@@ -107,12 +114,15 @@ module.exports = {
     '!node_modules/**',
     ...updaterDependencyGlobs(),
   ],
-  // Update feed. electron-builder also writes latest-linux.yml next to the
-  // artifacts, which is the file electron-updater polls.
+  // Update feed. electron-builder also writes latest-linux.yml (Linux) and
+  // latest.yml (Windows) next to the artifacts; those are the files
+  // electron-updater polls. Both platforms' files go on the SAME GitHub
+  // release, so one release updates everyone.
   //
-  // AppImage only — a .deb updates through apt, and electron-updater
-  // cannot replace a system-installed package. electron/main.cjs checks
-  // for the APPIMAGE env var before doing anything.
+  // Linux: AppImage only — a .deb updates through apt, and
+  // electron-updater cannot replace a system-installed package.
+  // electron/main.cjs checks for the APPIMAGE env var before doing
+  // anything. Windows: the NSIS installer updates itself.
   publish: [
     {
       provider: 'github',
@@ -152,6 +162,44 @@ module.exports = {
   },
   appImage: {
     artifactName: 'OceansSymphony-${version}-${arch}.AppImage',
+  },
+  // ── Windows ──
+  //
+  // NSIS, one-click, PER-USER: installs into
+  // %LOCALAPPDATA%\Programs\oceans-symphony with no admin prompt, adds
+  // Start-menu and desktop shortcuts, and launches the app when done. One
+  // click is deliberate — nothing to misread or mis-click for a
+  // non-technical tester, and per-user means auto-updates never ask for
+  // admin either. (Set oneClick: false + allowToChangeInstallationDirectory
+  // to offer a folder choice; per-user must then be forced with an
+  // installer.nsh customInstallMode macro, or the installer offers an
+  // all-users mode that needs admin and breaks silent updates.)
+  //
+  // UNSIGNED: there is no code-signing certificate, so SmartScreen shows
+  // "Windows protected your PC" on first install (More info → Run anyway).
+  // Updates are fetched by electron-updater, not a browser, so they don't
+  // trigger it again. Because no publisherName is set, electron-updater
+  // skips signature verification — it still checks the sha512 in
+  // latest.yml.
+  win: {
+    target: [{ target: 'nsis', arch: ['x64'] }],
+    icon: 'electron/build/icon.ico',
+  },
+  nsis: {
+    oneClick: true,
+    perMachine: false,
+    // Matches the AppImage's naming: OceansSymphony-<version>-<arch>…
+    artifactName: 'OceansSymphony-${version}-${arch}-Setup.${ext}',
+    shortcutName: 'Oceans Symphony',
+    uninstallDisplayName: 'Oceans Symphony',
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    runAfterFinish: true,
+    // NEVER true. The user's database lives in %APPDATA%\Oceans Symphony
+    // and an update is an uninstall-then-install under the hood, so this
+    // flag would be one checkbox away from wiping it. Uninstalling the app
+    // leaves the data in place; reinstalling picks it straight back up.
+    deleteAppDataOnUninstall: false,
   },
   deb: {
     artifactName: 'oceans-symphony_${version}_${arch}.deb',
