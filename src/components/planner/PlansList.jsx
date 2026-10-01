@@ -19,6 +19,7 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { CheckSquare } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { planMark } from "@/lib/planner/planMark";
 
 const dayMs = 86400000;
 
@@ -250,7 +251,16 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
               <span className="flex-1 min-w-0">
                 <span className="text-sm font-medium truncate flex items-center gap-1.5">
                   {r.item.is_critical && <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
-                  <span className="truncate">{r.item.activity_name || tr("planner.untitled")}</span>
+                  {(() => {
+                    // Same outcome marks as the week grid (planMark).
+                    const pm = r.kind === "series" ? { mark: "", struck: false, faded: false } : planMark(r.item);
+                    return (
+                      <span className={`truncate ${pm.faded ? "opacity-60" : ""}`} style={pm.struck ? { textDecoration: "line-through" } : undefined}
+                        title={pm.labelKey ? tr(pm.labelKey) : undefined}>
+                        {pm.mark ? `${pm.mark} ` : ""}{r.item.activity_name || tr("planner.untitled")}
+                      </span>
+                    );
+                  })()}
                   {r.kind === "series" && (
                     <span className="text-[0.6875em] text-muted-foreground border border-border/50 rounded-full px-1.5 flex items-center gap-0.5 flex-shrink-0">
                       <Repeat className="w-2.5 h-2.5" />{cadenceLabel(r.members, tr)}

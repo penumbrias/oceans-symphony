@@ -27,6 +27,7 @@ import { useTerms } from "@/lib/useTerms";
 import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/lib/activitySession";
 import { getActiveSystemId } from "@/lib/systems";
+import { planMark } from "@/lib/planner/planMark";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -475,6 +476,7 @@ function DayColumn({
           const realStart = b.start instanceof Date ? b.start : new Date(b.start);
           const realEnd = b.end ? (b.end instanceof Date ? b.end : new Date(b.end)) : null;
           const clockLabel = (d) => formatClock(d.getHours() * 60 + d.getMinutes(), _timeFmt);
+          const pm = b._live ? { mark: "", faded: false, struck: false, labelKey: null } : planMark(b);
           return (
             <div
               key={b.id}
@@ -489,7 +491,9 @@ function DayColumn({
                 background: isLive ? `${colorFor(b)}55` : `${colorFor(b)}2e`,
                 borderLeft: `2px solid ${colorFor(b)}`,
                 opacity: isLive ? 1 : b._live && b.status !== "scheduled" ? 1
-                  : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
+                  : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1) * (pm.faded ? 0.55 : 1),
+                // Skipped / cancelled didn't happen — drained of colour too.
+                ...(pm.faded && !isLive ? { filter: "grayscale(1)" } : null),
                 borderStyle: b.status === "scheduled" ? "dashed" : "solid",
                 // ARMED for resize: unmistakable "you're now editing this
                 // block's time" — accent ring, richer fill, a hair of scale,
@@ -559,8 +563,11 @@ function DayColumn({
                   : onOpenBlock(b))}
                 className="w-full h-full text-left px-1 py-0.5"
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
-                <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
-                  {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b.activity_name || tr("planner.untitled")}
+                <span className="block truncate font-medium" style={{ color: colorFor(b), textDecoration: pm.struck ? "line-through" : undefined }}
+                  title={pm.labelKey ? tr(pm.labelKey) : undefined}>
+                  {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}
+                  {pm.mark && <span aria-label={tr(pm.labelKey)}>{pm.mark} </span>}
+                  {b.activity_name || tr("planner.untitled")}
                 </span>
                 {isLive && (live.spans ? (
                   // Whole-block times with weekdays: the ends may be on

@@ -52,6 +52,7 @@ import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } fro
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
+import { Switch } from "@/components/ui/switch";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 
 const lsGet = (k, d) => {
@@ -547,7 +548,7 @@ export default function PlannerSurface({
           return {
             timestamp: iso,
             ...lengthPatch(mem),
-            ...(mem.status === "scheduled" && mem.timestamp && mem.timestamp !== iso
+            ...(countReschedule && mem.status === "scheduled" && mem.timestamp && mem.timestamp !== iso
               ? { reschedule_history: [...(mem.reschedule_history || []), { from: mem.timestamp, to: iso, ts: new Date().toISOString() }] }
               : {}),
           };
@@ -558,7 +559,7 @@ export default function PlannerSurface({
           ...lengthPatch(timing.item),
           // Moving a plan is a reschedule, not a new plan: status stays
           // `scheduled` and the move is recorded, matching the tracker's model.
-          ...(wasScheduled && from && from !== when.toISOString()
+          ...(countReschedule && wasScheduled && from && from !== when.toISOString()
             ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
             : {}),
         });
@@ -569,6 +570,7 @@ export default function PlannerSurface({
       // miss — especially if it lands outside the scrolled view — and the
       // sheet closing with no word for it reads as the button doing nothing.
       if (unchanged) toast.info(tr("planner.noChange"));
+      else if (!countReschedule || !wasScheduled) toast.success(tr("planner.timeFixed", { when: format(when, "EEE d MMM, HH:mm") }));
       else toast.success(tr("planner.rescheduled", { when: format(when, "EEE d MMM, HH:mm") }));
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
   };
@@ -620,6 +622,11 @@ export default function PlannerSurface({
     } catch (e) { toast.error(e.message || "Failed"); }
   };
   const setOutcome = (status, endedAt = null) => resolveItem(timing?.item, status, endedAt);
+  // Moving a scheduled plan counts as a real-life reschedule (↻, counted
+  // in plan stats) unless the person says it's only a correction of what
+  // they entered (owner, 2026-10-01). Back on for every newly opened plan.
+  const [countReschedule, setCountReschedule] = useState(true);
+  useEffect(() => { setCountReschedule(true); }, [timing?.item?.id]);
   // Start / Done ask WHEN first (PlanTimeChoice — "on time", now, or
   // another time). Which one is open in the sheet: "start" | "end" | null.
   const [timeAsk, setTimeAsk] = useState(null);
@@ -1740,9 +1747,20 @@ export default function PlannerSurface({
                   + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
               </Button>
             ) : timingDirty && (
-              <Button size="sm" className="w-full" onClick={applyTime}>
-                {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
-              </Button>
+              <>
+                {timing.item.status === "scheduled" && timing.item.timestamp && (
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span>{tr("planner.countAsReschedule")}</span>
+                    <Switch checked={countReschedule} onCheckedChange={setCountReschedule}
+                      aria-label={tr("planner.countAsReschedule")} />
+                  </label>
+                )}
+                <Button size="sm" className="w-full" onClick={applyTime}>
+                  {timing.item.timestamp
+                    ? (timing.item.status === "scheduled" && countReschedule ? tr("planner.reschedule") : tr("planner.saveTime"))
+                    : tr("planner.giveTime")}
+                </Button>
+              </>
             )}
             {/* Deleting states its blast radius (rule 12) and leaves any
                 linked to-do untouched — removing a plan is not un-wanting

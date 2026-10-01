@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "improve", text: "Planner: done plans show ✓, partly done ◐, skipped ones are greyed with ⤼, cancelled ones greyed and crossed out, and rescheduled plans show ↻." },
+      { type: "feature", text: "Moving a plan's time has a \"Count as rescheduled\" switch — turn it off when you're only correcting what you entered." },
       { type: "feature", text: "Your widget boards now come with you to your other devices through device sync, merged page by page so edits on both survive." },
       { type: "feature", text: "Each board page has a \"Show as\" setting in edit mode: Auto fits any screen, or keep a page phone-, tablet- or desktop-shaped everywhere." },
       { type: "improve", text: "\"Reset home screen…\" in the ⚙ menu now only shows while you're editing the home screen." },
