@@ -301,6 +301,11 @@ export function mergeFrontingSession(local, incoming) {
   // them as "ended on the other device" is what ended three live fronters
   // as 0-minute sessions on 2026-09-30 (owner report). Only real ends count.
   if (incoming?.sync_demoted) return out;
+  // Same for a 0-minute end (end = start, to the millisecond): that's the
+  // placeholder's signature even on copies that lost the marker. Nobody
+  // ends a real front in the same millisecond it began.
+  const zeroLength = (r) => !!r?.end_time && r.end_time === r.start_time;
+  if (zeroLength(incoming)) return out;
   const setState = (is_active, end_time, from) => {
     if (out.is_active === is_active && out.end_time === end_time) return;
     if (out === local) out = { ...local };

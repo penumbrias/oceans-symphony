@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "September 30, 2026",
     changes: [
       { type: "fix", text: "Device sync: fixed a sync ending the people who were fronting on the other device. If yours vanished, restore them from Recent changes → \"Changed by sync\"." },
+      { type: "fix", text: "Recent changes: restoring an earlier version now puts back the whole record, not just some of its fields." },
       { type: "improve", text: "Timeline: fronting bars now use each fronting level's colour and ring instead of the gold primary colour." },
       { type: "fix", text: "Android app: fixed the app getting stuck on \"Taking longer than usual to load\" after updating to 0.247.0. Your data was never affected." },
       { type: "improve", text: "Planner on a computer: Ctrl + scroll (or a trackpad pinch) resizes the hours, and Ctrl + Shift + scroll widens the days — the desktop version of pinching." },

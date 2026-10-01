@@ -27,6 +27,9 @@ const FIELD_LABELS = {
   experimental_home: "Experimental home layout",
 };
 
+// Bookkeeping fields a restore never clears.
+const RESTORE_KEEP = new Set(["id", "created_date", "updated_date", "created_by", "_ft"]);
+
 export default function HistoryArchive() {
   const t = useTerms();
   const qc = useQueryClient();
@@ -91,7 +94,17 @@ export default function HistoryArchive() {
         await base44.entities.SystemSettings.update(e.record_id, { [e.field]: e.snapshot });
       } else {
         const existing = await base44.entities[e.entity].get?.(e.record_id);
-        if (existing) await base44.entities[e.entity].update(e.record_id, e.snapshot);
+        // A snapshot is the WHOLE earlier record, so restoring it also
+        // clears fields it didn't have yet — otherwise a fronting session
+        // restored from "Changed by sync" came back live but still carrying
+        // the end time the sync gave it.
+        if (existing) {
+          const patch = { ...e.snapshot };
+          for (const k of Object.keys(existing)) {
+            if (!(k in patch) && !RESTORE_KEEP.has(k)) patch[k] = null;
+          }
+          await base44.entities[e.entity].update(e.record_id, patch);
+        }
         else await restoreDeletedRecord(e.entity, e.snapshot);
       }
       toast.success("Restored.");

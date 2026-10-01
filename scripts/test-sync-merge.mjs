@@ -174,6 +174,12 @@ test("a local placeholder takes the origin's real end and stops being a placehol
   assert.equal(m.end_time, T(90));
   assert.equal(m.sync_demoted, undefined);
 });
+test("a 0-minute end that lost its placeholder marker still never ends a live front", () => {
+  const live = sess({ id: "k3" });
+  const bogus = updated(live, { is_active: false, end_time: live.start_time }, T(95));
+  const m = mergeFrontingSession(live, bogus);
+  assert.equal(m.is_active, true);
+});
 
 console.log("logs and settings");
 test("presence sightings from both devices are all kept", () => {
