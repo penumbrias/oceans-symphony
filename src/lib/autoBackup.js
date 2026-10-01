@@ -19,7 +19,7 @@
 // they pick. The Downloads folder is on Android's public storage, not
 // inside the WebView's sandbox, so it survives all of the cases listed.
 
-import { getFullDbDump } from "@/lib/localDb";
+import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 import { stripDeviceBound } from "@/lib/backupPolicy";
 import { getAllLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts } from "@/lib/localFontStorage";
@@ -28,7 +28,7 @@ import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { recordBackupAttempt, snoozeBackupWarning } from "@/lib/backupHealth";
-import { hasMultipleSystems } from "@/lib/systems";
+import { listSystems, getActiveSystemId, getSystemData } from "@/lib/systems";
 import { isEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { encryptStandardBackup } from "@/lib/backupFormat";
 
@@ -322,14 +322,33 @@ function estimateBytes(obj) {
   return n;
 }
 
-async function buildFullBackupPayload() {
+// Reserved top-level DB keys (the local-settings mirror) are this device's
+// own bookkeeping. The mirror also holds mirror-only keys such as the
+// grocery cover's unlock state — which must never land in a plain backup
+// file (audit 2026-10-01, L11). Every real preference already travels in
+// __local_settings.
+function stripReserved(dump) {
+  const out = {};
+  for (const [k, v] of Object.entries(dump || {})) if (!isReservedDbKey(k)) out[k] = v;
+  return out;
+}
+
+// allSystems:
+//   "best"     — every system that can be read right now (an encrypted
+//                sibling that can't be unlocked is skipped and reported)
+//   "required" — every system, or throw: the safety copy taken before a
+//                Replace must hold everything the Replace can delete
+//                (audit 2026-10-01, H1/H2 — it used to hold only the
+//                active system, then offered to delete the others).
+// One system → the plain single-system file, exactly as before.
+async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // Device-bound entities (friends credential + E2E private key, push
   // registration) must never ride in a general backup — see backupPolicy.
   // Manual exports already stripped them; auto-backups did NOT until
   // v0.95.2, which meant a plain-JSON file in Downloads carried the
   // friends secret. The identity moves only via the explicit opt-in
   // bundle in the manual export flow.
-  const dump = stripDeviceBound(getFullDbDump());
+  const dump = stripReserved(stripDeviceBound(getFullDbDump()));
   let images = {};
   try { images = await getAllLocalImages(); } catch { /* skip images on failure */ }
   let fonts = {};
@@ -341,7 +360,30 @@ async function buildFullBackupPayload() {
       `[Auto-backup] payload too large (${Math.round(heavyBytes / 1024 / 1024)} MB of images/fonts) — writing data-only backup so the native bridge doesn't crash.`
     );
   }
-  const payload = {
+  let systems = [];
+  try { systems = listSystems(); } catch { /* registry unavailable */ }
+  const unreadable = [];
+  let perSystem = null;
+  if (systems.length > 1) {
+    const activeId = getActiveSystemId();
+    perSystem = [];
+    for (const sys of systems) {
+      let raw = null;
+      if (sys.id === activeId) raw = dump;
+      else {
+        try { raw = await getSystemData(sys); } catch { raw = null; }
+        if (raw) raw = stripReserved(stripDeviceBound(raw));
+      }
+      if (!raw) { unreadable.push(sys.name || "unnamed"); continue; }
+      perSystem.push({ name: sys.name, avatar: sys.avatar || null, ...(sys.id === activeId ? { active: true } : {}), data: raw });
+    }
+    if (unreadable.length && allSystems === "required") {
+      const err = new Error(`Couldn't read "${unreadable[0]}" right now, so a backup of everything can't be made.`);
+      err.unreadableSystems = unreadable;
+      throw err;
+    }
+  }
+  const envelope = {
     __format: "symphony_backup",
     __version: 1,
     __exported_at: new Date().toISOString(),
@@ -349,7 +391,12 @@ async function buildFullBackupPayload() {
     // A skip is recorded on the envelope so the user can see WHY their
     // auto-backup is smaller than they expect when they open the file.
     ...(skipHeavy ? { __skipped_heavy_blobs: true } : {}),
-    data: dump,
+  };
+  const payload = {
+    ...envelope,
+    // Several systems → the same container a manual "each separately"
+    // export writes, so Import restores every one of them.
+    ...(perSystem ? { __multisystem: 1, systems: perSystem } : { data: dump }),
     __local_images: skipHeavy ? {} : images,
     __local_fonts: skipHeavy ? {} : fonts,
     __local_settings: readBackupLocalSettings(),
@@ -357,10 +404,8 @@ async function buildFullBackupPayload() {
   // Caveats the health surface must be able to say out loud (they used to
   // be a console.warn and a flag inside the file — invisible in-app):
   //   • images/fonts skipped over the size limit
-  //   • only the ACTIVE system is in an auto-backup (multi-system users)
-  let multi = false;
-  try { multi = hasMultipleSystems(); } catch { /* registry unavailable */ }
-  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, activeSystemOnly: multi } });
+  //   • systems that couldn't be read (locked) and so aren't in the file
+  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, unreadableSystems: unreadable } });
   return payload;
 }
 
@@ -373,7 +418,7 @@ async function buildFullBackupPayload() {
 //
 // Returns the result string ("filesystem" | "shared" | "downloaded"
 // | "cancelled" | "failed").
-export async function runAutoBackupNow({ silent = false } = {}) {
+export async function runAutoBackupNow({ silent = false, allSystems = "best" } = {}) {
   const kind = silent ? "auto" : "manual";
   // Locking is resolved BEFORE the (expensive) payload is built, so a
   // missing password fails fast and is recorded like any other failure.
@@ -387,7 +432,13 @@ export async function runAutoBackupNow({ silent = false } = {}) {
     err.deliveryResult = "failed";
     throw err;
   }
-  let payload = await buildFullBackupPayload();
+  let payload;
+  try {
+    payload = await buildFullBackupPayload({ allSystems });
+  } catch (e) {
+    recordBackupAttempt({ kind, ok: false, detail: e?.message || String(e) });
+    throw e;
+  }
   const caveats = payload.__caveats || {};
   const locked = !!password;
   if (locked) payload = await encryptStandardBackup(payload, password);
@@ -459,7 +510,7 @@ export async function runAutoBackupNow({ silent = false } = {}) {
   if (result === "filesystem" || result === "shared" || result === "downloaded") {
     setAutoBackupLastAt(new Date().toISOString());
     const notes = [];
-    if (caveats.activeSystemOnly) notes.push("active system only");
+    if (caveats.unreadableSystems?.length) notes.push(`not included (locked): ${caveats.unreadableSystems.join(", ")}`);
     if (caveats.skippedHeavy) notes.push("images/fonts skipped (too large)");
     recordBackupAttempt({ kind, ok: true, detail: [location || result, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {

@@ -20,6 +20,7 @@ import {
   decryptEncryptedImport,
   isEncryptedFormat,
   FORMAT_STANDARD,
+  FORMAT_MULTISYSTEM,
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
@@ -641,7 +642,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           // would only discover the hole when restoring onto a new phone.
           throw new Error(`Couldn't read the "${s.name || "unnamed"}" ${terms.system} — it's missing or can't be decrypted right now. Unlock the app (or open that ${terms.system} once) and export again; nothing was written.`);
         }
-        perSystem.push({ name: s.name, avatar: s.avatar || null, data: filterDump(raw, activeCats) });
+        perSystem.push({ name: s.name, avatar: s.avatar || null, ...(s.id === activeSystemId ? { active: true } : {}), data: filterDump(raw, activeCats) });
       }
       if (systemsScope === "separate") {
         // Symphony multi-system container — each system restored as its own.
@@ -842,22 +843,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // first — the same rails every other wipe path (Octocon, OpenPlural,
       // Delete All, recovery reset) already has. This was the one path
       // that deleted the active system on a single radio button.
-      const ok = await confirm({
-        title: "Replace all data?",
-        body: "This replaces the current system's data with the file's copy, for every category the file includes — anything it doesn't include stays as it is. A full backup of your current data is saved to your device first.",
-        confirmLabel: "Back up, then replace",
-        destructive: true,
-      });
-      if (!ok) { traceEnd("cancelled at replace confirm"); setImportLoading(false); return; }
-      try {
-        const backupResult = await runAutoBackupNow();
-        if (backupResult === "cancelled") {
-          toast.error("Backup was cancelled — nothing was replaced.");
-          traceEnd("cancelled at safety backup"); setImportLoading(false); return;
-        }
-      } catch (e) {
-        toast.error(`Couldn't save a safety backup, so nothing was replaced: ${e?.message || e}`);
-        traceEnd("safety backup failed"); setImportLoading(false); return;
+      if (!(await confirmReplaceAndBackUp(`This replaces the current ${terms.system}'s data with the file's copy, for every category the file includes — anything it doesn't include stays as it is.`))) {
+        traceEnd("cancelled or no safety backup"); setImportLoading(false); return;
       }
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
       if (others.length > 0) {
@@ -1107,6 +1094,39 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     if (resolve) resolve(keepIdsOrNull);
   };
 
+  // Every Replace confirms, then saves a backup of EVERYTHING — every
+  // system, since a Replace can also clear the others (audit 2026-10-01:
+  // the copy used to hold only the active system, and the multi-system
+  // Replace had no confirm or copy at all). No copy → nothing replaced.
+  const confirmReplaceAndBackUp = async (what) => {
+    const many = listSystems().length > 1;
+    const ok = await confirm({
+      title: "Replace all data?",
+      body: `${what} A backup of ${many ? `all your ${terms.systems}` : "your current data"} is saved to your device first.`,
+      confirmLabel: "Back up, then replace",
+      destructive: true,
+    });
+    if (!ok) return false;
+    try {
+      const backupResult = await runAutoBackupNow({ allSystems: "required" });
+      if (backupResult === "cancelled") {
+        toast.error("Backup was cancelled — nothing was replaced.");
+        return false;
+      }
+      if (backupResult === "failed") {
+        toast.error("Couldn't save a safety backup, so nothing was replaced.");
+        return false;
+      }
+    } catch (e) {
+      const locked = e?.unreadableSystems?.[0];
+      toast.error(locked
+        ? `Couldn't read the "${locked}" ${terms.system} to back it up, so nothing was replaced. Open that ${terms.system} once (or unlock the app) and try again.`
+        : `Couldn't save a safety backup, so nothing was replaced: ${e?.message || e}`);
+      return false;
+    }
+    return true;
+  };
+
   const processImport = async (text) => {
     // Detect a multi-system Symphony backup up front so we can honour the
     // Replace-vs-Add choice (and surface its own errors) instead of silently
@@ -1135,6 +1155,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         };
 
         if (importMode === "replace") {
+          if (!(await confirmReplaceAndBackUp(`This replaces your ${terms.systems} with the ${importedSystems.length} in this file.`))) {
+            setImportLoading(false); return;
+          }
           // Ask about existing systems the backup doesn't include before wiping.
           const unmatched = computeUnmatchedExistingSystems(importedSystems, listSystems());
           let keepIds = new Set();
@@ -1635,7 +1658,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // (the same consent prompt as every other path).
       const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      if (res.format === FORMAT_STANDARD) {
+      if (res.format === FORMAT_MULTISYSTEM) {
+        await processImport(JSON.stringify(res.payload));
+      } else if (res.format === FORMAT_STANDARD) {
         await applyImportPayload({
           data: res.data,
           localImages: res.localImages,

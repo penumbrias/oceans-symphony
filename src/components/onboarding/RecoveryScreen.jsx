@@ -36,6 +36,7 @@ import {
   isEncryptedFormat,
   wrapAsStandardBackup,
   FORMAT_STANDARD,
+  FORMAT_MULTISYSTEM,
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
 
@@ -218,6 +219,24 @@ export default function RecoveryScreen({ reason, onResolved }) {
     } catch { /* best-effort */ }
   };
 
+  // A file holding several systems: this screen repairs ONE slot (the one
+  // that failed to open), so restore the matching system into it — by
+  // name, else the one that was open when the file was made — and leave
+  // the rest for Settings → Import, where Add/Replace are offered.
+  const applyMultiEntry = async ({ payload, localImages, localFonts, localSettings }) => {
+    const { backupSystems, primarySystemIndex } = await import("@/lib/multiSystemRestore");
+    const { getActiveSystem } = await import("@/lib/systems");
+    const systems = backupSystems(payload);
+    if (!systems.length) throw new Error("This backup has nothing in it to restore.");
+    let currentName = null;
+    try { currentName = getActiveSystem()?.name || null; } catch { /* registry unreadable */ }
+    const named = currentName ? systems.findIndex((x) => (x.name || "") === currentName) : -1;
+    const i = named >= 0 ? named : primarySystemIndex(systems);
+    await applyDump({ data: systems[i].data, localImages, localFonts, localSettings });
+    const more = systems.length - 1;
+    return `Restored “${systems[i].name || "your data"}”.${more ? ` This file holds ${more} more — add ${more === 1 ? "it" : "them"} later from Settings → Data & privacy → Import.` : ""} Reloading…`;
+  };
+
   const onFileChosen = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -227,7 +246,11 @@ export default function RecoveryScreen({ reason, onResolved }) {
     try {
       const text = await file.text();
       const parsed = parseImportText(text);
-      if (parsed.format === FORMAT_STANDARD) {
+      if (parsed.format === FORMAT_MULTISYSTEM) {
+        const msg = await applyMultiEntry(parsed);
+        setStatus({ type: "success", text: msg });
+        setTimeout(() => window.location.reload(), 2500);
+      } else if (parsed.format === FORMAT_STANDARD) {
         await applyDump({
           data: parsed.data,
           localImages: parsed.localImages,
@@ -259,6 +282,12 @@ export default function RecoveryScreen({ reason, onResolved }) {
     try {
       const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
+      if (res.format === FORMAT_MULTISYSTEM) {
+        const msg = await applyMultiEntry(res);
+        setStatus({ type: "success", text: msg });
+        setTimeout(() => window.location.reload(), 2500);
+        return;
+      }
       if (res.format === FORMAT_STANDARD) {
         await applyDump({ data: res.data, localImages: res.localImages, localFonts: res.localFonts, localSettings: res.localSettings });
       } else {

@@ -4,8 +4,16 @@
 // system's dump, where each source system becomes a Group named after that
 // system, holding that system's members. Used when exporting to a format that
 // can't represent multiple systems (or as a general "flatten everything into
-// one" option). UUID-keyed records across systems don't collide, so other
-// entity types are merged as-is.
+// one" option).
+//
+// Ids CAN collide: two systems created from the same backup share every
+// record id, and a plain merge let one silently overwrite the other in the
+// file (audit 2026-10-01, H3). A later system's record whose id is already
+// taken by DIFFERENT content gets a fresh id, and every reference to it
+// inside that system is rewritten (the same whole-string swap
+// replaceIdReferences uses — ids are UUIDs). Identical records (built-in
+// defaults) are kept once. SystemSettings is a singleton: the merged file
+// carries one row, the open system's.
 
 function genGroupId() {
   try {
@@ -16,17 +24,39 @@ function genGroupId() {
 
 // systemsData: [{ name, color?, data: { Alter:{id:rec}, Group:{...}, ... } }]
 // Returns a single combined dump in the same { EntityName: { id: record } } shape.
+function rekeyCollisions(data, combined) {
+  const remap = new Map();
+  for (const [entity, recs] of Object.entries(data)) {
+    if (entity.startsWith("__") || entity === "SystemSettings" || !recs || typeof recs !== "object") continue;
+    const taken = combined[entity] || {};
+    for (const [id, rec] of Object.entries(recs)) {
+      if (!(id in taken)) continue;
+      if (JSON.stringify(taken[id]) === JSON.stringify(rec)) continue;
+      if (id.length >= 16) remap.set(id, genGroupId());
+    }
+  }
+  if (!remap.size) return data;
+  const pattern = new RegExp([...remap.keys()].map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  const swapped = JSON.parse(JSON.stringify(data).replace(pattern, (m) => remap.get(m)));
+  return swapped;
+}
+
 export function mergeSystemsAsGroups(systemsData) {
   const combined = {};
   const now = new Date().toISOString();
   const addColl = (entity, recs) => {
     if (!recs || typeof recs !== "object") return;
     if (!combined[entity]) combined[entity] = {};
-    Object.assign(combined[entity], recs);
+    for (const [id, rec] of Object.entries(recs)) {
+      if (!(id in combined[entity])) combined[entity][id] = rec;
+    }
   };
+  // The open system's settings row (else the first system's) is the one row.
+  const list = (systemsData || []).filter(Boolean);
+  const settingsFrom = Math.max(0, list.findIndex((x) => x.active));
 
-  for (const sys of systemsData || []) {
-    const data = (sys && sys.data) || {};
+  for (const [idx, sys] of list.entries()) {
+    const data = rekeyCollisions((sys && sys.data) || {}, combined);
     const alters = (data.Alter && typeof data.Alter === "object") ? data.Alter : {};
     const memberIds = Object.keys(alters);
 
@@ -58,6 +88,7 @@ export function mergeSystemsAsGroups(systemsData) {
       // Reserved per-device keys (the preferences mirror) aren't entity
       // collections and don't belong in a merged multi-system blob.
       if (typeof entity === "string" && entity.startsWith("__")) continue;
+      if (entity === "SystemSettings" && idx !== settingsFrom) continue;
       addColl(entity, recs);
     }
   }

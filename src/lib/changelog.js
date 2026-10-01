@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "fix", text: "Replacing your data from a backup now always asks first and saves a backup of every {{system}} beforehand — not just the one that's open." },
+      { type: "fix", text: "Automatic backups now include all your {{systems}}, and restoring a backup with several {{systems}} works from first-time setup and the recovery screen." },
+      { type: "fix", text: "\"All {{systems}} merged into one\" exports no longer lose records when two {{systems}} share history." },
       { type: "improve", text: "Each device now has one widget board that fits any screen size. If you had a separate desktop board, the one you weren't seeing is kept as a saved preset." },
       { type: "fix", text: "Using another device's appearance now brings over the widget board you actually see there." },
     ],

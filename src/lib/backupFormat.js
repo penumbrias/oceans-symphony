@@ -37,6 +37,7 @@ export const FORMAT_STANDARD = 'standard';
 export const FORMAT_RAW_PLAIN = 'raw_plain';
 export const FORMAT_RAW_ENCRYPTED = 'raw_encrypted';
 export const FORMAT_STANDARD_ENCRYPTED = 'standard_encrypted';
+export const FORMAT_MULTISYSTEM = 'multisystem';
 
 // True for either shape that needs a password before it can be applied.
 // Import UIs branch on this to open the password prompt.
@@ -49,6 +50,11 @@ export function isEncryptedFormat(format) {
 // the object doesn't match any known shape.
 export function detectFormat(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
+  // Several systems in one file (manual "each separately" export, and
+  // every auto-backup of a multi-system device since v0.248.1). Without
+  // this, first-run setup and the recovery screen read it as a standard
+  // backup with no `data` and restored an EMPTY database.
+  if (parsed.__format === 'symphony_backup' && parsed.__multisystem && Array.isArray(parsed.systems)) return FORMAT_MULTISYSTEM;
   if (parsed.__format === 'symphony_backup' && parsed.data) return FORMAT_STANDARD;
   // Checked before the raw-encrypted shape: both carry `__encrypted`, but
   // only the locked standard envelope names its format.
@@ -87,6 +93,15 @@ export function normalizeImport(parsed) {
   const format = detectFormat(parsed);
   if (!format) {
     throw new Error("Unrecognised file. Doesn't match the Symphony backup or raw on-device format.");
+  }
+  if (format === FORMAT_MULTISYSTEM) {
+    return {
+      format,
+      payload: parsed,
+      localImages: parsed.__local_images || null,
+      localFonts: parsed.__local_fonts || null,
+      localSettings: parsed.__local_settings || null,
+    };
   }
   if (format === FORMAT_STANDARD) {
     return {
@@ -157,9 +172,13 @@ export async function decryptRawEncrypted({ ciphertext, salt, iterations = null 
 // Throws the same errors as decryptRawEncrypted.
 export async function decryptEncryptedImport(parsed, password) {
   const inner = await decryptRawEncrypted(parsed, password);
+  // A locked backup of SEVERAL systems (auto-backups hold every system
+  // since v0.248.1): hand the whole container back so the caller routes
+  // it through the multi-system import, not the single-dump one (which
+  // would see no `data` and restore nothing).
   if (parsed.format === FORMAT_STANDARD_ENCRYPTED) {
     const norm = normalizeImport(inner);
-    if (norm.format !== FORMAT_STANDARD) {
+    if (norm.format !== FORMAT_STANDARD && norm.format !== FORMAT_MULTISYSTEM) {
       throw new Error('Unlocked the file, but its contents are not a Symphony backup.');
     }
     return norm;

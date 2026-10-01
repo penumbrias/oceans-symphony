@@ -22,6 +22,7 @@ import {
   decryptEncryptedImport,
   isEncryptedFormat,
   FORMAT_STANDARD,
+  FORMAT_MULTISYSTEM,
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
 
@@ -73,7 +74,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   // complete setup without offering encryption (their old data may
   // already be encrypted and re-deriving keys here would be confusing).
   // They can flip encryption on or off later from Settings.
-  const applyDumpAndComplete = async ({ data, localImages, localFonts, localSettings }) => {
+  const applyDumpAndComplete = async ({ data, multi = null, localImages, localFonts, localSettings }) => {
     if (localImages) {
       try {
         const { restoreLocalImages } = await import("@/lib/localImageStorage");
@@ -98,6 +99,14 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
     setMode("local");
     setEncryptionEnabled(false);
     await initLocalDb(null);
+    if (multi) {
+      // Several systems: the one that was open goes into this database,
+      // the others become their own systems — then reload into them.
+      const { restoreMultiSystemIntoFreshDb } = await import("@/lib/multiSystemRestore");
+      await restoreMultiSystemIntoFreshDb(multi, loadDbDump);
+      window.location.reload();
+      return;
+    }
     await loadDbDump(data);
     onComplete();
   };
@@ -177,7 +186,14 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
         return;
       }
       const parsed = parseImportText(text);
-      if (parsed.format === FORMAT_STANDARD) {
+      if (parsed.format === FORMAT_MULTISYSTEM) {
+        await applyDumpAndComplete({
+          multi: parsed.payload,
+          localImages: parsed.localImages,
+          localFonts: parsed.localFonts,
+          localSettings: parsed.localSettings,
+        });
+      } else if (parsed.format === FORMAT_STANDARD) {
         await applyDumpAndComplete({
           data: parsed.data,
           localImages: parsed.localImages,
@@ -244,7 +260,14 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       const res = await decryptEncryptedImport(pendingEncryptedImport, importPassword);
       setPendingEncryptedImport(null);
       setImportPassword("");
-      if (res.format === FORMAT_STANDARD) {
+      if (res.format === FORMAT_MULTISYSTEM) {
+        await applyDumpAndComplete({
+          multi: res.payload,
+          localImages: res.localImages,
+          localFonts: res.localFonts,
+          localSettings: res.localSettings,
+        });
+      } else if (res.format === FORMAT_STANDARD) {
         await applyDumpAndComplete({
           data: res.data,
           localImages: res.localImages,
