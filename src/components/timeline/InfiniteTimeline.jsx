@@ -9,6 +9,7 @@ import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useFrontLook } from "@/lib/frontLook";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
@@ -144,7 +145,10 @@ function StatusNoteBadge({ note, topPx, id }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote, highlight }) {
+// color = the session's fronting-level colour (or the alter's own), ringW =
+// the level's ring width when it sets one. No gold "primary" — fronting
+// levels replaced the primary/co-front split (owner, v0.244.0).
+function AlterBar({ alter, color, ringW = null, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote, highlight }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
@@ -217,8 +221,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
           style={{
             width: sz, height: sz,
             backgroundColor: color,
-            border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
-            boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
+            border: ringW != null ? `${ringW}px solid ${color}` : "2px solid var(--background)",
+            boxShadow: ringW != null ? "0 0 0 1px var(--background)" : "none"
           }}
           aria-hidden="true">
           {resolvedUrl && !imgError
@@ -234,9 +238,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
           height: Math.max(heightPx - sz - 2, 4),
-          background: isPrimary
-            ? `linear-gradient(to bottom, #f59e0b, #f59e0b40)`
-            : `linear-gradient(to bottom, ${color}, ${color}40)`,
+          background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
     </div>
@@ -818,6 +820,7 @@ export default function InfiniteTimeline({
     setEditingSession({ session: s, alter });
   }, [focusSessionId, focusOpenEditor, sessions, alters]);
   const levelCfgTimeline = useFrontLevels();
+  const frontLook = useFrontLook();
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [retroPickerState, setRetroPickerState] = useState(null); // { startMins } — type picker
@@ -1839,16 +1842,18 @@ export default function InfiniteTimeline({
                       style={{ left: colIdx * colWidths.alter, top: 0, width: colWidths.alter, height: totalHeight }}>
                       {col.map((entry) => {
                         const alter = alters.find((a) => a.id === entry.alterId);
-                        const color = alter?.color || "#9333ea";
                         const topPx = getTopPx(entry.startMins);
                         const heightPx = getRangePx(entry.startMins, entry.endMins);
                         const entrySession = sessions.find(s => s.id === entry.sessionId);
+                        const levelStyle = entrySession ? frontLook.styleFor(entrySession) : null;
+                        const color = entrySession ? frontLook.activeColor(alter, entrySession) : (alter?.color || "#9333ea");
                         const isFocused = !!focusSessionId && entrySession?.id === focusSessionId;
                         return (
                           <AlterBar
                             key={entry.key}
                             alter={alter}
                             color={color}
+                            ringW={Number.isFinite(levelStyle?.ringW) ? levelStyle.ringW : null}
                             topPx={topPx}
                             heightPx={heightPx}
                             isPrimary={entry.isPrimary}

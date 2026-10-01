@@ -158,6 +158,23 @@ test("per-alter notes added on both devices are all kept", () => {
   assert.deepEqual(texts, ["a", "phone", "desk"]);
 });
 
+test("a demoted placeholder from the other device never ends a live front (2026-09-30)", () => {
+  const live = sess({ id: "k1" });
+  const placeholder = { ...live, is_active: false, is_primary: false, end_time: live.start_time, sync_demoted: true, updated_date: T(30) };
+  const m = mergeFrontingSession(live, placeholder);
+  assert.equal(m.is_active, true);
+  assert.equal(m.end_time, live.end_time);
+  assert.equal(m.sync_demoted, undefined);
+});
+test("a local placeholder takes the origin's real end and stops being a placeholder", () => {
+  const live = sess({ id: "k2" });
+  const placeholder = { ...live, is_active: false, end_time: live.start_time, sync_demoted: true };
+  const realEnd = updated(live, { is_active: false, end_time: T(90) }, T(90));
+  const m = mergeFrontingSession(placeholder, realEnd);
+  assert.equal(m.end_time, T(90));
+  assert.equal(m.sync_demoted, undefined);
+});
+
 console.log("logs and settings");
 test("presence sightings from both devices are all kept", () => {
   const base = created({ id: "pr", name: "fog", sightings: [T(1)] }, T(1));

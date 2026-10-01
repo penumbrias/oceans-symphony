@@ -290,9 +290,17 @@ export function mergeFrontingSession(local, incoming) {
   const lEnded = local?.is_active !== true;
   const iEnded = incoming?.is_active !== true;
   const state = ["is_active", "end_time"];
-  // Keep live state out of the field merge; decide it here.
-  const strip = (r) => { const c = { ...r }; for (const k of state) delete c[k]; return c; };
+  // Keep live state out of the field merge; decide it here. `sync_demoted`
+  // is a per-device marker and never travels onto another device's copy.
+  const strip = (r) => { const c = { ...r }; for (const k of [...state, "sync_demoted"]) delete c[k]; return c; };
   let out = mergeEntityRecord("FrontingSession", local, strip(incoming));
+  // A DEMOTED copy (sync_demoted) is a placeholder, not a fact: another
+  // device received this session while it had its own front live, and
+  // stored it as a 0-minute history row (end = start). Its is_active /
+  // end_time say nothing about whether the session really ended — treating
+  // them as "ended on the other device" is what ended three live fronters
+  // as 0-minute sessions on 2026-09-30 (owner report). Only real ends count.
+  if (incoming?.sync_demoted) return out;
   const setState = (is_active, end_time, from) => {
     if (out.is_active === is_active && out.end_time === end_time) return;
     if (out === local) out = { ...local };
@@ -307,8 +315,14 @@ export function mergeFrontingSession(local, incoming) {
     // Ended on the other device → end here, at its time.
     setState(false, incoming.end_time, incoming);
   } else if (lEnded && iEnded && incoming.end_time && local.end_time !== incoming.end_time) {
-    // Both ended: an edited end time propagates by its field time.
-    if (ms(fieldTime(incoming, "end_time")) > ms(fieldTime(local, "end_time"))) setState(false, incoming.end_time, incoming);
+    // Both ended: an edited end time propagates by its field time — and a
+    // local placeholder always takes the origin's real end.
+    if (local.sync_demoted || ms(fieldTime(incoming, "end_time")) > ms(fieldTime(local, "end_time"))) setState(false, incoming.end_time, incoming);
+  }
+  // A placeholder that has now received its real end is a real row.
+  if (out.sync_demoted && iEnded && incoming.end_time && out.end_time === incoming.end_time) {
+    if (out === local) out = { ...local };
+    delete out.sync_demoted;
   }
   // local ended + incoming active: stays ended (the end is the newer fact).
   return out;
