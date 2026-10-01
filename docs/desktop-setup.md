@@ -1,4 +1,4 @@
-# Desktop build (Electron) — Linux first
+# Desktop build (Electron) — Linux and Windows
 
 Fourth build target, added in v0.240.0. Same `src/` as every other
 target; the shell lives entirely in `electron/` and nothing in `src/`
@@ -26,7 +26,10 @@ npm run desktop:dev       # terminal 2: launch pointed at the dev server
 ```
 
 `desktop:dev` deliberately doesn't spawn Vite itself — no
-`concurrently` dependency for something you already run.
+`concurrently` dependency for something you already run. Its
+`VAR=value command` syntax is POSIX-only; on Windows (PowerShell) run
+`$env:SYMPHONY_DEV_SERVER="http://localhost:5173"; npx electron .`
+instead.
 
 ## Packaging
 
@@ -67,7 +70,8 @@ Changing either one orphans every existing desktop user's data.
    `electron/main.cjs`). Chromium keys IndexedDB by origin.
 2. **App name: `Oceans Symphony`** (`app.setName()`), which decides
    `app.getPath('userData')` — where Chromium writes the IndexedDB
-   files. On Linux that is `~/.config/Oceans Symphony`.
+   files. On Linux that is `~/.config/Oceans Symphony`; on Windows,
+   `%APPDATA%\Oceans Symphony`.
 
 A custom scheme is used rather than `file://` because `file://` is an
 opaque origin (IndexedDB unavailable or non-persistent), is not a secure
@@ -108,12 +112,136 @@ exists to explain, alongside the existing "Import a backup file" path.
 
 Recovery bonus: on desktop the database is a directory you can copy.
 File → Open Data Folder (and the notice's folder button) opens
-`~/.config/Oceans Symphony`.
+`~/.config/Oceans Symphony` (Linux) or `%APPDATA%\Oceans Symphony`
+(Windows).
 
 Cross-device sync shipped in v0.242.0 — see `docs/device-sync.md`. The
 first-run notice offers "Sync from another device" (pull straight off a
 phone over USB) above the backup-file import.
 
+
+## Windows
+
+Added after v0.247.3. Same shell (`electron/main.cjs`), same pinned
+origin and app name; every Windows difference is a runtime
+`process.platform` branch in that file. Linux behaviour is unchanged.
+
+### Building
+
+```bash
+npm run desktop:build:win   # → release/OceansSymphony-<version>-x64-Setup.exe
+                            #   release/OceansSymphony-<version>-x64-Setup.exe.blockmap
+                            #   release/latest.yml
+```
+
+Run it **on Windows** (Node 22, `npm ci` first). Cross-building from
+Linux needs `wine` for the exe's icon/version resources; without it,
+electron-builder fails at that step.
+
+The easy way is GitHub Actions → **Desktop (Windows)** → *Run workflow*
+(`.github/workflows/desktop-windows.yml`, manual only):
+
+- **tag empty** → a test build. The installer is under *Artifacts* at
+  the bottom of the run page. Nothing is published.
+- **tag set** (e.g. `v0.248.0`, must already be pushed and must match
+  `APP_VERSION` at that tag) → attaches the installer, blockmap and
+  `latest.yml` to that GitHub Release — the same release the Linux
+  AppImage goes on. If the release doesn't exist yet it's created as a
+  **draft**, so nothing reaches users until it's published by hand.
+
+The workflow file has to be on `main` before GitHub shows the *Run
+workflow* button.
+
+### Installer
+
+NSIS, one-click, **per-user**: no admin prompt, installs to
+`%LOCALAPPDATA%\Programs\oceans-symphony`, adds Start-menu and desktop
+shortcuts, launches when done. Config is the `win` / `nsis` blocks in
+`electron-builder.config.cjs`.
+
+**Unsigned.** There is no code-signing certificate, so the first install
+shows *"Windows protected your PC"* (SmartScreen, "unknown publisher").
+Click **More info → Run anyway**. Some browsers also flag the download
+itself as uncommon — choose *Keep*. This is expected for any unsigned
+app and goes away only with a paid certificate.
+
+### Where data lives
+
+`%APPDATA%\Oceans Symphony` (i.e. `C:\Users\<you>\AppData\Roaming\Oceans Symphony`).
+File → Open Data Folder opens it. The installed program and the update
+cache (`%LOCALAPPDATA%\oceans-symphony-updater`) are separate from it.
+
+**Uninstalling keeps the data.** `deleteAppDataOnUninstall` is pinned
+`false`: the uninstaller removes the program only, and reinstalling
+opens the same database. To really wipe it, delete the folder above by
+hand after uninstalling.
+
+### Updates
+
+electron-updater polls the latest **published** GitHub Release for
+`latest.yml` (30 s after launch, then every 6 h), downloads the new
+installer quietly, and asks *Restart now / Later*. *Later* (the default)
+installs on next quit; *Restart now* installs silently and reopens the
+app. Per-user install → no admin prompt. Updates are fetched by the app,
+not a browser, so SmartScreen doesn't fire again. With no signing
+certificate, electron-updater skips the publisher check but still
+verifies the installer's sha512 from `latest.yml`.
+
+A release only updates Windows users once `latest.yml` and the
+`-Setup.exe` are attached; Linux reads `latest-linux.yml` from the same
+release, so the two don't interfere.
+
+### Windows-specific branches in `electron/main.cjs`
+
+- `app.setAppUserModelId('app.oceans-symphony.desktop')` — must equal
+  `appId`, or notifications are mis-attributed and the taskbar shows two
+  buttons. Storage is unaffected (that's the app name).
+- Window/taskbar icon uses `electron/build/icon.ico` (multi-size,
+  generated from `icon.png`).
+- A saved window position that's off every current display (laptop
+  undocked from a monitor) is dropped, so the window can't open
+  off-screen.
+- Device sync: a pasted path in quotes (Explorer's *Copy as path*) or a
+  bare drive (`E:`) is accepted; the write-then-rename retries briefly on
+  `EPERM`/`EBUSY`/`EACCES` (search indexer, antivirus, cloud clients
+  holding the file). The `gio` fallback stays Linux-only.
+
+### Device sync on Windows — phones over USB
+
+On Linux a plugged-in phone is mounted as a folder (gvfs), so the app can
+read and write it directly. **Windows doesn't do that**: a phone over USB
+(MTP) shows in File Explorer but is not a real folder path, so the folder
+picker is expected to refuse it and a pasted path won't work. On Windows,
+sync through:
+
+- a **USB stick** or **SD card** both devices can use, or
+- copying by hand: in File Explorer, copy the phone's
+  `symphony-sync-…json` files from its sync folder into a folder on the
+  PC, press Sync in the app (pointed at that PC folder), then copy the
+  PC's file back to the phone.
+
+Folders with spaces and on any drive letter work normally.
+
+### What to test on a Windows laptop
+
+The plain-language version for a tester is
+[`docs/windows-test-checklist.md`](windows-test-checklist.md). In short:
+
+1. Install (SmartScreen → More info → Run anyway); no admin prompt.
+2. First run shows the empty-desktop notice; File → Open Data Folder
+   opens `%APPDATA%\Oceans Symphony`.
+3. Create data (an alter with an avatar, a journal entry, a status),
+   close, reopen — everything is still there, avatar included.
+4. Second launch while open focuses the existing window (single instance).
+5. Sync: pick a folder with a space in its name, and a USB stick; press
+   Sync; a `symphony-sync-…data.json` file appears. Paste a path from
+   Explorer's *Copy as path* (with quotes) — accepted.
+6. Export a backup, then import it — data intact.
+7. Update: install version N, publish N+1 with `latest.yml` attached,
+   wait ~30 s after launch → *Update ready* prompt → *Restart now* →
+   reopens on N+1, data intact.
+8. Uninstall from Settings → Apps → the data folder is still there;
+   reinstall → data is back.
 
 ## Not done yet
 
@@ -122,4 +250,5 @@ phone over USB) above the backup-file import.
   (running `api/friends/*` off Vercel against a real Redis) and the fact
   that friend codes are scoped to whichever relay minted them are both
   still to do. Not federation — one home relay per user.
-- Windows and macOS builds, auto-update, and a tray icon.
+- macOS build, code signing (Windows installer is unsigned), and a tray
+  icon.
