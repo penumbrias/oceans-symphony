@@ -1231,6 +1231,26 @@ function sanitizeIncomingDump(dump, { allowDeviceBound = false } = {}) {
 // wipe flows (loadDbDump({})) genuinely mean "everything gone".
 export async function loadDbDump(dump, options = {}) {
   const next = sanitizeIncomingDump(dump, options);
+  // restamp (Settings → Replace): a restore means "THIS version, now". The
+  // file's own field times are older than the other device's, so the next
+  // device sync quietly put the newer values back over the restore (audit
+  // 2026-10-01, M9). Stamping every restored record as changed now makes
+  // the restored values win the field merge everywhere.
+  // Only the restored entities (options.restamp: a list/Set of names) —
+  // what a partial file left as it was keeps its real times.
+  if (options.restamp && next && typeof next === "object") {
+    const only = options.restamp === true ? null : new Set(options.restamp);
+    const now = new Date().toISOString();
+    for (const [entity, col] of Object.entries(next)) {
+      if (isReservedDbKey(entity) || entity === "HistoryEvent" || entity === "DeletionLog") continue;
+      if (only && !only.has(entity)) continue;
+      if (!col || typeof col !== "object") continue;
+      for (const [id, rec] of Object.entries(col)) {
+        if (!rec || typeof rec !== "object") continue;
+        col[id] = { ...rec, updated_date: now, [FIELD_TIMES]: { __base: now } };
+      }
+    }
+  }
   // Preferences mirror: this device's own wins if present; a fresh device
   // (no mirror yet) adopts the file's so a restore brings the look along.
   const ownMirror = _db && typeof _db === "object" ? _db[MIRROR_KEY] : null;
@@ -1459,6 +1479,13 @@ export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
   const sanitized = aliasContentKeyMatches(sanitizeIncomingDump(dump, options));
   const applyDeletions = options.applyDeletions === true;
+  // A device with none of its own records yet (fresh install, or a new
+  // system) has only SEEDED settings — newer by timestamp than any
+  // backup, so the newer-wins fold kept the starter terms, name and look
+  // over the person's real ones (audit 2026-10-01, M5). Read BEFORE any
+  // entity of this import lands.
+  const hasOwnRecords = ["Alter", "FrontingSession", "JournalEntry", "EmotionCheckIn", "Activity", "Task", "Bulletin"]
+    .some((e) => _db[e] && Object.keys(_db[e]).length > 0);
   // Conflict collection (v0.95.4): every place the merge had to CHOOSE
   // between two real versions is recorded so the import UI can offer the
   // user the losing version. `kept` names the side the automatic rule
@@ -1497,7 +1524,23 @@ export async function mergeDbDump(dump, options = {}) {
     // The undo drawer is THIS device's history, and another device's
     // tombstones only mean something when the user opted into deletion
     // sync — merging them in silently made the NEXT merge delete rows.
-    if (entityName === "HistoryEvent") continue;
+    // An explicit IMPORT of a backup (includeHistory) brings the file's
+    // archive along, add-only — the Recent changes category promises its
+    // snapshots survive an import (audit 2026-10-01, M7). Device sync
+    // never does: each device keeps its own undo drawer.
+    if (entityName === "HistoryEvent") {
+      if (options.includeHistory === true && incoming && typeof incoming === "object") {
+        if (!_db.HistoryEvent) _db.HistoryEvent = {};
+        const cats = new Set();
+        for (const [id, row] of Object.entries(incoming)) {
+          if (!row || typeof row !== "object" || _db.HistoryEvent[id]) continue;
+          _db.HistoryEvent[id] = row;
+          if (row.category) cats.add(row.category);
+        }
+        for (const c of cats) pruneHistoryBucket(_db, c);
+      }
+      continue;
+    }
     if (entityName === "DeletionLog" && !applyDeletions) continue;
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
@@ -1554,6 +1597,17 @@ export async function mergeDbDump(dump, options = {}) {
           // system name/bio/terms edits silently lost on sync). The
           // singleton stays a single row; mergeExistingRecord keeps the
           // local value whenever it is the newer edit.
+          if (!hasOwnRecords) {
+            // Nothing here is the person's own yet: the incoming settings
+            // take over, freshly stamped so the next sync can't put the
+            // starter values back.
+            const { id: _iid, created_date: _icd, [FIELD_TIMES]: _ift, ...fields } = incoming;
+            const now = new Date().toISOString();
+            const next = { ...target, ...fields, id: targetId, updated_date: now };
+            next[FIELD_TIMES] = stampDiff(target, next, now);
+            target = next;
+            continue;
+          }
           target = mergeForEntity("SystemSettings", target, incoming);
         }
         _db[entityName][targetId] = target;
@@ -1564,9 +1618,12 @@ export async function mergeDbDump(dump, options = {}) {
         // it overwrites the one row instead of minting a second singleton.
         const firstIncoming = records[incomingIds[0]];
         if (firstIncoming && recordsMateriallyDiffer(target, firstIncoming)) {
+          // `local` is this device's row from BEFORE the fold — choosing
+          // "keep this device's" must bring that back; it used to hold the
+          // already-merged result, so the choice did nothing.
           conflicts.push({
             entity: entityName, id: targetId,
-            local: target, incoming: { ...firstIncoming, id: targetId },
+            local: before, incoming: { ...firstIncoming, id: targetId },
             kept: "local", reason: "edit",
           });
         }

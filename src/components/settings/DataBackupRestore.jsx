@@ -29,7 +29,7 @@ import { recordBackupAttempt } from "@/lib/backupHealth";
 import { shareFile } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { isNative } from "@/lib/platform";
-import { listSystems, getActiveSystemId, getSystemData, createSystemWithData, deleteSystem, setActiveSystem } from "@/lib/systems";
+import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, deleteSystem, setActiveSystem } from "@/lib/systems";
 import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
 
@@ -673,14 +673,26 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       };
     }
 
-    // Single (active) system — unchanged behaviour.
+    // Single (active) system. Pictures live in ONE store shared by every
+    // system, so "this system only" used to carry the others' pictures
+    // too (audit 2026-10-01, L14). Keep the ones this system's records or
+    // preferences mention by id — an id match anywhere counts, so nothing
+    // this system uses is left out.
+    let ownImages = imagesExport;
+    if (systems.length > 1 && imagesExport && Object.keys(imagesExport).length) {
+      try {
+        const haystack = JSON.stringify(filterDump(dump, activeCats)) + JSON.stringify(exportLocalSettings());
+        ownImages = Object.fromEntries(Object.entries(imagesExport).filter(([id]) => haystack.includes(id)));
+      } catch { ownImages = imagesExport; }
+    }
     return {
       __format: "symphony_backup",
       __version: 1,
       __exported_at: nowIso,
+      __system_name: getActiveSystem()?.name || null,
       __categories: catsExport,
       data: filterDump(dump, activeCats),
-      __local_images: imagesExport,
+      __local_images: ownImages,
       __local_fonts: fontsExport,
       __local_settings: exportLocalSettings(),
       ...bundleExtra,
@@ -830,7 +842,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
-  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle, categories = null }) => {
+  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle, categories = null, systemName = null }) => {
     traceStep("importing records", importMode);
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
@@ -843,7 +855,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // first — the same rails every other wipe path (Octocon, OpenPlural,
       // Delete All, recovery reset) already has. This was the one path
       // that deleted the active system on a single radio button.
-      if (!(await confirmReplaceAndBackUp(`This replaces the current ${terms.system}'s data with the file's copy, for every category the file includes — anything it doesn't include stays as it is.`))) {
+      const hereName = getActiveSystem()?.name || "";
+      const mismatch = systemName && hereName && systemName !== hereName
+        ? ` Note: this file was made from \u201c${systemName}\u201d, not \u201c${hereName}\u201d.`
+        : "";
+      if (!(await confirmReplaceAndBackUp(`This replaces ${hereName ? `\u201c${hereName}\u201d` : `the current ${terms.system}`}'s data with the file's copy, for every category the file includes — anything it doesn't include stays as it is.${mismatch}`))) {
         traceEnd("cancelled or no safety backup"); setImportLoading(false); return;
       }
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
@@ -892,9 +908,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       );
       keptLabels = keptCategories(keptEntities, EXPORT_CATEGORIES).map((c) => resolveCatLabel(c, terms));
       if (keptLabels.length) traceStep("kept (not in file)", keptLabels.join(", "));
-      await loadDbDump({ ...next, ...preserved }, { allowDeviceBound: true });
+      await loadDbDump({ ...next, ...preserved }, { allowDeviceBound: true, restamp: [...covered] });
     } else {
-      const res = await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
+      const res = await mergeDbDump(data, { applyDeletions, includeHistory: true }); // strips device-bound internally
       // Overlap review (v0.95.4): every record where the merge had to pick
       // between two real versions is shown for the user to confirm or
       // flip. Skipped when there were no genuine overlaps.
@@ -922,7 +938,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // export). Silence here read as "import broke my images" (tester);
     // say it, with the fix.
     let missingImagesNote = "";
-    if (!localImages) {
+    // An EMPTY image map counts as none too: data-only exports and
+    // auto-backups over the size limit write `{}` (audit 2026-10-01, M6).
+    if (!localImages || Object.keys(localImages).length === 0) {
       try {
         const json = JSON.stringify(data || {});
         if (json.includes("local-image://") || json.includes("/local-image/")) {
@@ -945,8 +963,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     const keptNote = keptLabels.length
       ? ` Kept what was already here for: ${keptLabels.join(", ")} (not in this file).`
       : "";
+    // Sync never deletes: a Replace's values win the next sync, but records
+    // that exist only on another synced device still come back.
+    let syncNote = "";
+    if (importMode === "replace") {
+      try { if (localStorage.getItem("symphony_sync_folder")) syncNote = " Device sync will still bring back anything that exists only on your other devices — restore the same file there too if they should match."; }
+      catch { /* storage off */ }
+    }
     const base = importMode === "replace"
-      ? `Data replaced!${keptNote}`
+      ? `Data replaced!${keptNote}${syncNote}`
       : "New records added (existing data preserved)!";
     if (failures.length > 0) {
       // Be honest and give the retry instruction — a re-import only
@@ -961,7 +986,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     } else {
       const media = imageResult?.total ? ` ${imageResult.restored} images restored.` : "";
       showStatus("success", `${base}${media} The app will reload.`);
-      setTimeout(() => window.location.reload(), 1200);
+      setTimeout(() => window.location.reload(), syncNote ? 6000 : 1200);
     }
   };
 
@@ -1153,6 +1178,17 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           }
           return msg;
         };
+        // Same "this file has no pictures" note as a single-system import.
+        const noImagesNote = (() => {
+          const imgs = maybe.__local_images;
+          if (imgs && Object.keys(imgs).length) return "";
+          try {
+            const json = JSON.stringify(importedSystems.map((x) => x.data));
+            return json.includes("local-image://") || json.includes("/local-image/")
+              ? " This file contains no image data — export again on the source device with \u201cLocal Images & Assets\u201d ticked, then import that file here (records won't duplicate)."
+              : "";
+          } catch { return ""; }
+        })();
 
         if (importMode === "replace") {
           if (!(await confirmReplaceAndBackUp(`This replaces your ${terms.systems} with the ${importedSystems.length} in this file.`))) {
@@ -1194,8 +1230,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           const created = await executeMultiSystemReplace(importedSystems, keepIds);
           const mediaMsg = await restoreMultiMedia();
           const keptMsg = keptMulti.size ? ` Kept what was already here for: ${[...keptMulti].join(", ")} (not in this file).` : "";
-          showStatus(mediaMsg ? "error" : "success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}!${keptMsg}${mediaMsg} The app will reload.`);
-          setTimeout(() => window.location.reload(), mediaMsg ? 6000 : 1200);
+          showStatus(mediaMsg ? "error" : "success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}!${keptMsg}${mediaMsg}${noImagesNote} The app will reload.`);
+          setTimeout(() => window.location.reload(), mediaMsg || noImagesNote ? 6000 : 1200);
           return;
         }
 
@@ -1203,8 +1239,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         let created = 0;
         for (const s of importedSystems) { await createSystemWithData(s.name, s.data); created++; }
         const mediaMsg = await restoreMultiMedia();
-        showStatus(mediaMsg ? "error" : "success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg} The app will reload.`);
-        setTimeout(() => window.location.reload(), mediaMsg ? 6000 : 1200);
+        showStatus(mediaMsg ? "error" : "success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg}${noImagesNote} The app will reload.`);
+        setTimeout(() => window.location.reload(), mediaMsg || noImagesNote ? 6000 : 1200);
         return;
       } catch (e) {
         showStatus("error", e?.message || "Import failed");
@@ -1222,6 +1258,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         localSettings: parsed.localSettings,
         friendBundle: parsed.friendBundle,
         categories: parsed.categories,
+        systemName: parsed.systemName,
       });
       return;
     }
@@ -1624,9 +1661,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       return;
     }
     for (let i = 0; i < multiPartTotal; i++) {
-      if (multiPartChunks[i] === undefined) {
-        // (=== undefined, not falsy — a legitimately empty trailing slice
-        // from a high part count on a small backup is still "present".)
+      if (multiPartChunks[i] == null) {
+        // (null/undefined, not falsy — a legitimately empty trailing slice
+        // from a high part count on a small backup is still "present" as
+        // ""; unfilled slots are null, see the fill above. Audit L13.)
         showStatus("error", `Missing part ${i + 1} of ${multiPartTotal}.`);
         return;
       }
@@ -1668,6 +1706,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           localSettings: res.localSettings,
           friendBundle: res.friendBundle,
           categories: res.categories,
+          systemName: res.systemName,
         });
       } else {
         await applyImportPayload({ data: res.data, friendBundle: res.friendBundle });

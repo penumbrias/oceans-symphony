@@ -180,9 +180,8 @@ export default function RecoveryScreen({ reason, onResolved }) {
       }
     }
     if (localSettings) {
-      for (const [k, v] of Object.entries(localSettings)) {
-        try { localStorage.setItem(k, v); } catch { /* localStorage full / disabled */ }
-      }
+      const { writeBackupLocalSettings } = await import("@/lib/backupKeys");
+      writeBackupLocalSettings(localSettings);
     }
     // CONTRACT (CLAUDE.md storage invariants): any recovery action that
     // overwrites the on-disk blob saves a raw copy first. This screen only

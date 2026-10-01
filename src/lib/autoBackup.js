@@ -396,7 +396,7 @@ async function buildFullBackupPayload({ allSystems = "best" } = {}) {
     ...envelope,
     // Several systems → the same container a manual "each separately"
     // export writes, so Import restores every one of them.
-    ...(perSystem ? { __multisystem: 1, systems: perSystem } : { data: dump }),
+    ...(perSystem ? { __multisystem: 1, systems: perSystem } : { data: dump, __system_name: systems[0]?.name || null }),
     __local_images: skipHeavy ? {} : images,
     __local_fonts: skipHeavy ? {} : fonts,
     __local_settings: readBackupLocalSettings(),

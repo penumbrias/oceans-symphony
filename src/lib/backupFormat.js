@@ -113,6 +113,9 @@ export function normalizeImport(parsed) {
       // Categories the file declares it covers (v0.243.1+; null on older
       // files) — Replace All only replaces these. See backupScope.js.
       categories: Array.isArray(parsed.__categories) ? parsed.__categories : null,
+      // Which system the file was made from (v0.248.2+; null on older
+      // files) — shown in the Replace prompt (audit 2026-10-01, M8).
+      systemName: typeof parsed.__system_name === "string" ? parsed.__system_name : null,
       // Opt-in Friends identity bundle (v0.95.2) — the import flow shows
       // an explicit adoption prompt; it is never applied automatically.
       friendBundle: parsed.__friend_identity || null,

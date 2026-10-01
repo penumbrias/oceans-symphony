@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "fix", text: "Importing a backup no longer copies the other device's backup lock, sync identity or backup history onto this one." },
+      { type: "fix", text: "Restoring onto a freshly set-up device now brings your own terms, name and look instead of keeping the starter ones." },
+      { type: "fix", text: "Imports now keep the backup's Recent changes history, warn when the file has no pictures, and say which {{system}} the file came from before replacing." },
+      { type: "fix", text: "A restored backup now stays restored after the next device sync." },
+      { type: "fix", text: "About 25 more preferences now ride along in backups, including your image asset folders, planner display and list sort choices." },
+      { type: "hotfix", text: "Hotfix: a missing part in a pasted multi-part backup is now named, and single-{{system}} exports only carry that {{system}}'s pictures." },
       { type: "fix", text: "Replacing your data from a backup now always asks first and saves a backup of every {{system}} beforehand — not just the one that's open." },
       { type: "fix", text: "Automatic backups now include all your {{systems}}, and restoring a backup with several {{systems}} works from first-time setup and the recovery screen." },
       { type: "fix", text: "\"All {{systems}} merged into one\" exports no longer lose records when two {{systems}} share history." },

@@ -92,9 +92,8 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       }
     }
     if (localSettings) {
-      for (const [k, v] of Object.entries(localSettings)) {
-        try { localStorage.setItem(k, v); } catch { /* localStorage full / disabled */ }
-      }
+      const { writeBackupLocalSettings } = await import("@/lib/backupKeys");
+      writeBackupLocalSettings(localSettings);
     }
     setMode("local");
     setEncryptionEnabled(false);

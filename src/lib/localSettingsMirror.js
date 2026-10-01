@@ -26,7 +26,7 @@
 //   • The mirror is a plain object of string values, tiny; it is written
 //     through the normal saveDb path (never a separate storage channel).
 
-import { BACKUP_LS_KEYS } from "@/lib/backupKeys";
+import { presentBackupLsKeys, isBackupLsKey, MIRROR_ONLY_KEYS } from "@/lib/backupKeys";
 
 // Reserved pseudo-entity name inside the DB blob. Double-underscore so no
 // UI ever lists it as an entity; the export/import code treats it as an
@@ -40,7 +40,7 @@ let _hooked = false;
 
 function readAll() {
   const out = {};
-  for (const key of BACKUP_LS_KEYS) {
+  for (const key of presentBackupLsKeys()) {
     try {
       const v = localStorage.getItem(key);
       if (v !== null) out[key] = v;
@@ -79,8 +79,8 @@ export function restoreLocalSettingsFromDb(db) {
   try {
     const mirror = db?.[MIRROR_KEY]?.values;
     if (!mirror || typeof mirror !== "object") return filled;
-    for (const key of BACKUP_LS_KEYS) {
-      if (!(key in mirror)) continue;
+    for (const key of Object.keys(mirror)) {
+      if (!isBackupLsKey(key) && !MIRROR_ONLY_KEYS.has(key)) continue;
       let cur = null;
       try { cur = localStorage.getItem(key); } catch { return filled; }
       if (cur !== null) continue; // present → localStorage wins
@@ -110,25 +110,24 @@ export function restoreLocalSettingsFromDb(db) {
 export function installLocalSettingsMirror(getDb, saveDb) {
   if (_hooked || typeof window === "undefined") return;
   _hooked = true;
-  const keys = new Set(BACKUP_LS_KEYS);
   try {
     const proto = Object.getPrototypeOf(window.localStorage);
     const origSet = proto.setItem;
     const origRemove = proto.removeItem;
     proto.setItem = function (k, v) {
       const r = origSet.call(this, k, v);
-      if (this === window.localStorage && keys.has(k)) scheduleMirror(getDb, saveDb);
+      if (this === window.localStorage && isBackupLsKey(k)) scheduleMirror(getDb, saveDb);
       return r;
     };
     proto.removeItem = function (k) {
       const r = origRemove.call(this, k);
-      if (this === window.localStorage && keys.has(k)) scheduleMirror(getDb, saveDb);
+      if (this === window.localStorage && isBackupLsKey(k)) scheduleMirror(getDb, saveDb);
       return r;
     };
   } catch (e) {
     console.warn("[localSettingsMirror] could not hook localStorage", e);
   }
-  window.addEventListener("storage", (e) => { if (e.key && keys.has(e.key)) scheduleMirror(getDb, saveDb); });
+  window.addEventListener("storage", (e) => { if (e.key && isBackupLsKey(e.key)) scheduleMirror(getDb, saveDb); });
   // Also mirror once shortly after install so an existing install (whose
   // preferences were set before this shipped) gets a first snapshot.
   scheduleMirror(getDb, saveDb, 4000);

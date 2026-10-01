@@ -125,7 +125,49 @@ export const BACKUP_LS_KEYS = [
   "upcoming_plans_limit_count",
   "upcoming_plans_limit_window",
   "symphony_extra_fonts_installed_v1",
+  // Audit 2026-10-01 (M10): user-set preferences that never reached a
+  // backup. asset_folder_order_v1 is the ONLY home of empty asset folders.
+  "asset_folder_order_v1",
+  "activity_unresolved_nag_v1",
+  "bulletin_dashboard_batch_size",
+  "alter_card_header_bg",
+  "symphony_planner_lane_opacity",
+  "symphony_planner_time_mode",
+  "symphony_presets_theme_restyles_widgets",
+  "symphony_options_peek_h",
+  "symphony_alterDropdown_grouped",
+  "symphony_alterSearchSelect_grouped",
+  "setFrontModal_view",
+  "symphony_look_history_v1",
+  "symphony_last_bulletin_authors_v1",
+  // Sort choices of every alter list/picker (useAlterSorter keys).
+  "alterAssignChip_sort", "alterDropdown_sort", "alterSearchSelect_sort",
+  "alterTree_sort", "fronterPicker_sort", "groupMembers_sort",
+  "pageAudience_sort", "setFrontModal_sort", "setFront_sort",
+  "symphony_checkin_alter_sort", "symphony_planner_alter_sort",
 ];
+
+// Keys stored once per record (the key ends in an id). Matched by prefix.
+export const BACKUP_LS_PREFIXES = [
+  "symphony_alter_inherit_history_v1_",
+];
+
+const BACKUP_LS_KEY_SET = new Set(BACKUP_LS_KEYS);
+export const isBackupLsKey = (key) =>
+  typeof key === "string" && (BACKUP_LS_KEY_SET.has(key) || BACKUP_LS_PREFIXES.some((p) => key.startsWith(p)));
+
+// Every backed-up key that exists right now: the fixed list plus any
+// prefix-matched keys found in localStorage.
+export function presentBackupLsKeys() {
+  const keys = [...BACKUP_LS_KEYS];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && !BACKUP_LS_KEY_SET.has(k) && BACKUP_LS_PREFIXES.some((p) => k.startsWith(p))) keys.push(k);
+    }
+  } catch { /* storage off */ }
+  return keys;
+}
 
 // Keys that are mirrored on-device (survive a localStorage wipe) but are
 // deliberately NOT written into portable backup files.
@@ -135,7 +177,7 @@ export const MIRROR_ONLY_KEYS = new Set([
 
 export function readBackupLocalSettings() {
   const out = {};
-  for (const key of BACKUP_LS_KEYS) {
+  for (const key of presentBackupLsKeys()) {
     if (MIRROR_ONLY_KEYS.has(key)) continue;
     try {
       const val = localStorage.getItem(key);
@@ -144,6 +186,30 @@ export function readBackupLocalSettings() {
   }
   return out;
 }
+
+// Never taken from a backup file, whatever the file says (audit
+// 2026-10-01, M4/L12). The import trusts unknown keys so a newer build's
+// preferences survive — but these belong to THIS device:
+//   - sync identity + state (a cloned device id makes two devices
+//     overwrite each other's sync file), storage mode / encryption,
+//     the systems registry, native notification-id logs
+//   - the backup decision and backup password
+//   - the backup lock mode: without this device's password it made every
+//     auto-backup — and the safety copy a later Replace needs — fail
+//   - the backup health log / last-backup time: they describe the OTHER
+//     device's backups, and would hide that this one has none yet
+const IMPORT_DENY_PREFIXES = ["symphony_sync_", "symphony_enc_"];
+const IMPORT_DENY_KEYS = new Set([
+  "symphony_storage_mode", "symphony_local_user", "symphony_systems_registry",
+  "symphony_active_system_id",
+  "symphony_native_reminder_log_v1", "symphony_plan_reminder_log_v1",
+  "symphony_server_reminder_push_active_v1", "symphony_session_cleanup_v1",
+  "symphony_backup_decision_v1", "symphony_autobackup_pw_v1",
+  "symphony_autobackup_encrypt",
+  "symphony_autobackup_last_at", "symphony_backup_health_v1",
+]);
+export const isImportableSettingKey = (key) =>
+  typeof key === "string" && !IMPORT_DENY_KEYS.has(key) && !IMPORT_DENY_PREFIXES.some((p) => key.startsWith(p));
 
 export function writeBackupLocalSettings(settings) {
   if (!settings || typeof settings !== "object") return;
@@ -155,6 +221,7 @@ export function writeBackupLocalSettings(settings) {
   // allow-listed by the exporting build). Matches RecoveryScreen /
   // StorageModeSetup, which already restore all keys.
   for (const [key, value] of Object.entries(settings)) {
+    if (!isImportableSettingKey(key)) continue;
     if (value != null) {
       try { localStorage.setItem(key, value); }
       catch { /* quota / disabled — skip */ }
