@@ -23,6 +23,21 @@ export async function reschedulePlan(item, when) {
   });
 }
 
+// When the plan was MEANT to start / end — the "on time" choices (owner,
+// 2026-10-01: "started on time" / "completed on time" instead of stamping
+// now and fixing it by hand). Null when the plan has no time, or (end) no
+// planned length.
+export function plannedStartFor(item) {
+  if (!item?.timestamp) return null;
+  const d = new Date(item.timestamp);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+export function plannedEndFor(item) {
+  const start = plannedStartFor(item);
+  const dur = Number(item?.duration_minutes) || 0;
+  return start && dur > 0 ? new Date(start.getTime() + dur * 60000) : null;
+}
+
 // Start a plan as an in-progress ACTIVE activity, linked back through
 // planActivityId so ending it resolves THIS plan to done (the same
 // mechanism the lifecycle popover's "Start now" and the classic unresolved
@@ -52,7 +67,29 @@ export async function startPlanActive(item, { startedAt = new Date(), categories
   } catch { /* non-fatal */ }
 }
 
-export async function resolveOutcome(item, status) {
+// `endedAt` (optional): when it actually ended — "finished on time", "just
+// now", or a time the person picked because it ran late. Done on a plan
+// that's RUNNING goes through the same write as ending the session
+// (endAndLogActiveActivity: real start, real length). Done/partial on a
+// plan that was never started takes its length from the plan's time to
+// `endedAt`.
+export async function resolveOutcome(item, status, { endedAt = null } = {}) {
+  const end = endedAt ? (endedAt instanceof Date ? endedAt : new Date(endedAt)) : null;
+  if (status === "done") {
+    try {
+      const { getActiveActivities, endAndLogActiveActivity } = await import("@/lib/activitySession");
+      const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
+      if (sess) {
+        await endAndLogActiveActivity(sess.id, (end || new Date()).toISOString());
+        if (item.task_id) {
+          await base44.entities.Task.update(item.task_id, {
+            completed: true, is_complete: true, completed_date: new Date().toISOString(),
+          }).catch(() => { /* the activity outcome stands even if the task write fails */ });
+        }
+        return;
+      }
+    } catch { /* fall through to the plain resolve */ }
+  }
   // Resolving a plan whose session is still RUNNING must also end that
   // session — "Partly" used to set the status while the activity stayed
   // active (owner report). The elapsed time (plus anything banked by
@@ -69,13 +106,18 @@ export async function resolveOutcome(item, status) {
     const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
     const banked = Number(item.progress_minutes) || 0;
     if (sess) {
-      const elapsed = Math.max(1, Math.round((Date.now() - new Date(sess.startTime).getTime()) / 60000));
+      const until = end ? end.getTime() : Date.now();
+      const elapsed = Math.max(1, Math.round((until - new Date(sess.startTime).getTime()) / 60000));
       patch.actual_duration_minutes = banked + elapsed;
       patch.progress_minutes = null;
       removeActiveActivity(sess.id);
     } else if (banked && !Number(item.actual_duration_minutes)) {
       patch.actual_duration_minutes = banked;
       patch.progress_minutes = null;
+    } else if (end && (status === "done" || status === "partial")) {
+      const start = plannedStartFor(item);
+      const mins = start ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
+      if (mins > 0) patch.actual_duration_minutes = mins;
     }
   } catch { /* resolution still happens without session bookkeeping */ }
   await base44.entities.Activity.update(item.id, patch);

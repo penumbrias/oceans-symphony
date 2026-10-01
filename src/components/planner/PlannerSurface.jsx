@@ -29,7 +29,7 @@ import {
 } from "@/lib/planReminderScheduler";
 import { getActiveActivities, addActiveActivity } from "@/lib/activitySession";
 import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries, applyEditToSeries } from "@/lib/recurrenceUtils";
-import { resolveOutcome } from "@/lib/planner/resolvePlan";
+import { resolveOutcome, startPlanActive } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -51,6 +51,7 @@ import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
+import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 
 const lsGet = (k, d) => {
@@ -608,17 +609,21 @@ export default function PlannerSurface({
 
   // Resolve a plan: what actually became of it. The lifecycle enum exists so
   // a plan that didn't happen stays honest instead of counting as time spent.
-  const resolveItem = async (item, status) => {
+  const resolveItem = async (item, status, endedAt = null) => {
     if (!item) return;
     try {
       // One write path with the home-notice resolve list (lib resolvePlan).
-      await resolveOutcome(item, status);
+      await resolveOutcome(item, status, { endedAt });
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       setTiming(null); setDetails(null);
     } catch (e) { toast.error(e.message || "Failed"); }
   };
-  const setOutcome = (status) => resolveItem(timing?.item, status);
+  const setOutcome = (status, endedAt = null) => resolveItem(timing?.item, status, endedAt);
+  // Start / Done ask WHEN first (PlanTimeChoice — "on time", now, or
+  // another time). Which one is open in the sheet: "start" | "end" | null.
+  const [timeAsk, setTimeAsk] = useState(null);
+  useEffect(() => { setTimeAsk(null); }, [timing?.item?.id]);
   // The details view resolves too (owner spec) — an outcome shouldn't
   // require opening the editor first. Reschedule hands off to the editor,
   // where the day picker lives, and opens it.
@@ -650,7 +655,7 @@ export default function PlannerSurface({
       setTiming(null);
     } catch (e) { toast.error(e?.message || "Couldn't pause"); }
   };
-  const startNow = () => {
+  const startNow = (startedAt = new Date()) => {
     if (!timing || timing.create) return;
     const it = timing.item;
     const cat = categories.find((c) => c.id === categoryIdOf(it));
@@ -659,7 +664,7 @@ export default function PlannerSurface({
       categoryId: cat?.id || null,
       name: it.activity_name || cat?.name || "Activity",
       color: cat?.color || null,
-      startTime: new Date().toISOString(),
+      startTime: (startedAt instanceof Date ? startedAt : new Date()).toISOString(),
       alterIds: it.fronting_alter_ids || [],
       notes: (it.notes || "").trim(),
     });
@@ -1139,10 +1144,15 @@ export default function PlannerSurface({
         item={details}
         onClose={() => setDetails(null)}
         onEdit={(it) => openEditor(it, { day: it._day || null })}
-        onStartNow={(it) => {
+        onStartNow={async (it, startedAt) => {
+          // The shared start (the home notice's too). This used to set the
+          // sheet's state and call its start a tick later — with the stale
+          // closure, where nothing was open, so nothing started.
           setDetails(null);
-          setTiming({ item: it, day: it.timestamp ? new Date(it.timestamp) : anchor });
-          setTimeout(startNow, 0);
+          try {
+            await startPlanActive(it, { startedAt: startedAt || new Date(), categories });
+            toast.success(tr("planner.startedToast"));
+          } catch (e) { toast.error(e?.message || "Failed"); }
         }}
         onReschedule={(it) => rescheduleFromDetails(it)}
       />
@@ -1235,17 +1245,18 @@ export default function PlannerSurface({
                   </button>
                   </>
                 ) : (
-                  <button type="button" onClick={startNow}
+                  <button type="button" aria-pressed={timeAsk === "start"}
+                    onClick={() => setTimeAsk(timeAsk === "start" ? null : "start")}
                     className="text-xs px-2.5 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
                     <Play className="w-3 h-3" />{tr("planner.startNow")}
                   </button>
                 ))}
                 {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
                   ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={timing.item.status === id}
-                    onClick={() => setOutcome(id)}
+                  <button key={id} type="button" aria-pressed={timing.item.status === id || (id === "done" && timeAsk === "end")}
+                    onClick={() => (id === "done" ? setTimeAsk(timeAsk === "end" ? null : "end") : setOutcome(id))}
                     className={`text-xs px-2.5 py-1 rounded-full border ${
-                      timing.item.status === id
+                      timing.item.status === id || (id === "done" && timeAsk === "end")
                         ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
                         : "border-border/50 text-muted-foreground"
                     }`}>{label}</button>
@@ -1265,6 +1276,10 @@ export default function PlannerSurface({
                   <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
                 </button>
               </div>
+              {timeAsk && (
+                <PlanTimeChoice kind={timeAsk} item={timing.item}
+                  onPick={(d) => { const ask = timeAsk; setTimeAsk(null); if (ask === "start") startNow(d); else setOutcome("done", d); }} />
+              )}
               {/* Partly done wants to know how much actually happened — the
                   totals count the actual, not the intention. */}
               {timing.item.status === "partial" && (

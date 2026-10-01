@@ -11,7 +11,7 @@
 // `onEdit` is optional — surfaces that have an editor (the planner) pass
 // one; those that don't (widgets) simply omit it.
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { statusFor } from "@/lib/activityStatus";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
+import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { getActiveActivities } from "@/lib/activitySession";
 
 const fmtDur = (min) => {
@@ -38,6 +39,11 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!item });
   const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list(), enabled: !!item });
 
+  // Done / Start ask WHEN first (PlanTimeChoice). Hooks stay above the
+  // early return.
+  const [ask, setAsk] = useState(null); // "start" | "end" | null
+  useEffect(() => { setAsk(null); }, [item?.id]);
+
   if (!item) return null;
 
   const st = statusFor(item);
@@ -50,9 +56,9 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   const task = item.task_id ? tasks.find((x) => x.id === item.task_id) : null;
   const isRunning = getActiveActivities().some((a) => a.planActivityId === item.id);
 
-  const resolve = async (status) => {
+  const resolve = async (status, endedAt = null) => {
     try {
-      await resolveOutcome(item, status);
+      await resolveOutcome(item, status, { endedAt });
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose?.();
@@ -142,9 +148,10 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
           <div className="flex flex-wrap gap-1">
             {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
               ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-              <button key={id} type="button" aria-pressed={st === id} onClick={() => resolve(id)}
+              <button key={id} type="button" aria-pressed={st === id || (id === "done" && ask === "end")}
+                onClick={() => (id === "done" ? setAsk(ask === "end" ? null : "end") : resolve(id))}
                 className={`text-xs px-2.5 py-1 rounded-full border ${
-                  st === id
+                  st === id || (id === "done" && ask === "end")
                     ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
                     : "border-border/50 text-muted-foreground hover:text-foreground"
                 }`}>{label}</button>
@@ -156,6 +163,9 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
               </button>
             )}
           </div>
+          {ask === "end" && (
+            <PlanTimeChoice kind="end" item={item} onPick={(d) => { setAsk(null); resolve("done", d); }} />
+          )}
         </div>
 
         {(onEdit || (onStartNow && st === "scheduled" && !isRunning)) && (
@@ -167,12 +177,15 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
               </button>
             )}
             {onStartNow && st === "scheduled" && !isRunning && (
-              <button type="button" onClick={() => onStartNow(item)}
+              <button type="button" aria-pressed={ask === "start"} onClick={() => setAsk(ask === "start" ? null : "start")}
                 className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
                 <Play className="w-3 h-3" />{tr("planner.startNow")}
               </button>
             )}
           </div>
+        )}
+        {ask === "start" && (
+          <PlanTimeChoice kind="start" item={item} onPick={(d) => { setAsk(null); onStartNow?.(item, d); }} />
         )}
       </div>
     </div>
