@@ -20,6 +20,31 @@ export function stripDeviceBound(dump) {
   return out;
 }
 
+// Secrets that leave the device only if the person said so. The PluralKit
+// token can READ AND WRITE their PluralKit system, and backups and sync
+// files are plain JSON unless locked — so it goes in only when they chose
+// "include it" in the PluralKit panel (`pk_token_in_backups: true`). Owner,
+// 2026-10-01: "ask the user's decision". Never mutates the input: the
+// tables of a getFullDbDump() are the LIVE database.
+// Export paths only — never run on an IMPORT (that would drop a token the
+// person deliberately included).
+export function stripUnsharedSecrets(dump) {
+  const table = dump && typeof dump === "object" ? dump.SystemSettings : null;
+  if (!table || typeof table !== "object") return dump;
+  let changed = false;
+  const nextTable = {};
+  for (const [id, row] of Object.entries(table)) {
+    if (row && typeof row === "object" && row.pk_token && row.pk_token_in_backups !== true) {
+      const { pk_token: _drop, ...rest } = row;
+      nextTable[id] = rest;
+      changed = true;
+    } else {
+      nextTable[id] = row;
+    }
+  }
+  return changed ? { ...dump, SystemSettings: nextTable } : dump;
+}
+
 // The fields that make a complete, portable Friends identity (per the
 // July 30 audit). E2E keys are MANDATORY — restoring credentials without
 // privateKeyJwk silently mints a new keypair, changes every friend's

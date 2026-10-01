@@ -36,7 +36,7 @@ export default function RemindersSettings() {
   const settings = settingsList[0] || null;
 
   const [quietEnabled, setQuietEnabled] = useState(false);
-  const [includeReminderText, setIncludeReminderText] = useState(true);
+  const [includeReminderText, setIncludeReminderText] = useState(false);
   const [quietStart, setQuietStart] = useState("22:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const [paused, setPaused] = useState(false);
@@ -74,7 +74,7 @@ export default function RemindersSettings() {
     setQuietEnd(qh.end || "08:00");
     setPaused(!!settings.reminders_paused);
     setDefaultSnooze(settings.default_snooze_options || DEFAULT_SNOOZE_OPTIONS);
-    setIncludeReminderText(settings.reminder_push_include_text !== false);
+    setIncludeReminderText(settings.reminder_push_include_text === true);
     // Keyed on id, not the object — see DiaryCardPresetsManager; a query
     // invalidation mid-edit used to reset the whole quiet-hours form.
   }, [settings?.id]);  

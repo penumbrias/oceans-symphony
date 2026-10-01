@@ -106,3 +106,13 @@ delayed or batched when the app hasn't been opened recently.
 - Xcode Cloud (included with the developer program) or a GitHub Actions
   macOS runner can automate builds later; the whole project builds from
   a clean clone with the four commands above.
+
+## iCloud backup is the person's choice (v0.248.4)
+
+iOS includes app data in the phone's iCloud backup by default. Settings → Data &
+privacy (iPhone only) lets each person choose "Include in iCloud" or "Keep on
+this phone"; the choice is saved with the Preferences plugin as
+`symphony_icloud_backup`, and `AppDelegate.applyICloudBackupChoice()` marks
+`Library/WebKit` and `Library/symphony-safe` excluded (or not) at launch and on
+entering the background. Untested on a device as of v0.248.4 — check with
+Settings → [name] → iCloud → Manage Storage → Backups after a backup.

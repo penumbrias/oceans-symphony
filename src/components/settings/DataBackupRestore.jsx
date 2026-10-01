@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { getFullDbDump, loadDbDump, mergeDbDump, restampRecords, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
 import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategories } from "@/lib/backupScope";
-import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
+import { stripDeviceBound, stripUnsharedSecrets, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages } from "@/lib/localImageStorage";
@@ -302,7 +302,9 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
 // fresh boot) are dropped so imports don't duplicate them. Module-scope
 // (not component-scoped) so both the main export flow and the data
 // inspector's per-category export can share it.
-function filterDump(dump, activeCats) {
+function filterDump(rawDump, activeCats) {
+  // The PluralKit token only when the person chose to include it.
+  const dump = stripUnsharedSecrets(rawDump);
   const out = {};
   for (const cat of EXPORT_CATEGORIES) {
     if (!activeCats.has(cat.id)) continue;
@@ -918,6 +920,16 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         current, stripDeviceBound(data), covered,
         (k) => isReservedDbKey(k) || k === "FriendIdentity" || k === "PushSubscription",
       );
+      // A file made without the PluralKit token (the default) must not
+      // disconnect this device: keep the token it already has.
+      try {
+        const mineRow = Object.values(current?.SystemSettings || {}).find((r) => r?.pk_token);
+        if (mineRow && next.SystemSettings) {
+          for (const [rid, row] of Object.entries(next.SystemSettings)) {
+            if (row && !row.pk_token) next.SystemSettings[rid] = { ...row, pk_token: mineRow.pk_token, pk_token_in_backups: mineRow.pk_token_in_backups };
+          }
+        }
+      } catch { /* best effort */ }
       keptLabels = keptCategories(keptEntities, EXPORT_CATEGORIES).map((c) => resolveCatLabel(c, terms));
       if (keptLabels.length) traceStep("kept (not in file)", keptLabels.join(", "));
       await loadDbDump({ ...next, ...preserved }, { allowDeviceBound: true, restamp: [...covered] });

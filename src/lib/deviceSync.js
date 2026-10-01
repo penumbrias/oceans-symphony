@@ -53,7 +53,7 @@
 //   - The device id itself. See deviceIdentity below.
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";
-import { stripDeviceBound } from "@/lib/backupPolicy";
+import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
@@ -230,7 +230,7 @@ function contentHash(str) {
 // rewriting an identical file (sync audit F13: two open devices used to
 // rewrite and re-merge the whole database at each other every 30 s).
 export async function buildDataSnapshotWithHash() {
-  const dump = snapshotCopy(stripDeviceBound(getFullDbDump()));
+  const dump = snapshotCopy(stripUnsharedSecrets(stripDeviceBound(getFullDbDump())));
   // Look + layout travel apart from the data, and are never applied on
   // their own (see the header). snapshotCopy is a deep copy, so stripping
   // here can't touch the live database. `settings` is deliberately NOT

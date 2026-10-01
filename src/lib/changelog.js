@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "improve", text: "Reminders only go through the server if you turn that on yourself, and their wording only goes with them if you choose that too." },
+      { type: "improve", text: "The desktop app now asks before it ever checks for updates (Help → Check for updates automatically)." },
+      { type: "feature", text: "PluralKit: you choose whether your token goes into backups and sync files. Until you choose, it stays out." },
+      { type: "fix", text: "Grocery lists marked \"available when locked\" are now included in backups." },
+      { type: "feature", text: "iPhone: choose whether your data is part of the phone's iCloud backup (Settings → Data & privacy)." },
       { type: "fix", text: "If this device ever can't save your changes (for example, storage is full), the app now says so right away and keeps trying — instead of silently losing them later." },
       { type: "fix", text: "Deleting an {{alter}} no longer deletes their picture, so restoring them from Recent changes brings it back too." },
       { type: "improve", text: "The desktop app now keeps a second copy of your data in its own files, like the Android app, and puts it back if its main storage is ever lost." },

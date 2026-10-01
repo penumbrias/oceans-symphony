@@ -79,7 +79,7 @@ function CloudReminderDeliverySection() {
           </p>
           {identity && !identity.push_only && settings?.reminders_cloud_delivery === undefined && (
             <p className="text-[0.7rem] text-muted-foreground mt-1 leading-snug">
-              You already use Friends, so this was left on — it's how reminders reached you before this switch existed. Turn it off any time.
+              This used to be on automatically for Friends users. It's now off until you turn it on — reminders still fire from this device.
             </p>
           )}
         </div>

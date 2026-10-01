@@ -549,6 +549,30 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
               </p>
             </div>
 
+            {/* The token in backups — the person's call (owner, 2026-10-01).
+                Until they choose, it stays out (backupPolicy.stripUnsharedSecrets). */}
+            <div className={`rounded-lg border p-3 space-y-2 ${settings.pk_token_in_backups === undefined ? "border-amber-500/40 bg-amber-500/5" : "border-border/50"}`}>
+              <p className="text-xs font-medium">Put this token in your backups and sync files?</p>
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+                Included: restoring a backup or syncing another device reconnects PluralKit by itself — but anyone who opens an unlocked backup file could use the token to change your PluralKit system. Left out: you paste the token again after a restore.
+              </p>
+              <div className="flex gap-2">
+                {[[false, "Leave it out"], [true, "Include it"]].map(([val, label]) => (
+                  <button key={label} type="button"
+                    aria-pressed={settings.pk_token_in_backups === val}
+                    onClick={async () => {
+                      try {
+                        await base44.entities.SystemSettings.update(settings.id, { pk_token_in_backups: val });
+                        onSettingsChange?.();
+                      } catch (e) { toast.error(e?.message || "Couldn't save that"); }
+                    }}
+                    className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${settings.pk_token_in_backups === val ? "border-primary/60 bg-primary/10 text-primary font-semibold" : "border-border/50"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Import members */}
             <div className="border-t pt-4 space-y-2">
               <div className="flex items-center gap-2">

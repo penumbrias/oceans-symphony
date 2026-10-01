@@ -110,8 +110,9 @@ export const BACKUP_LS_KEYS = [
   "symphony_display_options_dock",
   "symphony_page_tutorials_enabled_v1",
   // Unlocked-grocery lists are REAL user content that lived only in
-  // localStorage. Mirrored so a wipe can't take them; kept out of portable
-  // exports (see MIRROR_ONLY_KEYS) per the panic-cover design.
+  // localStorage. Mirrored so a wipe can't take them, and in backups too
+  // (owner, 2026-10-01: "all need to be in the backups") — merged list by
+  // list on import, see writeBackupLocalSettings.
   "grocery_unlocked_store_v1",
   // Self-hosted relay host (src/lib/apiBase.js). A user who points the app
   // at their own Friends/reminder relay should keep pointing there after a
@@ -175,10 +176,28 @@ export function presentBackupLsKeys() {
 }
 
 // Keys that are mirrored on-device (survive a localStorage wipe) but are
-// deliberately NOT written into portable backup files.
-export const MIRROR_ONLY_KEYS = new Set([
-  "grocery_unlocked_store_v1",
-]);
+// deliberately NOT written into portable backup files. (Empty since
+// v0.248.4 — the unlocked grocery lists now travel too.)
+export const MIRROR_ONLY_KEYS = new Set([]);
+
+// Keys whose value is a collection the import MERGES into this device's
+// copy (union by id, this device's records kept) instead of replacing it.
+const MERGED_ON_IMPORT = {
+  grocery_unlocked_store_v1(localRaw, fileRaw) {
+    const parse = (r) => { try { const v = JSON.parse(r); return v && typeof v === "object" ? v : null; } catch { return null; } };
+    const mine = parse(localRaw);
+    const theirs = parse(fileRaw);
+    if (!theirs) return localRaw;
+    if (!mine) return fileRaw;
+    const out = { ...theirs, ...mine };
+    for (const k of ["lists", "items", "favorites"]) {
+      const have = Array.isArray(mine[k]) ? mine[k] : [];
+      const ids = new Set(have.map((r) => r?.id));
+      out[k] = [...have, ...(Array.isArray(theirs[k]) ? theirs[k] : []).filter((r) => r?.id && !ids.has(r.id))];
+    }
+    return JSON.stringify(out);
+  },
+};
 
 export function readBackupLocalSettings() {
   const out = {};
@@ -228,6 +247,11 @@ export function writeBackupLocalSettings(settings) {
   // StorageModeSetup, which already restore all keys.
   for (const [key, value] of Object.entries(settings)) {
     if (!isImportableSettingKey(key)) continue;
+    if (value != null && MERGED_ON_IMPORT[key]) {
+      try { localStorage.setItem(key, MERGED_ON_IMPORT[key](localStorage.getItem(key), value)); }
+      catch { /* quota / disabled — skip */ }
+      continue;
+    }
     if (value != null) {
       try { localStorage.setItem(key, value); }
       catch { /* quota / disabled — skip */ }

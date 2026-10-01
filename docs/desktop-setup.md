@@ -252,3 +252,17 @@ The plain-language version for a tester is
   still to do. Not federation — one home relay per user.
 - macOS build, code signing (Windows installer is unsigned), and a tray
   icon.
+
+## Update checks need a yes (v0.248.4)
+
+The app makes no network contact the person didn't agree to. The first time an
+updatable build starts (AppImage on Linux, the installed app on Windows) it asks
+"Check for new versions automatically?" and remembers the answer in
+`<userData>/update-consent.json`. **Help → Check for updates automatically**
+changes it any time. Until the answer is yes, nothing contacts GitHub.
+
+## Second copy of the data (v0.248.3)
+
+Like the Android app, the desktop app keeps a second copy of every database
+blob, picture and font in `<userData>/symphony-safe/` and puts it back into an
+empty store at boot. See `src/lib/nativeMirror.js`.

@@ -3,10 +3,53 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { requestPersistentStorage, getStorageState } from "@/lib/autoBackup";
-import { isNative } from "@/lib/platform";
+import { isNative, getNativePlatform } from "@/lib/platform";
 import { getMirrorStatus } from "@/lib/nativeMirror";
 
 const NATIVE = isNative();
+const IOS = NATIVE && getNativePlatform() === "ios";
+const ICLOUD_KEY = "symphony_icloud_backup"; // read by ios/App/App/AppDelegate.swift
+
+// iPhone: is the app's data part of the phone's iCloud backup? The person
+// chooses (owner, 2026-10-01). iOS includes it by default; AppDelegate
+// applies the choice at launch and whenever the app goes to the background.
+function ICloudChoice() {
+  const [value, setValue] = useState(null); // "include" | "exclude"
+  useEffect(() => {
+    (async () => {
+      try {
+        const { Preferences } = await import("@capacitor/preferences");
+        const { value: v } = await Preferences.get({ key: ICLOUD_KEY });
+        setValue(v === "exclude" ? "exclude" : "include");
+      } catch { setValue("include"); }
+    })();
+  }, []);
+  const choose = async (v) => {
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.set({ key: ICLOUD_KEY, value: v });
+      setValue(v);
+      toast.success(v === "exclude" ? "Kept out of iCloud backups from now on" : "Included in iCloud backups");
+    } catch { toast.error("Couldn't save that choice"); }
+  };
+  if (!value) return null;
+  return (
+    <div className="mt-2 rounded-lg border border-border/50 p-2 space-y-1.5">
+      <p className="text-xs font-medium">iCloud backup of this iPhone</p>
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+        Included: your data is part of the phone's iCloud backup, so a new iPhone restored from it gets your data too — and it's stored with Apple. Kept on this phone: it never leaves the device; only backups you make yourself can bring it back.
+      </p>
+      <div className="flex gap-2">
+        {[["include", "Include in iCloud"], ["exclude", "Keep on this phone"]].map(([v, label]) => (
+          <button key={v} type="button" aria-pressed={value === v} onClick={() => choose(v)}
+            className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${value === v ? "border-primary/60 bg-primary/10 text-primary font-semibold" : "border-border/50"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function fmtBytes(n) {
   if (n == null) return "—";
@@ -41,6 +84,7 @@ export default function PersistentStorageStatus() {
 
   if (NATIVE) {
     return (
+      <div>
       <div className="flex items-start gap-2">
         <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
@@ -54,6 +98,8 @@ export default function PersistentStorageStatus() {
               ? <span className="block mt-1">Private-files copy last updated {new Date(mirror.lastWriteAt).toLocaleString()}.</span>
               : null)}
         </p>
+      </div>
+      {IOS && <ICloudChoice />}
       </div>
     );
   }

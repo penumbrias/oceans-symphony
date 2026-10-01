@@ -39,22 +39,12 @@ const REMINDERS_API_BASE = apiBase("reminders");
 // force-stop, but it sends reminder times (and optionally text) to the server —
 // so it's an explicit opt-in. The app stays 100% local-only and contacts no
 // server unless this is on.
-//   - explicit true/false  → honour the user's choice
-//   - unset                → on ONLY for users with a real Friends identity
-//                            (they've always had server reminder push, and
-//                            already chose to talk to the relay); off for
-//                            everyone else — INCLUDING the auto-minted
-//                            push_only identity, which used to flip this on
-//                            for anyone who touched push once (v0.181.0).
-// Pass the identity OBJECT (or null); a bare boolean is treated as a real
-// identity for back-compat with older callers.
-export function cloudReminderDeliveryEnabled(settings, identity) {
-  const v = settings?.reminders_cloud_delivery;
-  if (v === true) return true;
-  if (v === false) return false;
-  if (!identity) return false;
-  if (typeof identity === "object") return identity.push_only !== true;
-  return !!identity;
+//   - ONLY an explicit `true` turns it on. Unset used to mean "on" for
+//     anyone with a Friends identity; since v0.248.4 nothing reaches the
+//     relay unless the person switched this on themselves (owner,
+//     2026-10-01). The identity argument is kept for older callers.
+export function cloudReminderDeliveryEnabled(settings, _identity) {
+  return settings?.reminders_cloud_delivery === true;
 }
 
 // Read by nativeReminderScheduler (directly, to avoid an import cycle) to
@@ -90,7 +80,15 @@ export async function syncRemindersToServer() {
   } catch { setServerPushActive(false); return; }
 
   // Off by default — a fully-local user never reaches the server here.
-  if (!cloudReminderDeliveryEnabled(settings, existing || null)) { setServerPushActive(false); return; }
+  if (!cloudReminderDeliveryEnabled(settings, existing || null)) {
+    // It WAS on (an earlier default, or the switch just went off): the relay
+    // still holds the schedule and would keep pushing it. Clear it — once.
+    if (isServerReminderPushActive() && existing?.userId && existing?.secret) {
+      try { await postSync(existing, [], false); } catch { /* retried next pass — flag stays set */ return; }
+    }
+    setServerPushActive(false);
+    return;
+  }
 
   // Provision a push-only identity if the user explicitly enabled cloud delivery
   // but hasn't set up Friends. No-op (returns the existing one) otherwise.
@@ -114,7 +112,8 @@ export async function syncRemindersToServer() {
     return;
   }
 
-  const includeText = settings?.reminder_push_include_text !== false; // default: include text
+  // The wording goes to the relay only when the person said so.
+  const includeText = settings?.reminder_push_include_text === true;
   const now = new Date();
   const payload = [];
   for (const r of reminders) {

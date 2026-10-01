@@ -20,7 +20,7 @@
 // inside the WebView's sandbox, so it survives all of the cases listed.
 
 import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
-import { stripDeviceBound } from "@/lib/backupPolicy";
+import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
 import { getAllLocalImages, countLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
@@ -323,10 +323,9 @@ function estimateBytes(obj) {
 }
 
 // Reserved top-level DB keys (the local-settings mirror) are this device's
-// own bookkeeping. The mirror also holds mirror-only keys such as the
-// grocery cover's unlock state — which must never land in a plain backup
-// file (audit 2026-10-01, L11). Every real preference already travels in
-// __local_settings.
+// own bookkeeping — a duplicate of preferences that already travel in
+// __local_settings (the unlocked grocery lists included, since v0.248.4),
+// which goes through the import deny-list; the raw mirror wouldn't.
 function stripReserved(dump) {
   const out = {};
   for (const [k, v] of Object.entries(dump || {})) if (!isReservedDbKey(k)) out[k] = v;
@@ -348,7 +347,7 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // v0.95.2, which meant a plain-JSON file in Downloads carried the
   // friends secret. The identity moves only via the explicit opt-in
   // bundle in the manual export flow.
-  const dump = stripReserved(stripDeviceBound(getFullDbDump()));
+  const dump = stripUnsharedSecrets(stripReserved(stripDeviceBound(getFullDbDump())));
   let systems = [];
   try { systems = listSystems(); } catch { /* registry unavailable */ }
   const unreadable = [];
@@ -361,7 +360,7 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
       if (sys.id === activeId) raw = dump;
       else {
         try { raw = await getSystemData(sys); } catch { raw = null; }
-        if (raw) raw = stripReserved(stripDeviceBound(raw));
+        if (raw) raw = stripUnsharedSecrets(stripReserved(stripDeviceBound(raw)));
       }
       if (!raw) { unreadable.push(sys.name || "unnamed"); continue; }
       perSystem.push({ name: sys.name, avatar: sys.avatar || null, ...(sys.id === activeId ? { active: true } : {}), data: raw });

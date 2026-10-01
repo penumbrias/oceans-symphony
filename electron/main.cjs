@@ -390,6 +390,18 @@ function buildMenu() {
       label: 'Window',
       submenu: [{ role: 'minimize' }, { role: 'close' }],
     },
+    ...(canSelfUpdate() ? [{
+      label: 'Help',
+      submenu: [{
+        label: 'Check for updates automatically',
+        type: 'checkbox',
+        checked: readUpdateConsent() === true,
+        click: (item) => {
+          writeUpdateConsent(item.checked);
+          if (item.checked) startUpdater(); else stopUpdater();
+        },
+      }],
+    }] : []),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -412,21 +424,76 @@ function buildMenu() {
 // quietly, and the swap only occurs when they say yes or when they next
 // quit. The one thing worse than a stale app for these users would be one
 // that restarts itself mid-journal-entry.
-function setUpAutoUpdate() {
-  if (!app.isPackaged) return;                 // dev runs are not updatable
+// ── Update checks need a yes (owner, 2026-10-01) ──
+// Checking for a new version contacts GitHub. The app makes no network
+// contact the person didn't agree to, so the first time an updatable
+// build starts it ASKS, remembers the answer in <userData>/update-consent.json,
+// and Help → "Check for updates automatically" changes it any time.
+const consentFile = () => path.join(app.getPath('userData'), 'update-consent.json');
+function readUpdateConsent() {
+  try { const v = JSON.parse(fs.readFileSync(consentFile(), 'utf8')); return typeof v?.allowed === 'boolean' ? v.allowed : null; }
+  catch { return null; }
+}
+function writeUpdateConsent(allowed) {
+  try { fs.writeFileSync(consentFile(), JSON.stringify({ allowed, at: new Date().toISOString() })); } catch { /* best effort */ }
+}
+
+function canSelfUpdate() {
+  if (!app.isPackaged) return false;           // dev runs are not updatable
   if (IS_LINUX) {
     if (!process.env.APPIMAGE) {
       console.log('[update] not an AppImage (deb/source) — updates come from your package manager');
-      return;
+      return false;
     }
-  } else if (IS_WINDOWS) {
+    return true;
+  }
+  if (IS_WINDOWS) {
     if (process.env.PORTABLE_EXECUTABLE_DIR) {
       console.log('[update] portable build — download the new version by hand');
-      return;
+      return false;
     }
-  } else {
-    return;                                    // macOS: not built yet
+    return true;
   }
+  return false;                                // macOS: not built yet
+}
+
+function setUpAutoUpdate() {
+  if (!canSelfUpdate()) return;
+  const consent = readUpdateConsent();
+  if (consent === false) return;
+  if (consent === true) { startUpdater(); return; }
+  // Not asked yet: ask once the window is up.
+  setTimeout(async () => {
+    try {
+      const { response } = await dialog.showMessageBox(mainWindow || undefined, {
+        type: 'question',
+        buttons: ['Check for updates', 'Not now'],
+        defaultId: 0,
+        cancelId: 1,
+        message: 'Check for new versions automatically?',
+        detail: 'When on, the app asks GitHub (where it is published) whether a newer version exists — at start and every few hours. Nothing about you or your data is sent. You can change this any time under Help.',
+      });
+      const allowed = response === 0;
+      writeUpdateConsent(allowed);
+      buildMenu();
+      if (allowed) startUpdater();
+    } catch { /* ask again next launch */ }
+  }, 3000);
+}
+
+let _updaterStarted = false;
+let _updateTimer = null;
+function stopUpdater() {
+  if (_updateTimer) { clearInterval(_updateTimer); _updateTimer = null; }
+}
+
+function startUpdater() {
+  if (_updaterStarted) {
+    // Turned back on after being switched off: resume the schedule.
+    if (!_updateTimer && _checkForUpdates) _updateTimer = setInterval(_checkForUpdates, 6 * 60 * 60 * 1000);
+    return;
+  }
+  _updaterStarted = true;
 
   let autoUpdater;
   try {
@@ -471,11 +538,14 @@ function setUpAutoUpdate() {
     console.warn('[update] check failed:', err?.message || err);
   });
 
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  const check = () => { if (readUpdateConsent() === true) autoUpdater.checkForUpdates().catch(() => {}); };
+  _checkForUpdates = check;
   // Not at launch: first paint matters more than an update check.
   setTimeout(check, 30_000);
-  setInterval(check, 6 * 60 * 60 * 1000).unref?.();
+  _updateTimer = setInterval(check, 6 * 60 * 60 * 1000);
+  _updateTimer.unref?.();
 }
+let _checkForUpdates = null;
 
 // ── Single instance ──
 //

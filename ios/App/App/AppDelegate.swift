@@ -14,7 +14,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // when the task actually runs — see docs/ios-setup.md.
         BackgroundRunnerPlugin.registerBackgroundTask()
         BackgroundRunnerPlugin.handleApplicationDidFinishLaunching(launchOptions: launchOptions)
+        applyICloudBackupChoice()
         return true
+    }
+
+    // iCloud device backup is the person's choice (owner, 2026-10-01). iOS
+    // includes the app's data in the phone's iCloud backup by default. When
+    // they pick "keep it on this phone only" (Settings → Data & privacy,
+    // saved by the Preferences plugin as CapacitorStorage.symphony_icloud_backup
+    // = "exclude"), the data folders are marked excluded; any other value
+    // clears the mark again. Library/WebKit holds the web view's database,
+    // Library/symphony-safe the private-file copy (src/lib/nativeMirror.js).
+    // Applied at launch and each time the app goes to the background, so a
+    // change takes effect before the next backup.
+    private func applyICloudBackupChoice() {
+        let exclude = UserDefaults.standard.string(forKey: "CapacitorStorage.symphony_icloud_backup") == "exclude"
+        let fm = FileManager.default
+        guard let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
+        for name in ["WebKit", "symphony-safe"] {
+            var url = library.appendingPathComponent(name, isDirectory: true)
+            guard fm.fileExists(atPath: url.path) else { continue }
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = exclude
+            try? url.setResourceValues(values)
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -25,6 +48,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationDidEnterBackground(_ application: UIApplication) {
         // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
         // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+        applyICloudBackupChoice()
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
