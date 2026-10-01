@@ -2241,7 +2241,6 @@ function PinnedAltersWidget({ api, settings }) {
   const tr = useT();
   const t = useTerms();
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const formatAlter = useAlterLabel();
   const alters = (api?.alters || []).filter((a) => a.is_pinned && !a.is_archived);
   const { data: sessions = [] } = useQuery({
@@ -2275,12 +2274,14 @@ function PinnedAltersWidget({ api, settings }) {
     ? Math.max(24, Math.min(cfgSize, 160))
     : Math.max(24, Math.min(boxH - (showNamesNow ? 22 : 4), 96));
 
-  // Press-and-hold → the two-option rail (front button + options list),
-  // same as the alters grid; slide onto an option and lift to pick it.
+  // Same as the pinned alters bar (owner, 2026-10-01): press-and-hold opens
+  // the front level rail straight away, a tap opens the options menu. With
+  // front levels off, hold falls back to the two-option rail.
+  const gesture = useFrontGesture();
   const holdRail = useAlterHoldRail({ activeSessions: sessions });
+  const levelsOn = !!gesture.cfg?.enabled;
 
   const [menuFor, setMenuFor] = React.useState(null);
-  const lastTap = React.useRef({});
   const { mode: anonymize } = useAnonymizeMode();
 
   return (
@@ -2296,20 +2297,15 @@ function PinnedAltersWidget({ api, settings }) {
             <button
               key={alter.id}
               type="button"
-              {...holdRail.bind(alter)}
+              {...(levelsOn
+                ? { ...gesture.getHoldProps(alter, session?.front_level), onContextMenu: (e) => e.preventDefault() }
+                : holdRail.bind(alter))}
               onClick={() => {
-                if (holdRail.suppressed()) return;
-                const now = Date.now();
-                if (lastTap.current.id === alter.id && now - lastTap.current.t < 350) {
-                  lastTap.current = {};
-                  setMenuFor(alter);
-                  return;
-                }
-                lastTap.current = { id: alter.id, t: now };
-                navigate(`/alter/${alter.id}`);
+                if (gesture.suppressed() || holdRail.suppressed()) return;
+                setMenuFor(alter);
               }}
               className="flex flex-col items-center select-none flex-shrink-0"
-              style={{ width: Math.max(size + 8, 44) }}
+              style={{ width: Math.max(size + 8, 44), WebkitTouchCallout: "none" }}
               title={formatAlter(alter)}
             >
               <PinnedAvatar alter={alter} size={size} fronting={!!session} session={session}
@@ -2323,6 +2319,7 @@ function PinnedAltersWidget({ api, settings }) {
           );
         })}
       </div>
+      {gesture.node}
       {holdRail.node}
       {menuFor && (
         <AlterActionMenu alter={menuFor} activeSessions={sessions}

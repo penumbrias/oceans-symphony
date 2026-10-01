@@ -15,7 +15,7 @@
 // FrontingSession mutations (see useSwipeActions): fetch fresh active rows,
 // update the target's front_level, invalidate ["activeFront"].
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -104,6 +104,84 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     setRail(null);
   }, []);
 
+  // The control that owns a live rail can unmount mid-press (the hold rail
+  // closing as it hands off, a list re-rendering). Its window listeners
+  // must go with it — left behind, the NEXT lift anywhere committed a level
+  // (or "Remove") for that alter, unseen.
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (live.current) {
+      window.removeEventListener("pointermove", live.current.move);
+      window.removeEventListener("pointerup", live.current.up);
+      window.removeEventListener("pointercancel", live.current.cancel);
+      if (live.current.blockScroll) window.removeEventListener("touchmove", live.current.blockScroll);
+      live.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.webkitUserSelect = "";
+    }
+  }, []);
+
+  // Open the rail for `alterId` with the finger at (x, y) and follow the
+  // pointer from there. The hold timer calls this; so can another gesture
+  // that already has the finger down (AlterHoldRail's slide onto its front
+  // button hands off to the level rail — owner, 2026-10-01).
+  const beginRail = (alterId, currentLevelId, x, y) => {
+    try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+    // While the rail is live, dragging must not paint a text selection
+    // across the page (the reported bug) — kill selection globally and
+    // clear any that already started during the hold.
+    document.body.style.userSelect = "none";
+    document.body.style.webkitUserSelect = "none";
+    try { window.getSelection()?.removeAllRanges(); } catch { /* fine */ }
+    const startIndex = Math.max(0, cfg.levels.findIndex((l) => l.id === currentLevelId));
+    const maxIndex = cfg.levels.length - 1 + (onRemove ? 1 : 0);
+    // Anchor the current level's row under the press point, then clamp
+    // into the viewport ONCE, here — and from then on read the finger
+    // against where the rail actually IS. (Clamping only at render
+    // left the pick math assuming the unclamped position: near a
+    // screen edge the finger hovered a gap and nothing selected.)
+    const railH = (maxIndex + 1) * LEVEL_ROW_H;
+    const anchoredTop = y - (startIndex * LEVEL_ROW_H + LEVEL_ROW_H / 2);
+    const top = Math.min(Math.max(8, anchoredTop), window.innerHeight - railH - 8);
+    const pickAt = (clientY) =>
+      Math.min(maxIndex, Math.max(0, Math.round((clientY - top - LEVEL_ROW_H / 2) / LEVEL_ROW_H)));
+    const state = {
+      alterId, x, y, top,
+      pickedIndex: pickAt(y), startIndex, solo: false,
+    };
+    setRail(state);
+    // Sideways slide (direction configurable) arms "sole" — commit
+    // makes this alter the only one at the level (or outright).
+    const soloDir = cfg.solo_swipe?.direction === "right" ? 1 : -1;
+    const soloOn = cfg.solo_swipe?.enabled !== false;
+    const pick = (ev) => {
+      const idx = pickAt(ev.clientY);
+      const solo = soloOn && (ev.clientX - state.x) * soloDir > 64;
+      setRail((r) => (r ? { ...r, pickedIndex: idx, solo } : r));
+      state.pickedIndex = idx;
+      state.solo = solo;
+    };
+    const move = (ev) => pick(ev);
+    const up = () => {
+      const idx = state.pickedIndex;
+      const solo = state.solo;
+      teardown();
+      if (onRemove && idx === cfg.levels.length) onRemove(alterId);
+      else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id, { solo });
+    };
+    const cancel = () => teardown();
+    // Native scroll fires pointercancel the moment the finger moves,
+    // killing the rail — touch-action is evaluated at touchstart, so
+    // setting it now is too late. preventDefault on touchmove (non-
+    // passive) is the one thing that still stops scrolling mid-touch.
+    const blockScroll = (ev) => ev.preventDefault();
+    window.addEventListener("touchmove", blockScroll, { passive: false });
+    live.current = { move, up, cancel, blockScroll };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+  };
+
   const getHoldProps = (alterId, currentLevelId) => {
     if (!cfg?.enabled) return {};
     return {
@@ -116,60 +194,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           timer.current = null;
-          try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-          // While the rail is live, dragging must not paint a text selection
-          // across the page (the reported bug) — kill selection globally and
-          // clear any that already started during the hold.
-          document.body.style.userSelect = "none";
-          document.body.style.webkitUserSelect = "none";
-          try { window.getSelection()?.removeAllRanges(); } catch { /* fine */ }
-          const startIndex = Math.max(0, cfg.levels.findIndex((l) => l.id === currentLevelId));
-          const maxIndex = cfg.levels.length - 1 + (onRemove ? 1 : 0);
-          // Anchor the current level's row under the press point, then clamp
-          // into the viewport ONCE, here — and from then on read the finger
-          // against where the rail actually IS. (Clamping only at render
-          // left the pick math assuming the unclamped position: near a
-          // screen edge the finger hovered a gap and nothing selected.)
-          const railH = (maxIndex + 1) * LEVEL_ROW_H;
-          const anchoredTop = origin.current.y - (startIndex * LEVEL_ROW_H + LEVEL_ROW_H / 2);
-          const top = Math.min(Math.max(8, anchoredTop), window.innerHeight - railH - 8);
-          const pickAt = (clientY) =>
-            Math.min(maxIndex, Math.max(0, Math.round((clientY - top - LEVEL_ROW_H / 2) / LEVEL_ROW_H)));
-          const state = {
-            alterId, x: origin.current.x, y: origin.current.y, top,
-            pickedIndex: pickAt(origin.current.y), startIndex, solo: false,
-          };
-          setRail(state);
-          // Sideways slide (direction configurable) arms "sole" — commit
-          // makes this alter the only one at the level (or outright).
-          const soloDir = cfg.solo_swipe?.direction === "right" ? 1 : -1;
-          const soloOn = cfg.solo_swipe?.enabled !== false;
-          const pick = (ev) => {
-            const idx = pickAt(ev.clientY);
-            const solo = soloOn && (ev.clientX - state.x) * soloDir > 64;
-            setRail((r) => (r ? { ...r, pickedIndex: idx, solo } : r));
-            state.pickedIndex = idx;
-            state.solo = solo;
-          };
-          const move = (ev) => pick(ev);
-          const up = () => {
-            const idx = state.pickedIndex;
-            const solo = state.solo;
-            teardown();
-            if (onRemove && idx === cfg.levels.length) onRemove(alterId);
-            else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id, { solo });
-          };
-          const cancel = () => teardown();
-          // Native scroll fires pointercancel the moment the finger moves,
-          // killing the rail — touch-action is evaluated at touchstart, so
-          // setting it now is too late. preventDefault on touchmove (non-
-          // passive) is the one thing that still stops scrolling mid-touch.
-          const blockScroll = (ev) => ev.preventDefault();
-          window.addEventListener("touchmove", blockScroll, { passive: false });
-          live.current = { move, up, cancel, blockScroll };
-          window.addEventListener("pointermove", move);
-          window.addEventListener("pointerup", up);
-          window.addEventListener("pointercancel", cancel);
+          beginRail(alterId, currentLevelId, origin.current?.x ?? e.clientX, origin.current?.y ?? e.clientY);
         }, HOLD_MS);
       },
       onPointerMove: (e) => {
@@ -223,7 +248,13 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     };
   };
 
-  return { rail, getHoldProps };
+  const startRailAt = (alterId, currentLevelId, x, y) => {
+    if (!cfg?.enabled || live.current) return false;
+    beginRail(alterId, currentLevelId, x, y);
+    return true;
+  };
+
+  return { rail, getHoldProps, startRailAt };
 }
 
 // ── Static tap-to-pick variant ─────────────────────────────────────
@@ -432,7 +463,7 @@ export function useFrontGesture() {
     await commitFrontLevel({ alterId, levelId, queryClient, cfg, solo: !!extras.solo });
   };
 
-  const { rail, getHoldProps: rawHoldProps } = useHoldDragLevel({
+  const { rail, getHoldProps: rawHoldProps, startRailAt: rawStartRailAt } = useHoldDragLevel({
     cfg,
     onCommit: (alterId, levelId, extras = {}) => {
       suppress.current = Date.now() + 400;
@@ -493,8 +524,23 @@ export function useFrontGesture() {
     </>
   );
 
+  // Open the level rail NOW, under a finger that's already down — for a
+  // gesture handing off to it (AlterHoldRail's slide onto the front button).
+  const startRailAt = (alter, currentLevel, x, y) => {
+    if (!alter) return false;
+    altersRef.current[alter.id] = alter;
+    return rawStartRailAt(alter.id, currentLevel, x, y);
+  };
+
+  // A tap that should open the alter's options menu (pinned bar / widget).
+  const openMenu = (alter) => {
+    if (!alter) return;
+    altersRef.current[alter.id] = alter;
+    setMenuFor(alter);
+  };
+
   return {
-    getHoldProps, quickSet, node,
+    getHoldProps, quickSet, openMenu, startRailAt, node,
     railActive: !!rail,
     suppressed: () => !!rail || Date.now() < suppress.current,
     cfg,

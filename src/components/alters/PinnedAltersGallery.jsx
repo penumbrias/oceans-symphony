@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
+import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { useFrontLook } from "@/lib/frontLook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, Check, Move, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -479,8 +479,6 @@ const LONG_PRESS_MS = 450;
 // `size` is the base avatar diameter in px (config.chipSize). Fronting
 // chips render 4/3 of it, keeping the old 48/64 look at the default.
 function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "", iconShape = "circle", frontingShape = "square", levelStyles = {} }) {
-  const navigate = useNavigate();
-  const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(avatarOverride || alter.avatar_url);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
@@ -491,13 +489,20 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
     : labelMode === "alias" ? (alter.alias || alter.name || "?")
     : formatAlter(alter);
 
-  // The standard gesture grammar (v0.122.0): tap = profile, press-and-hold
-  // = the level rail (Remove stop; holding a non-fronter adds them at the
-  // level released on). The vertical swipes and the long-press menu are
-  // gone — menu actions live on the profile page.
-  // Press-and-hold → the same two-option rail as the alters grid (front
-  // button + options list), slide-to-choose included.
+  // Owner, 2026-10-01: press-and-hold opens the FRONT LEVEL RAIL straight
+  // away (slide to a level, or Remove, and lift); a tap opens the alter's
+  // options menu (profile is one entry in it). With front levels turned
+  // off there's no rail to show, so hold falls back to the two-option
+  // rail (front button + options).
+  const gesture = useFrontGesture();
   const holdRail = useAlterHoldRail({ activeSessions });
+  const levelsOn = !!gesture.cfg?.enabled;
+  const holdProps = levelsOn
+    ? {
+        ...gesture.getHoldProps(alter, mySession?.front_level),
+        onContextMenu: (e) => e.preventDefault(),
+      }
+    : holdRail.bind(alter);
   const look = useFrontLook();
 
   // A level's own colour (when set) marks who's fronting; otherwise the
@@ -508,14 +513,15 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
 
   return (
     <>
+    {gesture.node}
     {holdRail.node}
     <button
       type="button"
-      {...holdRail.bind(alter)}
-      onClick={() => { if (!holdRail.suppressed()) navigate(`/alter/${alter.id}`); }}
-      title={`${label} — tap to open, press and hold for ${terms.front} and options`}
+      {...holdProps}
+      onClick={() => { if (!gesture.suppressed() && !holdRail.suppressed()) gesture.openMenu(alter); }}
+      title={label}
       className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
-      style={{ width: Math.round(size * Math.max(1, frontingScale / 100)) }}
+      style={{ width: Math.round(size * Math.max(1, frontingScale / 100)), WebkitTouchCallout: "none" }}
     >
       {display !== "names" && (() => {
         // The RENDERED shape: the bar's icon shape, swapped for the

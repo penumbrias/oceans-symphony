@@ -10,7 +10,10 @@
 // Slide to choose: the finger that held is still down when the rail
 // appears, so sliding it onto an option and lifting picks that option —
 // no second tap needed. Lifting anywhere else leaves the rail open for
-// ordinary taps.
+// ordinary taps. Sliding onto the FRONT button doesn't wait for the lift:
+// it opens the front level rail right there, under the same finger, so
+// the slide carries on to a level (owner, 2026-10-01 — it used to just
+// "tap" the button). With front levels off, lifting on it taps it as before.
 //
 // While it's open the page must not move: the finger that held is still
 // down, and dragging it would otherwise scroll the page (or the widget
@@ -72,6 +75,15 @@ export default function AlterHoldRail({ alter, anchorEl, activeSessions = [], ge
       if (!armed) return;
       const el = optionAt(e.clientX, e.clientY);
       const id = el?.getAttribute("data-rail-option") || null;
+      if (id === "front") {
+        const session = activeSessions.find((x) => (x.alter_id || x.primary_alter_id) === alter.id) || null;
+        if (gesture?.startRailAt?.(alter, session?.front_level, e.clientX, e.clientY)) {
+          armed = false;
+          hoveredRef.current = null;
+          setHovered(null);
+          return;
+        }
+      }
       if (id !== hoveredRef.current) {
         hoveredRef.current = id;
         setHovered(id);
@@ -93,6 +105,7 @@ export default function AlterHoldRail({ alter, anchorEl, activeSessions = [], ge
       document.removeEventListener("pointermove", onMove, true);
       document.removeEventListener("pointerup", onUp, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Holding the front button opens the level rail; once that finishes
@@ -110,6 +123,8 @@ export default function AlterHoldRail({ alter, anchorEl, activeSessions = [], ge
   }, [onClose]);
 
   if (!pos) return null;
+  // Handed off to the level rail: it's the only thing on screen now.
+  if (gesture?.railActive) return null;
   return createPortal(
     <div className="fixed inset-0 z-[85]" style={{ touchAction: "none" }}>
       <div

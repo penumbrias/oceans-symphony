@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "improve", text: "Pinned {{alters}} bar and widget: press and hold goes straight to the {{fronting}} levels, and a tap opens the {{alter}}'s options." },
+      { type: "fix", text: "Holding an {{alter}} in grid view and sliding onto the {{front}} button now opens the {{fronting}} levels so you can keep sliding to one." },
       { type: "improve", text: "Reminders only go through the server if you turn that on yourself, and their wording only goes with them if you choose that too." },
       { type: "improve", text: "The desktop app now asks before it ever checks for updates (Help → Check for updates automatically)." },
       { type: "feature", text: "PluralKit: you choose whether your token goes into backups and sync files. Until you choose, it stays out." },
