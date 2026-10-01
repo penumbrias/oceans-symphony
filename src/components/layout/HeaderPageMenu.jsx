@@ -41,6 +41,17 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
   const path = location.pathname;
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = React.useState(false);
+  // "Reset home screen…" only while the classic home is in edit mode
+  // (owner, 2026-10-01) — a reset sitting in the everyday menu was too
+  // easy to reach by accident. ExperimentalDashboard broadcasts the state.
+  const [classicEditing, setClassicEditing] = React.useState(() => {
+    try { return !!window.__osEditing?.["os-classic"]; } catch { return false; }
+  });
+  React.useEffect(() => {
+    const on = (e) => { if (e.detail?.scope === "os-classic") setClassicEditing(!!e.detail.editing); };
+    window.addEventListener("os-home-edit-state", on);
+    return () => window.removeEventListener("os-home-edit-state", on);
+  }, []);
 
   // Sync is only offered where it can actually run: a platform with a
   // filesystem adapter AND a folder already chosen. Otherwise the entry
@@ -100,7 +111,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       icon: LayoutGrid,
       onSelect: () => v2Options.editHome(),
     });
-    if (v2Options.editClassicHome && path === "/") {
+    if (v2Options.editClassicHome && path === "/" && classicEditing) {
       pageActions.push({
         key: "classic-reset-home",
         label: "Reset home screen…",
@@ -151,13 +162,13 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       // showing, then the board enters its edit mode.
       onSelect: () => window.dispatchEvent(new CustomEvent("os-v2-edit-home")),
     });
-    pageActions.push({
+    if (classicEditing) pageActions.push({
       key: "dash-reset-home",
       label: "Reset home screen…",
       icon: RotateCcw,
       // Opens the restore-to-default dialog (offers to keep the current
       // arrangement on the widget board first). Also in Settings →
-      // Appearance → Layout — this is the discoverable way in.
+      // Appearance → Layout.
       onSelect: () => window.dispatchEvent(new CustomEvent("os-classic-reset-home")),
     });
     pageActions.push({

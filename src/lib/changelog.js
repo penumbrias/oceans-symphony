@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "improve", text: "\"Reset home screen…\" in the ⚙ menu now only shows while you're editing the home screen." },
       { type: "improve", text: "Notification settings are cleaned up into short sections: Reminders, Status bar, Pop-up messages and Advanced." },
       { type: "feature", text: "If anything is stopping notifications — they're off, reminders may be late, or battery saver could stop them — Settings and the Reminders page now show it with a one-tap fix that opens the right phone setting." },
       { type: "improve", text: "Wherever the {{fronting}} levels open, swipe right to get the {{alter}}'s options menu instead." },

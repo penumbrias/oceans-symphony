@@ -645,6 +645,21 @@ export default function ExperimentalDashboard({
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
+  // Tell the header ⚙ menu whether THIS home is being edited — it only
+  // offers "Reset home screen…" then (owner, 2026-10-01). Mirrored on
+  // window so a menu opened later reads the current state.
+  useEffect(() => {
+    try {
+      window.__osEditing = { ...(window.__osEditing || {}), [eventPrefix]: editMode };
+      window.dispatchEvent(new CustomEvent("os-home-edit-state", { detail: { scope: eventPrefix, editing: editMode } }));
+    } catch { /* SSR */ }
+    return () => {
+      try {
+        window.__osEditing = { ...(window.__osEditing || {}), [eventPrefix]: false };
+        window.dispatchEvent(new CustomEvent("os-home-edit-state", { detail: { scope: eventPrefix, editing: false } }));
+      } catch { /* SSR */ }
+    };
+  }, [editMode, eventPrefix]);
   // Draft semantics for the edit bar: entering edit snapshots the board;
   // "Discard changes" restores it, "Save & close" keeps the live writes.
   const editSnapshot = useRef(null);
