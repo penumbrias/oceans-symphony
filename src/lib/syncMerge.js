@@ -134,11 +134,80 @@ export function mergeRecordFields(local, incoming, { newerWins = true, legacyUnt
   return out;
 }
 
+// ── Home boards (owner, 2026-10-01) ───────────────────────────────────
+// Widget boards travel between devices now (for some people the board IS
+// their home screen), and two devices editing different pages must both
+// keep their edits — so a board merges PAGE BY PAGE instead of the whole
+// field going to whichever device saved last:
+//   • a page on one side only comes across (unless that side deleted it
+//     after its last change — _removedPages)
+//   • a page on both sides keeps its newest version (_ut, stamped by
+//     experimentalHome.stampBoardChanges; untimed pages count as their
+//     board field's time)
+//   • board-wide settings (grid, wallpaper, bars…) and page order come
+//     from the newer board; pages only the older board has follow
+// Whatever a merge replaced is kept in Recent changes ("Changed by sync").
+export const BOARD_FIELDS = { SystemSettings: ["ui_v2_home", "classic_home"] };
+
+export function mergeBoards(a, b, aTime = "", bTime = "") {
+  const isBoard = (x) => x && typeof x === "object" && Array.isArray(x.pages);
+  if (!isBoard(a)) return isBoard(b) ? b : a;
+  if (!isBoard(b)) return a;
+  const bNewer = ms(bTime) > ms(aTime);
+  const [newer, older, newerT, olderT] = bNewer ? [b, a, bTime, aTime] : [a, b, aTime, bTime];
+  const removed = {};
+  for (const src of [a._removedPages, b._removedPages]) {
+    for (const [id, at] of Object.entries(src || {})) if (!removed[id] || ms(at) > ms(removed[id])) removed[id] = at;
+  }
+  const pageTime = (p, boardT) => p?._ut || boardT || "";
+  const olderById = new Map(older.pages.map((p) => [p.id, p]));
+  const newerIds = new Set(newer.pages.map((p) => p.id));
+  const pick = (id) => {
+    const n = newer.pages.find((p) => p.id === id);
+    const o = olderById.get(id);
+    if (n && o) return ms(pageTime(o, olderT)) > ms(pageTime(n, newerT)) ? o : n;
+    return n || o;
+  };
+  const keep = (p, boardT) => !removed[p.id] || ms(removed[p.id]) < ms(pageTime(p, boardT));
+  const pages = [];
+  for (const p of newer.pages) {
+    const chosen = pick(p.id);
+    if (keep(chosen, chosen === p ? newerT : olderT)) pages.push(chosen);
+  }
+  for (const p of older.pages) {
+    if (newerIds.has(p.id)) continue;
+    if (keep(p, olderT)) pages.push(p);
+  }
+  for (const p of pages) delete removed[p.id];
+  const out = { ...newer, pages: pages.length ? pages : newer.pages };
+  if (Object.keys(removed).length) out._removedPages = removed; else delete out._removedPages;
+  if (!out.pages.some((p) => p.id === out.defaultPageId)) out.defaultPageId = out.pages[0]?.id;
+  return out;
+}
+
 // The merge an entity gets (field rules + its own extras).
 export function mergeForEntity(entityName, local, incoming) {
   if (entityName === "FrontingSession") return mergeFrontingSession(local, incoming);
+  if (BOARD_FIELDS[entityName]) return mergeWithBoards(entityName, local, incoming);
   if (LOG_FIELDS[entityName]) return mergeEntityRecord(entityName, local, incoming);
   return mergeRecordFields(local, incoming, { legacyUntimed: LEGACY_UNTIMED.has(entityName) });
+}
+
+function mergeWithBoards(entityName, local, incoming) {
+  let out = mergeRecordFields(local, incoming, { legacyUntimed: LEGACY_UNTIMED.has(entityName) });
+  if (!local || !incoming || typeof local !== "object" || typeof incoming !== "object") return out;
+  for (const f of BOARD_FIELDS[entityName]) {
+    if (!(f in local) || !(f in incoming)) continue;
+    const merged = mergeBoards(local[f], incoming[f], fieldTime(local, f), fieldTime(incoming, f));
+    if (byJson(merged) === byJson(out[f])) continue;
+    if (out === local) out = { ...local };
+    out[f] = merged;
+    const ft = { ...(out[FIELD_TIMES] || { __base: local.updated_date || local.created_date || "" }) };
+    ft[f] = maxIso(fieldTime(local, f), fieldTime(incoming, f));
+    out[FIELD_TIMES] = ft;
+    out.updated_date = maxIso(local.updated_date, incoming.updated_date);
+  }
+  return out;
 }
 
 // ── Task completions (DailyProgress) ──────────────────────────────────

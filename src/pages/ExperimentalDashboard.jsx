@@ -41,7 +41,7 @@ import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps,
-  compactVertically, findFreeCell,
+  compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
@@ -869,6 +869,11 @@ export default function ExperimentalDashboard({
     // First real edit claims the board — the _seeded marker only belongs
     // to an untouched starter layout (see seedV2Home).
     if (nextHome && nextHome._seeded) { nextHome = { ...nextHome }; delete nextHome._seeded; }
+    // Boards sync between devices and merge page by page: a person's edit
+    // stamps the pages it changed and records deleted pages. The board's
+    // own auto-fit (opts.machine) doesn't — re-fitting on a different
+    // screen must never make a page look "newer" than a real edit.
+    if (!opts.machine) nextHome = stampBoardChanges(previous, nextHome);
     try {
       if (settingsRow?.id) {
         await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
@@ -883,9 +888,12 @@ export default function ExperimentalDashboard({
           action: {
             label: "Undo",
             onClick: async () => {
-              const snapshot = undoRef.current;
-              if (!snapshot) return;
+              const raw = undoRef.current;
+              if (!raw) return;
               undoRef.current = null;
+              // An undo is an edit too: re-stamp, so a page brought back
+              // beats the other device's record of deleting it.
+              const snapshot = stampBoardChanges(nextHome, raw);
               try {
                 if (settingsRow?.id) {
                   await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: snapshot });
@@ -905,12 +913,12 @@ export default function ExperimentalDashboard({
     }
   }, [settingsRow?.id, qc, settingsField, home]);
 
-  const updatePageWidgets = useCallback((mutate) => {
+  const updatePageWidgets = useCallback((mutate, opts = {}) => {
     const next = {
       ...home,
       pages: home.pages.map((p) => (p.id === page.id ? { ...p, widgets: mutate(p.widgets) } : p)),
     };
-    persist(next);
+    persist(next, opts);
   }, [home, page.id, persist]);
 
   // ── Edit operations ────────────────────────────────────────────
@@ -1047,6 +1055,8 @@ export default function ExperimentalDashboard({
       })
     );
   // Address this page to specific alters (empty = everyone sees it).
+  const setPageShowAs = (v) =>
+    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, showAs: v } : p)) });
   const setPageAudience = (ids) =>
     persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, visibleTo: ids } : p)) });
   const handleMove = (instanceId, dir) =>
@@ -1334,7 +1344,7 @@ export default function ExperimentalDashboard({
       if (!changed && !hasOverlaps(page.widgets, gridCols)) { fitted.current = stamp; return; }
       fitted.current = stamp;
       markMachineWrite();
-      updatePageWidgets(() => resolveOverlaps(grown, gridCols));
+      updatePageWidgets(() => resolveOverlaps(grown, gridCols), { machine: true });
     }, 120);
     return () => clearTimeout(id);
   }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);
@@ -1574,11 +1584,16 @@ export default function ExperimentalDashboard({
     setDragGhost(t ? { ...t } : null);
   }, []);
 
+  // "Show as" phone / tablet: the page keeps that shape on a wider screen
+  // — a centred column of that width (auto / desktop use the full width).
+  const showAsMax = SHOW_AS_MAX_WIDTH[page.showAs] || null;
   const canvas = (
     <div
       ref={gridRef}
       data-board-a11y-stack={a11yStack ? "1" : undefined}
-      style={a11yStack ? undefined : {
+      style={{
+        ...(showAsMax ? { maxWidth: showAsMax, marginLeft: "auto", marginRight: "auto", width: "100%" } : null),
+        ...(a11yStack ? null : {
         display: "grid",
         gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
         gap: home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem",
@@ -1588,6 +1603,7 @@ export default function ExperimentalDashboard({
         // Flow view deliberately omits them: rows are as tall as their
         // content, which is the classic column look.
         ...(freeMode && !flowView ? { gridAutoRows: `${rowPx}px`, gridTemplateRows: `repeat(${freeRows}, ${rowPx}px)` } : null),
+        }),
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
@@ -1948,6 +1964,24 @@ export default function ExperimentalDashboard({
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+      )}
+
+      {/* Show as — this page's shape on every device (owner, 2026-10-01).
+          Auto fits whatever screen shows it; the others keep that shape
+          everywhere, so a phone page can be built from the computer. */}
+      {editMode && (
+        <div className="flex items-center justify-center gap-1 mb-3" role="radiogroup" aria-label="Show this page as">
+          <span className="text-[0.625rem] text-muted-foreground mr-1">Show as</span>
+          {PAGE_SHOW_AS.map((v) => (
+            <button key={v} type="button" role="radio" aria-checked={(page.showAs || "auto") === v}
+              onClick={() => setPageShowAs(v)}
+              className={`h-6 px-2 rounded-lg border text-[0.625rem] capitalize ${
+                (page.showAs || "auto") === v
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/50 text-muted-foreground hover:text-foreground"
+              }`}>{v}</button>
+          ))}
         </div>
       )}
 

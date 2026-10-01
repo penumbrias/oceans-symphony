@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "feature", text: "Your widget boards now come with you to your other devices through device sync, merged page by page so edits on both survive." },
+      { type: "feature", text: "Each board page has a \"Show as\" setting in edit mode: Auto fits any screen, or keep a page phone-, tablet- or desktop-shaped everywhere." },
       { type: "improve", text: "\"Reset home screen…\" in the ⚙ menu now only shows while you're editing the home screen." },
       { type: "improve", text: "Notification settings are cleaned up into short sections: Reminders, Status bar, Pop-up messages and Advanced." },
       { type: "feature", text: "If anything is stopping notifications — they're off, reminders may be late, or battery saver could stop them — Settings and the Reminders page now show it with a one-tap fix that opens the right phone setting." },

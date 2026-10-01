@@ -19,11 +19,14 @@
 // SystemSettings fields that describe this device's look and layout.
 // Libraries the user builds (saved styles, setup packs) stay shared; so do
 // identity, terms, privacy, reminders and everything else that is content.
+// NOT here since v0.249.0 (owner, 2026-10-01: "for some people their
+// widget board IS their homescreen"): the boards themselves — `ui_v2_home`
+// and `classic_home` travel with the data and merge page by page
+// (syncMerge.mergeBoards); each page's "Show as" decides its shape per
+// device.
 export const DEVICE_LOOK_FIELDS = [
-  "classic_home",           // classic home: widgets, pages, bars, wallpaper
   "experimental_home",      // legacy widget board
   "ui_v2",                  // v2 display tokens, bars, dock
-  "ui_v2_home",             // v2 home board
   "ui_v2_home_desktop",     // RETIRED (v0.248.0, one board per device) — still
                             // stripped, so an older peer's copy can't land here
   "dashboard_layout",       // classic dashboard section order

@@ -201,10 +201,48 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // (A page-level song lived here briefly in v0.148.0; it's the `song`
       // WIDGET now, so a page can have one, several, or none.)
       widgets,
+      // "Show as" (owner, 2026-10-01): "auto" fits whatever screen shows
+      // the page; phone / tablet / desktop keep that shape everywhere (a
+      // phone-shaped page is a centred phone-width column on a computer).
+      showAs: PAGE_SHOW_AS.includes(p.showAs) ? p.showAs : "auto",
+      // When this page last changed — boards sync between devices now and
+      // merge page by page (syncMerge.mergeBoards). Absent on older pages.
+      ...(typeof p._ut === "string" ? { _ut: p._ut } : {}),
     });
   }
   if (out.pages.length === 0) out.pages.push({ id: "p1", label: "Home", layoutMode: "free", widgets: [] });
   out.defaultPageId = out.pages.some((p) => p.id === src.defaultPageId) ? src.defaultPageId : out.pages[0].id;
+  // Pages deleted on this device, so a sync can't bring them back from the
+  // other one (id → when). Kept through every read.
+  if (src._removedPages && typeof src._removedPages === "object") out._removedPages = { ...src._removedPages };
+  return out;
+}
+
+export const PAGE_SHOW_AS = ["auto", "phone", "tablet", "desktop"];
+// The column width a fixed "Show as" page is drawn at (px); auto/desktop
+// use the full width.
+export const SHOW_AS_MAX_WIDTH = { phone: 440, tablet: 820 };
+
+// Called on every board write by a person (not the board's own auto-fit):
+// stamp each page that changed, record pages that were deleted, and drop
+// the record for any page that's back. `prev` / `next` are boards.
+const REMOVED_KEEP_MS = 180 * 86400000;
+export function stampBoardChanges(prev, next, now = new Date().toISOString()) {
+  if (!next || typeof next !== "object" || !Array.isArray(next.pages)) return next;
+  const before = new Map((prev?.pages || []).map((p) => [p.id, p]));
+  const strip = (p) => { const { _ut, ...rest } = p || {}; return JSON.stringify(rest); };
+  const pages = next.pages.map((p) => {
+    const old = before.get(p.id);
+    return !old || strip(old) !== strip(p) ? { ...p, _ut: now } : p;
+  });
+  const removed = { ...(next._removedPages || prev?._removedPages || {}) };
+  const ids = new Set(pages.map((p) => p.id));
+  for (const id of before.keys()) if (!ids.has(id)) removed[id] = now;
+  for (const id of ids) delete removed[id];
+  const cutoff = Date.parse(now) - REMOVED_KEEP_MS;
+  for (const [id, at] of Object.entries(removed)) if (!(Date.parse(at) >= cutoff)) delete removed[id];
+  const out = { ...next, pages };
+  if (Object.keys(removed).length) out._removedPages = removed; else delete out._removedPages;
   return out;
 }
 

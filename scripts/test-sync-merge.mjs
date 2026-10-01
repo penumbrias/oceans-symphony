@@ -13,6 +13,7 @@ import {
   mergeRecordFields, stampCreate, stampUpdate, fieldTime,
   mergeDailyProgress, dailyProgressPeriod, pickDailyProgressKeeper,
   mergeForEntity, mergeFrontingSession,
+  mergeBoards,
 } from "../src/lib/syncMerge.js";
 
 let passed = 0;
@@ -234,6 +235,51 @@ for (const file of process.argv.slice(2)) {
   }
   test(`${recs.length} records, ${groups.size} periods, ${dupGroups} with duplicates — no tick lost (${ticksBefore} ticks)`, () => {
     assert.equal(lost, 0);
+  });
+}
+
+console.log("home boards (page by page)");
+{
+  const pg = (id, w, ut) => ({ id, label: id, widgets: [w], ...(ut ? { _ut: ut } : {}) });
+  test("pages added on different devices both survive", () => {
+    const a = { pages: [pg("p1", "clock"), pg("pa", "a", T(5))], grid: { phoneCols: 4 } };
+    const b = { pages: [pg("p1", "clock"), pg("pb", "b", T(6))], grid: { phoneCols: 5 } };
+    const m = mergeBoards(a, b, T(5), T(6));
+    assert.deepEqual(m.pages.map((p) => p.id).sort(), ["p1", "pa", "pb"]);
+    assert.equal(m.grid.phoneCols, 5); // board settings from the newer board
+  });
+  test("the same page keeps its newest edit, whichever board is newer", () => {
+    const a = { pages: [pg("p1", "edited-on-a", T(9))] };
+    const b = { pages: [pg("p1", "edited-on-b", T(3)), pg("p2", "x", T(10))] };
+    const m = mergeBoards(a, b, T(9), T(10));
+    assert.equal(m.pages.find((p) => p.id === "p1").widgets[0], "edited-on-a");
+  });
+  test("a page deleted after its last change stays deleted", () => {
+    const a = { pages: [pg("p1", "x", T(1))], _removedPages: { p2: T(8) } };
+    const b = { pages: [pg("p1", "x", T(1)), pg("p2", "old", T(2))] };
+    const m = mergeBoards(a, b, T(8), T(2));
+    assert.deepEqual(m.pages.map((p) => p.id), ["p1"]);
+    assert.ok(m._removedPages.p2);
+  });
+  test("a page changed after it was deleted elsewhere comes back", () => {
+    const a = { pages: [pg("p1", "x", T(1))], _removedPages: { p2: T(4) } };
+    const b = { pages: [pg("p1", "x", T(1)), pg("p2", "kept-editing", T(7))] };
+    const m = mergeBoards(a, b, T(4), T(7));
+    assert.ok(m.pages.some((p) => p.id === "p2"));
+    assert.equal(m._removedPages, undefined);
+  });
+  test("untimed pages fall back to their board's time", () => {
+    const a = { pages: [pg("p1", "older")] };
+    const b = { pages: [pg("p1", "newer")] };
+    assert.equal(mergeBoards(a, b, T(1), T(2)).pages[0].widgets[0], "newer");
+    assert.equal(mergeBoards(a, b, T(3), T(2)).pages[0].widgets[0], "older");
+  });
+  test("SystemSettings merges both board fields page by page", () => {
+    const local = { id: "s", ui_v2_home: { pages: [pg("pa", "a", T(5))] }, classic_home: { pages: [pg("c1", "c", T(1))] }, _ft: { __base: T(0), ui_v2_home: T(5), classic_home: T(1) }, updated_date: T(5) };
+    const incoming = { id: "s", ui_v2_home: { pages: [pg("pb", "b", T(6))] }, classic_home: { pages: [pg("c1", "c", T(1)), pg("c2", "d", T(2))] }, _ft: { __base: T(0), ui_v2_home: T(6), classic_home: T(2) }, updated_date: T(6) };
+    const m = mergeForEntity("SystemSettings", local, incoming);
+    assert.deepEqual(m.ui_v2_home.pages.map((p) => p.id).sort(), ["pa", "pb"]);
+    assert.deepEqual(m.classic_home.pages.map((p) => p.id).sort(), ["c1", "c2"]);
   });
 }
 

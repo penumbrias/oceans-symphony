@@ -50,6 +50,9 @@
 //     the record can't restyle this device. (Before: preferences filled
 //     gaps and the record merged newer-wins, so resizing a widget on the
 //     desktop rewrote the phone's home layout.)
+//     EXCEPT the widget boards (v0.249.0, owner): `ui_v2_home` and
+//     `classic_home` travel with the data and merge page by page
+//     (syncMerge.mergeBoards); each page's "Show as" sets its shape.
 //   - The device id itself. See deviceIdentity below.
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";

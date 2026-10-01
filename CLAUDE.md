@@ -398,6 +398,15 @@ Rules for keeping the targets healthy:
   they want deleted data BACK. Deletions from the other device are
   surfaced for review, never applied. Don't "fix" this into a
   bidirectional delete.
+- **Widget boards sync, page by page (v0.249.0).** `ui_v2_home` and
+  `classic_home` are NOT device look any more (owner: "for some people
+  their widget board IS their homescreen"); `syncMerge.mergeBoards` merges
+  them per page by each page's `_ut`, honouring `_removedPages`. Every
+  board write a PERSON makes must go through
+  `experimentalHome.stampBoardChanges` (ExperimentalDashboard's `persist`
+  does; its auto-fit passes `{ machine: true }` and must not stamp). Each
+  page has `showAs` (auto/phone/tablet/desktop) — shape only, every page
+  shows on every device.
 - **Sync merges field by field (v0.245.0).** Every record carries `_ft`,
   its per-field change times, and `src/lib/syncMerge.js` merges on them.
   **Any code that writes a record OUTSIDE the entity proxy's
