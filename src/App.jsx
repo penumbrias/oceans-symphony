@@ -366,7 +366,14 @@ function MainApp() {
       if (isNative()) {
         try {
           const { restoreFromMirrorIfWiped } = await import('@/lib/nativeMirrorRestore');
-          await restoreFromMirrorIfWiped();
+          // Bounded: this is a best-effort repair, and boot must never wait
+          // on it forever (0.247.0 hung here — see nativeMirrorRestore.js).
+          // It only ever writes into an empty store, so carrying on past it
+          // can't race it into overwriting anything.
+          await Promise.race([
+            restoreFromMirrorIfWiped(),
+            new Promise((resolve) => setTimeout(resolve, 5000)),
+          ]);
         } catch { /* non-fatal — the normal boot + recovery paths still run */ }
       }
 

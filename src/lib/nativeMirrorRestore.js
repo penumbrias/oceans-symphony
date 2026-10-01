@@ -36,20 +36,25 @@ const openStore = () => openDB(IDB_NAME, 1, {
 });
 const asString = (v) => (typeof v === "string" ? v : (() => { try { return JSON.stringify(v); } catch { return null; } })());
 
+// NEVER return a Capacitor plugin object from an async function (or resolve
+// a promise with one): the promise machinery looks for `.then` on it, the
+// plugin proxy answers with a native call ("Preferences.then() is not
+// implemented"), and the promise never settles. That hung boot forever in
+// 0.247.0 ("Taking longer than usual to load"). Wrap it instead.
 async function prefs() {
-  try { return (await import("@capacitor/preferences")).Preferences; } catch { return null; }
+  try { const { Preferences } = await import("@capacitor/preferences"); return { Preferences }; } catch { return null; }
 }
 
 async function appendBootRecord(rec) {
   const P = await prefs();
   if (!P) return;
   try {
-    const { value } = await P.get({ key: BOOT_LOG_KEY });
+    const { value } = await P.Preferences.get({ key: BOOT_LOG_KEY });
     let list = [];
     try { list = JSON.parse(value || "[]"); } catch { list = []; }
     if (!Array.isArray(list)) list = [];
     list.push(rec);
-    await P.set({ key: BOOT_LOG_KEY, value: JSON.stringify(list.slice(-BOOT_LOG_MAX)) });
+    await P.Preferences.set({ key: BOOT_LOG_KEY, value: JSON.stringify(list.slice(-BOOT_LOG_MAX)) });
   } catch { /* diagnostics only */ }
 }
 
@@ -58,7 +63,7 @@ export async function readBootRecords() {
   const P = await prefs();
   if (!P) return [];
   try {
-    const { value } = await P.get({ key: BOOT_LOG_KEY });
+    const { value } = await P.Preferences.get({ key: BOOT_LOG_KEY });
     const list = JSON.parse(value || "[]");
     return Array.isArray(list) ? list : [];
   } catch { return []; }

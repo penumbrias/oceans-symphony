@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "September 30, 2026",
     changes: [
+      { type: "fix", text: "Android app: fixed the app getting stuck on \"Taking longer than usual to load\" after updating to 0.247.0. Your data was never affected." },
       { type: "improve", text: "Planner on a computer: Ctrl + scroll (or a trackpad pinch) resizes the hours, and Ctrl + Shift + scroll widens the days — the desktop version of pinching." },
     ],
   },
