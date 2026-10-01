@@ -201,7 +201,7 @@ const bioGestures = `
       <li><strong>Press-and-hold empty time, then drag</strong> → log something past or plan something ahead. Release to open it.</li>
       <li><strong>Tap</strong> an entry → open it (name, day, time, who, category, notes, outcome). A tap on an entry's edge opens it too.</li>
       <li><strong>Hold an entry's top or bottom edge, then drag</strong> → resize its start or end. Hold-to-arm means you can't nudge a logged time by accident.</li>
-      <li><strong>Pinch with two fingers</strong> → up/down zooms the hours, left/right widens the days. The sliders button does the same with sliders, plus 24h vs AM/PM and the week's first day.</li>
+      <li><strong>Pinch with two fingers</strong> → up/down zooms the hours, left/right widens the days. On a computer: <strong>Ctrl + scroll</strong> zooms the hours, <strong>Ctrl + Shift + scroll</strong> widens the days (a trackpad pinch works too). The sliders button does the same with sliders, plus 24h vs AM/PM and the week's first day.</li>
       <li>An entry that crosses midnight (sleep) is drawn on both days as one joined block.</li>
       <li>With the Check-ins overlay on, <strong>tap a dot</strong> → that entry in the Check-In Log.</li>
     </ul>`)}

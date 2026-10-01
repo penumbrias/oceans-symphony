@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "September 30, 2026",
+    changes: [
+      { type: "improve", text: "Planner on a computer: Ctrl + scroll (or a trackpad pinch) resizes the hours, and Ctrl + Shift + scroll widens the days — the desktop version of pinching." },
+    ],
+  },
+  {
     date: "September 29, 2026",
     changes: [
       { type: "feature", text: "The Android and iPhone apps now keep a second copy of all your data — pictures and fonts included — in the app's own private files. If the phone clears the app's storage while it's closed, your data is put back automatically the next time you open it." },

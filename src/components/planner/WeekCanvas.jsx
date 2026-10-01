@@ -710,6 +710,46 @@ export default function WeekCanvas({
   };
   const onPinchEnd = () => { pinchRef.current = null; };
 
+  // Desktop zoom — the mouse/trackpad twin of the pinch above (owner
+  // report: "no way to resize on desktop"). Ctrl/Cmd + wheel scales the
+  // HOUR height; add Shift to scale the DAY width. A trackpad pinch
+  // arrives in Chromium as Ctrl + wheel, so it just works. Native,
+  // non-passive listener: React's onWheel is passive and can't stop the
+  // browser / Electron zooming the whole page instead. Small trackpad
+  // deltas accumulate in a float so a slow pinch doesn't round to nothing.
+  const scrollerRef = useRef(null);
+  const zoomLatest = useRef(null);
+  zoomLatest.current = { hourPx, dayPx, apply: onSetPref || setPref };
+  const zoomAcc = useRef({});
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const { hourPx: h, dayPx: w, apply } = zoomLatest.current;
+      // Shift+wheel often arrives as horizontal delta (Linux / Windows).
+      const delta = e.deltaY || e.deltaX;
+      if (!delta) return;
+      const factor = Math.exp(-delta * 0.0025);
+      // Events outrun re-renders, so the value read here can lag what was
+      // just applied. Re-seed from it only when it changed from SOMETHING
+      // ELSE (the popover, another planner) — not from our own last write.
+      const step = (axis, cur, min, max, key) => {
+        const acc = zoomAcc.current[axis] || (zoomAcc.current[axis] = { v: cur, seen: cur, applied: cur });
+        if (cur !== acc.seen && cur !== acc.applied) acc.v = cur;
+        acc.seen = cur;
+        acc.v = Math.max(min, Math.min(max, acc.v * factor));
+        const next = Math.round(acc.v);
+        if (next !== acc.applied) { acc.applied = next; apply(key, next); }
+      };
+      if (e.shiftKey) step("w", w, DAY_PX_MIN, DAY_PX_MAX, "dayPx");
+      else step("h", h, HOUR_PX_MIN, HOUR_PX_MAX, "hourPx");
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   const days = useMemo(() => {
     if (dayCount === 1) return [new Date(anchor)];
     const start = startOfWeek(anchor, { weekStartsOn });
@@ -898,7 +938,7 @@ export default function WeekCanvas({
     <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>
       {/* One scroller for headers + grid so they can never drift apart. The
           hour gutter is sticky so it stays put while the week scrolls. */}
-      <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
+      <div ref={scrollerRef} className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
         onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd} onTouchCancel={onPinchEnd}>
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
