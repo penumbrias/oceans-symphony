@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "feature", text: "The \"who's {{fronting}}\" status-bar notification can show each {{alter}}'s name, alias or emoji — for everyone or per {{alter}} — and can leave out chosen {{fronting}} levels." },
+      { type: "fix", text: "The {{alter}} menu opened from the pinned bar no longer looks faded or oddly styled." },
+      { type: "fix", text: "The pinned {{alters}} bar stays visible while you're editing its options." },
       { type: "improve", text: "Planner: done plans show ✓, partly done ◐, skipped ones are greyed with ⤼, cancelled ones greyed and crossed out, and rescheduled plans show ↻." },
       { type: "feature", text: "Moving a plan's time has a \"Count as rescheduled\" switch — turn it off when you're only correcting what you entered." },
       { type: "feature", text: "Your widget boards now come with you to your other devices through device sync, merged page by page so edits on both survive." },

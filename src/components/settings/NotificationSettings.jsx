@@ -17,7 +17,12 @@ import { Switch } from "@/components/ui/switch";
 import { readNotificationPrefs } from "@/lib/notificationPrefs";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
-import { getAllPersistNotifPrefs, setPersistNotifPref } from "@/lib/persistentNotifPrefs";
+import {
+  getAllPersistNotifPrefs, setPersistNotifPref, getFrontNotifOptions, setFrontNotifOptions,
+  FRONT_NOTIF_LABELS, PERSIST_NOTIF_EVENT,
+} from "@/lib/persistentNotifPrefs";
+import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getLocalIdentity } from "@/lib/friendsApi";
 import {
   cloudReminderDeliveryEnabled,
@@ -75,9 +80,93 @@ export function PersistentNotificationsSection() {
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">Kept in your phone's status bar while something's going on.</p>
       {rows.map((r) => (
-        <Row key={r.key} icon={r.icon} iconClass={r.iconClass} label={r.label} note={r.note}
-          checked={!!prefs[r.key]} onChange={(v) => toggle(r.key, v)} />
+        <React.Fragment key={r.key}>
+          <Row icon={r.icon} iconClass={r.iconClass} label={r.label} note={r.note}
+            checked={!!prefs[r.key]} onChange={(v) => toggle(r.key, v)} />
+          {r.key === "fronters" && prefs.fronters && <FrontNotifOptions />}
+        </React.Fragment>
       ))}
+    </div>
+  );
+}
+
+// How the "who's fronting" notification writes each alter, and which
+// levels stay out of it (owner, 2026-10-01).
+const LABEL_TEXT = { name: "Name", alias: "Alias", emoji: "Emoji" };
+function FrontNotifOptions() {
+  const t = useTerms();
+  const formatAlter = useAlterLabel();
+  const levelCfg = useFrontLevels();
+  const [opts, setOpts] = useState(() => getFrontNotifOptions());
+  const [perOpen, setPerOpen] = useState(false);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const on = () => setOpts(getFrontNotifOptions());
+    window.addEventListener(PERSIST_NOTIF_EVENT, on);
+    return () => window.removeEventListener(PERSIST_NOTIF_EVENT, on);
+  }, []);
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const save = (patch) => setOpts(setFrontNotifOptions(patch));
+  const shown = alters
+    .filter((a) => !a.is_archived)
+    .filter((a) => !q.trim() || `${a.name || ""} ${a.alias || ""}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  const overrides = Object.keys(opts.perAlter).length;
+
+  return (
+    <div className="ml-7 space-y-2.5 rounded-xl border border-border/40 p-2.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground w-24">Write names as</span>
+        {FRONT_NOTIF_LABELS.map((m) => (
+          <button key={m} type="button" aria-pressed={opts.label === m}
+            onClick={() => save({ label: m, perAlter: {} })} className={chip(opts.label === m)}>{LABEL_TEXT[m]}</button>
+        ))}
+      </div>
+      {levelCfg.levels.length > 1 && (
+        <div className="flex items-start gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground w-24 pt-1">Leave out</span>
+          {levelCfg.levels.map((lv) => {
+            const off = opts.hiddenLevels.includes(lv.id);
+            return (
+              <button key={lv.id} type="button" aria-pressed={off}
+                onClick={() => save({ hiddenLevels: off ? opts.hiddenLevels.filter((x) => x !== lv.id) : [...opts.hiddenLevels, lv.id] })}
+                className={chip(off)}>{frontLevelLabel(lv, t)}</button>
+            );
+          })}
+        </div>
+      )}
+      <button type="button" onClick={() => setPerOpen((v) => !v)} aria-expanded={perOpen}
+        className="text-xs text-primary hover:underline">
+        {perOpen ? "Hide" : `Per ${t.alter}`}{overrides ? ` (${overrides} set)` : ""}
+      </button>
+      {perOpen && (
+        <div className="space-y-1.5">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${t.alters}`}
+            aria-label={`Search ${t.alters}`}
+            className="w-full h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+          <div className="max-h-64 overflow-y-auto overscroll-contain space-y-1">
+            {shown.map((a) => {
+              const cur = opts.perAlter[a.id] || "";
+              const setOne = (m) => {
+                const per = { ...opts.perAlter };
+                if (!m) delete per[a.id]; else per[a.id] = m;
+                save({ perAlter: per });
+              };
+              return (
+                <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-border/40 px-2 py-1">
+                  <span className="flex-1 min-w-0 truncate text-sm">{a.emoji ? `${a.emoji} ` : ""}{formatAlter(a)}</span>
+                  <button type="button" aria-pressed={!cur} onClick={() => setOne("")} className={chip(!cur)}>Default</button>
+                  {FRONT_NOTIF_LABELS.map((m) => (
+                    <button key={m} type="button" aria-pressed={cur === m} onClick={() => setOne(m)}
+                      disabled={(m === "emoji" && !a.emoji) || (m === "alias" && !a.alias && !(a.use_emoji_as_alias && a.emoji))}
+                      className={`${chip(cur === m)} disabled:opacity-30`}>{LABEL_TEXT[m]}</button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

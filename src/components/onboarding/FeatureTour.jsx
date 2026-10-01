@@ -629,7 +629,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "reminders", sectionLabel: "Reminders",
       emoji: "📌",
       title: "Status bar notifications",
-      body: `On the Android app you can keep notifications in your status bar (Settings → Notifications & reminders → Status bar): who's ${t.fronting} right now (updates the instant a ${t.switch} happens), your active symptoms, and a running activity you can end & log straight from there. If anything is stopping notifications on your phone — they're off, reminders may arrive late, or battery saver could stop them — the top of that section and the Reminders page show it with a one-tap fix.`,
+      body: `On the Android app you can keep notifications in your status bar (Settings → Notifications & reminders → Status bar): who's ${t.fronting} right now (updates the instant a ${t.switch} happens), your active symptoms, and a running activity you can end & log straight from there. The ${t.fronting} one can write each ${t.alter} as their name, alias or emoji (for everyone or per ${t.alter}) and leave out chosen ${t.fronting} levels. If anything is stopping notifications on your phone — they're off, reminders may arrive late, or battery saver could stop them — the top of that section and the Reminders page show it with a one-tap fix.`,
       route: "/reminders", target: null,
       look: `Settings → Notifications & reminders → "Status bar" (Android app only)`, action: null,
     },

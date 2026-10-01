@@ -945,10 +945,13 @@ export default function ExperimentalDashboard({
     // The chrome (V2Frame) collapses the quick-action + pinned bars while
     // the board is being edited; the eye chip previews them back in.
     document.documentElement.toggleAttribute("data-home-edit", editMode);
-    document.documentElement.toggleAttribute("data-home-edit-preview", editMode && barsPreview);
+    // Editing the pinned bar's own options previews the bars too — you
+    // can't tune a bar you can't see (owner, 2026-10-01: "I cannot see the
+    // pinned alters bar even when I position the menu to the opposite edge").
+    document.documentElement.toggleAttribute("data-home-edit-preview", editMode && (barsPreview || configuringBar));
     try { window.dispatchEvent(new Event("symphony-home-edit-changed")); } catch { /* SSR */ }
     if (!editMode) setBarsPreview(false);
-  }, [editMode, barsPreview]);
+  }, [editMode, barsPreview, configuringBar]);
   // Leaving edit mode closes every open edit surface too (widget config,
   // Display options, pack sheet, drawer, menus). Their edits are written
   // live, so closing them IS saving them; leaving them open after "Save &
@@ -2088,7 +2091,9 @@ export default function ExperimentalDashboard({
           while swiping between pages. */}
       {(barIds.length > 0 || altersBottom) && (
         <div
-          className="fixed left-0 right-0 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
+          // Raised over the edit toolbar while the bar's own options are
+          // open, so it stays in view when that sheet is docked at the top.
+          className={`fixed left-0 right-0 ${configuringBar ? "z-[75]" : "z-40"} flex flex-col items-center gap-1.5 pointer-events-none`}
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 8px)" }}
         >
           <AnimatePresence initial={false}>

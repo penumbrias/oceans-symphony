@@ -25,9 +25,9 @@ import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { formatAlterLabel } from "@/lib/alterLabel";
 import { getActiveActivities, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
-import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT } from "@/lib/persistentNotifPrefs";
+import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT, frontNotifLabel } from "@/lib/persistentNotifPrefs";
+import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 
@@ -37,6 +37,7 @@ export default function usePersistentNotifications() {
   const t = useTerms();
   // useAlterLabel() returns the formatAlter(alter) function directly.
   const formatAlter = useAlterLabel();
+  const levelCfg = useFrontLevels();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
@@ -155,7 +156,10 @@ export default function usePersistentNotifications() {
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
     // "active" === is_active true (matches the server filter the query uses and
     // every other consumer). `!== false` would also accept ghost rows.
-    const active = sessions.filter((s) => s.is_active === true);
+    // Levels the person chose to keep out of the notification.
+    const hidden = new Set(prefs.frontOpts?.hiddenLevels || []);
+    const active = sessions.filter((s) => s.is_active === true
+      && !(hidden.size && hidden.has(getSessionLevel(s, levelCfg)?.id)));
     const primary = active.find((s) => s.is_primary);
     const ordered = [primary, ...active.filter((s) => s !== primary)].filter(Boolean);
     // Dedupe by alter id — duplicate active sessions for the same alter (a
@@ -167,10 +171,10 @@ export default function usePersistentNotifications() {
       const a = altersById[s.alter_id || s.primary_alter_id];
       if (!a || seenIds.has(a.id)) continue;
       seenIds.add(a.id);
-      // Force "name" mode in the notification — the user's label mode may be
-      // "both" ("alias — name"), which is too cluttered for a glanceable
-      // status line. Just the display name (matches the dashboard cards).
-      names.push(formatAlterLabel(a, "name"));
+      // Name, alias or emoji — the notification's own choice, for everyone
+      // or per alter (Settings → Notifications & reminders → Status bar).
+      // Never the app's "both" label mode: too cluttered for a status line.
+      names.push(frontNotifLabel(a, prefs.frontOpts));
     }
     syncPersistentNotification("fronters", {
       enabled: names.length > 0,
@@ -178,7 +182,7 @@ export default function usePersistentNotifications() {
       body: names.join(", "),
       extra: { kind: "fronters" },
     });
-  }, [prefs.fronters, sessions, alters, t.fronting, formatAlter, resyncTick]);
+  }, [prefs.fronters, prefs.frontOpts, levelCfg, sessions, alters, t.fronting, formatAlter, resyncTick]);
 
   // --- Active symptoms / habits notification (only when something is active) ---
   useEffect(() => {

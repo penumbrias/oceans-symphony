@@ -151,6 +151,8 @@ export const BACKUP_LS_KEYS = [
   // running timers and bring every dismissed banner back.
   "symphony_active_activities_v1", "symphony_active_end_reminder_v1",
   "symphony_critical_pin_dismissals", "symphony_upcoming_plan_acks",
+  // How the "who's fronting" notification names each alter + hidden levels.
+  "symphony_persist_notif_fronters_opts_v1",
 ];
 
 // Keys stored once per record (the key ends in an id). Matched by prefix.

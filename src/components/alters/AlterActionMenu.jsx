@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -120,7 +121,11 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
     </button>
   );
 
-  return (
+  // Portaled to <body>: opened from a bar or widget it used to render
+  // INSIDE that box and inherit its look — the bar's see-through
+  // background, em text sizes and borders (owner: "strange appearance,
+  // only half opacity"). Out here it looks the same everywhere.
+  return createPortal((
     <div className="fixed inset-0 z-[70] bg-black/40 flex items-end sm:items-center justify-center" onClick={backdropClick}>
       <div
         className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[calc(var(--os-sab)_+_var(--bottom-nav-height,56px))] sm:pb-[var(--os-sab)]"
@@ -182,5 +187,5 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
