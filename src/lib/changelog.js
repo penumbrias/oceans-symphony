@@ -29,6 +29,7 @@ export const CHANGELOG = [
       { type: "fix", text: "With the app open in two windows or tabs, entries saved in one could silently disappear. Both windows' entries are now kept." },
       { type: "fix", text: "Fixed a rare case where locking the grocery cover, or mistyping your current password while changing it, could wipe encrypted data." },
       { type: "hotfix", text: "Hotfix: image upgrades at launch no longer undo edits made at the same moment." },
+      { type: "fix", text: "Fixed a rare startup glitch that could open the app with only one {{system}} listed and the rest missing. You now get a \"Try again\" screen instead, and any {{systems}} already missing from the list are offered back on launch." },
     ],
   },
   {

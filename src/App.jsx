@@ -88,7 +88,7 @@ import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { refreshCustomFontFaces } from '@/lib/customFontFaces';
 import { reconcileDistressStore } from '@/lib/emotionDistress';
 import { initSystemsRegistry } from '@/lib/systems';
-import { scanForOrphanedData, isEffectivelyEmpty } from '@/lib/dataRecovery';
+import { scanForOrphanedData, scanForUnregisteredData, withoutDismissedUnregistered, isEffectivelyEmpty } from '@/lib/dataRecovery';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
@@ -326,6 +326,10 @@ function App() {
   // system, NOT into setup — setup refuses to run over an existing slot and
   // would bounce the user round the same screen forever.
   const [orphanOverEmpty, setOrphanOverEmpty] = useState(false);
+  // True when the candidates are blobs the systems registry doesn't list,
+  // found while the active system is fine — offered as "add back to the
+  // list", not "switch to this".
+  const [orphanReadd, setOrphanReadd] = useState(false);
   // Set when the user has declined recovery this session, so the empty-slot
   // scan doesn't re-offer it on the very next pass through boot.
   const orphanDeclined = useRef(false);
@@ -363,8 +367,20 @@ function App() {
       // Resolve which system (data slot) is active BEFORE any storage read, so
       // peek/init read the active system's blob. For existing users this is
       // "System 1" → the legacy key, i.e. exactly the data they already have.
-      // Non-fatal: on failure localDb keeps its default (legacy) key.
-      try { await initSystemsRegistry(); } catch { /* non-fatal — defaults to legacy key */ }
+      //
+      // A failure here means the registry could not be READ (see
+      // RegistryReadError in systems.js) — the list of systems is unknown,
+      // not absent. Carrying on with the legacy key used to boot a
+      // multi-system user into "System 1" with the rest missing, so it goes
+      // to the recovery screen (which offers "Try again") instead.
+      try {
+        await initSystemsRegistry();
+      } catch (e) {
+        if (cancelled) return;
+        setRecoveryReason({ kind: 'registry_read_error', error: e });
+        setSetupState('recovery');
+        return;
+      }
 
       let peek;
       try {
@@ -425,6 +441,24 @@ function App() {
             setSetupState('recover-orphan');
             return;
           }
+        }
+      }
+
+      // The active system is fine — but are there systems on disk the
+      // registry doesn't list? A registry that was lost from both stores is
+      // re-created with just "System 1", and the empty-slot scans above never
+      // run for a user whose active system loads, so every other system's
+      // blob used to sit on the device with no way back. Offer to re-add them
+      // (without switching). Skipped once the user has answered this session.
+      if (!orphanDeclined.current) {
+        let unregistered = [];
+        try { unregistered = withoutDismissedUnregistered(await scanForUnregisteredData()); } catch { unregistered = []; }
+        if (cancelled) return;
+        if (unregistered.length > 0) {
+          setOrphanCandidates(unregistered);
+          setOrphanReadd(true);
+          setSetupState('recover-orphan');
+          return;
         }
       }
 
@@ -555,9 +589,16 @@ function App() {
           <OrphanRecoveryScreen
             candidates={orphanCandidates}
             overExistingSystem={orphanOverEmpty}
+            readdMode={orphanReadd}
             onSetupNew={() => {
               setOrphanCandidates([]);
-              if (orphanOverEmpty) {
+              if (orphanReadd) {
+                // Not now / done re-adding — carry on booting the active
+                // system without asking again this session.
+                orphanDeclined.current = true;
+                setOrphanReadd(false);
+                setSetupState('booting');
+              } else if (orphanOverEmpty) {
                 // There IS a system here, it's just empty — carry on into it
                 // instead of into setup, which would refuse to overwrite it.
                 orphanDeclined.current = true;
