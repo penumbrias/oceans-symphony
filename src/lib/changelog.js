@@ -20,6 +20,14 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "fix", text: "If this device ever can't save your changes (for example, storage is full), the app now says so right away and keeps trying — instead of silently losing them later." },
+      { type: "fix", text: "Deleting an {{alter}} no longer deletes their picture, so restoring them from Recent changes brings it back too." },
+      { type: "improve", text: "The desktop app now keeps a second copy of your data in its own files, like the Android app, and puts it back if its main storage is ever lost." },
+      { type: "fix", text: "Backups now include built-in grounding techniques (so your favourites and notes on them restore), and stop instead of silently leaving out pictures or fonts that couldn't be read." },
+      { type: "fix", text: "Pictures from PluralKit, Octocon, OpenPlural and Plural Star imports are now saved on this device, so they're in your backups and show offline." },
+      { type: "fix", text: "Adding a backup that holds several {{systems}} now adds to the matching {{systems}} instead of creating duplicates." },
+      { type: "fix", text: "Reminders shown while the web app is open no longer pass their text through the server, and the Android app no longer contacts Google at startup unless notifications are turned on." },
+      { type: "improve", text: "Settings → Data & privacy shows whether the device's private backup copy is up to date, and the recovery screen keeps a copy on the device before any reset." },
       { type: "fix", text: "Importing a backup no longer copies the other device's backup lock, sync identity or backup history onto this one." },
       { type: "fix", text: "Restoring onto a freshly set-up device now brings your own terms, name and look instead of keeping the starter ones." },
       { type: "fix", text: "Imports now keep the backup's Recent changes history, warn when the file has no pictures, and say which {{system}} the file came from before replacing." },

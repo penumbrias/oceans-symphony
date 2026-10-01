@@ -75,26 +75,15 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   // already be encrypted and re-deriving keys here would be confusing).
   // They can flip encryption on or off later from Settings.
   const applyDumpAndComplete = async ({ data, multi = null, localImages, localFonts, localSettings }) => {
-    if (localImages) {
-      try {
-        const { restoreLocalImages } = await import("@/lib/localImageStorage");
-        await restoreLocalImages(localImages);
-      } catch (e) {
-        console.warn("[Setup import] failed to restore local images:", e);
-      }
-    }
-    if (localFonts) {
-      try {
-        const { restoreLocalFonts } = await import("@/lib/localFontStorage");
-        await restoreLocalFonts(localFonts);
-      } catch (e) {
-        console.warn("[Setup import] failed to restore local fonts:", e);
-      }
-    }
     if (localSettings) {
       const { writeBackupLocalSettings } = await import("@/lib/backupKeys");
       writeBackupLocalSettings(localSettings);
     }
+    // Records FIRST, then pictures and fonts — the same order as Settings →
+    // Import, so a crash or full storage mid-media can only cost media,
+    // never records. And media failures are said out loud: they used to be
+    // a console warning on a screen that then carried on as if all was well
+    // (audit 2026-10-01, M3).
     setMode("local");
     setEncryptionEnabled(false);
     await initLocalDb(null);
@@ -103,10 +92,29 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       // the others become their own systems — then reload into them.
       const { restoreMultiSystemIntoFreshDb } = await import("@/lib/multiSystemRestore");
       await restoreMultiSystemIntoFreshDb(multi, loadDbDump);
-      window.location.reload();
-      return;
+    } else {
+      await loadDbDump(data);
     }
-    await loadDbDump(data);
+    const failed = [];
+    if (localImages && Object.keys(localImages).length) {
+      try {
+        const { restoreLocalImages } = await import("@/lib/localImageStorage");
+        const r = await restoreLocalImages(localImages);
+        if (r?.failed?.length) failed.push(`${r.failed.length} of ${r.total} pictures`);
+      } catch { failed.push("the pictures"); }
+    }
+    if (localFonts && Object.keys(localFonts).length) {
+      try {
+        const { restoreLocalFonts } = await import("@/lib/localFontStorage");
+        const r = await restoreLocalFonts(localFonts);
+        if (r?.failed?.length) failed.push(`${r.failed.length} of ${r.total} fonts`);
+      } catch { failed.push("the fonts"); }
+    }
+    if (failed.length) {
+      setImportStatus({ type: "error", text: `Your data was restored, but ${failed.join(" and ")} couldn't be saved — usually because storage is full. Free some space, then import the same file again from Settings → Data & privacy (nothing will duplicate). Continuing shortly…` });
+      await new Promise((r) => setTimeout(r, 9000));
+    }
+    if (multi) { window.location.reload(); return; }
     onComplete();
   };
 

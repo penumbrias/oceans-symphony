@@ -368,6 +368,8 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       }
       await base44.entities.SystemSettings.update(settings.id, { pk_last_sync: new Date().toISOString() });
       onSettingsChange?.();
+      // Save imported pictures onto this device (audit 2026-10-01, M4).
+      try { const { localizeRemotePictures } = await import("@/lib/localDb"); await localizeRemotePictures(); } catch { /* links stay as they were */ }
       qc.invalidateQueries({ queryKey: ["alters"] });
       const summary = [
         `${created} created`,

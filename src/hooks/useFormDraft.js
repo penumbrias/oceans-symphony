@@ -29,6 +29,30 @@ export default function useFormDraft(key, snapshot, { active = true, onRestore, 
   onRestoreRef.current = onRestore;
   const isEmptyRef = useRef(isEmpty);
   isEmptyRef.current = isEmpty;
+  // The write the debounce still owes (null = nothing pending). Flushed at
+  // once when the page hides or closes, or the surface unmounts — the
+  // debounce used to be CANCELLED then, dropping the last ~800ms of typing
+  // (audit 2026-10-01, durability L4).
+  const pendingRef = useRef(null);
+  const writeNow = useCallback(() => {
+    const p = pendingRef.current;
+    if (!p) return;
+    pendingRef.current = null;
+    try {
+      if (isEmptyRef.current?.(p.snapshot)) localStorage.removeItem(p.key);
+      else localStorage.setItem(p.key, JSON.stringify(p.snapshot));
+    } catch { /* quota / private mode — drafts are best-effort */ }
+  }, []);
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") writeNow(); };
+    window.addEventListener("pagehide", writeNow);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", writeNow);
+      document.removeEventListener("visibilitychange", onHide);
+      writeNow(); // unmount
+    };
+  }, [writeNow]);
 
   // Restore once per activation (per key). Runs before the first persist —
   // the persist effect below is gated on restoration having happened.
@@ -53,19 +77,15 @@ export default function useFormDraft(key, snapshot, { active = true, onRestore, 
     if (!active || !key) return undefined;
     if (restoredForKeyRef.current !== key) return undefined; // restore first
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      try {
-        if (isEmptyRef.current?.(snapshot)) {
-          localStorage.removeItem(key);
-        } else {
-          localStorage.setItem(key, JSON.stringify(snapshot));
-        }
-      } catch { /* quota / private mode — drafts are best-effort */ }
-    }, debounceMs);
+    pendingRef.current = { key, snapshot };
+    timerRef.current = setTimeout(writeNow, debounceMs);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [active, key, snapshot, debounceMs]);
+  }, [active, key, snapshot, debounceMs, writeNow]);
 
   const clearDraft = useCallback(() => {
+    // A save went through: nothing is owed any more.
+    pendingRef.current = null;
+    if (timerRef.current) clearTimeout(timerRef.current);
     try { localStorage.removeItem(key); } catch { /* ignore */ }
     // Keep restoredForKeyRef as-is: the surface is usually closing right
     // after a save; the next activation re-arms restore via `active` flipping.

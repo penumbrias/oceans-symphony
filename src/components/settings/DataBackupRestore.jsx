@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, restampRecords, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
 import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategories } from "@/lib/backupScope";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages } from "@/lib/localImageStorage";
-import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
+import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
 import {
   parseImportText,
   decryptEncryptedImport,
@@ -29,7 +29,7 @@ import { recordBackupAttempt } from "@/lib/backupHealth";
 import { shareFile } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { isNative } from "@/lib/platform";
-import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, deleteSystem, setActiveSystem } from "@/lib/systems";
+import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, appendEntitiesToSystem, deleteSystem, setActiveSystem } from "@/lib/systems";
 import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
 
@@ -314,20 +314,12 @@ function filterDump(dump, activeCats) {
     // back empty even though the image blobs arrived.
     for (const e of cat.entities) {
       if (dump[e] === undefined) continue;
-      if (e === "GroundingTechnique") {
-        const src = dump[e];
-        if (Array.isArray(src)) {
-          out[e] = src.filter((t) => t && !t.is_default);
-        } else if (src && typeof src === "object") {
-          const o = {};
-          for (const [id, rec] of Object.entries(src)) if (rec && !rec.is_default) o[id] = rec;
-          out[e] = o;
-        } else {
-          out[e] = src;
-        }
-      } else {
-        out[e] = dump[e];
-      }
+      // Built-in grounding techniques ride along too (audit 2026-10-01,
+      // H1): favourites, ratings and notes point at their ids, and a fresh
+      // install re-creates them under NEW ids — leaving those out stranded
+      // every one of them. The import matches built-ins by name
+      // (MERGE_CONTENT_KEYS), so this never duplicates them.
+      out[e] = dump[e];
     }
   }
   return out;
@@ -555,12 +547,17 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let fonts = {};
     let fontsFailed = false;
     try { fonts = await getAllLocalFonts(); } catch { fontsFailed = true; }
+    // Same silent-{} trap as images (audit 2026-10-01, M2).
+    try {
+      const held = (await listLocalFontIds()).length;
+      if (held > 0 && Object.keys(fonts).length < held) fontsFailed = true;
+    } catch { fontsFailed = true; }
     if (!imagesFailed && !fontsFailed) {
       fullDumpRef.current = dump;
       fullImagesRef.current = images;
       fullFontsRef.current = fonts;
     }
-    return { dump, images, fonts, imagesFailed };
+    return { dump, images, fonts, imagesFailed, fontsFailed };
   }, []);
 
   const computeCatSizes = useCallback(async () => {
@@ -600,11 +597,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
   const buildExportData = async (overrideSelectedCats, { omitBlobs = false } = {}) => {
     const activeCats = overrideSelectedCats ?? selectedCats;
-    const { dump, images, fonts, imagesFailed } = await fetchFullDump({ fresh: true, skipBlobs: omitBlobs });
+    const { dump, images, fonts, imagesFailed, fontsFailed } = await fetchFullDump({ fresh: true, skipBlobs: omitBlobs });
     // Never ship a silently image-less backup — the user selected images
     // and deserves to know the export would be missing them.
     if (imagesFailed && activeCats.has("images") && !omitBlobs) {
       throw new Error("Your stored images couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Images category to export without them.");
+    }
+    if (fontsFailed && activeCats.has("fonts") && !omitBlobs) {
+      throw new Error("Your uploaded fonts couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Fonts category to export without them.");
     }
     // Opt-in Friends identity bundle (device move). Contains the friends
     // secret + encryption keys — only attached when the checkbox is on.
@@ -675,14 +675,26 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
     // Single (active) system. Pictures live in ONE store shared by every
     // system, so "this system only" used to carry the others' pictures
-    // too (audit 2026-10-01, L14). Keep the ones this system's records or
-    // preferences mention by id — an id match anywhere counts, so nothing
-    // this system uses is left out.
+    // too (audit 2026-10-01, L14). A picture is left out ONLY when another
+    // system's data uses it and this one's doesn't — anything nobody can be
+    // shown to own (unfiled library uploads, pictures only a preference
+    // points at) stays in, so the backup never loses one this system needs.
     let ownImages = imagesExport;
     if (systems.length > 1 && imagesExport && Object.keys(imagesExport).length) {
       try {
-        const haystack = JSON.stringify(filterDump(dump, activeCats)) + JSON.stringify(exportLocalSettings());
-        ownImages = Object.fromEntries(Object.entries(imagesExport).filter(([id]) => haystack.includes(id)));
+        const mine = JSON.stringify(dump) + JSON.stringify(exportLocalSettings());
+        const activeSystemId = getActiveSystemId();
+        let others = "";
+        for (const sys of systems) {
+          if (sys.id === activeSystemId) continue;
+          const raw = await getSystemData(sys);
+          if (!raw) { others = null; break; } // can't tell → keep everything
+          others += JSON.stringify(raw);
+        }
+        if (others) {
+          ownImages = Object.fromEntries(Object.entries(imagesExport)
+            .filter(([id]) => mine.includes(id) || !others.includes(id)));
+        }
       } catch { ownImages = imagesExport; }
     }
     return {
@@ -910,7 +922,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       if (keptLabels.length) traceStep("kept (not in file)", keptLabels.join(", "));
       await loadDbDump({ ...next, ...preserved }, { allowDeviceBound: true, restamp: [...covered] });
     } else {
-      const res = await mergeDbDump(data, { applyDeletions, includeHistory: true }); // strips device-bound internally
+      const res = await mergeDbDump(data, { applyDeletions, includeHistory: true, adoptSettingsWhenFresh: true }); // strips device-bound internally
       // Overlap review (v0.95.4): every record where the merge had to pick
       // between two real versions is shown for the user to confirm or
       // flip. Skipped when there were no genuine overlaps.
@@ -1088,13 +1100,18 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     const deleteIds = listSystems().filter((s) => !keepSet.has(s.id)).map((s) => s.id);
 
     let created = 0;
+    let openNext = null;
     for (const s of importedSystems) {
-      await createSystemWithData(s.name, s.data);
+      // Same re-stamp as a single-system Replace, so the next device sync
+      // can't put the older values back (audit 2026-10-01, M8).
+      const sys = await createSystemWithData(s.name, restampRecords(s.data, s.coveredEntities || true));
+      if (s.active) openNext = sys?.id || null;
       created++;
     }
-    // deleteSystem refuses the active system — if it's being removed, land on a
-    // surviving (freshly-created or kept) system first.
-    if (deleteIds.includes(activeId)) {
+    // Open the system that was open when the backup was made; deleteSystem
+    // also refuses the active system, so leave it if it's being removed.
+    if (openNext) await setActiveSystem(openNext);
+    else if (deleteIds.includes(activeId)) {
       const survivor = listSystems().find((s) => !deleteIds.includes(s.id));
       if (survivor) await setActiveSystem(survivor.id);
     }
@@ -1225,6 +1242,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               (k) => isReservedDbKey(k) || k === "FriendIdentity" || k === "PushSubscription",
             );
             s.data = next;
+            s.coveredEntities = covered; // only these get re-stamped
             for (const c of keptCategories(keptEntities, EXPORT_CATEGORIES)) keptMulti.add(resolveCatLabel(c, terms));
           }
           const created = await executeMultiSystemReplace(importedSystems, keepIds);
@@ -1235,11 +1253,43 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           return;
         }
 
-        // Add New — additive; existing systems untouched.
-        let created = 0;
-        for (const s of importedSystems) { await createSystemWithData(s.name, s.data); created++; }
+        // Add New — additive. A system already on this device (same name)
+        // gets the file's NEW records added to it; only systems that aren't
+        // here are created. (Every multi-system auto-backup is this shape
+        // now — creating them all fresh duplicated each system. Review
+        // 2026-10-01.) Nothing that's already here is changed.
+        let created = 0, addedTo = 0;
+        const usedIds = new Set();
+        const activeId = getActiveSystemId();
+        for (const s of importedSystems) {
+          const match = listSystems().find((e) => !usedIds.has(e.id) && (e.name || "") === (s.name || ""));
+          if (!match) { await createSystemWithData(s.name, s.data); created++; continue; }
+          usedIds.add(match.id);
+          if (match.id === activeId) {
+            await mergeDbDump(s.data, { applyDeletions: false, includeHistory: true, adoptSettingsWhenFresh: true });
+          } else {
+            const existing = await getSystemData(match);
+            if (!existing) throw new Error(`Couldn't read the existing "${match.name || "unnamed"}" ${terms.system} to add to it. Open that ${terms.system} once (or unlock the app) and import again — nothing was changed for it.`);
+            const fresh = {};
+            for (const [type, recs] of Object.entries(s.data || {})) {
+              if (isReservedDbKey(type) || !recs || typeof recs !== "object") continue;
+              // Another device's tombstones would make a later merge delete
+              // rows here; identities are device-bound.
+              if (type === "DeletionLog" || type === "FriendIdentity" || type === "PushSubscription") continue;
+              const have = existing[type] || {};
+              const list = Object.values(recs).filter((r) => r && r.id && !(r.id in have));
+              if (list.length) fresh[type] = list;
+            }
+            await appendEntitiesToSystem(match.id, fresh);
+          }
+          addedTo++;
+        }
         const mediaMsg = await restoreMultiMedia();
-        showStatus(mediaMsg ? "error" : "success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg}${noImagesNote} The app will reload.`);
+        const parts = [
+          addedTo && `added new records to ${addedTo} existing ${addedTo === 1 ? terms.system : terms.systems}`,
+          created && `created ${created} new ${created === 1 ? terms.system : terms.systems}`,
+        ].filter(Boolean).join(" and ");
+        showStatus(mediaMsg ? "error" : "success", `Imported — ${parts || "nothing new"}!${mediaMsg}${noImagesNote} The app will reload.`);
         setTimeout(() => window.location.reload(), mediaMsg || noImagesNote ? 6000 : 1200);
         return;
       } catch (e) {

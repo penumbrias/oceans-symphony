@@ -55,6 +55,18 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_symphony" />
+
+        <!-- Nothing leaves the device unless the person turns it on (audit
+             2026-10-01, H2). Firebase Messaging otherwise fetches a push token
+             from Google at every launch. The push plugin's register() turns
+             auto-init back on for someone who opts into push notifications;
+             unregister() turns it off again. Analytics is never wanted. -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
     </application>
 
     <!-- Permissions -->

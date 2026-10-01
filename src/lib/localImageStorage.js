@@ -15,7 +15,7 @@
 // migrateLegacyStringsToBlobs() walks the store and converts every
 // remaining string. Callers don't need to change shape.
 
-import { isNative } from './platform';
+import { hasPrivateFileCopy } from './platform';
 import { mirrorMedia, deleteMediaMirror } from './nativeMirror';
 
 const DB_NAME = 'symphony_images';
@@ -113,7 +113,7 @@ function putImage(idb, id, toWrite) {
 // Native private-file copy of a stored picture (nativeMirror.js). Off the
 // save's critical path; never throws.
 function mirrorImage(id, value) {
-  if (!isNative()) return;
+  if (!hasPrivateFileCopy()) return;
   (async () => {
     try {
       const dataUrl = typeof value === 'string' ? value : value instanceof Blob ? await blobToDataUrl(value) : null;

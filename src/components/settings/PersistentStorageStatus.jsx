@@ -4,6 +4,7 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { requestPersistentStorage, getStorageState } from "@/lib/autoBackup";
 import { isNative } from "@/lib/platform";
+import { getMirrorStatus } from "@/lib/nativeMirror";
 
 const NATIVE = isNative();
 
@@ -21,9 +22,14 @@ function fmtBytes(n) {
 // home and making the other point at it.
 export default function PersistentStorageStatus() {
   const [storage, setStorage] = useState({ persisted: null, usage: null, quota: null });
+  const [mirror, setMirror] = useState(() => (NATIVE ? getMirrorStatus() : null));
 
   useEffect(() => {
     getStorageState().then(setStorage).catch(() => {});
+    if (!NATIVE) return undefined;
+    const on = () => setMirror(getMirrorStatus());
+    window.addEventListener("symphony-mirror-health", on);
+    return () => window.removeEventListener("symphony-mirror-health", on);
   }, []);
 
   const handleRequest = async () => {
@@ -42,6 +48,11 @@ export default function PersistentStorageStatus() {
           {storage.usage != null && (
             <> Using ~{fmtBytes(storage.usage)}{storage.quota ? ` of ${fmtBytes(storage.quota)}` : ""}.</>
           )}
+          {mirror && (mirror.consecutive > 0
+            ? <span className="block mt-1 text-destructive font-medium">The private-files copy isn't saving right now ({mirror.lastError}). Your data is still saved in working storage — back up now to be safe.</span>
+            : mirror.lastWriteAt
+              ? <span className="block mt-1">Private-files copy last updated {new Date(mirror.lastWriteAt).toLocaleString()}.</span>
+              : null)}
         </p>
       </div>
     );

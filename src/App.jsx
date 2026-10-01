@@ -1,6 +1,6 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { toast } from "sonner";
-import { isNative } from "@/lib/platform";
+import { isNative, isDesktop, hasPrivateFileCopy } from "@/lib/platform";
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -110,6 +110,7 @@ import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
 import { unifyHomeBoards } from "@/lib/homeBoardUnify";
+import SaveHealthBanner from "@/components/shared/SaveHealthBanner";
 
 // Shown while a lazily-loaded page chunk downloads. Sits in the page slot
 // (inside AppLayout's <Outlet/> position via Suspense above Routes), so
@@ -357,14 +358,31 @@ function MainApp() {
       try { await initNativeShell(); } catch { /* non-fatal */ }
 
       // Best-effort, but call it before anything that depends on storage.
-      try { await requestPersistentStorage(); } catch { /* non-fatal */ }
+      let persisted = null;
+      try { persisted = await requestPersistentStorage(); } catch { /* non-fatal */ }
+      // A browser tab the browser won't protect from storage cleanup has no
+      // second copy anywhere — say so (at most monthly), instead of only in
+      // a Settings readout nobody opens (audit 2026-10-01, durability M5).
+      if (persisted === false && !isNative() && !isDesktop()) {
+        try {
+          const last = Number(localStorage.getItem("symphony_persist_nudge_at") || 0);
+          if (Date.now() - last > 30 * 86400000) {
+            localStorage.setItem("symphony_persist_nudge_at", String(Date.now()));
+            setTimeout(() => toast.warning("This browser may clear the app's data when space runs low", {
+              description: "Installing the app keeps it safer. Either way, keep a recent backup — Settings → Data & privacy.",
+              duration: 15000,
+            }), 4000);
+          }
+        } catch { /* storage off */ }
+      }
 
       // Installed app: if the web view's storage was wiped while the app was
       // closed (the "woke up and everything was gone" report), put the
       // private-file copy back BEFORE anything reads storage — including the
       // registry below, which would otherwise be recreated empty. Only ever
       // writes into an EMPTY store; never overwrites. See nativeMirror.js.
-      if (isNative()) {
+      // The desktop app keeps the same copy since v0.248.3.
+      if (hasPrivateFileCopy()) {
         try {
           const { restoreFromMirrorIfWiped } = await import('@/lib/nativeMirrorRestore');
           // Bounded: this is a best-effort repair, and boot must never wait
@@ -546,7 +564,7 @@ function MainApp() {
   // say so if boot restored the data from it. Runs at the unlock screen
   // too — it copies the stored (still-locked) blobs, no password needed.
   useEffect(() => {
-    if (!isNative() || (setupState !== null && setupState !== 'unlock')) return;
+    if (!hasPrivateFileCopy() || (setupState !== null && setupState !== 'unlock')) return;
     import('@/lib/nativeMirrorRestore').then((m) => {
       m.runMirrorMaintenance();
       if (setupState !== null) return;
@@ -696,6 +714,7 @@ function MainApp() {
         <AuthProvider>
           <Router>
             <AuthenticatedApp />
+            <SaveHealthBanner />
           </Router>
           <SonnerToaster richColors closeButton />
           <ConfirmRoot />

@@ -151,6 +151,13 @@ export async function unregisterPush() {
   }
 }
 
+// Can this device SHOW a reminder notification right now? (Local display
+// only needs permission — not a relay subscription.)
+export async function canShowReminderNotifications() {
+  if (isNative()) return isNativeNotificationsEnabled();
+  return typeof Notification !== 'undefined' && Notification.permission === 'granted';
+}
+
 export async function isPushEnabled() {
   if (isNative()) return isNativeNotificationsEnabled();
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
@@ -396,23 +403,27 @@ export async function sendPushNotification(payload) {
   // channel out from Web Push to the OS tray.
   if (isNative()) return sendNativeNotification(payload);
 
+  // Web: this runs inside the open app (the in-app scheduler is the only
+  // caller), so the notification is shown RIGHT HERE through the service
+  // worker. It used to round-trip through the relay's /push/send with the
+  // reminder's title and text — even with cloud delivery off and "show
+  // reminder text" off (audit 2026-10-01, H3). Nothing leaves the device.
   try {
-    const subscription = await getActivePushSubscription();
-    if (!subscription) return false;
-
-    const res = await fetch(`${apiBase('push')}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription, payload }),
-    });
-
-    if (res.status === 410) {
-      // Subscription expired — clean up silently
-      await unregisterPush().catch(() => {});
-      return false;
-    }
-
-    return res.ok;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+    const { title, body, reminderInstanceId, inlineActions = [] } = payload || {};
+    const options = {
+      body: body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: reminderInstanceId ? `reminder-${reminderInstanceId}` : 'reminder',
+      data: { reminderInstanceId, inlineActions, url: payload?.url || '/reminders' },
+      actions: inlineActions.slice(0, 2).map((a) => ({ action: a.action_type, title: a.label })),
+    };
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    if (reg?.showNotification) { await reg.showNotification(title || 'Reminder', options); return true; }
+    // No service worker (desktop app): a plain page notification.
+    new Notification(title || 'Reminder', { body: options.body, tag: options.tag });
+    return true;
   } catch {
     return false;
   }

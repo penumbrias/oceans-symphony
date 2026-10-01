@@ -26,7 +26,6 @@ export const RETIRED_DESKTOP_FIELD = "ui_v2_home_desktop";
 const PRESETS_KEY = "symphony_userCustomPresets";
 
 const isBoard = (b) => !!b && typeof b === "object";
-const realBoard = (b) => isBoard(b) && !b._seeded;
 
 // Pure: what to do with one settings row. null = nothing to do.
 //   { patch, keep: { kind: "desktop" | "phone", board } | null }
@@ -39,12 +38,16 @@ export function planBoardUnify(row, { wide }) {
   }
   const desk = row[RETIRED_DESKTOP_FIELD];
   const phone = isBoard(row.ui_v2_home) ? row.ui_v2_home : null;
-  // A phone that never had a board of its own shows the desktop one after
-  // folding rather than a fresh starter.
-  const showDesk = wide || !realBoard(phone);
+  // A phone with no board at all shows the desktop one after folding.
+  const showDesk = wide || !phone;
   const shown = showDesk ? desk : phone;
   const other = showDesk ? phone : desk;
-  const keep = realBoard(other) && JSON.stringify(other) !== JSON.stringify(shown)
+  // Any board that differs is kept — including a "starter" (`_seeded`) one:
+  // several writers (background, alters bar, preset looks) customise a
+  // board without clearing that flag, so it can't tell untouched apart
+  // from personalised (review 2026-10-01). A spare preset is cheap; a lost
+  // board isn't.
+  const keep = isBoard(other) && JSON.stringify(other) !== JSON.stringify(shown)
     ? { kind: showDesk ? "phone" : "desktop", board: other }
     : null;
   return { patch: { ui_v2_home: shown, [RETIRED_DESKTOP_FIELD]: null }, keep };
@@ -76,8 +79,15 @@ function savePreset(kind, board) {
 }
 
 // Fold every settings row that still has a desktop board. Returns the
-// names of presets created. Never throws.
-export async function unifyHomeBoards({ wide = isWideScreen() } = {}) {
+// names of presets created. Never throws. Boot and the home board can both
+// call this at once — they share one run, so a board is never saved twice.
+let _inFlight = null;
+export function unifyHomeBoards(opts = {}) {
+  if (!_inFlight) _inFlight = runUnify(opts).finally(() => { _inFlight = null; });
+  return _inFlight;
+}
+
+async function runUnify({ wide = isWideScreen() } = {}) {
   const saved = [];
   try {
     const rows = await localEntities.SystemSettings.list();

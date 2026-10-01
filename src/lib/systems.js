@@ -32,17 +32,18 @@
 // there is no circular dependency; localDb knows nothing about systems.
 
 import { openDB } from 'idb';
-import { setActiveStorageKey, isEncryptionActive, getActiveSalt, encryptWithActiveKey, decryptWithActiveKey } from './localDb';
+import { setActiveStorageKey, isEncryptionActive, getActiveSalt, encryptWithActiveKey, decryptWithActiveKey, writeSystemBlob } from './localDb';
 import { encryptData, decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
 import { getSessionPassword } from './storageMode';
-import { mirrorDbBlob, mirrorRegistry, deleteDbMirror, wipeMirror } from './nativeMirror';
+import { mirrorRegistry, deleteDbMirror, wipeMirror } from './nativeMirror';
 
 // Every data-blob write in this module goes through here so the native
 // private-file copy (nativeMirror.js) never misses one.
-async function putBlob(idb, value, key) {
-  await idb.put(IDB_STORE, value, key);
-  try { mirrorDbBlob(key, typeof value === 'string' ? value : JSON.stringify(value)); } catch { /* best effort */ }
+// It also takes the save lock, bumps the key's generation and tells other
+// windows (writeSystemBlob) — see localDb.js.
+async function putBlob(_idb, value, key) {
+  await writeSystemBlob(key, value);
 }
 
 const IDB_NAME = 'oceans_symphony';
@@ -559,7 +560,8 @@ export async function wipeAllSystemsData() {
     const keys = await idb.getAllKeys(IDB_STORE);
     for (const k of keys) {
       if (typeof k === 'string'
-        && (k === REGISTRY_KEY || k.startsWith('symphony_local_data') || k.startsWith('symphony_gen__'))) {
+        && (k === REGISTRY_KEY || k.startsWith('symphony_local_data') || k.startsWith('symphony_gen__')
+          || k.startsWith('symphony_kept_copy:'))) {
         await idb.delete(IDB_STORE, k);
       }
     }

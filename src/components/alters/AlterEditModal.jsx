@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
-import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, processUploadedImage } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -302,10 +302,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
     if (!(await confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`))) return;
     setDeleting(true);
     try {
-      if (alter.avatar_url && isLocalImageUrl(alter.avatar_url)) {
-        const imageId = getLocalImageId(alter.avatar_url);
-        if (imageId) await deleteLocalImage(imageId);
-      }
+      // The avatar picture is NOT deleted with the record: a deleted alter
+      // can be restored from Recent changes, and the same picture can be
+      // another system's copy of this alter, a library asset or a post
+      // (audit 2026-10-01, H2 — restores came back with broken avatars).
       await base44.entities.Alter.delete(alter.id);
       toast.success(`🗑 ${t.Alter} deleted.`);
       queryClient.invalidateQueries({ queryKey: ["alters"] });

@@ -24,21 +24,30 @@ function genGroupId() {
 
 // systemsData: [{ name, color?, data: { Alter:{id:rec}, Group:{...}, ... } }]
 // Returns a single combined dump in the same { EntityName: { id: record } } shape.
+// Re-key until stable: swapping a re-keyed id into a record that was
+// identical in both systems makes it differ, so it needs its own id too —
+// one pass dropped those (review 2026-10-01, M6). One generic token regex
+// plus a Map lookup keeps this linear on large files.
+const ID_TOKEN = /[A-Za-z0-9_-]{16,}/g;
 function rekeyCollisions(data, combined) {
-  const remap = new Map();
-  for (const [entity, recs] of Object.entries(data)) {
-    if (entity.startsWith("__") || entity === "SystemSettings" || !recs || typeof recs !== "object") continue;
-    const taken = combined[entity] || {};
-    for (const [id, rec] of Object.entries(recs)) {
-      if (!(id in taken)) continue;
-      if (JSON.stringify(taken[id]) === JSON.stringify(rec)) continue;
-      if (id.length >= 16) remap.set(id, genGroupId());
+  let current = data;
+  const everRemapped = new Set();
+  for (let pass = 0; pass < 6; pass++) {
+    const remap = new Map();
+    for (const [entity, recs] of Object.entries(current)) {
+      if (entity.startsWith("__") || entity === "SystemSettings" || !recs || typeof recs !== "object") continue;
+      const taken = combined[entity] || {};
+      for (const [id, rec] of Object.entries(recs)) {
+        if (!(id in taken) || everRemapped.has(id)) continue;
+        if (JSON.stringify(taken[id]) === JSON.stringify(rec)) continue;
+        if (id.length >= 16) remap.set(id, genGroupId());
+      }
     }
+    if (!remap.size) break;
+    for (const id of remap.keys()) everRemapped.add(id);
+    current = JSON.parse(JSON.stringify(current).replace(ID_TOKEN, (m) => remap.get(m) || m));
   }
-  if (!remap.size) return data;
-  const pattern = new RegExp([...remap.keys()].map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
-  const swapped = JSON.parse(JSON.stringify(data).replace(pattern, (m) => remap.get(m)));
-  return swapped;
+  return current;
 }
 
 export function mergeSystemsAsGroups(systemsData) {

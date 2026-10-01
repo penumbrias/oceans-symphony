@@ -413,6 +413,8 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
 
       // ── Finish ──
       onSettingsChange?.();
+      // Save imported pictures onto this device (audit 2026-10-01, M4).
+      try { const { localizeRemotePictures } = await import("@/lib/localDb"); await localizeRemotePictures(); } catch { /* links stay as they were */ }
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["customFields"] });

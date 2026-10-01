@@ -38,7 +38,9 @@ export default function StorageModeSettings() {
       // Same path as the Octocon / OpenPlural wipes — cancelling the
       // backup cancels the wipe, and a failed backup never deletes.
       try {
-        const backupResult = await runAutoBackupNow();
+        // Every system — this wipes all of them, so a system that can't be
+        // read right now must stop the wipe, not be skipped (review M4).
+        const backupResult = await runAutoBackupNow({ allSystems: "required" });
         if (backupResult === "cancelled") {
           setError("Backup was cancelled — nothing was deleted.");
           setDeleting(false);

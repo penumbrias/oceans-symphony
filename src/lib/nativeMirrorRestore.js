@@ -15,7 +15,7 @@
 // app bug.
 
 import { openDB } from "idb";
-import { isNative } from "@/lib/platform";
+import { hasPrivateFileCopy } from "@/lib/platform";
 import { APP_VERSION } from "@/lib/appVersion";
 import {
   listMirroredDbKeys, readBestDbMirror, readRegistryMirror, isMirrorableBlob,
@@ -59,7 +59,7 @@ async function appendBootRecord(rec) {
 }
 
 export async function readBootRecords() {
-  if (!isNative()) return [];
+  if (!hasPrivateFileCopy()) return [];
   const P = await prefs();
   if (!P) return [];
   try {
@@ -70,7 +70,7 @@ export async function readBootRecords() {
 }
 
 export async function restoreFromMirrorIfWiped() {
-  if (!isNative()) return null;
+  if (!hasPrivateFileCopy()) return null;
   const rec = { at: new Date().toISOString(), version: APP_VERSION, restored: [] };
   try {
     let lsCount = null;
@@ -89,9 +89,13 @@ export async function restoreFromMirrorIfWiped() {
     if (mirrorKeys.length > 0 && blobKeys.length === 0) {
       rec.wipeDetected = true;
       for (const key of mirrorKeys) {
-        // A localStorage copy of this blob (IDB-write fallback) is handled
-        // by the normal read path — never compete with it.
-        try { if (localStorage.getItem(key)) continue; } catch { /* no LS */ }
+        // A localStorage copy of this blob that is FLAGGED as the newest
+        // (IDB-write fallback) is handled by the normal read path — never
+        // compete with it. An unflagged one is a stale leftover and must
+        // not stand in the way of the private-file copy (audit M1).
+        try {
+          if (localStorage.getItem(key) && localStorage.getItem(`symphony_ls_authoritative:${key}`)) continue;
+        } catch { /* no LS */ }
         const best = await readBestDbMirror(key);
         if (!best || !isMirrorableBlob(best.raw)) continue;
         if ((await idb.get(IDB_STORE, key)) !== undefined) continue; // never overwrite
@@ -128,7 +132,7 @@ export async function restoreFromMirrorIfWiped() {
 // the web view lost. Runs once per launch; never throws.
 let _maintained = false;
 export async function runMirrorMaintenance() {
-  if (!isNative() || _maintained) return;
+  if (!hasPrivateFileCopy() || _maintained) return;
   _maintained = true;
   hookMirrorLifecycle();
   try {

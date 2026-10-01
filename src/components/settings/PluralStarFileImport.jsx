@@ -55,6 +55,8 @@ export default function PluralStarFileImport({ presetFile = null, settings, onSe
       const { counts, warnings } = await importPluralStar(parsed, { updateSystemProfile });
       setImportSummary({ counts, warnings });
       // Refresh every cache the mapper writes into.
+      // Save imported pictures onto this device (audit 2026-10-01, M4).
+      try { const { localizeRemotePictures } = await import("@/lib/localDb"); await localizeRemotePictures(); } catch { /* links stay as they were */ }
       qc.invalidateQueries({ queryKey: ["alters"] });
       qc.invalidateQueries({ queryKey: ["groups"] });
       qc.invalidateQueries({ queryKey: ["customFields"] });

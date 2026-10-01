@@ -516,6 +516,56 @@ if (!app.requestSingleInstanceLock()) {
     // folder we already expose in the File menu.
     ipcMain.handle('symphony:open-data-folder', () => shell.openPath(app.getPath('userData')));
 
+    // ── Private-file copy (src/lib/nativeMirror.js) ──
+    // The same second copy of every database blob, picture and font the
+    // Android app keeps in its private files, here in
+    // <userData>/symphony-safe/. Chromium's IndexedDB used to be the ONLY
+    // place desktop data lived (audit 2026-10-01, durability L8); a damaged
+    // profile database now has a copy beside it that boot puts back into an
+    // empty store. Confined to that one folder: every path must start with
+    // "symphony-safe/", use only the mirror's own filename characters, and
+    // never climb out. Writes go to a temp file then rename (atomic).
+    const SAFE_ROOT = 'symphony-safe';
+    const SAFE_PATH_RE = /^symphony-safe(\/[A-Za-z0-9_~.-]+)*$/;
+    function safeResolve(rel) {
+      if (typeof rel !== 'string' || !SAFE_PATH_RE.test(rel) || rel.split('/').some((p) => p === '..' || p === '.')) return null;
+      const base = path.join(app.getPath('userData'), SAFE_ROOT);
+      const full = path.join(app.getPath('userData'), ...rel.split('/'));
+      if (full !== base && !full.startsWith(base + path.sep)) return null;
+      return full;
+    }
+    ipcMain.handle('symphony:safe:read', async (_e, rel) => {
+      const full = safeResolve(rel);
+      if (!full) return { ok: false, error: 'Refused path.' };
+      try { return { ok: true, data: await fsp.readFile(full, 'utf8') }; }
+      catch (e) { return { ok: false, error: e?.code || String(e) }; }
+    });
+    ipcMain.handle('symphony:safe:write', async (_e, rel, text) => {
+      const full = safeResolve(rel);
+      if (!full || typeof text !== 'string') return { ok: false, error: 'Refused.' };
+      try {
+        await fsp.mkdir(path.dirname(full), { recursive: true });
+        const tmp = `${full}.tmp-${process.pid}`;
+        await fsp.writeFile(tmp, text, 'utf8');
+        await fsp.rename(tmp, full);
+        return { ok: true };
+      } catch (e) { return { ok: false, error: e?.code || String(e) }; }
+    });
+    ipcMain.handle('symphony:safe:remove', async (_e, rel) => {
+      const full = safeResolve(rel);
+      if (!full || full === path.join(app.getPath('userData'), SAFE_ROOT)) return { ok: false, error: 'Refused path.' };
+      try { await fsp.rm(full, { force: true }); return { ok: true }; }
+      catch (e) { return { ok: false, error: e?.code || String(e) }; }
+    });
+    ipcMain.handle('symphony:safe:list', async (_e, rel) => {
+      const full = safeResolve(rel);
+      if (!full) return { ok: false, error: 'Refused path.' };
+      try {
+        const names = await fsp.readdir(full);
+        return { ok: true, files: names.filter((n) => !n.includes('.tmp-')) };
+      } catch (e) { return e?.code === 'ENOENT' ? { ok: true, files: [] } : { ok: false, error: e?.code || String(e) }; }
+    });
+
     // ── Device sync (v0.242.0) ────────────────────────────────────────
     //
     // Files only. No sockets, no network — plug a phone in and point the

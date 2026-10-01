@@ -2,7 +2,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { zonedFireInstant, getUserLocalDate, getCurrentMinutesInZone } from "@/lib/timezoneHelpers";
-import { sendPushNotification, isPushEnabled } from "@/lib/pushRegistration";
+import { sendPushNotification, canShowReminderNotifications } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
 import { isPrescheduleableType } from "@/lib/nativeReminderScheduler";
 
@@ -479,7 +479,7 @@ export async function runClientScheduler(queryClient) {
         // or will fire on its own. Doing both would deliver twice.
         const skipPushForOSPrescheduled = isNative() && isPrescheduleableType(reminder);
         if (channels.includes("push") && !skipPushForOSPrescheduled) {
-          isPushEnabled().then(async enabled => {
+          canShowReminderNotifications().then(async enabled => {
             if (enabled) {
               try {
                 await sendPushNotification({

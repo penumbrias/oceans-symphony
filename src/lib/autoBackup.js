@@ -21,8 +21,8 @@
 
 import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 import { stripDeviceBound } from "@/lib/backupPolicy";
-import { getAllLocalImages } from "@/lib/localImageStorage";
-import { getAllLocalFonts } from "@/lib/localFontStorage";
+import { getAllLocalImages, countLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
@@ -341,7 +341,7 @@ function stripReserved(dump) {
 //                (audit 2026-10-01, H1/H2 — it used to hold only the
 //                active system, then offered to delete the others).
 // One system → the plain single-system file, exactly as before.
-async function buildFullBackupPayload({ allSystems = "best" } = {}) {
+export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // Device-bound entities (friends credential + E2E private key, push
   // registration) must never ride in a general backup — see backupPolicy.
   // Manual exports already stripped them; auto-backups did NOT until
@@ -349,17 +349,6 @@ async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // friends secret. The identity moves only via the explicit opt-in
   // bundle in the manual export flow.
   const dump = stripReserved(stripDeviceBound(getFullDbDump()));
-  let images = {};
-  try { images = await getAllLocalImages(); } catch { /* skip images on failure */ }
-  let fonts = {};
-  try { fonts = await getAllLocalFonts(); } catch { /* skip fonts on failure */ }
-  const heavyBytes = estimateBytes(images) + estimateBytes(fonts);
-  const skipHeavy = heavyBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES;
-  if (skipHeavy) {
-    console.warn(
-      `[Auto-backup] payload too large (${Math.round(heavyBytes / 1024 / 1024)} MB of images/fonts) — writing data-only backup so the native bridge doesn't crash.`
-    );
-  }
   let systems = [];
   try { systems = listSystems(); } catch { /* registry unavailable */ }
   const unreadable = [];
@@ -383,6 +372,37 @@ async function buildFullBackupPayload({ allSystems = "best" } = {}) {
       throw err;
     }
   }
+  // Pictures + fonts. A read failure used to return {} silently, so a
+  // backup with no pictures was logged as healthy (audit 2026-10-01, M1):
+  // compare against what the stores hold.
+  let images = {};
+  let imagesUnread = false;
+  try { images = await getAllLocalImages(); } catch { images = {}; }
+  try {
+    const held = await countLocalImages();
+    if (held > 0 && Object.keys(images).length < held) imagesUnread = true;
+  } catch { /* count unavailable — can't tell */ }
+  let fonts = {};
+  let fontsUnread = false;
+  try { fonts = await getAllLocalFonts(); } catch { fonts = {}; }
+  try {
+    const held = (await listLocalFontIds()).length;
+    if (held > 0 && Object.keys(fonts).length < held) fontsUnread = true;
+  } catch { /* can't tell */ }
+  if ((imagesUnread || fontsUnread) && allSystems === "required") {
+    throw new Error(`Your stored ${imagesUnread ? "pictures" : "fonts"} couldn't be read, so a complete backup can't be made. Reload the app and try again.`);
+  }
+  // The size guard counts the data too — several systems' data now rides
+  // in the same native bridge call as the pictures (review M7).
+  let dataBytes = 0;
+  try { dataBytes = JSON.stringify(perSystem || dump).length; } catch { /* estimate only */ }
+  const heavyBytes = estimateBytes(images) + estimateBytes(fonts);
+  const skipHeavy = heavyBytes + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES && heavyBytes > 0;
+  if (skipHeavy) {
+    console.warn(
+      `[Auto-backup] payload too large (${Math.round((heavyBytes + dataBytes) / 1024 / 1024)} MB) — writing data-only backup so the native bridge doesn't crash.`
+    );
+  }
   const envelope = {
     __format: "symphony_backup",
     __version: 1,
@@ -405,7 +425,7 @@ async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // be a console.warn and a flag inside the file — invisible in-app):
   //   • images/fonts skipped over the size limit
   //   • systems that couldn't be read (locked) and so aren't in the file
-  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, unreadableSystems: unreadable } });
+  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, unreadableSystems: unreadable, mediaUnread: imagesUnread || fontsUnread } });
   return payload;
 }
 
@@ -510,6 +530,7 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
   if (result === "filesystem" || result === "shared" || result === "downloaded") {
     setAutoBackupLastAt(new Date().toISOString());
     const notes = [];
+    if (caveats.mediaUnread) notes.push("some pictures/fonts couldn't be read");
     if (caveats.unreadableSystems?.length) notes.push(`not included (locked): ${caveats.unreadableSystems.join(", ")}`);
     if (caveats.skippedHeavy) notes.push("images/fonts skipped (too large)");
     recordBackupAttempt({ kind, ok: true, detail: [location || result, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });

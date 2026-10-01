@@ -8,6 +8,7 @@ import { pickPrimarySystemSettings } from "./systemSettingsSingleton";
 import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
+import { isImportableSettingKey } from "@/lib/backupKeys";
 import { mirrorDbBlob, retireDbMirror } from "@/lib/nativeMirror";
 
 // Reserved top-level keys inside the DB blob that are NOT entity
@@ -75,6 +76,34 @@ async function writeGenSidecar(gen) {
     const idb = await getIdb();
     await idb.put(IDB_STORE, { gen, writer: _writerId, at: Date.now() }, genSidecarKey());
   } catch { /* best effort — the broadcast still fires */ }
+}
+
+// Write ANOTHER system's blob (systems.js: moving alters between systems,
+// multi-system restore, renames, encrypting siblings). These used to go
+// straight to IndexedDB, past every cross-window guard: a second window
+// with that system open kept its old copy and its next save erased the
+// write (audit 2026-10-01, durability M2). Now: the same per-key save
+// lock, the key's generation bumped (so that window's next save takes the
+// stale-writer path — stash + merge — instead of overwriting), and a
+// broadcast so it re-reads at once.
+export async function writeSystemBlob(key, value) {
+  const run = async () => {
+    const idb = await getIdb();
+    await idb.put(IDB_STORE, value, key);
+    try { mirrorDbBlob(key, typeof value === "string" ? value : JSON.stringify(value)); } catch { /* best effort */ }
+    const gk = `symphony_gen__${key}`;
+    let gen = 0;
+    try { const v = await idb.get(IDB_STORE, gk); gen = v && typeof v.gen === "number" ? v.gen : 0; } catch { /* 0 */ }
+    gen += 1;
+    try { await idb.put(IDB_STORE, { gen, writer: _writerId, at: Date.now() }, gk); } catch { /* broadcast still fires */ }
+    try { ensureSyncChannel()?.postMessage({ key, gen, writer: _writerId }); } catch { /* ok */ }
+  };
+  try {
+    if (typeof navigator !== "undefined" && navigator.locks?.request) {
+      return await navigator.locks.request(`symphony_db_save:${key}`, run);
+    }
+  } catch (e) { if (e?.name !== "NotSupportedError") throw e; }
+  return run();
 }
 
 let _bc = null;
@@ -241,7 +270,12 @@ async function loadFromStorage() {
   if (idbValue !== undefined) return idbValue;
 
   // One-time migration from localStorage to IndexedDB (if IDB is healthy).
+  // With IDB unreadable, a flagless localStorage blob can't be told apart
+  // from a stale leftover, so it is never loaded as live data — the boot
+  // path routes to recovery, where a reload usually clears a transient
+  // IDB error (audit 2026-10-01, M1).
   const legacy = localStorage.getItem(_storageKey);
+  if (legacy && idbError) throw new StorageReadError(idbError);
   if (legacy) {
     if (!idbError) {
       try {
@@ -265,9 +299,19 @@ async function saveToStorage(value) {
   mirrorDbBlob(_storageKey, value);
   try {
     const idb = await getIdb();
-    await idb.put(IDB_STORE, value, _storageKey);
-    // Successful IDB write supersedes any earlier fallback copy.
-    try { localStorage.removeItem(lsAuthorityKey()); } catch { /* ok */ }
+    // durability: "strict" — the write is flushed to disk before it counts
+    // as done, so a power loss right after can't drop it (browsers that
+    // don't know the option ignore it). Audit 2026-10-01, L5.
+    const tx = idb.transaction(IDB_STORE, "readwrite", { durability: "strict" });
+    await Promise.all([tx.store.put(value, _storageKey), tx.done]);
+    // Successful IDB write supersedes any earlier fallback copy — the flag
+    // AND the copy itself. Leaving the copy behind meant one later IDB
+    // read error at boot loaded that months-old blob as live data, and the
+    // next save wrote it over the real one (audit 2026-10-01, M1).
+    try {
+      localStorage.removeItem(lsAuthorityKey());
+      localStorage.removeItem(_storageKey);
+    } catch { /* ok */ }
   } catch {
     // IDB write failed — localStorage now holds the newest copy, and the
     // authority flag makes loadFromStorage prefer it over the stale IDB
@@ -312,6 +356,46 @@ export async function peekStoredData() {
 // recover it.
 export async function exportRawStorageBlob() {
   return await loadFromStorage();
+}
+
+// Kept copies (audit 2026-10-01, durability M3). Before the recovery
+// screen overwrites or resets a blob it couldn't open, the raw blob is
+// copied INSIDE this device's storage too — the download/share copy can be
+// blocked (in-app browsers) or cancelled, and on the web that was the only
+// one. Named outside the data-blob prefix so recovery scans never mistake
+// a kept copy for a lost system. The newest few per slot are kept.
+const KEPT_PREFIX = "symphony_kept_copy:";
+const KEPT_PER_SLOT = 3;
+export async function keepRawCopyOnDevice(tag = "kept") {
+  const raw = await loadFromStorage();
+  if (!raw) return null;
+  const idb = await getIdb();
+  const key = `${KEPT_PREFIX}${_storageKey}:${new Date().toISOString()}:${tag}`;
+  await idb.put(IDB_STORE, raw, key);
+  try {
+    const mine = (await idb.getAllKeys(IDB_STORE))
+      .filter((k) => typeof k === "string" && k.startsWith(`${KEPT_PREFIX}${_storageKey}:`))
+      .sort();
+    for (const old of mine.slice(0, Math.max(0, mine.length - KEPT_PER_SLOT))) await idb.delete(IDB_STORE, old);
+  } catch { /* pruning is best-effort */ }
+  return key;
+}
+export async function listKeptCopies() {
+  try {
+    const idb = await getIdb();
+    return (await idb.getAllKeys(IDB_STORE))
+      .filter((k) => typeof k === "string" && k.startsWith(KEPT_PREFIX))
+      .sort().reverse()
+      .map((key) => {
+        const [, slot, at, tag] = key.match(/^symphony_kept_copy:(.*):(\d{4}-[^:]+:[^:]+:[^:]+):(.*)$/) || [];
+        return { key, slot: slot || "", at: at || "", tag: tag || "" };
+      });
+  } catch { return []; }
+}
+export async function readKeptCopy(key) {
+  if (typeof key !== "string" || !key.startsWith(KEPT_PREFIX)) return null;
+  const idb = await getIdb();
+  return (await idb.get(IDB_STORE, key)) ?? null;
 }
 
 // Non-destructive password check. Reads the stored blob, derives a key
@@ -602,6 +686,27 @@ export async function withBatch(fn) {
 let _localRevision = 0;
 export function getLocalRevision() { return _localRevision; }
 
+// Save health (audit 2026-10-01, durability H1). A write that fails —
+// storage full, the web view's database refusing writes — used to be
+// silent: the screen kept showing the change, and the next reload or
+// process kill took it away. Now a failure flips this state and fires
+// `symphony-save-health`, which the app-wide SaveHealthBanner turns into
+// a banner that stays until a save gets through.
+let _saveHealth = { ok: true, failedAt: null, error: null };
+export function getSaveHealth() { return _saveHealth; }
+function setSaveHealth(next) {
+  const changed = next.ok !== _saveHealth.ok;
+  _saveHealth = next;
+  if (changed) {
+    try { window.dispatchEvent(new CustomEvent("symphony-save-health", { detail: next })); } catch { /* no window */ }
+  }
+}
+// "Try again" from the banner: queue a fresh save of what's in memory.
+export function retrySave() {
+  if (!_db) return Promise.resolve();
+  return _saveDbNow();
+}
+
 function saveDb() {
   _localRevision++;
   if (_batchDepth > 0) { _batchDirty = true; return Promise.resolve(); }
@@ -712,25 +817,31 @@ async function doSaveDbLocked() {
       }
     }
   } catch { /* backstop only — never block the save */ }
-  let json;
-  if (encKey) {
-    // Embed the salt INSIDE the encrypted envelope so the data is still
-    // decryptable even if localStorage is wiped (Android device cleaners
-    // commonly clear localStorage but leave IndexedDB intact, which would
-    // otherwise lose the salt and make decryption impossible).
-    json = JSON.stringify({
-      __encrypted: await encryptData(db, encKey),
-      __salt: _activeSalt || getEncSalt(),
-      __format_version: 2,
-      // Record the PBKDF2 strength this envelope's key was derived with.
-      // _encKey is always at KDF_ITERATIONS once init/enable completes
-      // (legacy blobs are re-keyed on first successful unlock).
-      __kdf_iterations: KDF_ITERATIONS,
-    });
-  } else {
-    json = JSON.stringify(db);
+  try {
+    let json;
+    if (encKey) {
+      // Embed the salt INSIDE the encrypted envelope so the data is still
+      // decryptable even if localStorage is wiped (Android device cleaners
+      // commonly clear localStorage but leave IndexedDB intact, which would
+      // otherwise lose the salt and make decryption impossible).
+      json = JSON.stringify({
+        __encrypted: await encryptData(db, encKey),
+        __salt: _activeSalt || getEncSalt(),
+        __format_version: 2,
+        // Record the PBKDF2 strength this envelope's key was derived with.
+        // _encKey is always at KDF_ITERATIONS once init/enable completes
+        // (legacy blobs are re-keyed on first successful unlock).
+        __kdf_iterations: KDF_ITERATIONS,
+      });
+    } else {
+      json = JSON.stringify(db);
+    }
+    await saveToStorage(json);
+  } catch (e) {
+    setSaveHealth({ ok: false, failedAt: new Date().toISOString(), error: String(e?.message || e) });
+    throw e;
   }
-  await saveToStorage(json);
+  if (!_saveHealth.ok) setSaveHealth({ ok: true, failedAt: null, error: null });
   // Advance the generation and tell every other tab to catch up.
   _gen = Math.max(_gen, diskGen) + 1;
   _genKey = _storageKey;
@@ -1229,6 +1340,26 @@ function sanitizeIncomingDump(dump, { allowDeviceBound = false } = {}) {
 // NOTE: preserving THIS device's identity across a replace-import is the
 // caller's job (DataBackupRestore already carries it forward explicitly);
 // wipe flows (loadDbDump({})) genuinely mean "everything gone".
+// Stamp restored records as changed NOW (in place). `only`: true for every
+// entity, or a list/Set of entity names. Task completions (DailyProgress)
+// keep their times — their merge is per tick, and a re-stamp made old
+// ticks without tick times read as "now", beating real unticks (review
+// 2026-10-01).
+export function restampRecords(dump, only = true) {
+  const set = only === true ? null : new Set(only);
+  const now = new Date().toISOString();
+  for (const [entity, col] of Object.entries(dump || {})) {
+    if (isReservedDbKey(entity) || entity === "HistoryEvent" || entity === "DeletionLog" || entity === "DailyProgress") continue;
+    if (set && !set.has(entity)) continue;
+    if (!col || typeof col !== "object") continue;
+    for (const [id, rec] of Object.entries(col)) {
+      if (!rec || typeof rec !== "object") continue;
+      col[id] = { ...rec, updated_date: now, [FIELD_TIMES]: { __base: now } };
+    }
+  }
+  return dump;
+}
+
 export async function loadDbDump(dump, options = {}) {
   const next = sanitizeIncomingDump(dump, options);
   // restamp (Settings → Replace): a restore means "THIS version, now". The
@@ -1238,23 +1369,19 @@ export async function loadDbDump(dump, options = {}) {
   // the restored values win the field merge everywhere.
   // Only the restored entities (options.restamp: a list/Set of names) —
   // what a partial file left as it was keeps its real times.
-  if (options.restamp && next && typeof next === "object") {
-    const only = options.restamp === true ? null : new Set(options.restamp);
-    const now = new Date().toISOString();
-    for (const [entity, col] of Object.entries(next)) {
-      if (isReservedDbKey(entity) || entity === "HistoryEvent" || entity === "DeletionLog") continue;
-      if (only && !only.has(entity)) continue;
-      if (!col || typeof col !== "object") continue;
-      for (const [id, rec] of Object.entries(col)) {
-        if (!rec || typeof rec !== "object") continue;
-        col[id] = { ...rec, updated_date: now, [FIELD_TIMES]: { __base: now } };
-      }
-    }
-  }
+  if (options.restamp && next && typeof next === "object") restampRecords(next, options.restamp);
   // Preferences mirror: this device's own wins if present; a fresh device
   // (no mirror yet) adopts the file's so a restore brings the look along.
   const ownMirror = _db && typeof _db === "object" ? _db[MIRROR_KEY] : null;
   if (next && typeof next === "object" && ownMirror && !options.adoptMirror) next[MIRROR_KEY] = ownMirror;
+  // Adopting ANOTHER file's mirror (fresh device): it goes through the same
+  // import deny-list as __local_settings, or a raw file could bring this
+  // device's sync identity / storage mode / backup history in through the
+  // back door (review 2026-10-01).
+  else if (next && typeof next === "object" && !ownMirror && next[MIRROR_KEY]?.values && typeof next[MIRROR_KEY].values === "object") {
+    const vals = Object.fromEntries(Object.entries(next[MIRROR_KEY].values).filter(([k]) => isImportableSettingKey(k)));
+    next[MIRROR_KEY] = { ...next[MIRROR_KEY], values: vals };
+  }
   _db = next;
   _authoritativeSave = true;
   await saveDb();
@@ -1484,8 +1611,16 @@ export async function mergeDbDump(dump, options = {}) {
   // backup, so the newer-wins fold kept the starter terms, name and look
   // over the person's real ones (audit 2026-10-01, M5). Read BEFORE any
   // entity of this import lands.
-  const hasOwnRecords = ["Alter", "FrontingSession", "JournalEntry", "EmotionCheckIn", "Activity", "Task", "Bulletin"]
-    .some((e) => _db[e] && Object.keys(_db[e]).length > 0);
+  //
+  // Explicit imports only (options.adoptSettingsWhenFresh): device sync
+  // keeps the field-by-field rule, or two devices syncing a quiet system
+  // would ping-pong whole settings rows (review 2026-10-01). And "fresh"
+  // means NO user-made records at all — not a short list of entities, or
+  // a system used only for, say, symptoms or sleep would count as new.
+  const NOT_USER_MADE = new Set(["SystemSettings", "HistoryEvent", "DeletionLog", "FriendIdentity", "PushSubscription"]);
+  const hasOwnRecords = options.adoptSettingsWhenFresh !== true || Object.entries(_db).some(([e, col]) =>
+    !isReservedDbKey(e) && !NOT_USER_MADE.has(e) && col && typeof col === "object"
+    && Object.values(col).some((r) => r && typeof r === "object" && !r.is_default));
   // Conflict collection (v0.95.4): every place the merge had to CHOOSE
   // between two real versions is recorded so the import UI can offer the
   // user the losing version. `kept` names the side the automatic rule
@@ -1927,7 +2062,18 @@ export async function getRawIdbDump() {
 // Fetch external https:// image URLs, store them in IDB, and rewrite the DB record.
 // Requires network. Skips URLs that aren't images (wrong Content-Type) or fail to fetch.
 // onProgress({ migrated, failed, skipped }) is called after each URL attempt.
-export async function migrateHttpImagesToLocal(onProgress) {
+// Picture fields only (avatar_url, banner_url, system_avatar_url, the
+// `_header_image` custom field, image…). Importers use this so a person's
+// imported avatars are saved ON the device — kept in backups, shown
+// offline, never re-fetched from a third party on every view (audit
+// 2026-10-01, M4) — without fetching every link that happens to sit in a
+// bio or note.
+const PICTURE_KEY = /(avatar|banner|image|icon|picture)/i;
+export function localizeRemotePictures(onProgress) {
+  return migrateHttpImagesToLocal(onProgress, { keyFilter: (k) => typeof k === "string" && PICTURE_KEY.test(k) });
+}
+
+export async function migrateHttpImagesToLocal(onProgress, { keyFilter = null } = {}) {
   const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
 
@@ -1952,7 +2098,7 @@ export async function migrateHttpImagesToLocal(onProgress) {
       for (const [field, value] of Object.entries(record)) {
         if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
         try {
-          const r = await _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, report);
+          const r = await _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, report, field, keyFilter);
           if (r.changed) {
             patch[field] = r.value;
             recordChanged = true;
@@ -1967,8 +2113,9 @@ export async function migrateHttpImagesToLocal(onProgress) {
   return { migrated, failed, skipped };
 }
 
-async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult) {
+async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult, key = null, keyFilter = null) {
   if (typeof value === 'string') {
+    if (keyFilter && !keyFilter(key)) return { changed: false, value };
     if (isLocalImageUrl(value) || value.startsWith('data:') || value.startsWith('local-image://')) {
       return { changed: false, value };
     }
@@ -1997,7 +2144,7 @@ async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, i
     let changed = false;
     const result = [];
     for (const item of value) {
-      const r = await _walkAndMigrateHttp(item, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      const r = await _walkAndMigrateHttp(item, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult, key, keyFilter);
       if (r.changed) changed = true;
       result.push(r.value);
     }
@@ -2007,7 +2154,7 @@ async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, i
     let changed = false;
     const result = {};
     for (const [k, v] of Object.entries(value)) {
-      const r = await _walkAndMigrateHttp(v, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      const r = await _walkAndMigrateHttp(v, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult, k, keyFilter);
       if (r.changed) changed = true;
       result[k] = r.value;
     }

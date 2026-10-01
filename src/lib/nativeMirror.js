@@ -28,16 +28,38 @@
 //     system) delete mirror files. Nothing else ever removes a copy.
 //   - A value that isn't a JSON object ("null", empty) is never mirrored.
 
-import { isNative } from "@/lib/platform";
+import { isNative, hasPrivateFileCopy } from "@/lib/platform";
 
 const ROOT = "symphony-safe";
 const DEBOUNCE_MS = 2000;
 const SHRINK_RATIO = 0.5;      // new blob < half the last one → keep a copy
 const SHRINK_MIN_BYTES = 4096; // ...when the last one was worth keeping
 
+// The desktop app's file bridge (electron/preload.cjs `safe`), shaped like
+// the Capacitor Filesystem calls this module makes. Paths arrive as
+// "symphony-safe/…"; main confines them to <userData>/symphony-safe.
+function desktopFs() {
+  const safe = globalThis.symphonyDesktop?.safe;
+  const must = (r, what) => { if (!r?.ok) throw new Error(r?.error || `${what} failed`); return r; };
+  return {
+    dir: null,
+    utf8: null,
+    Filesystem: {
+      readFile: async ({ path }) => ({ data: must(await safe.read(path), "read").data }),
+      writeFile: async ({ path, data }) => { must(await safe.write(path, data), "write"); return {}; },
+      deleteFile: async ({ path }) => { must(await safe.remove(path), "delete"); return {}; },
+      readdir: async ({ path }) => ({ files: must(await safe.list(path), "list").files.map((name) => ({ name })) }),
+    },
+  };
+}
+
 let _fsPromise = null;
 function fs() {
-  if (!isNative()) return null;
+  if (!hasPrivateFileCopy()) return null;
+  if (!isNative()) {
+    if (!_fsPromise) _fsPromise = Promise.resolve(desktopFs());
+    return _fsPromise;
+  }
   if (!_fsPromise) {
     _fsPromise = import("@capacitor/filesystem")
       .then((m) => ({ Filesystem: m.Filesystem, dir: m.Directory.Library, utf8: m.Encoding.UTF8 }))
@@ -56,13 +78,41 @@ function queue(fn) {
 }
 
 // Status for the Settings readout: last success / last error.
-const _status = { lastWriteAt: null, lastError: null, failures: 0 };
+// `consecutive` drives the app-wide warning: a copy that fails on every
+// save used to be a console line only, so the person believed they were
+// protected (audit 2026-10-01, durability M4).
+const _status = { lastWriteAt: null, lastError: null, failures: 0, consecutive: 0 };
 export function getMirrorStatus() { return { ..._status }; }
-function noteOk() { _status.lastWriteAt = new Date().toISOString(); }
+function emitHealth() {
+  try { window.dispatchEvent(new CustomEvent("symphony-mirror-health", { detail: getMirrorStatus() })); } catch { /* no window */ }
+}
+function noteOk() {
+  const wasFailing = _status.consecutive > 0;
+  _status.lastWriteAt = new Date().toISOString();
+  _status.consecutive = 0;
+  if (wasFailing) emitHealth();
+}
 function noteErr(e) {
   _status.failures += 1;
+  _status.consecutive += 1;
   _status.lastError = String(e?.message || e);
   console.warn("[nativeMirror]", _status.lastError);
+  emitHealth();
+}
+
+// Kept copies are written only on a sudden shrink or a reset; keep the
+// newest few per slot so repeated events can't fill the device (L6).
+const KEPT_PER_BASE = 10;
+async function pruneKept(F, base) {
+  try {
+    const dir = base.includes("/") ? base.slice(0, base.lastIndexOf("/")) : "";
+    const name = base.slice(base.lastIndexOf("/") + 1);
+    const kept = (await listDir(F, dir))
+      .map((f) => { const m = f.match(/\.kept-(\d+)\.json$/); return f.startsWith(`${name}.kept-`) && m ? { f, t: Number(m[1]) } : null; })
+      .filter(Boolean)
+      .sort((x, y) => y.t - x.t);
+    for (const { f } of kept.slice(KEPT_PER_BASE)) await removeFile(F, `${dir}/${f}`);
+  } catch { /* pruning is best-effort */ }
 }
 
 // Reversible, collision-free file name for any key / id.
@@ -136,6 +186,7 @@ async function writeSlotted(F, base, body, meta = {}) {
     const best = await readBestSlot(F, base);
     if (best && best.body.length > body.length) {
       await writeText(F, `${base}.kept-${Date.now()}.json`, packSlot({ seq: best.seq, at: best.at, kept: true }, best.body));
+      await pruneKept(F, base);
     }
   }
   const slot = cur.slot === "a" ? "b" : "a";
@@ -149,7 +200,7 @@ const _pending = new Map(); // key → latest value
 let _timer = null;
 
 export function mirrorDbBlob(key, value) {
-  if (!isNative() || !key) return;
+  if (!hasPrivateFileCopy() || !key) return;
   if (!isMirrorableBlob(value)) return;
   _pending.set(key, value);
   if (_timer) clearTimeout(_timer);
@@ -172,7 +223,7 @@ export function flushMirror() {
 }
 
 export function deleteDbMirror(key) {
-  if (!isNative() || !key) return Promise.resolve();
+  if (!hasPrivateFileCopy() || !key) return Promise.resolve();
   _pending.delete(key);
   return queue(async () => {
     const F = await fs();
@@ -191,7 +242,7 @@ export function deleteDbMirror(key) {
 // restore it straight back into the screen the user is escaping) but is
 // KEPT as a kept-copy, listed by every recovery screen. Never deletes data.
 export function retireDbMirror(key) {
-  if (!isNative() || !key) return Promise.resolve();
+  if (!hasPrivateFileCopy() || !key) return Promise.resolve();
   _pending.delete(key);
   return queue(async () => {
     const F = await fs();
@@ -200,6 +251,7 @@ export function retireDbMirror(key) {
     const best = await readBestSlot(F, base);
     if (best) {
       await writeText(F, `${base}.kept-${Date.now()}.json`, packSlot({ seq: best.seq, at: best.at, kept: true }, best.body));
+      await pruneKept(F, base);
     }
     await removeFile(F, `${base}.a.json`);
     await removeFile(F, `${base}.b.json`);
@@ -209,7 +261,7 @@ export function retireDbMirror(key) {
 
 // "Delete all local data" — the one flow where every copy must go.
 export function wipeMirror() {
-  if (!isNative()) return Promise.resolve();
+  if (!hasPrivateFileCopy()) return Promise.resolve();
   _pending.clear();
   if (_timer) { clearTimeout(_timer); _timer = null; }
   return queue(async () => {
@@ -261,7 +313,7 @@ export async function listAllDbMirrorCopies() {
 
 // ── Registry ──
 export function mirrorRegistry(reg) {
-  if (!isNative() || !reg) return Promise.resolve();
+  if (!hasPrivateFileCopy() || !reg) return Promise.resolve();
   let body;
   try { body = JSON.stringify(reg); } catch { return Promise.resolve(); }
   return queue(async () => {
@@ -280,7 +332,7 @@ export async function readRegistryMirror() {
 
 // ── Pictures & fonts ("img" | "font") ──
 export function mirrorMedia(kind, id, dataUrl) {
-  if (!isNative() || !id || typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return Promise.resolve();
+  if (!hasPrivateFileCopy() || !id || typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return Promise.resolve();
   return queue(async () => {
     const F = await fs();
     if (!F) return;
@@ -289,7 +341,7 @@ export function mirrorMedia(kind, id, dataUrl) {
   });
 }
 export function deleteMediaMirror(kind, id) {
-  if (!isNative() || !id) return Promise.resolve();
+  if (!hasPrivateFileCopy() || !id) return Promise.resolve();
   return queue(async () => {
     const F = await fs();
     if (F) await removeFile(F, `${kind}/${encodeName(id)}.json`);
@@ -315,12 +367,17 @@ export async function readMediaMirror(kind, id) {
 // moment Android may kill the process.
 let _lifecycleHooked = false;
 export async function hookMirrorLifecycle() {
-  if (!isNative() || _lifecycleHooked) return;
+  if (!hasPrivateFileCopy() || _lifecycleHooked) return;
   _lifecycleHooked = true;
-  try {
-    const { App } = await import("@capacitor/app");
-    await App.addListener("pause", () => { flushMirror(); });
-  } catch { /* flush still happens on the debounce */ }
+  if (isNative()) {
+    try {
+      const { App } = await import("@capacitor/app");
+      await App.addListener("pause", () => { flushMirror(); });
+    } catch { /* flush still happens on the debounce */ }
+  } else {
+    // Desktop: the window closing is the "pause".
+    try { window.addEventListener("pagehide", () => { flushMirror(); }); } catch { /* SSR */ }
+  }
   try {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") flushMirror();

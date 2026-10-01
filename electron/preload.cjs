@@ -41,6 +41,15 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
   dataPath: info.dataPath || '',
   openDataFolder: () => ipcRenderer.invoke('symphony:open-data-folder'),
 
+  // Private-file copy of the data (src/lib/nativeMirror.js). Main confines
+  // every path to <userData>/symphony-safe/.
+  safe: Object.freeze({
+    read: (rel) => ipcRenderer.invoke('symphony:safe:read', rel),
+    write: (rel, text) => ipcRenderer.invoke('symphony:safe:write', rel, text),
+    remove: (rel) => ipcRenderer.invoke('symphony:safe:remove', rel),
+    list: (rel) => ipcRenderer.invoke('symphony:safe:list', rel),
+  }),
+
   // Device sync (src/lib/deviceSync.js). Files only — there is no
   // network call anywhere behind these. Main refuses any filename that
   // isn't one of our own snapshot files, so this cannot be turned into a

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -50,6 +50,11 @@ export default function RecoveryScreen({ reason, onResolved }) {
   const [status, setStatus] = useState(null); // {type, text}
   const [confirmReset, setConfirmReset] = useState(false);
   const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+  // Copies this screen kept on the device before an earlier reset/restore.
+  const [keptCopies, setKeptCopies] = useState([]);
+  useEffect(() => {
+    import("@/lib/localDb").then((m) => m.listKeptCopies()).then(setKeptCopies).catch(() => {});
+  }, []);
   const [importMode, setImportMode] = useState("replace"); // 'replace' | 'merge'
   const [peekState, setPeekState] = useState(null);
   const fileInputRef = useRef(null);
@@ -87,6 +92,20 @@ export default function RecoveryScreen({ reason, onResolved }) {
       title: "Oceans Symphony recovery file",
       dialogTitle: "Save recovery file",
     });
+  };
+
+  const downloadKeptCopy = async (copy) => {
+    setBusy(true);
+    try {
+      const { readKeptCopy } = await import("@/lib/localDb");
+      const raw = await readKeptCopy(copy.key);
+      if (!raw) { setStatus({ type: "error", text: "That copy couldn't be read." }); return; }
+      await downloadFile(`oceans-symphony-kept-${(copy.at || "copy").replace(/[:.]/g, "-")}.json`, raw);
+    } catch (e) {
+      setStatus({ type: "error", text: `Couldn't save that copy: ${e?.message || e}` });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleExportStandard = async () => {
@@ -203,6 +222,12 @@ export default function RecoveryScreen({ reason, onResolved }) {
   // Best-effort raw copy of whatever is on disk (ciphertext included) to the
   // share sheet / downloads. Shared by restore and reset.
   const saveRawCopyBestEffort = async (tag) => {
+    // A copy INSIDE this device first (audit M3): the download/share below
+    // can be blocked or cancelled, and on the web that was the only copy.
+    try {
+      const { keepRawCopyOnDevice } = await import("@/lib/localDb");
+      await keepRawCopyOnDevice(tag);
+    } catch { /* storage unreadable — the download is the fallback */ }
     try {
       const raw = await exportRawStorageBlob();
       if (raw) {
@@ -230,6 +255,10 @@ export default function RecoveryScreen({ reason, onResolved }) {
     let currentName = null;
     try { currentName = getActiveSystem()?.name || null; } catch { /* registry unreadable */ }
     const named = currentName ? systems.findIndex((x) => (x.name || "") === currentName) : -1;
+    // No name match is common here (the slot's name may be a default like
+    // "System 1" when the list itself is what broke), so fall back to the
+    // system that was open when the file was made — the message names it,
+    // and the slot's previous contents were kept on the device first.
     const i = named >= 0 ? named : primarySystemIndex(systems);
     await applyDump({ data: systems[i].data, localImages, localFonts, localSettings });
     const more = systems.length - 1;
@@ -405,6 +434,18 @@ export default function RecoveryScreen({ reason, onResolved }) {
             this file is ciphertext — it still needs your password to be
             decrypted later. Without the password it cannot be read.
           </p>
+          {keptCopies.length > 0 && (
+            <div className="rounded-lg border border-border/60 p-2 space-y-1">
+              <p className="text-xs font-medium px-1">Copies kept on this device before earlier resets or restores</p>
+              {keptCopies.map((c) => (
+                <Button key={c.key} type="button" variant="outline" size="sm" disabled={busy}
+                  onClick={() => downloadKeptCopy(c)} className="w-full justify-start">
+                  <Download className="w-4 h-4 mr-2" />
+                  {c.at ? new Date(c.at).toLocaleString() : "Kept copy"}
+                </Button>
+              ))}
+            </div>
+          )}
 
           <Button
             type="button"

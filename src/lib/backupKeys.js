@@ -145,6 +145,11 @@ export const BACKUP_LS_KEYS = [
   "alterTree_sort", "fronterPicker_sort", "groupMembers_sort",
   "pageAudience_sort", "setFrontModal_sort", "setFront_sort",
   "symphony_checkin_alter_sort", "symphony_planner_alter_sort",
+  // Running activity timers + their end reminder, and dismissed critical
+  // pins / plan banners (audit 2026-10-01, L1) — a restore used to drop the
+  // running timers and bring every dismissed banner back.
+  "symphony_active_activities_v1", "symphony_active_end_reminder_v1",
+  "symphony_critical_pin_dismissals", "symphony_upcoming_plan_acks",
 ];
 
 // Keys stored once per record (the key ends in an id). Matched by prefix.
@@ -194,10 +199,12 @@ export function readBackupLocalSettings() {
 //     overwrite each other's sync file), storage mode / encryption,
 //     the systems registry, native notification-id logs
 //   - the backup decision and backup password
-//   - the backup lock mode: without this device's password it made every
-//     auto-backup — and the safety copy a later Replace needs — fail
 //   - the backup health log / last-backup time: they describe the OTHER
 //     device's backups, and would hide that this one has none yet
+//   (The backup LOCK MODE is deliberately NOT here: dropping it turned a
+//   user's locked backups into plain files on the new device. Without the
+//   password there, backups stop with "set your backup password" — they
+//   fail closed, never plaintext. Review 2026-10-01, M5.)
 const IMPORT_DENY_PREFIXES = ["symphony_sync_", "symphony_enc_"];
 const IMPORT_DENY_KEYS = new Set([
   "symphony_storage_mode", "symphony_local_user", "symphony_systems_registry",
@@ -205,7 +212,6 @@ const IMPORT_DENY_KEYS = new Set([
   "symphony_native_reminder_log_v1", "symphony_plan_reminder_log_v1",
   "symphony_server_reminder_push_active_v1", "symphony_session_cleanup_v1",
   "symphony_backup_decision_v1", "symphony_autobackup_pw_v1",
-  "symphony_autobackup_encrypt",
   "symphony_autobackup_last_at", "symphony_backup_health_v1",
 ]);
 export const isImportableSettingKey = (key) =>

@@ -59,6 +59,14 @@ export function isAppShell() {
   return isNative() || isDesktop();
 }
 
+// True where the app keeps a second, private-file copy of the data
+// (src/lib/nativeMirror.js): the native apps, and the desktop app since
+// v0.248.3 (its <userData>/symphony-safe folder). Never a browser tab.
+export function hasPrivateFileCopy() {
+  if (isNative()) return true;
+  try { return isDesktop() && !!globalThis.symphonyDesktop?.safe; } catch { return false; }
+}
+
 // 'native' | 'desktop' | 'web' — for logging, reports and About screens.
 export function getBuildTarget() {
   if (isNative()) return 'native';
