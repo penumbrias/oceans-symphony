@@ -693,7 +693,7 @@ export default function Settings() {
 
         {/* ── TRACKING SETUP ── */}
         <Section id="checkin" icon={Activity} label="Tracking setup">
-          <SubSection title="Quick actions" defaultOpen={false}><QuickActionsConfig /></SubSection>
+          <SubSection title="Shortcuts" defaultOpen={false}><QuickActionsConfig /></SubSection>
           <SubSection title="Check-in manager" defaultOpen={false}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">Configure the fields shown in the quick check-in.</p>

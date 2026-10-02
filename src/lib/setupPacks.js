@@ -196,6 +196,10 @@ export function buildUiThemeType(uiV2Raw = {}, appTheme = null, { imageRefs = nu
   }
   delete clone.activeDockPos;
   delete clone.enabled;
+  // Folded-away is a moment, not a design.
+  if (clone.altersBar) delete clone.altersBar.collapsed;
+  // The classic-chrome switches are this person's setup, not the look.
+  delete clone.classicBars;
   // The base colour scheme (theme mode + selected theme + custom colour
   // overrides) — plain hex values, applied via ThemeContext on import.
   if (appTheme) {
@@ -442,7 +446,7 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     const sel = filterUiThemeParts(t.uiTheme, which.themeParts);
     const next = { ...cur };
     if (sel.tokens) next.tokens = { ...(cur.tokens || {}), ...sel.tokens };
-    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar"]) {
+    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar", "altersBar"]) {
       if (sel[k] !== undefined) next[k] = sel[k];
     }
     next.enabled = cur.enabled === true;
@@ -591,7 +595,7 @@ export function filterUiThemeParts(uiTheme = {}, parts) {
   }
   if (Object.keys(tokens).length) out.tokens = tokens;
   if (want.has("bars")) {
-    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar"]) {
+    for (const k of ["bars", "barLooks", "icons", "commandKeys", "appsView", "dockPos", "topBar", "altersBar"]) {
       if (uiTheme[k] !== undefined) out[k] = uiTheme[k];
     }
   }

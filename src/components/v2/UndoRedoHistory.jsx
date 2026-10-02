@@ -19,7 +19,10 @@ import { Undo2, Redo2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTheme } from "@/lib/ThemeContext";
 
-const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_styles"];
+// Every field a Display options control writes — bars included (the
+// pinned bar's size lives in pinned_alters_config, the bottom tabs in
+// navigation_config, the wave colour on the row itself).
+const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_styles", "pinned_alters_config", "navigation_config", "wave_color_key", "wave_color_custom"];
 const MAX = 40;
 const HOLD_MS = 450;
 
@@ -39,7 +42,8 @@ export function markMachineWrite(ms = 2500) {
 // Which area changed — the row label in the history window.
 const UI_V2_AREAS = {
   tokens: "Sizes & accent", bars: "Bars", barLooks: "Bar looks",
-  icons: "Icons", commandKeys: "Quick keys",
+  icons: "Icons", commandKeys: "Quick keys", altersBar: "Pinned bar",
+  topBar: "Top bar", classicBars: "Bars",
 };
 const HOME_AREAS = {
   altersBar: "Pinned bar", background: "Background", wallpaper: "Wallpaper",
@@ -66,6 +70,10 @@ function diffLabel(prev, next) {
     }
   }
   if (JSON.stringify(prev.settings.ui_v2_styles) !== JSON.stringify(next.settings.ui_v2_styles)) parts.push("Widget styles");
+  if (JSON.stringify(prev.settings.pinned_alters_config) !== JSON.stringify(next.settings.pinned_alters_config)) parts.push("Pinned bar");
+  if (JSON.stringify(prev.settings.navigation_config) !== JSON.stringify(next.settings.navigation_config)) parts.push("Bottom tabs");
+  if (prev.settings.wave_color_key !== next.settings.wave_color_key
+    || prev.settings.wave_color_custom !== next.settings.wave_color_custom) parts.push("Wave colour");
   if (JSON.stringify(prev.theme) !== JSON.stringify(next.theme)) parts.push("Colours & theme");
   return [...new Set(parts)].slice(0, 3).join(" · ") || "Change";
 }

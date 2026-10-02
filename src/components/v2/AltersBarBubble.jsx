@@ -2,7 +2,7 @@
 // (EdgeDock — fixed to an edge, hold-and-drag, snap, remember) with the
 // alters card as its content. Tap the bubble to open; on the left/right
 // edges the card is a column, on top/bottom a row. Position lives in
-// home.altersBar.bubble { side, topPct }.
+// the pinned bar's `bubble` { side, topPct } (lib/barsModel.js).
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Pin, ChevronUp } from "lucide-react";
@@ -10,6 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import AltersBarCard from "@/components/v2/AltersBarCard";
+import { readPinnedBar } from "@/lib/barsModel";
 import { EdgeDock } from "@/components/v2/EdgeDock";
 
 function BubbleFace({ alterId }) {
@@ -28,7 +29,7 @@ export default function AltersBarBubble({ settingsRow, home, open, onToggle, onS
     queryKey: ["activeFront"], queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
   const primary = activeSessions.find((s) => s.is_primary) || activeSessions[0];
-  const pos = (home?.altersBar && home.altersBar.bubble) || {};
+  const pos = readPinnedBar(settingsRow).bubble || {};
   const side = ["left", "right", "top", "bottom"].includes(pos.side) ? pos.side : "right";
   const topPct = Number.isFinite(pos.topPct) ? pos.topPct : 60;
   const horizontal = side === "top" || side === "bottom";

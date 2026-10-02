@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 1, 2026",
     changes: [
+      { type: "feature", text: "Every bar is now edited in one place, Display options → Bars, with the same parts for each: Show, Position, Size, Look, What's on it. Every bar's ⚙ opens it right at that bar." },
+      { type: "improve", text: "Bars keep one name everywhere (Top bar, Bottom tabs, Quick actions bar, Pinned {{alters}} bar, Side rail), and the press-and-hold menu is now called Shortcuts." },
+      { type: "fix", text: "Colours and other look settings for the pinned {{alters}} bar now actually apply, and its placement no longer copies to your other devices." },
+      { type: "fix", text: "Undo now also covers the pinned bar's size, the bottom tabs and the wave colour." },
       { type: "feature", text: "The \"who's {{fronting}}\" status-bar notification can show each {{alter}}'s name, alias or emoji — for everyone or per {{alter}} — and can leave out chosen {{fronting}} levels." },
       { type: "fix", text: "The {{alter}} menu opened from the pinned bar no longer looks faded or oddly styled." },
       { type: "fix", text: "The pinned {{alters}} bar stays visible while you're editing its options." },

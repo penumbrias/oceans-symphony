@@ -595,7 +595,7 @@ export default function QuickActionsConfig() {
 
   const createMut = useMutation({
     mutationFn: data => base44.entities.QuickAction.create(data),
-    onSuccess: () => { invalidate(); setAdding(false); toast.success("Quick action added"); },
+    onSuccess: () => { invalidate(); setAdding(false); toast.success("Shortcut added"); },
     onError: () => toast.error("Failed to save"),
   });
   const updateMut = useMutation({
@@ -651,8 +651,8 @@ export default function QuickActionsConfig() {
     <div data-tour="settings-quick-actions" className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold">Quick Actions</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Hold any quick-action key (or the apps button) to pop these up; on the classic dashboard, hold the Quick Check-In button.</p>
+          <p className="text-sm font-semibold">Shortcuts</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Hold any key on the quick actions bar (or the apps button) to pop these up; on the classic dashboard, hold the Quick Check-In button.</p>
         </div>
         {!adding && (
           <Button size="sm" variant="outline" className="gap-1.5 flex-shrink-0" onClick={() => setAdding(true)}>

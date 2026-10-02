@@ -56,6 +56,9 @@ import { resolveBackground } from "@/components/v2/PageBackground";
 import { useT } from "@/lib/i18n";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useIsWide } from "@/lib/useIsWide";
+import { readPinnedBar, pinnedBarLook, pinnedBarPatch, pinnedBarLookPatch } from "@/lib/barsModel";
+import BarShowSwitch, { useBarsChrome, useBarLabels } from "@/components/v2/BarShowSwitch";
 
 const tokenById = Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d]));
 
@@ -363,11 +366,19 @@ function SizeSection({ v2, alignX }) {
 // The wireframe's [SET 5] on each bar: per-bar border width, corner
 // radius, font and text size, shadowing the global tokens on that bar
 // only. Unset = inherit the app-wide value.
-function BarLookRows({ v2, barId, alignX }) {
+function BarLookRows({ v2, barId, alignX, look: lookIn = null, write: writeIn = null, onReset = null }) {
   const tr = useT();
   const fontOptions = useFontOptions({ includeInherit: true, inheritLabel: tr("editSheet.inherit") });
-  const look = v2.uiV2.barLooks?.[barId] || {};
-  const write = (patch) => v2.write({ barLooks: { ...(v2.uiV2.barLooks || {}), [barId]: { ...look, ...patch } } });
+  // The pinned bar passes its own look/write (lib/barsModel.js owns where
+  // that look lives); every other bar is ui_v2.barLooks[barId].
+  const look = lookIn || v2.uiV2.barLooks?.[barId] || {};
+  const write = writeIn || ((patch) => v2.write({ barLooks: { ...(v2.uiV2.barLooks || {}), [barId]: { ...look, ...patch } } }));
+  const reset = onReset || (() => {
+    const rest = { ...(v2.uiV2.barLooks || {}) };
+    delete rest[barId];
+    v2.write({ barLooks: rest });
+  });
+  const hasLook = Object.values(look).some((v) => v !== undefined && v !== null && v !== "");
   const slider = (key, labelKey, min, max, fallback, unit) => (
     <SetRow label={tr(labelKey)}
       valueLabel={look[key] !== undefined ? `${look[key]}${unit}` : tr("editSheet.inherit")}
@@ -465,7 +476,24 @@ function BarLookRows({ v2, barId, alignX }) {
       </div>
       {chips("shadow", "editSheet.shadow", Object.keys(SHADOW_PRESETS))}
       {chips("borderStyle", "editSheet.borderStyle", BORDER_STYLES)}
+      {hasLook && (
+        <button type="button" onClick={reset}
+          className="mt-1 text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+          {tr("editSheet.resetLook")}
+        </button>
+      )}
     </>
+  );
+}
+
+// A bar section's parts, in the same order on every bar: Show · Position ·
+// Size · Look · What's on it. A part with nothing to offer is left out.
+function BarPart({ label, children }) {
+  return (
+    <div className="pt-2 first:pt-0">
+      <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 pb-0.5">{label}</p>
+      <div className="space-y-1">{children}</div>
+    </div>
   );
 }
 
@@ -539,18 +567,33 @@ function BarsSection({ v2, alignX }) {
   const waveKey = readWaveColorKey(settingsRow);
   const waveCustom = settingsRow?.wave_color_custom || "";
 
-  // The alter bar lives on the home board's own field, per device.
-  const homeField = "ui_v2_home";
-  const altersBar = settingsRow?.[homeField]?.altersBar || {};
-  // The pinned bar's own size/label config — the same singleton the
-  // gallery's gear writes, so both editors agree.
+  // The pinned bar: placement + look through lib/barsModel.js (it lives on
+  // this device's ui_v2 — older records are moved across on first change);
+  // its size and pins are the pinned config the gallery reads.
+  const { v2Chrome } = useBarsChrome();
+  const labels = useBarLabels();
+  const wide = useIsWide();
+  const pinnedBar = readPinnedBar(settingsRow);
+  const pinnedLook = pinnedBarLook(settingsRow);
+  const writePinnedBar = (patch) => writeSettings(pinnedBarPatch(settingsRow, patch));
+  const writePinnedLook = (patch) => writeSettings(pinnedBarLookPatch(settingsRow, patch));
   const pinnedCfg = settingsRow?.pinned_alters_config || {};
   const writePinnedCfg = (patch) => writeSettings({
     pinned_alters_config: { ...pinnedCfg, ...patch },
   });
-  const writeAltersBar = (patch) => writeSettings({
-    [homeField]: { ...(settingsRow?.[homeField] || {}), altersBar: { ...altersBar, ...patch } },
-  });
+  const classicBars = v2.uiV2.classicBars;
+
+  // Opened for one bar (openBarsEditor): bring its section into view.
+  useEffect(() => {
+    let id = null;
+    try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
+    if (!id) return undefined;
+    // A few tries, instant: the sheet's open animation cancels a smooth
+    // scroll and can land after the first attempt.
+    const go = () => document.querySelector(`[data-bar-section="${id}"]`)?.scrollIntoView({ block: "start" });
+    const timers = [120, 420, 900].map((ms) => setTimeout(go, ms));
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
   // "arrangement / icon images, labels ... toggle display"). No on/off
@@ -565,248 +608,298 @@ function BarsSection({ v2, alignX }) {
     writeTopBar({ order: next });
   };
 
+  const actionsMode = v2.uiV2.tokens.actionsMode ?? "bar";
+  const pinnedPlace = pinnedBar.mode === "bubble" ? "bubble" : pinnedBar.position;
+
   return (
     <SubSection title={tr("editSheet.bars")} storageKey="edit-bars">
-      {/* Top bar — each bar is its own collapsible, per the wireframe. */}
-      <SubSection title={tr("editSheet.barTop")} storageKey="edit-bar-top">
-      <div className="space-y-1">
-        {tokenRow("statusH", "editSheet.barHeight")}
-        <BarLookRows v2={v2} barId="top" alignX={alignX} />
-        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
-        {topBar.order.map((id, idx) => {
-          const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
-          if (!item) return null;
-          const shown = !topBar.hidden.includes(id);
-          return (
-            <ArrangeRow key={id} label={applyTerms(tr(item.labelKey), terms)}
-              checked={shown}
-              onCheck={(v) => writeTopBar({ hidden: v ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id] })}
-              onUp={idx === 0 ? null : () => moveTopItem(idx, -1)}
-              onDown={idx === topBar.order.length - 1 ? null : () => moveTopItem(idx, 1)} />
-          );
-        })}
-        <BarToggle label={tr("editSheet.wave")} on={v2.uiV2.bars.wave} onChange={(on) => v2.setBar("wave", on)} />
-        {v2.uiV2.bars.wave && (
-          <div className="flex items-center gap-2.5 py-1">
-            <span className="text-xs font-medium flex-1 min-w-0 truncate">{tr("editSheet.waveColor")}</span>
-            <div className="flex gap-1.5 flex-wrap justify-end items-center">
-              {/* Swatches, not word-pills: the choice IS a colour. The
-                  "background" key means Off and stays a word. */}
-              {WAVE_COLOR_KEYS.map((k) => {
-                const on = !waveCustom && waveKey === k;
-                if (k === "background") return (
-                  <button key={k} type="button" aria-pressed={on}
-                    onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
-                    className={`text-[0.6875em] px-2 py-1 rounded-full border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
-                    {WAVE_COLOR_LABELS[k]}
-                  </button>
-                );
-                const cssVar = k === "text" ? "--color-text-primary" : k === "text-2nd" ? "--color-text-secondary" : `--color-${k}`;
-                return (
-                  <button key={k} type="button" aria-pressed={on} aria-label={WAVE_COLOR_LABELS[k]} title={WAVE_COLOR_LABELS[k]}
-                    onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
-                    className={`w-6 h-6 rounded-full border-2 flex-shrink-0 ${on ? "border-primary ring-2 ring-primary/40" : "border-border/60"}`}
-                    style={{ background: `var(${cssVar})` }} />
-                );
-              })}
-              <ColorPicker compact label={tr("editSheet.waveColor")}
-                value={waveCustom || "#7dd3fc"}
-                onChange={(hex) => writeSettings({ wave_color_custom: hex })}
-                onClear={() => writeSettings({ wave_color_custom: null })} />
+      {/* Classic chrome on a wide screen: whether the phone's bars come
+          along beside the sidebar at all. */}
+      {!v2Chrome && wide && (
+        <BarToggle label={tr("editSheet.wideBars")} on={classicBars.wide === true}
+          onChange={(on) => v2.write({ classicBars: { ...(settingsRow?.ui_v2?.classicBars || {}), wide: on } })} />
+      )}
+
+      {/* ── Top bar ── */}
+      <div data-bar-section="top">
+      <SubSection title={labels.top} storageKey="edit-bar-top">
+        {!v2Chrome && <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="top" /></BarPart>}
+        <BarPart label={tr("editSheet.partSize")}>
+          {tokenRow("statusH", "editSheet.barHeight")}
+        </BarPart>
+        <BarPart label={tr("editSheet.partLook")}>
+          <BarLookRows v2={v2} barId="top" alignX={alignX} />
+          {v2Chrome && <BarShowSwitch barId="wave" label={tr("editSheet.wave")} />}
+          {v2Chrome && v2.uiV2.bars.wave && (
+            <div className="flex items-center gap-2.5 py-1">
+              <span className="text-xs font-medium flex-1 min-w-0 truncate">{tr("editSheet.waveColor")}</span>
+              <div className="flex gap-1.5 flex-wrap justify-end items-center">
+                {/* Swatches, not word-pills: the choice IS a colour. The
+                    "background" key means Off and stays a word. */}
+                {WAVE_COLOR_KEYS.map((k) => {
+                  const on = !waveCustom && waveKey === k;
+                  if (k === "background") return (
+                    <button key={k} type="button" aria-pressed={on}
+                      onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
+                      className={`text-[0.6875em] px-2 py-1 rounded-full border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                      {WAVE_COLOR_LABELS[k]}
+                    </button>
+                  );
+                  const cssVar = k === "text" ? "--color-text-primary" : k === "text-2nd" ? "--color-text-secondary" : `--color-${k}`;
+                  return (
+                    <button key={k} type="button" aria-pressed={on} aria-label={WAVE_COLOR_LABELS[k]} title={WAVE_COLOR_LABELS[k]}
+                      onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
+                      className={`w-6 h-6 rounded-full border-2 flex-shrink-0 ${on ? "border-primary ring-2 ring-primary/40" : "border-border/60"}`}
+                      style={{ background: `var(${cssVar})` }} />
+                  );
+                })}
+                <ColorPicker compact label={tr("editSheet.waveColor")}
+                  value={waveCustom || "#7dd3fc"}
+                  onChange={(hex) => writeSettings({ wave_color_custom: hex })}
+                  onClear={() => writeSettings({ wave_color_custom: null })} />
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </BarPart>
+        <BarPart label={tr("editSheet.partContent")}>
+          {topBar.order.map((id, idx) => {
+            const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
+            if (!item) return null;
+            const shown = !topBar.hidden.includes(id);
+            return (
+              <ArrangeRow key={id} label={applyTerms(tr(item.labelKey), terms)}
+                checked={shown}
+                onCheck={(v) => writeTopBar({ hidden: v ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id] })}
+                onUp={idx === 0 ? null : () => moveTopItem(idx, -1)}
+                onDown={idx === topBar.order.length - 1 ? null : () => moveTopItem(idx, 1)} />
+            );
+          })}
+        </BarPart>
       </SubSection>
-
-      <SubSection title={tr("editSheet.barBottom")} storageKey="edit-bar-bottom">
-      <div className="space-y-1">
-        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
-        {tokenRow("stripH", "editSheet.barHeight")}
-        <BarLookRows v2={v2} barId="tabs" alignX={alignX} />
-        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
-        {bottomIds.map((id, idx) => (
-          <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
-            <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
-              aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
-              className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
-              <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
-            <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
-              aria-label={`${pageLabel(id)} ↑`}
-              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
-            <button type="button" onClick={() => moveNavItem(idx, 1)} disabled={idx === bottomIds.length - 1}
-              aria-label={`${pageLabel(id)} ↓`}
-              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
-            <button type="button" onClick={() => writeBottomBar(bottomIds.filter((x) => x !== id))}
-              disabled={bottomIds.length <= 1}
-              aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
-              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
-              <X className="w-3 h-3 mx-auto" />
-            </button>
-          </div>
-        ))}
-        {bottomIds.length < 6 && (
-          <SearchableSelect
-            value=""
-            onChange={(id) => { if (id) writeBottomBar([...bottomIds, id]); }}
-            options={addNavOptions}
-            placeholder={tr("editSheet.addTab")}
-            searchPlaceholder={tr("editSheet.addTab")}
-          />
-        )}
       </div>
-      </SubSection>
 
-      <SubSection title={tr("editSheet.barSide")} storageKey="edit-bar-side">
-      <div className="space-y-1">
-        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
-        {tokenRow("railW", "editSheet.barWidth")}
-        <BarLookRows v2={v2} barId="rail" alignX={alignX} />
-        <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
-          onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
-          options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
-        <PillRow label={tr("editSheet.railContent")} value={v2.uiV2.tokens.railActions ?? "labels"}
-          onChange={(val) => v2.setToken("railActions", val)} alignX={alignX}
-          options={[{ v: "labels", label: tr("editSheet.labels") }, { v: "icons", label: tr("editSheet.icons") }]} />
-        <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.railHint")}</p>
-      </div>
-      </SubSection>
-
-      <SubSection title={tr("editSheet.barActions")} storageKey="edit-bar-actions">
-      <div className="space-y-1">
-        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
-        {tokenRow("cmdSize", "editSheet.buttonSize")}
-        <BarLookRows v2={v2} barId="actions" alignX={alignX} />
-        <PillRow label={tr("editSheet.placement")} value={v2.uiV2.tokens.actionsMode ?? "bar"}
-          onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
-          options={[
-            { v: "bar", label: tr("editSheet.placementBar") },
-            { v: "float", label: tr("editSheet.placementFloat") },
-            { v: "bubble", label: tr("editSheet.placementBubble") },
-          ]} />
-        <PillRow label={tr("editSheet.activeBubble")} value={v2.uiV2.tokens.activeBubble ?? "off"}
-          onChange={(val) => v2.setToken("activeBubble", val)} alignX={alignX} stacked
-          options={[
-            { v: "off", label: tr("editSheet.activeOff") },
-            { v: "when-active", label: tr("editSheet.activeWhen") },
-            { v: "always", label: tr("editSheet.activeAlways") },
-          ]} />
-        {(v2.uiV2.tokens.activeBubble ?? "off") !== "off" && (
-          <div className="pl-2 border-l border-border/30">
-            <BarLookRows v2={v2} barId="active" alignX={alignX} />
-          </div>
-        )}
-        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
-          <PillRow label={tr("editSheet.actionsEdge")} value={v2.uiV2.tokens.actionsEdge ?? "bottom"}
-            onChange={(val) => v2.setToken("actionsEdge", val)} alignX={alignX}
-            options={[{ v: "bottom", label: tr("editSheet.edgeBottom") }, { v: "top", label: tr("editSheet.edgeTop") }]} />
-        )}
-        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
-          <PillRow label={tr("editSheet.actionsAttach")} value={v2.uiV2.tokens.actionsAttach ?? "float"}
-            onChange={(val) => v2.setToken("actionsAttach", val)} alignX={alignX}
-            options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
-        )}
-        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (v2.uiV2.tokens.actionsEdge ?? "bottom") !== "top" && (
-          <PillRow label={tr("editSheet.barsSwap")} value={v2.uiV2.tokens.barsSwap ?? "normal"}
-            onChange={(val) => v2.setToken("barsSwap", val)} alignX={alignX} stacked
-            options={[
-              { v: "normal", label: tr("editSheet.barsSwapNormal") },
-              { v: "swapped", label: tr("editSheet.barsSwapSwapped") },
-            ]} />
-        )}
-        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
-          <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
-            onChange={(val) => v2.setToken("handleSides", val)} alignX={alignX} stacked
-            options={[
-              { v: "alters-left", label: tr("editSheet.handleAltersLeft", { alters: terms.alters }) },
-              { v: "alters-right", label: tr("editSheet.handleAltersRight", { alters: terms.alters }) },
-            ]} />
-        )}
-        {/* No edge pill for float/bubble — they're freely repositioned by
-            hold-and-drag, so a setting here just lied. */}
-        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.actionKeys")}</p>
-        {V2_COMMAND_KEYS.map((k) => {
-          const on = v2.uiV2.commandKeys.includes(k.id);
-          const idx = v2.uiV2.commandKeys.indexOf(k.id);
-          const move = (dir) => {
-            const next = [...v2.uiV2.commandKeys];
-            const to = idx + dir;
-            if (to < 0 || to >= next.length) return;
-            [next[idx], next[to]] = [next[to], next[idx]];
-            v2.setCommandKeys(next);
-          };
-          return (
-            <div key={k.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
-              <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
-                <input type="checkbox" checked={on}
-                  onChange={(e) => v2.setCommandKeys(e.target.checked
-                    ? [...v2.uiV2.commandKeys, k.id]
-                    : v2.uiV2.commandKeys.filter((x) => x !== k.id))}
-                  className="w-3.5 h-3.5 rounded accent-primary" aria-label={applyTerms(k.label, terms)} />
-                <span className="truncate">{applyTerms(k.label, terms)}</span>
-              </label>
-              {on && (
-                <span className="flex gap-1 flex-shrink-0">
-                  <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
-                    aria-label={`${applyTerms(k.label, terms)} ↑`}
-                    className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
-                  <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
-                    aria-label={`${applyTerms(k.label, terms)} ↓`}
-                    className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
-                </span>
-              )}
+      {/* ── Bottom tabs ── */}
+      <div data-bar-section="tabs">
+      <SubSection title={labels.tabs} storageKey="edit-bar-bottom">
+        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="tabs" /></BarPart>
+        <BarPart label={tr("editSheet.partSize")}>
+          {tokenRow("stripH", "editSheet.barHeight")}
+        </BarPart>
+        <BarPart label={tr("editSheet.partLook")}>
+          <BarLookRows v2={v2} barId="tabs" alignX={alignX} />
+        </BarPart>
+        <BarPart label={tr("editSheet.partContent")}>
+          {bottomIds.map((id, idx) => (
+            <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
+              <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
+                aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
+                className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+                <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
+              <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
+                aria-label={`${pageLabel(id)} ↑`}
+                className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => moveNavItem(idx, 1)} disabled={idx === bottomIds.length - 1}
+                aria-label={`${pageLabel(id)} ↓`}
+                className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => writeBottomBar(bottomIds.filter((x) => x !== id))}
+                disabled={bottomIds.length <= 1}
+                aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
+                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
+                <X className="w-3 h-3 mx-auto" />
+              </button>
             </div>
-          );
-        })}
-      </div>
+          ))}
+          {bottomIds.length < 6 && (
+            <SearchableSelect
+              value=""
+              onChange={(id) => { if (id) writeBottomBar([...bottomIds, id]); }}
+              options={addNavOptions}
+              placeholder={tr("editSheet.addTab")}
+              searchPlaceholder={tr("editSheet.addTab")}
+            />
+          )}
+        </BarPart>
       </SubSection>
+      </div>
 
-      {/* Alter bar — the pinned-members strip on the home board. */}
-      <SubSection title={applyTerms(tr("editSheet.barAlters"), terms)} storageKey="edit-bar-alters">
-      <div className="space-y-1">
-        <BarToggle label={tr("editSheet.show")}
-          on={altersBar.enabled === true}
-          onChange={(on) => writeAltersBar({ enabled: on, collapsed: false })} />
-        {altersBar.enabled === true && (
-          <>
-            <PillRow label={tr("editSheet.placement")} value={["top", "bottom", "left", "right"].includes(altersBar.position) ? altersBar.position : "bottom"}
-              onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
+      {/* ── Quick actions bar ── */}
+      <div data-bar-section="actions">
+      <SubSection title={labels.actions} storageKey="edit-bar-actions">
+        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="actions" /></BarPart>
+        <BarPart label={tr("editSheet.partPosition")}>
+          <PillRow label={tr("editSheet.placement")} value={actionsMode}
+            onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
+            options={[
+              { v: "bar", label: tr("editSheet.placementBar") },
+              { v: "float", label: tr("editSheet.placementFloat") },
+              { v: "bubble", label: tr("editSheet.placementBubble") },
+            ]} />
+          {/* No edge pill for float/bubble — they're freely repositioned by
+              hold-and-drag, so a setting here just lied. */}
+          {actionsMode === "bar" && (
+            <PillRow label={tr("editSheet.actionsEdge")} value={v2.uiV2.tokens.actionsEdge ?? "bottom"}
+              onChange={(val) => v2.setToken("actionsEdge", val)} alignX={alignX}
+              options={[{ v: "bottom", label: tr("editSheet.bottom") }, { v: "top", label: tr("editSheet.top") }]} />
+          )}
+          {actionsMode === "bar" && (
+            <PillRow label={tr("editSheet.actionsAttach")} value={v2.uiV2.tokens.actionsAttach ?? "float"}
+              onChange={(val) => v2.setToken("actionsAttach", val)} alignX={alignX}
+              options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
+          )}
+          {actionsMode === "bar" && (v2.uiV2.tokens.actionsEdge ?? "bottom") !== "top" && (
+            <PillRow label={tr("editSheet.barsSwap")} value={v2.uiV2.tokens.barsSwap ?? "normal"}
+              onChange={(val) => v2.setToken("barsSwap", val)} alignX={alignX} stacked
               options={[
-                { v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") },
-                { v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") },
+                { v: "normal", label: tr("editSheet.barsSwapNormal") },
+                { v: "swapped", label: tr("editSheet.barsSwapSwapped") },
               ]} />
-            {["top", "bottom", undefined].includes(altersBar.position) && (
-              <PillRow label={tr("editSheet.altersAttach")} value={altersBar.attached ? "attached" : "float"}
-                onChange={(val) => writeAltersBar({ attached: val === "attached" })} alignX={alignX}
-                options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
-            )}
-            {/* SET A (bar height, icon size, labels) + SET 5 (border,
-                radius, text size, font) — the same groups every other bar
-                gets, on the SAME pinned-bar config the gear writes. */}
-            <SetRow label={tr("editSheet.barHeight")}
-              valueLabel={pinnedCfg.barHeight > 0 ? `${pinnedCfg.barHeight}px` : tr("editSheet.fitIcons")} alignX={alignX}>
-              <input type="range" min={0} max={200} step={4} value={pinnedCfg.barHeight || 0}
-                onChange={(e) => writePinnedCfg({ barHeight: parseInt(e.target.value, 10) })}
-                className="w-full" aria-label={tr("editSheet.barHeight")} />
-            </SetRow>
-            <SetRow label={tr("editSheet.iconSize")} valueLabel={`${pinnedCfg.chipSize ?? 48}px`} alignX={alignX}>
-              <input type="range" min={14} max={88} step={2} value={pinnedCfg.chipSize ?? 48}
-                onChange={(e) => writePinnedCfg({ chipSize: parseInt(e.target.value, 10) })}
-                className="w-full" aria-label={tr("editSheet.iconSize")} />
-            </SetRow>
-            <BarLookRows v2={v2} barId="alters" alignX={alignX} />
-            {/* The full pinned config (pins, order, display, shapes, front
-                levels…) — THE panel, same one the bar's own gear opens.
-                Labels moved in there ("Name shown"). */}
-            <div className="pt-2 border-t border-border/30">
-              <PinnedAltersConfigPanel />
+          )}
+          {actionsMode === "bar" && (
+            <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
+              onChange={(val) => v2.setToken("handleSides", val)} alignX={alignX} stacked
+              options={[
+                { v: "alters-left", label: tr("editSheet.handleAltersLeft", { alters: terms.alters }) },
+                { v: "alters-right", label: tr("editSheet.handleAltersRight", { alters: terms.alters }) },
+              ]} />
+          )}
+        </BarPart>
+        <BarPart label={tr("editSheet.partSize")}>
+          {tokenRow("cmdSize", "editSheet.buttonSize")}
+        </BarPart>
+        <BarPart label={tr("editSheet.partLook")}>
+          <BarLookRows v2={v2} barId="actions" alignX={alignX} />
+        </BarPart>
+        <BarPart label={tr("editSheet.partContent")}>
+          {V2_COMMAND_KEYS.map((k) => {
+            const on = v2.uiV2.commandKeys.includes(k.id);
+            const idx = v2.uiV2.commandKeys.indexOf(k.id);
+            const move = (dir) => {
+              const next = [...v2.uiV2.commandKeys];
+              const to = idx + dir;
+              if (to < 0 || to >= next.length) return;
+              [next[idx], next[to]] = [next[to], next[idx]];
+              v2.setCommandKeys(next);
+            };
+            return (
+              <div key={k.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
+                <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
+                  <input type="checkbox" checked={on}
+                    onChange={(e) => v2.setCommandKeys(e.target.checked
+                      ? [...v2.uiV2.commandKeys, k.id]
+                      : v2.uiV2.commandKeys.filter((x) => x !== k.id))}
+                    className="w-3.5 h-3.5 rounded accent-primary" aria-label={applyTerms(k.label, terms)} />
+                  <span className="truncate">{applyTerms(k.label, terms)}</span>
+                </label>
+                {on && (
+                  <span className="flex gap-1 flex-shrink-0">
+                    <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
+                      aria-label={`${applyTerms(k.label, terms)} ↑`}
+                      className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
+                      aria-label={`${applyTerms(k.label, terms)} ↓`}
+                      className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          <PillRow label={tr("editSheet.activeBubble")} value={v2.uiV2.tokens.activeBubble ?? "off"}
+            onChange={(val) => v2.setToken("activeBubble", val)} alignX={alignX} stacked
+            options={[
+              { v: "off", label: tr("editSheet.activeOff") },
+              { v: "when-active", label: tr("editSheet.activeWhen") },
+              { v: "always", label: tr("editSheet.activeAlways") },
+            ]} />
+          {(v2.uiV2.tokens.activeBubble ?? "off") !== "off" && (
+            <div className="pl-2 border-l border-border/30">
+              <BarLookRows v2={v2} barId="active" alignX={alignX} />
             </div>
-          </>
-        )}
-      </div>
+          )}
+        </BarPart>
       </SubSection>
+      </div>
+
+      {/* ── Pinned alters bar ── */}
+      <div data-bar-section="alters">
+      <SubSection title={labels.alters} storageKey="edit-bar-alters">
+        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="alters" /></BarPart>
+        <BarPart label={tr("editSheet.partPosition")}>
+          <PillRow label={tr("editSheet.placement")} value={pinnedPlace} stacked
+            onChange={(val) => writePinnedBar(val === "bubble"
+              ? { mode: "bubble", collapsed: false }
+              : { mode: "bar", position: val, collapsed: false })} alignX={alignX}
+            options={[
+              { v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") },
+              { v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") },
+              { v: "bubble", label: tr("editSheet.placementBubble") },
+            ]} />
+          {(pinnedPlace === "top" || pinnedPlace === "bottom") && (
+            <PillRow label={tr("editSheet.altersAttach")} value={pinnedBar.attached ? "attached" : "float"}
+              onChange={(val) => writePinnedBar({ attached: val === "attached" })} alignX={alignX}
+              options={[{ v: "float", label: tr("editSheet.attachFloat") }, { v: "attached", label: tr("editSheet.attachBar") }]} />
+          )}
+        </BarPart>
+        <BarPart label={tr("editSheet.partSize")}>
+          <SetRow label={tr("editSheet.barHeight")}
+            valueLabel={pinnedCfg.barHeight > 0 ? `${pinnedCfg.barHeight}px` : tr("editSheet.fitIcons")} alignX={alignX}>
+            <input type="range" min={0} max={200} step={4} value={pinnedCfg.barHeight || 0}
+              onChange={(e) => writePinnedCfg({ barHeight: parseInt(e.target.value, 10) })}
+              className="w-full" aria-label={tr("editSheet.barHeight")} />
+          </SetRow>
+          <SetRow label={tr("editSheet.iconSize")} valueLabel={`${pinnedCfg.chipSize ?? 48}px`} alignX={alignX}>
+            <input type="range" min={14} max={88} step={2} value={pinnedCfg.chipSize ?? 48}
+              onChange={(e) => writePinnedCfg({ chipSize: parseInt(e.target.value, 10) })}
+              className="w-full" aria-label={tr("editSheet.iconSize")} />
+          </SetRow>
+          {pinnedCfg.barHeight > 0 && (
+            <PillRow label={tr("editSheet.iconsSit")} value={pinnedLook.valign || "center"}
+              onChange={(val) => writePinnedLook({ valign: val === "center" ? undefined : val })} alignX={alignX}
+              options={[
+                { v: "top", label: tr("editSheet.top") },
+                { v: "center", label: tr("editSheet.middle") },
+                { v: "bottom", label: tr("editSheet.bottom") },
+              ]} />
+          )}
+        </BarPart>
+        <BarPart label={tr("editSheet.partLook")}>
+          <BarLookRows v2={v2} barId="alters" alignX={alignX}
+            look={pinnedLook} write={writePinnedLook}
+            onReset={() => writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }))} />
+        </BarPart>
+        {/* Pins, order, names, fronting emphasis, front levels — the same
+            panel the Alters page uses for its pinned row. */}
+        <BarPart label={tr("editSheet.partContent")}>
+          <PinnedAltersConfigPanel />
+        </BarPart>
+      </SubSection>
+      </div>
+
+      {/* ── Side rail (new UI, wide screens) ── */}
+      {v2Chrome && (
+        <div data-bar-section="rail">
+        <SubSection title={labels.rail} storageKey="edit-bar-side">
+          <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="rail" /></BarPart>
+          <BarPart label={tr("editSheet.partPosition")}>
+            <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
+              onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
+              options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
+          </BarPart>
+          <BarPart label={tr("editSheet.partSize")}>
+            {tokenRow("railW", "editSheet.barWidth")}
+          </BarPart>
+          <BarPart label={tr("editSheet.partLook")}>
+            <BarLookRows v2={v2} barId="rail" alignX={alignX} />
+          </BarPart>
+          <BarPart label={tr("editSheet.partContent")}>
+            <PillRow label={tr("editSheet.railContent")} value={v2.uiV2.tokens.railActions ?? "labels"}
+              onChange={(val) => v2.setToken("railActions", val)} alignX={alignX}
+              options={[{ v: "labels", label: tr("editSheet.labels") }, { v: "icons", label: tr("editSheet.icons") }]} />
+          </BarPart>
+        </SubSection>
+        </div>
+      )}
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
         current={iconFor ? (v2.uiV2.icons?.[iconFor.kind]?.[iconFor.id]?.iconName || "") : ""}

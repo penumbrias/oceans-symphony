@@ -15,6 +15,7 @@ import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import { lookToStyle, mergeLook, pickLook, userStyleId, resolveUserStyles } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { boxStyle } from "@/v2/primitives";
+import { pinnedBarLook } from "@/lib/barsModel";
 
 export const ALTERS_BAR_WIDGET_ID = "__alters_bar";
 
@@ -27,10 +28,11 @@ export function altersBarLook(look = {}, settingsRow, pageStyleId = "current") {
 }
 
 export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, className = "", orientation = "horizontal", attached = false }) {
-  const look = (home && home.altersBar && home.altersBar.look) || {};
+  // ONE look (barsModel): Display options → Bars → pinned bar. `home` only
+  // supplies the board's style as the base, like every widget.
+  const look = pinnedBarLook(settingsRow);
   const valign = look.valign || "center";
   const justify = valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center";
-  const barLooks = settingsRow?.ui_v2?.barLooks?.alters || {};
   const lookStyle = lookToStyle(altersBarLook(look, settingsRow, home?.styleMode));
 
   const dragStart = useRef(null);
@@ -72,10 +74,9 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
         touchAction: orientation === "vertical" ? "pan-y" : "pan-x",
         ...lookStyle,
         ...boxStyle(),
-        ...(barLooks.borderW !== undefined ? { "--v2-border-w": `${barLooks.borderW}px` } : {}),
-        ...(barLooks.radius !== undefined ? { "--v2-radius": `${barLooks.radius}px` } : {}),
-        ...(barLooks.fontScale !== undefined ? { fontSize: `${barLooks.fontScale}%` } : {}),
-        ...(barLooks.font ? { fontFamily: barLooks.font } : {}),
+        // On a bar, "Border width" is the bar's own edge (as on every other
+        // bar), not the widget meaning of borders inside it.
+        ...(look.borderW !== undefined ? { "--v2-border-w": `${look.borderW}px` } : {}),
         // Real tokens only: this app has no --background / --border vars.
         backgroundColor: "var(--v2-widget-bg, color-mix(in srgb, var(--color-surface) 90%, transparent))",
         // Attached: square, shadowless, edge to edge — it reads as part of

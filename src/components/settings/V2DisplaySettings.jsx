@@ -17,13 +17,12 @@ import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { resolveUiV2, V2_TOKEN_DEFS, V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { resolveUiV2, V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { setAccessibilityFontSize } from "@/lib/useAccessibility";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { requestHomeAction } from "@/components/v2/V2Frame";
-import { useTerms } from "@/lib/useTerms";
-import { applyTerms } from "@/lib/dailyTaskSystem";
+import { EditBarsButton } from "@/components/v2/BarShowSwitch";
 
 const LOOK_IDS = ["accent", "density", "radius", "borderW"];
 
@@ -162,20 +161,13 @@ export function V2LayoutControls() {
   const navigate = useNavigate();
   const location = useLocation();
   const v2 = useV2Display();
-  const terms = useTerms();
   const appsIconUrl = useResolvedAvatarUrl(v2.uiV2.appsIcon || "");
   if (!v2.enabled) return null;
 
-  const sizeDefs = V2_TOKEN_DEFS.filter((d) => !LOOK_IDS.includes(d.id));
-  // No "top" entry: the top bar carries the recovery paths (apps button,
-  // page menu) and can't be switched off — arrange it instead (edit popup
-  // → Bar sizes & layout → Top bar). Same rule as UiEditSheet.
-  const BAR_TOGGLES = [
-    { id: "actions", label: t("options.quickActionRow") },
-    { id: "tabs", label: t("options.sectionTabs") },
-    { id: "wave", label: t("options.waveHeader") },
-    { id: "rail", label: t("options.sideRail") },
-  ];
+  // Bars are edited in ONE place — Display options → Bars (barsModel's
+  // openBarsEditor). This page only links there; the sizes left here are
+  // the page's own.
+  const sizeDefs = V2_TOKEN_DEFS.filter((d) => !LOOK_IDS.includes(d.id) && d.group !== "bars");
 
   return (
     <div className="space-y-2">
@@ -184,58 +176,7 @@ export function V2LayoutControls() {
         className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl border border-primary/50 text-primary text-sm font-medium">
         <Pencil className="w-4 h-4" /> {t("options.editHome")}
       </button>
-
-      <SubSection title={t("options.showHide")}>
-        <div className="space-y-1">
-          {BAR_TOGGLES.map((b) => (
-            <label key={b.id} className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
-              <span>{b.label}</span>
-              <input type="checkbox" checked={v2.uiV2.bars[b.id]} onChange={(e) => v2.setBar(b.id, e.target.checked)}
-                className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
-            </label>
-          ))}
-        </div>
-      </SubSection>
-
-      {/* Which keys the quick-actions row holds, and in what order. */}
-      <SubSection title={t("options.sectionQuickActions")}>
-        <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.quickActionsHint")}</p>
-        <div className="space-y-1">
-          {V2_COMMAND_KEYS.map((k) => {
-            const on = v2.uiV2.commandKeys.includes(k.id);
-            const idx = v2.uiV2.commandKeys.indexOf(k.id);
-            const move = (dir) => {
-              const next = [...v2.uiV2.commandKeys];
-              const to = idx + dir;
-              if (to < 0 || to >= next.length) return;
-              [next[idx], next[to]] = [next[to], next[idx]];
-              v2.setCommandKeys(next);
-            };
-            return (
-              <div key={k.id} className="flex items-center gap-2 py-1">
-                <label className="flex items-center gap-2 flex-1 min-w-0 text-xs font-medium cursor-pointer">
-                  <input type="checkbox" checked={on}
-                    onChange={(e) => v2.setCommandKeys(e.target.checked
-                      ? [...v2.uiV2.commandKeys, k.id]
-                      : v2.uiV2.commandKeys.filter((x) => x !== k.id))}
-                    className="w-4 h-4 rounded accent-primary" aria-label={applyTerms(k.label, terms)} />
-                  <span className="truncate">{applyTerms(k.label, terms)}</span>
-                </label>
-                {on && (
-                  <span className="flex gap-1 flex-shrink-0">
-                    <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
-                      aria-label={`Move ${applyTerms(k.label, terms)} earlier`}
-                      className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
-                    <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
-                      aria-label={`Move ${applyTerms(k.label, terms)} later`}
-                      className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </SubSection>
+      <EditBarsButton label={t("editSheet.editBars")} />
 
       <SubSection title={t("options.sectionSizes")}>
         <div className="space-y-1">

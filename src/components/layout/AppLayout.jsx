@@ -45,7 +45,8 @@ import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
 import { applyHomePresetToBoard } from "@/lib/homePresetParts";
-import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock } from "@/components/v2/V2Frame";
+import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
+import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
@@ -324,10 +325,7 @@ const uiV2On = UI_V2_ENABLED && uiV2.enabled;
 // pinned alters bar are default-on; the v2 top bar replaces the classic
 // header only when chosen. Wait for settings to load (settings0 defined)
 // so the bars never flash in before a user's saved "off" arrives.
-const classicAltersOn = (() => {
-  const home = settings0?.ui_v2_home;
-  return home?.altersBar?.enabled === true;
-})();
+const classicAltersOn = readPinnedBar(settings0).enabled;
 const classicBars = !uiV2On && UI_V2_ENABLED && settings0 ? uiV2.classicBars : null;
 // Desktop width with "Show on wide screens" on: the classic layout hosts
 // the phone's bars beside its sidebar instead of hiding them. Per device —
@@ -747,6 +745,7 @@ const handleNotifClick = (mentionLog) => {
           each navigation (SPA route changes are otherwise silent). */}
       <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
 
+      {UI_V2_ENABLED && <DisplayOptionsHost />}
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
       {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
           headers (hidden via [data-classic-v2-top] in index.css). */}

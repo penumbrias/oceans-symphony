@@ -60,6 +60,7 @@ import { EdgeDock } from "@/components/v2/EdgeDock";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
 import { IconSlot } from "@/components/shared/LucideByName";
+import { readPinnedBar, pinnedBarPatch, openBarsEditor } from "@/lib/barsModel";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -163,7 +164,7 @@ function useClock() {
 // ── Display options ────────────────────────────────────────────────
 export const DOCK_KEY = "symphony_display_options_dock";
 
-function OptionsSheet({ open, onClose, uiV2 }) {
+function OptionsSheet({ open, onClose }) {
   const t = useT();
   const navigate = useNavigate();
   // Dock the sheet top or bottom — a bottom sheet can sit exactly over
@@ -233,6 +234,23 @@ function OptionsSheet({ open, onClose, uiV2 }) {
       </DrawerContent>
     </Drawer>
   );
+}
+
+// ONE Display options sheet for the whole app, mounted once by AppLayout
+// under either chrome. Anything opens it with the "os-open-display-options"
+// event — the top bar's button, and every bar's gear via openBarsEditor
+// (lib/barsModel.js), which unfolds that bar's section first.
+export function DisplayOptionsHost() {
+  const [open, setOpen] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => {
+    const on = () => { setNonce((n) => n + 1); setOpen(true); };
+    window.addEventListener("os-open-display-options", on);
+    return () => window.removeEventListener("os-open-display-options", on);
+  }, []);
+  // Keyed so a request while it's already open re-reads which bar section
+  // to unfold.
+  return <OptionsSheet key={nonce} open={open} onClose={() => setOpen(false)} />;
 }
 
 // ── Quick note ─────────────────────────────────────────────────────
@@ -350,7 +368,6 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
     if (uiV2.appsView === "sidebar") { setSidebarOpen(true); return; }
     requestHomeAction(navigate, location.pathname, "open-apps");
   });
-  const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -374,19 +391,16 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
       : `${formatAlter(fronters[0].alter)} +${fronters.length - 1}`;
   const hasUnread = mentionLogs.some((m) => m.is_active !== false && !m.seen && !m.read);
 
-  const options = (
-    <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} />
-  );
+  const openOptions = () => window.dispatchEvent(new CustomEvent("os-open-display-options"));
 
   if (!uiV2.bars.top) {
     return (
       <>
-        <button type="button" aria-label={t("top.displayOptions")} onClick={() => setOptionsOpen(true)}
+        <button type="button" aria-label={t("top.displayOptions")} onClick={openOptions}
           className="fixed z-50 flex items-center justify-center text-muted-foreground/70 hover:text-foreground backdrop-blur rounded-full"
           style={{ background: "var(--color-bg)", top: "calc(env(safe-area-inset-top, 0px) + 6px)", right: "6px", width: 28, height: 28 }}>
           <SlidersHorizontal className="w-3.5 h-3.5" />
         </button>
-        {options}
       </>
     );
   }
@@ -510,7 +524,7 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
             // not two lookalikes. Elsewhere, the plain popup sheet.
             openDisplayOptions: () => (location.pathname === "/"
               ? requestHomeAction(navigate, location.pathname, "home-settings")
-              : setOptionsOpen(true)),
+              : openOptions()),
             openWhatsNew: () => setWhatsNewOpen(true),
             openSetupGuide: () => {
               if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-setup-guide"));
@@ -519,7 +533,6 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
           }}
         />
       </div>
-      {options}
       <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* What's new, as a popup — the SAME panel the classic dashboard bar
           shows (entries, older releases, bug report, the links), not a
@@ -924,8 +937,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
     ? <TabButtons items={tabItems} uiV2={uiV2} isActive={isActiveTab} navigate={navigate} t={t} />
     : <QaKeys keys={keys} uiV2={uiV2} terms={terms} t={t} navigate={navigate}
         onNote={() => setNoteOpen(true)} onActive={() => setActiveOpen((v) => !v)} />;
-  const homeField = "ui_v2_home";
-  const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
+  const altersBarCfg = readPinnedBar(settingsRow);
   const altersInNav = altersBarCfg.enabled === true;
   // The alters half of the split handle lives ONLY on the edge the alters
   // bar is actually on (the user's rule) — a top strip must not carry a
@@ -934,7 +946,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
   // briefly retired, which left a collapsed bar with no swipe-open). It
   // lives ONLY on the edge the alters bar is actually on, and only while
   // the bar is enabled — Display options still owns enabling it at all.
-  const altersEdge = ["top", "bottom"].includes(altersBarCfg.position) ? altersBarCfg.position : "bottom";
+  const altersEdge = altersBarCfg.position === "top" ? "top" : "bottom";
   const withAltersHalf = altersInNav && altersBarCfg.mode !== "bubble" && altersEdge === edge;
   // Top edge: "open" is a swipe DOWN; the chevrons flip to match.
   const dir = edge === "top" ? -1 : 1;
@@ -1170,8 +1182,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
 // swipe-or-tap grammar and the same toggle events as the split handle, so
 // "swipe up on the bottom bar" works in every configuration (owner ask).
 function AltersFoldHandle({ uiV2, settingsRow, terms }) {
-  const homeField = "ui_v2_home";
-  const cfg = settingsRow?.[homeField]?.altersBar || {};
+  const cfg = readPinnedBar(settingsRow);
   const dragY = useRef(null);
   const open = !cfg.collapsed;
   return (
@@ -1262,7 +1273,6 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
   // Preview means "show me the bars" — a collapsed bar still previews.
   const previewLift = homeEdit.editing && homeEdit.preview;
   const navigate = useNavigate();
-  const location = useLocation();
   const qc = useQueryClient();
   const t = useT();
   const isActive = useIsActive();
@@ -1290,22 +1300,16 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
   // bar is off (the user's spec: it should copy the QUICK ACTIONS bar's
   // display, not float like the support bubble). Config lives on the
   // device's home board, same field the board itself reads.
-  const homeField = "ui_v2_home";
-  const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
+  const altersBarCfg = readPinnedBar(settingsRow);
   // Hosted here on EVERY page whenever it's switched on (v0.189.1 — the
   // user's spec: it works like the quick-actions bar). It used to live on
   // the home board only, with the chrome hosting it just when the
   // quick-actions bar was off.
   const altersInNav = altersBarCfg.enabled === true;
-  const altersPos = ["top", "bottom", "left", "right"].includes(altersBarCfg.position) ? altersBarCfg.position : "bottom";
+  const altersPos = altersBarCfg.position;
   const setNavAlters = async (collapsed) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, {
-      [homeField]: {
-        ...(settingsRow[homeField] || {}),
-        altersBar: { ...altersBarCfg, enabled: true, collapsed },
-      },
-    });
+    await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { enabled: true, collapsed }));
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
   const toggleNavAlters = () => setNavAlters(!altersBarCfg.collapsed);
@@ -1323,7 +1327,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
     };
     window.addEventListener("os-v2-toggle-alters-bar", onToggle);
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
-  }, [navHostsAlters, settingsRow?.id, altersBarCfg.enabled, altersBarCfg.collapsed, homeField]);
+  }, [navHostsAlters, settingsRow?.id, altersBarCfg.enabled, altersBarCfg.collapsed]);
 
   // Publish the bar's REAL height so everything that has to clear it —
   // page content, the sidebar, sheets, the floating buttons — reserves the
@@ -1382,17 +1386,15 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         chrome's published height so it clears the tab strip and the
         quick-action drawer whatever their size. */}
     {altersInNav && altersBarCfg.mode === "bubble" && (
-      <AltersBarBubble settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+      <AltersBarBubble settingsRow={settingsRow} home={settingsRow?.ui_v2_home || {}}
         open={!altersBarCfg.collapsed}
         onToggle={(on) => setNavAlters(!on)}
         onSavePos={async (bubble) => {
           if (!settingsRow?.id) return;
-          await base44.entities.SystemSettings.update(settingsRow.id, {
-            [homeField]: { ...(settingsRow[homeField] || {}), altersBar: { ...altersBarCfg, bubble } },
-          });
+          await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { bubble }));
           qc.invalidateQueries({ queryKey: ["systemSettings"] });
         }}
-        onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+        onGear={() => openBarsEditor("alters")} />
     )}
     {!barsHidden && altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "bottom" || altersPos === "top") && (
       <div
@@ -1471,10 +1473,10 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
                   {/* The SAME card the home board draws — look, SET 5,
                       swipe-to-hide, options gear. The gear opens the
                       board's bar options (navigating home first if needed). */}
-                  <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+                  <AltersBarCard settingsRow={settingsRow} home={settingsRow?.ui_v2_home || {}}
                     attached={!!altersBarCfg.attached}
                     onCollapse={() => setNavAlters(true)}
-                    onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+                    onGear={() => openBarsEditor("alters")} />
                 </div>
               </motion.div>
             )}
@@ -1495,10 +1497,10 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
         {(!altersBarCfg.collapsed || previewLift) && (
           <div className="pointer-events-auto">
-            <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+            <AltersBarCard settingsRow={settingsRow} home={settingsRow?.ui_v2_home || {}}
               orientation="vertical"
               onCollapse={() => setNavAlters(true)}
-              onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+              onGear={() => openBarsEditor("alters")} />
           </div>
         )}
       </div>
@@ -1546,9 +1548,8 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         // No strip (quick actions bubble/floating/off) — the alters bar
         // still gets its fold handle on the bottom bar, so swipe-up works
         // in every configuration (owner ask).
-        const abCfg = settingsRow?.ui_v2_home?.altersBar || {};
-        const wantsHandle = abCfg.enabled === true && abCfg.mode !== "bubble"
-          && (!["top", "left", "right"].includes(abCfg.position));
+        const abCfg = readPinnedBar(settingsRow);
+        const wantsHandle = abCfg.enabled === true && abCfg.mode !== "bubble" && abCfg.position === "bottom";
         return wantsHandle
           ? <AltersFoldHandle uiV2={uiV2} settingsRow={settingsRow} terms={terms} />
           : null;

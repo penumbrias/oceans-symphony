@@ -63,6 +63,7 @@ import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AltersBarCard from "@/components/v2/AltersBarCard";
+import { readPinnedBar, pinnedBarPatch, pinnedBarLook, openBarsEditor } from "@/lib/barsModel";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -117,33 +118,6 @@ export function widgetLookFor(settings = {}, userStyles = [], pageStyleId = "cur
 }
 
 const TRASH_ID = "__widget_trash";
-const BAR_CONFIG_ID = "__alters_bar";
-// Minimal registry-shaped def so WidgetConfigSheet can render the bar's
-// options without knowing it isn't a widget.
-const BAR_DEF = {
-  // {{term}} placeholders — WidgetConfigSheet resolves them via widgetLabel().
-  label: "Pinned {{alters}} bar",
-  description: "The persistent strip of pinned {{alters}}.",
-  supportsModes: ["normal"],
-  configFields: [
-    // Where it lives: the floating bar above the bottom chrome, or a
-    // bubble you can drag to any edge (a column on the sides).
-    { key: "mode", type: "select", label: "Placement", default: "bar",
-      options: [{ value: "bar", label: "Floating bar" }, { value: "bubble", label: "Bubble (drag to any edge)" }] },
-    // WHAT the bar shows: pins / order / labels / fronting emphasis /
-    // per-alter bar avatars / front levels — the inline panel.
-    { key: "pinned", type: "pinnedAlters", label: "Pinned {{alters}}" },
-    // Size + shape belong with the look (UI & text).
-    { key: "barHeight", type: "range", section: "ui", label: "Bar height", min: 0, max: 200, step: 4, default: 0,
-      format: (v) => (v > 0 ? `${v}px` : "hug the icons") },
-    { key: "chipSize", type: "range", section: "ui", label: "Icon size", min: 14, max: 88, step: 2, default: 48 },
-  ],
-  defaultSpan: { cols: 4, rows: 1 },
-  minSpan: { cols: 1, rows: 1 },
-  maxSpan: { cols: 12, rows: 4 },
-  render: () => null,
-};
-
 // Drop target that only exists while a widget is being dragged — hold a
 // widget, drag it here, let go. Nothing to mis-tap the rest of the time.
 function TrashZone({ active }) {
@@ -674,9 +648,9 @@ export default function ExperimentalDashboard({
   // null | "wallpaper" | { icon: instanceId }
   const [assetPickerFor, setAssetPickerFor] = useState(null);
   const [configId, setConfigId] = useState(null);
-  // The pinned-alters bar reuses the widget config sheet verbatim: a shim
-  // widget whose "settings" ARE its look. No second options UI to drift.
-  const configuringBar = configId === BAR_CONFIG_ID;
+  // Which bar Display options was opened for (openBarsEditor) — that bar
+  // is shown and lifted over the edit toolbar while its section is open.
+  const [barFocus, setBarFocus] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const gridRef = React.useRef(null);
@@ -687,8 +661,10 @@ export default function ExperimentalDashboard({
     const key = (a) => `symphony_${eventPrefix === "os-classic" ? "classic" : "v2"}_${a}`;
     const openApps = () => { setDrawerOpen(true); };
     const editHome = () => { setEditMode(true); };
-    const homeSettings = () => { openHomeSettings(); };
-    const barOptions = () => { openConfig(BAR_CONFIG_ID); };
+    const homeSettings = (e) => { openHomeSettings(); setBarFocus(e?.detail?.barId || null); };
+    // Older parked "bar-options" requests (a gear tapped off-home before
+    // this update) land on the one bars editor.
+    const barOptions = () => { openBarsEditor("alters"); };
     const packSheet = (e) => { openPackSheet(e?.detail?.tab); };
     window.addEventListener(`${eventPrefix}-pack-sheet`, packSheet);
     window.addEventListener(`${eventPrefix}-bar-options`, barOptions);
@@ -716,7 +692,7 @@ export default function ExperimentalDashboard({
         sessionStorage.removeItem(key("home-settings")); openHomeSettings();
       }
       if (sessionStorage.getItem(key("bar-options")) === "1") {
-        sessionStorage.removeItem(key("bar-options")); openConfig(BAR_CONFIG_ID);
+        sessionStorage.removeItem(key("bar-options")); setTimeout(() => openBarsEditor("alters"), 0);
       }
       const packTab = sessionStorage.getItem(key("pack-sheet"));
       if (packTab) {
@@ -771,24 +747,15 @@ export default function ExperimentalDashboard({
   // config sheet, Display options, the pack sheet or the widget drawer
   // closes the others — stacked half-open menus were unusable.
   const [homeSettingsNonce, setHomeSettingsNonce] = useState(0);
+  const configuringBar = homeSettingsOpen && barFocus === "alters";
   const closeEditSurfaces = () => {
-    setConfigId(null); setHomeSettingsOpen(false); setPackSheetOpen(false);
+    setConfigId(null); setHomeSettingsOpen(false); setPackSheetOpen(false); setBarFocus(null);
     setDrawerOpen(false); setSaveMenuOpen(false); setExitMenuOpen(false);
   };
   const openConfig = (id) => { closeEditSurfaces(); setConfigId(id); };
   const openHomeSettings = () => { closeEditSurfaces(); setHomeSettingsNonce((n) => n + 1); setHomeSettingsOpen(true); };
   const openPackSheet = (tab = "export") => { closeEditSurfaces(); setPackSheetTab(tab === "import" ? "import" : "export"); setPackSheetOpen(true); };
   const openWidgetDrawer = (tab = null) => { closeEditSurfaces(); setDrawerTabRequest(tab); setDrawerOpen(true); };
-  // Open Display options directly on Bars → Quick actions (the edit bar's
-  // chip): SubSection reads its open state from sessionStorage on mount.
-  const openQuickActionsOptions = () => {
-    try {
-      const set = (k, v) => sessionStorage.setItem(`os_sub_${k}`, v);
-      set("edit-bars", "1"); set("edit-bar-actions", "1");
-      for (const k of ["edit-size", "edit-colors", "edit-presets", "edit-bar-top", "edit-bar-bottom", "edit-bar-side", "edit-bar-alters"]) set(k, "0");
-    } catch { /* storage off */ }
-    openHomeSettings();
-  };
   // Publish the edit bar's height so the chrome can lift previewed bars
   // (and open sheets can pad) clear of it. 0/absent outside edit mode.
   const editBarRef = React.useRef(null);
@@ -1273,15 +1240,20 @@ export default function ExperimentalDashboard({
   // Enabled = shown. It used to also require pinned alters, which made
   // the popup's Show toggle appear broken on a system with none pinned —
   // the gallery's own empty state explains what to do instead.
-  const altersBarOn = home.altersBar.enabled === true;
-  const altersCollapsed = home.altersBar.collapsed === true;
-  // The options sheet offers Alignment for the bar too; it was writing a
-  // value nothing read, so the strip always sat at the top of a tall bar.
-  const altersValign = home.altersBar.look?.valign || "center";
-  const toggleAltersCollapsed = () => persist({
-    ...home,
-    altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
-  });
+  // The pinned bar is this device's chrome, not the board's (barsModel) —
+  // the board only reads it and draws its own copy when there's no chrome.
+  const pinnedBar = readPinnedBar(settingsRow);
+  const writePinnedBar = useCallback(async (patch) => {
+    if (!settingsRow?.id) return;
+    try {
+      await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, patch));
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) { toast.error(e?.message || "Couldn't save"); }
+  }, [settingsRow, qc]);
+  const altersBarOn = pinnedBar.enabled;
+  const altersCollapsed = pinnedBar.collapsed;
+  const altersValign = pinnedBarLook(settingsRow).valign || "center";
+  const toggleAltersCollapsed = () => writePinnedBar({ collapsed: !altersCollapsed });
   // The bottom chrome (V2Frame) hosts the bar on EVERY page whenever it
   // renders at all — the user's spec: it behaves like the quick-actions
   // bar. The board only draws its own copy when there is no chrome.
@@ -1295,20 +1267,20 @@ export default function ExperimentalDashboard({
       const want = e?.detail?.open;
       const collapsed = want === true ? false
         : want === false ? true
-        : (home.altersBar.enabled ? !home.altersBar.collapsed : false);
-      persist({ ...home, altersBar: { ...home.altersBar, enabled: true, collapsed } });
+        : (pinnedBar.enabled ? !pinnedBar.collapsed : false);
+      writePinnedBar({ enabled: true, collapsed });
     };
     // When the bottom chrome hosts the bar it also answers this event
     // (on every page) — don't double-toggle from here.
     if (altersHostedInNav) return undefined;
     window.addEventListener("os-v2-toggle-alters-bar", onToggle);
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
-  }, [home, persist, altersHostedInNav]);
-  const altersTop = altersBarOn && home.altersBar.position === "top";
+  }, [pinnedBar.enabled, pinnedBar.collapsed, writePinnedBar, altersHostedInNav]);
+  const altersTop = altersBarOn && pinnedBar.position === "top";
   // With the quick-action bar OFF, the pinned bar moves INTO the bottom
   // chrome (V2BottomChrome renders it there — the user's spec), so the
   // board must not also draw its own floating copy.
-  const altersBottom = altersBarOn && home.altersBar.position === "bottom" && !altersHostedInNav;
+  const altersBottom = altersBarOn && pinnedBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
   const flowView = viewFlow && freeMode && !editMode;
@@ -1829,7 +1801,7 @@ export default function ExperimentalDashboard({
                 className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-              <PinnedAltersGallery showHeader={false} showGear onGear={() => openConfig(BAR_CONFIG_ID)} valign={altersValign} />
+              <PinnedAltersGallery showHeader={false} showGear onGear={() => openBarsEditor("alters")} valign={altersValign} />
             </div>
           )}
         </div>
@@ -2109,8 +2081,8 @@ export default function ExperimentalDashboard({
               // scrolled, because the strip never overflowed its own box.
               className="pointer-events-auto w-full min-w-0">
             <AltersBarCard settingsRow={settingsRow} home={home} className="mx-3"
-              onCollapse={() => persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } })}
-              onGear={() => openConfig(BAR_CONFIG_ID)} />
+              onCollapse={() => writePinnedBar({ collapsed: true })}
+              onGear={() => openBarsEditor("alters")} />
             </motion.div>
           )}
           </AnimatePresence>
@@ -2212,73 +2184,26 @@ export default function ExperimentalDashboard({
 
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
-        onRemove={(id) => {
-          if (id === BAR_CONFIG_ID) persist({ ...home, altersBar: { ...home.altersBar, enabled: false } });
-          else handleRemove(id);
-          setConfigId(null);
-        }}
+        onRemove={(id) => { handleRemove(id); setConfigId(null); }}
         userStyles={userStyles}
         resolvedLook={widgetLookFor(
-          configuringBar ? (home.altersBar.look || {}) : (widgets.find((w) => w.instanceId === configId)?.settings || {}),
+          widgets.find((w) => w.instanceId === configId)?.settings || {},
           userStyles, home.styleMode
         )}
         onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
         onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         api={widgetApi}
-        widget={configuringBar
-          ? { instanceId: BAR_CONFIG_ID, widgetId: BAR_CONFIG_ID, mode: "normal", span: { cols: 4, rows: 1 },
-              settings: { ...(home.altersBar.look || {}),
-                mode: home.altersBar.mode || "bar",
-                barHeight: settingsRow?.pinned_alters_config?.barHeight ?? 0,
-                chipSize: settingsRow?.pinned_alters_config?.chipSize ?? 48 } }
-          : (widgets.find((w) => w.instanceId === configId) || null)}
-        def={configuringBar ? BAR_DEF : registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
+        widget={widgets.find((w) => w.instanceId === configId) || null}
+        def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}
         onClose={() => setConfigId(null)}
         onMode={handleMode}
-        onSettings={(id, patch) => {
-          if (id !== BAR_CONFIG_ID) return handleSettings(id, patch);
-          // barHeight/chipSize live with the pins (shared with classic), the
-          // rest is the bar's look.
-          const { barHeight, chipSize, mode, ...look } = patch;
-          if (mode !== undefined) {
-            persist({ ...home, altersBar: { ...home.altersBar, mode, collapsed: false } });
-          }
-          if (barHeight !== undefined || chipSize !== undefined) {
-            const cfg = settingsRow?.pinned_alters_config || {};
-            const next = { ...cfg };
-            if (barHeight !== undefined) next.barHeight = barHeight;
-            if (chipSize !== undefined) next.chipSize = chipSize;
-            if (settingsRow?.id) {
-              base44.entities.SystemSettings.update(settingsRow.id, { pinned_alters_config: next })
-                .then(() => qc.invalidateQueries({ queryKey: ["systemSettings"] }))
-                .catch(() => {});
-            }
-          }
-          if (Object.keys(look).length) {
-            persist({ ...home, altersBar: { ...home.altersBar, look: { ...(home.altersBar.look || {}), ...look } } });
-          }
-        }}
-        onResetWidget={(id) => (id === BAR_CONFIG_ID
-          ? persist({ ...home, altersBar: { ...home.altersBar, look: {} } })
-          : handleResetWidget(id))}
+        onSettings={handleSettings}
+        onResetWidget={handleResetWidget}
         // The sheet's close guard: "Undo my changes" puts the widget back
         // exactly how it was when the sheet opened.
         onRestoreSnapshot={(id, snap) => {
-          if (id === BAR_CONFIG_ID) {
-            // The bar's sheet settings are synthetic: look + mode +
-            // barHeight/chipSize (which live with the pinned config).
-            const { barHeight, chipSize, mode: barMode, ...look } = snap.settings || {};
-            persist({ ...home, altersBar: { ...home.altersBar, mode: barMode || home.altersBar.mode, look } });
-            if (settingsRow?.id) {
-              const cfg = settingsRow?.pinned_alters_config || {};
-              base44.entities.SystemSettings.update(settingsRow.id, {
-                pinned_alters_config: { ...cfg, barHeight, chipSize },
-              }).then(() => qc.invalidateQueries({ queryKey: ["systemSettings"] })).catch(() => {});
-            }
-            return;
-          }
           updatePageWidgets((ws) => ws.map((w) => (
             w.instanceId === id ? { ...w, mode: snap.mode, settings: snap.settings || {} } : w
           )));
@@ -2410,12 +2335,12 @@ export default function ExperimentalDashboard({
               {barsPreview ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
             </button>
             <button type="button" aria-label="Quick actions bar options" title="Quick actions bar options"
-              onClick={openQuickActionsOptions}
+              onClick={() => openBarsEditor("actions")}
               className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
               <Settings2 className="w-3.5 h-3.5" /> Quick actions
             </button>
             <button type="button" aria-label="Pinned bar options" title="Pinned bar options"
-              onClick={() => openConfig(BAR_CONFIG_ID)}
+              onClick={() => openBarsEditor("alters")}
               className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
               <Settings2 className="w-3.5 h-3.5" /> Pinned bar
             </button>

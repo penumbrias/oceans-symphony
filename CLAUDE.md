@@ -1042,6 +1042,7 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **Always create, never update, immutable log entries** (StatusNote, Location, EmotionCheckIn outside the explicit edit flow, JournalEntry outside the edit modal). When in doubt, create — the user-data invariant is "never silently lose / overwrite".
 - **New entity → backup wiring in the same commit.** Add to `ENTITY_NAMES` AND `EXPORT_CATEGORIES` in `DataBackupRestore.jsx`. If it's device-bound, document the exclusion instead.
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
+- **Bars have ONE editor — Display options → Bars (v0.250.0).** Never add a bar setting, toggle or gear anywhere else. Read/write every bar's show/hide, placement and look through `src/lib/barsModel.js` (`barShown`/`barShownPatch` know which flag the chrome on screen obeys; `readPinnedBar`/`pinnedBarPatch`/`pinnedBarLook`/`pinnedBarLookPatch` own the pinned bar), and open the editor with `openBarsEditor(barId)`. Bars are device chrome and live in `ui_v2` (never synced); the pinned bar's old `ui_v2_home.altersBar` is read until the first change copies it across and is never deleted. Show/hide switches are `BarShowSwitch` — the setup guide renders the same component. Tests: `node scripts/test-bars-model.mjs`.
 
 ### UI v2 — follow the standards doc
 

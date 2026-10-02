@@ -4,9 +4,9 @@ The ONE sheet shell used by all three live-adjust surfaces:
 
 | Sheet | Component | Opens from |
 |---|---|---|
-| Display options | `V2Frame.jsx` → `OptionsSheet` (body = `UiEditSheet`) | Top bar → page menu → Display options (any page except `/`) |
-| Home screen settings | `ExperimentalDashboard.jsx` home-settings drawer (board pills + `UiEditSheet` body) | On `/`: the same menu entry, the board cog, `os-v2-home-settings` |
-| Widget options | `WidgetConfigSheet.jsx` | A widget's Configure button; the pinned-bar gear (any page → routes home with `bar-options`) |
+| Display options | `V2Frame.jsx` → `DisplayOptionsHost` → `OptionsSheet` (body = `UiEditSheet`), mounted ONCE by AppLayout under either chrome; opened by the `os-open-display-options` event | Top bar → page menu → Display options (any page except `/`); every bar gear / "Edit bars…" via `openBarsEditor` while no board is being edited |
+| Home screen settings | `ExperimentalDashboard.jsx` home-settings drawer (board pills + `UiEditSheet` body) | On `/`: the same menu entry, the board cog, `os-v2-home-settings`; `openBarsEditor` while that board is in edit mode (its "Quick actions" / "Pinned bar" chips) |
+| Widget options | `WidgetConfigSheet.jsx` | A widget's Configure button. (Bars never open it — they are edited in Display options → Bars.) |
 
 **Same surface, one route rule:** "Display options" on the home page IS the
 Home-screen-settings drawer (`requestHomeAction(…, "home-settings")`) — the

@@ -125,7 +125,7 @@ export const AUTO_TRIGGER_LABELS = {
   system_change_event_logged: "{{System}} change event logged (fusion/split/etc.)",
   mention_acknowledged: "@mention acknowledged",
   friend_added: "Friend added",
-  quick_action_used: "Quick action used",
+  quick_action_used: "Shortcut used",
   theme_changed: "Theme color changed",
   terms_customized: "Custom terms edited",
   tour_completed: "Feature tour completed",

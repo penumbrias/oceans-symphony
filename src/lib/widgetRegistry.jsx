@@ -476,7 +476,7 @@ export const WIDGET_REGISTRY = {
       // The saved quick-action list behind press-and-hold on Quick
       // Check-In — the same manager Settings hosts, right where the
       // button lives.
-      { key: "_quickActions", type: "quickActionsManager", label: "Quick actions (press & hold)" },
+      { key: "_quickActions", type: "quickActionsManager", label: "Shortcuts (press & hold)" },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },

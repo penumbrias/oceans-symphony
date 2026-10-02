@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { useIsWide } from "@/lib/useIsWide";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +14,8 @@ import { newInstanceId, newPageId } from "@/lib/experimentalHome";
 import { DEFAULT_LAYOUT } from "@/lib/dashboardLayout";
 import { toast } from "sonner";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { useT } from "@/lib/i18n";
+import { BarShowList, EditBarsButton } from "@/components/v2/BarShowSwitch";
 
 // (The old drag/drop pill editor lived here — the home screen is
 // edited in place on the board canvas now.)
@@ -55,76 +55,30 @@ export function NewUiToggle() {
   );
 }
 
-// The classic-hosted v2 bars, on their own so the setup guide can offer
-// them too. Same record, same writes, one implementation. Reads/writes
-// ui_v2.classicBars (+ the board's altersBar.enabled for the pinned bar,
-// which is the same bar the widget board shows — one switch, one truth).
-export function ClassicBarsToggles() {
+// The bars under the classic chrome. The setup guide shows each bar's
+// show/hide switch — the SAME BarShowSwitch Display options → Bars uses —
+// and Settings → Appearance only links to that editor (withSwitches
+// false), so there is one place bars are changed. "Home opens on" rides
+// along because it's the other half of how the classic home is set up.
+export function ClassicBarsToggles({ withSwitches = true }) {
+  const t = useT();
+  if (!UI_V2_ENABLED) return null;
+  return (
+    <div className="space-y-2">
+      {withSwitches ? <BarShowList /> : <EditBarsButton label={t("editSheet.editBars")} />}
+      <HomeOpensOnRow />
+    </div>
+  );
+}
+
+function HomeOpensOnRow() {
   const queryClient = useQueryClient();
-  const t = useTerms();
   const { data: rows = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const record = pickPrimarySystemSettings(rows) || rows[0];
-  const cb = record?.ui_v2?.classicBars || {};
-  const topOn = cb.top === true;
-  const bottomOn = cb.bottom !== false;
-  const actionsOn = cb.actions !== false;
-  const wideOn = cb.wide === true;
-  const wide = useIsWide();
-  const homeField = "ui_v2_home";
-  const altersOn = cb.alters !== false && record?.[homeField]?.altersBar?.enabled === true;
-  const writeCb = async (patch, alsoAlters = null) => {
-    try {
-      const next = { ...(record?.ui_v2 || {}), classicBars: { ...cb, ...patch } };
-      const write = { ui_v2: next };
-      if (alsoAlters !== null) {
-        write[homeField] = {
-          ...(record?.[homeField] || {}),
-          altersBar: { ...(record?.[homeField]?.altersBar || {}), enabled: alsoAlters, collapsed: false },
-        };
-      }
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, write);
-      else await base44.entities.SystemSettings.create(write);
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
-  if (!UI_V2_ENABLED) return null;
-  const Row = ({ label, hint, checked, onChange }) => (
-    <label className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5 cursor-pointer">
-      <div className="min-w-0">
-        <span className="text-sm font-medium">{label}</span>
-        <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </label>
-  );
   return (
-    <div className="space-y-2">
-      {/* Only meaningful at desktop width, so only offered there. ui_v2 is
-          per device (never synced), so this changes this screen only. */}
-      {wide && (
-        <Row label="Show on wide screens"
-          hint={`The bottom bars below, beside the sidebar — each keeps its own display (bar, floating or bubble; the ${t.alters} bar can also be a side rail).`}
-          checked={wideOn} onChange={(v) => writeCb({ wide: !!v })} />
-      )}
-      <Row label="New top bar"
-        hint={`${t.System} name, who's ${t.fronting}, clock, search and notifications — replaces the classic header.`}
-        checked={topOn} onChange={(v) => writeCb({ top: !!v })} />
-      <Row label="New bottom bars"
-        hint="The new tab bar with the fold-out handle — swipe it up for quick actions. Replaces the classic tab bar."
-        checked={bottomOn} onChange={(v) => writeCb({ bottom: !!v })} />
-      <Row label="Quick action bar"
-        hint="The fold-out row of one-tap capture keys behind the bottom bar's handle."
-        checked={actionsOn} onChange={(v) => writeCb({ actions: !!v })} />
-      <Row label={`Pinned ${t.alters} bar`}
-        hint={`Your pinned ${t.alters} in a floating bar — tap to toggle ${t.fronting}, hold for the level rail.`}
-        checked={altersOn} onChange={(v) => writeCb({ alters: true }, !!v)} />
-      {/* The widget board is one swipe left of the classic home — this
-          decides which of the two "/" opens on. */}
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5">
         <div className="min-w-0">
           <span className="text-sm font-medium">Home opens on</span>
@@ -152,7 +106,6 @@ export function ClassicBarsToggles() {
           })}
         </div>
       </div>
-    </div>
   );
 }
 
@@ -290,8 +243,7 @@ export default function DashboardLayoutSettings() {
           new UI is off (v2 already carries its own bars). */}
       {UI_V2_ENABLED && !uiV2On && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">New bars in the classic look</p>
-          <ClassicBarsToggles />
+          <ClassicBarsToggles withSwitches={false} />
         </div>
       )}
 

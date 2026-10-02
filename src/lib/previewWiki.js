@@ -193,7 +193,7 @@ const bioGestures = `
   ${section("Classic dashboard — Quick Check-In button",
     `<ul style="padding-left:22px;line-height:1.6;">
       <li><strong>Tap</strong> → opens the Quick Check-In modal.</li>
-      <li><strong>Long-press</strong> (500 ms) → opens a Quick Actions hold-menu with your configured shortcuts (log a symptom, set front, mark a habit, etc.). The progress bar fills as you hold; vibrates when it pops.</li>
+      <li><strong>Long-press</strong> (500 ms) → opens the Shortcuts hold-menu with your configured shortcuts (log a symptom, set front, mark a habit, etc.). The progress bar fills as you hold; vibrates when it pops.</li>
       <li>While the hold-menu is open, scrolling inside it doesn't close it — only a tap off-menu does. Moving more than ~12 px during the press cancels the hold (so an accidental scroll doesn't trigger it).</li>
     </ul>`)}
   ${section("Planner (week canvas)",
@@ -254,7 +254,7 @@ const bioDashboard = `
     `Bulletins or tasks you long-pressed → "Pin to top of dashboard", plus any to-dos marked urgent (amber styling) or pinned. Urgent to-dos float to the top. Pinned tasks render as proper task cards with their checkbox; pinned bulletins render with full content.`)}
   ${section("Critical plans strip",
     `Activity plans flagged <em>critical</em> appear here when their lead-step window opens (e.g. 1h before, 15m before). Tap the X to dismiss until the next narrower window — they reappear as the plan gets closer. A plan disappears for good 10 minutes after its end time.`)}
-  ${section("Quick Check-In + Quick Actions hold-menu",
+  ${section("Quick Check-In + Shortcuts hold-menu",
     `Big "❤ Quick Check-In" button. Tap → full check-in modal. Long-press → hold-menu with your configurable shortcuts (Took meds / Brush teeth / Log location / start a symptom session / etc.). Configure shortcuts in Settings → Tracking & Analytics → Quick Actions.`)}
   ${section("Search everything",
     `Searches across all entities — alters, bulletins, journals, check-ins, tasks, locations. Tap a result to jump to it.`)}
@@ -366,7 +366,7 @@ const bioProfileFields = `
 const bioFronting = `
   ${intro("Wiki · Fronting", `The data model is per-alter sessions. One alter is marked <code>is_primary: true</code>, others are co-fronters.`)}
   ${section("Set Fronters modal",
-    `Tap "Set Front" on the dashboard, or open it from the Quick Actions menu. Search field, sort menu, list of every active alter. Hints at the top reminder the swipe gestures. Selected alters appear as chips above the list; the starred one is primary.`)}
+    `Tap "Set Front" on the dashboard, or open it from the Shortcuts menu. Search field, sort menu, list of every active alter. Hints at the top reminder the swipe gestures. Selected alters appear as chips above the list; the starred one is primary.`)}
   ${section("Switching",
     `Selecting a new front saves new ${kbd("FrontingSession")} rows and ends the prior ones. On save you can mark the switch as triggered, journal it, or both. "Unsure" mode ends every active session without a new front — useful for "no one's clearly out".`)}
   ${section("Co-fronters",
@@ -449,7 +449,7 @@ const bioActivities = `
 const bioQuickCheckIn = `
   ${intro("Wiki · Quick Check-In", `One modal that captures a complete moment — what you're feeling, who's fronting, what you're doing, any symptoms, a diary card, a note, your location.`)}
   ${section("Trigger",
-    `Tap the "Quick Check-In" button on the dashboard. Or long-press it for the Quick Actions hold-menu — set up shortcuts (Took meds, log a symptom severity, set front) and trigger them without ever opening the full modal.`)}
+    `Tap the "Quick Check-In" button on the dashboard. Or long-press it for the Shortcuts hold-menu — set up shortcuts (Took meds, log a symptom severity, set front) and trigger them without ever opening the full modal.`)}
   ${section("Section pills",
     `Pills along the top toggle which sections are open. None are required; you only fill in what's relevant. Sections:
       <ul style="padding-left:22px;margin:4px 0;line-height:1.55;">
@@ -563,7 +563,7 @@ const bioSettings = `
   ${section("Alters & Fields",
     `Custom field schema (text / number / boolean), Relationship type catalog (for the Lineage tab), Archived alters manager.`)}
   ${section("Tracking & Analytics",
-    `Quick Actions config (the buttons on the hold-menu), Check-In Manager, Custom Emotions, Custom Trigger Types, Analytics grouping (by alter vs by group).`)}
+    `Shortcuts (the buttons on the hold-menu), Check-In Manager, Custom Emotions, Custom Trigger Types, Analytics grouping (by alter vs by group).`)}
   ${section("Reminders",
     `Timezone, push toggle, push diagnostics, pause-all kill switch, quiet hours window, default snooze options. See the Reminders wiki alter for the firing logic.`)}
   ${section("Data & Privacy",
