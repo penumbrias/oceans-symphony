@@ -1,6 +1,6 @@
 // GET /api/friends/list?userId=X&secret=Y
 // Returns { friends: [...], pending: [...] }
-import { kv, cors, timingSafeEqualStr } from '../_kv.js';
+import { kv, cors, timingSafeEqualStr, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   // is still accepted for clients that haven't updated yet.
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

@@ -172,7 +172,12 @@ function DayColumn({
       // block can be stretched across midnight. Forward only (the start
       // stays put), and the top edge remains same-day.
       const overIdx = dayIndexAt ? dayIndexAt(e.clientX) : dayIndex;
-      const offset = Math.max(0, (overIdx == null ? dayIndex : overIdx) - dayIndex);
+      // A block that already spans days is resized from its REAL end,
+      // whose piece may sit days after the start — so its bottom edge may
+      // also move BACK into earlier columns (Wed 08:34 → Tue 19:34). The
+      // clamp below keeps the end after the start either way.
+      const rawOffset = (overIdx == null ? dayIndex : overIdx) - dayIndex;
+      const offset = resizing.spans ? rawOffset : Math.max(0, rawOffset);
       const now = snap(minuteAt(e.clientY)) + (resizing.edge === "bottom" ? offset * MINUTES_PER_DAY : 0);
       setResizing((r) => (r.edge === "top"
         ? { ...r, startMin: Math.min(Math.max(0, snap(minuteAt(e.clientY))), r.endMin - 15) }
@@ -448,11 +453,16 @@ function DayColumn({
         {blocks.map((b) => {
           const isLive = live?.id === b.id;
           const isArming = !isLive && armingId === b.id;
-          const top = isLive ? live.startMin : b.startMin;
-          // A live bottom-edge drag can run past midnight (endMin > 1440);
-          // paint clips at the day edge — the label carries the real end,
-          // and on release the block re-renders with continuation pieces.
-          const bottom = isLive ? Math.min(live.endMin, MINUTES_PER_DAY) : b.endMin;
+          // A live resize can run past midnight (endMin > 1440) or, for a
+          // block that started on an earlier day, sit before this day's
+          // midnight (startMin < 0, or even endMin < 0 once the end is
+          // dragged back into an earlier column). Paint clips to this day
+          // (never shorter than 15 min, so it stays visible); the label
+          // carries the real times.
+          const top = isLive ? Math.max(0, Math.min(live.startMin, MINUTES_PER_DAY - 15)) : b.startMin;
+          const bottom = isLive
+            ? Math.max(top + 15, Math.min(live.endMin, MINUTES_PER_DAY))
+            : b.endMin;
           const liveExtraDays = isLive ? Math.floor(live.endMin / MINUTES_PER_DAY) : 0;
           // A block that crosses midnight is drawn as two pieces. The cut
           // edge is square (it continues, it doesn't end) and NOT
@@ -512,6 +522,31 @@ function DayColumn({
                     onPointerDown={(e) => armResize(e, { id: b.id, edge: "bottom", startMin: b.startMin, endMin: b.endMin }, b)} />
                 </>
               )}
+              {/* A block that crosses midnight is resizable from its REAL
+                  ends only: the top of its first piece, the bottom of its
+                  last. The spec carries the whole block in THIS column's
+                  minutes (start may be negative, end past 1440), so the
+                  commit keeps the full span — the old reason these blocks
+                  had no handles was that one day's piece would have been
+                  committed as the whole record. Cut edges stay square and
+                  inert. */}
+              {bottom - top >= 30 && spansDays && !b._live && realEnd && (() => {
+                const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+                const rel = (d) => Math.round((d.getTime() - dayStart.getTime()) / 60000);
+                const spec = (edge) => ({ id: b.id, edge, startMin: rel(realStart), endMin: rel(realEnd), spans: true });
+                return (
+                  <>
+                    {!b.continuesBefore && (
+                      <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
+                        onPointerDown={(e) => armResize(e, spec("top"), b)} />
+                    )}
+                    {!b.continuesAfter && (
+                      <div className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+                        onPointerDown={(e) => armResize(e, spec("bottom"), b)} />
+                    )}
+                  </>
+                );
+              })()}
               <button type="button"
                 // A live block WITHOUT a linked plan used to swallow the tap
                 // entirely — a running quick-start activity sat in the grid
@@ -527,12 +562,24 @@ function DayColumn({
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
                   {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>
-                {isLive && (
+                {isLive && (live.spans ? (
+                  // Whole-block times with weekdays: the ends may be on
+                  // other days than this column.
+                  <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
+                    {(() => {
+                      const at = (min) => {
+                        const d = new Date(day); d.setHours(0, 0, 0, 0); d.setMinutes(min);
+                        return `${format(d, "EEE")} ${minutesToLabel(d.getHours() * 60 + d.getMinutes())}`;
+                      };
+                      return `${at(live.startMin)} → ${at(live.endMin)}`;
+                    })()}
+                  </span>
+                ) : (
                   <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
                     {minutesToLabel(top)}–{minutesToLabel(live.endMin % MINUTES_PER_DAY)}
                     {liveExtraDays > 0 && ` +${liveExtraDays}d`}
                   </span>
-                )}
+                ))}
                 {bottom - top >= 40 && !isLive && (
                   <span className="block truncate opacity-70">
                     {/* Real clock times, so the piece on day 2 still says
@@ -662,6 +709,46 @@ export default function WeekCanvas({
     if (nextW !== dayPx) apply("dayPx", nextW);
   };
   const onPinchEnd = () => { pinchRef.current = null; };
+
+  // Desktop zoom — the mouse/trackpad twin of the pinch above (owner
+  // report: "no way to resize on desktop"). Ctrl/Cmd + wheel scales the
+  // HOUR height; add Shift to scale the DAY width. A trackpad pinch
+  // arrives in Chromium as Ctrl + wheel, so it just works. Native,
+  // non-passive listener: React's onWheel is passive and can't stop the
+  // browser / Electron zooming the whole page instead. Small trackpad
+  // deltas accumulate in a float so a slow pinch doesn't round to nothing.
+  const scrollerRef = useRef(null);
+  const zoomLatest = useRef(null);
+  zoomLatest.current = { hourPx, dayPx, apply: onSetPref || setPref };
+  const zoomAcc = useRef({});
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const { hourPx: h, dayPx: w, apply } = zoomLatest.current;
+      // Shift+wheel often arrives as horizontal delta (Linux / Windows).
+      const delta = e.deltaY || e.deltaX;
+      if (!delta) return;
+      const factor = Math.exp(-delta * 0.0025);
+      // Events outrun re-renders, so the value read here can lag what was
+      // just applied. Re-seed from it only when it changed from SOMETHING
+      // ELSE (the popover, another planner) — not from our own last write.
+      const step = (axis, cur, min, max, key) => {
+        const acc = zoomAcc.current[axis] || (zoomAcc.current[axis] = { v: cur, seen: cur, applied: cur });
+        if (cur !== acc.seen && cur !== acc.applied) acc.v = cur;
+        acc.seen = cur;
+        acc.v = Math.max(min, Math.min(max, acc.v * factor));
+        const next = Math.round(acc.v);
+        if (next !== acc.applied) { acc.applied = next; apply(key, next); }
+      };
+      if (e.shiftKey) step("w", w, DAY_PX_MIN, DAY_PX_MAX, "dayPx");
+      else step("h", h, HOUR_PX_MIN, HOUR_PX_MAX, "hourPx");
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   const days = useMemo(() => {
     if (dayCount === 1) return [new Date(anchor)];
@@ -851,7 +938,7 @@ export default function WeekCanvas({
     <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>
       {/* One scroller for headers + grid so they can never drift apart. The
           hour gutter is sticky so it stays put while the week scrolls. */}
-      <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
+      <div ref={scrollerRef} className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
         onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd} onTouchCancel={onPinchEnd}>
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">

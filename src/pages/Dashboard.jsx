@@ -14,6 +14,10 @@ import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
+import EmptyAppRescueNotice from "@/components/dashboard/EmptyAppRescueNotice";
+import BackupDecisionStep from "@/components/onboarding/BackupDecisionStep";
+import { hasBackupDecision } from "@/lib/autoBackup";
+import { isPreviewActive } from "@/lib/previewMode";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
@@ -125,6 +129,14 @@ export default function Dashboard() {
     return false;
   });
   const [checklistState, setChecklistState] = useState(() => loadChecklist());
+  // Safety net for the backup decision (v0.240.0): first-run answers it in
+  // StorageModeSetup, but users from before the step existed, and setup
+  // paths that reload the page, arrive here without one. Ask once, before
+  // the Guide — the two would otherwise stack. Preview mode is a sandbox
+  // and never asks.
+  const [backupDecided, setBackupDecided] = useState(() => {
+    try { return hasBackupDecision() || isPreviewActive(); } catch { return true; }
+  });
   const [checklistDismissed, setChecklistDismissed] = useState(() => {
     try { return !!psGetItem(SETUP_CHIP_DISMISSED_KEY); } catch { return false; }
   });
@@ -146,9 +158,10 @@ export default function Dashboard() {
       // Auto-open the Guide on first-run (nothing set yet) or after a
       // new-system creation. Legacy users (terms already done + guide
       // marked done) never see it — they'll open it via the Guide button.
-      if ((!guidedDone && !termsDone) || pendingFromNewSystem) setShowTour(true);
+      // Waits for the backup decision so the two never stack.
+      if (backupDecided && ((!guidedDone && !termsDone) || pendingFromNewSystem)) setShowTour(true);
     } catch { /* storage off */ }
-  }, [pendingFromNewSystem]);
+  }, [pendingFromNewSystem, backupDecided]);
   const checklistIncomplete = !checklistComplete(checklistState);
   const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour;
   const checklistPct = checklistProgress(checklistState);
@@ -830,6 +843,23 @@ export default function Dashboard() {
     bootedBoardDefault.current = true;
     if (settings[0]?.ui_v2?.homeDefault === "board") setBoardOpen(true);
   }, [classicBoardAvailable, settings]);
+
+  // Pressing Home while the board is open must leave the board.
+  //
+  // The board is local state on a route that IS "/", so navigating Home
+  // re-renders the same component and nothing happened — the button
+  // looked dead, and with no swipe (a mouse, or anyone who can't drag)
+  // the board was a dead end. react-router mints a fresh location.key on
+  // every navigation, including one to the path you are already on, so
+  // that is the signal. The first run is skipped so this can't fight the
+  // homeDefault === "board" boot above.
+  const lastNavKey = useRef(null);
+  useEffect(() => {
+    if (lastNavKey.current === null) { lastNavKey.current = location.key; return; }
+    if (lastNavKey.current === location.key) return;
+    lastNavKey.current = location.key;
+    if (location.pathname === "/") closeBoard();
+  }, [location.key, location.pathname]);
   // The swipe-left-to-board gesture lives on the canvas now (the classic
   // home is an ExperimentalDashboard with onExitRight={openBoard}), so
   // it tracks and animates exactly like paging between board pages.
@@ -846,11 +876,14 @@ export default function Dashboard() {
       // home page just to see the apps (owner report), so apps requests
       // stay on the classic home; only genuinely board-owned actions
       // (edit board, its display options, bar options) still open it.
-      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
+      if (sessionStorage.getItem("symphony_v2_open-apps")) {
         // Translate the parked request to the classic canvas's own key —
         // it consumes it on mount and opens its drawer.
+        const parkedAt = sessionStorage.getItem("symphony_v2_open-apps");
         sessionStorage.removeItem("symphony_v2_open-apps");
-        sessionStorage.setItem("symphony_classic_open-apps", "1");
+        // Carry the original timestamp so the hand-off can't refresh a
+        // stale request into a live one.
+        sessionStorage.setItem("symphony_classic_open-apps", String(Number(parkedAt) > 1 ? parkedAt : Date.now()));
       }
       const pending = ["edit-home", "home-settings", "bar-options"]
         .some((a) => sessionStorage.getItem(`symphony_v2_${a}`) === "1");
@@ -980,6 +1013,7 @@ export default function Dashboard() {
       {/* The v2 board carries these in its own V2Notices stack — hide the
           classic overlays while the board page is showing too. */}
       {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
+      {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
       {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
       {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
       <NotificationHistoryModal
@@ -1089,6 +1123,20 @@ export default function Dashboard() {
         document.body
       )}
 
+      {!backupDecided && (
+        <Dialog open modal>
+          <DialogContent
+            showCloseButton={false}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            aria-describedby={undefined}
+            className="max-w-md"
+          >
+            <DialogTitle className="sr-only">Keep a backup copy?</DialogTitle>
+            <BackupDecisionStep onDone={() => setBackupDecided(true)} />
+          </DialogContent>
+        </Dialog>
+      )}
       <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
       <QuickCheckInModal
         isOpen={showEmotionModal}

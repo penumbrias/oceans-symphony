@@ -6,6 +6,7 @@ import { openDB } from 'idb';
 import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
+import { mirrorDbBlob, retireDbMirror } from "@/lib/nativeMirror";
 
 // Reserved top-level keys inside the DB blob that are NOT entity
 // collections ({id: record}). Every generic walk over the blob must skip
@@ -123,14 +124,22 @@ async function adoptExternalChange(gen) {
     const raw = await loadFromStorage();
     if (!raw) return false;
     const parsed = JSON.parse(raw);
+    let next;
     if (parsed && typeof parsed === "object" && parsed.__encrypted) {
       if (!_encKey) return false;
-      _db = await decryptData(parsed.__encrypted, _encKey);
+      next = await decryptData(parsed.__encrypted, _encKey);
     } else if (parsed && typeof parsed === "object") {
-      _db = parsed;
+      next = parsed;
     } else {
       return false;
     }
+    // Re-check AFTER the awaits (v0.243.1): the guard above ran before
+    // the read + decrypt, and a record created in that gap was wiped when
+    // _db was swapped — with _gen then matching disk, so no rescue copy.
+    // The swap below is synchronous, so nothing can slip in after this.
+    if (_db === null || _batchDepth > 0 || _batchDirty || _pendingSaves > 0) return false;
+    if (!next || typeof next !== "object") return false;
+    _db = next;
     if (typeof gen === "number") { _gen = gen; _genKey = _storageKey; }
     return true;
   } catch { return false; }
@@ -171,13 +180,21 @@ export class MissingSaltError extends Error {
 
 function getIdb() {
   if (!_idbPromise) {
-    _idbPromise = openDB(IDB_NAME, IDB_VERSION, {
+    // A rejected open or a connection the browser killed (iOS / Android
+    // WebViews drop IDB after backgrounding) used to stay cached for the
+    // whole session, so every later save fell back to localStorage and,
+    // past its ~5MB cap, failed outright. Drop the cache so the next
+    // call reopens.
+    const p = openDB(IDB_NAME, IDB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains(IDB_STORE)) {
           db.createObjectStore(IDB_STORE);
         }
       },
+      terminated() { if (_idbPromise === p) _idbPromise = null; },
     });
+    _idbPromise = p;
+    p.catch(() => { if (_idbPromise === p) _idbPromise = null; });
   }
   return _idbPromise;
 }
@@ -239,6 +256,11 @@ async function loadFromStorage() {
 }
 
 async function saveToStorage(value) {
+  // Native private-file copy FIRST (nativeMirror.js, v0.244.0): it is the
+  // copy that survives the web view's storage being cleared — and if both
+  // writes below fail, the only place this save lands at all. Debounced,
+  // no-op on web, never throws.
+  mirrorDbBlob(_storageKey, value);
   try {
     const idb = await getIdb();
     await idb.put(IDB_STORE, value, _storageKey);
@@ -562,12 +584,71 @@ function _saveDbNow() {
   return run;
 }
 
-async function doSaveDb() {
+// Clash merge (v0.243.1): another tab / window saved since this one last
+// synced. Pull every record that exists on disk but not in memory into
+// memory before this save overwrites the blob — previously this tab's
+// write simply won and the other tab's new records survived only in the
+// single-slot rescue copy (the next clash overwrote that too). A record
+// this tab deliberately deleted has a DeletionLog tombstone and stays
+// deleted; records both sides hold keep this tab's copy (the rescue
+// stash still has the other). Returns how many records were pulled in.
+// Set by writes that deliberately REMOVE records without tombstones
+// (Replace-All import, reset, bulk category delete): their next save must
+// not pull the old records back in from disk. Consumed by that save.
+let _authoritativeSave = false;
+
+function mergeDiskOnlyRecords(db, disk) {
+  if (!db || typeof db !== "object" || !disk || typeof disk !== "object") return 0;
+  const tombstones = db.DeletionLog || {};
+  let added = 0;
+  for (const [entity, table] of Object.entries(disk)) {
+    if (entity.startsWith("__") || isReservedDbKey(entity)) continue;
+    if (!table || typeof table !== "object" || Array.isArray(table)) continue;
+    if (!db[entity] || typeof db[entity] !== "object") db[entity] = {};
+    const mine = db[entity];
+    for (const [id, rec] of Object.entries(table)) {
+      if (id in mine) continue;
+      if (entity !== "DeletionLog" && tombstones[`${entity}:${id}`]) continue;
+      mine[id] = rec;
+      added++;
+    }
+  }
+  return added;
+}
+
+function doSaveDb() {
   // Preview-mode writes stay purely in memory and never reach IndexedDB.
+  if (_previewDb !== null) return Promise.resolve();
+  // Serialise saves ACROSS tabs, not just within one: without a lock two
+  // tabs could both read the same generation, both skip the clash check,
+  // and the later write silently erased the earlier one's records.
+  const run = () => doSaveDbLocked();
+  try {
+    if (typeof navigator !== "undefined" && navigator.locks?.request) {
+      return navigator.locks.request(`symphony_db_save:${_storageKey}`, run);
+    }
+  } catch { /* locks unavailable — fall through */ }
+  return run();
+}
+
+async function doSaveDbLocked() {
   if (_previewDb !== null) return;
+  // Capture what to write up front. clearSession() (grocery-cover lock,
+  // right before a reload) and a wrong password in Change Password null
+  // _db / _encKey while a save may still be queued — that save then wrote
+  // the literal string "null" over the encrypted blob, which the next
+  // boot read as an empty, unencrypted database. Never write a non-object.
+  const db = _db;
+  const encKey = _encKey;
+  const authoritative = _authoritativeSave;
+  _authoritativeSave = false;
+  if (!db || typeof db !== "object") {
+    console.warn("[localDb] save skipped — no database loaded");
+    return;
+  }
   // Stale-writer backstop: if the generation sidecar moved past what this
   // tab last synced, an unsynced writer saved since — stash the on-disk
-  // blob before overwriting it so nothing is ever unrecoverable.
+  // blob, and merge its records in, before overwriting it.
   let diskGen = 0;
   try {
     if (_genKey !== _storageKey) { _gen = await readGenSidecar(); _genKey = _storageKey; }
@@ -580,17 +661,31 @@ async function doSaveDb() {
           await idb.put(IDB_STORE, current, rescueKey());
           console.warn("[localDb] concurrent write detected — previous blob stashed in", rescueKey());
         } catch { /* stash is best-effort; the save still proceeds */ }
+        if (!authoritative) try {
+          const parsed = JSON.parse(current);
+          let disk = null;
+          if (parsed && typeof parsed === "object" && parsed.__encrypted) {
+            if (encKey) disk = await decryptData(parsed.__encrypted, encKey);
+          } else if (parsed && typeof parsed === "object") {
+            disk = parsed;
+          }
+          const added = mergeDiskOnlyRecords(db, disk);
+          if (added > 0) {
+            console.warn(`[localDb] kept ${added} record(s) another window saved`);
+            try { window.dispatchEvent(new CustomEvent("symphony-db-external-change")); } catch { /* SSR */ }
+          }
+        } catch { /* unreadable — the rescue stash still holds it */ }
       }
     }
   } catch { /* backstop only — never block the save */ }
   let json;
-  if (_encKey) {
+  if (encKey) {
     // Embed the salt INSIDE the encrypted envelope so the data is still
     // decryptable even if localStorage is wiped (Android device cleaners
     // commonly clear localStorage but leave IndexedDB intact, which would
     // otherwise lose the salt and make decryption impossible).
     json = JSON.stringify({
-      __encrypted: await encryptData(_db, _encKey),
+      __encrypted: await encryptData(db, encKey),
       __salt: _activeSalt || getEncSalt(),
       __format_version: 2,
       // Record the PBKDF2 strength this envelope's key was derived with.
@@ -599,7 +694,7 @@ async function doSaveDb() {
       __kdf_iterations: KDF_ITERATIONS,
     });
   } else {
-    json = JSON.stringify(_db);
+    json = JSON.stringify(db);
   }
   await saveToStorage(json);
   // Advance the generation and tell every other tab to catch up.
@@ -793,7 +888,17 @@ export async function enableEncryption(password) {
 }
 
 export async function disableEncryption(password) {
-  await initLocalDb(password); // decrypts + loads the active system; _encKey set
+  // initLocalDb nulls _db and _encKey on a wrong password. Mid-session
+  // that left the app unable to save anything (every getDb() threw) and
+  // let a queued save write "null" over the data. Put the live session
+  // back before reporting the wrong password.
+  const prev = { db: _db, key: _encKey, salt: _activeSalt };
+  try {
+    await initLocalDb(password); // decrypts + loads the active system; _encKey set
+  } catch (e) {
+    if (prev.db) { _db = prev.db; _encKey = prev.key; _activeSalt = prev.salt; }
+    throw e;
+  }
   // Decrypt every OTHER system's blob while we still hold the key. Pass the
   // password too: sibling blobs may still be at a different (legacy) PBKDF2
   // strength than the active session key, so the helper derives a matching
@@ -1012,6 +1117,7 @@ export async function bulkDeleteEntities(entityNames) {
     deletedIdsByEntity[entityName] = ids;
     totalDeleted += ids.length;
   }
+  _authoritativeSave = true; // no tombstones here — don't merge them back
   await saveDb();
   for (const [entityName, ids] of Object.entries(deletedIdsByEntity)) {
     for (const id of ids) emit(entityName, { type: 'delete', id });
@@ -1094,6 +1200,7 @@ export async function loadDbDump(dump, options = {}) {
   const ownMirror = _db && typeof _db === "object" ? _db[MIRROR_KEY] : null;
   if (next && typeof next === "object" && ownMirror && !options.adoptMirror) next[MIRROR_KEY] = ownMirror;
   _db = next;
+  _authoritativeSave = true;
   await saveDb();
 }
 
@@ -1105,6 +1212,11 @@ export async function loadDbDump(dump, options = {}) {
 // and skips onboarding. Used by the "Delete all local data" action.
 export async function clearStoredData() {
   _db = {};
+  // The private-file copy is set aside as a kept copy, not deleted: the
+  // recovery screen's reset lands here with data it couldn't read, and
+  // that copy may be the last one. "Delete all local data" removes every
+  // copy separately (wipeAllSystemsData → wipeMirror).
+  try { await retireDbMirror(_storageKey); } catch { /* best effort */ }
   try {
     const idb = await getIdb();
     await idb.delete(IDB_STORE, _storageKey);
@@ -1541,6 +1653,19 @@ async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLoca
   return { changed: false, value };
 }
 
+// Write migrated image fields back onto the LIVE record (v0.243.1). The
+// walks await an image-store write per picture; writing a whole copy taken
+// before those awaits reverted any edit made meanwhile (on boot, while the
+// user was already typing) and resurrected a record deleted meanwhile.
+// Only fields still holding exactly the value that was migrated change.
+function applyMigratedFields(entityName, recordId, record, patch) {
+  const live = getDb()[entityName]?.[recordId];
+  if (!live) return;
+  for (const [field, value] of Object.entries(patch)) {
+    if (live[field] === record[field]) live[field] = value;
+  }
+}
+
 export async function migrateBase64AvatarsToLocal() {
   const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
@@ -1552,13 +1677,13 @@ export async function migrateBase64AvatarsToLocal() {
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
       let recordChanged = false;
-      const updatedRecord = { ...record };
+      const patch = {};
       for (const [field, value] of Object.entries(record)) {
         if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
         try {
           const r = await walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
           if (r.changed) {
-            updatedRecord[field] = r.value;
+            patch[field] = r.value;
             recordChanged = true;
             migrated++;
           }
@@ -1566,9 +1691,7 @@ export async function migrateBase64AvatarsToLocal() {
           console.warn(`[migrateBase64AvatarsToLocal] Failed on ${entityName}.${recordId}.${field}:`, e);
         }
       }
-      if (recordChanged) {
-        db[entityName][recordId] = updatedRecord;
-      }
+      if (recordChanged) applyMigratedFields(entityName, recordId, record, patch);
     }
   }
   if (migrated > 0) await saveDb();
@@ -1604,18 +1727,18 @@ export async function migrateHttpImagesToLocal(onProgress) {
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
       let recordChanged = false;
-      const updatedRecord = { ...record };
+      const patch = {};
       for (const [field, value] of Object.entries(record)) {
         if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
         try {
           const r = await _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, report);
           if (r.changed) {
-            updatedRecord[field] = r.value;
+            patch[field] = r.value;
             recordChanged = true;
           }
         } catch {}
       }
-      if (recordChanged) db[entityName][recordId] = updatedRecord;
+      if (recordChanged) applyMigratedFields(entityName, recordId, record, patch);
     }
   }
 

@@ -80,7 +80,7 @@ export default function SidebarNav({ open, onClose }) {
     if (location.pathname === "/") {
       window.dispatchEvent(new CustomEvent("os-classic-open-apps"));
     } else {
-      try { sessionStorage.setItem("symphony_classic_open-apps", "1"); } catch { /* non-fatal */ }
+      try { sessionStorage.setItem("symphony_classic_open-apps", String(Date.now())); } catch { /* non-fatal */ }
       navigate("/");
     }
   };

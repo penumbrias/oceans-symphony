@@ -38,6 +38,7 @@ import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCa
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { resolveOutcome, reschedulePlan, startPlanActive } from "@/lib/planner/resolvePlan";
 import BackupHealthNotice, { useBackupHealth } from "@/components/dashboard/BackupHealthNotice";
+import EmptyAppRescueNotice, { useEmptyApp } from "@/components/dashboard/EmptyAppRescueNotice";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -399,6 +400,7 @@ function UnresolvedNotice({ rows, onResolved }) {
 export default function V2Notices() {
   const tr = useT();
   const backupHealth = useBackupHealth();
+  const emptyApp = useEmptyApp();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -524,6 +526,8 @@ export default function V2Notices() {
     // Data safety outranks every plan/reminder nag — but only takes a
     // slot when backups actually need attention.
     ...(backupHealth.level !== "ok" && !backupHealth.snoozed ? [{ key: "backup-health", type: "backup" }] : []),
+    // An app with nothing in it: the "find my data" path, right here.
+    ...(emptyApp ? [{ key: "empty-rescue", type: "rescue" }] : []),
     ...firedNotices,
     ...(planNotice ? [planNotice] : []),
     ...mentionNotices,
@@ -586,6 +590,9 @@ export default function V2Notices() {
         }
         if (n.type === "backup") {
           return <BackupHealthNotice key={n.key} variant="v2" />;
+        }
+        if (n.type === "rescue") {
+          return <EmptyAppRescueNotice key={n.key} variant="v2" />;
         }
         if (n.type === "unresolved") {
           return (

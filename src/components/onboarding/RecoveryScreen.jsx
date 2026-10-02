@@ -32,11 +32,11 @@ import { runAutoBackupNow } from "@/lib/autoBackup";
 import { shareFile } from "@/lib/shareFile";
 import {
   parseImportText,
-  decryptRawEncrypted,
+  decryptEncryptedImport,
+  isEncryptedFormat,
   wrapAsStandardBackup,
   FORMAT_STANDARD,
   FORMAT_RAW_PLAIN,
-  FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 
 // Shown when boot detects existing data on disk that we cannot use as-is
@@ -68,6 +68,11 @@ export default function RecoveryScreen({ reason, onResolved }) {
 
   const kind = reason?.kind || "unknown";
   const message = describeReason(kind, reason?.error);
+  // The systems list couldn't be read, so which slot is "active" is only a
+  // guess (the legacy one). Restoring or resetting would act on that guess —
+  // possibly over a system the user wasn't in — and wouldn't fix the list
+  // anyway. Offer retry + read-only copies only.
+  const registryUnknown = kind === "registry_read_error";
 
   // Route through the shared file-share helper so the recovery flow
   // works on native (Capacitor) — the previous inline anchor-click
@@ -235,9 +240,9 @@ export default function RecoveryScreen({ reason, onResolved }) {
         await applyDump({ data: parsed.data });
         setStatus({ type: "success", text: "Raw plain file restored. Reloading…" });
         setTimeout(() => window.location.reload(), 900);
-      } else if (parsed.format === FORMAT_RAW_ENCRYPTED) {
-        // Defer to the password prompt — user submits password, then we
-        // decrypt and apply.
+      } else if (isEncryptedFormat(parsed.format)) {
+        // Raw encrypted snapshot or a password-locked backup — defer to the
+        // password prompt; the user submits, then we decrypt and apply.
         setPendingEncryptedImport(parsed);
       }
     } catch (e) {
@@ -252,9 +257,13 @@ export default function RecoveryScreen({ reason, onResolved }) {
     setBusy(true);
     setStatus(null);
     try {
-      const data = await decryptRawEncrypted(pendingEncryptedImport, password);
+      const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      await applyDump({ data });
+      if (res.format === FORMAT_STANDARD) {
+        await applyDump({ data: res.data, localImages: res.localImages, localFonts: res.localFonts, localSettings: res.localSettings });
+      } else {
+        await applyDump({ data: res.data });
+      }
       setStatus({ type: "success", text: "Encrypted file decrypted and restored. Reloading…" });
       setTimeout(() => window.location.reload(), 900);
     } catch (e) {
@@ -326,6 +335,19 @@ export default function RecoveryScreen({ reason, onResolved }) {
         )}
 
         <div className="space-y-2">
+          {registryUnknown && (
+            <Button
+              type="button"
+              onClick={handleRetry}
+              disabled={busy}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Try again
+            </Button>
+          )}
+
           {(kind === "forgot_password" || kind === "unlock_failed") && (
             <Button
               type="button"
@@ -374,6 +396,7 @@ export default function RecoveryScreen({ reason, onResolved }) {
                 : "Not available right now — the on-device data isn't readable as plain JSON. Use 'Save a copy of my raw data' to preserve the raw bytes."}
           </p>
 
+          {!registryUnknown && (
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
             <Button
               type="button"
@@ -419,6 +442,7 @@ export default function RecoveryScreen({ reason, onResolved }) {
               </label>
             </div>
           </div>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -427,20 +451,24 @@ export default function RecoveryScreen({ reason, onResolved }) {
             className="hidden"
           />
 
-          <Button
-            type="button"
-            onClick={() => setConfirmReset(true)}
-            disabled={busy}
-            variant="outline"
-            className="w-full justify-start text-destructive hover:text-destructive"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset and start fresh
-          </Button>
-          <p className="text-xs text-muted-foreground px-1">
-            Wipes the on-device data so the app can boot from empty. A copy
-            of the current raw blob is saved to your Downloads folder first.
-          </p>
+          {!registryUnknown && (
+            <>
+              <Button
+                type="button"
+                onClick={() => setConfirmReset(true)}
+                disabled={busy}
+                variant="outline"
+                className="w-full justify-start text-destructive hover:text-destructive"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset and start fresh
+              </Button>
+              <p className="text-xs text-muted-foreground px-1">
+                Wipes the on-device data so the app can boot from empty. A copy
+                of the current raw blob is saved to your Downloads folder first.
+              </p>
+            </>
+          )}
         </div>
 
         <p className="text-[11px] text-muted-foreground text-center pt-1">
@@ -504,8 +532,9 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <h3 className="font-semibold text-lg">Encrypted file</h3>
         <p className="text-sm text-muted-foreground">
-          This is an encrypted raw on-device file. Enter the password used
-          when the file was created to decrypt and restore it.
+          This file is password-locked. Enter the password used when it was
+          created (a locked backup uses your backup password) to decrypt and
+          restore it.
         </p>
         <div className="relative">
           <input
@@ -539,6 +568,10 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
 
 function describeReason(kind, error) {
   switch (kind) {
+    case "registry_read_error":
+      // Pre-unlock screen: terms live inside the (maybe encrypted) data, so
+      // this copy avoids the customisable words rather than guess them.
+      return `We couldn't read this device's list of your saved data${error?.cause?.message ? ` (${error.cause.message})` : ""}. Everything is still here and nothing has been changed. Tap "Try again"; if it keeps happening, save a copy below and restart the app.`;
     case "read_error":
       return `We couldn't read this device's storage${error?.message ? ` (${error.message})` : ""}. Your data file may still be intact — please don't clear app data until you've saved a copy below.`;
     case "corrupted":

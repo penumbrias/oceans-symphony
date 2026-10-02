@@ -1,5 +1,5 @@
 import { localEntities } from "@/api/base44Client";
-import { isNative } from "@/lib/platform";
+import { isNative, isDesktop } from "@/lib/platform";
 import {
   requestNativePermission,
   isNativeNotificationsEnabled,
@@ -7,8 +7,42 @@ import {
   showNativeTestNotification,
   nativeNotificationDiagnostics,
 } from "@/lib/nativeNotifications";
+import { apiBase, getApiHostOverride } from "@/lib/apiBase";
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+// Build-time key: correct whenever the app talks to the relay it was
+// built against, which is the default for everyone.
+const BUILD_VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+// A subscription is signed with a specific VAPID keypair, and the push
+// service silently drops payloads signed by a different one. So a user
+// pointing the app at their OWN relay (Settings → Friends & sync server)
+// must subscribe with THEIR relay's key, not the one baked into this
+// bundle — otherwise push appears to work and never arrives.
+//
+// Only fetched when a custom relay is configured: the default path keeps
+// using the build-time constant and makes no extra request. Falls back to
+// the build-time key if the relay can't answer, so a relay without push
+// configured degrades to "no push" rather than to a broken app.
+let _relayVapidKey = null;
+let _relayVapidHost = null;
+
+export async function resolveVapidPublicKey() {
+  const override = getApiHostOverride();
+  if (!override) return BUILD_VAPID_PUBLIC_KEY;
+  if (_relayVapidKey && _relayVapidHost === override) return _relayVapidKey;
+  try {
+    const res = await fetch(`${apiBase('push')}/vapid-public-key`, { method: 'GET' });
+    if (res.ok) {
+      const { publicKey } = await res.json();
+      if (publicKey) {
+        _relayVapidKey = publicKey;
+        _relayVapidHost = override;
+        return publicKey;
+      }
+    }
+  } catch { /* fall through */ }
+  return BUILD_VAPID_PUBLIC_KEY;
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -28,11 +62,23 @@ export async function registerPush() {
     return result;
   }
 
+  // Desktop (Electron): there is no push service behind this shell, and
+  // the SW can't even install on the symphony:// scheme (see main.jsx).
+  // Fail with the honest reason rather than a scheme error from deep
+  // inside the Cache API. Local/OS notifications are unaffected.
+  if (isDesktop()) {
+    throw new Error('Push notifications are not available in the desktop app. Reminders still work while the app is open.');
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push notifications are not supported in this browser.');
   }
-  if (!VAPID_PUBLIC_KEY) {
-    throw new Error('Push not configured. Set VITE_VAPID_PUBLIC_KEY in your environment.');
+  const vapidPublicKey = await resolveVapidPublicKey();
+  if (!vapidPublicKey) {
+    throw new Error(
+      getApiHostOverride()
+        ? 'Push not configured on your relay — set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY on the server.'
+        : 'Push not configured. Set VITE_VAPID_PUBLIC_KEY in your environment.'
+    );
   }
 
   const permission = await Notification.requestPermission();
@@ -60,7 +106,7 @@ export async function registerPush() {
 
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
   });
 
   const subJson = subscription.toJSON();
@@ -154,8 +200,17 @@ export async function pushDiagnostics() {
   out.push({ ok: pm, label: 'PushManager supported', detail: pm ? null : 'Your browser doesn\'t support web push. On iOS, install the app to your home screen and reopen it from there.' });
   if (!pm) return out;
 
-  const hasKey = !!VAPID_PUBLIC_KEY;
-  out.push({ ok: hasKey, label: 'VAPID public key present', detail: hasKey ? null : 'VITE_VAPID_PUBLIC_KEY is not set in the deployment. Add it to Vercel environment variables.' });
+  // The key actually in play: your relay's when you've set one, otherwise
+  // the build-time constant.
+  const activeVapidKey = await resolveVapidPublicKey();
+  const hasKey = !!activeVapidKey;
+  out.push({
+    ok: hasKey,
+    label: 'VAPID public key present',
+    detail: hasKey ? null : (getApiHostOverride()
+      ? 'Your relay did not return a VAPID public key. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY on the server, then restart it.'
+      : 'VITE_VAPID_PUBLIC_KEY is not set in the deployment. Add it to Vercel environment variables.'),
+  });
   if (!hasKey) return out;
 
   const perm = Notification.permission;
@@ -177,7 +232,7 @@ export async function pushDiagnostics() {
 
   // Server config — try a test send via the API.
   try {
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -199,11 +254,11 @@ export async function pushDiagnostics() {
       try {
         const json = await res.clone().json();
         const serverPub = json?.vapidPub;
-        if (serverPub && VAPID_PUBLIC_KEY && serverPub !== VAPID_PUBLIC_KEY) {
+        if (serverPub && activeVapidKey && serverPub !== activeVapidKey) {
           out.push({
             ok: false,
             label: 'VAPID public key MISMATCH',
-            detail: `The key your subscription was signed with (build-time VITE_VAPID_PUBLIC_KEY, first 12 chars "${VAPID_PUBLIC_KEY.slice(0, 12)}…") does not match the server's VAPID_PUBLIC_KEY ("${serverPub.slice(0, 12)}…"). The push provider accepts the send but the browser silently drops the payload. Fix: regenerate keys with \`npx web-push generate-vapid-keys\` and set BOTH env vars to the same values, then redeploy and re-subscribe.`,
+            detail: `The key your subscription was signed with (first 12 chars "${activeVapidKey.slice(0, 12)}…") does not match the key the relay signs with ("${serverPub.slice(0, 12)}…"). The push provider accepts the send but the browser silently drops the payload. Fix: make sure VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY on the relay are a matching pair (\`npx web-push generate-vapid-keys\`), restart it, then disable and re-enable push here to re-subscribe.`,
           });
         }
       } catch { /* server didn't echo, skip */ }
@@ -260,7 +315,7 @@ export async function pushDeepDiagnostic() {
   navigator.serviceWorker.addEventListener('message', onMessage);
 
   try {
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -345,7 +400,7 @@ export async function sendPushNotification(payload) {
     const subscription = await getActivePushSubscription();
     if (!subscription) return false;
 
-    const res = await fetch('/api/push/send', {
+    const res = await fetch(`${apiBase('push')}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription, payload }),

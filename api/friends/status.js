@@ -1,6 +1,6 @@
 // GET /api/friends/status?userId=X&viewerUserId=Y&viewerSecret=Z
 // Returns front status of userId if viewerUserId is an approved friend.
-import { kv, getProfile, getFriends, validateUser, cors } from '../_kv.js';
+import { kv, getProfile, getFriends, validateUser, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   // is still accepted for clients that haven't updated yet.
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

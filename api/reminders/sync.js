@@ -9,7 +9,7 @@
 // Privacy: when includeText is false, the title/body are NOT stored server-
 // side — the push is generic ("You have a reminder") and the app fills in
 // detail on open. The user controls this via a Settings toggle.
-import { kv, validateUser, cors } from '../_kv.js';
+import { kv, validateUser, cors, isKvConfigured } from '../_kv.js';
 
 const DUE_ZSET = 'reminders:due';
 
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

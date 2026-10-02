@@ -24,15 +24,15 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isNative } from "@/lib/platform";
+import { apiBase } from "@/lib/apiBase";
 import { base44 } from "@/api/base44Client";
 import { getLocalIdentity, ensurePushIdentity, FRIENDS_API_BASE } from "@/lib/friendsApi";
 import { isPushEnabled } from "@/lib/pushRegistration";
 import { computePrescheduledFires, isPrescheduleableType, isRollingFrontReminder } from "@/lib/nativeReminderScheduler";
 
-// Same host rule as friendsApi: native WebView can't use a relative /api
-// path (private hostname → 404), so point at the production deploy.
-const NATIVE_API_HOST = "https://oceans-symphony.app";
-const REMINDERS_API_BASE = isNative() ? `${NATIVE_API_HOST}/api/reminders` : "/api/reminders";
+// Same host rule as the Friends relay — see src/lib/apiBase.js for why
+// the packaged app targets need an absolute URL here.
+const REMINDERS_API_BASE = apiBase("reminders");
 
 // Whether this device should use the cloud relay for closed-app reminder
 // delivery. The relay (FCM / Web Push) is the only path that survives a

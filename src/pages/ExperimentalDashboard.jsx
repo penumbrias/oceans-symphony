@@ -26,7 +26,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
+import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
   ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home,
 } from "lucide-react";
@@ -413,6 +413,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       )}
       <div
         data-widget-content="1"
+        data-halign={halign}
+        {...(def.paintBox ? { "data-widget-box": "1" } : {})}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
@@ -489,7 +491,19 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // Right moves left-hugging elements to the right side and vice
           // versa (owner spec). Flex rows, margin-auto pushes and text
           // alignment all follow the direction; bidi keeps words readable.
-          ...(halign === "right" ? { direction: "rtl" } : halign === "left" ? { direction: "ltr" } : {}),
+          //
+          // "Center" needs textAlign as well (v0.240.1). The halign var
+          // only reaches Section's `align-items`, and align-items cannot
+          // move a child that is already full width — which nearly every
+          // widget row is. So Center did nothing and looked identical to
+          // Fill. Left/Right never had this problem because `direction`
+          // re-bases text alignment for free. Setting textAlign here gives
+          // Center the same reach, and still lets a widget that opts into
+          // its own alignment (the heading/text widgets) override it.
+          ...(halign === "right" ? { direction: "rtl" }
+            : halign === "left" ? { direction: "ltr" }
+            : halign === "center" ? { textAlign: "center" }
+            : {}),
           // Per-widget content size — index.css zooms the widget's body
           // wrapper by this, so every widget scales, not just tagged ones.
           "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),
@@ -667,8 +681,18 @@ export default function ExperimentalDashboard({
     window.addEventListener(`${eventPrefix}-edit-home`, editHome);
     window.addEventListener(`${eventPrefix}-home-settings`, homeSettings);
     try {
-      if (sessionStorage.getItem(key("open-apps")) === "1") {
-        sessionStorage.removeItem(key("open-apps")); setDrawerOpen(true);
+      // A parked "open the app grid" request is only honoured if it was
+      // made SECONDS ago. It exists to survive one navigation home, which
+      // takes milliseconds. Without an expiry, any request that never got
+      // consumed (the canvas didn't mount, the board was showing) lingers
+      // and pops the drawer open on some later, unrelated trip home —
+      // which is what made the logo look like it opened the app list.
+      const parked = sessionStorage.getItem(key("open-apps"));
+      if (parked) {
+        sessionStorage.removeItem(key("open-apps"));
+        const at = Number(parked);
+        // Legacy "1" (no timestamp) is treated as stale, not honoured.
+        if (Number.isFinite(at) && at > 1 && Date.now() - at < 5000) setDrawerOpen(true);
       }
       if (sessionStorage.getItem(key("edit-home")) === "1") {
         sessionStorage.removeItem(key("edit-home")); setEditMode(true);
@@ -1772,9 +1796,26 @@ export default function ExperimentalDashboard({
         </div>
       )}
 
-      {/* Page dots — tappable; edit mode adds a "+" for a new page. */}
-      {(visiblePages.length > 1 || editMode) && (
+      {/* Page dots — tappable; edit mode adds a "+" for a new page.
+          When this board is hosted by the classic home (onExitLeft), the
+          home screen is genuinely the page to the LEFT, so it gets a
+          leading control in the same strip. Without it the ONLY way back
+          was a swipe: unusable with a mouse on desktop, and unusable for
+          anyone who can't perform a drag gesture. That also means the
+          strip has to render even with a single board page. */}
+      {(visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
+          {onExitLeft && (
+            <button
+              type="button"
+              onClick={onExitLeft}
+              aria-label="Back to the home screen"
+              title="Back to the home screen"
+              className="min-w-[24px] min-h-[24px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
           {visiblePages.map((p, i) => (
             <button
               key={p.id}

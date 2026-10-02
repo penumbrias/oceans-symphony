@@ -18,7 +18,63 @@
 
 export const CHANGELOG = [
   {
+    date: "September 30, 2026",
+    changes: [
+      { type: "improve", text: "Planner on a computer: Ctrl + scroll (or a trackpad pinch) resizes the hours, and Ctrl + Shift + scroll widens the days — the desktop version of pinching." },
+    ],
+  },
+  {
+    date: "September 29, 2026",
+    changes: [
+      { type: "feature", text: "The Android and iPhone apps now keep a second copy of all your data — pictures and fonts included — in the app's own private files. If the phone clears the app's storage while it's closed, your data is put back automatically the next time you open it." },
+      { type: "fix", text: "Planner: plans that run past midnight can now be resized by dragging their start or end, including dragging the end back to an earlier day." },
+      { type: "fix", text: "Planner: a plan's end date and time now stick in its edit sheet. Moving the end back to the same day used to jump to the next day, and a saved end time could snap back to an old length." },
+      { type: "improve", text: "“Find my data” and the recovery screens now also list those saved copies, including earlier versions kept after a sudden drop in data." },
+      { type: "fix", text: "Restoring a backup with Replace All no longer erases what the file doesn't include. A data-only or images-only backup used to wipe your image library, or everything else." },
+      { type: "fix", text: "The data-only backup now keeps your image library's names and folders (only the picture files are left out)." },
+      { type: "fix", text: "With the app open in two windows or tabs, entries saved in one could silently disappear. Both windows' entries are now kept." },
+      { type: "fix", text: "Fixed a rare case where locking the grocery cover, or mistyping your current password while changing it, could wipe encrypted data." },
+      { type: "hotfix", text: "Hotfix: image upgrades at launch no longer undo edits made at the same moment." },
+      { type: "fix", text: "Fixed a rare startup glitch that could open the app with only one {{system}} listed and the rest missing. You now get a \"Try again\" screen instead, and any {{systems}} already missing from the list are offered back on launch." },
+    ],
+  },
+  {
+    date: "September 23, 2026",
+    version: "0.243.0",
+    changes: [
+      { type: "feature", text: "The Linux desktop app updates itself. It downloads quietly in the background and asks before restarting \u2014 or waits until you next quit. (AppImage only; a .deb updates through your package manager.)" },
+      { type: "feature", text: "Setting up the app now asks how you want backups handled — automatic, a reminder, or not now — instead of quietly leaving them off. Everyone who hasn't chosen yet is asked once on the home screen." },
+      { type: "feature", text: "Auto-backup files can now be locked with a password (your storage password, or a separate one) and given a plain file name, so a backup in Downloads doesn't reveal what it is. Locked backups restore anywhere a backup does." },
+      { type: "improve", text: "\"Find my data\" now sits right on the welcome screen and on the home screen whenever the app looks empty — no need to dig through Settings after a storage wipe." },
+      { type: "fix", text: "The automatic recovery for a blank white screen on launch never actually ran — the app's own security policy was blocking it. It works now on every version of the app." },
+      { type: "fix", text: "A task set to repeat a number of days after you complete it now comes back on the right day. Ticking it off in the evening used to keep it marked done for most of the day it was due again." },
+      { type: "improve", text: "Refresh and \"Sync with another device\" are now in the page menu (the cog, top right), so they're reachable from anywhere instead of only from Settings." },
+      { type: "fix", text: "Desktop: the gap between the top bar and the sidebar is gone \u2014 the sidebar now lines up with whatever height your top bar actually is." },
+      { type: "fix", text: "Desktop: the logo in the top-left now just goes home \u2014 it used to open the app grid on top of that. The grid has its own button in the sidebar, with the grocery list beside it." },
+      { type: "improve", text: "Sync can copy another device's appearance on request \u2014 useful when the device you're on already has its own theme, since syncing otherwise leaves settings you've chosen alone." },
+      { type: "fix", text: "Sync no longer says \"nothing new\" when it actually skipped files it couldn't read, or when another device is waiting to be paired." },
+      { type: "fix", text: "A damaged or leftover sync file no longer makes syncing look broken \u2014 it's named, skipped, and can be removed in one tap, while your other devices sync as normal." },
+      { type: "fix", text: "Syncing to a new device now brings your theme and appearance settings across as well. Anything you'd already set on that device is left as it is." },
+      { type: "fix", text: "Widget board: a back arrow now sits beside the page dots, and the Home button leaves the board. Previously the only way out was a swipe, which doesn't work with a mouse." },
+      { type: "improve", text: "Setting up the desktop app can now pull your data straight from your phone over USB, instead of only offering to import a backup file." },
+      { type: "fix", text: "Sync to a phone plugged in over USB failed to write. It works now, including when the two devices were set up separately \u2014 you're asked once to pair them." },
+      { type: "feature", text: "Sync between your own devices over USB \u2014 no cloud, no account, no server. Plug your phone into your computer, point the desktop app at it, and the two keep each other up to date." },
+      { type: "feature", text: "Syncing never deletes. If something is gone on one device but still on the other it comes back, and anything the other device dropped is listed for you to decide on." },
+    ],
+  },
+  {
+    date: "September 22, 2026",
+    version: "0.241.0",
+    changes: [
+      { type: "feature", text: "You can now point the app at your own Friends & reminders server instead of ours \u2014 Settings \u2192 Notifications & reminders. Everything to run one is in the repository." },
+      { type: "fix", text: "Adding a to-do timed for earlier today no longer files it as something you already did \u2014 it stays a plan, and shows up in Today and Plan this day." },
+      { type: "fix", text: "Widget alignment: \"Center\" now actually centres a widget's elements as a block, the way a text editor's centre button does \u2014 and the widget's box stays exactly where it is. Before, only Left and Right did anything." },
+      { type: "feature", text: "Oceans Symphony is now a desktop app on Linux \u2014 its own window, and data that a browser cleanup can't touch. On first run, import a backup to bring your data across." },
+    ],
+  },
+  {
     date: "September 19, 2026",
+    version: "0.239.11",
     changes: [
       { type: "fix", text: "Recurring tasks: ticking (or un-ticking) one could silently do nothing if the period had duplicate progress records behind the scenes — they're now merged automatically and every surface agrees again." },
     ],

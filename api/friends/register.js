@@ -1,14 +1,14 @@
 // POST /api/friends/register
 // Body: { userId?, secret?, displayName, systemName, terms, privacyLevel }
 // Creates or updates a user profile. Returns { userId, secret, friendCode }.
-import { kv, generateId, generateFriendCode, getProfile, cors, timingSafeEqualStr, capStr, capTerms, capPrivacy, rateLimit } from '../_kv.js';
+import { kv, generateId, generateFriendCode, getProfile, cors, timingSafeEqualStr, capStr, capTerms, capPrivacy, rateLimit, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Friends feature not configured. Add an Upstash Redis integration to your project.' });
   }
 

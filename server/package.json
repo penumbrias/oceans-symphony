@@ -1,0 +1,17 @@
+{
+  "name": "oceans-symphony-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted Oceans Symphony relay (Friends, reminders, web push)",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "firebase-admin": "^13.10.0",
+    "ioredis": "^5.4.1",
+    "web-push": "^3.6.7"
+  }
+}

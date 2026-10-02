@@ -12,6 +12,11 @@
 //   - runtime caches (preview_open, friends_front_snapshots)
 //   - per-device encryption config (KEYS.encEnabled / encSalt / mode)
 //   - per-device push registration metadata
+//   - the backup DECISION (symphony_backup_decision_v1) — re-asking after
+//     a wipe is the right outcome
+//   - the custom backup-file password (symphony_autobackup_pw_v1) — a
+//     mirrored copy would land inside the very file it locks, and inside
+//     every plain export
 
 export const BACKUP_LS_KEYS = [
   "symphony_newui_banner_dismissed_v1",
@@ -45,6 +50,10 @@ export const BACKUP_LS_KEYS = [
   // record of the last backup. Durable via the settings mirror now.
   "symphony_autobackup_mode",
   "symphony_autobackup_destination",
+  // Backup-file locking mode + file-name prefix (v0.240.0). The password
+  // itself is intentionally absent — see the header.
+  "symphony_autobackup_encrypt",
+  "symphony_autobackup_name_v1",
   "symphony_autobackup_last_at",
   "symphony_backup_health_v1",
   "grocery_lock_on_close_v1",
@@ -102,6 +111,11 @@ export const BACKUP_LS_KEYS = [
   // localStorage. Mirrored so a wipe can't take them; kept out of portable
   // exports (see MIRROR_ONLY_KEYS) per the panic-cover design.
   "grocery_unlocked_store_v1",
+  // Self-hosted relay host (src/lib/apiBase.js). A user who points the app
+  // at their own Friends/reminder relay should keep pointing there after a
+  // restore on a new device — the alternative is silently falling back to
+  // the default relay, where their friend codes don't exist.
+  "symphony_api_host",
 ];
 
 // Keys that are mirrored on-device (survive a localStorage wipe) but are

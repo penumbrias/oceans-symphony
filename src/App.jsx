@@ -1,4 +1,6 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
+import { toast } from "sonner";
+import { isNative } from "@/lib/platform";
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -86,7 +88,7 @@ import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { refreshCustomFontFaces } from '@/lib/customFontFaces';
 import { reconcileDistressStore } from '@/lib/emotionDistress';
 import { initSystemsRegistry } from '@/lib/systems';
-import { scanForOrphanedData, isEffectivelyEmpty } from '@/lib/dataRecovery';
+import { scanForOrphanedData, scanForUnregisteredData, withoutDismissedUnregistered, isEffectivelyEmpty } from '@/lib/dataRecovery';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
@@ -324,6 +326,10 @@ function App() {
   // system, NOT into setup — setup refuses to run over an existing slot and
   // would bounce the user round the same screen forever.
   const [orphanOverEmpty, setOrphanOverEmpty] = useState(false);
+  // True when the candidates are blobs the systems registry doesn't list,
+  // found while the active system is fine — offered as "add back to the
+  // list", not "switch to this".
+  const [orphanReadd, setOrphanReadd] = useState(false);
   // Set when the user has declined recovery this session, so the empty-slot
   // scan doesn't re-offer it on the very next pass through boot.
   const orphanDeclined = useRef(false);
@@ -346,11 +352,35 @@ function App() {
       // Best-effort, but call it before anything that depends on storage.
       try { await requestPersistentStorage(); } catch { /* non-fatal */ }
 
+      // Installed app: if the web view's storage was wiped while the app was
+      // closed (the "woke up and everything was gone" report), put the
+      // private-file copy back BEFORE anything reads storage — including the
+      // registry below, which would otherwise be recreated empty. Only ever
+      // writes into an EMPTY store; never overwrites. See nativeMirror.js.
+      if (isNative()) {
+        try {
+          const { restoreFromMirrorIfWiped } = await import('@/lib/nativeMirrorRestore');
+          await restoreFromMirrorIfWiped();
+        } catch { /* non-fatal — the normal boot + recovery paths still run */ }
+      }
+
       // Resolve which system (data slot) is active BEFORE any storage read, so
       // peek/init read the active system's blob. For existing users this is
       // "System 1" → the legacy key, i.e. exactly the data they already have.
-      // Non-fatal: on failure localDb keeps its default (legacy) key.
-      try { await initSystemsRegistry(); } catch { /* non-fatal — defaults to legacy key */ }
+      //
+      // A failure here means the registry could not be READ (see
+      // RegistryReadError in systems.js) — the list of systems is unknown,
+      // not absent. Carrying on with the legacy key used to boot a
+      // multi-system user into "System 1" with the rest missing, so it goes
+      // to the recovery screen (which offers "Try again") instead.
+      try {
+        await initSystemsRegistry();
+      } catch (e) {
+        if (cancelled) return;
+        setRecoveryReason({ kind: 'registry_read_error', error: e });
+        setSetupState('recovery');
+        return;
+      }
 
       let peek;
       try {
@@ -411,6 +441,24 @@ function App() {
             setSetupState('recover-orphan');
             return;
           }
+        }
+      }
+
+      // The active system is fine — but are there systems on disk the
+      // registry doesn't list? A registry that was lost from both stores is
+      // re-created with just "System 1", and the empty-slot scans above never
+      // run for a user whose active system loads, so every other system's
+      // blob used to sit on the device with no way back. Offer to re-add them
+      // (without switching). Skipped once the user has answered this session.
+      if (!orphanDeclined.current) {
+        let unregistered = [];
+        try { unregistered = withoutDismissedUnregistered(await scanForUnregisteredData()); } catch { unregistered = []; }
+        if (cancelled) return;
+        if (unregistered.length > 0) {
+          setOrphanCandidates(unregistered);
+          setOrphanReadd(true);
+          setSetupState('recover-orphan');
+          return;
         }
       }
 
@@ -479,6 +527,28 @@ function App() {
     if (setupState !== 'booting') window.__OS_ALIVE = true;
   }, [setupState]);
 
+  // Installed app: keep the private-file copy complete (first copy for
+  // existing users, pictures / fonts the web view lost are put back) and
+  // say so if boot restored the data from it. Runs at the unlock screen
+  // too — it copies the stored (still-locked) blobs, no password needed.
+  useEffect(() => {
+    if (!isNative() || (setupState !== null && setupState !== 'unlock')) return;
+    import('@/lib/nativeMirrorRestore').then((m) => {
+      m.runMirrorMaintenance();
+      if (setupState !== null) return;
+      let notice = null;
+      try { notice = JSON.parse(localStorage.getItem(m.RESTORED_NOTICE_KEY) || 'null'); } catch { notice = null; }
+      if (!notice) return;
+      try { localStorage.removeItem(m.RESTORED_NOTICE_KEY); } catch { /* ok */ }
+      setTimeout(() => {
+        toast.success("Your data was restored from the app's own saved copy.", {
+          description: "The app's storage had been cleared while it was closed. Nothing was lost — you might want to export a backup now.",
+          duration: 12000,
+        });
+      }, 1500);
+    }).catch(() => {});
+  }, [setupState]);
+
   useEffect(() => {
     if (setupState === null && isDbInitialized()) {
       migrateBase64AvatarsToLocal().catch(() => {});
@@ -519,9 +589,16 @@ function App() {
           <OrphanRecoveryScreen
             candidates={orphanCandidates}
             overExistingSystem={orphanOverEmpty}
+            readdMode={orphanReadd}
             onSetupNew={() => {
               setOrphanCandidates([]);
-              if (orphanOverEmpty) {
+              if (orphanReadd) {
+                // Not now / done re-adding — carry on booting the active
+                // system without asking again this session.
+                orphanDeclined.current = true;
+                setOrphanReadd(false);
+                setSetupState('booting');
+              } else if (orphanOverEmpty) {
                 // There IS a system here, it's just empty — carry on into it
                 // instead of into setup, which would refuse to overwrite it.
                 orphanDeclined.current = true;

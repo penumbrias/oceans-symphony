@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
+import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategories } from "@/lib/backupScope";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
@@ -14,10 +15,10 @@ import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, count
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
-  decryptRawEncrypted,
+  decryptEncryptedImport,
+  isEncryptedFormat,
   FORMAT_STANDARD,
   FORMAT_RAW_PLAIN,
-  FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
 import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
@@ -382,6 +383,7 @@ export async function exportSingleCategory(catId) {
     __format: "symphony_backup",
     __version: 1,
     __exported_at: new Date().toISOString(),
+    __categories: [catId],
     data: filterDump(dump, activeCats),
     __local_images: images,
     __local_fonts: fonts,
@@ -519,9 +521,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const fullImagesRef = useRef(null);
   const fullFontsRef = useRef(null);
 
-  const fetchFullDump = useCallback(async () => {
-    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current, imagesFailed: false };
+  // `fresh` skips the cache: the cache exists for the size preview, but an
+  // export must capture pictures uploaded / entity types created since the
+  // Settings screen opened.
+  // `skipBlobs` (data-only export) doesn't read the picture / font files
+  // at all — holding them all in memory is part of what crashed.
+  const fetchFullDump = useCallback(async ({ fresh = false, skipBlobs = false } = {}) => {
+    if (fullDumpRef.current && !fresh) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current, imagesFailed: false };
     const dump = getFullDbDump();
+    if (skipBlobs) return { dump, images: {}, fonts: {}, imagesFailed: false };
     let images = {};
     let imagesFailed = false;
     // A failed image read must NOT be cached — pre-v0.95.2 one bad read
@@ -587,12 +595,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     return next;
   });
 
-  const buildExportData = async (overrideSelectedCats) => {
+  const buildExportData = async (overrideSelectedCats, { omitBlobs = false } = {}) => {
     const activeCats = overrideSelectedCats ?? selectedCats;
-    const { dump, images, fonts, imagesFailed } = await fetchFullDump();
+    const { dump, images, fonts, imagesFailed } = await fetchFullDump({ fresh: true, skipBlobs: omitBlobs });
     // Never ship a silently image-less backup — the user selected images
     // and deserves to know the export would be missing them.
-    if (imagesFailed && activeCats.has("images")) {
+    if (imagesFailed && activeCats.has("images") && !omitBlobs) {
       throw new Error("Your stored images couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Images category to export without them.");
     }
     // Opt-in Friends identity bundle (device move). Contains the friends
@@ -605,9 +613,16 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       } catch { friendBundle = null; }
     }
     const bundleExtra = friendBundle ? { __friend_identity: friendBundle } : {};
-    const imagesExport = activeCats.has("images") ? images : {};
-    const fontsExport = activeCats.has("fonts") ? fonts : {};
+    // omitBlobs (the data-only safety net) drops only the picture / font
+    // FILES. Their records — the library's names, folders and owners —
+    // stay in: they're tiny, and leaving them out meant restoring a
+    // data-only backup erased the whole asset library.
+    const imagesExport = activeCats.has("images") && !omitBlobs ? images : {};
+    const fontsExport = activeCats.has("fonts") && !omitBlobs ? fonts : {};
     const nowIso = new Date().toISOString();
+    // Which categories this file speaks for, so Replace All on import
+    // replaces only those and keeps everything else on the device.
+    const catsExport = [...activeCats];
 
     // Multi-system scope (Symphony format only; "active" = just this system).
     const systems = listSystems();
@@ -633,6 +648,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           __version: 1,
           __multisystem: 1,
           __exported_at: nowIso,
+          __categories: catsExport,
           systems: perSystem,
           __local_images: imagesExport,
           __local_fonts: fontsExport,
@@ -645,6 +661,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         __format: "symphony_backup",
         __version: 1,
         __exported_at: nowIso,
+        __categories: catsExport,
         data: mergeSystemsAsGroups(perSystem),
         __local_images: imagesExport,
         __local_fonts: fontsExport,
@@ -658,6 +675,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       __format: "symphony_backup",
       __version: 1,
       __exported_at: nowIso,
+      __categories: catsExport,
       data: filterDump(dump, activeCats),
       __local_images: imagesExport,
       __local_fonts: fontsExport,
@@ -697,18 +715,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // the "always safe" range and keeps every entity intact — images can
   // still be exported on their own via the selective grid.
   const HEAVY_BLOB_CATS = new Set(["images", "fonts"]);
-  const catsWithoutHeavyBlobs = () => {
-    const next = new Set(selectedCats);
-    for (const id of HEAVY_BLOB_CATS) next.delete(id);
-    return next;
-  };
   const hasHeavyBlobs = [...selectedCats].some(id => HEAVY_BLOB_CATS.has(id));
 
   const runExport = async (mode = "save", { skipHeavyBlobs = false, onlyCats = null, tag = "" } = {}) => {
     setExportLoading(true);
     try {
-      const overrideCats = onlyCats ?? (skipHeavyBlobs ? catsWithoutHeavyBlobs() : undefined);
-      const exportData = await buildExportData(overrideCats);
+      const overrideCats = onlyCats ?? undefined;
+      const exportData = await buildExportData(overrideCats, { omitBlobs: skipHeavyBlobs });
       // Say how many pictures went in. A backup that silently contains
       // none is the whole failure this pair of fixes is about — the
       // count lets anyone confirm BEFORE handing the file to another
@@ -736,7 +749,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           : res?.location
             ? `Backup saved to ${res.location} 📁`
             : "Backup exported!";
-        const imgNote = (overrideCats ?? selectedCats).has("images")
+        const imgNote = (overrideCats ?? selectedCats).has("images") && !skipHeavyBlobs
           ? ` Includes ${imgCount} image${imgCount === 1 ? "" : "s"}.`
           : "";
         showStatus("success", `${base}${imgNote}`);
@@ -814,13 +827,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
-  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle }) => {
+  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle, categories = null }) => {
     traceStep("importing records", importMode);
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
     // multi-system flow so "Replace all" doesn't silently leave them behind (or
     // wipe them). Done first, before touching anything, so cancelling is clean.
     let clearOtherSystemIds = null;
+    let keptLabels = [];
     if (importMode === "replace") {
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
       if (others.length > 0) {
@@ -850,13 +864,25 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // server userId and leaves a ghost profile on every friend's list.
       // allowDeviceBound applies only to the copies we carried forward.
       const preserved = {};
+      let current = {};
       try {
-        const current = getFullDbDump();
+        current = getFullDbDump();
         for (const name of ["FriendIdentity", "PushSubscription"]) {
           if (current[name]) preserved[name] = current[name];
         }
       } catch { /* no current DB to preserve from — nothing to carry forward */ }
-      await loadDbDump({ ...stripDeviceBound(data), ...preserved }, { allowDeviceBound: true });
+      // Replace only what the file covers. A partial backup (data-only,
+      // images-only, some boxes unticked) used to wipe everything it
+      // didn't hold — that's how asset libraries vanished on restore.
+      const catIds = coveredCategoryIds(data, categories, EXPORT_CATEGORIES);
+      const covered = coveredEntityNames(data, catIds, EXPORT_CATEGORIES);
+      const { next, keptEntities } = buildScopedReplace(
+        current, stripDeviceBound(data), covered,
+        (k) => isReservedDbKey(k) || k === "FriendIdentity" || k === "PushSubscription",
+      );
+      keptLabels = keptCategories(keptEntities, EXPORT_CATEGORIES).map((c) => resolveCatLabel(c, terms));
+      if (keptLabels.length) traceStep("kept (not in file)", keptLabels.join(", "));
+      await loadDbDump({ ...next, ...preserved }, { allowDeviceBound: true });
     } else {
       const res = await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
       // Overlap review (v0.95.4): every record where the merge had to pick
@@ -888,7 +914,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let missingImagesNote = "";
     if (!localImages) {
       try {
-        if (JSON.stringify(data || {}).includes("local-image://")) {
+        const json = JSON.stringify(data || {});
+        if (json.includes("local-image://") || json.includes("/local-image/")) {
           missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Images & Assets\u201d ticked, then import that file here (records won't duplicate).";
         }
       } catch { /* size — skip the check */ }
@@ -905,8 +932,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     const failures = [];
     if (imageResult?.failed?.length) failures.push(`${imageResult.failed.length} of ${imageResult.total} images`);
     if (fontResult?.failed?.length) failures.push(`${fontResult.failed.length} of ${fontResult.total} fonts`);
+    const keptNote = keptLabels.length
+      ? ` Kept what was already here for: ${keptLabels.join(", ")} (not in this file).`
+      : "";
     const base = importMode === "replace"
-      ? "Data replaced!"
+      ? `Data replaced!${keptNote}`
       : "New records added (existing data preserved)!";
     if (failures.length > 0) {
       // Be honest and give the retry instruction — a re-import only
@@ -1088,9 +1118,35 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             if (decision === null) { setImportLoading(false); return; } // cancelled
             keepIds = decision;
           }
+          // Same scoping as the single-system path: each backed-up
+          // system keeps its existing parts that this archive doesn't
+          // include (a data-only archive used to erase every library).
+          const keptMulti = new Set();
+          const usedIds = new Set();
+          const existingSystems = listSystems();
+          for (const s of importedSystems) {
+            const match = existingSystems.find((e) => !usedIds.has(e.id) && (e.name || "") === (s.name || ""));
+            if (!match) continue;
+            usedIds.add(match.id);
+            const catIds = coveredCategoryIds(s.data, maybe.__categories, EXPORT_CATEGORIES);
+            if (EXPORT_CATEGORIES.every((c) => catIds.has(c.id))) continue;
+            const raw = match.id === getActiveSystemId() ? getFullDbDump() : await getSystemData(match);
+            if (!raw) {
+              showStatus("error", `Couldn't read the existing "${match.name || "unnamed"}" ${terms.system}, so the parts this backup doesn't include can't be kept. Unlock the app (or open that ${terms.system} once) and import again — nothing was changed.`);
+              return;
+            }
+            const covered = coveredEntityNames(s.data, catIds, EXPORT_CATEGORIES);
+            const { next, keptEntities } = buildScopedReplace(
+              raw, s.data, covered,
+              (k) => isReservedDbKey(k) || k === "FriendIdentity" || k === "PushSubscription",
+            );
+            s.data = next;
+            for (const c of keptCategories(keptEntities, EXPORT_CATEGORIES)) keptMulti.add(resolveCatLabel(c, terms));
+          }
           const created = await executeMultiSystemReplace(importedSystems, keepIds);
           const mediaMsg = await restoreMultiMedia();
-          showStatus(mediaMsg ? "error" : "success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg} The app will reload.`);
+          const keptMsg = keptMulti.size ? ` Kept what was already here for: ${[...keptMulti].join(", ")} (not in this file).` : "";
+          showStatus(mediaMsg ? "error" : "success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}!${keptMsg}${mediaMsg} The app will reload.`);
           setTimeout(() => window.location.reload(), mediaMsg ? 6000 : 1200);
           return;
         }
@@ -1117,6 +1173,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         localFonts: parsed.localFonts,
         localSettings: parsed.localSettings,
         friendBundle: parsed.friendBundle,
+        categories: parsed.categories,
       });
       return;
     }
@@ -1124,8 +1181,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       await applyImportPayload({ data: parsed.data, friendBundle: parsed.friendBundle });
       return;
     }
-    if (parsed.format === FORMAT_RAW_ENCRYPTED) {
-      // Defer to the password modal — caller flow resumes there.
+    if (isEncryptedFormat(parsed.format)) {
+      // Raw encrypted snapshot or a password-locked backup — defer to the
+      // password modal; caller flow resumes there.
       traceStep("waiting for password");
       setPendingEncryptedImport(parsed);
       return;
@@ -1546,17 +1604,24 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     if (!pendingEncryptedImport) return;
     setImportLoading(true);
     try {
-      const data = await decryptRawEncrypted(pendingEncryptedImport, password);
+      // Unlocks either shape and normalises it: a locked standard backup
+      // comes back with images / fonts / settings; an old raw snapshot
+      // comes back raw with any FriendIdentity table surfaced as a bundle
+      // (the same consent prompt as every other path).
+      const res = await decryptEncryptedImport(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      // Old encrypted raw files can carry a FriendIdentity table — route
-      // it through the same consent prompt as every other path.
-      let rawBundle = null;
-      const fiTable = data?.FriendIdentity;
-      if (fiTable && typeof fiTable === "object") {
-        const rows = Array.isArray(fiTable) ? fiTable : Object.values(fiTable);
-        rawBundle = rows.find((r) => r && r.userId && r.secret) || null;
+      if (res.format === FORMAT_STANDARD) {
+        await applyImportPayload({
+          data: res.data,
+          localImages: res.localImages,
+          localFonts: res.localFonts,
+          localSettings: res.localSettings,
+          friendBundle: res.friendBundle,
+          categories: res.categories,
+        });
+      } else {
+        await applyImportPayload({ data: res.data, friendBundle: res.friendBundle });
       }
-      await applyImportPayload({ data, friendBundle: rawBundle });
     } catch (e) {
       showStatus("error", `Decrypt failed: ${e.message}`);
     } finally {
@@ -1825,7 +1890,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               <div className="text-left min-w-0">
                 <p className="font-medium">Save data-only backup <span className="text-xs font-normal text-muted-foreground">(safety net)</span></p>
                 <p className="text-xs text-muted-foreground font-normal whitespace-normal">
-                  Use this if the regular backup crashes the app. Skips images and custom fonts; every other setting and record is included. Export images separately from Advanced ↑.
+                  Use this if the regular backup crashes the app. Skips the picture and font files (your library's names and folders are still included). Export images separately from Advanced ↑.
                 </p>
               </div>
             </Button>
@@ -2040,7 +2105,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           </Button>
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
-              ? "⚠️ Replace All will delete existing data and import from backup."
+              ? "⚠️ Replace All deletes existing data and imports the backup's copy instead — for the categories the backup includes. Anything the file doesn't include stays as it is."
               : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything unless you turn on deletion sync below, and your more-recent local edits always win."}
           </p>
           {importMode !== "replace" && (
@@ -2335,8 +2400,9 @@ function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <h3 className="font-semibold text-lg">Encrypted file</h3>
         <p className="text-sm text-muted-foreground">
-          This file is an encrypted raw on-device snapshot. Enter the password
-          you used when the file was created to decrypt and import it.
+          This file is password-locked. Enter the password used when it was
+          created (a locked backup uses your backup password) to decrypt and
+          import it.
         </p>
         <div className="relative">
           <input

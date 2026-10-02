@@ -1,6 +1,10 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getSyncAdapter } from "@/lib/syncAdapters";
+import { getSyncFolder, runSync } from "@/lib/deviceSyncRunner";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -35,6 +39,46 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
   const navigate = useNavigate();
   const terms = useTerms();
   const path = location.pathname;
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = React.useState(false);
+
+  // Sync is only offered where it can actually run: a platform with a
+  // filesystem adapter AND a folder already chosen. Otherwise the entry
+  // would be a dead end pointing at Settings.
+  const syncReady = React.useMemo(() => {
+    try {
+      const adapter = getSyncAdapter();
+      return adapter.available && (!adapter.canPickFolder || !!getSyncFolder());
+    } catch { return false; }
+  }, []);
+
+  // Refetch everything on screen without a full page reload — the mouse
+  // equivalent of pull-to-refresh.
+  const handleRefresh = () => {
+    queryClient.invalidateQueries();
+    toast.success("Refreshed.");
+  };
+
+  const handleSyncNow = async (e) => {
+    e?.preventDefault?.();
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await runSync({ force: false });
+      queryClient.invalidateQueries();
+      const n = res.merged.length;
+      const bad = res.unreadable?.length || 0;
+      if (n) toast.success(`Synced with ${n} device${n === 1 ? "" : "s"}.`);
+      else if (bad) toast.error(`${bad} snapshot${bad === 1 ? "" : "s"} couldn't be read — see Settings.`);
+      else if (res.needsPairing?.length) toast.message("Another device is waiting to be paired — Settings → Sync between devices.");
+      else if (res.errors.length) toast.error(res.errors[0].message);
+      else toast.success("Already up to date.");
+    } catch (err) {
+      toast.error(err?.message || "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const pageActions = [];
   if (v2Options) {
@@ -179,6 +223,22 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
             <DropdownMenuSeparator />
           </>
         )}
+        {/* Always-available actions, below whatever this page offers.
+            Refresh exists because pull-to-refresh is a touch gesture and
+            the desktop app had no equivalent at all. Sync is here because
+            "get my other device's changes" is a thing you want from
+            wherever you are, not only from deep inside Settings. */}
+        <DropdownMenuItem onSelect={handleRefresh} className="gap-2 cursor-pointer">
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </DropdownMenuItem>
+        {syncReady && (
+          <DropdownMenuItem onSelect={handleSyncNow} className="gap-2 cursor-pointer">
+            <Usb className="w-4 h-4" />
+            {syncing ? "Syncing…" : "Sync with another device"}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/settings")} className="gap-2 cursor-pointer">
           <Cog className="w-4 h-4" />
           All settings

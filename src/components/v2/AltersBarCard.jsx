@@ -67,6 +67,7 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
         e.stopPropagation();
       }}
       className={`pointer-events-auto max-w-full flex items-center gap-1 backdrop-blur-xl ${className}`}
+      data-widget-box="1"
       style={{
         touchAction: orientation === "vertical" ? "pan-y" : "pan-x",
         ...lookStyle,

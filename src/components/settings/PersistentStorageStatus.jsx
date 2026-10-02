@@ -38,7 +38,7 @@ export default function PersistentStorageStatus() {
       <div className="flex items-start gap-2">
         <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
-          This is the installed app's own storage — more durable than a browser tab, but it can still be wiped by "Clear storage" in Android app settings or by device-cleaner apps. Keep a recent backup as your safety net; it's the only thing that survives a storage wipe.
+          The app keeps your data in two places on this device: its working storage, and a copy in its own private files that's put back automatically if the working storage is ever cleared. Uninstalling the app or "Clear storage" in the phone's settings removes both, so keep a recent backup — it's the only thing that survives those.
           {storage.usage != null && (
             <> Using ~{fmtBytes(storage.usage)}{storage.quota ? ` of ${fmtBytes(storage.quota)}` : ""}.</>
           )}

@@ -900,6 +900,7 @@ function AppTileWidget({ mode, settings }) {
     <button type="button" onClick={() => navigate(item.path)} title={label}
       className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
       // The tile is this widget's visible box (widget contract).
+      data-widget-box="1"
       style={boxStyle({ borderFallback: false })}>
       {iconEl}
       {display !== "plain" && mode !== "minimal" && (
@@ -1300,6 +1301,7 @@ function FolderWidget({ settings, mode }) {
       <button type="button" onClick={() => setOpen(true)}
         className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
         // The folder tile is this widget's visible box (widget contract).
+        data-widget-box="1"
         style={boxStyle({ borderFallback: false })}>
         {/* The tile previews what's inside — the first four, in a 2×2, the
             way a phone folder does. */}
@@ -1948,7 +1950,7 @@ function QuickLinksWidget({ settings, mode, api }) {
 
   return (
     // The grid itself is this widget's visible box (widget contract).
-    <div className="grid gap-1 h-full min-h-0"
+    <div className="grid gap-1 h-full min-h-0" data-widget-box="1"
       style={{ ...boxStyle({ borderFallback: false }), gridTemplateColumns: `repeat(auto-fill, minmax(64px, 1fr))` }}>
       {links.map((l, i) => {
         const key = `${l.type}_${l.id}_${i}`;

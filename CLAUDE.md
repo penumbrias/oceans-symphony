@@ -1,5 +1,18 @@
 # Oceans Symphony — Architecture Notes for Claude
 
+## RULE ZERO — Data Security Comes First. Always.
+
+**Keeping every user's data safe is the most important pillar of this app — above features, looks, speed, and convenience. Every user, every app version, every platform.** People trust this app with their system's history; losing it is the one failure that can't be apologised away.
+
+Before writing or approving ANY change, ask: *can this lose, overwrite, corrupt, or expose user data — on any platform, in any version, under any failure (crash, kill, full storage, two windows, wiped browser storage, wrong password)?* If the answer isn't a confident "no", stop and fix that first.
+
+- Data must live where the platform keeps it safest. On the installed apps that means the app's own private files — not only the web view's storage, which the browser engine can clear without warning (see "Native private-file mirror" under Storage Layer Invariants).
+- Never silently drop, overwrite, or empty data. Fail loudly, keep a copy, and let the user decide.
+- A data-safety fix outranks everything else in the queue.
+
+The detailed rules are in "User Data Preservation — Non-Negotiable" and "Storage Layer Invariants" below. This rule is also the last line of this file, on purpose.
+
+
 ## Critical: Always Respect User Terminology
 
 Users can customise the words used for their system, alters, fronting, and switching. **Every piece of new UI must use these terms — never hardcode "system", "alter", "alters", "fronting", "fronter", "switch", "headmate", "headmates", "member" (when referring to alters), etc.**
@@ -278,8 +291,8 @@ For round-target highlights (avatar circles etc.) use `.alter-bar-jump-halo` ins
 
 ## Build Targets — Web, TWA, Native (post v0.11.3)
 
-Single React codebase, three build targets. Native work must be **purely
-additive** — every web-only code path stays untouched unless a runtime
+Single React codebase, four build targets. Native and desktop work must be
+**purely additive** — every web-only code path stays untouched unless a runtime
 `isNative()` branch is needed.
 
 | Target | Built by | Distributed via | Background tasks? |
@@ -288,6 +301,7 @@ additive** — every web-only code path stays untouched unless a runtime
 | Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
 | Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
 | Capacitor native (iOS) | `npm run build && npx cap sync ios && npx cap open ios` (macOS + Xcode; SPM, no CocoaPods) | App Store / TestFlight under bundle id `app.oceans-symphony.ios` (Apple forbids underscores, so the Android id can't be reused) — see `docs/ios-setup.md` | Yes (BGTaskScheduler — opportunistic, not interval-guaranteed) |
+| Electron desktop (Linux) | `npm run desktop:build` → `release/` (AppImage + .deb) | Direct download, Linux first — see `docs/desktop-setup.md` | No (app must be open) |
 
 Rules for keeping the targets healthy:
 
@@ -327,6 +341,52 @@ Rules for keeping the targets healthy:
 - **PWA / TWA non-regression is non-negotiable.** At every native phase,
   the `git diff` of web-only code paths must remain empty or very near
   empty.
+- **The desktop origin and app name are the database address.** The
+  Electron shell serves the app from `symphony://app` and sets
+  `app.setName('Oceans Symphony')`. Chromium keys IndexedDB by origin,
+  and the app name decides `app.getPath('userData')` — so changing
+  either one orphans every existing desktop user's data. Both are pinned
+  and commented in `electron/main.cjs`.
+- **Desktop has no Service Worker and no web push** — the Cache API
+  rejects the `symphony://` scheme, so `src/main.jsx` skips SW
+  registration when `isDesktop()`. Avatars still work: `imageUrlResolver`
+  reads IndexedDB directly whenever no SW controls the page. Don't
+  "fix" this by reintroducing the registration.
+- **Never hardcode a server URL or a relative `/api/*` path.** Only the
+  web build is served by the deploy that hosts the API; native and
+  desktop are not. Every server surface goes through `apiBase()` in
+  `src/lib/apiBase.js`, which also carries the user's self-hosted-relay
+  override.
+- **The relay handlers in `api/` are never forked.** A self-hosted relay
+  (`server/`, see `docs/self-hosting.md`) imports those exact files and
+  supplies only what Vercel otherwise would: a KV backend (installed on
+  `globalThis.__SYMPHONY_KV`, which `api/_kv.js` picks up) and the
+  `req.body` / `req.query` / `res.status().json()` shims. Guard
+  "is the store configured?" with `isKvConfigured()`, never by reading
+  `KV_REST_API_URL` directly — a self-hosted relay has no Upstash URL and
+  would report itself unconfigured. If you use a new `kv.*` method, add
+  it to `server/kvRedis.mjs` with matching Upstash semantics.
+- **Adding an origin the app is served from means adding it to
+  `ALLOWED_ORIGINS` in `api/_kv.js`.** Otherwise the browser drops every
+  relay response and Friends looks broken with no error worth reading.
+- **Device sync is files only — never add a network path to it.** See
+  `docs/device-sync.md`. Platform differences live behind the adapter
+  interface in `src/lib/syncAdapters.js`; a new platform is a new
+  adapter, never a change to `deviceSync.js` or `deviceSyncRunner.js`.
+- **`symphony_sync_device_id` must stay OUT of `BACKUP_LS_KEYS`.**
+  Restoring a backup onto a second machine would clone the id, both
+  devices would write the same snapshot filename, and each would
+  silently overwrite the other — the one way per-device files can lose
+  data. Same rule as `FriendIdentity`.
+- **Sync never deletes.** `applyDataSnapshot` passes
+  `applyDeletions: false` deliberately: people sync precisely because
+  they want deleted data BACK. Deletions from the other device are
+  surfaced for review, never applied. Don't "fix" this into a
+  bidirectional delete.
+- **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
+  copy — its entity maps are the live database. Anything built from it
+  and then awaited on (encryption) can tear. `buildDataSnapshot` copies
+  synchronously before the first await; keep it that way.
 
 See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
 phasing plan.
@@ -348,6 +408,7 @@ phasing plan.
 These rules came out of a critical bug where encrypted data became unreachable overnight after a localStorage wipe (Android device cleaners). They apply to everything that touches `localDb.js`, `storageMode.js`, `App.jsx`'s boot path, `StorageModeSetup.jsx`, `UnlockScreen.jsx`, `RecoveryScreen.jsx`:
 
 - **Never silently return `_db = {}` when stored data exists.** If data is on disk but unreadable (encrypted with no key, corrupted JSON, missing salt, IDB error), `initLocalDb` MUST throw a typed error (`EncryptedDataWithoutKeyError`, `CorruptedDataError`, `MissingSaltError`, `StorageReadError`). The boot path catches these and routes to `RecoveryScreen` — never to `firstrun` and never to a half-loaded dashboard.
+- **Never write a fresh systems registry after a read error.** `loadRegistry` (`src/lib/systems.js`) returns `null` only when IndexedDB was READ and is empty and the mirror is empty too; an IDB error (or garbage) with no usable mirror throws `RegistryReadError`, which boot routes to `RecoveryScreen` (`registry_read_error` — retry + read-only copies, no reset/restore). Boot also runs `scanForUnregisteredData()` every launch so blobs missing from the registry are offered back via `registerStorageKey` (adds, never switches).
 - **Never trust localStorage alone to decide "first run".** Use `peekStoredData()` from `localDb.js` — it checks IndexedDB directly. Android cleaners regularly wipe localStorage while leaving IndexedDB intact; routing those users back into setup destroyed their data.
 - **Never swallow init errors with `.catch(() => setSetupState(null))`.** Surface every init failure to the user via the recovery screen.
 - **Encryption metadata (flag + salt) MUST be persisted alongside the encrypted payload**, not only in localStorage. `saveDb()` embeds `__salt` inside the `__encrypted` envelope so a localStorage wipe alone can't make data permanently undecryptable. Never break that — the salt + ciphertext are an inseparable pair.
@@ -355,6 +416,9 @@ These rules came out of a critical bug where encrypted data became unreachable o
 - **`StorageModeSetup` must check `peekStoredData()` before completing setup.** If data exists, refuse to overwrite and instruct the user to reload. App.jsx's boot path should never reach setup when data exists — the check is defence-in-depth.
 - **Recovery actions that destroy data (reset, fresh start) must always save a raw copy to Downloads first.** `RecoveryScreen.handleReset` writes the raw blob (including encrypted ciphertext) before `loadDbDump({})`. Don't add a "fast reset" path that skips the backup.
 - **User preferences are mirrored INTO the DB blob (v0.177.0) — `src/lib/localSettingsMirror.js`.** Every key in `BACKUP_LS_KEYS` (`backupKeys.js`) is copied into `_db.__local_settings_mirror` (debounced, through the normal `saveDb` queue, so it rides encryption + backups + per-system scoping) and restored on boot for any key MISSING from localStorage — the fix for "my theme just disappeared" after an Android cache clear. Rules: localStorage always wins when present (restore only fills gaps); restore/mirror never throw into the boot path; `__local_settings_mirror` is a RESERVED top-level DB key (see `RESERVED_DB_KEYS` / `isReservedDbKey` in `localDb.js`) — every generic walk over the blob must skip reserved keys, merge-import ignores an incoming mirror, replace-import keeps this device's mirror unless it has none. **When you add a user-set localStorage preference, add it to `BACKUP_LS_KEYS` and it is durable automatically — do not invent a second persistence path.**
+- **Native private-file mirror (v0.244.0) — `src/lib/nativeMirror.js` + `nativeMirrorRestore.js`.** On the installed apps, web view storage (IndexedDB/localStorage) is NOT a safe sole home: the browser engine can clear it while the app is closed ("I woke up and everything was gone"). Every data blob, the systems registry, and every picture/font is also written to the app's private files (`Directory.Library` → `symphony-safe/`). Rules: (1) every write of a data blob goes through `saveToStorage` (localDb) or `putBlob` (systems.js) so the mirror never misses one — never `idb.put` a blob directly; (2) blobs use two alternating slots with a length-checked header, so a torn write falls back to the previous complete copy; (3) a blob that suddenly shrinks by half or more gets a `kept-` copy, never auto-deleted; (4) boot runs `restoreFromMirrorIfWiped()` BEFORE `initSystemsRegistry`, and it only writes into an EMPTY store — it never overwrites a live blob; partial cases surface through the recovery screens, which list app-file copies and adopt them into a NEW slot; (5) only deliberate user wipes remove mirror files — "Delete all local data" (`wipeMirror`) and deleting a system (`deleteDbMirror`); the recovery-screen reset only RETIRES the copy to a kept copy; (6) never mirror a non-object value (`"null"`); (7) boot records go to native Preferences (outside web view storage) — read them with `readBootRecords()` when diagnosing a loss report.
+- **Saves never write a non-object, and never race across tabs (v0.243.1).** `doSaveDb` captures `_db`/`_encKey` up front and skips if `_db` isn't an object (a queued save after `clearSession()` once wrote `"null"` over the encrypted blob). Saves hold a Web Lock per storage key; on a generation clash the other writer's disk-only records are MERGED in (tombstoned deletions respected) instead of being overwritten. Writes that deliberately remove records without tombstones (`loadDbDump`, `bulkDeleteEntities`) set `_authoritativeSave` so the merge doesn't resurrect them.
+- **Replace-All import only replaces what the file covers (v0.243.1).** Backups declare `__categories`; older files are inferred from which entities they carry. Anything not covered keeps this device's copy (`src/lib/backupScope.js`). Never reintroduce a whole-DB swap on import.
 - **`getDb()` throws if called before `initLocalDb` completes.** Don't reintroduce a synchronous `_db = {}` fallback — the previous one let early callers seed an empty in-memory DB that would overwrite real data on the next save.
 
 ### When you change anything in this layer
@@ -1032,3 +1096,9 @@ If you're dispatching three or more agents and any of them touch shared/release 
 4. Bump `android/app/build.gradle` `versionCode` (strictly > last Play release) AND set `versionName` to exactly match `APP_VERSION`.
 5. If a new UI surface was added, add a `FeatureTour` step (and matching `data-tour="…"` anchor).
 6. If a new entity was added, add it to BOTH `ENTITY_NAMES` and `EXPORT_CATEGORIES` in `src/components/settings/DataBackupRestore.jsx` (or document the device-bound exclusion).
+
+---
+
+## RULE ZERO, again — Data Security Is the Final Word
+
+Whatever else this file says, **user data safety wins every trade-off.** If a change could lose, overwrite, corrupt, or expose anyone's data — on any platform, in any version — it does not ship until that risk is gone.

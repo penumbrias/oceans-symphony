@@ -15,6 +15,9 @@
 // migrateLegacyStringsToBlobs() walks the store and converts every
 // remaining string. Callers don't need to change shape.
 
+import { isNative } from './platform';
+import { mirrorMedia, deleteMediaMirror } from './nativeMirror';
+
 const DB_NAME = 'symphony_images';
 const STORE_NAME = 'images';
 
@@ -107,11 +110,24 @@ function putImage(idb, id, toWrite) {
   });
 }
 
-export async function saveLocalImage(id, imageData, mimeHint) {
+// Native private-file copy of a stored picture (nativeMirror.js). Off the
+// save's critical path; never throws.
+function mirrorImage(id, value) {
+  if (!isNative()) return;
+  (async () => {
+    try {
+      const dataUrl = typeof value === 'string' ? value : value instanceof Blob ? await blobToDataUrl(value) : null;
+      if (dataUrl) await mirrorMedia('img', id, dataUrl);
+    } catch { /* mirror is best-effort; the IDB copy is saved */ }
+  })();
+}
+
+export async function saveLocalImage(id, imageData, mimeHint, { mirror = true } = {}) {
   // Normalise: Blob preferred, everything else converted. If the caller
   // passed a data URI (common — every legacy caller does), we transparently
   // convert to a Blob so the on-disk shape stays canonical.
   const toWrite = toBlob(imageData, mimeHint) || imageData;
+  if (mirror) mirrorImage(id, typeof imageData === 'string' ? imageData : toWrite);
   try {
     const idb = await getIdb();
     return await putImage(idb, id, toWrite);
@@ -146,6 +162,7 @@ export async function getLocalImage(id) {
 }
 
 export async function deleteLocalImage(id) {
+  deleteMediaMirror('img', id);
   try {
     const idb = await getIdb();
     return new Promise((resolve, reject) => {
@@ -159,6 +176,25 @@ export async function deleteLocalImage(id) {
     console.warn('deleteLocalImage: IDB unavailable:', e);
     return Promise.resolve();
   }
+}
+
+// Every stored picture id. THROWS when the store can't be read — the
+// native mirror upkeep must not mistake "unreadable" for "empty".
+export async function listLocalImageIds() {
+  const idb = await getIdb();
+  return new Promise((resolve, reject) => {
+    const req = idb.transaction([STORE_NAME], 'readonly').objectStore(STORE_NAME).getAllKeys();
+    req.onerror = () => reject(new Error('Failed to list images'));
+    req.onsuccess = () => resolve(req.result || []);
+  });
+}
+
+// One stored picture as a data URL (Blob entries converted), or null.
+export async function getLocalImageAsDataUrl(id) {
+  const v = await getLocalImage(id);
+  if (typeof v === 'string') return v;
+  if (v instanceof Blob) { try { return await blobToDataUrl(v); } catch { return null; } }
+  return null;
 }
 
 // Accepts both /local-image/[id] (current) and local-image://[id] (legacy)

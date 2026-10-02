@@ -3,14 +3,14 @@
 // Deletes the user's profile, friends map, pending requests, push
 // subscription, and front status. Removes this user from every friend's
 // friends map. Frees the friend code so it could be re-used later.
-import { kv, validateUser, getProfile, getFriends, setFriends, cors } from '../_kv.js';
+import { kv, validateUser, getProfile, getFriends, setFriends, cors, isKvConfigured } from '../_kv.js';
 
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!process.env.KV_REST_API_URL) {
+  if (!isKvConfigured()) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 

@@ -122,12 +122,10 @@ export default function DataInspector() {
               : "Storage usage isn't available in this browser."}
             {" "}
             {NATIVE
-              // On native, this is the installed app's own WebView storage —
-              // not subject to the same background-eviction rules a browser
-              // tab is, so the browser-only "persisted" flag doesn't apply
-              // here (see PersistentStorageStatus.jsx, shared with Storage &
-              // encryption / Automatic backups).
-              ? "This is the installed app's own storage, so it isn't subject to browser eviction — no action needed here."
+              // On native the web view's storage CAN be cleared by the
+              // engine; the private-file mirror (nativeMirror.js) is what
+              // protects it, so say that instead of "no action needed".
+              ? "The app also keeps a copy of your data in its own private files, and puts it back automatically if this storage is ever cleared. Uninstalling removes both, so keep exporting backups."
               : storage.persisted === true
                 ? "Storage is marked persistent (won't be auto-cleared under storage pressure)."
                 : "Storage isn't marked persistent yet — see \"Storage & encryption\" above to request it."}

@@ -7,7 +7,7 @@
 // swiped away: the SERVER holds the clock and initiates the push, exactly
 // like the friend-front-change pipeline — OS alarms (which Android cancels
 // on force-stop) are no longer the only delivery path.
-import { kv } from '../_kv.js';
+import { kv, isKvConfigured } from '../_kv.js';
 
 const DUE_ZSET = 'reminders:due';
 
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const auth = req.headers.authorization || '';
     if (auth !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' });
   }
-  if (!process.env.KV_REST_API_URL) return res.status(503).json({ error: 'Not configured.' });
+  if (!isKvConfigured()) return res.status(503).json({ error: 'Not configured.' });
 
   const now = Date.now();
   let due = [];
