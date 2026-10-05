@@ -197,8 +197,9 @@ export default function BulletinBoard({
 
       {/* Full composer */}
       {composing &&
-        <div className="mb-3">
+        <div className="mt-2 mb-3 pb-3 border-b border-border/50">
           <BulletinComposer
+            embedded
             alters={alters}
             authorAlterId={currentAlterId}
             frontingAlterIds={frontingAlterIds}
