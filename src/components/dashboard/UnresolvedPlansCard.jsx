@@ -15,6 +15,7 @@ import {
 } from "@/lib/activityStatus";
 import { addActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { cancelPlanReminder, schedulePlanReminder } from "@/lib/planReminderScheduler";
+import { useNowTick } from "@/lib/useNowTick";
 
 // Dashboard surface that lists past-time scheduled plans the user hasn't
 // resolved yet. One-tap buttons send the lifecycle update directly so
@@ -91,12 +92,18 @@ export default function UnresolvedPlansCard() {
     };
   }, []);
 
+  // Re-evaluate as time passes and on resume, so a plan whose time has
+  // just gone by moves into this list without waiting for a data refetch.
+  const now = useNowTick(60_000);
   const unresolved = useMemo(
-    () => activities
-      .filter(isPastTimeScheduled)
-      .filter((a) => !activePlanIds.has(a.id))
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-    [activities, activePlanIds]
+    () => {
+      void now;
+      return activities
+        .filter(isPastTimeScheduled)
+        .filter((a) => !activePlanIds.has(a.id))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    },
+    [activities, activePlanIds, now]
   );
 
   const [busyId, setBusyId] = useState(null);

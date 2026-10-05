@@ -1,22 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Calendar, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistance } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
 import { duePlanReminder, ackPlan } from "@/lib/planBannerAcks";
+import { useNowTick } from "@/lib/useNowTick";
 
 export default function AnnouncementBanner() {
   const navigate = useNavigate();
-  const [now, setNow] = useState(() => Date.now());
-
   // Re-check every minute so the banner appears the moment the reminder
-  // window opens, without keeping the timer running too aggressively.
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // window opens, and on resume so a frozen background clock can't call a
+  // past plan upcoming.
+  const now = useNowTick(60_000);
+  const [, setDismissed] = React.useState(0);
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -37,7 +35,7 @@ export default function AnnouncementBanner() {
 
   if (!dueSoon) return null;
 
-  const dismiss = () => { ackPlan(dueSoon.id); setNow(Date.now() + 1); };
+  const dismiss = () => { ackPlan(dueSoon.id); setDismissed((x) => x + 1); };
 
   return (
     <div
@@ -53,7 +51,9 @@ export default function AnnouncementBanner() {
         onClick={() => navigate("/activities")}
         className="flex-1 text-left text-foreground hover:underline"
       >
-        You have <strong>{dueSoon.activity_name || "an activity"}</strong> planned in {formatDistanceToNow(new Date(dueSoon.timestamp))}.
+        {new Date(dueSoon.timestamp).getTime() > now
+          ? <>You have <strong>{dueSoon.activity_name || "an activity"}</strong> planned in {formatDistance(new Date(dueSoon.timestamp), now)}.</>
+          : <><strong>{dueSoon.activity_name || "An activity"}</strong> was planned {formatDistance(new Date(dueSoon.timestamp), now)} ago.</>}
       </button>
       <button
         type="button"
