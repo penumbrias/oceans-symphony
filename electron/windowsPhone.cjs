@@ -108,15 +108,23 @@ function Resolve-Target {
   return $f.GetFolder
 }
 
+# Done when the copy is complete: the file exists, nothing holds it open,
+# and either it has the expected size or its size has stopped changing.
+# Android's MTP can report a stale size for a file the app rewrote, so the
+# expected size alone is not trusted (waiting on it is how a sync hangs).
 function Wait-Local($file, $expected, $seconds) {
   $deadline = (Get-Date).AddSeconds($seconds)
+  $last = -1; $stable = 0
   while ((Get-Date) -lt $deadline) {
     if (Test-Path -LiteralPath $file) {
       try {
         $fs = [IO.File]::Open($file, 'Open', 'Read', 'None')
         $len = $fs.Length
         $fs.Close()
-        if ($expected -le 0 -or $len -eq $expected) { return $true }
+        if ($expected -gt 0 -and $len -eq $expected) { return $true }
+        if ($len -gt 0 -and $len -eq $last) { $stable++ } else { $stable = 0 }
+        $last = $len
+        if ($stable -ge 4) { return $true }
       } catch {}
     }
     Start-Sleep -Milliseconds 250
@@ -136,17 +144,25 @@ function Move-Off($name, $toDir) {
   while ((Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds 300
     $gone = -not (Find-File (Resolve-Target) $name)
-    if ($gone -and (Wait-Local (Join-Path $toDir $name) $size 1)) { return $true }
+    if ($gone -and (Wait-Local (Join-Path $toDir $name) $size 3)) { return $true }
   }
   throw 'MOVE_TIMEOUT'
 }
 
 function Wait-Target($name, $expected, $seconds) {
   $deadline = (Get-Date).AddSeconds($seconds)
+  $last = -1; $stable = 0
   while ((Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds 300
     $i = Find-File (Resolve-Target) $name
-    if ($i -and ([int64]$i.Size -eq $expected)) { return $true }
+    if (-not $i) { $stable = 0; $last = -1; continue }
+    $size = [int64]$i.Size
+    if ($size -eq $expected) { return $true }
+    # Some phones report 0 or a rounded size for a new object; accept it
+    # once it has been present and unchanged for a few seconds.
+    if ($size -eq $last) { $stable++ } else { $stable = 0 }
+    $last = $size
+    if ($stable -ge 10) { return $true }
   }
   return $false
 }
@@ -283,9 +299,31 @@ function createWindowsPhone({ helperDir, powershell = 'powershell.exe', localTar
     });
   }
 
+  // A plain-text trail of every phone operation (<userData>\phone-sync.log,
+  // reachable from File → Open Data Folder) so "sync got stuck" can be
+  // traced to the exact step. File names and timings only — never data.
+  const logPath = path.join(helperDir, 'phone-sync.log');
+  async function log(line) {
+    try {
+      const st = await fsp.stat(logPath).catch(() => null);
+      if (st && st.size > 512 * 1024) await fsp.rename(logPath, `${logPath}.old`).catch(() => {});
+      await fsp.appendFile(logPath, `${new Date().toISOString()} ${line}\n`, 'utf8');
+    } catch { /* logging must never break sync */ }
+  }
+
   // Serialize: one Shell operation on the phone at a time.
   function run(op, env = {}, timeoutMs = 240000) {
-    const next = queue.then(() => runOnce(op, env, timeoutMs));
+    const label = `${op}${env.SYM_NAME ? ` ${env.SYM_NAME}` : ''}`;
+    const next = queue.then(async () => {
+      const t0 = Date.now();
+      await log(`start ${label}`);
+      const res = await runOnce(op, env, timeoutMs);
+      const extra = res?.ok
+        ? (Array.isArray(res.files) ? ` files=${res.files.length}` : '')
+        : ` error=${String(res?.error || '').slice(0, 300).replace(/\s+/g, ' ')}`;
+      await log(`${res?.ok ? 'ok   ' : 'FAIL '} ${label} ${Date.now() - t0}ms${extra}`);
+      return res;
+    });
     queue = next.catch(() => {});
     return next;
   }
