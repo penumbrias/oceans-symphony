@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 5, 2026",
+    changes: [
+      { type: "fix", text: "Plan reminders on Android now arrive on time while the app is closed, instead of waiting until you next open it." },
+      { type: "fix", text: "A plan whose time has already passed no longer reads as \u201cplanned in 3 hours\u201d; it now says how long ago it was planned." },
+    ],
+  },
+  {
     date: "October 1, 2026",
+    version: "0.250.0",
     changes: [
       { type: "feature", text: "Every bar is now edited in one place, Display options → Bars, with the same parts for each: Show, Position, Size, Look, What's on it. Every bar's ⚙ opens it right at that bar." },
       { type: "improve", text: "Bars keep one name everywhere (Top bar, Bottom tabs, Quick actions bar, Pinned {{alters}} bar, Side rail), and the press-and-hold menu is now called Shortcuts." },

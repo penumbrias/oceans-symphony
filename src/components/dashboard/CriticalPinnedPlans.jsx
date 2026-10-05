@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { MapPin, X, Zap } from "lucide-react";
 import { shouldShowPin, writeDismissal } from "@/lib/criticalPins";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { useNowTick } from "@/lib/useNowTick";
 
 // Top-of-Dashboard pinned cards for plans the user marked critical /
 // urgent. A card appears whenever any of the plan's selected lead-step
@@ -22,17 +23,14 @@ export default function CriticalPinnedPlans() {
 
   // Force a re-render every minute so the visibility window check stays
   // accurate even if the user leaves the dashboard open.
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // Ticks every minute and on resume (a backgrounded web view's timers
+  // freeze, so a plain interval left the list hours stale).
+  const now = useNowTick(60_000);
 
   // Also re-render when the dismissal map changes from elsewhere.
   const [dismissNonce, setDismissNonce] = useState(0);
 
   const visible = useMemo(() => {
-    const now = Date.now();
     return activities
       // Phase 3: also require the plan to still be SCHEDULED. The
       // moment a critical plan is marked done / skipped / cancelled (or
@@ -50,7 +48,7 @@ export default function CriticalPinnedPlans() {
       .map(a => ({ plan: a, openStep: shouldShowPin(a, now) }))
       .filter(x => x.openStep)
       .sort((a, b) => new Date(a.plan.timestamp) - new Date(b.plan.timestamp));
-  }, [activities, dismissNonce]);
+  }, [activities, dismissNonce, now]);
 
   if (visible.length === 0) return null;
 
@@ -125,7 +123,9 @@ function CriticalPlanCard({ plan, openStep, onDismiss, onOpen }) {
             </div>
           )}
           <div className="text-xs text-muted-foreground mt-0.5">
-            {format(ts, "EEE p")} · {inFuture ? `in ${formatDistanceToNow(ts)}` : "now"}
+            {format(ts, "EEE p")} · {inFuture
+              ? `in ${formatDistanceToNow(ts)}`
+              : Date.now() - ts.getTime() < 2 * 60_000 ? "now" : `${formatDistanceToNow(ts)} ago`}
           </div>
           {plan.notes && (
             <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.notes}</div>
