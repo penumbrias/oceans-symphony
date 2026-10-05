@@ -129,6 +129,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test phone sync helper
+        run: node scripts/test-windows-phone.cjs
+
       - name: Build installer
         env:
           # No certificate: make sure electron-builder doesn't go looking.

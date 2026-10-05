@@ -37,6 +37,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const os = require('node:os');
 const { execFile } = require('node:child_process');
+const { createWindowsPhone, isPhonePath, phonePath } = require('./windowsPhone.cjs');
 
 // ── Pinned identity (see header: these ARE the database address) ──
 const APP_SCHEME = 'symphony';
@@ -720,14 +721,68 @@ if (!app.requestSingleInstanceLock()) {
       }
     }
 
+    // Windows: a phone over USB (MTP) is reached through the Shell, not fs.
+    // See electron/windowsPhone.cjs. Created lazily — Linux never loads it.
+    let winPhone = null;
+    const phone = () => {
+      if (!winPhone) winPhone = createWindowsPhone({ helperDir: app.getPath('userData') });
+      return winPhone;
+    };
+    const onPhone = (dir) => IS_WINDOWS && isPhonePath(dir);
+
+    // Windows only: before the folder dialog, look for a plugged-in phone
+    // that has the app's sync folder and offer it directly — the dialog
+    // itself can never open a phone there.
+    async function offerPhone() {
+      let found;
+      try {
+        found = await phone().devices();
+      } catch {
+        return undefined;
+      }
+      if (!found?.ok || !found.devices.length) return undefined;
+      const ready = found.devices.filter((d) => d.hasFolder && d.storage).slice(0, 3);
+      if (!ready.length) {
+        const locked = found.devices.some((d) => !d.storage);
+        await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Phone found',
+          message: locked
+            ? 'Your phone is plugged in, but its storage is hidden.'
+            : "Your phone is plugged in, but it hasn't synced yet.",
+          detail: locked
+            ? 'Unlock the phone and choose "File transfer" in its USB notification, then try again.'
+            : 'On the phone, open Settings → Data & privacy → Sync between devices and press Sync once, then try again here.',
+          buttons: ['OK'],
+        });
+        return undefined;
+      }
+      const buttons = [...ready.map((d) => `Use ${d.device}`), 'Choose a folder instead', 'Cancel'];
+      const res = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        title: 'Phone found',
+        message: ready.length === 1 ? `Sync with ${ready[0].device}?` : 'Sync with which phone?',
+        detail: ready.map((d) => `${d.device} → ${d.storage} → Documents → OceansSymphony`).join('\n'),
+        buttons,
+        defaultId: 0,
+        cancelId: buttons.length - 1,
+        noLink: true,
+      });
+      if (res.response < ready.length) return phonePath(ready[res.response].device, ready[res.response].storage);
+      if (res.response === buttons.length - 1) return null; // cancelled
+      return undefined; // fall through to the folder dialog
+    }
+
     ipcMain.handle('symphony:sync:pick-folder', async () => {
+      if (IS_WINDOWS) {
+        const picked = await offerPhone();
+        if (picked !== undefined) return { ok: true, path: picked };
+      }
       const res = await dialog.showOpenDialog(mainWindow, {
         title: 'Choose the folder to sync through',
         properties: ['openDirectory', 'createDirectory'],
-        // Windows can't open a phone over USB (MTP) as a folder, so point
-        // at what does work there: a copy of the phone's folder, or a stick.
         message: IS_WINDOWS
-          ? "Pick a USB stick, or a copy of the phone's OceansSymphony folder on this PC."
+          ? 'Pick a USB stick, or another folder both devices can reach.'
           : 'Pick a folder both devices can reach — a plugged-in phone, or a USB stick.',
       });
       if (res.canceled || !res.filePaths?.length) return { ok: true, path: null };
@@ -735,6 +790,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     ipcMain.handle('symphony:sync:list', async (_e, rawDir) => {
+      if (onPhone(rawDir)) return phone().list(rawDir);
       const dir = normDir(rawDir);
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
       try {
@@ -756,6 +812,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('symphony:sync:read', async (_e, rawDir, name) => {
       const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
+      if (onPhone(rawDir)) return phone().read(rawDir, name);
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
       try {
         return { ok: true, text: await fsp.readFile(path.join(dir, name), 'utf8') };
@@ -771,6 +828,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('symphony:sync:remove', async (_e, rawDir, name) => {
       const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
+      if (onPhone(rawDir)) return phone().remove(rawDir, name);
       if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable.' };
       try {
         await fsp.unlink(path.join(dir, name));
@@ -783,8 +841,9 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('symphony:sync:write', async (_e, rawDir, name, text) => {
       const dir = normDir(rawDir);
       if (badName(name)) return { ok: false, error: 'Refused: not a sync file.' };
-      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
       if (typeof text !== 'string') return { ok: false, error: 'Nothing to write.' };
+      if (onPhone(rawDir)) return phone().write(rawDir, name, text);
+      if (!(await usableDir(dir))) return { ok: false, error: 'That folder is not reachable. If it is a phone, check it is still plugged in and unlocked.' };
       const dest = path.join(dir, name);
       const tmp = `${dest}.part`;
       try {

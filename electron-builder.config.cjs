@@ -98,6 +98,8 @@ module.exports = {
     'dist/**/*',
     'electron/main.cjs',
     'electron/preload.cjs',
+    // Windows phone sync over USB (MTP), loaded by main.cjs.
+    'electron/windowsPhone.cjs',
     'electron/build/icon.png',
     // Windows window/taskbar icon (electron/main.cjs picks it on win32).
     'electron/build/icon.ico',

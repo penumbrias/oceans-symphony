@@ -21,7 +21,7 @@ export const CHANGELOG = [
     date: "October 5, 2026",
     changes: [
       { type: "feature", text: "The Windows desktop app is ready to download from the GitHub Releases page, alongside the Linux app." },
-      { type: "fix", text: "Windows desktop app: syncing with a phone now explains the way that works there, copying the phone's OceansSymphony folder onto the PC first." },
+      { type: "fix", text: "Windows desktop app: syncing now finds a phone plugged in over USB and syncs with it directly." },
       { type: "fix", text: "Display options now change the page you're on: content width, alignment, borders and corners apply on the Planner and every other page, in both layouts." },
       { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },
       { type: "feature", text: "Start Activity can now log something you already did: switch to \"Already ended\" and set the end time." },

@@ -224,26 +224,33 @@ release, so the two don't interfere.
 
 ### Device sync on Windows — phones over USB
 
-On Linux a plugged-in phone is mounted as a folder (gvfs), so the app can
-read and write it directly. **Windows doesn't do that**: a phone over USB
-(MTP) shows in File Explorer but is not a real folder path, so the folder
-picker is expected to refuse it and a pasted path won't work. On Windows,
-sync through:
+On Linux a plugged-in phone is mounted as a folder (gvfs). Windows exposes
+it over MTP instead: File Explorer shows it, but it is not a filesystem
+path, so Node and the folder dialog can't reach it. Since v0.251.4 the app
+goes through the Windows Shell (the same layer Explorer uses), from
+`electron/windowsPhone.cjs`:
 
-- a **USB stick** or **SD card** both devices can use, or
-- copying by hand: in File Explorer, copy the phone's
-  `symphony-sync-…json` files from its sync folder into a folder on the
-  PC, press Sync in the app (pointed at that PC folder), then copy the
-  PC's file back to the phone.
+- **Choose folder / Sync from another device** first looks for a plugged-in
+  phone with `Documents\OceansSymphony` and offers it ("Use Galaxy S24").
+  A phone that is locked or not in *File transfer* mode gets a message
+  saying so; *Choose a folder instead* opens the normal dialog.
+- The choice is stored as `phone://<device>/<storage>`. `main.cjs` routes
+  list/read/write/remove for that prefix to the Shell helper; everything
+  else is unchanged.
+- Each operation runs a small PowerShell script (written to
+  `<userData>\symphony-phone.ps1`) that drives `Shell.Application`.
+  Operations are serialized. Only our own `symphony-sync-…json` files are
+  touched.
+- **Replacing** our snapshot on the phone moves the old copy to this PC
+  first (MTP ignores the overwrite flag and would pop a dialog), then
+  copies the new one; if it doesn't arrive whole, the old one is put back.
+  Nothing on the phone is deleted outright.
+- CI runs `scripts/test-windows-phone.cjs` on the Windows runner before
+  building: the same Shell calls against a normal folder (no phone there).
+  The real phone path still needs a check on hardware.
 
-Folders with spaces and on any drive letter work normally.
-
-Since v0.251.3 the app says this itself on Windows (`isWindowsDesktop()`
-in `src/lib/platform.js`): the desktop first-run notice lists the
-copy-the-folder steps instead of "pick the phone's folder", the sync
-settings intro explains both directions, and the folder dialog's message
-names a USB stick or a copy of the phone's folder. Reading the phone over
-MTP directly (Windows Portable Devices / Shell COM) is not built.
+Fallbacks: a USB stick, or copying the phone's `OceansSymphony` folder onto
+the PC in File Explorer and choosing that copy.
 
 ### What to test on a Windows laptop
 

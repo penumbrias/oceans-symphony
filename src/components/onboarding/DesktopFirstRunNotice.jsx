@@ -106,15 +106,13 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
       </Button>
 
       {adapter.available && (isWindowsDesktop() ? (
-        // Windows shows a plugged-in phone in File Explorer but not as a
-        // folder an app can open (MTP), so the picker can't reach it.
-        // Copying the phone's sync folder onto the PC first works.
-        <ol className="text-[0.6875rem] text-muted-foreground list-decimal pl-4 space-y-0.5">
-          <li>On your phone, press Sync once (Settings → Data &amp; privacy → Sync between devices).</li>
-          <li>Plug the phone in. In File Explorer, open the phone, then <span className="font-medium">Internal storage → Documents</span>.</li>
-          <li>Copy the <span className="font-medium">OceansSymphony</span> folder onto this computer, for example the Desktop.</li>
-          <li>Press Sync from another device and pick that copied folder. Windows can&apos;t open the phone itself here.</li>
-        </ol>
+        // Windows reaches the phone through the Shell (MTP), not a folder
+        // path; the app looks for it when the button is pressed.
+        <p className="text-[0.6875rem] text-muted-foreground">
+          Press Sync once on your phone first. Then plug it in, unlock it and choose
+          {" "}<span className="font-medium">File transfer</span> in its USB notification. The app finds it
+          when you press Sync from another device.
+        </p>
       ) : (
         <p className="text-[0.6875rem] text-muted-foreground">
           Plug your phone in, then pick its <span className="font-medium">Documents/OceansSymphony</span> folder.
