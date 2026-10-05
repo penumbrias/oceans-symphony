@@ -138,19 +138,35 @@ Run it **on Windows** (Node 22, `npm ci` first). Cross-building from
 Linux needs `wine` for the exe's icon/version resources; without it,
 electron-builder fails at that step.
 
-The easy way is GitHub Actions → **Desktop (Windows)** → *Run workflow*
-(`.github/workflows/desktop-windows.yml`, manual only):
+The easy way is GitHub Actions → **Desktop release** → *Run workflow*
+(`.github/workflows/desktop-release.yml`, manual only). It builds the
+Windows installer on a Windows runner AND the Linux AppImage + `.deb` on
+a Linux runner, so nobody has to build anything by hand:
 
-- **tag empty** → a test build. The installer is under *Artifacts* at
-  the bottom of the run page. Nothing is published.
-- **tag set** (e.g. `v0.248.0`, must already be pushed and must match
-  `APP_VERSION` at that tag) → attaches the installer, blockmap and
-  `latest.yml` to that GitHub Release — the same release the Linux
-  AppImage goes on. If the release doesn't exist yet it's created as a
-  **draft**, so nothing reaches users until it's published by hand.
+- **tag empty** → a test build. Both platforms' files are under
+  *Artifacts* at the bottom of the run page. Nothing is published.
+- **tag set** (e.g. `v0.250.1`, must already be pushed and must match
+  `APP_VERSION` at that tag) → attaches every file (installer, blockmap,
+  AppImage, `.deb`, `latest.yml`, `latest-linux.yml`) to that GitHub
+  Release. If the release doesn't exist yet it's created once, as a
+  **draft** marked to become *Latest*, with download + install notes, so
+  nothing reaches users until it's published by hand.
 
-The workflow file has to be on `main` before GitHub shows the *Run
-workflow* button.
+### Publishing a release (checklist)
+
+1. Merge the release's version bump to `main` and tag that commit:
+   `git tag v0.250.1 && git push origin v0.250.1`.
+2. Actions → **Desktop release** → *Run workflow* on `main`, tag
+   `v0.250.1`.
+3. When both jobs are green, open the draft on the Releases page, check
+   the files are there, leave **Set as the latest release** ticked, and
+   publish.
+4. Share the release link — that's the download page.
+
+Only desktop releases may be marked *Latest*: installed copies read
+their update feed from whichever release GitHub calls Latest, so a
+release without `latest.yml` (e.g. an Android-only one) marked Latest
+stops desktop updates until the next desktop release.
 
 ### Installer
 

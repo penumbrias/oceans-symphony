@@ -313,7 +313,7 @@ Single React codebase, four build targets. Native and desktop work must be
 | Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
 | Capacitor native (iOS) | `npm run build && npx cap sync ios && npx cap open ios` (macOS + Xcode; SPM, no CocoaPods) | App Store / TestFlight under bundle id `app.oceans-symphony.ios` (Apple forbids underscores, so the Android id can't be reused) — see `docs/ios-setup.md` | Yes (BGTaskScheduler — opportunistic, not interval-guaranteed) |
 | Electron desktop (Linux) | `npm run desktop:build` → `release/` (AppImage + .deb) | Direct download, Linux first — see `docs/desktop-setup.md` | No (app must be open) |
-| Electron desktop (Windows) | `npm run desktop:build:win` on Windows, or the manual "Desktop — Windows" GitHub workflow (`.github/workflows/desktop-windows.yml`) → NSIS installer | GitHub Releases next to the Linux files (`latest.yml`); unsigned → SmartScreen warning — see `docs/desktop-setup.md` + `docs/windows-test-checklist.md` | No (app must be open) |
+| Electron desktop (Windows) | `npm run desktop:build:win` on Windows, or the manual "Desktop release" GitHub workflow (`.github/workflows/desktop-release.yml`, builds Windows + Linux) → NSIS installer | GitHub Releases next to the Linux files (`latest.yml`); unsigned → SmartScreen warning — see `docs/desktop-setup.md` + `docs/windows-test-checklist.md` | No (app must be open) |
 
 Rules for keeping the targets healthy:
 

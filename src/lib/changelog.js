@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 5, 2026",
+    changes: [
+      { type: "feature", text: "The Windows desktop app is ready to download from the GitHub Releases page, alongside the Linux app." },
+    ],
+  },
+  {
     date: "October 1, 2026",
+    version: "0.250.0",
     changes: [
       { type: "feature", text: "Every bar is now edited in one place, Display options → Bars, with the same parts for each: Show, Position, Size, Look, What's on it. Every bar's ⚙ opens it right at that bar." },
       { type: "improve", text: "Bars keep one name everywhere (Top bar, Bottom tabs, Quick actions bar, Pinned {{alters}} bar, Side rail), and the press-and-hold menu is now called Shortcuts." },
