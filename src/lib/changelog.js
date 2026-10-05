@@ -22,6 +22,7 @@ export const CHANGELOG = [
     changes: [
       { type: "fix", text: "Plan reminders on Android now arrive on time while the app is closed, instead of waiting until you next open it." },
       { type: "fix", text: "A plan whose time has already passed no longer reads as \u201cplanned in 3 hours\u201d; it now says how long ago it was planned." },
+      { type: "fix", text: "The bulletin board's writing box now reaches the edges of the board and the New post popup instead of sitting in a narrow inner box." },
     ],
   },
   {

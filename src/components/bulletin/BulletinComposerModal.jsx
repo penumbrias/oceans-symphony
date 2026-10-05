@@ -143,6 +143,8 @@ export default function BulletinComposerModal({
           initialContent={initialContent}
           groupId={boardId === SYSTEM_BOARD ? null : boardId}
           onClose={onClose}
+          embedded
+          showHeader={false}
         />
       </DialogContent>
     </Dialog>
