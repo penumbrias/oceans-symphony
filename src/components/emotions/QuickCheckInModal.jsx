@@ -20,6 +20,7 @@ import { enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import ActivityTimeStrip from "@/components/activities/ActivityTimeStrip";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
@@ -202,6 +203,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // without opening the Activity Tracker. Keyed by category id.
   const [activityDetails, setActivityDetails] = useState({});
   const [expandedActId, setExpandedActId] = useState(null);
+  // Which selected activity the day strip on the right is timing — the one
+  // last tapped, else the newest selection.
+  const [timeTargetId, setTimeTargetId] = useState(null);
   // Live active-activity sessions (so a "+ active" toggle mirrors the symptom
   // active affordance — start an open-ended session that logs on end).
   const [activeActs, setActiveActs] = useState(() => getActiveActivities());
@@ -518,6 +522,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setSelectedContactIds([]);
     initialContactIdsRef.current = [];
     setSelectedActivityCategories([]);
+    setActivityDetails({});
+    setTimeTargetId(null);
     setActivityDuration("");
     setActivityNote("");
     setNewActivityName("");
@@ -823,6 +829,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       const cat = catById[catId];
       const d = activityDetails[catId] || {};
       const dur = d.duration || activityDuration;
+      // A range drawn on the day strip pins the activity's own start; the
+      // rest keep the check-in's time as before.
+      const startAt = d.start && !Number.isNaN(new Date(d.start).getTime()) ? new Date(d.start).toISOString() : timestamp;
       // Per-activity note through the shared pipeline; the shared note
       // (already prepared by the caller) is reused as-is and its mentions
       // are logged once, on the first activity that carries it.
@@ -837,7 +846,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         if (!sharedNoteRecorded) { preparedActivity = sharedNote; sharedNoteRecorded = true; }
       }
       const created = await base44.entities.Activity.create({
-        timestamp,
+        timestamp: startAt,
         activity_name: cat?.name || catId,
         activity_category_ids: [catId],
         duration_minutes: dur ? parseInt(dur) : null,
@@ -851,7 +860,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         notes: noteVal || null,
       });
       if (preparedActivity) {
-        await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/activities?date=${format(new Date(timestamp), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
+        await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/activities?date=${format(new Date(startAt), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
       }
     }
   };
@@ -1535,7 +1544,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Activity */}
           {openSections.has("activity") &&
-          <div ref={(el) => (sectionRefs.current.activity = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
+          <div ref={(el) => (sectionRefs.current.activity = el)} className="border border-border/50 rounded-xl p-3 flex gap-2 items-start">
+            <div className="flex-1 min-w-0 space-y-2">
               <ActivityPillSelector selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             allowCreate={false}
@@ -1555,10 +1565,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                     const color = cat.color || "#8b5cf6";
                     const setDetail = (patch) => setActivityDetails((s) => ({ ...s, [catId]: { ...s[catId], ...patch } }));
                     return (
-                      <div key={catId} className="rounded-lg border border-border/50 bg-muted/10">
+                      <div key={catId} className="rounded-lg border bg-muted/10"
+                        style={{ borderColor: catId === (selectedActivityCategories.includes(timeTargetId) ? timeTargetId : selectedActivityCategories[selectedActivityCategories.length - 1]) ? `${color}99` : "hsl(var(--border) / 0.5)" }}>
                         <div className="flex items-center gap-2 px-2.5 py-1.5">
                           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                          <button type="button" onClick={() => setExpandedActId(open ? null : catId)}
+                          <button type="button" onClick={() => { setExpandedActId(open ? null : catId); setTimeTargetId(catId); }}
                             className="flex-1 min-w-0 text-left text-sm font-medium truncate flex items-center gap-1.5">
                             {cat.name}
                             {(d.duration || d.note) && <SlidersHorizontal className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
@@ -1575,6 +1586,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                             {isActive ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                           </button>
                         </div>
+                        {d.start && !Number.isNaN(new Date(d.start).getTime()) && (() => {
+                          const st = new Date(d.start);
+                          const en = new Date(st.getTime() + (parseInt(d.duration) || 0) * 60000);
+                          return (
+                            <div className="flex items-center gap-1.5 px-2.5 pb-1.5 -mt-0.5">
+                              <span className="text-[0.6875rem] tabular-nums px-2 py-0.5 rounded-full border"
+                                style={{ borderColor: `${color}66`, color }}>
+                                {format(st, "HH:mm")}–{format(en, "HH:mm")}
+                              </span>
+                              <button type="button" onClick={() => setDetail({ start: null })}
+                                aria-label={`Clear the time for ${cat.name}`} title="Use the check-in time instead"
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted/50">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         {open && (
                           <div className="px-2.5 pb-2 pt-1 space-y-1.5 border-t border-border/40">
                             <div className="flex flex-wrap items-center gap-1">
@@ -1626,6 +1654,47 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 </button>
             }
             </div>
+            {/* The planner's day view, thin, on the right edge: hold and
+                drag on it to set when the targeted activity happened. */}
+            {selectedActivityCategories.length > 0 && (() => {
+              const day = entryTime ? new Date(entryTime) : new Date();
+              const targetId = selectedActivityCategories.includes(timeTargetId)
+                ? timeTargetId
+                : selectedActivityCategories[selectedActivityCategories.length - 1];
+              const target = activityCategories.find((c) => c.id === targetId);
+              const pending = selectedActivityCategories.map((catId) => {
+                const cat = activityCategories.find((c) => c.id === catId);
+                const d = activityDetails[catId] || {};
+                const start = d.start ? new Date(d.start) : null;
+                return {
+                  id: catId,
+                  name: cat?.name || "Activity",
+                  color: cat?.color || "#8b5cf6",
+                  start: start && !Number.isNaN(start.getTime()) ? start : null,
+                  minutes: parseInt(d.duration) || 30,
+                  focused: catId === targetId,
+                };
+              });
+              return (
+                <div className="w-[6.5rem] flex-shrink-0 space-y-1">
+                  <p className="text-[0.625rem] leading-tight text-muted-foreground">
+                    Hold &amp; drag to time{" "}
+                    <span className="font-semibold" style={{ color: target?.color || undefined }}>{target?.name || "it"}</span>
+                  </p>
+                  <ActivityTimeStrip
+                    day={day}
+                    pending={pending}
+                    categoryColor={(id) => activityCategories.find((c) => c.id === id)?.color}
+                    onFocus={(id) => setTimeTargetId(id)}
+                    onPick={(id, start, minutes) => {
+                      setTimeTargetId(id);
+                      setActivityDetails((s) => ({ ...s, [id]: { ...s[id], start: start.toISOString(), duration: String(minutes) } }));
+                    }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
           }
 
           {/* Symptoms / Habits */}
