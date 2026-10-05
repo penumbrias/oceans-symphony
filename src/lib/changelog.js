@@ -23,6 +23,9 @@ export const CHANGELOG = [
       { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },
       { type: "feature", text: "Start Activity can now log something you already did: switch to \"Already ended\" and set the end time." },
       { type: "improve", text: "Shortcuts now open right on the page you're on, next to the bar you held, instead of jumping back to the home screen." },
+      { type: "fix", text: "Plan reminders on Android now arrive on time while the app is closed, instead of waiting until you next open it." },
+      { type: "fix", text: "A plan whose time has already passed no longer reads as \u201cplanned in 3 hours\u201d; it now says how long ago it was planned." },
+      { type: "fix", text: "The bulletin board's writing box now reaches the edges of the board and the New post popup instead of sitting in a narrow inner box." },
     ],
   },
   {

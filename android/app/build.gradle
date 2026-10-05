@@ -11,7 +11,7 @@ android {
         // upload — Play rejects duplicates. Bump for every Play
         // release; mirror versionName from src/lib/appVersion.js so
         // the displayed version chip matches the Play release.
-        versionCode 1255
+        versionCode 1257
         versionName "0.251.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

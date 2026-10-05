@@ -22,7 +22,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistance } from "date-fns";
 import { AtSign, Calendar, ChevronDown, MoreHorizontal, X, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
@@ -32,6 +32,7 @@ import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { shouldShowPin, writeDismissal } from "@/lib/criticalPins";
 import { duePlanReminder, ackPlan } from "@/lib/planBannerAcks";
+import { useNowTick } from "@/lib/useNowTick";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
 import { statusFor, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCard";
@@ -401,11 +402,9 @@ export default function V2Notices() {
 
   // Re-check every minute so time windows (plan reminders, critical lead
   // steps) open and close while the board sits on screen.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // Also refreshes on resume — a frozen background clock is how a 5am plan
+  // read as "planned in 3 hours" at 8am.
+  const now = useNowTick(60_000);
   const [dismissNonce, setDismissNonce] = useState(0);
 
   const { data: settingsList = [] } = useQuery({
@@ -573,8 +572,10 @@ export default function V2Notices() {
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {format(ts, "EEE p")} · {ts.getTime() > now
-                    ? tr("notices.inTime", { when: formatDistanceToNow(ts) })
-                    : tr("notices.now")}
+                    ? tr("notices.inTime", { when: formatDistance(ts, now) })
+                    : now - ts.getTime() < 2 * 60_000
+                      ? tr("notices.now")
+                      : tr("notices.agoTime", { when: formatDistance(ts, now) })}
                 </p>
               </div>
               <DismissX label={tr("notices.dismissStep")}
@@ -604,9 +605,9 @@ export default function V2Notices() {
               onClick={() => navigate("/planner")}>
               <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }} />
               <p className="flex-1 min-w-0 text-sm">
-                {tr("notices.planSoon", {
+                {tr(new Date(n.plan.timestamp).getTime() > now ? "notices.planSoon" : "notices.planPast", {
                   name: n.plan.activity_name || tr("planner.untitled"),
-                  when: formatDistanceToNow(new Date(n.plan.timestamp)),
+                  when: formatDistance(new Date(n.plan.timestamp), now),
                 })}
               </p>
               <DismissX label={tr("notices.dismiss")}
