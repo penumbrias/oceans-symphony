@@ -724,7 +724,11 @@ if (!app.requestSingleInstanceLock()) {
       const res = await dialog.showOpenDialog(mainWindow, {
         title: 'Choose the folder to sync through',
         properties: ['openDirectory', 'createDirectory'],
-        message: 'Pick a folder both devices can reach — a plugged-in phone, or a USB stick.',
+        // Windows can't open a phone over USB (MTP) as a folder, so point
+        // at what does work there: a copy of the phone's folder, or a stick.
+        message: IS_WINDOWS
+          ? "Pick a USB stick, or a copy of the phone's OceansSymphony folder on this PC."
+          : 'Pick a folder both devices can reach — a plugged-in phone, or a USB stick.',
       });
       if (res.canceled || !res.filePaths?.length) return { ok: true, path: null };
       return { ok: true, path: res.filePaths[0] };

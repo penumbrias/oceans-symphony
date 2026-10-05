@@ -238,6 +238,13 @@ sync through:
 
 Folders with spaces and on any drive letter work normally.
 
+Since v0.251.3 the app says this itself on Windows (`isWindowsDesktop()`
+in `src/lib/platform.js`): the desktop first-run notice lists the
+copy-the-folder steps instead of "pick the phone's folder", the sync
+settings intro explains both directions, and the folder dialog's message
+names a USB stick or a copy of the phone's folder. Reading the phone over
+MTP directly (Windows Portable Devices / Shell COM) is not built.
+
 ### What to test on a Windows laptop
 
 The plain-language version for a tester is

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Monitor, FolderOpen, Usb, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { isDesktop, getDesktopInfo } from "@/lib/platform";
+import { isDesktop, getDesktopInfo, isWindowsDesktop } from "@/lib/platform";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { pickSyncFolder, listSyncPeers, pairSystem, runSync } from "@/lib/deviceSyncRunner";
 
@@ -105,12 +105,22 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
         Import a backup file
       </Button>
 
-      {adapter.available && (
+      {adapter.available && (isWindowsDesktop() ? (
+        // Windows shows a plugged-in phone in File Explorer but not as a
+        // folder an app can open (MTP), so the picker can't reach it.
+        // Copying the phone's sync folder onto the PC first works.
+        <ol className="text-[0.6875rem] text-muted-foreground list-decimal pl-4 space-y-0.5">
+          <li>On your phone, press Sync once (Settings → Data &amp; privacy → Sync between devices).</li>
+          <li>Plug the phone in. In File Explorer, open the phone, then <span className="font-medium">Internal storage → Documents</span>.</li>
+          <li>Copy the <span className="font-medium">OceansSymphony</span> folder onto this computer, for example the Desktop.</li>
+          <li>Press Sync from another device and pick that copied folder. Windows can&apos;t open the phone itself here.</li>
+        </ol>
+      ) : (
         <p className="text-[0.6875rem] text-muted-foreground">
           Plug your phone in, then pick its <span className="font-medium">Documents/OceansSymphony</span> folder.
           Sync once on the phone first so there is something to read.
         </p>
-      )}
+      ))}
 
       {info?.dataPath ? (
         <div className="flex items-center gap-2 pt-1">

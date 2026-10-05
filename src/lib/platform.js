@@ -82,3 +82,12 @@ export function getDesktopInfo() {
     return null;
   }
 }
+
+// The desktop app running on Windows. Windows exposes a USB-connected phone
+// over MTP, which File Explorer shows but which is not a real folder path,
+// so sync instructions there say "copy the phone's folder to the PC" rather
+// than "pick the phone". The OS comes from the preload payload
+// (process.platform in electron/main.cjs), never the user agent.
+export function isWindowsDesktop() {
+  return isDesktop() && getDesktopInfo()?.os === 'win32';
+}
