@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "October 5, 2026",
+    changes: [
+      { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },
+      { type: "feature", text: "Start Activity can now log something you already did: switch to \"Already ended\" and set the end time." },
+      { type: "improve", text: "Shortcuts now open right on the page you're on, next to the bar you held, instead of jumping back to the home screen." },
+    ],
+  },
+  {
     date: "October 1, 2026",
+    version: "0.250.0",
     changes: [
       { type: "feature", text: "Every bar is now edited in one place, Display options → Bars, with the same parts for each: Show, Position, Size, Look, What's on it. Every bar's ⚙ opens it right at that bar." },
       { type: "improve", text: "Bars keep one name everywhere (Top bar, Bottom tabs, Quick actions bar, Pinned {{alters}} bar, Side rail), and the press-and-hold menu is now called Shortcuts." },

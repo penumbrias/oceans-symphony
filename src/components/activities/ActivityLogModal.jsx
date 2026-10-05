@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { UserPlus, Users, X, Play, Plus } from "lucide-react";
+import { UserPlus, Users, X, Play, Plus, Check } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
@@ -186,6 +186,19 @@ export default function ActivityLogModal({
   // leaving the start pinned to "now" while the end stays where it was
   // (which made start > end — the duration vanished and save would fail).
   const preActiveRef = useRef(null);
+  const endNow = () => {
+    const n = new Date();
+    setEndDateStr(format(n, "yyyy-MM-dd"));
+    setEndTime(format(n, "HH:mm"));
+    // A start of "now" would leave nothing to log — step it back so the
+    // range is valid and the user just nudges it.
+    const s = selectedDateStr && startTime ? new Date(`${selectedDateStr}T${startTime}`) : null;
+    if (!s || Number.isNaN(s.getTime()) || s.getTime() > n.getTime() - 60000) {
+      const back = new Date(n.getTime() - 30 * 60000);
+      setSelectedDateStr(format(back, "yyyy-MM-dd"));
+      setStartTime(format(back, "HH:mm"));
+    }
+  };
   const enableActiveMode = (on) => {
     if (on) {
       preActiveRef.current = { selectedDateStr, endDateStr, startTime, endTime, selectedAlters, stillFronting };
@@ -198,6 +211,13 @@ export default function ActivityLogModal({
     }
     setActiveMode(false);
     const snap = preActiveRef.current;
+    if (!snap) {
+      // Opened straight into Active (the Start Activity door) and switched
+      // to logging something already done: keep the start they picked and
+      // end it now — a past activity in two taps.
+      endNow();
+      return;
+    }
     if (snap) {
       setSelectedDateStr(snap.selectedDateStr);
       setEndDateStr(snap.endDateStr);
@@ -459,14 +479,22 @@ export default function ActivityLogModal({
               {/* Active mode as a compact pill toggle (mirrors the plan
                   modal's "No specific time") — times it live until End,
                   then it's logged automatically. */}
-              <button
-                type="button"
-                onClick={() => enableActiveMode(!activeMode)}
-                aria-pressed={activeMode}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${activeMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
-              >
-                <Play className="w-3 h-3" /> Active — end later
-              </button>
+              {/* Two plain choices instead of one pill: starting something
+                  now vs logging something that already happened (with an
+                  end time) read as equals from either door. */}
+              <div role="radiogroup" aria-label="Is it still going?"
+                className="flex items-center rounded-full border border-border/50 p-0.5 text-xs">
+                <button type="button" role="radio" aria-checked={activeMode}
+                  onClick={() => { if (!activeMode) enableActiveMode(true); }}
+                  className={`px-2.5 py-1 rounded-full flex items-center gap-1 transition-all ${activeMode ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
+                  <Play className="w-3 h-3" /> Still going
+                </button>
+                <button type="button" role="radio" aria-checked={!activeMode}
+                  onClick={() => { if (activeMode) enableActiveMode(false); }}
+                  className={`px-2.5 py-1 rounded-full flex items-center gap-1 transition-all ${!activeMode ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
+                  <Check className="w-3 h-3" /> Already ended
+                </button>
+              </div>
             </div>
 
             {activeMode ? (
@@ -495,7 +523,9 @@ export default function ActivityLogModal({
                   className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm"
                 />
                 <p className="text-[0.6875rem] text-muted-foreground mt-1">
-                  Times it live until you tap End, then it's logged automatically.
+                  Times it live until you tap End, then it's logged automatically.{" "}
+                  <button type="button" onClick={() => enableActiveMode(false)}
+                    className="text-primary hover:underline">Already finished? Set an end time</button>
                 </p>
               </div>
             ) : (

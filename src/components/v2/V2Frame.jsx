@@ -86,16 +86,13 @@ const DOCK_OPEN_KEY = "symphony_v2_dock_open";
 
 // The apps drawer and home-edit mode live on the home canvas; these fire
 // them from anywhere (event when already home, flag + navigate otherwise).
-// The classic UI's saved Quick Actions (the press-and-hold menu) had no v2
-// entry point — it's reachable now by holding the apps button or any
-// quick-action key. Dashboard hosts the menu, so this either pokes it in
-// place or navigates home with the param it already understands.
-export function openSavedQuickActions(navigate, pathname) {
-  if (pathname === "/") {
-    window.dispatchEvent(new CustomEvent("open-quick-actions"));
-  } else {
-    navigate("/?openQuickActions=1");
-  }
+// The saved Quick Actions (Shortcuts, the press-and-hold menu) open IN
+// PLACE on whatever page you're on — QuickActionsHost (mounted by the
+// layout) owns the menu. It used to live on the home screen, so holding a
+// key elsewhere navigated home first. `y` is where the hold landed, so the
+// menu docks to the edge of the bar you held (top bar vs bottom bar).
+export function openSavedQuickActions(_navigate, _pathname, y = null) {
+  window.dispatchEvent(new CustomEvent("open-quick-actions", { detail: { y } }));
 }
 
 // onHold overrides the default (saved Quick Actions) for keys that have a
@@ -105,7 +102,7 @@ export function useQuickActionsHold(onTap, onHold = null) {
   const navigate = useNavigate();
   const location = useLocation();
   return useLongPress({
-    onLongPress: () => (onHold ? onHold() : openSavedQuickActions(navigate, location.pathname)),
+    onLongPress: (e) => (onHold ? onHold() : openSavedQuickActions(navigate, location.pathname, e?.clientY ?? null)),
     onClick: onTap,
     ms: 450,
   });

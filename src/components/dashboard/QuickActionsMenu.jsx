@@ -420,7 +420,10 @@ function DailyTaskRow({ action }) {
   );
 }
 
-export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
+// `docked`: rendered by QuickActionsHost inside its own fixed, edge-docked
+// frame — flows in place and scrolls within `maxHeight` instead of hanging
+// below its parent (the classic Quick Check-In button's anchor).
+export default function QuickActionsMenu({ actions = [], onAction, onClose, docked = false, maxHeight = null }) {
   const navigate = useNavigate();
   const menuRef = useRef(null);
   const qc = useQueryClient();
@@ -555,7 +558,8 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
     <motion.div ref={menuRef} data-tour="quick-actions-menu"
       initial={{ opacity: 0, scale: 0.95, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: -8 }} transition={{ duration: 0.15, ease: "easeOut" }}
-      className="absolute left-0 top-full mt-2 z-50 flex flex-col gap-1.5 min-w-[240px] max-w-xs bg-background/95 backdrop-blur-sm rounded-2xl p-2 border border-border/50 shadow-xl">
+      style={docked && maxHeight ? { maxHeight } : undefined}
+      className={`${docked ? "relative w-full overflow-y-auto overscroll-contain" : "absolute left-0 top-full mt-2 z-50 min-w-[240px] max-w-xs"} flex flex-col gap-1.5 bg-background/95 backdrop-blur-sm rounded-2xl p-2 border border-border/50 shadow-xl`}>
       {actions.length === 0 && (
         <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl text-sm text-muted-foreground shadow-lg">
           No quick actions yet. Add one below!
