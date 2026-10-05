@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 5, 2026",
     changes: [
+      { type: "fix", text: "Display options now change the page you're on: content width, alignment, borders and corners apply on the Planner and every other page, in both layouts." },
       { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },
       { type: "feature", text: "Start Activity can now log something you already did: switch to \"Already ended\" and set the end time." },
       { type: "improve", text: "Shortcuts now open right on the page you're on, next to the bar you held, instead of jumping back to the home screen." },
