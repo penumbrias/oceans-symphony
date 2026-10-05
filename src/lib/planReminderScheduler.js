@@ -144,6 +144,28 @@ function bodyFor(plan) {
   return `Starts in ${offset} minutes (${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`;
 }
 
+// The one shape every native plan reminder is scheduled with. Both the
+// single-plan path and the bulk reconcile (which re-queues everything on
+// every app open) MUST use it: the reconcile used to drop
+// `allowWhileIdle`, so Android's Doze held the alarm until the phone woke
+// up and the "in 30 minutes" alert arrived when the app was next opened.
+function nativeNotificationFor(plan, fireMs, nativeId) {
+  return {
+    id: nativeId,
+    title: plan.activity_name || "Upcoming plan",
+    body: bodyFor(plan),
+    channelId: REMINDERS_CHANNEL_ID,
+    largeIcon: "ic_notif_large", // colour app art inside; small icon is the glyph
+    // allowWhileIdle: fire exactly at the scheduled minute even in Doze.
+    schedule: { at: new Date(fireMs), allowWhileIdle: true },
+    extra: {
+      kind: "plan_reminder",
+      activityId: plan.id,
+      planTimestamp: plan.timestamp,
+    },
+  };
+}
+
 // Web-only setTimeout map. Best-effort: only fires while the app is open.
 // Keyed by activity id so we can clear and replace cleanly.
 const webTimers = new Map();
@@ -246,24 +268,7 @@ export async function schedulePlanReminder(plan, { defaultOffsetMinutes = null }
     const { LocalNotifications } = await import("@capacitor/local-notifications");
     await ensureRemindersChannel();
     const nativeId = nativeIdFor(plan.id, fireMs);
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: nativeId,
-          title: plan.activity_name || "Upcoming plan",
-          body: bodyFor(plan),
-          channelId: REMINDERS_CHANNEL_ID,
-          largeIcon: "ic_notif_large", // colour app art inside; small icon is the glyph
-          // allowWhileIdle: fire exactly at the scheduled minute even in Doze.
-          schedule: { at: new Date(fireMs), allowWhileIdle: true },
-          extra: {
-            kind: "plan_reminder",
-            activityId: plan.id,
-            planTimestamp: plan.timestamp,
-          },
-        },
-      ],
-    });
+    await LocalNotifications.schedule({ notifications: [nativeNotificationFor(plan, fireMs, nativeId)] });
     const log = readLog();
     log.push({
       activityId: plan.id,
@@ -338,18 +343,7 @@ export async function reconcilePlanReminders(activities) {
       const newLog = [];
       for (const c of toSchedule) {
         const nativeId = nativeIdFor(c.plan.id, c.fireMs);
-        notifications.push({
-          id: nativeId,
-          title: c.plan.activity_name || "Upcoming plan",
-          body: bodyFor(c.plan),
-          channelId: REMINDERS_CHANNEL_ID,
-          schedule: { at: new Date(c.fireMs) },
-          extra: {
-            kind: "plan_reminder",
-            activityId: c.plan.id,
-            planTimestamp: c.plan.timestamp,
-          },
-        });
+        notifications.push(nativeNotificationFor(c.plan, c.fireMs, nativeId));
         newLog.push({
           activityId: c.plan.id,
           nativeId,

@@ -41,7 +41,12 @@ function parseSignposts(content, alters, systemKeywords) {
   return { authors, cleanContent: cleanText };
 }
 
-export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "", groupId = null }) {
+// `embedded` drops the composer's own card (border, background, padding)
+// for hosts that already frame it — the board and the New post popup.
+// Boxing it twice ate ~2.5rem of width on a phone, so the writing box sat
+// well short of the screen edge. `showHeader={false}` is for a host that
+// has its own title and close button.
+export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "", groupId = null, embedded = false, showHeader = true }) {
   const qc = useQueryClient();
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -427,15 +432,17 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   };
 
   return (
-    <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">New Bulletin</p>
-        {onClose && (
-          <button onClick={onClose} aria-label="Close composer" className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+    <div className={embedded ? "" : "bg-card border border-border/60 rounded-2xl p-4 shadow-sm"}>
+      {showHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-foreground">New Bulletin</p>
+          {onClose && (
+            <button onClick={onClose} aria-label="Close composer" className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-1 mb-2">
         <button type="button" onClick={() => setMode(false)}

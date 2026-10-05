@@ -708,7 +708,7 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    app — a card on the Alters page changes with them, not just the chrome.
    Anything that sets its own value further down the tree still wins,
    which is how per-widget overrides keep working. */
-[data-ui-v2="1"] { --radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) { --radius: var(--v2-radius); }
 
 /* A range slider grabs any touch that lands on it — including a scroll
    gesture passing through. pan-y hands vertical movement back to the
@@ -750,35 +750,35 @@ html[data-v2-peek="1"] body { pointer-events: auto !important; }
    identity from being round, and squaring them looks broken rather than
    sharp. Inline radii (per-widget looks) win over all of this, which is
    how "unless set otherwise" keeps working. */
-[data-ui-v2="1"] .rounded-sm  { border-radius: calc(var(--v2-radius) * 0.33); }
-[data-ui-v2="1"] .rounded     { border-radius: calc(var(--v2-radius) * 0.5); }
-[data-ui-v2="1"] .rounded-md  { border-radius: calc(var(--v2-radius) * 0.65); }
-[data-ui-v2="1"] .rounded-lg  { border-radius: calc(var(--v2-radius) * 0.8); }
-[data-ui-v2="1"] .rounded-xl  { border-radius: var(--v2-radius); }
-[data-ui-v2="1"] .rounded-2xl { border-radius: calc(var(--v2-radius) * 1.35); }
-[data-ui-v2="1"] .rounded-3xl { border-radius: calc(var(--v2-radius) * 1.8); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-sm  { border-radius: calc(var(--v2-radius) * 0.33); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded     { border-radius: calc(var(--v2-radius) * 0.5); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-md  { border-radius: calc(var(--v2-radius) * 0.65); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-lg  { border-radius: calc(var(--v2-radius) * 0.8); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-xl  { border-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-2xl { border-radius: calc(var(--v2-radius) * 1.35); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) .rounded-3xl { border-radius: calc(var(--v2-radius) * 1.8); }
 /* Side- and corner-specific utilities keep their side, and take the
    slider's value on the corners they actually round. */
-[data-ui-v2="1"] [class*="rounded-t-"]  { border-top-left-radius: var(--v2-radius); border-top-right-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-b-"]  { border-bottom-left-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-l-"]  { border-top-left-radius: var(--v2-radius); border-bottom-left-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-r-"]  { border-top-right-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-tl-"] { border-top-left-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-tr-"] { border-top-right-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-bl-"] { border-bottom-left-radius: var(--v2-radius); }
-[data-ui-v2="1"] [class*="rounded-br-"] { border-bottom-right-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-t-"]  { border-top-left-radius: var(--v2-radius); border-top-right-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-b-"]  { border-bottom-left-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-l-"]  { border-top-left-radius: var(--v2-radius); border-bottom-left-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-r-"]  { border-top-right-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-tl-"] { border-top-left-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-tr-"] { border-top-right-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-bl-"] { border-bottom-left-radius: var(--v2-radius); }
+:is([data-ui-v2="1"], [data-os-layout~="radius"]) [class*="rounded-br-"] { border-bottom-right-radius: var(--v2-radius); }
 
 /* Border width. Tailwind's border utilities hardcode 1px/2px; inside v2
    they follow the slider instead, so 0 really means "no borders anywhere"
    and 3 really means heavy. Directional utilities are listed explicitly
    rather than blanket-setting `border-width`, so a `border-t` divider
    never grows a full box. */
-[data-ui-v2="1"] .border   { border-width: var(--v2-border-w); }
-[data-ui-v2="1"] .border-2 { border-width: calc(var(--v2-border-w) * 2); }
-[data-ui-v2="1"] .border-t { border-top-width: var(--v2-border-w); }
-[data-ui-v2="1"] .border-b { border-bottom-width: var(--v2-border-w); }
-[data-ui-v2="1"] .border-l { border-left-width: var(--v2-border-w); }
-[data-ui-v2="1"] .border-r { border-right-width: var(--v2-border-w); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border   { border-width: var(--v2-border-w); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border-2 { border-width: calc(var(--v2-border-w) * 2); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border-t { border-top-width: var(--v2-border-w); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border-b { border-bottom-width: var(--v2-border-w); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border-l { border-left-width: var(--v2-border-w); }
+:is([data-ui-v2="1"], [data-os-layout~="border"]) .border-r { border-right-width: var(--v2-border-w); }
 
 /* Spacing. --v2-density is 1 at the middle setting, so "Medium" is the
    app exactly as designed; Compact and Wide scale the common padding and
@@ -818,15 +818,39 @@ html[data-v2-peek="1"] body { pointer-events: auto !important; }
 [data-ui-v2="1"] .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.5rem * var(--v2-density, 1)); }
 [data-ui-v2="1"] .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.75rem * var(--v2-density, 1)); }
 [data-ui-v2="1"] .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--v2-density, 1)); }
-[data-ui-v2="1"] main.app-content-main {
+/* Content width + alignment (Display options → Layout). These apply in
+   BOTH layouts — the sheet opens over classic pages too, and a slider that
+   did nothing to the page behind it read as broken (owner report: Planner
+   ignored 1360px). AppLayout sets data-os-layout / data-os-align-x on
+   <html> only once the user has picked a value, so an untouched app keeps
+   its designed widths.
+
+   With a width picked, it is THE page width: <main> is capped to it, and
+   each page's own wrapper cap (.os-page-shell, or a top-level
+   max-w-* mx-auto) is lifted so the page fills that width instead of
+   sitting at its old 42–72rem inside it. Only page-level wrappers (the
+   first two levels under <main>) are lifted — narrow cards deeper down
+   keep their own max width. */
+[data-os-layout~="width"] main.app-content-main {
   max-width: var(--v2-content-w, 100%);
   margin-inline: auto;
 }
-/* Content alignment (unified edit popup, SIZE section): when the content
-   is narrower than the screen, which edge it hugs. Center is the default
-   margin-inline above; left/right pin the matching edge. */
-[data-ui-v2="1"][data-v2-align-x="left"] main.app-content-main { margin-left: 0; }
-[data-ui-v2="1"][data-v2-align-x="right"] main.app-content-main { margin-right: 0; }
+[data-os-layout~="width"] main.app-content-main .os-page-shell,
+[data-os-layout~="width"] main.app-content-main > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto,
+[data-os-layout~="width"] main.app-content-main > * > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto {
+  max-width: none;
+}
+/* Alignment: which edge the content hugs when it is narrower than the
+   screen — <main> when a width is set, and the page's own wrapper when it
+   is not (so alignment works at "Full" width too). Center is the default. */
+[data-os-align-x="left"] main.app-content-main,
+[data-os-align-x="left"] main.app-content-main .os-page-shell,
+[data-os-align-x="left"] main.app-content-main > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto,
+[data-os-align-x="left"] main.app-content-main > * > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto { margin-left: 0; }
+[data-os-align-x="right"] main.app-content-main,
+[data-os-align-x="right"] main.app-content-main .os-page-shell,
+[data-os-align-x="right"] main.app-content-main > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto,
+[data-os-align-x="right"] main.app-content-main > * > :is(.max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto { margin-right: 0; }
 /* Font size & style, body + header (unified edit popup, SIZE section).
    Headings pick up the header multiplier for tailwind's calc()-based
    sizes. Styles apply via data attributes that only EXIST when the user

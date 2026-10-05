@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
@@ -43,7 +44,7 @@ import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
-import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
+import { resolveUiV2, buildTokenVars, V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { applyHomePresetToBoard } from "@/lib/homePresetParts";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
 import { readPinnedBar } from "@/lib/barsModel";
@@ -433,6 +434,32 @@ useEffect(() => {
     try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
 }, [uiV2On, uiV2Vars, classicV2VarsOn, classicBarsOn, classicBars?.top, classicBars?.bottom, wideBars, uiV2.tokens.bodyStyle, uiV2.tokens.headerStyle]);
+// Display options → Layout (content width, alignment, borders, corners)
+// apply to the page in BOTH layouts — the sheet opens over classic pages
+// too, and a slider that changed nothing behind it read as broken (owner
+// report). Flags on <html> drive the rules in index.css. Classic only gets
+// a flag once the value differs from the default, so an untouched classic
+// app keeps its designed look; full v2 always styles radius + borders.
+const layoutTokens = uiV2.tokens;
+useEffect(() => {
+  const root = document.documentElement;
+  if (!uiV2On && !classicV2VarsOn) {
+    root.removeAttribute("data-os-layout");
+    root.removeAttribute("data-os-align-x");
+    return;
+  }
+  const def = (id) => V2_TOKEN_DEFS.find((d) => d.id === id)?.default;
+  const changed = (id) => layoutTokens[id] != null && layoutTokens[id] !== def(id);
+  const flags = [];
+  if (Number(layoutTokens.contentW) > 0) flags.push("width");
+  if (uiV2On || changed("radius")) flags.push("radius");
+  if (uiV2On || changed("borderW")) flags.push("border");
+  if (flags.length) root.setAttribute("data-os-layout", flags.join(" "));
+  else root.removeAttribute("data-os-layout");
+  const ax = layoutTokens.alignX;
+  if (ax === "left" || ax === "right") root.setAttribute("data-os-align-x", ax);
+  else root.removeAttribute("data-os-align-x");
+}, [uiV2On, classicV2VarsOn, layoutTokens.contentW, layoutTokens.radius, layoutTokens.borderW, layoutTokens.alignX]);
   // The desktop sidebar is sticky under the top chrome, and its offset
   // used to be a hardcoded 4rem — the CLASSIC header's height. With the
   // v2 top bar that chrome is 49px, and a sticky element is clamped to
@@ -712,7 +739,6 @@ const handleNotifClick = (mentionLog) => {
       className="flex flex-col h-screen bg-background overflow-hidden"
       data-ui-v2={uiV2On ? "1" : undefined}
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
-      data-v2-align-x={uiV2On && uiV2.tokens.alignX && uiV2.tokens.alignX !== "center" ? uiV2.tokens.alignX : undefined}
       data-v2-bstyle={uiV2On && uiV2.tokens.bodyStyle?.length ? uiV2.tokens.bodyStyle.join(" ") : undefined}
       data-v2-hstyle={uiV2On && uiV2.tokens.headerStyle?.length ? uiV2.tokens.headerStyle.join(" ") : undefined}
       style={uiV2On ? {
@@ -1174,6 +1200,8 @@ const handleNotifClick = (mentionLog) => {
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
       <GroceryListPanel />
+      {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
+      <QuickActionsHost />
       {!v2HomeNotices && <ReminderToast />}
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       {pageScopedTourRoute && !showFeatureTour && (
