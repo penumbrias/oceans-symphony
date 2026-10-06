@@ -19,7 +19,8 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function AlterDot({ alter }) {
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   if (!alter) return null;
   const color = alter.color || "#3B82F6";
   return (
@@ -28,7 +29,7 @@ function AlterDot({ alter }) {
       style={{ borderColor: color, backgroundColor: color }}
     >
       {resolvedUrl && !imgError ? (
-        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
       ) : (
         alter.name?.[0]?.toUpperCase() || "?"
       )}

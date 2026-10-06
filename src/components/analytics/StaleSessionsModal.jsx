@@ -32,7 +32,8 @@ function smallAvatar(alter) {
 
 function AvatarCircle({ alter }) {
   const url = useResolvedAvatarUrl(alter?.avatar_url);
-  const [err, setErr] = useState(false);
+  const [errFor, setErr] = useState(null);
+  const err = !!errFor && errFor === url;
   if (!alter) return <div className="w-7 h-7 rounded-full bg-muted/50 flex-shrink-0" />;
   return (
     <div
@@ -41,7 +42,7 @@ function AvatarCircle({ alter }) {
       title={alter.name}
     >
       {url && !err
-        ? <img src={url} alt={alter.name} className="w-full h-full object-cover" onError={() => setErr(true)} />
+        ? <img src={url} alt={alter.name} className="w-full h-full object-cover" onError={() => setErr(url)} />
         : (alter.name || "?").slice(0, 1).toUpperCase()}
     </div>
   );

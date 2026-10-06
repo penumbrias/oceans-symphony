@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 6, 2026",
+    changes: [
+      { type: "fix", text: "Profile pictures no longer go missing for a while after opening the app; any that are slow to load now fill in on their own." },
+      { type: "fix", text: "Imported Octocon avatars are now saved onto your device more reliably." },
+    ],
+  },
+  {
     date: "October 5, 2026",
+    version: "0.251.1",
     changes: [
       { type: "fix", text: "Display options now change the page you're on: content width, alignment, borders and corners apply on the Planner and every other page, in both layouts." },
       { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },

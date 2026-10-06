@@ -17,10 +17,11 @@ import { useTerms } from "@/lib/useTerms";
 
 function AlterAvatar({ alter, size = 7 }) {
   const resolved = useResolvedAvatarUrl(alter?.avatar_url);
-  const [err, setErr] = useState(false);
+  const [errFor, setErr] = useState(null);
+  const err = !!errFor && errFor === resolved;
   const cls = `w-${size} h-${size} rounded-full flex-shrink-0`;
   if (resolved && !err) {
-    return <img src={resolved} alt={alter?.name} className={`${cls} object-cover`} onError={() => setErr(true)} />;
+    return <img src={resolved} alt={alter?.name} className={`${cls} object-cover`} onError={() => setErr(resolved)} />;
   }
   return (
     <div className={`${cls} flex items-center justify-center text-xs font-bold text-white`}

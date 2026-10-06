@@ -56,7 +56,8 @@ function getContrastColor(hex) {
 export function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary, holdProps = null }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const formatAlter = useAlterLabel();
   // The standard gesture (v0.122.0): tap toggles, press-and-hold opens the
   // level spectrum — supplied by the caller as holdProps. The swipe set
@@ -98,7 +99,7 @@ export function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPr
             style={{ boxShadow }}
             className={`rounded-full object-cover transition-all cursor-pointer ${selected ? "w-20 h-20" : "w-16 h-16"}`}
             draggable={false}
-            onError={() => setImgError(true)}
+            onError={() => setImgError(resolvedUrl)}
           />
         ) : (
           <div
@@ -129,7 +130,8 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary, onSoleP
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const formatAlter = useAlterLabel();
 
   // Same gesture model as the alters page list / grid:
@@ -174,7 +176,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary, onSoleP
         style={{ backgroundColor: bg || "hsl(var(--muted))" }}>
 
         {resolvedUrl && !imgError ?
-        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} /> :
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} /> :
 
         <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
         }

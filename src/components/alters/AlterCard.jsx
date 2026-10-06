@@ -82,6 +82,8 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   // (a raw <img src="local-image://…"> can't be loaded by the browser).
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
+  const [avatarErrorFor, setAvatarErrorFor] = useState(null);
+  const showAvatar = !!resolvedAvatar && avatarErrorFor !== resolvedAvatar;
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
   // CSS hex), which made the row render with no colour at all.
@@ -146,12 +148,12 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             }}>
             <span className="w-full h-full overflow-hidden flex items-center justify-center"
               style={{ backgroundColor: bgColor || "var(--color-muted)", ...(lsShape ? lsShape.inner : {}) }}>
-              {resolvedAvatar ? (
+              {showAvatar ? (
                 <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
+                  onError={() => setAvatarErrorFor(resolvedAvatar)} />
               ) : null}
               <div className="w-full h-full items-center justify-center"
-                style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "var(--color-text-secondary)" }}>
+                style={{ display: showAvatar ? "none" : "flex", color: textColor || "var(--color-text-secondary)" }}>
                 <User className="w-5 h-5" />
               </div>
             </span>

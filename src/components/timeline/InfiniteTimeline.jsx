@@ -152,7 +152,8 @@ function AlterBar({ alter, color, ringW = null, topPx, heightPx, onTap, onDouble
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
   const pressStart = useRef({ x: 0, y: 0, moved: false });
@@ -226,7 +227,7 @@ function AlterBar({ alter, color, ringW = null, topPx, heightPx, onTap, onDouble
           }}
           aria-hidden="true">
           {resolvedUrl && !imgError
-            ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
             : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
         </div>
         {hasNote && (
@@ -249,7 +250,8 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const terms = useTerms();
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
   const splitResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [splitImgError, setSplitImgError] = useState(false);
+  const [splitImgErrorFor, setSplitImgError] = useState(null);
+  const splitImgError = !!splitImgErrorFor && splitImgErrorFor === splitResolvedUrl;
   // Splitting speaks fronting LEVELS now (v0.122.0): pick the level the
   // session continues at from the split point — promote/demote were just
   // the two-level special case of this.
@@ -273,7 +275,7 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           {splitResolvedUrl && !splitImgError
-            ? <img src={splitResolvedUrl} alt={alter?.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" onError={() => setSplitImgError(true)} />
+            ? <img src={splitResolvedUrl} alt={alter?.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" onError={() => setSplitImgError(splitResolvedUrl)} />
             : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: alter?.color || "#9333ea" }}>
                 {alter?.name?.charAt(0)?.toUpperCase()}
