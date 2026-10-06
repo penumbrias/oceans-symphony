@@ -84,7 +84,18 @@ async function getIdb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
     req.onerror = () => reject(new Error('Failed to open IndexedDB'));
-    req.onsuccess = () => { _db = req.result; resolve(_db); };
+    req.onsuccess = () => {
+      const db = req.result;
+      // The browser can close this connection under us (Android closes it
+      // while the app sits in the background). Forget it so the next call
+      // opens a fresh one instead of failing on a dead handle for the rest
+      // of the session — the "no profile pictures until the app restarts"
+      // bug (v0.251.2).
+      db.onclose = () => { if (_db === db) _db = null; };
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } if (_db === db) _db = null; };
+      _db = db;
+      resolve(db);
+    };
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -130,7 +141,9 @@ export async function saveLocalImage(id, imageData, mimeHint, { mirror = true } 
   if (mirror) mirrorImage(id, typeof imageData === 'string' ? imageData : toWrite);
   try {
     const idb = await getIdb();
-    return await putImage(idb, id, toWrite);
+    await putImage(idb, id, toWrite);
+    announceSaved(id);
+    return;
   } catch (e) {
     // The cached connection can die mid-session (versionchange, storage
     // pressure, WebView renderer restarts) — transaction() then throws
@@ -141,24 +154,51 @@ export async function saveLocalImage(id, imageData, mimeHint, { mirror = true } 
     // count and report the failure honestly.
     _db = null;
     const idb = await getIdb();
-    return await putImage(idb, id, toWrite);
+    await putImage(idb, id, toWrite);
+    announceSaved(id);
   }
 }
 
+function readImage(idb, id) {
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    req.onerror = () => reject(req.error || new Error('Failed to get image'));
+    req.onsuccess = () => resolve(req.result || null);
+    tx.onabort = () => reject(tx.error || new Error('Image read aborted'));
+  });
+}
+
+// Reads one picture; null when it isn't stored, THROWS when the store
+// can't be read (so callers can tell "missing" from "couldn't look"). A
+// dead cached connection (see getIdb) is reopened and the read retried
+// once — pre-v0.251.2 the rejection escaped getLocalImage's try/catch (it
+// was returned, not awaited) and every picture read failed until the app
+// was restarted.
+export async function readLocalImage(id) {
+  try {
+    return await readImage(await getIdb(), id);
+  } catch {
+    _db = null;
+    return await readImage(await getIdb(), id);
+  }
+}
+
+// Same, but null on any failure (callers that only want "a picture or not").
 export async function getLocalImage(id) {
   try {
-    const idb = await getIdb();
-    return new Promise((resolve, reject) => {
-      const tx = idb.transaction([STORE_NAME], 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(id);
-      req.onerror = () => reject(new Error('Failed to get image'));
-      req.onsuccess = () => resolve(req.result || null);
-    });
+    return await readLocalImage(id);
   } catch (e) {
     console.warn('getLocalImage: IDB unavailable:', e);
     return null;
   }
+}
+
+// Tell anything showing a picture that it now exists on this device (an
+// import, a restore from the app's own saved copy, a new upload), so a
+// spot that drew a blank earlier can try again.
+function announceSaved(id) {
+  try { window.dispatchEvent(new CustomEvent('symphony-local-image-saved', { detail: { id } })); } catch { /* no window (worker) */ }
 }
 
 export async function deleteLocalImage(id) {
@@ -409,6 +449,34 @@ export function isBlobMigrationDone() {
 // where a plain browser fetch would be blocked. Used by
 // migrateHttpImagesToLocal ("Cache Images for Offline") so it actually works
 // against those CDNs on the app.
+// Image type from a file's first bytes. Some CDNs (Octocon's among them)
+// serve avatars as application/octet-stream or with no type at all; a
+// strict "Content-Type must be image/*" check skipped every one of them,
+// so imported avatars stayed remote links that fail offline (v0.251.2).
+export function sniffImageMime(bytes) {
+  if (!bytes || bytes.length < 12) return null;
+  const b = bytes;
+  const ascii = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+  if (b[0] === 0x89 && ascii(1, 3) === 'PNG') return 'image/png';
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (ascii(0, 4) === 'GIF8') return 'image/gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') return 'image/webp';
+  if (ascii(4, 4) === 'ftyp' && /^avi[fs]$/.test(ascii(8, 4))) return 'image/avif';
+  if (b[0] === 0x42 && b[1] === 0x4d) return 'image/bmp';
+  return null;
+}
+
+function _isGenericType(contentType) {
+  return !contentType || /^(application\/octet-stream|binary\/octet-stream|application\/binary)$/i.test(contentType);
+}
+
+function _base64Head(b64, n = 16) {
+  try {
+    const bin = atob(b64.slice(0, Math.ceil(n / 3) * 4));
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  } catch { return null; }
+}
+
 async function _fetchViaCapacitor(url) {
   try {
     const { isNative } = await import('./platform');
@@ -418,12 +486,16 @@ async function _fetchViaCapacitor(url) {
     if (!res || typeof res.status !== 'number' || res.status < 200 || res.status >= 300) return null;
     const data = res.data; // base64 string for responseType:"blob"
     if (!data || typeof data !== 'string') return null;
-    let contentType = 'image/png';
+    let contentType = '';
     const headers = res.headers || {};
     for (const k of Object.keys(headers)) {
       if (k.toLowerCase() === 'content-type' && headers[k]) { contentType = String(headers[k]).split(';')[0].trim(); break; }
     }
-    if (!/^image\//i.test(contentType)) return null;
+    if (!/^image\//i.test(contentType)) {
+      const sniffed = _isGenericType(contentType) ? sniffImageMime(_base64Head(data)) : null;
+      if (!sniffed) return null;
+      contentType = sniffed;
+    }
     return `data:${contentType};base64,${data}`;
   } catch {
     return null;
@@ -434,10 +506,14 @@ async function _fetchViaBrowser(url) {
   try {
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
     if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType && !/^image\//i.test(contentType)) return null;
-    const blob = await res.blob();
+    const contentType = (res.headers.get('content-type') || '').split(';')[0].trim();
+    let blob = await res.blob();
     if (!blob || blob.size === 0) return null;
+    if (!/^image\//i.test(contentType)) {
+      const sniffed = _isGenericType(contentType) ? sniffImageMime(new Uint8Array(await blob.slice(0, 16).arrayBuffer())) : null;
+      if (sniffed) blob = new Blob([blob], { type: sniffed });
+      else if (contentType) return null; // no type at all was always accepted
+    }
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);

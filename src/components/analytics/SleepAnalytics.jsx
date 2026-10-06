@@ -18,7 +18,8 @@ function StatCard({ label, value, sub }) {
 
 function AlterBadge({ alter, count, total }) {
   const resolved = useResolvedAvatarUrl(alter?.avatar_url);
-  const [err, setErr] = React.useState(false);
+  const [errFor, setErr] = React.useState(null);
+  const err = !!errFor && errFor === resolved;
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
 
   return (
@@ -26,7 +27,7 @@ function AlterBadge({ alter, count, total }) {
       <div className="w-7 h-7 rounded-full flex-shrink-0 overflow-hidden"
         style={{ backgroundColor: alter?.color || "#9333ea" }}>
         {resolved && !err
-          ? <img src={resolved} alt={alter?.name} className="w-full h-full object-cover" onError={() => setErr(true)} />
+          ? <img src={resolved} alt={alter?.name} className="w-full h-full object-cover" onError={() => setErr(resolved)} />
           : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white">
               {alter?.name?.charAt(0)?.toUpperCase()}
             </div>

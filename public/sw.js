@@ -15,11 +15,21 @@ const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 </svg>`;
 
 // ── IDB helpers (SW has its own context, no module imports) ──
+// One shared connection (pre-v0.251.2 every picture request opened its
+// own and never closed it), dropped when the browser closes it.
+let _imagesDb = null;
 function openImagesDb() {
+  if (_imagesDb) return Promise.resolve(_imagesDb);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('symphony_images', 1);
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onclose = () => { if (_imagesDb === db) _imagesDb = null; };
+      db.onversionchange = () => { try { db.close(); } catch (e) { /* closed */ } if (_imagesDb === db) _imagesDb = null; };
+      _imagesDb = db;
+      resolve(db);
+    };
     req.onupgradeneeded = (e) => {
       if (!e.target.result.objectStoreNames.contains('images')) {
         e.target.result.createObjectStore('images');
@@ -29,12 +39,19 @@ function openImagesDb() {
 }
 
 function getImageFromDb(db, id) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const tx = db.transaction(['images'], 'readonly');
     const req = tx.objectStore('images').get(id);
     req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => resolve(null);
+    req.onerror = () => reject(req.error);
   });
+}
+
+// Read with one reconnect-and-retry on a dead connection.
+function readImage(id) {
+  return openImagesDb()
+    .then((db) => getImageFromDb(db, id))
+    .catch(() => { _imagesDb = null; return openImagesDb().then((db) => getImageFromDb(db, id)); });
 }
 
 function dataUrlToResponse(dataUrl) {
@@ -132,8 +149,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/local-image/')) {
     const imageId = decodeURIComponent(url.pathname.slice('/local-image/'.length));
     event.respondWith(
-      openImagesDb()
-        .then((db) => getImageFromDb(db, imageId))
+      readImage(imageId)
         .then((imageData) => {
           if (!imageData) return defaultAvatarResponse();
           if (typeof imageData === 'string' && imageData.startsWith('data:')) {

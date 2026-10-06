@@ -110,7 +110,8 @@ function buildSegments(getSlotData) {
 function AlterAvatar({ alterId, alters }) {
   const alter = alters.find(a => a.id === alterId);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   return (
     <div
       className="w-5 h-5 rounded-full border-2 border-white/80 overflow-hidden flex items-center justify-center flex-shrink-0"
@@ -118,7 +119,7 @@ function AlterAvatar({ alterId, alters }) {
       title={alter?.name}
     >
       {resolvedUrl && !imgError
-        ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
         : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
       }
     </div>

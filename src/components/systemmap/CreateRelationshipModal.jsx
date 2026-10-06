@@ -59,7 +59,8 @@ function AlterPickerDropdown({ label, selected, excludeId, onSelect }) {
   const terms = useTerms();
   const [open, setOpen] = useState(false);
   const selectedResolvedUrl = useResolvedAvatarUrl(selected?.avatar_url);
-  const [selectedImgError, setSelectedImgError] = useState(false);
+  const [selectedImgErrorFor, setSelectedImgError] = useState(null);
+  const selectedImgError = !!selectedImgErrorFor && selectedImgErrorFor === selectedResolvedUrl;
 
   return (
     <div className="space-y-1 relative">
@@ -70,7 +71,7 @@ function AlterPickerDropdown({ label, selected, excludeId, onSelect }) {
         {selected ? (
           <>
             {selectedResolvedUrl && !selectedImgError ? (
-              <img src={selectedResolvedUrl} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={() => setSelectedImgError(true)} />
+              <img src={selectedResolvedUrl} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={() => setSelectedImgError(selectedResolvedUrl)} />
             ) : (
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
                 style={{ backgroundColor: selected.color || "#8b5cf6" }}>

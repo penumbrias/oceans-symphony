@@ -24,7 +24,8 @@ function FronterAvatar({ alter, isPrimary, size = "md" }) {
   const sz = size === "lg" ? "w-14 h-14" : "w-10 h-10";
   const iconSz = size === "lg" ? "w-7 h-7" : "w-5 h-5";
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
 
   return (
     <div className="relative flex-shrink-0">
@@ -36,7 +37,7 @@ function FronterAvatar({ alter, isPrimary, size = "md" }) {
         }}>
 
         {resolvedUrl && !imgError ?
-        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} /> :
+        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} /> :
 
         <User className={iconSz} style={{ color: text || "hsl(var(--muted-foreground))" }} />
         }

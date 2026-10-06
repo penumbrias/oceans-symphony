@@ -39,6 +39,8 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
+  const [avatarErrorFor, setAvatarErrorFor] = useState(null);
+  const showAvatar = !!resolvedAvatar && avatarErrorFor !== resolvedAvatar;
 
   return (
     <div className="flex items-center gap-2">
@@ -55,12 +57,12 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
           <div
             className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
             style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
-            {resolvedAvatar ?
-            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
-            onError={(e) => {e.target.style.display = "none";e.target.nextSibling.style.display = "flex";}} /> :
-            null}
+            {showAvatar ? (
+                <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
+                  onError={() => setAvatarErrorFor(resolvedAvatar)} />
+              ) : null}
             <div className="w-full h-full items-center justify-center"
-            style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
+            style={{ display: showAvatar ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
               <User className="w-5 h-5" />
             </div>
           </div>
