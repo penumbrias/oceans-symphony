@@ -488,6 +488,26 @@ export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) 
     }));
 }
 
+// ── SECTION: TO BRING UP (~therapy notes) ─────────────────────────────────────
+// Every note captured with the ~therapy command that hasn't been in a report
+// yet (whatever its date), plus already-reported notes inside this report's
+// range — so re-running a period never drops them.
+export function buildTherapyNotesSection({ dateFrom, dateTo, therapyNotes = [], alters = [], includeAlterInfo = true }) {
+  return therapyNotes
+    .filter(n => String(n.note || "").trim() && (!n.reported_at || inRange(n.timestamp, dateFrom, dateTo)))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .map(n => ({
+      id: n.id,
+      date: fmtDateTime(n.timestamp),
+      note: String(n.note).trim(),
+      source: n.source || null,
+      who: includeAlterInfo
+        ? (n.fronting_alter_ids || []).map(id => alterName(id, alters, true)).filter(x => x && x !== "unknown").join(", ") || null
+        : null,
+      alreadyReported: !!n.reported_at,
+    }));
+}
+
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────
 
 export function buildPatternsSummary({

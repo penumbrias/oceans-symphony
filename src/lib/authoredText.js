@@ -49,7 +49,7 @@ export async function prepareAuthoredText(text, {
   const base = (baseAuthorIds || []).filter(Boolean);
   if (!raw.trim()) return { content: raw, logged: [], authorIds: [...base], isWhisper: false, recipientIds: [] };
 
-  const lc = await applyLogCommands(raw, { isRich: rich, chips });
+  const lc = await applyLogCommands(raw, { isRich: rich, chips, source: surfaceLabel });
   let content = lc.content;
   let recipientIds = [];
   let isWhisper = false;

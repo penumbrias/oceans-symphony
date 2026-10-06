@@ -329,6 +329,20 @@ export function buildStatusNoteRecords({ items = [] }) {
   });
 }
 
+// Notes captured with the ~therapy command — they open the Therapy Report
+// page, where pending ones are listed.
+export function buildTherapyNoteRecords({ items = [] }) {
+  return items.map((n) => ({
+    type: "therapy",
+    id: n.id,
+    title: snippet(n.note) || "To bring up",
+    subtitle: [formatDateLabel(n.timestamp), n.reported_at ? "in a report" : "waiting for next report"].filter(Boolean).join(" · "),
+    path: "/therapy-report",
+    searchableText: joinNonEmpty([n.note, n.source, "therapy", dateSearchBlob(n.timestamp)]).toLowerCase(),
+    sortDate: n.timestamp,
+  }));
+}
+
 export function buildEmotionCheckInRecords({ items = [] }) {
   const records = [];
   for (const e of items) {
@@ -694,6 +708,7 @@ export function buildSearchIndex(sources = {}) {
     activities, sleep,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
+    therapyNotes,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -724,6 +739,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildTaskRecords({ items: tasks || [] }));
   records.push(...buildDailyTaskTemplateRecords({ items: dailyTaskTemplates || [] }));
   records.push(...buildStatusNoteRecords({ items: statusNotes || [] }));
+  records.push(...buildTherapyNoteRecords({ items: therapyNotes || [] }));
   records.push(...buildEmotionCheckInRecords({ items: emotionCheckIns || [] }));
   records.push(...buildSymptomRecords({ items: symptoms || [] }));
   records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [] }));

@@ -40,6 +40,8 @@ export const BACKUP_LS_KEYS = [
   "nav_grid_cols",
   "nav_display_mode",
   "os_journal_folders",
+  // The user-set word for the ~therapy inline command (v0.252.0).
+  "symphony_therapy_command_v1",
   "symphony_checkin_log_display",
   "symphony_act_view_mode",
   "symphony_polls_default_tally_mode",

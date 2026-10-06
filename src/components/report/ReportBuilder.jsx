@@ -11,6 +11,7 @@ import NoteworthySettings from "./NoteworthySettings";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
 import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { useTerms } from "@/lib/useTerms";
+import { useTherapyKeyword } from "./TherapyNotesCard";
 
 function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
   const [open, setOpen] = useState(false);
@@ -73,7 +74,12 @@ function RadioGroup({ value, onChange, options }) {
   );
 }
 
-const buildSectionDefs = (t) => [
+const buildSectionDefs = (t, therapyKeyword = "therapy") => [
+  {
+    id: "therapyNotes",
+    label: "To Bring Up",
+    desc: `Anything you wrote with ~${therapyKeyword} that hasn't been in a report yet — shown first`,
+  },
   {
     id: "fronting",
     label: `${t.Fronting} History`,
@@ -210,7 +216,7 @@ const buildSectionDefs = (t) => [
 ];
 
 const DEFAULT_SELECTED = new Set([
-  "fronting", "emotions", "statusNotes", "symptoms", "activities", "plans",
+  "therapyNotes", "fronting", "emotions", "statusNotes", "symptoms", "activities", "plans",
   "journals", "diary", "locations", "sleep", "bulletins",
   "systemCheckIns", "supportJournals", "tasks", "patterns", "alterAppendix",
 ]);
@@ -231,7 +237,8 @@ const DEFAULT_OPTIONS = {
 
 export default function ReportBuilder({ templates = [], onDeleteTemplate, onSaveTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
   const t = useTerms();
-  const SECTIONS = useMemo(() => buildSectionDefs(t), [t]);
+  const therapyKeyword = useTherapyKeyword();
+  const SECTIONS = useMemo(() => buildSectionDefs(t, therapyKeyword), [t, therapyKeyword]);
 
   const symptomItems = useMemo(() =>
     symptoms.filter(s => !s.is_archived).map(s => ({ id: s.id, label: s.label || "Unnamed" })),
@@ -280,7 +287,11 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
 
   const handleLoadTemplate = (tpl) => {
     if (tpl.sections_config) {
-      setSelectedSections(new Set(Object.keys(tpl.sections_config).filter(k => tpl.sections_config[k])));
+      const next = new Set(Object.keys(tpl.sections_config).filter(k => tpl.sections_config[k]));
+      // Templates saved before ~therapy notes existed don't mention the
+      // section at all — keep it on so captured notes still reach the report.
+      if (!("therapyNotes" in tpl.sections_config)) next.add("therapyNotes");
+      setSelectedSections(next);
     }
     if (tpl.noteworthy_thresholds) setThresholds(tpl.noteworthy_thresholds);
     if (tpl.show_cover_page != null) setShowCoverPage(tpl.show_cover_page);
