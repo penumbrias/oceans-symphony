@@ -26,6 +26,17 @@ import { X, FileText, Loader2 } from "lucide-react";
 //   loading        — disables Generate while PDF is being built
 const PER_ITEM_SECTIONS = [
   {
+    key: "therapyNotes",
+    label: "To bring up",
+    getItems: (sections) => sections.therapyNotes || [],
+    renderItem: (n) => ({
+      id: n.id,
+      title: n.date || "Note",
+      subtitle: [n.who, n.source].filter(Boolean).join(" · "),
+      preview: n.note || "",
+    }),
+  },
+  {
     key: "journals",
     label: "Journal entries",
     getItems: (sections) => sections.journals || [],

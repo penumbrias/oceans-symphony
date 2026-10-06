@@ -326,7 +326,7 @@ useEffect(() => {
     // text stays editable. Runs on the plaintext, before any encryption.
     let bodyContent = content;
     try {
-      const lc = await applyLogCommands(content, { isRich: true });
+      const lc = await applyLogCommands(content, { isRich: true, source: "journal entry" });
       bodyContent = lc.content;
     } catch (e) {
       if (isLogCommandError(e)) { toast.error(e.message); return; }

@@ -482,6 +482,26 @@ function addDiarySection(doc, diaryData, y) {
   return y + 8;
 }
 
+// ── TO BRING UP (~therapy notes) ──────────────────────────────────────────────
+
+function addTherapyNotesSection(doc, notes, y) {
+  if (!notes || notes.length === 0) return y;
+  y = checkPageBreak(doc, y, 30);
+  y = sectionHeader(doc, "To Bring Up", y);
+  notes.forEach(entry => {
+    y = checkPageBreak(doc, y, 12);
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    const meta = [entry.date, entry.who, entry.source ? `from a ${entry.source}` : null].filter(Boolean).join(" · ");
+    doc.text(meta, MARGIN + 2, y);
+    y += 5;
+    doc.setTextColor(50, 50, 50);
+    y = wrappedText(doc, entry.note, MARGIN + 4, y, CONTENT_W - 8, 4.5);
+    y += 4;
+  });
+  return y + 4;
+}
+
 // ── CUSTOM STATUS NOTES ───────────────────────────────────────────────────────
 
 function addStatusNotesSection(doc, statusNotes, y) {
@@ -759,6 +779,17 @@ function formatAsPlainText({
     text += `${o.journalCount} journal entries\n`;
     text += `${o.diaryCardCount} DBT tracking entries\n`;
     text += `${o.alterCount} system members\n\n`;
+  }
+
+  // To Bring Up (~therapy notes)
+  if (enabledSections.has("therapyNotes") && sections.therapyNotes?.length > 0) {
+    text += `TO BRING UP\n${"--------".padEnd(60, "-")}\n`;
+    sections.therapyNotes.forEach(entry => {
+      const meta = [entry.date, entry.who, entry.source ? `from a ${entry.source}` : null].filter(Boolean).join(" · ");
+      text += `\n  ${meta}\n`;
+      text += `  • ${entry.note.replace(/\n/g, "\n    ")}\n`;
+    });
+    text += "\n";
   }
 
   // Fronting History
@@ -1040,6 +1071,9 @@ export async function generateTherapyReport({
 
   if (enabledSections.has("overview")) {
     y = addOverview(doc, sections.overview, y);
+  }
+  if (enabledSections.has("therapyNotes") && sections.therapyNotes?.length > 0) {
+    y = addTherapyNotesSection(doc, sections.therapyNotes, y);
   }
   if (enabledSections.has("fronting") && sections.fronting) {
     y = addFrontingSection(doc, sections.fronting, sectionOptions, y);

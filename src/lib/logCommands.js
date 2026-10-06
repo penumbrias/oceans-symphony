@@ -50,6 +50,12 @@
 // (matched against your journal folders), title[] optional, body[] is the
 // entry text.
 //
+// Therapy notes: ~therapy whatever you want to bring up — everything after
+// the word (to the end of the line, or a closing ~ / ]) is saved as a
+// TherapyNote and goes into the next Therapy Report. A bare ~therapy flags
+// the WHOLE note. The word is user-set (src/lib/therapyCommand.js), so this
+// type is not in COMMAND_TYPES; it is matched against the current keyword.
+//
 // Examples:
 //   ~symptom:amnesia:4            ~symptom:anxiety:3:active     ~symptom:anxiety:inactive
 //   ~feeling:good:happy:cheerful  ~feeling:body:flight:on edge  ~feeling:on edge
@@ -65,6 +71,7 @@ import { getActivePrimaryId, getActiveFronterIds } from "@/lib/frontingUtils";
 import { startEncounter, endEncounterForContact, logVisit } from "@/lib/contactEncounters";
 import { addActiveActivity, getActiveActivities, endAndLogActiveActivity } from "@/lib/activitySession";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { getTherapyKeyword, THERAPY_NOTES_EVENT } from "@/lib/therapyCommand";
 
 // ── Type catalogue ──────────────────────────────────────────────────────────
 export const COMMAND_TYPES = [
@@ -76,14 +83,77 @@ export const COMMAND_TYPES = [
   { key: "journal",  aliases: ["journal", "journals", "entry", "j"],          label: "Journal",  icon: "📓", hint: "Write a journal entry" },
 ];
 
-const ICON = Object.fromEntries(COMMAND_TYPES.map((t) => [t.key, t.icon]));
+const THERAPY_ICON = "\u{1F6CB}\uFE0F"; // couch
+const ICON = { ...Object.fromEntries(COMMAND_TYPES.map((t) => [t.key, t.icon])), therapy: THERAPY_ICON };
+
+// True when `word` is already a built-in command word (so it can't be used
+// as the user's ~therapy keyword).
+export function isReservedCommandWord(word) {
+  const q = (word || "").trim().toLowerCase();
+  return COMMAND_TYPES.some((x) => x.key === q || x.aliases.includes(q));
+}
 
 export function normalizeType(raw) {
   const q = (raw || "").trim().toLowerCase();
   if (!q) return null;
   const t = COMMAND_TYPES.find((x) => x.key === q || x.aliases.includes(q));
-  return t ? t.key : null;
+  if (t) return t.key;
+  return q === getTherapyKeyword() ? "therapy" : null;
 }
+
+// Strip markup from rich text so a therapy note stores what the user READ.
+function htmlToPlain(s) {
+  return String(s || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// ~therapy[:| ]text  /  ~therapy[text]  /  bare ~therapy (whole note).
+// Returns a resolved command or null when there is nothing to save.
+function resolveTherapyAt(text, tildeIndex, bodyEnd, hadClose) {
+  const kw = getTherapyKeyword();
+  const afterKw = tildeIndex + 1 + kw.length;
+  const rest = text.slice(afterKw, bodyEnd);
+  let note, end;
+  const bm = /^\s*:?\s*\[/.exec(rest);
+  if (bm) {
+    const contentStart = afterKw + bm[0].length;
+    const close = text.indexOf("]", contentStart);
+    const closed = close > -1 && close < bodyEnd;
+    note = htmlToPlain(text.slice(contentStart, closed ? close : bodyEnd));
+    end = closed ? close + 1 : (hadClose ? bodyEnd + 1 : bodyEnd);
+  } else {
+    note = htmlToPlain(rest.replace(/^\s*:?/, ""));
+    end = hadClose ? bodyEnd + 1 : bodyEnd;
+  }
+  let label;
+  if (note) {
+    label = `For therapy: ${note}`;
+  } else {
+    // Bare keyword → bring the whole note.
+    note = htmlToPlain(text.slice(0, tildeIndex) + " " + text.slice(end));
+    if (!note) return null;
+    label = "For therapy";
+  }
+  return {
+    start: tildeIndex, end, type: "therapy", isActive: undefined,
+    plan: { kind: "therapyNote", note }, label, icon: THERAPY_ICON,
+  };
+}
+
+// Does the command body start with the therapy keyword as a whole word?
+function startsWithTherapyKeyword(body) {
+  const kw = getTherapyKeyword();
+  if (lcRaw(body.slice(0, kw.length)) !== kw) return false;
+  const next = body[kw.length];
+  return next === undefined || /[\s:[]/.test(next);
+}
+function lcRaw(s) { return (s || "").toLowerCase(); }
 
 // active/on/start → true (begin a running session); inactive/off/end → false.
 const ACTIVE_WORDS = {
@@ -317,6 +387,10 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
   const hadClose = text[bodyEnd] === "~";
   const body = text.slice(tildeIndex + 1, bodyEnd);
   if (!body.trim()) return null;
+
+  // Therapy notes take free prose (colons included), so they're matched
+  // before the body is split into segments.
+  if (startsWithTherapyKeyword(body)) return resolveTherapyAt(text, tildeIndex, bodyEnd, hadClose);
 
   // segments with absolute offsets in `text`
   const segs = [];
@@ -586,6 +660,7 @@ function explainFailure(text, tildeIndex, catalogues) {
   let j = tildeIndex + 1;
   while (j < text.length && !"\n~<>".includes(text[j])) j++;
   const body = text.slice(tildeIndex + 1, j);
+  if (startsWithTherapyKeyword(body)) return `~${getTherapyKeyword()} needs something to bring up \u2014 like ~${getTherapyKeyword()} sleep has been rough`;
   const segs = body.split(":").map((x) => x.trim());
   const type = normalizeType(segs[0]);
   if (!type) return null;
@@ -740,6 +815,16 @@ async function executePlan(plan, ctx) {
       });
       return r?.id || null;
     }
+    case "therapyNote": {
+      const r = await base44.entities.TherapyNote.create({
+        timestamp: now,
+        note: plan.note,
+        source: ctx.source || null,
+        fronting_alter_ids: ctx.fronting_alter_ids,
+      });
+      try { window.dispatchEvent(new Event(THERAPY_NOTES_EVENT)); } catch { /* SSR */ }
+      return r?.id || null;
+    }
     case "journalEntry": {
       const r = await base44.entities.JournalEntry.create({
         title: plan.title || null,
@@ -771,7 +856,7 @@ function passthrough(seg, isRich) {
 // that render their text as plain — e.g. status notes / timeline badges).
 // Returns { content, logged }. When nothing resolves the content is returned
 // byte-for-byte unchanged (so plain notes stay plain).
-export async function applyLogCommands(content, { isRich = true, chips = true } = {}) {
+export async function applyLogCommands(content, { isRich = true, chips = true, source = null } = {}) {
   if (!content || typeof content !== "string" || !content.includes("~")) return { content, logged: [] };
   const catalogues = await fetchCatalogues();
   // A broken command BLOCKS the save with a fixable message (owner rule) —
@@ -789,7 +874,7 @@ export async function applyLogCommands(content, { isRich = true, chips = true } 
 
   let sessions = [];
   try { sessions = await base44.entities.FrontingSession.filter({ is_active: true }); } catch { sessions = []; }
-  const ctx = { fronting_alter_ids: attributionIds(sessions || []), now: new Date().toISOString() };
+  const ctx = { fronting_alter_ids: attributionIds(sessions || []), now: new Date().toISOString(), source };
 
   const logged = [];
   let out = "";
@@ -869,14 +954,18 @@ export function buildCommandSuggestions({ segments, catalogues }) {
   // Stage 0 — pick the type.
   if (segments.length === 1) {
     const q = lc(segments[0]);
+    const kw = getTherapyKeyword();
     const items = COMMAND_TYPES
       .filter((t) => !q || t.key.startsWith(q) || t.aliases.some((a) => a.startsWith(q)))
       .map((t) => ({ insert: t.key, terminal: false }));
+    if (!q || kw.startsWith(q)) items.push({ insert: kw, terminal: false });
     return items.length ? { header: "Log…", icon: "~", canFinish: false, items } : null;
   }
   const type = normalizeType(segments[0]);
   if (!type) return null;
   const icon = ICON[type];
+  // Therapy text is free prose — close the menu so typing isn't hijacked.
+  if (type === "therapy") return null;
   const query = segments[segments.length - 1];
   const q = lc(query);
 

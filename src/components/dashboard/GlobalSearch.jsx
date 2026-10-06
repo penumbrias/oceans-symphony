@@ -34,6 +34,7 @@ const TYPE_ICONS = {
   task:      "☑️",
   emotion:   "💜",
   status:    "💬",
+  therapy:   "🛋️",
   symptom:   "💊",
   group:     "👥",
   diarycard: "📖",
@@ -61,6 +62,7 @@ function getTypeLabels(t) {
     task:      "Tasks",
     emotion:   "Emotions",
     status:    "Custom Statuses",
+    therapy:   "To Bring Up",
     symptom:   "Symptoms",
     group:     "Groups",
     diarycard: "Diary Cards",
@@ -217,6 +219,10 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   });
 
   // Local entities
+  const { data: therapyNotes = [] } = useQuery({
+    queryKey: ["therapyNotes"],
+    queryFn: () => safeList(localEntities.TherapyNote),
+  });
   const { data: statusNotes = [] } = useQuery({
     queryKey: ["statusNotes"],
     queryFn: () => safeList(localEntities.StatusNote),
@@ -276,6 +282,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     activities, sleep,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
+    therapyNotes,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -298,6 +305,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     activities, sleep,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
+    therapyNotes,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -349,7 +357,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "setting", "alter", "journal", "status", "emotion", "bulletin", "note",
+    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system",
   ];
