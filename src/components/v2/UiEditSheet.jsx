@@ -1473,6 +1473,10 @@ function PresetsSection({ v2 }) {
     if (preset.uiV2HomeLook || preset.uiV2HomeDesktopLook || preset.uiV2Home) covers.push({ id: "widgets", label: tr("editSheet.partWidgets") });
     if (preset.fontSize || preset.uiV2Tokens || preset.font) covers.push({ id: "size", label: tr("editSheet.partSize") });
     if (preset.uiV2HomeLayout || preset.uiV2HomeDesktopLayout || preset.uiV2Home || preset.dashboardLayout) covers.push({ id: "layout", label: tr("editSheet.partLayout") });
+    // A preset that saved none of the above (only terms, navigation,
+    // banner, wave or corner) used to show on NEITHER tab — the user's
+    // own preset just vanished from the list. List it under Style.
+    if (!covers.length) covers.push({ id: "colors", label: tr("editSheet.partOther") });
     return covers;
   };
   const isStylePreset = (c) => c.some((x) => x.id === "colors" || x.id === "widgets");

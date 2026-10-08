@@ -24,13 +24,28 @@
 import { isDesktop, isNative, getNativePlatform } from "@/lib/platform";
 
 // ── Desktop (Electron) ────────────────────────────────────────────────
+//
+// On Windows a USB phone is stored as "phone://<device>/<storage>" (see
+// electron/windowsPhone.cjs); show it the way File Explorer would.
+function describeDesktopFolder(folder) {
+  if (typeof folder === "string" && folder.startsWith("phone://")) {
+    try {
+      const [d, s] = folder.slice("phone://".length).split("/").map(decodeURIComponent);
+      return `${d} → ${s} → Documents → OceansSymphony (phone over USB)`;
+    } catch {
+      return folder;
+    }
+  }
+  return folder || "";
+}
+
 const electronAdapter = {
   id: "electron",
   available: true,
   canPickFolder: true,
   folderLabel: "Sync folder",
   canPastePath: true,
-  describeFolder: (folder) => folder || "",
+  describeFolder: describeDesktopFolder,
   async pickFolder() {
     const res = await globalThis.symphonyDesktop.sync.pickFolder();
     if (!res?.ok) throw new Error(res?.error || "Couldn't open the folder picker.");

@@ -12,6 +12,7 @@ import {
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { getSyncAdapter } from "@/lib/syncAdapters";
+import { isWindowsDesktop } from "@/lib/platform";
 import { getDeviceName, setDeviceName, getDeviceId } from "@/lib/deviceSync";
 import {
   getSyncFolder, setSyncFolder, pickSyncFolder, runSync, listSyncPeers, getLastRun,
@@ -165,8 +166,10 @@ export default function DeviceSyncSettings() {
       <div>
         <h3 className="text-sm font-semibold mb-2">Sync between your devices</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Plug your phone into your computer and point this at its storage, or use a USB stick.
-          Your {t.system}&apos;s data is copied between the two devices as files — nothing is sent
+          {isWindowsDesktop()
+            ? "Plug your phone in, unlock it and choose File transfer in its USB notification, then press Choose folder: the app finds the phone. A USB stick works too."
+            : "Plug your phone into your computer and point this at its storage, or use a USB stick."}
+          {" "}Your {t.system}&apos;s data is copied between the two devices as files — nothing is sent
           anywhere, and there is no server involved.
         </p>
       </div>
@@ -342,6 +345,11 @@ export default function DeviceSyncSettings() {
             <p className="text-muted-foreground">
               {report.media.images} image{report.media.images === 1 ? "" : "s"}
               {report.media.fonts > 0 ? `, ${report.media.fonts} font${report.media.fonts === 1 ? "" : "s"}` : ""} brought over.
+            </p>
+          )}
+          {report.presetsMerged > 0 && (
+            <p className="text-muted-foreground">
+              {report.presetsMerged} appearance preset{report.presetsMerged === 1 ? "" : "s"} brought over.
             </p>
           )}
           {report.conflicts.length > 0 && (

@@ -18,7 +18,18 @@
 
 export const CHANGELOG = [
   {
+    date: "October 8, 2026",
+    changes: [
+      { type: "feature", text: "The Windows desktop app is ready to download from the GitHub Releases page, alongside the Linux app." },
+      { type: "fix", text: "Windows desktop app: syncing now finds a phone plugged in over USB and syncs with it directly." },
+      { type: "improve", text: "Device sync: your saved appearance presets now come across to your other devices. Each device still keeps its own current look." },
+      { type: "fix", text: "Display options: saved presets that only hold settings like terms or navigation no longer go missing from the presets list." },
+      { type: "fix", text: "Using another device's look now applies straight away and adds to your saved presets instead of replacing them." },
+    ],
+  },
+  {
     date: "October 6, 2026",
+    version: "0.252.0",
     changes: [
       { type: "feature", text: "New ~therapy command: type ~therapy and anything after it, in any note, chat or journal, and it lands at the top of your next therapy report. You can change the word on the Therapy Report page." },
       { type: "fix", text: "Profile pictures no longer go missing for a while after opening the app; any that are slow to load now fill in on their own." },

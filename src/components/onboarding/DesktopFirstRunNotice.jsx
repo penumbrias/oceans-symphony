@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Monitor, FolderOpen, Usb, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { isDesktop, getDesktopInfo } from "@/lib/platform";
+import { isDesktop, getDesktopInfo, isWindowsDesktop } from "@/lib/platform";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { pickSyncFolder, listSyncPeers, pairSystem, runSync } from "@/lib/deviceSyncRunner";
 
@@ -105,12 +105,20 @@ export default function DesktopFirstRunNotice({ onImport, prepare, onDone }) {
         Import a backup file
       </Button>
 
-      {adapter.available && (
+      {adapter.available && (isWindowsDesktop() ? (
+        // Windows reaches the phone through the Shell (MTP), not a folder
+        // path; the app looks for it when the button is pressed.
+        <p className="text-[0.6875rem] text-muted-foreground">
+          Press Sync once on your phone first. Then plug it in, unlock it and choose
+          {" "}<span className="font-medium">File transfer</span> in its USB notification. The app finds it
+          when you press Sync from another device.
+        </p>
+      ) : (
         <p className="text-[0.6875rem] text-muted-foreground">
           Plug your phone in, then pick its <span className="font-medium">Documents/OceansSymphony</span> folder.
           Sync once on the phone first so there is something to read.
         </p>
-      )}
+      ))}
 
       {info?.dataPath ? (
         <div className="flex items-center gap-2 pt-1">

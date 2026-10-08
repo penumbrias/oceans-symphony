@@ -138,19 +138,35 @@ Run it **on Windows** (Node 22, `npm ci` first). Cross-building from
 Linux needs `wine` for the exe's icon/version resources; without it,
 electron-builder fails at that step.
 
-The easy way is GitHub Actions → **Desktop (Windows)** → *Run workflow*
-(`.github/workflows/desktop-windows.yml`, manual only):
+The easy way is GitHub Actions → **Desktop release** → *Run workflow*
+(`.github/workflows/desktop-release.yml`, manual only). It builds the
+Windows installer on a Windows runner AND the Linux AppImage + `.deb` on
+a Linux runner, so nobody has to build anything by hand:
 
-- **tag empty** → a test build. The installer is under *Artifacts* at
-  the bottom of the run page. Nothing is published.
-- **tag set** (e.g. `v0.248.0`, must already be pushed and must match
-  `APP_VERSION` at that tag) → attaches the installer, blockmap and
-  `latest.yml` to that GitHub Release — the same release the Linux
-  AppImage goes on. If the release doesn't exist yet it's created as a
-  **draft**, so nothing reaches users until it's published by hand.
+- **tag empty** → a test build. Both platforms' files are under
+  *Artifacts* at the bottom of the run page. Nothing is published.
+- **tag set** (e.g. `v0.250.1`, must already be pushed and must match
+  `APP_VERSION` at that tag) → attaches every file (installer, blockmap,
+  AppImage, `.deb`, `latest.yml`, `latest-linux.yml`) to that GitHub
+  Release. If the release doesn't exist yet it's created once, as a
+  **draft** marked to become *Latest*, with download + install notes, so
+  nothing reaches users until it's published by hand.
 
-The workflow file has to be on `main` before GitHub shows the *Run
-workflow* button.
+### Publishing a release (checklist)
+
+1. Merge the release's version bump to `main` and tag that commit:
+   `git tag v0.250.1 && git push origin v0.250.1`.
+2. Actions → **Desktop release** → *Run workflow* on `main`, tag
+   `v0.250.1`.
+3. When both jobs are green, open the draft on the Releases page, check
+   the files are there, leave **Set as the latest release** ticked, and
+   publish.
+4. Share the release link — that's the download page.
+
+Only desktop releases may be marked *Latest*: installed copies read
+their update feed from whichever release GitHub calls Latest, so a
+release without `latest.yml` (e.g. an Android-only one) marked Latest
+stops desktop updates until the next desktop release.
 
 ### Installer
 
@@ -208,19 +224,33 @@ release, so the two don't interfere.
 
 ### Device sync on Windows — phones over USB
 
-On Linux a plugged-in phone is mounted as a folder (gvfs), so the app can
-read and write it directly. **Windows doesn't do that**: a phone over USB
-(MTP) shows in File Explorer but is not a real folder path, so the folder
-picker is expected to refuse it and a pasted path won't work. On Windows,
-sync through:
+On Linux a plugged-in phone is mounted as a folder (gvfs). Windows exposes
+it over MTP instead: File Explorer shows it, but it is not a filesystem
+path, so Node and the folder dialog can't reach it. Since v0.251.4 the app
+goes through the Windows Shell (the same layer Explorer uses), from
+`electron/windowsPhone.cjs`:
 
-- a **USB stick** or **SD card** both devices can use, or
-- copying by hand: in File Explorer, copy the phone's
-  `symphony-sync-…json` files from its sync folder into a folder on the
-  PC, press Sync in the app (pointed at that PC folder), then copy the
-  PC's file back to the phone.
+- **Choose folder / Sync from another device** first looks for a plugged-in
+  phone with `Documents\OceansSymphony` and offers it ("Use Galaxy S24").
+  A phone that is locked or not in *File transfer* mode gets a message
+  saying so; *Choose a folder instead* opens the normal dialog.
+- The choice is stored as `phone://<device>/<storage>`. `main.cjs` routes
+  list/read/write/remove for that prefix to the Shell helper; everything
+  else is unchanged.
+- Each operation runs a small PowerShell script (written to
+  `<userData>\symphony-phone.ps1`) that drives `Shell.Application`.
+  Operations are serialized. Only our own `symphony-sync-…json` files are
+  touched.
+- **Replacing** our snapshot on the phone moves the old copy to this PC
+  first (MTP ignores the overwrite flag and would pop a dialog), then
+  copies the new one; if it doesn't arrive whole, the old one is put back.
+  Nothing on the phone is deleted outright.
+- CI runs `scripts/test-windows-phone.cjs` on the Windows runner before
+  building: the same Shell calls against a normal folder (no phone there).
+  The real phone path still needs a check on hardware.
 
-Folders with spaces and on any drive letter work normally.
+Fallbacks: a USB stick, or copying the phone's `OceansSymphony` folder onto
+the PC in File Explorer and choosing that copy.
 
 ### What to test on a Windows laptop
 
