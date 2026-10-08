@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { recordPresetRemoved, clearPresetRemoved } from '@/lib/presetSync';
 
 
 // A corrupt value in one of the theme keys used to throw inside the
@@ -553,11 +554,15 @@ export function ThemeProvider({ children }) {
     });
   };
 
+  // `_ut` stamps each save so device sync can tell which copy of a preset
+  // is newer (src/lib/presetSync.js).
   const saveCustomPreset = (name, colors) => {
-    setUserCustomPresets(prev => ({ ...prev, [name]: colors }));
+    clearPresetRemoved(name);
+    setUserCustomPresets(prev => ({ ...prev, [name]: { ...colors, _ut: Date.now() } }));
   };
 
   const deleteUserPreset = (name) => {
+    recordPresetRemoved(name);
     setUserCustomPresets(prev => {
       const next = { ...prev };
       delete next[name];

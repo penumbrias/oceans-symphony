@@ -25,6 +25,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_customColors",
   "symphony_selectedFont",
   "symphony_userCustomPresets",
+  // Presets deleted on this device, so sync does not bring them back.
+  "symphony_userCustomPresets_removed",
   "symphony_alterThemeLinks",
   "symphony_a11y_fontSize",
   "symphony_a11y_fontFamily",

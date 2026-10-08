@@ -615,6 +615,7 @@ export default {
   "editSheet.presetsNone": "Nothing here yet — save the current look below.",
   "editSheet.partWidgets": "Widget look",
   "editSheet.partLayout": "Layout",
+  "editSheet.partOther": "Other settings",
   "editSheet.srcBuiltIn": "Built-in theme",
   "editSheet.srcYours": "Yours",
   "editSheet.srcWidgetStyle": "Widget style",

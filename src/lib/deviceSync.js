@@ -53,6 +53,9 @@
 //     EXCEPT the widget boards (v0.249.0, owner): `ui_v2_home` and
 //     `classic_home` travel with the data and merge page by page
 //     (syncMerge.mergeBoards); each page's "Show as" sets its shape.
+//     AND the saved appearance presets library (v0.252.2, owner): it
+//     merges on every sync (src/lib/presetSync.js); which preset each
+//     device uses stays its own.
 //   - The device id itself. See deviceIdentity below.
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";
@@ -61,6 +64,7 @@ import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
+import { applyIncomingPresets, PRESETS_KEY, REMOVED_KEY } from "@/lib/presetSync";
 import { stripLookFromDump, pickLookFields } from "@/lib/syncLook";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { APP_VERSION } from "@/lib/appVersion";
@@ -341,6 +345,15 @@ export function applyPortableSettings(settings, { overwrite = false } = {}) {
   let n = 0;
   for (const [key, value] of Object.entries(settings)) {
     if (value == null) continue;
+    // The presets library merges, never replaces (src/lib/presetSync.js);
+    // the deleted-presets list describes THIS device only.
+    if (key === PRESETS_KEY) {
+      let incoming = null;
+      try { incoming = JSON.parse(String(value)); } catch { incoming = null; }
+      n += applyIncomingPresets(incoming);
+      continue;
+    }
+    if (key === REMOVED_KEY) continue;
     try {
       if (!overwrite && localStorage.getItem(key) !== null) continue; // ours wins
       localStorage.setItem(key, String(value));
@@ -384,6 +397,15 @@ export async function applyDataSnapshot(file) {
   stripLookFromDump(incoming);
   // applyDeletions stays FALSE. Always. See the header.
   const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
+  // Saved appearance presets are a library, not device look: they merge
+  // on every sync (src/lib/presetSync.js). Which one is in use stays local.
+  const presetsRaw = (body?.appearance?.settings ?? body?.settings)?.[PRESETS_KEY];
+  let presetsMerged = 0;
+  if (presetsRaw) {
+    let incomingPresets = null;
+    try { incomingPresets = JSON.parse(String(presetsRaw)); } catch { incomingPresets = null; }
+    presetsMerged = applyIncomingPresets(incomingPresets, file.device?.name);
+  }
 
   return {
     device: file.device || null,
@@ -392,6 +414,7 @@ export async function applyDataSnapshot(file) {
     pendingDeletions,
     // Preferences are no longer filled in automatically (see the header).
     settingsFilled: 0,
+    presetsMerged,
   };
 }
 

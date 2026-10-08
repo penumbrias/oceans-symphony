@@ -10,6 +10,7 @@
 // and crashing before the write leaves the other device with nothing.
 
 import { getFullDbDump, getLocalRevision } from "@/lib/localDb";
+import { PRESETS_KEY } from "@/lib/presetSync";
 import {
   buildDataSnapshotWithHash, buildMediaSnapshot, mediaFingerprint,
   parseSnapshotFile, applyDataSnapshot, applyMediaSnapshot,
@@ -57,8 +58,13 @@ let _revisionAtLastPass = null;
 
 // Has this device changed anything since the last sync pass? Merges done
 // BY that pass don't count — they're already in the folder.
+// Saved presets live in localStorage, outside the database revision, so a
+// preset saved on its own is checked separately.
+let _presetsAtLastPass = null;
+const presetsNow = () => readLs(PRESETS_KEY, "");
 export function hasLocalChangesSinceSync() {
-  return _revisionAtLastPass === null || getLocalRevision() !== _revisionAtLastPass;
+  return _revisionAtLastPass === null || getLocalRevision() !== _revisionAtLastPass
+    || presetsNow() !== _presetsAtLastPass;
 }
 
 // All of these are DEVICE-BOUND on purpose and must never be added to
@@ -292,6 +298,7 @@ export async function runSync({ force = false } = {}) {
   // Merged changes are already in the folder (they came from it); only
   // edits made after this point need the next pass.
   _revisionAtLastPass = getLocalRevision();
+  _presetsAtLastPass = presetsNow();
   // Park anything the other device deleted for review — never applied here.
   if (report.pendingDeletions.length) addPendingDeletions(report.pendingDeletions);
   report.finishedAt = new Date().toISOString();
