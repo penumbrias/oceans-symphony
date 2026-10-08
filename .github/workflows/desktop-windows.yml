@@ -1,0 +1,211 @@
+# Builds the desktop apps — Windows installer (NSIS) and Linux AppImage +
+# .deb — each on its own kind of runner, and optionally attaches them to a
+# GitHub Release.
+#
+# Manual only, on purpose: nothing builds or publishes on its own.
+#
+# How to use (GitHub → Actions → "Desktop release" → Run workflow):
+#
+#   * Leave "tag" empty  → just builds. Download the files from the run's
+#     "Artifacts" section at the bottom of the run page. Nothing is
+#     published. Good for a test build to try on a laptop.
+#
+#   * Put a tag in, e.g. v0.250.1 → builds THAT tag on both platforms and
+#     attaches every file (installer, AppImage, .deb and both update feeds,
+#     latest.yml + latest-linux.yml) to the GitHub Release with that tag.
+#     If no release exists for the tag yet, a DRAFT release is created, so
+#     nothing reaches anyone until the release is published by hand. The
+#     tag must already exist (push it first), and src/lib/appVersion.js at
+#     that tag must match it, or the run stops — the updater trusts the
+#     version inside latest.yml, so a mismatch would tell people they're on
+#     a version they aren't.
+#
+# Auto-update: installed copies poll the release GitHub marks "Latest" for
+# latest.yml (Windows) / latest-linux.yml (Linux AppImage). Publish a
+# release only once both platform jobs are green, so neither platform is
+# left without its feed. Releases without these files (e.g. an Android-only
+# release) must NOT be marked Latest, or desktop update checks find nothing.
+#
+# Unsigned: there's no code-signing certificate, so the Windows installer
+# shows a SmartScreen warning on first install. See docs/desktop-setup.md.
+
+name: Desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach to (e.g. v0.250.1). Leave empty for a test build (download from the run's Artifacts)."
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # needed to create a draft release / upload release assets
+
+concurrency:
+  group: desktop-release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Checks the tag against APP_VERSION and creates the draft release ONCE,
+  # before either build starts, so the two build jobs never race to create
+  # it.
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Read app version
+        id: version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          VERSION=$(node -e "const s=require('fs').readFileSync('src/lib/appVersion.js','utf8');const m=/APP_VERSION\s*=\s*[\"']([^\"']+)[\"']/.exec(s);if(!m)process.exit(1);process.stdout.write(m[1])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "App version: $VERSION"
+          if [ -n "$TAG" ] && [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Tag $TAG does not match APP_VERSION $VERSION at that tag. Fix the tag or the version; the updater trusts the version in latest.yml."
+            exit 1
+          fi
+
+      - name: Create the draft release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — files will be added to it."
+            exit 0
+          fi
+          cat > notes.md <<NOTES
+          ## Download
+
+          - **Windows:** the file ending in \`-Setup.exe\`
+          - **Linux:** the \`.AppImage\` (any distro), or the \`.deb\` for Ubuntu / Mint / Debian
+
+          You don't need the \`.yml\` or \`.blockmap\` files — the app uses those to update itself.
+
+          ### Installing on Windows
+
+          The installer isn't signed with a paid certificate, so Windows will probably say **"Windows protected your PC"**. Click **More info**, then **Run anyway**. If your browser says the file "isn't commonly downloaded", choose **Keep**. It installs for just you, with no administrator password.
+
+          ### Your data
+
+          The desktop app keeps its own database on this computer. To bring your data across, use **Sync between devices** or **Import a backup file** on the first screen. Uninstalling keeps your data; reinstalling picks it back up.
+
+          Oceans Symphony is a journaling and organisation tool, not a medical product.
+          NOTES
+          # --latest: desktop copies update from the release GitHub marks
+          # Latest, so this one must become it when it's published.
+          gh release create "$TAG" --draft --verify-tag --latest \
+            --title "Oceans Symphony ${TAG}" \
+            --notes-file notes.md
+
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test phone sync helper
+        run: node scripts/test-windows-phone.cjs
+
+      - name: Build installer
+        env:
+          # No certificate: make sure electron-builder doesn't go looking.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        # --publish never: uploading is done explicitly below, so a test
+        # build can never end up on a release by accident.
+        run: npm run desktop:build:win -- --publish never
+
+      - name: List output
+        run: ls -la release
+
+      - name: Keep the installer as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OceansSymphony-${{ needs.prepare.outputs.version }}-windows
+          path: |
+            release/OceansSymphony-*-Setup.exe
+            release/OceansSymphony-*-Setup.exe.blockmap
+            release/latest.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to the GitHub Release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" release/OceansSymphony-*-Setup.exe release/OceansSymphony-*-Setup.exe.blockmap release/latest.yml --clobber
+          echo "Attached to $TAG:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
+
+  linux:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build AppImage + .deb
+        run: npm run desktop:build -- --publish never
+
+      - name: List output
+        run: ls -la release
+
+      - name: Keep the Linux files as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OceansSymphony-${{ needs.prepare.outputs.version }}-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/latest-linux.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to the GitHub Release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" release/*.AppImage release/*.deb release/latest-linux.yml --clobber
+          echo "Attached to $TAG:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
