@@ -22,9 +22,10 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function AvatarImg({ url, label }) {
   const resolvedUrl = useResolvedAvatarUrl(url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   if (!resolvedUrl || imgError) return null;
-  return <img src={resolvedUrl} alt={label} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={() => setImgError(true)} />;
+  return <img src={resolvedUrl} alt={label} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={() => setImgError(resolvedUrl)} />;
 }
 
 // ─── Option row ───────────────────────────────────────────────────────────────

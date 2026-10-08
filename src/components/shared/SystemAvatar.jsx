@@ -16,7 +16,8 @@ import { useSystemIdentity } from "@/lib/useSystemIdentity";
 export default function SystemAvatar({ size = "md", className = "" }) {
   const { name, avatarUrl } = useSystemIdentity();
   const resolvedUrl = useResolvedAvatarUrl(avatarUrl);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const sz = size === "sm" ? "w-5 h-5" : size === "lg" ? "w-10 h-10" : "w-7 h-7";
   const iconSz = size === "sm" ? "w-3 h-3" : size === "lg" ? "w-5 h-5" : "w-4 h-4";
   return (
@@ -29,7 +30,7 @@ export default function SystemAvatar({ size = "md", className = "" }) {
           src={resolvedUrl}
           alt={name}
           className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
+          onError={() => setImgError(resolvedUrl)}
         />
       ) : (
         <Globe className={`${iconSz} text-muted-foreground`} />

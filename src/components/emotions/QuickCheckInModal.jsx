@@ -51,7 +51,8 @@ import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onToggle, onSetPrimary }) {
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const formatAlter = useAlterLabel();
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const bind = holdProps || {};
   return (
     <div
@@ -73,7 +74,7 @@ function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onTogg
       <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
         style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
         {resolvedUrl && !imgError
-          ? <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          ? <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
           : <User className="w-4 h-4 text-white/70" />}
       </div>
       <div className="flex-1 min-w-0">

@@ -11,6 +11,7 @@ import ReportCustomizePreview from "@/components/report/ReportCustomizePreview";
 import { toast } from "sonner";
 import * as reportSections from "@/lib/reportSections";
 import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
+import TherapyNotesCard from "@/components/report/TherapyNotesCard";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -122,6 +123,26 @@ export default function TherapyReportPage() {
     queryFn: () => db.SupportJournalEntry.list(),
   });
 
+  const { data: therapyNotes = [] } = useQuery({
+    queryKey: ["therapyNotes"],
+    queryFn: () => db.TherapyNote.list(),
+    staleTime: 0,
+  });
+
+  // A report that carried ~therapy notes has "brought them up": stamp them so
+  // the next report starts fresh. Only notes still in the final report (not
+  // pruned in Preview & Customize) are stamped; failures never block export.
+  const markTherapyNotesReported = async (sections, enabledSections) => {
+    if (!enabledSections.has("therapyNotes")) return;
+    const ids = (sections.therapyNotes || []).filter(n => !n.alreadyReported).map(n => n.id);
+    if (!ids.length) return;
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      try { await db.TherapyNote.update(id, { reported_at: now }); } catch { /* keep it pending */ }
+    }
+    queryClient.invalidateQueries({ queryKey: ["therapyNotes"] });
+  };
+
   const handleGenerate = async (config) => {
     try {
       setLoading(true);
@@ -206,6 +227,14 @@ export default function TherapyReportPage() {
         includeAlterInfo: sectionOptions.alterNames !== false,
         thresholds: config.thresholds,
         diaryDetail: sectionOptions.diaryDetail || "noteworthy",
+      });
+
+      const therapyNotesSection = reportSections.buildTherapyNotesSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        therapyNotes,
+        alters,
+        includeAlterInfo,
       });
 
       const statusNotesSection = reportSections.buildStatusNotesSection({
@@ -307,6 +336,7 @@ export default function TherapyReportPage() {
 
       const sections = {
         overview,
+        therapyNotes: therapyNotesSection,
         fronting,
         emotions,
         statusNotes: statusNotesSection,
@@ -366,6 +396,7 @@ export default function TherapyReportPage() {
         mode: config.mode,
         sections_included: Array.from(config.selectedSections),
       });
+      await markTherapyNotesReported(sections, enabledSections);
 
     } catch (error) {
       toast.error(`Error: ${error.message}`);
@@ -396,6 +427,7 @@ export default function TherapyReportPage() {
         mode: config.mode,
         sections_included: Array.from(config.selectedSections),
       });
+      await markTherapyNotesReported(filteredSections, enabledSections);
       setPendingPreview(null);
       setExportModal({ filename, format: "pdf", blob });
       toast.success("PDF ready — tap Save / Share below");
@@ -416,6 +448,8 @@ export default function TherapyReportPage() {
         </p>
       </div>
 
+      <TherapyNotesCard notes={therapyNotes} />
+
       <ReportBuilder
         templates={templates}
         onGenerate={handleGenerate}
@@ -425,7 +459,12 @@ export default function TherapyReportPage() {
             name,
             period_type: "custom",
             mode: config.mode,
-            sections_config: Object.fromEntries(Array.from(config.selectedSections).map(s => [s, true])),
+            sections_config: {
+              ...Object.fromEntries(Array.from(config.selectedSections).map(s => [s, true])),
+              // Saved explicitly so "off" survives a reload (a missing key means
+              // an older template, which keeps the section on).
+              therapyNotes: config.selectedSections.has("therapyNotes"),
+            },
             noteworthy_thresholds: config.thresholds,
             include_alter_info: config.config.includeAlterInfo,
             show_cover_page: config.config.showCoverPage,

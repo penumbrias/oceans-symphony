@@ -36,7 +36,8 @@ function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const formatAlter = useAlterLabel();
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onToggle(),
     onSwipeRight: () => onToggle(),
@@ -68,7 +69,7 @@ function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
             style={{ boxShadow }}
             className={`rounded-full object-cover transition-all cursor-pointer ${selected ? "w-20 h-20" : "w-16 h-16"}`}
             draggable={false}
-            onError={() => setImgError(true)}
+            onError={() => setImgError(resolvedUrl)}
           />
         ) : (
           <div
@@ -97,7 +98,8 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
 
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onToggle(),
@@ -138,7 +140,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
         style={{ backgroundColor: bg || "hsl(var(--muted))" }}
       >
         {resolvedUrl && !imgError ? (
-          <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
         ) : (
           <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
         )}

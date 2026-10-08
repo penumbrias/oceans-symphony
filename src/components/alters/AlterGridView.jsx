@@ -45,7 +45,8 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
   const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
 
   // Fronting glow in the level's colour when it has one (no special
   // primary colour — levels replaced the old primary/co-front split).
@@ -73,7 +74,7 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
             style={{ boxShadow }}
             className={`rounded-full object-cover transition-all cursor-pointer ${sizeClass} ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
             draggable={false}
-            onError={() => setImgError(true)}
+            onError={() => setImgError(resolvedUrl)}
           />
         ) : (
           <div

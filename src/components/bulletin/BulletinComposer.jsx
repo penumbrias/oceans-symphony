@@ -247,7 +247,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     setSaving(true);
     try {
     // Execute any inline ~commands first — each becomes a chip in the post.
-    const contentWithChips = (await applyLogCommands(content, { isRich: true })).content;
+    const contentWithChips = (await applyLogCommands(content, { isRich: true, source: "bulletin" })).content;
     // Parse signpost authorship from the ORIGINAL text FIRST, so the whisper
     // wrapping below can't be mangled by signpost stripping (the dash matcher
     // would otherwise chew on the whisper span's data-whisper-for attribute).

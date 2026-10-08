@@ -1,5 +1,11 @@
 // Resolves avatar/image URLs to something an <img> tag can consume.
-// /local-image/[id]  → returned as-is; the Service Worker serves it from IDB.
+// /local-image/[id]  → read from IDB in the page (cached object URL). The
+//                      Service Worker path is only a fallback now (v0.251.2):
+//                      when the SW drew a blank (busy/closed IDB on app
+//                      open, a picture still being restored) it answered
+//                      with a placeholder the WebView then kept showing for
+//                      that URL — "all my profile pictures vanished and
+//                      refreshing doesn't bring them back".
 // local-image://[id] → legacy format; resolved directly from IDB.
 // Everything else    → returned as-is (http/https/data URLs).
 //
@@ -8,7 +14,7 @@
 // browser-consumable URL either way. Blobs get a cached object URL; data
 // URIs pass through unchanged.
 
-import { isLocalImageUrl, getLocalImageId, getLocalImage } from './localImageStorage';
+import { isLocalImageUrl, getLocalImageId, readLocalImage } from './localImageStorage';
 
 // { url → resolved value }. Object URLs live for the session and are shared
 // across all consumers of the same image id — no need to revoke because the
@@ -33,9 +39,10 @@ export function swServesLocalImages() {
 
 // Shared IDB → consumable-URL path for both URL forms. Blobs become cached
 // object URLs; legacy data-URI strings pass through.
+// Throws when IDB can't be read at all (vs null for "not stored").
 async function resolveFromIdb(cacheKey, imageId) {
   if (!imageId) return null;
-  const imageData = await getLocalImage(imageId);
+  const imageData = await readLocalImage(imageId);
   if (imageData instanceof Blob) {
     try {
       const objectUrl = URL.createObjectURL(imageData);
@@ -90,24 +97,27 @@ export async function resolveImageUrl(url) {
   if (typeof url === 'string' && url.startsWith('folder://')) return resolveFolderSource(url);
   if (_cache.has(url)) return _cache.get(url);
 
-  // SW-interceptable path — return as-is ONLY when a SW is actually in
-  // control; otherwise (iOS native, pre-claim web load) serve from IDB.
-  if (url.startsWith('/local-image/')) {
-    if (swServesLocalImages()) {
-      _cache.set(url, url);
-      return url;
-    }
-    return await resolveFromIdb(url, getLocalImageId(url));
-  }
-
-  // Legacy custom-protocol URL — resolve directly from IDB
+  // Stored on this device — read it in the page. Only if the page can't
+  // reach IDB at all does a SW-controlled page hand the URL to the SW.
+  // Nothing is cached on a miss, so the next try reads again.
   if (isLocalImageUrl(url)) {
-    return await resolveFromIdb(url, getLocalImageId(url));
+    try {
+      return await resolveFromIdb(url, getLocalImageId(url));
+    } catch {
+      return url.startsWith('/local-image/') && swServesLocalImages() ? url : null;
+    }
   }
 
   // External / data URL — pass through
   _cache.set(url, url);
   return url;
+}
+
+// The already-resolved URL for `url`, synchronously, or undefined — lets a
+// remount paint the picture on its first render instead of flashing the
+// placeholder while the async lookup runs.
+export function peekResolvedImageUrl(url) {
+  return url ? _cache.get(url) : undefined;
 }
 
 // Called by the blob-storage migration after entries are rewritten so the

@@ -14,7 +14,8 @@ function minutesFromHourStart(date, firstHour, dayStart) {
 
 function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   return (
     <div
       className="absolute flex flex-col items-center"
@@ -26,7 +27,7 @@ function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
         title={alter?.name}
       >
         {resolvedUrl && !imgError ? (
-          <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
         ) : (
           <span className="text-xs font-bold text-white">
             {alter?.name?.charAt(0)?.toUpperCase() || "?"}

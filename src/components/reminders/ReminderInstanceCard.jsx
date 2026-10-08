@@ -27,7 +27,8 @@ const STATUS_LABELS = {
 
 function AlterAvatar({ alter, categoryIcon }) {
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   if (!alter) {
     return (
       <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -42,7 +43,7 @@ function AlterAvatar({ alter, categoryIcon }) {
       style={{ borderColor }}
     >
       {resolvedUrl && !imgError ? (
-        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
       ) : (
         <div
           className="w-full h-full flex items-center justify-center text-white text-sm font-bold"

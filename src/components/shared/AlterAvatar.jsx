@@ -27,8 +27,9 @@ const SIZE_CLASSES = {
  */
 export default function AlterAvatar({ alter, size = "md", className, rounded = "full" }) {
   const terms = useTerms();
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
 
   const sizeClass = SIZE_CLASSES[size] ?? size;
   const roundedClass = {
@@ -46,7 +47,7 @@ export default function AlterAvatar({ alter, size = "md", className, rounded = "
         src={resolvedUrl}
         alt={alter?.name ?? ""}
         className={base}
-        onError={() => setImgError(true)}
+        onError={() => setImgError(resolvedUrl)}
         loading="lazy"
       />
     );

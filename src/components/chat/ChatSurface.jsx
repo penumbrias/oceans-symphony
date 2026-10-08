@@ -143,7 +143,8 @@ export function useReadableColor(color) {
 
 export function AlterAvatar({ alter, size = 28 }) {
   const url = useResolvedAvatarUrl(alter?.avatar_url);
-  const [err, setErr] = useState(false);
+  const [errFor, setErr] = useState(null);
+  const err = !!errFor && errFor === url;
   const px = `${size}px`;
   return (
     <div
@@ -152,7 +153,7 @@ export function AlterAvatar({ alter, size = 28 }) {
       title={alter?.name}
     >
       {url && !err
-        ? <img src={url} alt={alter?.name || ""} className="w-full h-full object-cover" onError={() => setErr(true)} />
+        ? <img src={url} alt={alter?.name || ""} className="w-full h-full object-cover" onError={() => setErr(url)} />
         : (alter?.id == null || alter?.id === SYSTEM_AUTHOR.id)
           ? <User style={{ width: size * 0.5, height: size * 0.5 }} />
           : <span className="font-semibold">{(alter?.name || "?").slice(0, 1).toUpperCase()}</span>}
@@ -751,7 +752,7 @@ export default function ChatSurface({
   const handleComposerSubmit = async ({ content: rawContent, speakerIds, notifyOnReply }) => {
     // Execute any inline ~commands first — each becomes a chip in the message.
     let content;
-    try { content = (await applyLogCommands(rawContent, { isRich: true })).content; }
+    try { content = (await applyLogCommands(rawContent, { isRich: true, source: "chat message" })).content; }
     catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     let body = content;
     let whisperRecipientIds = [];

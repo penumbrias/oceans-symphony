@@ -22,7 +22,8 @@ function AlterAvatar({ alter, size = "md" }) {
   const sz = size === "sm" ? "w-5 h-5" : "w-7 h-7";
   const iconSz = size === "sm" ? "w-3 h-3" : "w-4 h-4";
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorFor, setImgError] = useState(null);
+  const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
   return (
     <div
       className={`${sz} rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30`}
@@ -30,7 +31,7 @@ function AlterAvatar({ alter, size = "md" }) {
       title={alter?.name}
     >
       {resolvedUrl && !imgError ? (
-        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(resolvedUrl)} />
       ) : (
         <User className={iconSz} style={{ color: getContrastColor(alter?.color) }} />
       )}

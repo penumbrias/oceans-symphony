@@ -18,10 +18,25 @@
 
 export const CHANGELOG = [
   {
-    date: "October 5, 2026",
+    date: "October 8, 2026",
     changes: [
       { type: "feature", text: "The Windows desktop app is ready to download from the GitHub Releases page, alongside the Linux app." },
       { type: "fix", text: "Windows desktop app: syncing now finds a phone plugged in over USB and syncs with it directly." },
+    ],
+  },
+  {
+    date: "October 6, 2026",
+    version: "0.252.0",
+    changes: [
+      { type: "feature", text: "New ~therapy command: type ~therapy and anything after it, in any note, chat or journal, and it lands at the top of your next therapy report. You can change the word on the Therapy Report page." },
+      { type: "fix", text: "Profile pictures no longer go missing for a while after opening the app; any that are slow to load now fill in on their own." },
+      { type: "fix", text: "Imported Octocon avatars are now saved onto your device more reliably." },
+    ],
+  },
+  {
+    date: "October 5, 2026",
+    version: "0.251.1",
+    changes: [
       { type: "fix", text: "Display options now change the page you're on: content width, alignment, borders and corners apply on the Planner and every other page, in both layouts." },
       { type: "feature", text: "Quick check-in: pick an activity and a thin day view appears beside it — hold and drag on it to set when that activity happened." },
       { type: "feature", text: "Start Activity can now log something you already did: switch to \"Already ended\" and set the end time." },

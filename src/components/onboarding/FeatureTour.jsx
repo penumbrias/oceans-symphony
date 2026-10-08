@@ -813,6 +813,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     },
     {
       section: "therapy", sectionLabel: "Therapy Report",
+      emoji: "🛋️",
+      title: "Save Things for Therapy",
+      body: `Anywhere you can type a ~command (notes, chat, journals, bulletins, statuses), type ~therapy followed by what you want to bring up and it's saved for your next report, at the top under "To Bring Up". A bare ~therapy saves the whole note. Change the command word here if you'd rather type something else.`,
+      route: "/therapy-report", target: "therapy-notes",
+      look: `the "To bring up" card — what's waiting for your next report, and the command word`, action: null,
+    },
+    {
+      section: "therapy", sectionLabel: "Therapy Report",
       emoji: "⚙️",
       title: "Choose What to Include",
       body: `Every section is independently toggleable with a Select All / Clear All shortcut. Sections: ${t.Fronting} History, Emotion Check-Ins, Custom Status Notes, Symptoms & Habits, Activities, Journal Entries, Diary Cards, Locations, Sleep Log, Bulletin Board, ${t.System} Meetings, Skills & Exercises, Tasks & Habits, Patterns & Narrative, and ${t.Alter} Profiles. The Locations, Sleep Log, and Skills & Exercises sections are new additions that pull from data you've already logged.`,
