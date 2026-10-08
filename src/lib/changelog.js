@@ -24,6 +24,7 @@ export const CHANGELOG = [
       { type: "fix", text: "Windows desktop app: syncing now finds a phone plugged in over USB and syncs with it directly." },
       { type: "improve", text: "Device sync: your saved appearance presets now come across to your other devices. Each device still keeps its own current look." },
       { type: "fix", text: "Display options: saved presets that only hold settings like terms or navigation no longer go missing from the presets list." },
+      { type: "fix", text: "Using another device's look now applies straight away and adds to your saved presets instead of replacing them." },
     ],
   },
   {

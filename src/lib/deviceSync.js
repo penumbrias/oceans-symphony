@@ -340,7 +340,7 @@ export function summariseIncomingDeletions(incomingDump, localDump) {
 //
 // overwrite:true is for the deliberate "make this device look like that
 // one" action. Safe precisely because a human asked for it.
-export function applyPortableSettings(settings, { overwrite = false } = {}) {
+export function applyPortableSettings(settings, { overwrite = false, fromName } = {}) {
   if (!settings || typeof settings !== "object") return 0;
   let n = 0;
   for (const [key, value] of Object.entries(settings)) {
@@ -350,7 +350,7 @@ export function applyPortableSettings(settings, { overwrite = false } = {}) {
     if (key === PRESETS_KEY) {
       let incoming = null;
       try { incoming = JSON.parse(String(value)); } catch { incoming = null; }
-      n += applyIncomingPresets(incoming);
+      n += applyIncomingPresets(incoming, fromName);
       continue;
     }
     if (key === REMOVED_KEY) continue;
@@ -360,6 +360,9 @@ export function applyPortableSettings(settings, { overwrite = false } = {}) {
       n += 1;
     } catch { /* storage off — preferences just don't travel */ }
   }
+  // The running theme re-reads now; otherwise its next save writes its
+  // stale copy back over what was just applied.
+  if (n) { try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* no window */ } }
   return n;
 }
 

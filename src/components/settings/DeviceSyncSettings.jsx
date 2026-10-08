@@ -347,6 +347,11 @@ export default function DeviceSyncSettings() {
               {report.media.fonts > 0 ? `, ${report.media.fonts} font${report.media.fonts === 1 ? "" : "s"}` : ""} brought over.
             </p>
           )}
+          {report.presetsMerged > 0 && (
+            <p className="text-muted-foreground">
+              {report.presetsMerged} appearance preset{report.presetsMerged === 1 ? "" : "s"} brought over.
+            </p>
+          )}
           {report.conflicts.length > 0 && (
             <p className="text-muted-foreground">
               {report.conflicts.length} item{report.conflicts.length === 1 ? "" : "s"} existed on both devices —
