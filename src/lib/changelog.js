@@ -18,6 +18,13 @@
 
 export const CHANGELOG = [
   {
+    date: "October 7, 2026",
+    changes: [
+      { type: "improve", text: "Your saved appearance presets now come across on every device sync. If two presets share a name, both are kept." },
+      { type: "fix", text: "Presets copied with \"Use this device's look\" no longer disappear before you restart." },
+    ],
+  },
+  {
     date: "October 6, 2026",
     changes: [
       { type: "feature", text: "New ~therapy command: type ~therapy and anything after it, in any note, chat or journal, and it lands at the top of your next therapy report. You can change the word on the Therapy Report page." },

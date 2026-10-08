@@ -50,6 +50,10 @@
 //     the record can't restyle this device. (Before: preferences filled
 //     gaps and the record merged newer-wins, so resizing a widget on the
 //     desktop rewrote the phone's home layout.)
+//     EXCEPT appearance presets (v0.252.1, owner): the saved presets in
+//     `symphony_userCustomPresets` are merged in on every sync — a union
+//     that never loses one (src/lib/syncPresets.js). Which preset is
+//     active still stays per-device.
 //     EXCEPT the widget boards (v0.249.0, owner): `ui_v2_home` and
 //     `classic_home` travel with the data and merge page by page
 //     (syncMerge.mergeBoards); each page's "Show as" sets its shape.
@@ -65,6 +69,7 @@ import { stripLookFromDump, pickLookFields } from "@/lib/syncLook";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { APP_VERSION } from "@/lib/appVersion";
 import { getBuildTarget } from "@/lib/platform";
+import { PRESETS_KEY, mergePeerPresets } from "@/lib/syncPresets";
 
 export const SYNC_FORMAT = "symphony_sync";
 export const SYNC_MEDIA_FORMAT = "symphony_sync_media";
@@ -336,17 +341,23 @@ export function summariseIncomingDeletions(incomingDump, localDump) {
 //
 // overwrite:true is for the deliberate "make this device look like that
 // one" action. Safe precisely because a human asked for it.
-export function applyPortableSettings(settings, { overwrite = false } = {}) {
+//
+// Saved presets are never overwritten in either mode — they are merged, so
+// copying a look can't wipe the presets this device already has.
+export function applyPortableSettings(settings, { overwrite = false, fromName } = {}) {
   if (!settings || typeof settings !== "object") return 0;
-  let n = 0;
+  let n = mergePeerPresets(settings, fromName).length ? 1 : 0;
   for (const [key, value] of Object.entries(settings)) {
-    if (value == null) continue;
+    if (value == null || key === PRESETS_KEY) continue;
     try {
       if (!overwrite && localStorage.getItem(key) !== null) continue; // ours wins
       localStorage.setItem(key, String(value));
       n += 1;
     } catch { /* storage off — preferences just don't travel */ }
   }
+  // The running theme re-reads now; otherwise its next save writes its
+  // stale copy back over what was just applied.
+  if (n) { try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* no window */ } }
   return n;
 }
 
@@ -384,6 +395,9 @@ export async function applyDataSnapshot(file) {
   stripLookFromDump(incoming);
   // applyDeletions stays FALSE. Always. See the header.
   const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
+  // Saved appearance presets are the one piece of the look that always
+  // travels — merged, never replacing (see the header).
+  const presetsAdded = mergePeerPresets(body?.appearance?.settings ?? body?.settings, file.device?.name);
 
   return {
     device: file.device || null,
@@ -392,6 +406,7 @@ export async function applyDataSnapshot(file) {
     pendingDeletions,
     // Preferences are no longer filled in automatically (see the header).
     settingsFilled: 0,
+    presetsAdded,
   };
 }
 
