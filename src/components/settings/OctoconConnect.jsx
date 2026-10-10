@@ -19,6 +19,7 @@ import {
   mapAlterToLocal,
   mapTagToGroup,
   mapFrontToSession,
+  isOpenOctoFront,
   mapPollToLocal,
   buildAlterNameByOctoId,
 } from "@/lib/octocon";
@@ -62,6 +63,9 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
   const [includeCustomFields, setIncludeCustomFields] = useState(true);
   const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
   const [historyRange, setHistoryRange] = useState("1yr");
+  // Fronts still open in the export become CURRENT fronters only when the
+  // user ticks this — off by default (they're usually stale by import time).
+  const [makeOpenFrontsCurrent, setMakeOpenFrontsCurrent] = useState(false);
   const [includePolls, setIncludePolls] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
 
@@ -105,6 +109,7 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
     groups: (data.tags || []).length,
     customFields: (data.user?.fields || []).length + collectOrphanFieldDefs(data).length,
     fronts: (data.fronts || []).length,
+    openFronts: new Set((data.fronts || []).filter(isOpenOctoFront).map((f) => String(f.alter_id))).size,
     polls: (data.polls || []).length,
     system: data.user?.username || data.user?.id || "",
   } : null;
@@ -339,12 +344,25 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
         const existingOpFrontIds = new Set(
           existingSessions.filter((s) => s.octo_front_id).map((s) => s.octo_front_id)
         );
+        // Who is fronting HERE right now — an open front for one of them is
+        // never made live a second time (that would duplicate them).
+        const activeAlterIds = new Set(
+          existingSessions.filter((s) => s.is_active && s.alter_id).map((s) => s.alter_id)
+        );
+        const importedAt = new Date().toISOString();
         const toCreate = [];
         for (const front of d.fronts || []) {
           const startedMs = front.time_start ? new Date(front.time_start).getTime() : null;
           if (cutoff && startedMs && startedMs < cutoff) continue;
-          const session = mapFrontToSession(front, alterIdByOctoId);
+          const localAlterId = alterIdByOctoId[String(front?.alter_id)];
+          const makeLive = makeOpenFrontsCurrent && isOpenOctoFront(front)
+            && !!localAlterId && !activeAlterIds.has(localAlterId);
+          const session = mapFrontToSession(front, alterIdByOctoId, {
+            makeOpenFrontsCurrent: makeLive,
+            closeOpenAt: importedAt,
+          });
           if (!session) continue;
+          if (session.is_active) activeAlterIds.add(session.alter_id);
           if (session.octo_front_id && existingOpFrontIds.has(session.octo_front_id)) { frontsSkipped++; continue; }
           existingOpFrontIds.add(session.octo_front_id);
           toCreate.push(session);
@@ -580,6 +598,17 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
                       {RANGE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                   </div>
+                )}
+                {includeFrontHistory && counts.openFronts > 0 && (
+                  <label className="ml-5 flex items-start gap-2 text-xs cursor-pointer select-none" data-testid="octo-open-fronts-current">
+                    <input type="checkbox" checked={makeOpenFrontsCurrent} onChange={(e) => setMakeOpenFrontsCurrent(e.target.checked)} className="rounded mt-0.5" />
+                    <span>
+                      Also mark the {counts.openFronts} {counts.openFronts === 1 ? t.alter : t.alters} still {t.fronting} in this file as {t.fronting} now
+                      <span className="block text-muted-foreground/70">
+                        Off: those stay in history, ending at the time of import, and nobody is added to who's {t.fronting} now.
+                      </span>
+                    </span>
+                  </label>
                 )}
                 {counts.polls > 0 && (
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
