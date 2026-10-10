@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 10, 2026",
     changes: [
+      { type: "feature", text: "Desktop app: a \"Check for updates\" button in Settings downloads the newest version and restarts into it." },
       { type: "feature", text: "New \"Keep original images\" setting (Data & privacy → Storage & encryption) stores uploads byte-for-byte at full size, metadata included." },
       { type: "fix", text: "Images that are already small are now stored exactly as uploaded instead of being re-saved." },
       { type: "feature", text: "Journals: you can now change an entry's date and time in the journal editor." },

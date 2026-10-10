@@ -707,6 +707,17 @@ export function retrySave() {
   return _saveDbNow();
 }
 
+// Resolves once every queued save has finished (succeeded or failed).
+// Used before the desktop app quits to install an update, so nothing the
+// person just wrote is still in flight when the window closes.
+export async function whenSavesSettled() {
+  for (let i = 0; i < 20; i++) {
+    const seen = _saveQueue;
+    await seen.catch(() => {});
+    if (seen === _saveQueue && _pendingSaves === 0) return;
+  }
+}
+
 function saveDb() {
   _localRevision++;
   if (_batchDepth > 0) { _batchDirty = true; return Promise.resolve(); }

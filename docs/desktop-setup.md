@@ -203,6 +203,15 @@ not a browser, so SmartScreen doesn't fire again. With no signing
 certificate, electron-updater skips the publisher check but still
 verifies the installer's sha512 from `latest.yml`.
 
+**Check for updates on demand (v0.253.2).** Settings shows a *Check for
+updates* button (and Help → *Check for updates now*) on builds that can
+replace themselves (AppImage, Windows installer). A manual check counts as
+the person's yes to contacting GitHub, so it works even with automatic
+checks off. From the Settings button the download installs straight away:
+the page first waits for every pending save and the private-file copy
+(`src/lib/desktopUpdates.js`), then calls `symphony:update:install`. From
+the Help menu it uses the usual *Restart now / Later* prompt.
+
 A release only updates Windows users once `latest.yml` and the
 `-Setup.exe` are attached; Linux reads `latest-linux.yml` from the same
 release, so the two don't interfere.

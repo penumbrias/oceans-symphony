@@ -50,6 +50,20 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
     list: (rel) => ipcRenderer.invoke('symphony:safe:list', rel),
   }),
 
+  // Settings → "Check for updates" (src/lib/desktopUpdates.js). Main only
+  // ever contacts the app's own GitHub releases.
+  updates: Object.freeze({
+    supported: () => ipcRenderer.invoke('symphony:update:supported'),
+    status: () => ipcRenderer.invoke('symphony:update:status'),
+    check: () => ipcRenderer.invoke('symphony:update:check'),
+    install: () => ipcRenderer.invoke('symphony:update:install'),
+    onStatus: (cb) => {
+      const listener = (_e, status) => { try { cb(status); } catch { /* renderer handler */ } };
+      ipcRenderer.on('symphony:update:status', listener);
+      return () => ipcRenderer.removeListener('symphony:update:status', listener);
+    },
+  }),
+
   // Device sync (src/lib/deviceSync.js). Files only — there is no
   // network call anywhere behind these. Main refuses any filename that
   // isn't one of our own snapshot files, so this cannot be turned into a
