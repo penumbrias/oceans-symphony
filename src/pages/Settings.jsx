@@ -891,10 +891,12 @@ export default function Settings() {
           {/* ── STORAGE & ENCRYPTION ── (contains "Cache Images for Offline",
               which downloads remote-URL images — incl. imported avatars — into
               local storage; upgraded to bypass CORS on the native build). */}
+          <div data-tour="settings-storage">
           <SubSection title="Storage & encryption" defaultOpen={false}>
             <StorageModeSettings />
             <DataBackupRestore section="storage" />
           </SubSection>
+          </div>
 
           {/* ── SEE YOUR DATA ── (advanced/technical view: per-category record
               counts + sizes, export or delete any one category on its own) */}

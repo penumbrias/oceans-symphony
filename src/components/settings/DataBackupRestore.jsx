@@ -13,7 +13,8 @@ import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategor
 import { stripDeviceBound, stripUnsharedSecrets, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
-import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages, keepOriginalImages, setKeepOriginalImages } from "@/lib/localImageStorage";
+import { Switch } from "@/components/ui/switch";
 import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
 import {
   parseImportText,
@@ -466,6 +467,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
   const [recompressing, setRecompressing] = useState(false);
+  const [keepOriginals, setKeepOriginals] = useState(() => keepOriginalImages());
   const [recompressResult, setRecompressResult] = useState(null);
   const [recompressProgress, setRecompressProgress] = useState(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -1832,8 +1834,23 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           </div>
 
         <div className="space-y-2 pb-3 border-b border-border/40">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Uploaded Images</p>
+          <label className="flex items-start gap-3 rounded-xl border border-border/60 p-3 cursor-pointer">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Keep original images</p>
+              <p className="text-xs text-muted-foreground">Store new uploads exactly as they are, at full size, with their metadata. Off: large images are resized to save space (small ones are always kept as they are). Full-size images make backups bigger.</p>
+            </div>
+            <Switch
+              checked={keepOriginals}
+              onCheckedChange={(on) => { setKeepOriginalImages(on); setKeepOriginals(on); }}
+              aria-label="Keep original images"
+            />
+          </label>
+        </div>
+
+        <div className="space-y-2 pb-3 border-b border-border/40">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recompress Stored Images</p>
-          <p className="text-xs text-muted-foreground">Resize and re-encode all locally stored images to 512px max / JPEG 82%. Run this once to shrink backup size if images are large.</p>
+          <p className="text-xs text-muted-foreground">Resize and re-encode all locally stored images to 512px max / JPEG 82%. Run this once to shrink backup size if images are large. This also shrinks images you kept as originals.</p>
           {recompressResult && (
             <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${recompressResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
               {recompressResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}

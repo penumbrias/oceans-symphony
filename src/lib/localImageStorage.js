@@ -565,6 +565,10 @@ export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82
     img.onload = () => {
       let { width, height } = img;
       const longest = Math.max(width, height);
+      // Already within the size limit: keep the file exactly as it was.
+      // Re-encoding a small image only changes its bytes (a 100KB PNG
+      // came back ~105KB) and strips its metadata — no storage saved.
+      if (longest > 0 && longest <= maxDim) { resolve(dataUrl); return; }
       if (longest > maxDim) {
         const scale = maxDim / longest;
         width = Math.round(width * scale);
@@ -598,10 +602,32 @@ export function fileToDataUrl(file) {
 // Process an uploaded image File for storage. Animated GIFs are kept RAW
 // (canvas re-encoding flattens them to a single still frame — see
 // compressImageDataUrl); every other format is resized/compressed to keep
-// IndexedDB and backups lean. Returns { dataUrl, isGif, sizeKB } so the
+// IndexedDB and backups lean, unless it's already within maxDim or the
+// person turned on "Keep original images". Returns { dataUrl, isGif, sizeKB } so the
 // caller can warn about large GIFs (which we can't shrink without a
 // gif-aware encoder). This is the single entry point the avatar / header /
 // background upload paths share so GIF handling stays consistent.
+// "Keep original images" (Settings → Data & privacy → Storage & encryption):
+// when on, uploads are stored byte-for-byte at any size. Per device, kept
+// in BACKUP_LS_KEYS so it survives a storage wipe.
+export const KEEP_ORIGINAL_IMAGES_KEY = 'symphony_keep_original_images_v1';
+export function keepOriginalImages() {
+  try { return localStorage.getItem(KEEP_ORIGINAL_IMAGES_KEY) === '1'; } catch { return false; }
+}
+export function setKeepOriginalImages(on) {
+  try {
+    if (on) localStorage.setItem(KEEP_ORIGINAL_IMAGES_KEY, '1');
+    else localStorage.removeItem(KEEP_ORIGINAL_IMAGES_KEY);
+  } catch { /* storage blocked — stays off */ }
+}
+
+// Resize an upload for storage unless the person chose to keep originals.
+// Shared by processUploadedImage and the inline bio/rich-text image path.
+export async function compressUploadDataUrl(dataUrl, maxDim = 512, quality = 0.82) {
+  if (keepOriginalImages()) return dataUrl;
+  return compressImageDataUrl(dataUrl, maxDim, quality);
+}
+
 export async function processUploadedImage(file, maxDim = 512, quality = 0.82) {
   const raw = await fileToDataUrl(file);
   // Detect GIF robustly. Some file pickers (notably Android's) don't set
@@ -615,7 +641,7 @@ export async function processUploadedImage(file, maxDim = 512, quality = 0.82) {
     /\.gif$/i.test(file.name || '') ||
     /^data:image\/gif/i.test(raw) ||
     (typeof raw === 'string' && raw.startsWith('data:') && raw.includes('base64,R0lGOD'));
-  const dataUrl = isGif ? raw : await compressImageDataUrl(raw, maxDim, quality);
+  const dataUrl = isGif ? raw : await compressUploadDataUrl(raw, maxDim, quality);
   return { dataUrl, isGif, sizeKB: Math.round((dataUrl?.length || 0) / 1024) };
 }
 

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 10, 2026",
     changes: [
+      { type: "feature", text: "New \"Keep original images\" setting (Data & privacy → Storage & encryption) stores uploads byte-for-byte at full size, metadata included." },
+      { type: "fix", text: "Images that are already small are now stored exactly as uploaded instead of being re-saved." },
       { type: "feature", text: "Journals: you can now change an entry's date and time in the journal editor." },
       { type: "feature", text: "Check-In Log: diary card answers like urges or \"self-harm occurred\" can now be edited or deleted. Tap the chip or the diary card row." },
       { type: "fix", text: "Editing a subsystem (and the Analytics alters tab) no longer shows a \"j is not a function\" error." },

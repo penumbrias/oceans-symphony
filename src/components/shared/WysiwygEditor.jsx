@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useCallback, useState } from "react";
 
 import { toast } from "sonner";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
-import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, compressUploadDataUrl } from "@/lib/localImageStorage";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { scopeBioStyles } from "@/lib/scopedBioStyle";
@@ -159,7 +159,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     try {
       const rawDataUrl = await fileToDataUrl(file);
       const isGif = file.type === "image/gif";
-      const stored = isGif ? rawDataUrl : await compressImageDataUrl(rawDataUrl, 800, 0.85);
+      const stored = isGif ? rawDataUrl : await compressUploadDataUrl(rawDataUrl, 800, 0.85);
       const id = `bioimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(id, stored);
       const url = createLocalImageUrl(id);
