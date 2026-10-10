@@ -78,6 +78,16 @@ function MinimalShell({ icon: Icon, label }) {
 export function widgetLabel(def, terms) {
   return applyTerms(def?.label || "", terms);
 }
+// What an UNNAMED widget instance goes by. A registry entry may declare
+// autoLabel(settings) — the Song widget answers with the song's title — so
+// the options sheet, edit-mode labels and placeholders show that instead
+// of the generic catalogue name. The user's own display name (settings.
+// label) always wins; callers check it first.
+export function widgetAutoLabel(def, settings, terms) {
+  let auto = "";
+  try { auto = typeof def?.autoLabel === "function" ? def.autoLabel(settings || {}) : ""; } catch { auto = ""; }
+  return (typeof auto === "string" && auto.trim()) ? auto.trim() : widgetLabel(def, terms);
+}
 export function widgetDescription(def, terms) {
   return applyTerms(def?.description || "", terms);
 }

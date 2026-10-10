@@ -17,6 +17,21 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
+import { keptSongTitle, titleFromRef, meaningfulAssetName } from "@/lib/songTitle";
+
+// A new pick names itself after the song (file name, library name, the
+// link's file name) unless the user typed a title of their own. titleAuto
+// marks a filled-in title so the NEXT pick can replace it too.
+function withTitle(value, ref, autoTitle) {
+  const kept = keptSongTitle(value);
+  return {
+    ...(value || {}),
+    ref,
+    title: kept || autoTitle || "",
+    titleAuto: !kept,
+    loop: value?.loop !== false,
+  };
+}
 
 export default function ProfileSongPicker({ value, onChange, subjectLabel = "page" }) {
   // null | "checking" | "ok" | "bad" — result of probing a pasted URL.
@@ -40,6 +55,42 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
     // watching a spinner.
     setTimeout(() => finish(false), 8000);
   }, []);
+  // A pasted link used to commit only on blur. Leaving the sheet by the
+  // Android back button, a bar button, or the app going to the background
+  // never blurs the field, so the link was silently dropped. Hold what was
+  // typed and commit it on every way out.
+  const pendingLink = useRef(null);
+  const latest = useRef({ value, onChange });
+  latest.current = { value, onChange };
+  const commitLink = React.useCallback((check = true) => {
+    const v = (pendingLink.current || "").trim();
+    pendingLink.current = null;
+    const { value: cur, onChange: change } = latest.current;
+    if (!v || !/^https?:\/\//i.test(v) || v === cur?.ref) return;
+    change(withTitle(cur, v, titleFromRef(v)));
+    if (check) checkUrl(v);
+  }, [checkUrl]);
+  React.useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === "hidden") commitLink(false); };
+    const onPageHide = () => commitLink(false);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      commitLink(false);
+    };
+  }, [commitLink]);
+  // The title field keeps its own text while it has focus. Where the value
+  // is saved asynchronously (the home board writes it to disk), mirroring
+  // the stored value straight into the field dropped letters typed before
+  // the save came back. It follows the stored title whenever it isn't
+  // being typed in — a new pick fills it in.
+  const [titleDraft, setTitleDraft] = useState(value?.title || "");
+  const editingTitle = useRef(false);
+  React.useEffect(() => {
+    if (!editingTitle.current) setTitleDraft(value?.title || "");
+  }, [value?.title]);
   const [uploading, setUploading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const fileRef = useRef(null);
@@ -68,12 +119,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         });
         qc.invalidateQueries({ queryKey: ["imageAssets"] });
       } catch { /* the song still works even if the library row fails */ }
-      onChange({
-        ...(value || {}),
-        ref: createLocalImageUrl(audioId),
-        title: value?.title || file.name.replace(/\.[^.]+$/, ""),
-        loop: value?.loop !== false,
-      });
+      onChange(withTitle(value, createLocalImageUrl(audioId), file.name.replace(/\.[^.]+$/, "").slice(0, 80)));
       toast.success("Song saved!");
     } catch {
       toast.error("Failed to save the song");
@@ -89,8 +135,13 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         <div className="flex items-center gap-2 rounded-xl border border-border/50 px-3 py-2">
           <Music className="w-3.5 h-3.5 text-primary flex-shrink-0" />
           <Input
-            value={value.title || ""}
-            onChange={(e) => onChange({ ...value, title: e.target.value })}
+            value={titleDraft}
+            onFocus={() => { editingTitle.current = true; }}
+            onBlur={() => { editingTitle.current = false; }}
+            onChange={(e) => {
+              setTitleDraft(e.target.value);
+              onChange({ ...value, title: e.target.value, titleAuto: false });
+            }}
             placeholder="Song title (shown in the player)"
             className="h-8 text-sm flex-1 border-0 bg-transparent px-0 focus-visible:ring-0"
           />
@@ -113,12 +164,10 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         <Input
           placeholder="…or paste a link to an audio file"
           defaultValue={value?.ref?.startsWith("http") ? value.ref : ""}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v && /^https?:\/\//.test(v)) {
-              onChange({ ...(value || {}), ref: v, title: value?.title || "", loop: value?.loop !== false });
-              checkUrl(v);
-            }
+          onChange={(e) => { pendingLink.current = e.target.value; }}
+          onBlur={(e) => { pendingLink.current = e.target.value; commitLink(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); pendingLink.current = e.currentTarget.value; commitLink(); }
           }}
           className="h-8 text-xs flex-1 min-w-[160px]"
         />
@@ -137,7 +186,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
       )}
       {urlState === "bad" && (
         <p className="text-[0.6875rem] text-destructive">
-          Not an audio file. YouTube and Spotify links are web pages \u2014 use a link ending in .mp3,
+          Not an audio file. YouTube and Spotify links are web pages — use a link ending in .mp3,
           .ogg or .m4a, or upload the file.
         </p>
       )}
@@ -172,8 +221,8 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         open={pickerOpen}
         kind="audio"
         onClose={() => setPickerOpen(false)}
-        onSelect={(url) => {
-          onChange({ ...(value || {}), ref: url, title: value?.title || "Song", loop: value?.loop !== false });
+        onSelect={(url, item) => {
+          onChange(withTitle(value, url, meaningfulAssetName(item?.name) || titleFromRef(url)));
           setPickerOpen(false);
         }}
       />
