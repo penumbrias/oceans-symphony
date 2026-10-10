@@ -82,7 +82,7 @@ export default function AlterSearchSelect({
   // toggle in the search row. Whoever is fronting stays on top either way.
   const sorter = useAlterSorter("alterSearchSelect_sort", { frontingFirst });
   // Names follow the user's alter-label setting (name / alias / both).
-  const { formatAlter } = useAlterLabel();
+  const formatAlter = useAlterLabel();
   const selected = value ? alters.find((a) => a.id === value) : null;
   const list = sorter.sort(
     alters
