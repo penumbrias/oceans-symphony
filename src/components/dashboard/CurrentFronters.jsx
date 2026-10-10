@@ -62,7 +62,7 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   // Mirror the anonymize toggle from the Alters page so the chips here
   // blur the same way for screenshots.
@@ -177,7 +177,7 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
 // Compact avatar + name header for AlterPanel's controlled (meeting) mode,
 // where there's no FronterChip above the panel to identify the alter.
 function PanelHeader({ alter, onRemove }) {
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
@@ -209,7 +209,7 @@ function PanelHeader({ alter, onRemove }) {
 // Hold-menu header avatar — resolves legacy local-image:// avatars the same
 // way FronterChip / PanelHeader do (a raw <img src> on those renders broken).
 function HoldMenuAvatar({ alter }) {
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   return resolvedAvatar
     ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />

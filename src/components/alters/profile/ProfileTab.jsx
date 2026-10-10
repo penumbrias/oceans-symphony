@@ -392,7 +392,7 @@ useEffect(() => {
   // avatars and AlterCard already guard against). Resolve the saved
   // alter.avatar_url directly so the header is correct regardless of how the
   // profile was reached (Alters page or a group's member list).
-  const rotatingViewAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
+  const rotatingViewAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const viewAvatar = useResolvedAvatarUrl(rotatingViewAvatarUrl);
 
   // First-appearance is one field feeding both the free-form birthday text
