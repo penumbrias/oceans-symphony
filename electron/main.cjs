@@ -394,6 +394,9 @@ function buildMenu() {
     ...(canSelfUpdate() ? [{
       label: 'Help',
       submenu: [{
+        label: 'Check for updates now',
+        click: () => { checkForUpdatesNow({ fromMenu: true }); },
+      }, {
         label: 'Check for updates automatically',
         type: 'checkbox',
         checked: readUpdateConsent() === true,
@@ -488,6 +491,152 @@ function stopUpdater() {
   if (_updateTimer) { clearInterval(_updateTimer); _updateTimer = null; }
 }
 
+// ── Updater state, shared by the automatic schedule and the manual
+// "Check for updates" button (Settings, and Help → Check for updates now).
+// A manual check is its own yes to contacting GitHub, so it works even
+// when automatic checks are off. Status goes to the renderer on
+// 'symphony:update:status' so the button can show progress.
+let _autoUpdater = null;
+let _updateStatus = { state: 'idle' };
+let _manualCheck = false;
+let _manualFromMenu = false;
+let _readyInfo = null;
+
+function sendUpdateStatus(next) {
+  _updateStatus = next;
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('symphony:update:status', next);
+  } catch { /* window going away */ }
+}
+
+function getUpdater() {
+  if (_autoUpdater) return _autoUpdater;
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (e) {
+    console.warn('[update] electron-updater unavailable:', e?.message || e);
+    return null;
+  }
+
+  autoUpdater.autoDownload = true;
+  // Never swap the binary out from under someone mid-sentence.
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    if (_manualCheck) sendUpdateStatus({ state: 'checking' });
+  });
+  autoUpdater.on('update-not-available', () => {
+    if (_manualCheck) {
+      sendUpdateStatus({ state: 'up-to-date', version: app.getVersion() });
+      if (_manualFromMenu && mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'info', buttons: ['OK'],
+          message: 'You have the latest version.',
+          detail: `Oceans Symphony ${app.getVersion()} is up to date.`,
+        }).catch(() => {});
+      }
+    }
+    _manualCheck = false; _manualFromMenu = false;
+  });
+  autoUpdater.on('update-available', (info) => {
+    if (_manualCheck) sendUpdateStatus({ state: 'downloading', version: info?.version || '', percent: 0 });
+  });
+  autoUpdater.on('download-progress', (p) => {
+    if (_updateStatus.state === 'downloading') {
+      sendUpdateStatus({ ..._updateStatus, percent: Math.round(p?.percent || 0) });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    _readyInfo = info || {};
+    const wasManual = _manualCheck;
+    const fromMenu = _manualFromMenu;
+    _manualCheck = false; _manualFromMenu = false;
+    // Started from the Settings button: the page saves everything and
+    // then asks main to install (symphony:update:install). No dialog.
+    // autoInstall rides only on this one message — a page opened later
+    // sees a plain "ready" and offers a button instead of restarting.
+    if (wasManual && !fromMenu) {
+      sendUpdateStatus({ state: 'ready', version: info?.version || '', autoInstall: true });
+      _updateStatus = { state: 'ready', version: info?.version || '' };
+      return;
+    }
+    sendUpdateStatus({ state: 'ready', version: info?.version || '' });
+    promptRestartForUpdate(_readyInfo);
+  });
+
+  autoUpdater.on('error', (err) => {
+    // Offline, rate-limited, no release yet — all normal. Log, never
+    // interrupt an automatic check: a failed check is not the user's
+    // problem. A manual check reports it, since they're waiting on it.
+    console.warn('[update] check failed:', err?.message || err);
+    if (_manualCheck || _updateStatus.state === 'downloading' || _updateStatus.state === 'checking') {
+      sendUpdateStatus({ state: 'error', message: "Couldn't check for updates. Check your internet connection and try again." });
+      if (_manualFromMenu && mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, { type: 'warning', buttons: ['OK'], message: "Couldn't check for updates.", detail: 'Check your internet connection and try again.' }).catch(() => {});
+      }
+    }
+    _manualCheck = false; _manualFromMenu = false;
+  });
+
+  _autoUpdater = autoUpdater;
+  return autoUpdater;
+}
+
+let _promptOpen = false;
+async function promptRestartForUpdate(info) {
+  if (_promptOpen || !mainWindow || mainWindow.isDestroyed()) return;
+  _promptOpen = true;
+  try {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart now', 'Later'],
+      defaultId: 1,          // "Later" — an accidental Enter must not restart
+      cancelId: 1,
+      title: 'Update ready',
+      message: `Oceans Symphony ${info?.version || ''} is ready to install.`.trim(),
+      detail: 'It will be applied next time you quit, or you can restart now. Your data is not affected either way.',
+    });
+    if (response === 0) installDownloadedUpdate();
+  } finally {
+    _promptOpen = false;
+  }
+}
+
+function installDownloadedUpdate() {
+  const u = getUpdater();
+  if (!u || !_readyInfo) return false;
+  // Windows: run the installer silently and reopen the app, so the
+  // user sees the app close and come back, not an installer window.
+  // Linux keeps electron-updater's defaults (AppImage swap).
+  setImmediate(() => (IS_WINDOWS ? u.quitAndInstall(true, true) : u.quitAndInstall()));
+  return true;
+}
+
+function checkForUpdatesNow({ fromMenu = false } = {}) {
+  if (!canSelfUpdate()) {
+    sendUpdateStatus({ state: 'unsupported' });
+    return _updateStatus;
+  }
+  // Already downloaded: nothing to fetch, go straight to "ready".
+  if (_readyInfo) {
+    sendUpdateStatus({ state: 'ready', version: _readyInfo.version || '' });
+    if (fromMenu) promptRestartForUpdate(_readyInfo);
+    return _updateStatus;
+  }
+  if (_updateStatus.state === 'checking' || _updateStatus.state === 'downloading') return _updateStatus;
+  const u = getUpdater();
+  if (!u) {
+    sendUpdateStatus({ state: 'error', message: 'Updating is not available in this build.' });
+    return _updateStatus;
+  }
+  _manualCheck = true; _manualFromMenu = fromMenu;
+  sendUpdateStatus({ state: 'checking' });
+  u.checkForUpdates().catch(() => { /* reported through the 'error' event */ });
+  return _updateStatus;
+}
+
 function startUpdater() {
   if (_updaterStarted) {
     // Turned back on after being switched off: resume the schedule.
@@ -496,50 +645,13 @@ function startUpdater() {
   }
   _updaterStarted = true;
 
-  let autoUpdater;
-  try {
-    ({ autoUpdater } = require('electron-updater'));
-  } catch (e) {
-    console.warn('[update] electron-updater unavailable:', e?.message || e);
-    return;
-  }
+  const autoUpdater = getUpdater();
+  if (!autoUpdater) return;
 
-  autoUpdater.autoDownload = true;
-  // Never swap the binary out from under someone mid-sentence.
-  autoUpdater.autoInstallOnAppQuit = true;
-
-  let promptOpen = false;
-  autoUpdater.on('update-downloaded', async (info) => {
-    if (promptOpen || !mainWindow || mainWindow.isDestroyed()) return;
-    promptOpen = true;
-    try {
-      const { response } = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        buttons: ['Restart now', 'Later'],
-        defaultId: 1,          // "Later" — an accidental Enter must not restart
-        cancelId: 1,
-        title: 'Update ready',
-        message: `Oceans Symphony ${info?.version || ''} is ready to install.`.trim(),
-        detail: 'It will be applied next time you quit, or you can restart now. Your data is not affected either way.',
-      });
-      if (response === 0) {
-        // Windows: run the installer silently and reopen the app, so the
-        // user sees the app close and come back, not an installer window.
-        // Linux keeps electron-updater's defaults (AppImage swap).
-        setImmediate(() => (IS_WINDOWS ? autoUpdater.quitAndInstall(true, true) : autoUpdater.quitAndInstall()));
-      }
-    } finally {
-      promptOpen = false;
-    }
-  });
-
-  autoUpdater.on('error', (err) => {
-    // Offline, rate-limited, no release yet — all normal. Log, never
-    // interrupt: a failed update check is not the user's problem.
-    console.warn('[update] check failed:', err?.message || err);
-  });
-
-  const check = () => { if (readUpdateConsent() === true) autoUpdater.checkForUpdates().catch(() => {}); };
+  const check = () => {
+    if (readUpdateConsent() !== true || _manualCheck || _readyInfo) return;
+    autoUpdater.checkForUpdates().catch(() => {});
+  };
   _checkForUpdates = check;
   // Not at launch: first paint matters more than an update check.
   setTimeout(check, 30_000);
@@ -586,6 +698,11 @@ if (!app.requestSingleInstanceLock()) {
     // the renderer cannot ask us to open an arbitrary path, only the one
     // folder we already expose in the File menu.
     ipcMain.handle('symphony:open-data-folder', () => shell.openPath(app.getPath('userData')));
+    // Manual update check + install (Settings → "Check for updates").
+    ipcMain.handle('symphony:update:supported', () => canSelfUpdate());
+    ipcMain.handle('symphony:update:status', () => _updateStatus);
+    ipcMain.handle('symphony:update:check', () => checkForUpdatesNow());
+    ipcMain.handle('symphony:update:install', () => installDownloadedUpdate());
 
     // ── Private-file copy (src/lib/nativeMirror.js) ──
     // The same second copy of every database blob, picture and font the

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import WhatLeavesDevice from "@/components/shared/WhatLeavesDevice";
 import { APP_VERSION, APP_RELEASE_STAGE } from "@/lib/appVersion";
+import DesktopUpdateButton from "@/components/settings/DesktopUpdateButton";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -432,6 +433,7 @@ export default function Settings() {
             Template gallery →
           </span>
         </p>
+        <div className="mt-2"><DesktopUpdateButton /></div>
         <div className="flex items-center gap-3 mt-2">
           <button type="button" onClick={() => openExternalUrl("https://penumbrialecosystem.neocities.org/os")}
             aria-label="Official website" title="Official website"

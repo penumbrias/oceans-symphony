@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { isDesktop } from "@/lib/platform";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -958,6 +959,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       look: `the highlighted "Sync between devices" section inside Data & Privacy — tap its header to expand it`, action: null,
     },
     {
+      section: "settings", sectionLabel: "Settings", desktopOnly: true,
+      emoji: "⬇️",
+      title: "Check for updates",
+      body: `On the desktop app, tap "Check for updates" at the top of Settings. If a newer version is out it downloads, saves everything, and restarts the app on the new version.`,
+      route: "/settings", target: "settings-desktop-update",
+      look: `the highlighted "Check for updates" button under the Settings title`, action: null,
+    },
+    {
       section: "settings", sectionLabel: "Settings",
       emoji: "🖼️",
       title: "Keep original images",
@@ -1091,7 +1100,9 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
 
   const steps = useMemo(() => {
     const all = buildSteps(t, tourAlterId, tourAlterWasCreated, uiV2On)
-      .filter((st) => !(uiV2On && st.classicOnly));
+      .filter((st) => !(uiV2On && st.classicOnly))
+      // Desktop-only controls (the update button) aren't on screen elsewhere.
+      .filter((st) => !(st.desktopOnly && !isDesktop()));
     if (!restrictToRoute) return all;
     return all.filter(s => s.route === restrictToRoute && s.section !== "welcome");
   }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On]);
