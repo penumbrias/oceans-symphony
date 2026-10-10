@@ -318,8 +318,12 @@ export function mapNoteToJournalEntry(note, alterIdByOpId) {
 
   // Prefer the precise created_at timestamp; fall back to entry_date (a
   // YYYY-MM-DD string) so the entry still sorts onto the right day.
+  // The entity proxy's create() stamps its own created_date, so the original
+  // date MUST also travel as `entry_date` (the field the journal list reads —
+  // journalDate.js); created_date alone was overwritten with the import time.
   const when = note.created_at || note.entry_date || null;
-  const createdDate = when ? new Date(when).toISOString() : new Date().toISOString();
+  const whenMs = when ? Date.parse(when) : NaN;
+  const createdDate = Number.isFinite(whenMs) ? new Date(whenMs).toISOString() : new Date().toISOString();
 
   return {
     op_id: opId,
@@ -330,6 +334,7 @@ export function mapNoteToJournalEntry(note, alterIdByOpId) {
     author_alter_id: authorAlterId,
     allowed_alter_ids: [],
     created_date: createdDate,
+    entry_date: createdDate,
     pinned: note.pinned === true,
   };
 }

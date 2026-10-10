@@ -15,6 +15,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
+import DiaryCardEditDialog, { deleteDiaryCardWithConfirm } from "@/components/diary/DiaryCardEditDialog";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { formatSeverityForSymptom } from "@/lib/trackingModel";
 import { useTerms } from "@/lib/useTerms";
@@ -131,7 +132,7 @@ function RatingBar({ label, value, max = 5, isPositive = false }) {
   );
 }
 
-function DiaryDataSection({ diaryCard }) {
+function DiaryDataSection({ diaryCard, onEditDiary, onDeleteDiary }) {
   if (!diaryCard) return null;
   const urges = diaryCard.urges || {};
   const bm = diaryCard.body_mind || {};
@@ -148,7 +149,15 @@ function DiaryDataSection({ diaryCard }) {
 
   return (
     <div className="space-y-2 mt-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Check-In Log Data</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Check-In Log Data</p>
+        <RowActions
+          onEdit={onEditDiary ? () => onEditDiary(diaryCard) : null}
+          onDelete={onDeleteDiary ? () => onDeleteDiary(diaryCard) : null}
+          editLabel="Edit diary card"
+          deleteLabel="Delete diary card"
+        />
+      </div>
 
       {hasUrges && (
         <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
@@ -220,7 +229,7 @@ function activityPillText(act) {
   return `${act.activity_name}${act.duration_minutes ? ` \u00b7 ${act.duration_minutes}m` : ""}${note}`;
 }
 
-function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, onEdit, display = DEFAULT_DISPLAY }) {
+function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, onEdit, onEditDiary, onDeleteDiary, display = DEFAULT_DISPLAY }) {
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
   const emotions = checkIn.emotions || [];
@@ -273,6 +282,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
               tags: ["checkin"],
               folder: "Check-In Journals",
               created_date: checkIn.timestamp,
+              entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
             });
             journalEntryId = j.id;
           }
@@ -284,6 +294,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
             tags: ["checkin"],
             folder: "Check-In Journals",
             created_date: checkIn.timestamp,
+            entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
           });
           journalEntryId = j.id;
         }
@@ -503,12 +514,12 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         <p className="text-xs text-primary italic">📓 Extended note saved as journal entry</p>
       )}
 
-      {display.diary && <DiaryDataSection diaryCard={diaryCard} />}
+      {display.diary && <DiaryDataSection diaryCard={diaryCard} onEditDiary={onEditDiary} onDeleteDiary={onDeleteDiary} />}
     </div>
   );
 }
 
-function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount, display = DEFAULT_DISPLAY }) {
+function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount, onEditDiary, display = DEFAULT_DISPLAY }) {
   // Emotions and fronters are surfaced from EmotionCheckIn records — both
   // get hidden when the user has the "Check-ins" toggle off, since that's
   // their parent entry type.
@@ -579,13 +590,30 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
     });
     const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : null;
     const max = (arr) => arr.length ? Math.max(...arr) : null;
+    // Which card each chip came from — tapping a chip opens THAT card in
+    // the diary editor so a wrong answer can be fixed or cleared.
+    const firstWith = (pick) => diaryCards.find((dc) => { try { return pick(dc); } catch { return false; } }) || null;
+    const peakCard = (pick, peak) => peak == null ? null : firstWith((dc) => pick(dc) === peak);
+    const maxSuicidal = max(suicidalVals);
+    const maxSelfHarm = max(selfHarmVals);
+    const source = {
+      joy: firstWith((dc) => dc.body_mind?.joy != null),
+      emotionalMisery: firstWith((dc) => dc.body_mind?.emotional_misery != null),
+      physicalMisery: firstWith((dc) => dc.body_mind?.physical_misery != null),
+      skills: firstWith((dc) => dc.skills_practiced != null),
+      suicidal: peakCard((dc) => dc.urges?.suicidal, maxSuicidal),
+      selfHarm: peakCard((dc) => dc.urges?.self_harm, maxSelfHarm),
+      rxTaken: firstWith((dc) => !!dc.medication_safety?.rx_meds_taken),
+      selfHarmOccurred: firstWith((dc) => !!dc.medication_safety?.self_harm_occurred),
+    };
     return {
+      source,
       avgJoy: avg(joyVals),
       avgSkills: avg(skillsVals),
       avgEmotionalMisery: avg(emotionalMiseryVals),
       avgPhysicalMisery: avg(physicalMiseryVals),
-      maxSuicidal: max(suicidalVals),
-      maxSelfHarm: max(selfHarmVals),
+      maxSuicidal,
+      maxSelfHarm,
       count: diaryCards.length,
       rxTaken,
       selfHarmOccurred,
@@ -751,44 +779,44 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       {diaryAggregate && (
         <div className="flex flex-wrap gap-1">
           {diaryAggregate.avgJoy != null && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 border border-green-500/20">
+            <DiaryChip card={diaryAggregate.source.joy} onEditDiary={onEditDiary} className="bg-green-500/10 text-green-600 border border-green-500/20">
               😊 Joy {diaryAggregate.avgJoy}/5{diaryAggregate.count > 1 ? " avg" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.avgEmotionalMisery != null && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+            <DiaryChip card={diaryAggregate.source.emotionalMisery} onEditDiary={onEditDiary} className="bg-rose-500/10 text-rose-600 border border-rose-500/20">
               😔 Emotional misery {diaryAggregate.avgEmotionalMisery}/5{diaryAggregate.count > 1 ? " avg" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.avgPhysicalMisery != null && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
+            <DiaryChip card={diaryAggregate.source.physicalMisery} onEditDiary={onEditDiary} className="bg-orange-500/10 text-orange-600 border border-orange-500/20">
               🩻 Physical misery {diaryAggregate.avgPhysicalMisery}/5{diaryAggregate.count > 1 ? " avg" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.avgSkills != null && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
+            <DiaryChip card={diaryAggregate.source.skills} onEditDiary={onEditDiary} className="bg-blue-500/10 text-blue-600 border border-blue-500/20">
               🛠️ Skills {diaryAggregate.avgSkills}/7{diaryAggregate.count > 1 ? " avg" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.maxSuicidal != null && diaryAggregate.maxSuicidal > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 border border-red-500/20">
+            <DiaryChip card={diaryAggregate.source.suicidal} onEditDiary={onEditDiary} className="bg-red-500/10 text-red-600 border border-red-500/20">
               ⚠️ Suicidal urges {diaryAggregate.maxSuicidal}/5{diaryAggregate.count > 1 ? " peak" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.maxSelfHarm != null && diaryAggregate.maxSelfHarm > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
+            <DiaryChip card={diaryAggregate.source.selfHarm} onEditDiary={onEditDiary} className="bg-orange-500/10 text-orange-600 border border-orange-500/20">
               ⚠️ Self-harm urges {diaryAggregate.maxSelfHarm}/5{diaryAggregate.count > 1 ? " peak" : ""}
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.rxTaken && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 border border-purple-500/20">
+            <DiaryChip card={diaryAggregate.source.rxTaken} onEditDiary={onEditDiary} className="bg-purple-500/10 text-purple-600 border border-purple-500/20">
               💊 Meds taken
-            </span>
+            </DiaryChip>
           )}
           {diaryAggregate.selfHarmOccurred && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 border border-red-500/20">
+            <DiaryChip card={diaryAggregate.source.selfHarmOccurred} onEditDiary={onEditDiary} className="bg-red-500/10 text-red-600 border border-red-500/20">
               ✏️ Self-harm occurred
-            </span>
+            </DiaryChip>
           )}
         </div>
       )}
@@ -801,6 +829,65 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         </div>
       )}
 
+    </div>
+  );
+}
+
+// A day-total diary chip. With a source card it's a button that opens that
+// card in the diary editor (fix or clear a wrong answer); otherwise plain.
+function DiaryChip({ card, onEditDiary, className = "", children }) {
+  const base = `text-xs px-1.5 py-0.5 rounded-full ${className}`;
+  if (!card || !onEditDiary) return <span className={base}>{children}</span>;
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onEditDiary(card); }}
+      className={`${base} hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      title="Edit this diary card"
+      data-testid="diary-chip"
+    >
+      {children}
+    </button>
+  );
+}
+
+// A diary card that didn't land next to a check-in gets its own row, so it
+// can always be edited or deleted from the log.
+function DiaryCardEntry({ card, onEditDiary, onDeleteDiary }) {
+  const urges = card.urges || {};
+  const bm = card.body_mind || {};
+  const med = card.medication_safety || {};
+  const parts = [];
+  if (urges.suicidal > 0) parts.push({ text: `⚠️ Suicidal urges ${urges.suicidal}/5`, cls: "bg-red-500/10 text-red-600 border-red-500/20" });
+  if (urges.self_harm > 0) parts.push({ text: `⚠️ Self-harm urges ${urges.self_harm}/5`, cls: "bg-orange-500/10 text-orange-600 border-orange-500/20" });
+  if (urges.alcohol_drugs > 0) parts.push({ text: `⚠️ Alcohol / drugs ${urges.alcohol_drugs}/5`, cls: "bg-orange-500/10 text-orange-600 border-orange-500/20" });
+  if (bm.emotional_misery != null) parts.push({ text: `😔 Emotional misery ${bm.emotional_misery}/5`, cls: "bg-rose-500/10 text-rose-600 border-rose-500/20" });
+  if (bm.physical_misery != null) parts.push({ text: `🩻 Physical misery ${bm.physical_misery}/5`, cls: "bg-orange-500/10 text-orange-600 border-orange-500/20" });
+  if (bm.joy != null) parts.push({ text: `😊 Joy ${bm.joy}/5`, cls: "bg-green-500/10 text-green-600 border-green-500/20" });
+  if (card.skills_practiced != null) parts.push({ text: `🛠️ Skills ${card.skills_practiced}/7`, cls: "bg-blue-500/10 text-blue-600 border-blue-500/20" });
+  if (med.rx_meds_taken) parts.push({ text: "💊 Meds taken", cls: "bg-purple-500/10 text-purple-600 border-purple-500/20" });
+  if (med.self_harm_occurred) parts.push({ text: "✏️ Self-harm occurred", cls: "bg-red-500/10 text-red-600 border-red-500/20" });
+  if (med.substances_count) parts.push({ text: `🍺 Substances ${med.substances_count}`, cls: "bg-muted text-muted-foreground border-border/50" });
+  return (
+    <div data-testid="diary-card-entry">
+      <StandaloneEntry
+        timestamp={card.created_date || `${card.date}T12:00:00`}
+        actions={
+          <RowActions
+            onEdit={() => onEditDiary?.(card)}
+            onDelete={() => onDeleteDiary?.(card)}
+            editLabel="Edit diary card"
+            deleteLabel="Delete diary card"
+          />
+        }
+      >
+        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">📔 Diary card</span>
+        {parts.length === 0
+          ? <span className="text-xs text-muted-foreground italic">No ratings logged</span>
+          : parts.map((p, i) => (
+            <span key={i} className={`text-xs px-1.5 py-0.5 rounded-full border ${p.cls}`}>{p.text}</span>
+          ))}
+      </StandaloneEntry>
     </div>
   );
 }
@@ -1233,7 +1320,7 @@ function PerAlterEntry({ entry, altersById }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, display = DEFAULT_DISPLAY }) {
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, onEditDiary, onDeleteDiary, display = DEFAULT_DISPLAY }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -1296,6 +1383,19 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
   const visibleStatusNotes = display.statusNotes ? dayStatusNotes : [];
   const visiblePerAlter = display.perAlter ? dayPerAlterEntries : [];
   const visibleDiaryCards = display.diary ? dayDiaryCards : [];
+  // A diary card logged within 5 min of a shown check-in renders inside that
+  // check-in's card; every other one gets its own editable row.
+  const matchDiaryCard = (ci) => visibleDiaryCards.find(dc => {
+    try {
+      return Math.abs(new Date(dc.created_date).getTime() - new Date(ci.timestamp).getTime()) < 5 * 60 * 1000;
+    } catch { return false; }
+  });
+  const matchedDiaryIds = new Set(visibleCheckIns.map(matchDiaryCard).filter(Boolean).map(dc => dc.id));
+  const standaloneDiaryCards = visibleDiaryCards.filter(dc => !matchedDiaryIds.has(dc.id));
+  const diaryTs = (dc) => {
+    const t = new Date(dc.created_date || `${dc.date}T12:00:00`).getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
 
   // Summary chips on the collapsed day header — reflect the filtered view.
   const summaryParts = [];
@@ -1354,6 +1454,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
         diaryCards={visibleDiaryCards}
         perAlterEntries={visiblePerAlter}
         totalEntryCount={totalVisibleEntries + visibleDiaryCards.length}
+        onEditDiary={onEditDiary}
         display={display}
       />
 
@@ -1366,7 +1467,11 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             ...visibleStandaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
             ...visibleStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
             ...visiblePerAlter.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
+            ...standaloneDiaryCards.map(dc => ({ kind: "diary", data: dc, ts: diaryTs(dc) })),
           ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
+            if (entry.kind === "diary") {
+              return <DiaryCardEntry key={`diary-${entry.data.id || i}`} card={entry.data} onEditDiary={onEditDiary} onDeleteDiary={onDeleteDiary} />;
+            }
             if (entry.kind === "symptom") {
               return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
             }
@@ -1383,11 +1488,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
               return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;
             }
             const ci = entry.data;
-            const matchedDiaryCard = visibleDiaryCards.find(dc => {
-              try {
-                return Math.abs(new Date(dc.created_date).getTime() - new Date(ci.timestamp).getTime()) < 5 * 60 * 1000;
-              } catch { return false; }
-            });
+            const matchedDiaryCard = matchDiaryCard(ci);
             return (
               <CheckInCard
                 key={ci.id}
@@ -1401,6 +1502,8 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
                 highlighted={ci.id === highlightId}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onEditDiary={onEditDiary}
+                onDeleteDiary={onDeleteDiary}
                 display={display}
               />
             );
@@ -1417,6 +1520,8 @@ export default function CheckInLog() {
   const [view, setView] = useState("list");
   const [display, setDisplay] = useDisplaySettings();
   const [editingCheckIn, setEditingCheckIn] = useState(null);
+  const [editingDiaryCard, setEditingDiaryCard] = useState(null);
+  const handleDeleteDiary = (card) => deleteDiaryCardWithConfirm(card, queryClient);
   const highlightId = searchParams.get("id");
   const dateParam = searchParams.get("date");
 
@@ -1522,6 +1627,8 @@ export default function CheckInLog() {
     locations.forEach(loc => addDate(loc.timestamp));
     statusNotes.forEach(sn => addDate(sn.timestamp));
     perAlterEntries.forEach(e => addDate(e.ts));
+    // Diary-only days (diary widget / quick action) still get a row.
+    Object.keys(diaryCardsByDate).forEach(d => allDates.add(d));
 
     const result = [...allDates].map(date => {
       const cis = checkInsByDate[date] || [];
@@ -1529,7 +1636,7 @@ export default function CheckInLog() {
       return [date, cis];
     });
     return result.sort(([a], [b]) => b.localeCompare(a));
-  }, [checkIns, symptomCheckIns, activities, locations, statusNotes, perAlterEntries]);
+  }, [checkIns, symptomCheckIns, activities, locations, statusNotes, perAlterEntries, diaryCardsByDate]);
 
   const highlightDate = useMemo(() => {
     if (dateParam) return dateParam;
@@ -1677,6 +1784,8 @@ export default function CheckInLog() {
               defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}
               onDelete={handleDelete}
               onEdit={handleEdit}
+              onEditDiary={setEditingDiaryCard}
+              onDeleteDiary={handleDeleteDiary}
               display={display}
             />
           ))}
@@ -1693,6 +1802,7 @@ export default function CheckInLog() {
         alters={alters}
         editingEntry={editingCheckIn}
       />
+      <DiaryCardEditDialog card={editingDiaryCard} onClose={() => setEditingDiaryCard(null)} />
     </motion.div>
   );
 }

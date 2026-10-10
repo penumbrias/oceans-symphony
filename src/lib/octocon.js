@@ -140,20 +140,41 @@ export function mapTagToGroup(tag) {
 
 // front → FrontingSession. Octocon fronts are single-alter periods (no
 // co-fronting, no primary concept), so is_primary is always false. time_end
-// null = still active. Returns null when the front's alter didn't import.
-export function mapFrontToSession(front, alterIdByOctoId) {
+// null = still open in Octocon at export time. Returns null when the front's
+// alter didn't import.
+//
+// An open front is NOT made live here by default: the export can be days or
+// weeks old, and making its open fronts active silently put people in front
+// that the user never picked (bug report: "other people appeared logged as
+// fronting that I didn't select"). Unless `opts.makeOpenFrontsCurrent` is
+// set (the user ticked it), an open front is kept as history that ends at
+// `opts.closeOpenAt` (the import time) and is tagged `octo_open_at_export`
+// so it can be told apart from a front that really ended then.
+export function isOpenOctoFront(front) {
+  return !!front?.time_start && !front?.time_end;
+}
+export function mapFrontToSession(front, alterIdByOctoId, opts = {}) {
   const localId = alterIdByOctoId[String(front?.alter_id)];
   if (!localId) return null;
   const start = front?.time_start ? new Date(front.time_start).toISOString() : null;
   if (!start) return null;
   const end = front?.time_end ? new Date(front.time_end).toISOString() : null;
+  const open = !end;
+  const makeLive = open && !!opts.makeOpenFrontsCurrent;
+  let closedEnd = end;
+  if (open && !makeLive) {
+    const closeAt = opts.closeOpenAt ? new Date(opts.closeOpenAt) : new Date();
+    // Never end before it started (a clock-skewed export).
+    closedEnd = (closeAt.getTime() >= new Date(start).getTime() ? closeAt : new Date(start)).toISOString();
+  }
   return {
     octo_front_id: front?.id || `${front?.alter_id}:${front?.time_start}`,
     alter_id: localId,
     is_primary: false,
     start_time: start,
-    end_time: end,
-    is_active: !front?.time_end,
+    end_time: makeLive ? null : closedEnd,
+    is_active: makeLive,
+    ...(open ? { octo_open_at_export: true } : {}),
     note: front?.comment || "",
     source: "octocon",
   };

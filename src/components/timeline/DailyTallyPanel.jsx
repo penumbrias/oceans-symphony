@@ -5,6 +5,7 @@ import { startOfDay, endOfDay, format } from "date-fns";
 import { ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { journalEntryDate } from "@/lib/journalDate";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -109,7 +110,7 @@ export default function DailyTallyPanel({
   const dayCheckIns = useMemo(() => checkIns.filter(c => inDay(parseDate(c.created_date))), [checkIns, dayStart, dayEnd]);
 
   // ── Journals ──────────────────────────────────────────────────────────────
-  const dayJournals = useMemo(() => journals.filter(j => inDay(parseDate(j.created_date))), [journals, dayStart, dayEnd]);
+  const dayJournals = useMemo(() => journals.filter(j => inDay(parseDate(journalEntryDate(j)))), [journals, dayStart, dayEnd]);
 
   // ── Bulletins ─────────────────────────────────────────────────────────────
   const dayBulletins = useMemo(() => bulletins.filter(b => inDay(parseDate(b.created_date))), [bulletins, dayStart, dayEnd]);

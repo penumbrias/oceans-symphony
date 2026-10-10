@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { journalEntryDate, normalizeTag } from "@/lib/journalDate";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,8 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
 
   const isEncrypted = entry.is_encrypted && decryptedContent === null;
   const displayContent = resolvedHtml ?? decryptedContent ?? entry.content;
-  const author = altersById?.[entry.author_alter_id];
+  // `alter_id` is where some importers (Plural Star, Ampersand) put the author.
+  const author = altersById?.[entry.author_alter_id || entry.alter_id];
 
   const handleDecrypt = async () => {
     setDecrypting(true);
@@ -139,7 +141,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
             <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
             <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
               <span className="text-xs text-muted-foreground">
-                {format(parseDate(entry.created_date), "MMMM d, yyyy · h:mm a")}
+                {format(parseDate(journalEntryDate(entry)), "MMMM d, yyyy · h:mm a")}
               </span>
               {author && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -209,7 +211,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
 
         {entry.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-3 border-t border-border/50">
-            {entry.tags.map(tag => (
+            {[...new Set(entry.tags.map(normalizeTag).filter(Boolean))].map(tag => (
               <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                 #{tag}
               </span>

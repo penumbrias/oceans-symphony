@@ -43,7 +43,7 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
   // malformed alter doesn't render as a blank uncoloured tile next
   // to its siblings.
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
   const [imgErrorFor, setImgError] = useState(null);
   const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;

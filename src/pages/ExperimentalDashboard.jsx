@@ -37,7 +37,7 @@ import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
+import { WIDGET_REGISTRY, widgetLabel, widgetAutoLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps,
@@ -150,7 +150,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     disabled: !editMode || a11yStack || free,
   });
   const t = useTerms();
-  const defLabel = widgetLabel(def, t);
+  const defLabel = widgetAutoLabel(def, widget.settings, t);
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 4, gridCols);
   const spanRows = widget.span?.rows || def.defaultSpan?.rows || 1;
@@ -831,8 +831,21 @@ export default function ExperimentalDashboard({
   // be handed back. Losing a home screen you spent time arranging is not a
   // thing the user should have to rebuild from memory.
   const undoRef = useRef(null);
+  // The board as this canvas last WROTE it. A write lands asynchronously
+  // (an encrypted save on a phone takes a while) and `home` only catches
+  // up after the refetch — so a second change made before then was built
+  // on the OLD board and quietly put the first one back: a song picked
+  // right after a rename, the display name flushed as the options sheet
+  // was left by a bar button or the back button, fast typing in the song
+  // title (user report: "it reverts back to the old setting"). Writes now
+  // chain on the newest board, and the settings cache is updated at once
+  // so the screen and the open options sheet follow straight away. While
+  // writes are in flight a render's `home` can be older than what was
+  // written, so it is only adopted once they have all settled.
+  const boardRef = useRef({ board: home, pending: 0 });
+  if (boardRef.current.pending === 0) boardRef.current.board = home;
   const persist = useCallback(async (nextHome, opts = {}) => {
-    const previous = home;
+    const previous = boardRef.current.board;
     // First real edit claims the board — the _seeded marker only belongs
     // to an untouched starter layout (see seedV2Home).
     if (nextHome && nextHome._seeded) { nextHome = { ...nextHome }; delete nextHome._seeded; }
@@ -841,13 +854,24 @@ export default function ExperimentalDashboard({
     // own auto-fit (opts.machine) doesn't — re-fitting on a different
     // screen must never make a page look "newer" than a real edit.
     if (!opts.machine) nextHome = stampBoardChanges(previous, nextHome);
+    const written = nextHome;
+    boardRef.current.board = written;
+    boardRef.current.pending += 1;
+    if (settingsRow?.id) {
+      // A refetch still in flight would land the pre-write row on top.
+      // Awaited: a cancel reverts the query's state when it settles, which
+      // would wipe an optimistic value set before it.
+      await qc.cancelQueries({ queryKey: ["systemSettings"] });
+      qc.setQueryData(["systemSettings"], (rows) => (Array.isArray(rows)
+        ? rows.map((r) => (r?.id === settingsRow.id ? { ...r, [settingsField]: written } : r))
+        : rows));
+    }
     try {
       if (settingsRow?.id) {
         await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
       } else {
         await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
       }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
       if (opts.undoLabel) {
         undoRef.current = previous;
         toast(opts.undoLabel, {
@@ -877,16 +901,23 @@ export default function ExperimentalDashboard({
       }
     } catch (e) {
       toast.error(e?.message || "Couldn't save the homescreen");
+    } finally {
+      boardRef.current.pending = Math.max(0, boardRef.current.pending - 1);
+      // Re-read the truth once the last queued write has landed (or failed
+      // — a failed write must not leave the optimistic board on screen).
+      if (boardRef.current.pending === 0) qc.invalidateQueries({ queryKey: ["systemSettings"] });
     }
-  }, [settingsRow?.id, qc, settingsField, home]);
+  }, [settingsRow?.id, qc, settingsField]);
 
+  // Built on the newest board (see boardRef), never the render's copy.
   const updatePageWidgets = useCallback((mutate, opts = {}) => {
+    const board = boardRef.current.board;
     const next = {
-      ...home,
-      pages: home.pages.map((p) => (p.id === page.id ? { ...p, widgets: mutate(p.widgets) } : p)),
+      ...board,
+      pages: board.pages.map((p) => (p.id === page.id ? { ...p, widgets: mutate(p.widgets) } : p)),
     };
     persist(next, opts);
-  }, [home, page.id, persist]);
+  }, [page.id, persist]);
 
   // ── Edit operations ────────────────────────────────────────────
   const handleRemove = (instanceId) => {
@@ -1319,7 +1350,14 @@ export default function ExperimentalDashboard({
       if (!changed && !hasOverlaps(page.widgets, gridCols)) { fitted.current = stamp; return; }
       fitted.current = stamp;
       markMachineWrite();
-      updatePageWidgets(() => resolveOverlaps(grown, gridCols), { machine: true });
+      // Apply only the new heights onto the NEWEST widgets — `grown` is this
+      // render's copy, and writing it whole would undo an options change
+      // still on its way to disk.
+      const rowsById = Object.fromEntries(grown.map((w) => [w.instanceId, w.span?.rows]));
+      updatePageWidgets((ws) => resolveOverlaps(ws.map((w) => {
+        const rows = rowsById[w.instanceId];
+        return rows && rows > (w.span?.rows || 1) ? { ...w, span: { ...w.span, rows } } : w;
+      }), gridCols), { machine: true });
     }, 120);
     return () => clearTimeout(id);
   }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);

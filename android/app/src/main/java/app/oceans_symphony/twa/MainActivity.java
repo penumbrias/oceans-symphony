@@ -2,12 +2,26 @@ package app.oceans_symphony.twa;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.util.Log;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebView;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.WebViewListener;
 
 public class MainActivity extends BridgeActivity {
+    // Render-process recoveries in this app process. Android kills the
+    // web view's renderer under memory pressure (and it can crash on its
+    // own); when nothing handles that, Android closes the whole app — the
+    // "it opens, then closes after a moment" report. We rebuild the
+    // activity instead, which reloads the web view from scratch. The
+    // counter stops a renderer that dies on every load from looping.
+    private static int renderGoneCount = 0;
+    private static long renderGoneWindowStart = 0;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // Install the androidx.core.splashscreen splash BEFORE super.onCreate
@@ -47,5 +61,30 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SyncFolderPlugin.class);
         registerPlugin(SystemSettingsPlugin.class);
         super.onCreate(savedInstanceState);
+
+        if (bridge != null) {
+            bridge.addWebViewListener(new WebViewListener() {
+                @Override
+                public boolean onRenderProcessGone(WebView webView, RenderProcessGoneDetail detail) {
+                    long now = SystemClock.elapsedRealtime();
+                    if (now - renderGoneWindowStart > 60_000) {
+                        renderGoneWindowStart = now;
+                        renderGoneCount = 0;
+                    }
+                    renderGoneCount++;
+                    boolean crashed = detail != null && detail.didCrash();
+                    Log.w("OceansSymphony", "Web view renderer gone (crashed=" + crashed + ", count=" + renderGoneCount + ")");
+                    if (renderGoneCount > 3) {
+                        // Dying on every load — stop instead of looping.
+                        finish();
+                        return true;
+                    }
+                    // recreate() runs onDestroy, which destroys this
+                    // (now unusable) web view, then builds a fresh one.
+                    runOnUiThread(MainActivity.this::recreate);
+                    return true;
+                }
+            });
+        }
     }
 }

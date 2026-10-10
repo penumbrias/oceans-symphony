@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { startOfDay, endOfDay, format, eachDayOfInterval } from "date-fns";
+import { journalEntryDate } from "@/lib/journalDate";
 
 export default function JournalAnalytics({ journals = [], bulletins = [], alters = [], from, to }) {
   const fromMs = startOfDay(from).getTime();
@@ -8,7 +9,7 @@ export default function JournalAnalytics({ journals = [], bulletins = [], alters
 
   const filteredJournals = useMemo(() => {
     return journals.filter(j => {
-      const ts = new Date(j.created_date).getTime();
+      const ts = new Date(journalEntryDate(j)).getTime();
       return ts >= fromMs && ts <= toMs;
     });
   }, [journals, from, to]);
@@ -27,7 +28,7 @@ export default function JournalAnalytics({ journals = [], bulletins = [], alters
       map[key] = 0;
     });
     filteredJournals.forEach(j => {
-      const key = format(new Date(j.created_date), 'MMM dd');
+      const key = format(new Date(journalEntryDate(j)), 'MMM dd');
       if (map[key] !== undefined) map[key]++;
     });
     return Object.entries(map).map(([date, count]) => ({ date, count }));

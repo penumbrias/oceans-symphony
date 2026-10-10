@@ -29,9 +29,21 @@ function RichTextField({ value, onCommit, placeholder }) {
   const pending = React.useRef(null);
   const commitRef = React.useRef(onCommit);
   commitRef.current = onCommit;
-  React.useEffect(() => () => {
-    clearTimeout(timer.current);
-    if (pending.current != null) commitRef.current(pending.current);
+  React.useEffect(() => {
+    const flushNow = () => {
+      clearTimeout(timer.current);
+      if (pending.current != null) { const v = pending.current; pending.current = null; commitRef.current(v); }
+    };
+    // Same as DebouncedText: write what was typed if the app is closed or
+    // backgrounded with the editor still open.
+    const onVisibility = () => { if (document.visibilityState === "hidden") flushNow(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      flushNow();
+    };
   }, []);
   const change = (v) => {
     setDraft(v);
@@ -81,7 +93,7 @@ import {
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
-import { widgetLabel } from "@/lib/widgetRegistry";
+import { widgetAutoLabel } from "@/lib/widgetRegistry";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
@@ -98,9 +110,22 @@ function DebouncedText({ value, onCommit, multiline, rows, maxLength, placeholde
   const commitRef = React.useRef(onCommit);
   commitRef.current = onCommit;
 
-  React.useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (pending.current !== null) commitRef.current(pending.current);
+  React.useEffect(() => {
+    const flushNow = () => {
+      if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+      if (pending.current !== null) { const v = pending.current; pending.current = null; commitRef.current(v); }
+    };
+    // The Android back button can close the app outright, and a phone can
+    // background it mid-typing; neither unmounts this field in time, so
+    // the last few letters would never be written. Flush as the page hides.
+    const onVisibility = () => { if (document.visibilityState === "hidden") flushNow(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      flushNow();
+    };
   }, []);
 
   const change = (v) => {
@@ -717,7 +742,7 @@ export default function WidgetConfigSheet({
   const t = useTerms();
   if (!open) return null;
 
-  const defLabel = widgetLabel(def, t);
+  const defLabel = widgetAutoLabel(def, settings, t);
   // Setting an opacity on a colour the widget only INHERITS has nothing to
   // fade, so pin the live colour at the same time — otherwise the slider
   // moves and nothing happens.

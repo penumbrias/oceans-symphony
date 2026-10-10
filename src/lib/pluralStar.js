@@ -128,6 +128,17 @@ function isoFromMs(ms) {
   return d.toISOString();
 }
 
+// Like isoFromMs, but also accepts a numeric string or an ISO date string —
+// export formats drift, and a date we fail to read must not become "now".
+function isoFromAny(v) {
+  if (typeof v === "number") return isoFromMs(v);
+  if (typeof v !== "string" || !v.trim()) return null;
+  const s = v.trim();
+  if (/^\d+$/.test(s)) return isoFromMs(Number(s));
+  const t = Date.parse(s);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 // Persist a member's avatar (data URI or raw bytes) into IndexedDB and return
 // a local-image://<id> URL Symphony can use as `avatar_url`. Falls back to
 // returning "" when there's no media or the write fails.
@@ -290,17 +301,30 @@ export function mapCurrentFront(front, alterIdByPsId) {
 }
 
 // PS journal → JournalEntry.
+// The original date goes in `entry_date` — the field the journal list reads
+// (journalDate.js). It used to go only in `date`, which nothing read, so every
+// imported entry showed the import time. Authors go in author_alter_id /
+// co_author_alter_ids (what the journal UI reads); `alter_id` is kept for
+// older readers. Hashtags arrive as "#friend" — stored tags carry no "#".
 export function mapJournalEntry(entry, alterIdByPsId) {
   const authorIds = Array.isArray(entry?.authorIds) ? entry.authorIds : [];
-  const firstAuthorLocal = authorIds.map((id) => alterIdByPsId.get(id)).find(Boolean) || null;
-  const timestampIso = isoFromMs(entry?.timestamp) || nowIso();
+  const localAuthors = [...new Set(authorIds.map((id) => alterIdByPsId.get(id)).filter(Boolean))];
+  const firstAuthorLocal = localAuthors[0] || null;
+  const timestampIso = isoFromAny(entry?.timestamp) || isoFromAny(entry?.createdAt)
+    || isoFromAny(entry?.date) || nowIso();
+  const tags = Array.isArray(entry?.hashtags)
+    ? [...new Set(entry.hashtags.map((t) => String(t ?? "").trim().replace(/^#+/, "")).filter(Boolean))]
+    : [];
   return {
     ps_id: entry.id || "",
     title: entry.title || "",
     content: entry.body || "",
     alter_id: firstAuthorLocal,
+    author_alter_id: firstAuthorLocal,
+    co_author_alter_ids: localAuthors.slice(1),
+    entry_date: timestampIso,
     date: timestampIso,
-    tags: Array.isArray(entry.hashtags) ? entry.hashtags : [],
+    tags,
   };
 }
 

@@ -953,6 +953,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 tags: ["checkin"],
                 folder: "Check-In Journals",
                 created_date: now,
+                entry_date: now, // create() re-stamps created_date; this keeps the chosen time
               });
               journalEntryId = entry.id;
             }
@@ -964,6 +965,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               tags: ["checkin"],
               folder: "Check-In Journals",
               created_date: now,
+              entry_date: now, // create() re-stamps created_date; this keeps the chosen time
             });
             journalEntryId = entry.id;
           }
@@ -1089,8 +1091,27 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // session), level-derived primary, trigger metadata, and the
         // friends push. This modal used to carry its own fork of the diff
         // that did none of those.
+        //
+        // Refetch-before-write: the selection here was SEEDED when the modal
+        // opened (async, and from the old entry in edit mode). Sending it
+        // wholesale ended anyone who started fronting after the modal opened
+        // — or everyone, if the user saved before the seed arrived (bug
+        // report: co-fronters "got removed except for the prior front").
+        // Apply only what the user changed in this modal on top of who is
+        // fronting NOW.
+        const freshActive = (await base44.entities.FrontingSession.filter({ is_active: true }))
+          .filter((s) => s.alter_id);
+        const seed = initialFrontRef.current;
+        const seedIds = new Set([seed.primaryId, ...seed.coFronterIds].filter(Boolean));
+        const desiredIds = new Set(freshActive.map((s) => s.alter_id));
+        for (const id of seedIds) if (!selectedAlterIds.has(id)) desiredIds.delete(id);
+        for (const id of selectedAlterIds) desiredIds.add(id);
+        const freshPrimaryId = freshActive.find((s) => s.is_primary)?.alter_id || "";
+        const wantPrimaryId = primaryId !== seed.primaryId
+          ? primaryId
+          : (freshPrimaryId && desiredIds.has(freshPrimaryId) ? freshPrimaryId : primaryId);
         const { firstSessionId } = await applyFrontSelection({
-          selections: [...selectedAlterIds].map((id) => ({ alterId: id, isPrimary: id === primaryId, level: levelById[id] })),
+          selections: [...desiredIds].map((id) => ({ alterId: id, isPrimary: id === wantPrimaryId, level: levelById[id] })),
           triggered: isTriggeredSwitch && triggerCategory ? { category: triggerCategory, label: triggerLabel } : null,
           levelsEnabled: levelCfg.enabled,
           levelCfg,
@@ -1114,6 +1135,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             tags: ["checkin"],
             folder: "Check-In Journals",
             created_date: now,
+            entry_date: now, // create() re-stamps created_date; this keeps the chosen time
           });
           journalEntryId = entry.id;
         }

@@ -44,6 +44,7 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
+import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
 import { saveMentions, saveStatusMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
@@ -70,6 +71,7 @@ import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
@@ -1182,16 +1184,14 @@ function JournalWidget({ settings }) {
   const navigate = useNavigate();
   const entries = useList("journalEntries", "JournalEntry");
   const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
-  const list = [...entries]
-    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
-    .slice(0, limit);
+  const list = sortJournalsNewestFirst(entries).slice(0, limit);
   return (
     <Section label={tr("widget.journal.label")}
       action={<TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>}>
       {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
       {list.map((e) => (
         <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
-          right={fmtTime(e.timestamp || e.created_date)}
+          right={fmtTime(journalEntryDate(e))}
           onClick={() => navigate(`/journals?id=${e.id}`)} />
       ))}
     </Section>
@@ -1393,9 +1393,8 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
     return [...fromEntries].sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
-  const pages = React.useMemo(() => entries
-    .filter((e) => (journal ? e.folder === journal : true))
-    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0)),
+  const pages = React.useMemo(() => sortJournalsNewestFirst(entries
+    .filter((e) => (journal ? e.folder === journal : true))),
   [entries, journal]);
 
   // Land on the newest page whenever the journal changes or a new entry
@@ -1444,7 +1443,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
           className="text-left w-full min-w-0">
           <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
           <p className="text-[0.625em] text-muted-foreground mb-1">
-            {new Date(entry.timestamp || entry.created_date).toLocaleString([], {
+            {new Date(journalEntryDate(entry)).toLocaleString([], {
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
             })}
           </p>
@@ -2693,6 +2692,30 @@ function SymptomAnalyticsWidget({ settings }) {
 // mode goes into context, where the shared Row uses it to drop icons and
 // qualifiers at minimal, and the list widgets read it for how many rows to
 // show. Nothing else about them changes.
+// The Song widget. Its heading is the display name the user typed, else
+// the song's own title — never the bare word "Song" while a named song is
+// set. Songs picked from the library before titles were filled in carry
+// "Song" as their title; those look their name up in the library.
+function SongWidget({ settings }) {
+  const song = settings?.song?.ref ? settings.song : null;
+  const own = songDisplayTitle(song);
+  const needsLookup = !!song && (!own || own === GENERIC_SONG_TITLE);
+  const { data: assets = [] } = useQuery({
+    queryKey: ["imageAssets"],
+    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    enabled: needsLookup,
+  });
+  const title = needsLookup ? songDisplayTitle(song, assets) : own;
+  const label = (typeof settings?.label === "string" && settings.label.trim()) || title || GENERIC_SONG_TITLE;
+  return (
+    <Section label={label}>
+      {song
+        ? <ProfileSongPlayer inline song={title && title !== song.title ? { ...song, title } : song} />
+        : <Muted>Pick a song in this widget&apos;s options.</Muted>}
+    </Section>
+  );
+}
+
 function sized(render) {
   return (props) => (
     <WidgetModeContext.Provider value={props.mode || "normal"}>
@@ -3158,13 +3181,10 @@ export const V2_WIDGETS = {
   song: {
     label: "Song", description: "A song that plays while this page is open.",
     icon: Music, category: "support",
-    render: sized(({ settings }) => (
-      <Section label={settings?.label || "Song"}>
-        {settings?.song?.ref
-          ? <ProfileSongPlayer inline song={settings.song} />
-          : <Muted>Pick a song in this widget's options.</Muted>}
-      </Section>
-    )),
+    render: sized(({ settings }) => <SongWidget settings={settings} />),
+    // With no display name of its own, the widget goes by the song's title
+    // (the options sheet and edit-mode labels read this too).
+    autoLabel: (settings) => songDisplayTitle(settings?.song),
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "song", type: "song", label: "Song" }],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },

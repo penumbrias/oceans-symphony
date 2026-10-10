@@ -10,6 +10,8 @@
 // FIRST so `#6366f1` inside a style="" never becomes a tag; entities are
 // flattened so `&nbsp;#note` still detects.
 
+import { normalizeTag } from "@/lib/journalDate";
+
 const TAG_RE = /(^|[\s>])#([\p{L}\p{N}_-]{2,30})(?=[\s.,!?;:<)]|$)/gmu;
 
 export function extractHashtags(html) {
@@ -30,8 +32,13 @@ export function extractHashtags(html) {
 
 // Merge freshly-extracted tags into an entry's existing tags without
 // dropping any the user (or the app) already put there.
+// Leading "#"s are dropped (stored tags never carry one — the UI adds it),
+// so an imported "#friend" doesn't keep rendering as "##friend".
 export function mergeTags(existing, extracted) {
-  const out = new Set((existing || []).filter(Boolean));
-  (extracted || []).forEach((t) => out.add(t));
+  const out = new Set();
+  [...(existing || []), ...(extracted || [])].forEach((t) => {
+    const clean = normalizeTag(t);
+    if (clean) out.add(clean);
+  });
   return [...out];
 }

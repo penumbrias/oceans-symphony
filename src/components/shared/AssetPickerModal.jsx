@@ -21,7 +21,9 @@ import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
   return (
-    <button type="button" onClick={() => onSelect(item.url)}
+    // The item rides along (second argument) so a caller can name what was
+    // picked — a song takes its library name as its title.
+    <button type="button" onClick={() => onSelect(item.url, item)}
       className="relative w-full aspect-square rounded-lg overflow-hidden border border-border/50 bg-muted/30 hover:ring-2 hover:ring-primary transition-all">
       {resolved
         ? <img src={resolved} alt={item.name} className="w-full h-full object-cover" loading="lazy" />

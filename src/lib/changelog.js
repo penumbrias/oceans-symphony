@@ -18,7 +18,22 @@
 
 export const CHANGELOG = [
   {
+    date: "October 10, 2026",
+    changes: [
+      { type: "feature", text: "Journals: you can now change an entry's date and time in the journal editor." },
+      { type: "feature", text: "Check-In Log: diary card answers like urges or \"self-harm occurred\" can now be edited or deleted. Tap the chip or the diary card row." },
+      { type: "fix", text: "Editing a subsystem (and the Analytics alters tab) no longer shows a \"j is not a function\" error." },
+      { type: "fix", text: "Android: the app reloads instead of closing when the phone runs low on memory." },
+      { type: "fix", text: "Rotating profile pictures no longer go blank when one picture in the pool can't load." },
+      { type: "fix", text: "Imported journal entries keep their original dates instead of all showing the import time, and tags no longer show as ##tag." },
+      { type: "fix", text: "Saving a Quick Check-In no longer removes co-fronters who started fronting while it was open." },
+      { type: "fix", text: "Octocon import no longer marks people as fronting just because they were fronting when the file was exported." },
+      { type: "fix", text: "Song widget: name and song changes no longer revert when you leave its options, and it shows the song's title instead of \"Song\"." },
+    ],
+  },
+  {
     date: "October 8, 2026",
+    version: "0.252.2",
     changes: [
       { type: "feature", text: "The Windows desktop app is ready to download from the GitHub Releases page, alongside the Linux app." },
       { type: "fix", text: "Windows desktop app: syncing now finds a phone plugged in over USB and syncs with it directly." },
