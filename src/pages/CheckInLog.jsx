@@ -273,6 +273,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
               tags: ["checkin"],
               folder: "Check-In Journals",
               created_date: checkIn.timestamp,
+              entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
             });
             journalEntryId = j.id;
           }
@@ -284,6 +285,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
             tags: ["checkin"],
             folder: "Check-In Journals",
             created_date: checkIn.timestamp,
+            entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
           });
           journalEntryId = j.id;
         }

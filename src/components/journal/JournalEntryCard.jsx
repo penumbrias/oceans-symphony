@@ -3,12 +3,14 @@ import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import { journalEntryDate, normalizeTag } from "@/lib/journalDate";
 
 export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
   const systemIdentity = useSystemIdentity();
   const isSwitch = entry.entry_type === "switch_log";
   const isRestricted = entry.allowed_alter_ids?.length > 0;
-  const author = altersById?.[entry.author_alter_id];
+  // `alter_id` is where some importers (Plural Star, Ampersand) put the author.
+  const author = altersById?.[entry.author_alter_id || entry.alter_id];
   // No specific author + no co-authors → attribute to the system as a
   // whole. Either the user picked "No attribution" / `-system` in the
   // editor, or the entry was saved with no one fronting.
@@ -45,7 +47,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
         </div>
       </div>
       <p className="text-xs text-muted-foreground mb-2 flex items-center flex-wrap gap-1">
-        {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
+        {format(parseDate(journalEntryDate(entry)), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
         {!author && isSystemAttributed && (
           <span className="ml-1.5">· by {systemIdentity.name}</span>
@@ -72,7 +74,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
       </p>
       {entry.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {entry.tags.map((tag) => (
+          {[...new Set(entry.tags.map(normalizeTag).filter(Boolean))].map((tag) => (
             <span key={tag} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/20">
               #{tag}
             </span>

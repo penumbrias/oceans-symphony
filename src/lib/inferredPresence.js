@@ -1,3 +1,4 @@
+import { journalEntryDate } from "@/lib/journalDate";
 // Inferred presence from authored content.
 //
 // When an alter publishes something (a chat message, bulletin, comment,
@@ -70,7 +71,7 @@ export function buildAuthoredEvents({ mentionLogs = [], journals = [] }) {
   }
   for (const j of journals) {
     if (!j?.author_alter_id) continue;
-    const ts = new Date(j.created_date || j.timestamp).getTime();
+    const ts = new Date(journalEntryDate(j)).getTime();
     if (Number.isFinite(ts)) out.push({ alterId: j.author_alter_id, ts });
   }
   return out;

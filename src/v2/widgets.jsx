@@ -44,6 +44,7 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
+import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
 import { saveMentions, saveStatusMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
@@ -1182,16 +1183,14 @@ function JournalWidget({ settings }) {
   const navigate = useNavigate();
   const entries = useList("journalEntries", "JournalEntry");
   const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
-  const list = [...entries]
-    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
-    .slice(0, limit);
+  const list = sortJournalsNewestFirst(entries).slice(0, limit);
   return (
     <Section label={tr("widget.journal.label")}
       action={<TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>}>
       {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
       {list.map((e) => (
         <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
-          right={fmtTime(e.timestamp || e.created_date)}
+          right={fmtTime(journalEntryDate(e))}
           onClick={() => navigate(`/journals?id=${e.id}`)} />
       ))}
     </Section>
@@ -1393,9 +1392,8 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
     return [...fromEntries].sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
-  const pages = React.useMemo(() => entries
-    .filter((e) => (journal ? e.folder === journal : true))
-    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0)),
+  const pages = React.useMemo(() => sortJournalsNewestFirst(entries
+    .filter((e) => (journal ? e.folder === journal : true))),
   [entries, journal]);
 
   // Land on the newest page whenever the journal changes or a new entry
@@ -1444,7 +1442,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
           className="text-left w-full min-w-0">
           <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
           <p className="text-[0.625em] text-muted-foreground mb-1">
-            {new Date(entry.timestamp || entry.created_date).toLocaleString([], {
+            {new Date(journalEntryDate(entry)).toLocaleString([], {
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
             })}
           </p>

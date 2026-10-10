@@ -15,6 +15,7 @@ import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
+import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -79,10 +80,14 @@ export default function Journals() {
   const [viewingEntry, setViewingEntry] = useState(null);
   const [savedFolders, setSavedFoldersState] = useState(getSavedFolders);
 
-  const { data: entries = [] } = useQuery({
+  const { data: rawEntries = [] } = useQuery({
     queryKey: ["journalEntries"],
     queryFn: () => base44.entities.JournalEntry.list("-created_date"),
   });
+  // Newest first by the entry's OWN date (journalDate.js) — not created_date,
+  // which is when the row was written (imports, edited dates). Sorted here,
+  // not in queryFn: the ["journalEntries"] cache is shared with other readers.
+  const entries = useMemo(() => sortJournalsNewestFirst(rawEntries), [rawEntries]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -110,7 +115,7 @@ export default function Journals() {
 
   const allTags = useMemo(() => {
     const tags = new Set();
-    entries.forEach((e) => (e.tags || []).forEach((t) => tags.add(t)));
+    entries.forEach((e) => (e.tags || []).forEach((t) => { const c = normalizeTag(t); if (c) tags.add(c); }));
     return [...tags];
   }, [entries]);
 
@@ -146,7 +151,8 @@ export default function Journals() {
   const authoredAlterIds = useMemo(() => {
     const ids = new Set();
     entries.forEach(e => {
-      if (e.author_alter_id) ids.add(e.author_alter_id);
+      const author = e.author_alter_id || e.alter_id;
+      if (author) ids.add(author);
       (e.co_author_alter_ids || []).forEach(id => ids.add(id));
     });
     return [...ids];
@@ -158,10 +164,10 @@ export default function Journals() {
       if (tab !== "all" && e.entry_type !== tab) return false;
       if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) &&
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
-      if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
+      if (selectedTag && !(e.tags || []).some((t) => normalizeTag(t) === selectedTag)) return false;
       if ((e.folder || null) !== viewingFolder) return false;
       if (selectedAuthorId) {
-        const isAuthor = e.author_alter_id === selectedAuthorId;
+        const isAuthor = (e.author_alter_id || e.alter_id) === selectedAuthorId;
         const isCoAuthor = (e.co_author_alter_ids || []).includes(selectedAuthorId);
         if (!isAuthor && !isCoAuthor) return false;
       }
@@ -172,7 +178,7 @@ export default function Journals() {
           ? [...fronterFilterIds]
           : currentAlterIds;
         if (activeFilterIds.length === 0) return false;
-        const author = e.author_alter_id;
+        const author = e.author_alter_id || e.alter_id;
         const coAuthors = e.co_author_alter_ids || [];
         const matches =
           (author && activeFilterIds.includes(author)) ||

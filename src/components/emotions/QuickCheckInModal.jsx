@@ -953,6 +953,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 tags: ["checkin"],
                 folder: "Check-In Journals",
                 created_date: now,
+                entry_date: now, // create() re-stamps created_date; this keeps the chosen time
               });
               journalEntryId = entry.id;
             }
@@ -964,6 +965,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               tags: ["checkin"],
               folder: "Check-In Journals",
               created_date: now,
+              entry_date: now, // create() re-stamps created_date; this keeps the chosen time
             });
             journalEntryId = entry.id;
           }
@@ -1114,6 +1116,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             tags: ["checkin"],
             folder: "Check-In Journals",
             created_date: now,
+            entry_date: now, // create() re-stamps created_date; this keeps the chosen time
           });
           journalEntryId = entry.id;
         }

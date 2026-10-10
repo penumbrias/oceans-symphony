@@ -16,6 +16,7 @@
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { shareFile } from "@/lib/shareFile";
 import { APP_VERSION } from "@/lib/appVersion";
+import { journalEntryDate } from "@/lib/journalDate";
 
 const OPENPLURAL_VERSION = "0.1";
 const EXPORTER_VERSION = "0.1";
@@ -471,7 +472,8 @@ export function buildOpenPluralDocument({
     if (!je || !je.id) continue;
     const noteId = idFor(je, "journal");
     const authorMemberId = memberIdByAlterId[je.author_alter_id] || null;
-    const createdAt = toIso(je.created_date) || exportedAt;
+    // The entry's own date (journalDate.js), not just when the row was written.
+    const createdAt = toIso(journalEntryDate(je)) || toIso(je.created_date) || exportedAt;
     const updatedAt = toIso(je.updated_date) || createdAt;
     const entryDate = createdAt.slice(0, 10); // YYYY-MM-DD
     notes.push({

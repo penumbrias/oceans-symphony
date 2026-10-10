@@ -22,6 +22,7 @@ import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { effectiveSeverity, formatSeverityForSymptom } from "@/lib/trackingModel";
+import { journalEntryDate } from "@/lib/journalDate";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
@@ -1096,7 +1097,7 @@ export default function InfiniteTimeline({
     const entries = [];
 
     journals.forEach((j) => {
-      const mins = minutesInDay(parseDate(j.created_date), dayStart);
+      const mins = minutesInDay(parseDate(journalEntryDate(j)), dayStart);
       if (inDay(mins)) entries.push({ mins, type: "journal", id: j.id, label: j.title || "Journal Entry", data: j });
     });
     checkIns.forEach((c) => {

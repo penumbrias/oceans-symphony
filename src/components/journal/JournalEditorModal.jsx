@@ -11,10 +11,12 @@ import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
 import { toast } from "sonner";
-import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X, CalendarClock } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions, extractMentionedIds, htmlToPlainText } from "@/lib/mentionUtils";
 import { extractHashtags, mergeTags } from "@/lib/journalTags";
+import { journalEntryDate } from "@/lib/journalDate";
+import { toLocalDatetimeValue, fromLocalDatetimeValue } from "@/lib/dateTimeInput";
 import BioEditor from "@/components/alters/BioEditor";
 
 const getSavedFolders = () => {
@@ -84,6 +86,12 @@ export default function JournalEditorModal({
   const [signpostMenuOpen, setSignpostMenuOpen] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
   const signpostInputRef = useRef(null);
+  // The entry's date (datetime-local value). `entryDateInitial` is what the
+  // field showed on open — the date is only written when the person actually
+  // changed it, so saving an entry never moves its date on its own (and the
+  // minute-precision field can't shave seconds off an untouched date).
+  const [entryDateValue, setEntryDateValue] = useState("");
+  const [entryDateInitial, setEntryDateInitial] = useState("");
 
   const folders = getSavedFolders();
 
@@ -163,7 +171,8 @@ useEffect(() => {
       setTitle(editingEntryFinal.title || "");
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
       setFolder(editingEntryFinal.folder || null);
-      setAuthorAlterId(editingEntryFinal.author_alter_id || null);
+      // Some importers (Plural Star, Ampersand) put the author in `alter_id`.
+      setAuthorAlterId(editingEntryFinal.author_alter_id || editingEntryFinal.alter_id || null);
       setCoAuthorIds(editingEntryFinal.co_author_alter_ids || []);
       if (editingEntryFinal.is_encrypted) {
         setShowPasswordField(true);
@@ -182,6 +191,11 @@ useEffect(() => {
       setAuthorAlterId(currentAlterId || null);
       setCoAuthorIds([]);
     }
+    const initialDate = toLocalDatetimeValue(
+      editingEntryFinal ? journalEntryDate(editingEntryFinal) : new Date().toISOString()
+    );
+    setEntryDateValue(initialDate);
+    setEntryDateInitial(initialDate);
     setEncryptionPassword("");
     setDecryptionPassword("");
     setDecryptionError("");
@@ -233,10 +247,14 @@ useEffect(() => {
   // decrypted text to localStorage.
   const draftKey = `symphony_draft_journal_${editingEntryFinal?.id || "new"}_v1`;
   const draftActive = !!isOpenFinal && !isEncrypted && !editingEntryFinal?.is_encrypted;
+  // The date rides in the draft only once it was changed, so a "new entry"
+  // draft restored tomorrow doesn't back-date itself to the day it was begun.
+  const entryDateChanged = !!entryDateValue && entryDateValue !== entryDateInitial;
   const draftSnapshot = useMemo(() => ({
     title, content, folder, mentionNote,
     authorAlterId, coAuthorIds, signpostText,
-  }), [title, content, folder, mentionNote, authorAlterId, coAuthorIds, signpostText]);
+    entryDate: entryDateChanged ? entryDateValue : null,
+  }), [title, content, folder, mentionNote, authorAlterId, coAuthorIds, signpostText, entryDateChanged, entryDateValue]);
   const { clearDraft } = useFormDraft(draftKey, draftSnapshot, {
     active: draftActive,
     isEmpty: (s) =>
@@ -250,6 +268,7 @@ useEffect(() => {
       if (typeof d.mentionNote === "string") setMentionNote(d.mentionNote);
       if (d.authorAlterId !== undefined) setAuthorAlterId(d.authorAlterId);
       if (Array.isArray(d.coAuthorIds)) setCoAuthorIds(d.coAuthorIds);
+      if (typeof d.entryDate === "string" && fromLocalDatetimeValue(d.entryDate)) setEntryDateValue(d.entryDate);
       if (typeof d.signpostText === "string" && d.signpostText) {
         setSignpostText(d.signpostText);
         setSignpostTouchedByUser(true); // don't let the auto-fill clobber it
@@ -359,7 +378,12 @@ useEffect(() => {
     // Extraction runs on the PLAINTEXT content — an encrypted body can't be
     // scanned, and shouldn't leak its tags anyway.
     const extracted = isEncrypted ? [] : extractHashtags(`${title} ${bodyContent}`);
+    // Only an explicit change writes the date (see entryDateInitial). It goes
+    // in `entry_date` — the field every journal list reads (journalDate.js);
+    // created_date stays the record's write time and is never touched.
+    const pickedDate = entryDateChanged ? fromLocalDatetimeValue(entryDateValue) : null;
     saveMutation.mutate({
+      ...(pickedDate ? { entry_date: pickedDate.toISOString() } : {}),
       title: title.trim() || new Date().toLocaleString(),
       content: finalContent,
       tags: mergeTags(editingEntryFinal?.tags, extracted),
@@ -461,6 +485,29 @@ useEffect(() => {
           </DialogHeader>
 
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
+
+          {/* Entry date — editable so a wrong date (e.g. from an import) can be fixed */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <CalendarClock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <label htmlFor="journal-entry-date" className="text-xs text-muted-foreground flex-shrink-0">Date</label>
+            <Input
+              id="journal-entry-date"
+              type="datetime-local"
+              aria-label="Entry date and time"
+              value={entryDateValue}
+              onChange={(e) => setEntryDateValue(e.target.value)}
+              className="h-8 w-auto text-xs"
+            />
+            {entryDateChanged && (
+              <button
+                type="button"
+                onClick={() => setEntryDateValue(entryDateInitial)}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Undo
+              </button>
+            )}
+          </div>
 
           {/* Author — dropdown default + -name signpost field */}
           <div className="space-y-1.5">

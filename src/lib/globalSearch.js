@@ -1,3 +1,4 @@
+import { journalEntryDate } from "@/lib/journalDate";
 /**
  * Global search engine — shared between the Dashboard "Search everything"
  * input and any other surface that wants to query across the user's data.
@@ -219,10 +220,10 @@ export function buildJournalRecords({ items = [] }) {
       type: "journal",
       id: j.id,
       title: j.title || "Journal Entry",
-      subtitle: snippet(content) || formatDateLabel(j.created_date) || "",
+      subtitle: snippet(content) || formatDateLabel(journalEntryDate(j)) || "",
       path: `/journals?id=${j.id}`,
-      searchableText: joinNonEmpty([j.title, content, dateSearchBlob(j.created_date)]).toLowerCase(),
-      sortDate: j.created_date,
+      searchableText: joinNonEmpty([j.title, content, dateSearchBlob(journalEntryDate(j))]).toLowerCase(),
+      sortDate: journalEntryDate(j),
     };
   });
 }

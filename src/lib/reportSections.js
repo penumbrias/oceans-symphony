@@ -19,6 +19,7 @@ import {
 } from "./planAnalytics";
 import { normalizeSessions, sessionsInRange, effectiveDurationMs } from "./sessionNormalizer";
 import { buildClinicianParagraphs } from "./analytics/clinicianSummary";
+import { journalEntryDate } from "@/lib/journalDate";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export const DEFAULT_THRESHOLDS = {
 export function buildOverview({ dateFrom, dateTo, frontingSessions, emotionCheckIns, journalEntries, symptoms, diaryCards, alters, thresholds, mode }) {
   const sessions = frontingSessions.filter(s => inRange(s.start_time, dateFrom, dateTo));
   const checkins = emotionCheckIns.filter(c => inRange(c.timestamp || c.created_date, dateFrom, dateTo));
-  const journals = journalEntries.filter(j => inRange(j.created_date, dateFrom, dateTo));
+  const journals = journalEntries.filter(j => inRange(journalEntryDate(j), dateFrom, dateTo));
   const cards = diaryCards.filter(d => inRange(d.date, dateFrom, dateTo));
 
   return {
@@ -336,11 +337,11 @@ export function buildActivitiesSection({ dateFrom, dateTo, activities, excludedA
 
 export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journalDetail }) {
   const entries = journalEntries
-    .filter(j => inRange(j.created_date, dateFrom, dateTo))
-    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+    .filter(j => inRange(journalEntryDate(j), dateFrom, dateTo))
+    .sort((a, b) => new Date(journalEntryDate(a)) - new Date(journalEntryDate(b)));
 
   return entries.map(j => {
-    const base = { id: j.id, date: fmtDate(j.created_date), title: j.title || "Untitled" };
+    const base = { id: j.id, date: fmtDate(journalEntryDate(j)), title: j.title || "Untitled" };
     const clean = stripHtml(j.content || "");
     if (journalDetail === "full") return { ...base, content: clean };
     if (journalDetail === "excerpts") return { ...base, excerpt: clean.slice(0, 400) };
