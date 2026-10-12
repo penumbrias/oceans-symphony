@@ -355,7 +355,23 @@ export function mergeEntityRecord(entityName, local, incoming) {
 // both (a switch on the desktop ends the old front on the phone too), at
 // the time that device recorded. A still-active copy never un-ends it.
 // Everything else (notes, level, emotions) merges field by field.
+// A session the person removed in a front-conflict review (`removed_at`,
+// src/lib/frontConflictTimeline.js) is never live: the mark travels by
+// field time, and the device where it was still live ends it at the
+// moment it was removed.
 export function mergeFrontingSession(local, incoming) {
+  let out = mergeFrontingState(local, incoming);
+  if (out?.removed_at && out.is_active === true) {
+    out = { ...out, is_active: false, end_time: out.end_time || out.removed_at };
+    const ft = { ...(out[FIELD_TIMES] || { __base: local?.updated_date || local?.created_date || "" }) };
+    const at = fieldTime(out, "removed_at");
+    ft.is_active = at; ft.end_time = at;
+    out[FIELD_TIMES] = ft;
+  }
+  return out;
+}
+
+function mergeFrontingState(local, incoming) {
   const lEnded = local?.is_active !== true;
   const iEnded = incoming?.is_active !== true;
   const state = ["is_active", "end_time"];

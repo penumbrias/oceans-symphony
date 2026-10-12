@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "October 12, 2026",
     changes: [
       { type: "feature", text: "Device sync: when your devices disagree about who's fronting, you now choose which is right (or both), and the answer reaches both devices." },
+      { type: "feature", text: "Device sync: an Advanced view shows both devices' front history side by side, so you can pick a device for a span of days and fix or remove single sessions." },
     ],
   },
   {

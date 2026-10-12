@@ -1127,27 +1127,49 @@ function emit(entityName, event) {
   (_listeners[entityName] || []).forEach(fn => fn(event));
 }
 
+// Fronting sessions the person removed in a front-conflict review carry
+// `removed_at` (src/lib/frontConflictTimeline.js). They stay in the
+// database, in backups and in sync (sync never deletes, so a real delete
+// would come straight back from the other device) — every screen just
+// stops seeing them. The review itself reads the raw database to show
+// them and put them back.
+const isHiddenRecord = (entityName, r) => entityName === "FrontingSession" && !!r?.removed_at;
+
+// Which device recorded a fronting session, for that review. Read straight
+// from the sync device id; a device that has never synced has none yet,
+// and its sessions simply show as "not sure which device".
+function originStamp(entityName, data) {
+  if (entityName !== "FrontingSession" || data?.origin_device) return {};
+  try {
+    const id = localStorage.getItem("symphony_sync_device_id");
+    return id ? { origin_device: id } : {};
+  } catch { return {}; }
+}
+
 export function createLocalDbEntities() {
   return new Proxy({}, {
     get(_, entityName) {
       return {
         list: async (sort, limit) => {
-          let records = Object.values(getCollection(entityName));
+          let records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r));
           records = sortRecords(records, sort);
           if (limit) records = records.slice(0, limit);
           return records;
         },
         filter: async (query, sort, limit) => {
-          let records = Object.values(getCollection(entityName)).filter(r => matchesQuery(r, query));
+          let records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r) && matchesQuery(r, query));
           records = sortRecords(records, sort);
           if (limit) records = records.slice(0, limit);
           return records;
         },
-        get: async (id) => getCollection(entityName)[id] || null,
+        get: async (id) => {
+          const r = getCollection(entityName)[id] || null;
+          return isHiddenRecord(entityName, r) ? null : r;
+        },
         create: async (data) => {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
-          const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
+          const record = { ...data, ...originStamp(entityName, data), id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
           col[record.id] = record;
           await saveDb();
           emit(entityName, { type: 'create', id: record.id, data: record });
@@ -1177,7 +1199,7 @@ export function createLocalDbEntities() {
           const col = getCollection(entityName);
           const now = new Date().toISOString();
           const created = items.map(data => {
-            const record = { ...data, id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
+            const record = { ...data, ...originStamp(entityName, data), id: generateId(), created_date: now, updated_date: now, created_by: FAKE_USER_EMAIL, [FIELD_TIMES]: stampCreate(now) };
             col[record.id] = record;
             return record;
           });
@@ -1535,7 +1557,7 @@ function mergeIncomingFrontingSessions(records, noteEditConflict, frontConflicts
   }
   const liveHere = Object.values(col).some((r) => r && r.is_active === true);
   for (const [id, record] of fresh) {
-    if (liveHere && record.is_active === true && !record.revived_at) {
+    if (liveHere && record.is_active === true && !record.revived_at && !record.removed_at) {
       frontConflicts?.push(id);
       col[id] = {
         ...record,
@@ -1544,6 +1566,9 @@ function mergeIncomingFrontingSessions(records, noteEditConflict, frontConflicts
         end_time: record.end_time || record.start_time || new Date().toISOString(),
         sync_demoted: true,
       };
+    } else if (record.removed_at && record.is_active === true) {
+      // Removed in a front-conflict review: never live (see syncMerge).
+      col[id] = { ...record, is_active: false, end_time: record.end_time || record.removed_at };
     } else {
       col[id] = record;
     }

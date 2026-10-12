@@ -16,6 +16,7 @@ import {
   mergeBoards,
 } from "../src/lib/syncMerge.js";
 import { planFrontResolution } from "../src/lib/frontConflictPlan.js";
+import { planAdvancedResolution, conflictDays, originOf, dayKey } from "../src/lib/frontConflictTimeline.js";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -230,6 +231,85 @@ console.log("front conflicts (both devices switched between syncs)");
     const ended = updated(B, { is_active: false, end_time: T(45) }, T(45));
     const revived = updated(B, { revived_at: T(50) }, T(50));
     assert.equal(mergeFrontingSession(ended, revived).is_active, false);
+  });
+}
+
+console.log("advanced front review (spans, days, edits)");
+{
+  // Local-time days, so the test holds in any timezone.
+  const at = (d, h, m = 0) => new Date(2026, 9, d, h, m).toISOString();
+  const NOW = at(12, 20);
+  const apply = (db, writes) => { for (const { id, patch } of writes) db[id] = updated(db[id], patch, NOW); };
+  const S = (id, d, h1, h2, o, extra = {}) => created({ id, alter_id: id.toLowerCase(), start_time: at(d, h1), end_time: at(d, h2), is_active: false, is_primary: false, origin_device: o, ...extra }, at(d, h1));
+  const base = () => ({
+    D1: S("D1", 10, 9, 12, "desk"), P1: S("P1", 10, 10, 13, "phone"),
+    D2: S("D2", 11, 9, 12, "desk"), P2: S("P2", 11, 10, 13, "phone"),
+    U3: S("U3", 11, 14, 15, undefined),
+  });
+  const plan = (db, answers) => planAdvancedResolution({ sessions: Object.values(db), thisDevice: "desk", now: NOW, ...answers });
+
+  test("days where the two devices' fronts overlap are found", () => {
+    const db = base();
+    const origin = (s) => originOf(s, { thisDevice: "desk" });
+    assert.deepEqual(conflictDays({ sessions: Object.values(db), now: NOW, origin }), [dayKey(at(10, 12)), dayKey(at(11, 12))]);
+  });
+  test("a span 'use this device' removes only the other device's sessions in it", () => {
+    const db = base();
+    const { writes } = plan(db, { spans: [{ from: dayKey(at(10, 0)), to: dayKey(at(11, 0)), keep: "desk" }] });
+    apply(db, writes);
+    assert.ok(db.P1.removed_at && db.P2.removed_at);
+    assert.ok(!db.D1.removed_at && !db.D2.removed_at && !db.U3.removed_at, "unknown-device sessions only change by hand");
+  });
+  test("one day's choice beats the span; an edit beats both", () => {
+    const db = base();
+    const { writes } = plan(db, {
+      spans: [{ from: dayKey(at(10, 0)), to: dayKey(at(11, 0)), keep: "desk" }],
+      days: { [dayKey(at(11, 0))]: "phone" },
+      edits: { P1: { removed: false, end_time: at(10, 11) } },
+    });
+    apply(db, writes);
+    assert.ok(!db.P1.removed_at); assert.equal(db.P1.end_time, at(10, 11));
+    assert.ok(db.D2.removed_at); assert.ok(!db.P2.removed_at);
+  });
+  test("an end before the start is refused", () => {
+    assert.throws(() => plan(base(), { edits: { D1: { end_time: at(10, 8) } } }), /can't end before/);
+  });
+  test("removed reaches the other device, stays in the data, and can be put back", () => {
+    const desk = base(); const phone = base();
+    apply(desk, plan(desk, { edits: { P1: { removed: true } } }).writes);
+    phone.P1 = mergeFrontingSession(phone.P1, desk.P1);
+    assert.ok(phone.P1.removed_at); assert.equal(phone.P1.alter_id, "p1");
+    const later = (rec, patch) => ({ ...rec, ...patch, updated_date: at(12, 21), _ft: stampUpdate(rec, patch, at(12, 21)) });
+    desk.P1 = later(desk.P1, { removed_at: null });
+    phone.P1 = mergeFrontingSession(phone.P1, desk.P1);
+    assert.equal(phone.P1.removed_at, null);
+  });
+  test("a front removed here ends on the device where it was still live", () => {
+    const live = created({ id: "L", alter_id: "l", start_time: at(12, 9), is_active: true, is_primary: true, origin_device: "phone" }, at(12, 9));
+    const demoted = { ...live, is_active: false, is_primary: false, end_time: live.start_time, sync_demoted: true };
+    const desk = { L: demoted };
+    apply(desk, plan(desk, { flagged: { L: { device: "phone", wasPrimary: true } }, edits: { L: { removed: true } } }).writes);
+    const onPhone = mergeFrontingSession(live, desk.L);
+    assert.equal(onPhone.is_active, false); assert.ok(onPhone.removed_at); assert.ok(onPhone.end_time);
+  });
+  test("the other device's live front kept with a new end becomes a real session on both", () => {
+    const live = created({ id: "L", alter_id: "l", start_time: at(12, 9), is_active: true, is_primary: true, origin_device: "phone" }, at(12, 9));
+    const demoted = { ...live, is_active: false, is_primary: false, end_time: live.start_time, sync_demoted: true };
+    const desk = { L: demoted };
+    apply(desk, plan(desk, { flagged: { L: { device: "phone", wasPrimary: true } }, edits: { L: { end_time: at(12, 11) } } }).writes);
+    assert.ok(!desk.L.sync_demoted); assert.equal(desk.L.end_time, at(12, 11));
+    const onPhone = mergeFrontingSession(live, desk.L);
+    assert.equal(onPhone.is_active, false); assert.equal(onPhone.end_time, at(12, 11));
+  });
+  test("keeping both live fronts leaves one primary", () => {
+    const theirs = created({ id: "T", alter_id: "t", start_time: at(12, 9), is_active: true, is_primary: true, origin_device: "phone" }, at(12, 9));
+    const desk = {
+      T: { ...theirs, is_active: false, is_primary: false, end_time: theirs.start_time, sync_demoted: true },
+      M: created({ id: "M", alter_id: "m", start_time: at(12, 10), is_active: true, is_primary: true, origin_device: "desk" }, at(12, 10)),
+    };
+    apply(desk, plan(desk, { flagged: { T: { device: "phone", wasPrimary: true } } }).writes);
+    assert.equal(desk.T.is_active, true); assert.equal(desk.M.is_active, true);
+    assert.equal([desk.T, desk.M].filter((s) => s.is_primary).length, 1);
   });
 }
 

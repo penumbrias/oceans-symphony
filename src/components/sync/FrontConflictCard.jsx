@@ -8,12 +8,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getFrontConflicts, resolveFrontConflict, FRONT_CONFLICTS_EVENT } from "@/lib/frontConflicts";
+import FrontConflictTimeline from "@/components/sync/FrontConflictTimeline";
 
 let inlineCount = 0;
 const INLINE_EVENT = "symphony-front-conflict-inline";
@@ -30,6 +31,7 @@ export default function FrontConflictCard({ variant = "inline" }) {
   const [conflict, setConflict] = useState(null);
   const [busy, setBusy] = useState(false);
   const [later, setLater] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const { data: cachedAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   // A sync can bring alters this screen's cache hasn't seen yet — read them
   // with the conflict so no name shows as unknown.
@@ -61,7 +63,10 @@ export default function FrontConflictCard({ variant = "inline" }) {
     return () => window.removeEventListener(INLINE_EVENT, sync);
   }, [variant]);
 
-  if (!conflict || (variant === "floating" && (later || inlineShown))) return null;
+  const timeline = advanced && (
+    <FrontConflictTimeline onClose={() => setAdvanced(false)} onSaved={() => { setAdvanced(false); load(); }} />
+  );
+  if (!conflict || (variant === "floating" && (later || inlineShown))) return timeline || null;
 
   const device = conflict.devices.length === 1 ? conflict.devices[0] : "your other device";
   const names = (sessions) => {
@@ -117,6 +122,9 @@ export default function FrontConflictCard({ variant = "inline" }) {
             Both are {t.fronting}
           </Button>
         )}
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => setAdvanced(true)}>
+          <CalendarRange className="w-3.5 h-3.5 mr-1.5" /> Advanced: compare day by day
+        </Button>
         {variant === "floating" && (
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => setLater(true)} className="text-muted-foreground">
             Decide later
@@ -135,8 +143,9 @@ export default function FrontConflictCard({ variant = "inline" }) {
         style={{ bottom: "calc(var(--bottom-nav-height, 64px) + 16px)" }}
       >
         {body}
+        {timeline}
       </div>
     );
   }
-  return <div className="rounded-lg border border-primary/40 bg-card p-3">{body}</div>;
+  return <div className="rounded-lg border border-primary/40 bg-card p-3">{body}{timeline}</div>;
 }

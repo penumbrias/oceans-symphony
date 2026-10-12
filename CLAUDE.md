@@ -428,6 +428,16 @@ Rules for keeping the targets healthy:
   fronts that must be live on the other device too get `revived_at`, which
   `mergeFrontingSession` uses to bring that device's placeholder back to
   life. Never auto-pick a side. Tests: `node scripts/test-sync-merge.mjs`.
+- **Removed fronting sessions are a soft mark (v0.254.0).** The advanced
+  review (`src/lib/frontConflictTimeline.js`, `FrontConflictTimeline.jsx`)
+  marks sessions `removed_at` instead of deleting them (a delete would come
+  straight back from the other device). The entity proxy hides them from
+  `list`/`filter`/`get`; they stay in the database, backups and sync, and
+  the review can put them back. A removed session is never live
+  (`mergeFrontingSession`). New sessions carry `origin_device` (the sync
+  device id) so the review can tell the devices apart. Never read
+  FrontingSession from the raw dump in a screen — that would show removed
+  sessions.
 - **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
   copy — its entity maps are the live database. Anything built from it
   and then awaited on (encryption) can tear. `buildDataSnapshot` copies
