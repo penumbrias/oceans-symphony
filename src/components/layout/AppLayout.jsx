@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import FrontConflictCard from "@/components/sync/FrontConflictCard";
 import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
@@ -1200,6 +1201,8 @@ const handleNotifClick = (mentionLog) => {
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
       <GroceryListPanel />
+      {/* Devices that disagree about who's fronting — the person picks. */}
+      <FrontConflictCard variant="floating" />
       {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
       <QuickActionsHost />
       {!v2HomeNotices && <ReminderToast />}

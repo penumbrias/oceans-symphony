@@ -1516,7 +1516,12 @@ function aliasContentKeyMatches(incoming) {
 //      the live front (tester report v0.86.7: an old backup reassigned
 //      who's fronting). Ended sessions arrive exactly as they are — their
 //      primary flag included.
-function mergeIncomingFrontingSessions(records, noteEditConflict) {
+//   3. Every session the other device says is live but that sits here as a
+//      placeholder is a FRONT CONFLICT — the two devices disagree about
+//      who's fronting. They are returned (frontConflicts) for the person to
+//      settle (src/lib/frontConflicts.js); nothing is decided for them.
+//      A session they already chose as live (`revived_at`) arrives live.
+function mergeIncomingFrontingSessions(records, noteEditConflict, frontConflicts) {
   const col = _db.FrontingSession || (_db.FrontingSession = {});
   const fresh = [];
   for (const [id, record] of Object.entries(records || {})) {
@@ -1526,10 +1531,12 @@ function mergeIncomingFrontingSessions(records, noteEditConflict) {
     noteEditConflict("FrontingSession", id, local, record);
     col[id] = mergeFrontingSession(local, record);
     recordSyncOverwrite("FrontingSession", local, col[id]);
+    if (record.is_active === true && !record.sync_demoted && col[id]?.sync_demoted) frontConflicts?.push(id);
   }
   const liveHere = Object.values(col).some((r) => r && r.is_active === true);
   for (const [id, record] of fresh) {
-    if (liveHere && record.is_active === true) {
+    if (liveHere && record.is_active === true && !record.revived_at) {
+      frontConflicts?.push(id);
       col[id] = {
         ...record,
         is_active: false,
@@ -1637,6 +1644,8 @@ export async function mergeDbDump(dump, options = {}) {
   // user the losing version. `kept` names the side the automatic rule
   // applied; both full snapshots ride along for the review sheet.
   const conflicts = [];
+  // Sessions the other device says are live but sit here as placeholders.
+  const frontConflicts = [];
   const noteEditConflict = (entityName, id, local, incoming) => {
     if (!local || !incoming) return;
     const lt = Date.parse(local.updated_date || "") || 0;
@@ -1697,7 +1706,7 @@ export async function mergeDbDump(dump, options = {}) {
     // a live front is never overridden by an incoming one — see
     // mergeIncomingFrontingSessions.
     if (entityName === "FrontingSession") {
-      mergeIncomingFrontingSessions(records, noteEditConflict);
+      mergeIncomingFrontingSessions(records, noteEditConflict, frontConflicts);
       continue;
     }
 
@@ -1854,7 +1863,7 @@ export async function mergeDbDump(dump, options = {}) {
   // screen reads the same ticks.
   consolidateDailyProgress();
   await saveDb();
-  return { conflicts };
+  return { conflicts, frontConflicts };
 }
 
 function dailyProgressPointsFor() {

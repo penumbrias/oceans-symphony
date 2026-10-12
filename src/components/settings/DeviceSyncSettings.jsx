@@ -20,6 +20,7 @@ import {
   removeSyncFile, copyAppearanceFrom,
 } from "@/lib/deviceSyncRunner";
 import { isEncryptionActive } from "@/lib/localDb";
+import FrontConflictCard from "@/components/sync/FrontConflictCard";
 
 // Device sync — files only, no network. See src/lib/deviceSync.js.
 //
@@ -405,6 +406,9 @@ export default function DeviceSyncSettings() {
           ))}
         </div>
       )}
+
+      {/* Fronts this device and another disagree on — the person picks. */}
+      <FrontConflictCard variant="inline" />
 
       {/* Deletions — reported, never applied. */}
       {pending.length > 0 && (
