@@ -420,6 +420,24 @@ Rules for keeping the targets healthy:
   with "an end is a fact" (`mergeFrontingSession`). Log fields
   (`LOG_FIELDS`) merge as unions. Anything a merge replaces is kept in
   Recent changes ("Changed by sync").
+- **Front conflicts are the person's call (v0.253.3).** When the other
+  device's live front lands as a placeholder (`sync_demoted`) because a
+  front is live here, `mergeDbDump` returns it in `frontConflicts` and
+  `src/lib/frontConflicts.js` queues it for review (`FrontConflictCard`,
+  floating + in Sync settings). The answers behave like a switch made now;
+  fronts that must be live on the other device too get `revived_at`, which
+  `mergeFrontingSession` uses to bring that device's placeholder back to
+  life. Never auto-pick a side. Tests: `node scripts/test-sync-merge.mjs`.
+- **Removed fronting sessions are a soft mark (v0.254.0).** The advanced
+  review (`src/lib/frontConflictTimeline.js`, `FrontConflictTimeline.jsx`)
+  marks sessions `removed_at` instead of deleting them (a delete would come
+  straight back from the other device). The entity proxy hides them from
+  `list`/`filter`/`get`; they stay in the database, backups and sync, and
+  the review can put them back. A removed session is never live
+  (`mergeFrontingSession`). New sessions carry `origin_device` (the sync
+  device id) so the review can tell the devices apart. Never read
+  FrontingSession from the raw dump in a screen — that would show removed
+  sessions.
 - **Snapshot builders must deep-copy.** `getFullDbDump()` is a SHALLOW
   copy — its entity maps are the live database. Anything built from it
   and then awaited on (encryption) can tear. `buildDataSnapshot` copies

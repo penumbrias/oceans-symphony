@@ -355,7 +355,23 @@ export function mergeEntityRecord(entityName, local, incoming) {
 // both (a switch on the desktop ends the old front on the phone too), at
 // the time that device recorded. A still-active copy never un-ends it.
 // Everything else (notes, level, emotions) merges field by field.
+// A session the person removed in a front-conflict review (`removed_at`,
+// src/lib/frontConflictTimeline.js) is never live: the mark travels by
+// field time, and the device where it was still live ends it at the
+// moment it was removed.
 export function mergeFrontingSession(local, incoming) {
+  let out = mergeFrontingState(local, incoming);
+  if (out?.removed_at && out.is_active === true) {
+    out = { ...out, is_active: false, end_time: out.end_time || out.removed_at };
+    const ft = { ...(out[FIELD_TIMES] || { __base: local?.updated_date || local?.created_date || "" }) };
+    const at = fieldTime(out, "removed_at");
+    ft.is_active = at; ft.end_time = at;
+    out[FIELD_TIMES] = ft;
+  }
+  return out;
+}
+
+function mergeFrontingState(local, incoming) {
   const lEnded = local?.is_active !== true;
   const iEnded = incoming?.is_active !== true;
   const state = ["is_active", "end_time"];
@@ -370,6 +386,24 @@ export function mergeFrontingSession(local, incoming) {
   // them as "ended on the other device" is what ended three live fronters
   // as 0-minute sessions on 2026-09-30 (owner report). Only real ends count.
   if (incoming?.sync_demoted) return out;
+  // A front the person CHOSE as live in a front-conflict review
+  // (`revived_at`, src/lib/frontConflicts.js) brings this device's
+  // placeholder copy of it back to life. Only a placeholder: a real end
+  // made here stays a fact.
+  const isPlaceholder = (r) => !!r?.sync_demoted || (!!r?.end_time && r.end_time === r.start_time);
+  if (incoming?.is_active === true && incoming.revived_at && isPlaceholder(local)
+    && String(incoming.revived_at) > String(local.revived_at || "")) {
+    if (out === local) out = { ...local };
+    out.is_active = true;
+    out.end_time = null;
+    out.is_primary = !!incoming.is_primary;
+    delete out.sync_demoted;
+    const ft = { ...(out[FIELD_TIMES] || { __base: local.updated_date || local.created_date || "" }) };
+    for (const k of [...state, "is_primary"]) ft[k] = fieldTime(incoming, k);
+    out[FIELD_TIMES] = ft;
+    out.updated_date = maxIso(out.updated_date, incoming.updated_date);
+    return out;
+  }
   // Same for a 0-minute end (end = start, to the millisecond): that's the
   // placeholder's signature even on copies that lost the marker. Nobody
   // ends a real front in the same millisecond it began.

@@ -65,6 +65,7 @@ import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { applyIncomingPresets, PRESETS_KEY, REMOVED_KEY } from "@/lib/presetSync";
+import { addFrontConflicts, noteSyncOrigins } from "@/lib/frontConflicts";
 import { stripLookFromDump, pickLookFields } from "@/lib/syncLook";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { APP_VERSION } from "@/lib/appVersion";
@@ -393,13 +394,21 @@ export async function applyDataSnapshot(file) {
   }
   const localBefore = getFullDbDump();
   const pendingDeletions = summariseIncomingDeletions(incoming, localBefore);
+  // getFullDbDump is shallow — read the session ids before the merge adds to them.
+  const sessionsBefore = new Set(Object.keys(localBefore.FrontingSession || {}));
   // Never take another device's look or layout on a sync. Older peers still
   // send the look fields inside the SystemSettings record; drop them before
   // the newer-wins merge can apply them. (incoming is freshly parsed from
   // the file, so mutating it is safe.)
   stripLookFromDump(incoming);
   // applyDeletions stays FALSE. Always. See the header.
-  const { conflicts } = await mergeDbDump(incoming, { applyDeletions: false });
+  const { conflicts, frontConflicts } = await mergeDbDump(incoming, { applyDeletions: false });
+  // Fronts this device and that one disagree on — kept for the person to
+  // settle (src/lib/frontConflicts.js). Never fails the sync.
+  if (frontConflicts?.length) {
+    try { addFrontConflicts(frontConflicts, incoming.FrontingSession, file.device); } catch { /* best-effort */ }
+  }
+  noteSyncOrigins(incoming.FrontingSession, sessionsBefore, file.device);
   // Saved appearance presets are a library, not device look: they merge
   // on every sync (src/lib/presetSync.js). Which one is in use stays local.
   const presetsRaw = (body?.appearance?.settings ?? body?.settings)?.[PRESETS_KEY];
@@ -418,6 +427,7 @@ export async function applyDataSnapshot(file) {
     // Preferences are no longer filled in automatically (see the header).
     settingsFilled: 0,
     presetsMerged,
+    frontConflicts: frontConflicts?.length || 0,
   };
 }
 

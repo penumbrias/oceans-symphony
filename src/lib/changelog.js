@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 12, 2026",
+    changes: [
+      { type: "feature", text: "Device sync: when your devices disagree about who's fronting, you now choose which is right (or both), and the answer reaches both devices." },
+      { type: "feature", text: "Device sync: an Advanced view shows both devices' front history side by side, so you can pick a device for a span of days and fix or remove single sessions." },
+    ],
+  },
+  {
     date: "October 10, 2026",
+    version: "0.253.2",
     changes: [
       { type: "feature", text: "Desktop app: a \"Check for updates\" button in Settings downloads the newest version and restarts into it." },
       { type: "feature", text: "New \"Keep original images\" setting (Data & privacy → Storage & encryption) stores uploads byte-for-byte at full size, metadata included." },

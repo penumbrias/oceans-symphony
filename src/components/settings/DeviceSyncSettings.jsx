@@ -20,6 +20,8 @@ import {
   removeSyncFile, copyAppearanceFrom,
 } from "@/lib/deviceSyncRunner";
 import { isEncryptionActive } from "@/lib/localDb";
+import FrontConflictCard from "@/components/sync/FrontConflictCard";
+import FrontConflictTimeline from "@/components/sync/FrontConflictTimeline";
 
 // Device sync — files only, no network. See src/lib/deviceSync.js.
 //
@@ -48,6 +50,7 @@ export default function DeviceSyncSettings() {
   const [name, setName] = useState(getDeviceName());
   const [auto, setAuto] = useState(isAutoSyncOn());
   const [busy, setBusy] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [peers, setPeers] = useState([]);
   const [report, setReport] = useState(null);
   const [lastRun, setLastRun] = useState(getLastRun());
@@ -405,6 +408,13 @@ export default function DeviceSyncSettings() {
           ))}
         </div>
       )}
+
+      {/* Fronts this device and another disagree on — the person picks. */}
+      <FrontConflictCard variant="inline" />
+      <Button size="sm" variant="outline" className="w-full" onClick={() => setCompareOpen(true)}>
+        Compare {t.front} history between devices
+      </Button>
+      {compareOpen && <FrontConflictTimeline onClose={() => setCompareOpen(false)} onSaved={() => setCompareOpen(false)} />}
 
       {/* Deletions — reported, never applied. */}
       {pending.length > 0 && (

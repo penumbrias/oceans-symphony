@@ -954,7 +954,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "settings", sectionLabel: "Settings",
       emoji: "🔌",
       title: "Sync between devices",
-      body: `Keep two of your own devices in step without a cloud or an account. Plug your phone into your computer, point the desktop app at its storage (or use a USB stick), and each device writes its own snapshot file and reads the other's. Nothing is sent over a network — the app only reads and writes files. Syncing never deletes: if something was removed on one device but is still on the other, it comes back, and anything the other device dropped is listed for you to decide on rather than disappearing.`,
+      body: `Keep two of your own devices in step without a cloud or an account. Plug your phone into your computer, point the desktop app at its storage (or use a USB stick), and each device writes its own snapshot file and reads the other's. Nothing is sent over a network — the app only reads and writes files. Syncing never deletes: if something was removed on one device but is still on the other, it comes back, and anything the other device dropped is listed for you to decide on rather than disappearing. If both devices logged a ${t.switch} before syncing, you choose which is right; "Compare ${t.front} history between devices" shows both side by side, day by day, so you can pick a device for a span of days and fix single sessions.`,
       route: "/settings", target: "settings-device-sync",
       look: `the highlighted "Sync between devices" section inside Data & Privacy — tap its header to expand it`, action: null,
     },
