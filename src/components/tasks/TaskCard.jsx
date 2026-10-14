@@ -1,14 +1,15 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { followTaskNavPath } from "@/lib/dailyTaskSystem";
+import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 
 export default function TaskCard({ task, completed, onToggle }) {
   const navigate = useNavigate();
 
-  const handleCardClick = () => followTaskNavPath(task.nav_path, navigate);
+  // Opens the task's link, or asks to begin its activity (openDailyTask).
+  const handleCardClick = () => openDailyTask(task, navigate);
 
-  const isClickable = !!task.nav_path;
+  const isClickable = isDailyTaskOpenable(task);
 
   return (
     <div

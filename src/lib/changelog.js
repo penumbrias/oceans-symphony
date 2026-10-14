@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 14, 2026",
     changes: [
+      { type: "feature", text: "Daily tasks can start an activity: give one an activity and a length, and tapping it asks \"Open and begin?\" and times it for you." },
+      { type: "improve", text: "When an activity's planned time is up, the notification has Done, +15 min and Other buttons, and skipped or early-stopped plans offer one-tap times to try again." },
       { type: "fix", text: "Quick Check-In: the {{fronting}} list shows each {{alter}}'s level instead of the old primary star, and holding a name (or a chip) opens the level rail there too." },
       { type: "fix", text: "Sliding sideways on the level rail to make someone the only one at a level now works, even if they're already at that level." },
       { type: "fix", text: "The level rail no longer flips the home page or goes back when you slide on it, and works next to the screen edge." },

@@ -33,7 +33,7 @@ let channelEnsured = false;
 let actionTypesRegistered = false;
 
 // Register the inline action buttons used by the activity + symptom
-// notifications ("End & log", "End"). Idempotent; safe to call repeatedly.
+// notifications ("End & log", "End") and the end-of-plan check-in. Idempotent; safe to call repeatedly.
 export async function registerPersistentActionTypes() {
   if (!isNative() || actionTypesRegistered) return;
   try {
@@ -43,6 +43,15 @@ export async function registerPersistentActionTypes() {
       types: [
         { id: "ACTIVITY_ACTIONS", actions: [{ id: "end_activity", title: "End & log" }] },
         { id: "SYMPTOM_ACTIONS", actions: [{ id: "end_symptom", title: "End" }] },
+        // End-of-plan check-in (activitySession.js) — three buttons max.
+        {
+          id: "ACTIVE_END_ACTIONS",
+          actions: [
+            { id: "active_end_done", title: "Done" },
+            { id: "active_end_keep_going", title: "+15 min" },
+            { id: "active_end_other", title: "Other…", foreground: true },
+          ],
+        },
       ],
     });
   } catch {

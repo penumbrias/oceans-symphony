@@ -97,17 +97,26 @@ function endNativeIdFor(sessionId) {
 
 const endWebTimers = new Map();
 
-async function scheduleActiveEndReminder(session) {
+// The check-in carries three buttons (Android shows at most three): done
+// on time, keep going 15 more minutes, or open the app's outcome sheet
+// for anything else (stopped early, skipped, reschedule). Tapping the
+// notification itself opens that sheet too. Handled in
+// usePersistentNotifications; registered in persistentNotifications.
+export const ACTIVE_END_ACTION_TYPE_ID = "ACTIVE_END_ACTIONS";
+export const ACTIVE_END_SNOOZE_MINUTES = 15;
+
+// `atMs` (optional) moves the check-in later — "keep going" re-arms it.
+async function scheduleActiveEndReminder(session, { atMs = null } = {}) {
   try {
     if (!readActiveEndReminderEnabled() || !session?.planActivityId) return;
     const rows = await base44.entities.Activity.filter({ id: session.planActivityId });
     const plan = rows?.[0];
-    const endMs = plannedEndMsFor(session, plan);
+    const endMs = atMs || plannedEndMsFor(session, plan);
     if (!endMs || endMs <= Date.now()) return;
     const name = plan?.activity_name || session.name || "Activity";
     const timeLabel = new Date(endMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    const title = `${name} was scheduled to end at ${timeLabel}`;
-    const body = "Still going? End it when you're done — it keeps running until you do.";
+    const title = atMs ? `Checking in on ${name}` : `${name} was scheduled to end at ${timeLabel}`;
+    const body = "Is it done, still going, or did something change?";
     if (isNative()) {
       const { isNativeNotificationsEnabled, ensureRemindersChannel, REMINDERS_CHANNEL_ID } = await import("@/lib/nativeNotifications");
       if (!(await isNativeNotificationsEnabled())) return;
@@ -122,6 +131,7 @@ async function scheduleActiveEndReminder(session) {
           channelId: REMINDERS_CHANNEL_ID,
           largeIcon: "ic_notif_large",
           schedule: { at: new Date(endMs), allowWhileIdle: true },
+          actionTypeId: ACTIVE_END_ACTION_TYPE_ID,
           extra: { kind: "active_end_checkin", sessionId: session.id, activityId: session.planActivityId },
         }],
       });
@@ -134,7 +144,18 @@ async function scheduleActiveEndReminder(session) {
     endWebTimers.set(session.id, setTimeout(() => {
       endWebTimers.delete(session.id);
       if (!getActiveActivities().some((a) => a.id === session.id)) return; // already ended
-      toast(title, { description: body, duration: 12000 });
+      toast(title, {
+        description: body,
+        duration: 20000,
+        action: {
+          label: "Resolve",
+          onClick: () => import("@/lib/planner/resolvePlan").then((m) => m.requestPlanResolve(session.planActivityId)),
+        },
+        cancel: {
+          label: `+${ACTIVE_END_SNOOZE_MINUTES} min`,
+          onClick: () => snoozeActiveEndReminder(session.id),
+        },
+      });
       try {
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           new Notification(title, { body });
@@ -153,6 +174,16 @@ async function cancelActiveEndReminder(session) {
       await LocalNotifications.cancel({ notifications: [{ id: session.endReminderNativeId }] });
     }
   } catch { /* non-fatal */ }
+}
+
+// "Keep going": ask again in a few minutes. The session itself is
+// untouched — it keeps running until it's resolved.
+export async function snoozeActiveEndReminder(sessionId, minutes = ACTIVE_END_SNOOZE_MINUTES) {
+  const session = getActiveActivities().find((a) => a.id === sessionId);
+  if (!session) return false;
+  await cancelActiveEndReminder(session);
+  await scheduleActiveEndReminder(session, { atMs: Date.now() + minutes * 60000 });
+  return true;
 }
 
 // Start a new running session. Returns the stored item (with its id).
@@ -218,6 +249,11 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       contact_ids: contactIds,
       notes: noteVal,
     });
+    // Started from a daily task → finishing it ticks that task.
+    try {
+      const { markDailyTaskDoneFor } = await import("@/lib/dailyTaskActivity");
+      await markDailyTaskDoneFor(record);
+    } catch { /* non-fatal */ }
     // The plan happened — clear any pending pre-start OS reminder for it.
     try {
       const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
