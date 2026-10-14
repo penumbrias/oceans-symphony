@@ -31,6 +31,7 @@ import { useTerms } from "@/lib/useTerms";
 import { FrontingToggleButton } from "./AlterCard";
 import AlterActionMenu from "./AlterActionMenu";
 import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
+import { beginHoldGesture } from "@/lib/holdGesture";
 
 const RAIL_W = 112;
 const RAIL_H = 56;
@@ -56,11 +57,14 @@ export default function AlterHoldRail({ alter, anchorEl, activeSessions = [], ge
   // Freeze page scrolling while open (touch + wheel), including the touch
   // that is still down from the hold.
   useEffect(() => {
+    // Page swipes / swipe-back stand down while this rail holds the finger.
+    const endHold = beginHoldGesture();
     const block = (e) => { if (e.cancelable) e.preventDefault(); };
     document.addEventListener("touchmove", block, { passive: false });
     const bd = backdropRef.current;
     bd?.addEventListener("wheel", block, { passive: false });
     return () => {
+      endHold();
       document.removeEventListener("touchmove", block);
       bd?.removeEventListener("wheel", block);
     };

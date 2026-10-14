@@ -11,7 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
@@ -34,7 +34,7 @@ import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emoti
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
-import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
+import { useFrontLevels, getSessionLevel, soloDraftPlan, frontLevelLabel } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
@@ -48,7 +48,9 @@ import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 // survived — owner report). Operates on the modal's LOCAL selection,
 // committed on Save.
 //   tap → toggle selected · hold + slide → pick a level (or Remove)
-function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onToggle, onSetPrimary }) {
+// The old primary star is gone: the level IS the closeness to front, and
+// the lead is derived from it on save (same as every other surface).
+function FrontPickRow({ alter, isSelected, levelLabel, holdProps, onToggle }) {
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const formatAlter = useAlterLabel();
   const [imgErrorFor, setImgError] = useState(null);
@@ -63,14 +65,9 @@ function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onTogg
       {...bind}
       onClick={() => onToggle()}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") ? onToggle() : undefined}
-      style={{ touchAction: "pan-y" }}
+      style={{ ...(bind.style || {}), touchAction: "pan-y" }}
       className={`relative flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all select-none ${isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"}`}
     >
-      {isSelected && levelId && (
-        <span className="absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none text-muted-foreground">
-          {levelId}
-        </span>
-      )}
       <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
         style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
         {resolvedUrl && !imgError
@@ -81,12 +78,11 @@ function FrontPickRow({ alter, isSelected, isPrimary, levelId, holdProps, onTogg
         <p className="text-sm font-medium truncate">{formatAlter(alter)}</p>
         {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
       </div>
-      <button onClick={(e) => { e.stopPropagation(); if (isSelected) onSetPrimary(); }}
-        aria-label={isPrimary ? `${alter.name} is primary — click to demote` : isSelected ? `Set ${alter.name} as primary` : `Select ${alter.name} first`}
-        disabled={!isSelected}
-        className={`p-1 rounded-md transition-colors flex-shrink-0 ${isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"}`}>
-        <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
-      </button>
+      {isSelected && levelLabel && (
+        <span className="text-[0.625rem] font-medium px-1.5 py-0.5 rounded-md bg-primary/10 text-primary flex-shrink-0 max-w-[40%] truncate">
+          {levelLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -673,34 +669,53 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   };
 
-  const setAsPrimary = (id) => {
-    if (primaryId === id) {
-      setPrimaryId("");
-      return;
-    }
-    setCoFronterIds([...coFronterIds.filter(x => x !== id), primaryId].filter(Boolean));
-    setPrimaryId(id);
-  };
-
-  // Swipe-left-then-up "solo": make this alter the only (and primary) fronter.
-  const soloAlter = (id) => {
-    setCoFronterIds([]);
-    setPrimaryId(id);
-  };
-
   // ── Hold-and-slide level rail ──────────────────────────────────────
   // The same gesture as every other {front} surface. Levels are kept per
   // alter in the local draft and written as front_level on save; the top
   // level maps to is_primary so the pre-levels model still holds.
   const levelCfg = useFrontLevels();
   const [levelById, setLevelById] = useState({});
-  const pickLevel = (alterId, levelId) => {
-    setLevelById((prev) => ({ ...prev, [alterId]: levelId }));
+  // Where each selected alter sits on the spectrum right now: picked in
+  // this check-in, else their live session's level, else by the old role.
+  const levelIdOf = (id) => levelById[id] || sessionLevelById[id]
+    || (id === primaryId ? levelCfg.levels?.[0]?.id : (levelCfg.levels?.[1] || levelCfg.levels?.[0])?.id);
+  // A rail release. `solo` (the sideways slide) also clears that level —
+  // or the whole front, per the user's setting — of everyone else, the
+  // same rule the live rail applies, so it works even when this alter is
+  // already at that level.
+  const levelLabelOf = (id) => {
+    const lvl = levelCfg.levels.find((l) => l.id === levelIdOf(id));
+    return lvl ? frontLevelLabel(lvl, terms) : "";
+  };
+  const pickLevel = (alterId, levelId, { solo = false } = {}) => {
+    const plan = solo
+      ? soloDraftPlan({
+          alterId, levelId, cfg: levelCfg,
+          levelOf: Object.fromEntries([...selectedAlterIds].map((id) => [id, levelIdOf(id)])),
+        })
+      : {};
+    const gone = new Set(Object.keys(plan).filter((id) => plan[id] === null));
+    setLevelById((prev) => {
+      const n = { ...prev };
+      for (const [id, l] of Object.entries(plan)) { if (l === null) delete n[id]; else n[id] = l; }
+      n[alterId] = levelId;
+      return n;
+    });
+    // The primary id only seeds the derived lead now; keep it consistent
+    // with the levels (the top level leads, anyone moved out stops).
     const isTop = levelId && levelId === levelCfg.levels?.[0]?.id;
-    if (isTop) { setAsPrimary(alterId); return; }
-    // A lower level means "here, but not primary".
-    setPrimaryId((p) => (p === alterId ? "" : p));
-    setCoFronterIds((prev) => (prev.includes(alterId) ? prev : [...prev, alterId]));
+    let pid = gone.has(primaryId) ? "" : primaryId;
+    let co = coFronterIds.filter((x) => !gone.has(x) && x !== alterId);
+    if (pid && pid !== alterId && plan[pid]) { co.push(pid); pid = ""; }
+    if (isTop) {
+      if (pid && pid !== alterId) co.push(pid);
+      pid = alterId;
+    } else {
+      if (pid === alterId) pid = "";
+      co.push(alterId);
+    }
+    setPrimaryId(pid);
+    setCoFronterIds([...new Set(co)]);
   };
   const dropAlter = (alterId) => {
     setLevelById((prev) => { const n = { ...prev }; delete n[alterId]; return n; });
@@ -714,8 +729,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const defaultEmotionIds = useMemo(() => defaultEmotionAlterIds({
     fronterIds: selectedAlters,
     setting: emotionDefaultSetting,
-    levelOf: (id) => levelById[id] || sessionLevelById[id]
-      || (id === primaryId ? levelCfg.levels?.[0]?.id : (levelCfg.levels?.[1] || levelCfg.levels?.[0])?.id),
+    levelOf: levelIdOf,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [selectedAlters, emotionDefaultSetting, levelById, sessionLevelById, primaryId, levelCfg]);
   const alterColorById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.color || "#8b5cf6"])), [alters]);
   // Dots only when an emotion's people differ from the default.
@@ -751,7 +766,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const rowOptionsMenu = useFrontOptionsMenu((id) => activeAlters.find((a) => a.id === id) || null);
   const { rail: levelRail, getHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
-    onCommit: (alterId, levelId) => { suppressRowTap.current = Date.now() + 400; pickLevel(alterId, levelId); },
+    onCommit: (alterId, levelId, extras = {}) => { suppressRowTap.current = Date.now() + 400; pickLevel(alterId, levelId, extras); },
     onRemove: (alterId) => { suppressRowTap.current = Date.now() + 400; dropAlter(alterId); },
     onOptions: (alterId) => { suppressRowTap.current = Date.now() + 400; rowOptionsMenu.openOptions(alterId); },
   });
@@ -1457,13 +1472,19 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   {[...selectedAlterIds].map(id => {
                     const a = activeAlters.find(x => x.id === id);
                     if (!a) return null;
+                    // Hold a chip → the same level rail as the list rows.
+                    const chipHold = getHoldProps(id, levelIdOf(id));
                     return (
                       <span key={id}
+                        {...chipHold}
+                        aria-label={`${a.name}, ${levelLabelOf(id)}. Hold and slide to pick a level.`}
                         className="px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
-                        style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
-                        {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        <button onClick={() => setAsPrimary(id)} className="hover:underline" aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>{formatAlter(a)}</button>
-                        <button onClick={() => toggleAlter(id)} aria-label={`Remove ${a.name}`} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                        style={{ ...(chipHold.style || {}), backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
+                        <span>{formatAlter(a)}</span>
+                        {levelCfg.levels.length > 1 && (
+                          <span className="text-[0.625rem] font-normal text-muted-foreground">· {levelLabelOf(id)}</span>
+                        )}
+                        <button onClick={() => toggleAlter(id)} onPointerDown={(e) => e.stopPropagation()} aria-label={`Remove ${a.name}`} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -1474,8 +1495,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground flex-1">
                   {frontTreeView
-                    ? <>Browse by subsystem / group. Tap to toggle; set <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary using the chips above.</>
-                    : <>Tap to toggle · hold and slide to pick a level · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> sets Primary</>}
+                    ? <>Browse by subsystem / group. Tap to toggle · hold and slide to pick a level.</>
+                    : <>Tap to toggle · hold and slide to pick a level.</>}
                 </p>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {!frontTreeView && <AlterSortToggle sorter={alterSorter} />}
@@ -1496,9 +1517,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   alters={activeAlters}
                   groups={groups}
                   isSelected={(id) => selectedAlterIds.has(id)}
-                  onToggle={(a) => toggleAlter(a.id)}
+                  onToggle={(a) => guardedToggle(a.id)}
                   onSetMany={setManyFronters}
                   maxHeight="40vh"
+                  rowProps={(a) => getHoldProps(a.id, selectedAlterIds.has(a.id) ? levelIdOf(a.id) : null)}
+                  rowBadge={(a) => (selectedAlterIds.has(a.id) && levelCfg.levels.length > 1 ? levelLabelOf(a.id) : null)}
                 />
               ) : (
                 <>
@@ -1515,21 +1538,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                           key={a.id}
                           alter={a}
                           isSelected={selectedAlterIds.has(a.id)}
-                          isPrimary={primaryId === a.id}
-                          levelId={levelById[a.id] || (primaryId === a.id ? levelCfg.levels?.[0]?.id : null)}
-                          holdProps={getHoldProps(a.id, levelById[a.id] || null)}
+                          levelLabel={levelCfg.levels.length > 1 ? levelLabelOf(a.id) : null}
+                          holdProps={getHoldProps(a.id, selectedAlterIds.has(a.id) ? levelIdOf(a.id) : null)}
                           onToggle={() => guardedToggle(a.id)}
-                          onSetPrimary={() => setAsPrimary(a.id)}
                         />
                       ))}
                   </div>
-                  {/* The shared level rail — same hold-and-slide as the
-                      {front} sheet, alter bar and {alter} pages. */}
-                  {rowOptionsMenu.node}
-                  <FrontLevelRail rail={levelRail} cfg={levelCfg} withRemove
-                    alterName={railAlter ? (railAlter.name || "") : ""} />
                 </>
               )}
+              {/* The shared level rail — same hold-and-slide as the
+                  {front} sheet, alter bar and {alter} pages. Serves the
+                  chips, the flat list and the tree view alike. */}
+              {rowOptionsMenu.node}
+              <FrontLevelRail rail={levelRail} cfg={levelCfg} withRemove
+                alterName={railAlter ? (railAlter.name || "") : ""} />
               {frontingActuallyChanged && (
                 <div className="border-t border-border/40 pt-2 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">

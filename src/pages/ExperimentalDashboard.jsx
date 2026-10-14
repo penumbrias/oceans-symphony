@@ -73,6 +73,7 @@ import PageBackground, { resolveBackground } from "@/components/v2/PageBackgroun
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
+import { holdGestureLive } from "@/lib/holdGesture";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -1545,6 +1546,9 @@ export default function ExperimentalDashboard({
     const track = (x, y, claim) => {
       const g = pageSwipe.current;
       if (!g || g.dead) return;
+      // A hold gesture (level rail, alter hold rail) took this touch over:
+      // its sideways slides ("sole", options) are not a page swipe.
+      if (holdGestureLive()) { g.dead = true; return; }
       const dx = x - g.x;
       const dy = y - g.y;
       if (!g.horiz) {
