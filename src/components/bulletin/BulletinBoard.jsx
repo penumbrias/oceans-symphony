@@ -157,7 +157,7 @@ export default function BulletinBoard({
   };
 
   return (
-    <div data-tour="bulletin-list">
+    <div data-tour="bulletin-list" className="w-full min-w-0">
       {/* Header */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-2">

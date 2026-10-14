@@ -41,7 +41,7 @@ import { SetFrontGridCard, TRIGGER_CATEGORIES } from "@/components/fronting/SetF
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
+import { useFrontLevels, frontLevelLabel, soloDraftPlan } from "@/lib/frontLevels";
 import { useAlterSorter } from "@/lib/alterSort";
 import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
@@ -241,12 +241,25 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const toggleFromView = (id) => (draftIds.has(id) ? removeAlter(id) : addAlter(id));
   // Hold an {alter} in the add list/grid → the level spectrum → they join
   // the draft AT that level (the standard gesture, same as the board).
-  const addAtLevel = (id, levelId) => {
+  // A sideways slide on the rail ("sole") also clears that level — or the
+  // whole front — of everyone else, the same rule as the live rail.
+  const addAtLevel = (id, levelId, { solo = false } = {}) => {
     setIsUnsure(false);
     setDraft((prev) => {
       const existing = prev.find((d) => d.alterId === id);
-      if (existing) return prev.map((d) => (d.alterId === id ? { ...d, level: levelId } : d));
-      return [...prev, { alterId: id, isPrimary: prev.length === 0, level: levelId, startTime: null }];
+      let next = existing
+        ? prev.map((d) => (d.alterId === id ? { ...d, level: levelId } : d))
+        : [...prev, { alterId: id, isPrimary: prev.length === 0, level: levelId, startTime: null }];
+      if (solo) {
+        const plan = soloDraftPlan({
+          alterId: id, levelId, cfg: levelCfg,
+          levelOf: Object.fromEntries(next.map((d) => [d.alterId, d.level])),
+        });
+        next = next
+          .filter((d) => plan[d.alterId] !== null)
+          .map((d) => (d.alterId in plan ? { ...d, level: plan[d.alterId], isPrimary: false } : d));
+      }
+      return next;
     });
   };
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
@@ -255,7 +268,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const rowOptionsMenu = useFrontOptionsMenu((id) => altersById[id] || null);
   const { rail: addRail, getHoldProps: getAddHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
-    onCommit: (alterId, levelId) => { suppressAddTap.current = Date.now() + 400; addAtLevel(alterId, levelId); },
+    onCommit: (alterId, levelId, extras = {}) => { suppressAddTap.current = Date.now() + 400; addAtLevel(alterId, levelId, extras); },
     onRemove: (alterId) => { suppressAddTap.current = Date.now() + 400; removeAlter(alterId); },
     onOptions: (alterId) => { suppressAddTap.current = Date.now() + 400; rowOptionsMenu.openOptions(alterId); },
   });

@@ -143,3 +143,27 @@ export function filterCountedSessions(sessions, cfg) {
     return level ? level.counts_as_front !== false : true;
   });
 }
+
+// The rail's sideways "sole" slide, for surfaces that edit a DRAFT front
+// (Quick Check-In, the Set Fronters sheet) rather than live sessions —
+// the same rule commitFrontLevel applies to live rows. Given each other
+// alter's current level, returns what changes: { [alterId]: levelId }
+// for a shift one level further out, or null to leave the front.
+//   scope "all"   → everyone else leaves
+//   scope "level" → others AT the picked level move one level out (or
+//                   leave, when it's the outermost level)
+// The alter being made sole is never in the result. Pure; the caller
+// applies it to its own draft.
+export function soloDraftPlan({ alterId, levelId, levelOf, cfg }) {
+  const out = {};
+  if (!cfg?.levels?.length) return out;
+  const scope = cfg.solo_swipe?.scope || "level";
+  const idx = cfg.levels.findIndex((l) => l.id === levelId);
+  const lower = idx >= 0 ? (cfg.levels[idx + 1] || null) : null;
+  for (const [id, lvl] of Object.entries(levelOf || {})) {
+    if (id === alterId) continue;
+    if (scope === "all") { out[id] = null; continue; }
+    if (lvl === levelId) out[id] = lower ? lower.id : null;
+  }
+  return out;
+}

@@ -454,7 +454,7 @@ const bioQuickCheckIn = `
     `Pills along the top toggle which sections are open. None are required; you only fill in what's relevant. Sections:
       <ul style="padding-left:22px;margin:4px 0;line-height:1.55;">
         <li><strong>Feeling</strong> — emotion wheel, multi-select, +Create for custom emotions.</li>
-        <li><strong>Fronting</strong> — alter selector with primary star, gestures (tap to toggle, long-press to set primary). Saves new fronting sessions.</li>
+        <li><strong>Fronting</strong> — alter selector (tap to toggle; hold and slide to pick each alter's fronting level, slide sideways to make them the only one there). Saves new fronting sessions.</li>
         <li><strong>Activity</strong> — category picker, duration, new-activity inline create.</li>
         <li><strong>Symptoms</strong> — start or end a symptom session, severity snapshot.</li>
         <li><strong>Diary</strong> — urges, body/mind, skills used, medication & safety fields.</li>

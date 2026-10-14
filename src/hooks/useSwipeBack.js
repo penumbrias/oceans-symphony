@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { holdGestureLive } from "@/lib/holdGesture";
 
 const EDGE_THRESHOLD = 40;   // px from left edge to begin tracking
 const MIN_SWIPE_X = 60;      // minimum horizontal distance to trigger
@@ -64,6 +65,14 @@ export default function useSwipeBack() {
 
     const onTouchMove = (e) => {
       if (!touchStart.current) return;
+      // A hold gesture (the level rail opened near the edge) owns this
+      // touch — its drag right is "options", never "go back".
+      if (holdGestureLive()) {
+        touchStart.current = null;
+        setIndicatorVisible(false);
+        setIndicatorProgress(0);
+        return;
+      }
       const touch = e.touches[0];
       const dx = touch.clientX - touchStart.current.x;
       const dy = Math.abs(touch.clientY - touchStart.current.y);
@@ -81,7 +90,7 @@ export default function useSwipeBack() {
       // listener), this guarantees it still disappears.
       hideIndicatorSoon();
 
-      if (!touchStart.current) return;
+      if (!touchStart.current || holdGestureLive()) { touchStart.current = null; return; }
       const touch = e.changedTouches[0];
       const dx = touch.clientX - touchStart.current.x;
       const dy = Math.abs(touch.clientY - touchStart.current.y);

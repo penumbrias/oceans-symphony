@@ -25,6 +25,7 @@ import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
+import { beginHoldGesture } from "@/lib/holdGesture";
 
 // Lazy: AlterActionMenu's module imports FrontStatusPill, which imports
 // this file — a static import here would close that cycle at eval time.
@@ -41,6 +42,15 @@ const SLOP_PX = 8;
 // Sideways distance (px) on an open rail that leaves it for the options menu.
 const MENU_SWIPE_PX = 80;
 const TOUCH_SLOP_PX = 24;
+// Sideways distance (px) that arms "sole". Near a screen edge there isn't
+// that much room toward the edge, so the distance shrinks to what the
+// finger can actually travel (never below SOLO_MIN_PX, so a wobble while
+// picking a level doesn't arm it).
+const SOLO_SWIPE_PX = 64;
+const SOLO_MIN_PX = 24;
+const EDGE_PAD_PX = 6;
+const sideRoom = (x, dir) => (dir < 0 ? x : window.innerWidth - x) - EDGE_PAD_PX;
+const reachable = (want, room) => Math.max(SOLO_MIN_PX, Math.min(want, room * 0.75));
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
 // Pass cfg so the derived primary follows the spectrum (star retired).
@@ -99,6 +109,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
       window.removeEventListener("pointerup", live.current.up);
       window.removeEventListener("pointercancel", live.current.cancel);
       if (live.current.blockScroll) window.removeEventListener("touchmove", live.current.blockScroll);
+      live.current.endHold?.();
       live.current = null;
     }
     document.body.style.userSelect = "";
@@ -117,6 +128,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
       window.removeEventListener("pointerup", live.current.up);
       window.removeEventListener("pointercancel", live.current.cancel);
       if (live.current.blockScroll) window.removeEventListener("touchmove", live.current.blockScroll);
+      live.current.endHold?.();
       live.current = null;
       document.body.style.userSelect = "";
       document.body.style.webkitUserSelect = "";
@@ -160,17 +172,22 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     // right) leaves the rail for the alter's options menu — wherever the
     // rail opens, the menu is one swipe away (owner, 2026-10-01).
     const menuDir = -soloDir;
+    // Both sideways slides scale to the room the finger has: a rail
+    // opened by an avatar at the screen edge used to need 64px of travel
+    // into the bezel, so "sole" (or options) simply couldn't be reached.
+    const soloPx = reachable(SOLO_SWIPE_PX, sideRoom(x, soloDir));
+    const menuPx = reachable(MENU_SWIPE_PX, sideRoom(x, menuDir));
     const pick = (ev) => {
       const dx = ev.clientX - state.x;
-      if (onOptions && dx * menuDir > MENU_SWIPE_PX) {
+      if (onOptions && dx * menuDir > menuPx) {
         teardown();
         try { navigator.vibrate?.(10); } catch { /* no haptics */ }
         onOptions(alterId);
         return;
       }
       const idx = pickAt(ev.clientY);
-      const solo = soloOn && dx * soloDir > 64;
-      const towardMenu = !!onOptions && dx * menuDir > MENU_SWIPE_PX / 3;
+      const solo = soloOn && dx * soloDir > soloPx;
+      const towardMenu = !!onOptions && dx * menuDir > menuPx / 3;
       setRail((r) => (r ? { ...r, pickedIndex: idx, solo, towardMenu } : r));
       state.pickedIndex = idx;
       state.solo = solo;
@@ -190,7 +207,9 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     // passive) is the one thing that still stops scrolling mid-touch.
     const blockScroll = (ev) => ev.preventDefault();
     window.addEventListener("touchmove", blockScroll, { passive: false });
-    live.current = { move, up, cancel, blockScroll };
+    // Page-level swipes (board pages, edge swipe-back) stand down while
+    // this rail owns the finger — the sideways slides are ours.
+    live.current = { move, up, cancel, blockScroll, endHold: beginHoldGesture() };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);

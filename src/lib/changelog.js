@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "October 14, 2026",
+    changes: [
+      { type: "fix", text: "Quick Check-In: the {{fronting}} list shows each {{alter}}'s level instead of the old primary star, and holding a name (or a chip) opens the level rail there too." },
+      { type: "fix", text: "Sliding sideways on the level rail to make someone the only one at a level now works, even if they're already at that level." },
+      { type: "fix", text: "The level rail no longer flips the home page or goes back when you slide on it, and works next to the screen edge." },
+      { type: "fix", text: "Bulletin board: the writing box is full width and grows as you type instead of staying a thin strip." },
+    ],
+  },
+  {
     date: "October 12, 2026",
+    version: "0.254.0",
     changes: [
       { type: "feature", text: "Device sync: when your devices disagree about who's fronting, you now choose which is right (or both), and the answer reaches both devices." },
       { type: "feature", text: "Device sync: an Advanced view shows both devices' front history side by side, so you can pick a device for a span of days and fix or remove single sessions." },

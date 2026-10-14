@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useLayoutEffect } from "react";
 import useFormDraft from "@/hooks/useFormDraft";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +85,17 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false); // synchronous re-entry guard vs duplicate posts
   const textareaRef = useRef(null);
+  // The writing box grows with what's written (up to about half the
+  // screen, then it scrolls) — a fixed three-line strip read as a thin
+  // sliver on a phone (owner report, twice).
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const cap = Math.round(window.innerHeight * 0.5);
+    el.style.height = `${Math.min(cap, Math.max(el.scrollHeight + 2, 128))}px`;
+    el.style.overflowY = el.scrollHeight + 2 > cap ? "auto" : "hidden";
+  }, [content]);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   // Image waiting in the preview/size dialog before it lands in the post.
@@ -432,7 +443,10 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   };
 
   return (
-    <div className={embedded ? "" : "bg-card border border-border/60 rounded-2xl p-4 shadow-sm"}>
+    // w-full: a widget whose content alignment is Left/Center/Right lays
+    // its rows out shrink-to-fit, which squeezed the writing box down to
+    // a textarea's default few-word width.
+    <div className={embedded ? "w-full" : "w-full bg-card border border-border/60 rounded-2xl p-4 shadow-sm"}>
       {showHeader && (
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-foreground">New Bulletin</p>
@@ -463,7 +477,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         signposts
         systemName={systemIdentity.name}
         placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
-        className="min-h-[80px] text-sm resize-none"
+        className="min-h-[128px] w-full text-sm resize-none"
         autoFocus
       />
 
@@ -541,7 +555,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         <div className="mt-3 flex items-start gap-2 text-xs px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-foreground">
           <span className="text-base leading-none mt-px">💡</span>
           <p className="flex-1 leading-relaxed">
-            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag an alter.
+            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag an {terms.alter}.
           </p>
           <button onClick={dismissHint} aria-label="Dismiss hint" className="text-muted-foreground hover:text-foreground flex-shrink-0">
             <X className="w-3.5 h-3.5" />

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { queryClientInstance } from "@/lib/query-client";
+import { holdGestureLive } from "@/lib/holdGesture";
 
 // App-wide pull-to-refresh (touch devices only), mounted ONCE in AppLayout so
 // the v2 home board and every page get it without per-page wiring. The old
@@ -57,6 +58,8 @@ export default function GlobalPullToRefresh() {
 
     const onMove = (e) => {
       if (!start.current || refreshingRef.current) return;
+      // Dragging DOWN a level rail is picking a level, not a pull.
+      if (holdGestureLive()) { start.current = null; setPull(0); pullRef.current = 0; return; }
       const t = e.touches[0];
       const dy = t.clientY - start.current.y;
       const dx = Math.abs(t.clientX - start.current.x);

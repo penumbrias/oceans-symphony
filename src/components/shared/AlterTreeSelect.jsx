@@ -168,6 +168,8 @@ export default function AlterTreeSelect({
   groups: groupsProp = null,
   excludeIds = null, // optional: alter ids to leave out entirely
   disabledIds = null, // optional: alter ids shown but dimmed + non-selectable (keeps the subtree reachable)
+  rowProps = null, // optional: (alter) => extra props for a selectable row (e.g. the level rail's hold props)
+  rowBadge = null, // optional: (alter) => short text shown at the row's end (e.g. the alter's front level)
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -234,13 +236,16 @@ export default function AlterTreeSelect({
     }
     const on = isSelected(a.id);
     const dis = disabledSet.has(a.id);
+    const extra = (!dis && rowProps?.(a)) || {};
+    const badge = rowBadge?.(a);
     return (
-      <button key={key} type="button" disabled={busy || dis} onClick={() => !dis && onToggle?.(a, single ? true : !on)}
+      <button key={key} type="button" disabled={busy || dis} {...extra} onClick={() => !dis && onToggle?.(a, single ? true : !on)}
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${dis ? "opacity-40 cursor-not-allowed border-transparent" : on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
-        style={{ marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
+        style={{ ...(extra.style || {}), marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
         <span className={`w-4 h-4 ${single ? "rounded-full" : "rounded-md"} border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && (single ? <span className="w-1.5 h-1.5 rounded-full bg-current" /> : <Check className="w-3 h-3" />)}</span>
         <TreeAlterAvatar alter={a} />
         <span className={`text-xs truncate ${on ? "font-medium text-foreground" : "text-foreground/90"}`}>{formatAlter(a)}</span>
+        {badge && !dis && <span className="ml-auto text-[0.625rem] font-medium px-1.5 py-0.5 rounded-md bg-primary/10 text-primary flex-shrink-0 max-w-[40%] truncate">{badge}</span>}
         {dis && <span className="ml-auto text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0">✓</span>}
       </button>
     );
