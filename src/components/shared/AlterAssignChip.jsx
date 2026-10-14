@@ -65,8 +65,12 @@ export default function AlterAssignChip({ alters = [], value = null, defaultIds 
         <Users className="w-2.5 h-2.5 flex-shrink-0" />
         <span className="truncate">{chipText}</span>
       </button>
-      <AlterAssignPopup open={open} onOpenChange={setOpen} alters={alters}
-        value={value} defaultIds={defaultIds} onChange={onChange} zIndex={zIndex} />
+      {/* Mounted only while open: every ticked symptom row carries a chip,
+          and a closed popup still sorted the whole roster on each render. */}
+      {open && (
+        <AlterAssignPopup open={open} onOpenChange={setOpen} alters={alters}
+          value={value} defaultIds={defaultIds} onChange={onChange} zIndex={zIndex} />
+      )}
     </>
   );
 }

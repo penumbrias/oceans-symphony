@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
 import AlterAssignChip from "@/components/shared/AlterAssignChip";
 import { startSymptomSession, endSymptomSessions } from "@/lib/symptomSessions";
+import { SymptomDuplicatesBanner } from "@/components/symptoms/SymptomDuplicatesModal";
 
 // "context" is a virtual tab: context-kind items live in category "symptom"
 // (legacy rows) but are triggers/factors, not symptoms — they get their own
@@ -113,6 +114,10 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
 
   return (
     <div className="space-y-3">
+      {/* Near-duplicates ("Energy" + "Energy level"…) make this list long —
+          offer the one-tap merge right where it hurts. */}
+      <SymptomDuplicatesBanner />
+
       {/* Tabs */}
       <div className="flex gap-1 bg-muted/40 rounded-lg p-1">
         {TABS.map((tab) =>

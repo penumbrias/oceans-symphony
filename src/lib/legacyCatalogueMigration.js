@@ -22,35 +22,10 @@ import { TRACKING_BUNDLES, bundleById, itemToSymptomFields } from "@/lib/trackin
 import { getSeedTerms } from "@/utils/symptomDefaults";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 
-// Legacy label → { bundleId, presetLabel }. Only concept-equivalent pairs;
-// anything semantically ambiguous or direction-flipped is intentionally
-// omitted so we never subtly change the meaning of a user's data.
-export const LEGACY_TO_PRESET_EQUIVALENTS = [
-  // Mood rating symptoms
-  { legacy: "Overall mood", bundleId: "mood", preset: "Overall mood" },
-  { legacy: "Energy level", bundleId: "mood", preset: "Energy" },
-  { legacy: "Self esteem", bundleId: "mood", preset: "Self esteem" },
-  { legacy: "Anxiety", bundleId: "mood", preset: "Anxious / on edge" },
-  { legacy: "Depression", bundleId: "mood", preset: "Low / depressed" },
-  { legacy: "Feeling irritable", bundleId: "mood", preset: "Irritable" },
-  { legacy: "Feeling manic / wired / elated", bundleId: "mood", preset: "Wired / elevated" },
-  { legacy: "Feeling overwhelmed", bundleId: "mood", preset: "Overwhelmed" },
-  { legacy: "Emotional numbness", bundleId: "mood", preset: "Emotionally numb / flat" },
-  // Body / sleep
-  { legacy: "Trouble sleeping", bundleId: "body", preset: "Trouble sleeping" },
-  // Dissociation
-  { legacy: "Amnesia / memory problems", bundleId: "dissociation", preset: "Memory gaps today" },
-  // Context
-  { legacy: "Work / school stress", bundleId: "context", preset: "Work / school stress" },
-  // Habits (behaviour boolean → daily_care)
-  { legacy: "Spoke to someone about feelings", bundleId: "daily_care", preset: "Talked to someone I trust" },
-  { legacy: "Took care of chores", bundleId: "daily_care", preset: "Took care of a chore" },
-  { legacy: "Attended therapy", bundleId: "daily_care", preset: "Attended therapy" },
-  { legacy: "Used coping skills", bundleId: "daily_care", preset: "Used a coping skill" },
-  { legacy: "Exercise / movement", bundleId: "daily_care", preset: "Moved my body" },
-  { legacy: "Engaged in social activities", bundleId: "daily_care", preset: "Spent time with people" },
-  { legacy: "Self-care", bundleId: "daily_care", preset: "Did something just for me" },
-];
+// The old-name → preset-name table lives with the duplicate matcher
+// (storage-free) — re-exported here for existing importers.
+import { LEGACY_TO_PRESET_EQUIVALENTS } from "@/lib/symptomDuplicates";
+export { LEGACY_TO_PRESET_EQUIVALENTS };
 
 function lower(s) { return String(s || "").trim().toLowerCase(); }
 

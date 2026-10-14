@@ -13,12 +13,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { withBatch } from "@/lib/localDb";
 import { toast } from "sonner";
 import { TRACKING_BUNDLES, itemToSymptomFields } from "@/lib/trackingPresets";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
+import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 
-const labelKey = (label, category) => `${String(label || "").trim().toLowerCase()}::${category}`;
+// Near-duplicate aware: "Energy level" already in the list covers the
+// "Energy" preset, so ticking a pack never adds a second copy.
+const labelKey = (label, category) => symptomDuplicateKey(label, category);
 
 // Small badge describing how an item logs.
 function TypeBadge({ item }) {
@@ -219,6 +223,8 @@ export default function BundlePicker({ open, onClose, onAdded }) {
     try {
       let created = 0;
       let removed = 0;
+      // One disk write for the whole save, not one per ticked item.
+      await withBatch(async () => {
       // Create anything ticked that isn't already in the catalogue.
       for (const key of selected) {
         if (symptomByBundleKey.has(key)) continue;
@@ -240,6 +246,7 @@ export default function BundlePicker({ open, onClose, onAdded }) {
         await base44.entities.Symptom.update(row.id, { is_archived: true });
         removed++;
       }
+      });
       queryClient.invalidateQueries({ queryKey: ["symptoms"] });
       const parts = [];
       if (created) parts.push(`added ${created}`);

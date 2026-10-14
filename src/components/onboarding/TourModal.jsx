@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { withBatch } from "@/lib/localDb";
 import { useTerms } from "@/lib/useTerms";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";
 import {
@@ -42,13 +43,15 @@ import {
 } from "@/lib/trackingPresets";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { markBundlesChosen } from "@/utils/symptomDefaults";
+import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
 import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import SetupChecklist from "@/components/onboarding/SetupChecklist";
 
-const labelKey = (label, category) =>
-  `${String(label || "").trim().toLowerCase()}::${category}`;
+// Near-duplicate aware ("Energy level" already covers the "Energy" preset)
+// so a pack never adds a second copy of something already in the list.
+const labelKey = (label, category) => symptomDuplicateKey(label, category);
 
 function bundleKeyForSymptom(sym, terms) {
   for (const bundle of TRACKING_BUNDLES) {
@@ -157,6 +160,8 @@ export default function TourModal({ open, onClose, openAt = null }) {
 
   const applyBundlesDiff = async () => {
     let created = 0, removed = 0;
+    // One disk write for the whole choice, not one per item.
+    await withBatch(async () => {
     for (const key of selected) {
       if (symptomByBundleKey.has(key)) continue;
       const [bundleId, idxStr] = key.split(":");
@@ -174,6 +179,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       await base44.entities.Symptom.update(row.id, { is_archived: true });
       removed++;
     }
+    });
     markBundlesChosen();
     qc.invalidateQueries({ queryKey: ["symptoms"] });
     if (created || removed) {

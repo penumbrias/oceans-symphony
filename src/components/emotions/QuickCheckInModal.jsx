@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
 import useFormDraft from "@/hooks/useFormDraft";
+import { withBatch } from "@/lib/localDb";
 import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
@@ -941,6 +942,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
 
+      // ONE disk write for the whole check-in. Every entity write used to
+      // re-serialise (and, when encrypted, re-encrypt + mirror) the ENTIRE
+      // database — a check-in with 20 symptoms ticked did 20+ full-database
+      // saves back to back, which is what made saving crawl and, on big
+      // databases, run phones out of memory. withBatch keeps every write
+      // exactly as before and flushes once at the end (also on error).
+      const editDone = await withBatch(async () => {
+
       // Edit mode: update the existing EmotionCheckIn in place and exit
       // early. We deliberately skip the activity/fronting-sync/diary/
       // location create-paths because those would spawn fresh records
@@ -1086,8 +1095,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["timeline"] });
         queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
-        onClose();
-        return;
+        return true;
       }
 
       // Pass `now` so retroactive check-ins stamp the activity at the
@@ -1178,14 +1186,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // assignment when set, else the check-in's fronters. (Previously
       // symptom check-ins carried no attribution at all — the per-alter
       // symptom analytics were silently empty.)
-      for (const sc of symptomCheckIns) {
-        await base44.entities.SymptomCheckIn.create({
+      if (symptomCheckIns.length > 0) {
+        await base44.entities.SymptomCheckIn.bulkCreate(symptomCheckIns.map((sc) => ({
           symptom_id: sc.symptom_id,
           timestamp: now,
           severity: sc.severity,
           fronting_alter_ids: sc.alter_ids ?? selectedAlters,
           check_in_id: checkInId
-        });
+        })));
       }
       if (symptomCheckIns.length > 0) queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
 
@@ -1230,6 +1238,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       }
 
       await commitContactChanges();
+      return false;
+      });
+      if (editDone) { onClose(); return; }
 
       // Everything saved — the draft must never "restore" a posted check-in.
       clearDraft();
