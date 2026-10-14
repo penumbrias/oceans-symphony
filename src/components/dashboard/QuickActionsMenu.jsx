@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms, isTemplateDoneNow, toggleTemplateDone } from "@/lib/dailyTaskSystem";
+import { isCountedTask, taskCountConfig, addTaskCount, countLabel, TASK_TICKS_QUERY_KEY } from "@/lib/taskCounts";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
@@ -365,6 +366,7 @@ function LocationRow({ action, onAction }) {
 
 function DailyTaskRow({ action }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const terms = useTerms();
   const { task_id } = action.config || {};
 
@@ -387,6 +389,17 @@ function DailyTaskRow({ action }) {
     if (!template || template.mode !== "MANUAL" || busy) return;
     setBusy(true);
     try {
+      // Counted tasks (several times / tally / steps): add one instead.
+      if (isCountedTask(template)) {
+        if (taskCountConfig(template).mode === "steps") { navigate("/tasks"); return; }
+        const { state, becameDone } = await addTaskCount(template, { templates });
+        queryClient.invalidateQueries({ queryKey: TASK_TICKS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+        toast.success(becameDone
+          ? `${applyTerms(template.title, terms)} done! 🎉`
+          : `${applyTerms(template.title, terms)}: ${countLabel(state)}`);
+        return;
+      }
       const nowCompleted = await toggleTemplateDone(template, { templates });
       queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
       if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);

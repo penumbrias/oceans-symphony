@@ -73,6 +73,7 @@ function DailyTaskStartPrompt({ template, onClose }) {
       await logDailyTaskActivity(template, { when, categories, alterIds: await frontingIds() });
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+      qc.invalidateQueries({ queryKey: ["taskTicks"] });
       toast.success(tr("dailyTask.logged", { name }));
     } catch (e) {
       toast.error(e?.message || "Failed");

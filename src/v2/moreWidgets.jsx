@@ -37,6 +37,7 @@ import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
 import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
+import { isCountedTask, taskCountState, taskCountConfig, addTaskCount, countLabel, TASK_TICKS_QUERY_KEY } from "@/lib/taskCounts";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -249,6 +250,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
   }, [settings?.frequencies, settings?.frequency]);
   const templates = useList("dailyTaskTemplates", "DailyTaskTemplate");
   const progress = useList("dailyProgress", "DailyProgress");
+  const ticks = useList("taskTicks", "TaskTick");
 
   const groups = useMemo(() => frequencies.map((frequency) => {
     const periodKey = getPeriodKey(frequency);
@@ -270,6 +272,22 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
     // ticking one by hand would lie about what was done.
     if (t.mode === "AUTO") {
       toast.info("This one ticks itself off when you do the thing it tracks.");
+      return;
+    }
+    // Counted tasks: a tap adds one; a steps task opens its checklist.
+    if (isCountedTask(t)) {
+      if (taskCountConfig(t).mode === "steps") { navigate("/tasks"); return; }
+      setBusy(t.id);
+      try {
+        const { becameDone } = await addTaskCount(t, { templates });
+        qc.invalidateQueries({ queryKey: TASK_TICKS_QUERY_KEY });
+        qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+        if (becameDone) toast.success(`${applyTerms(t.title || "", terms)} done! 🎉`);
+      } catch (e) {
+        toast.error(e?.message || "Couldn't save that.");
+      } finally {
+        setBusy(null);
+      }
       return;
     }
     setBusy(t.id);
@@ -323,7 +341,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
             {g.mine.length === 0 && <Muted>No {g.frequency} tasks set up.</Muted>}
             {g.mine.slice(0, 8).map((t) => (
               <Row key={t.id} primary={applyTerms(t.title || "", terms)}
-                right={g.isDone(t) ? "done" : undefined} />
+                right={g.isDone(t) ? "done" : (isCountedTask(t) ? countLabel(taskCountState(t, ticks)) : undefined)} />
             ))}
           </React.Fragment>
         ))}
@@ -345,7 +363,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
                 key={t.id}
                 left={
                   <button type="button" onClick={() => toggle(g, t)} disabled={busy === t.id}
-                    aria-label={on ? "Mark not done" : "Mark done"} className="flex-shrink-0 disabled:opacity-50">
+                    aria-label={isCountedTask(t) ? "Add one" : (on ? "Mark not done" : "Mark done")} className="flex-shrink-0 disabled:opacity-50">
                     {on
                       ? <CheckCircle2 className="w-4 h-4" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }} />
                       : <Circle className="w-4 h-4 text-muted-foreground" />}
@@ -353,7 +371,9 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
                 }
                 primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
                 secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
-                right={mode === "expanded" && t.points ? `${t.points} xp` : undefined}
+                right={isCountedTask(t)
+                  ? countLabel(taskCountState(t, ticks))
+                  : (mode === "expanded" && t.points ? `${t.points} xp` : undefined)}
                 onClick={isDailyTaskOpenable(t) ? () => openDailyTask(t, navigate) : undefined}
               />
             );

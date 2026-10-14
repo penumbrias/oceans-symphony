@@ -207,6 +207,19 @@ export async function runQuickAction(action, extraData = {}, ctx) {
       toast.error("That daily task can't be toggled from a shortcut");
       return;
     }
+    // Counted tasks (several times / tally / steps): a shortcut adds one.
+    const { isCountedTask, taskCountConfig, addTaskCount, countLabel } = await import("@/lib/taskCounts");
+    if (isCountedTask(tpl)) {
+      if (taskCountConfig(tpl).mode === "steps") {
+        toast.info(`${tpl.title} has steps — tick them on the tasks page.`);
+        return;
+      }
+      const { state, becameDone } = await addTaskCount(tpl, { templates });
+      queryClient.invalidateQueries({ queryKey: ["taskTicks"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+      toast.success(becameDone ? `${tpl.title} done! 🎉` : `${tpl.title}: ${countLabel(state)}`);
+      return;
+    }
     // The task's OWN period and reset rule — a weekly task used to be
     // filed under today's daily record here.
     const nowCompleted = await toggleTemplateDone(tpl, { templates });
