@@ -480,7 +480,7 @@ const HISTORY_SKIP = new Set([
   // out of app surfaces like the history page. Progress/derived rows
   // churn constantly and carry no user-authored substance.
   "GroceryItem", "GroceryFavorite", "GroceryList",
-  "ReminderInstance", "DailyProgress", "MentionLog", "LearningProgress",
+  "ReminderInstance", "DailyProgress", "TaskTick", "MentionLog", "LearningProgress",
 ]);
 const HISTORY_BUCKET_OF = (entityName) => {
   if (["Alter", "Group", "AlterRelationship", "SystemChangeEvent", "InnerWorldLocation",

@@ -134,7 +134,7 @@ function recommendedNumParts(textLength) {
 // install cancel notifications it didn't schedule.
 const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
-  "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
+  "DiaryCard", "DailyProgress", "TaskTick", "CustomField", "AlterNote", "AlterMessage",
   "Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn",
   "SystemSettings", "SystemCheckIn", "EmotionCheckIn", "DeletionLog",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
@@ -175,7 +175,7 @@ export const EXPORT_CATEGORIES = [
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
   { id: "checkins",      label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                                  desc: "Emotion & system check-ins" },
   { id: "bulletin",      label: "Bulletin Board",           entities: ["Bulletin", "BulletinComment", "Poll"],                              desc: "Posts, comments, polls" },
-  { id: "tracking",      label: "Daily Tracking",           entities: ["DiaryCard", "DailyProgress", "ActivityGoal", "DailyTaskTemplate", "DiaryTemplate"], desc: "Diary cards, goals, templates" },
+  { id: "tracking",      label: "Daily Tracking",           entities: ["DiaryCard", "DailyProgress", "TaskTick", "ActivityGoal", "DailyTaskTemplate", "DiaryTemplate"], desc: "Diary cards, goals, templates" },
   { id: "activities",    label: "Activities & Sleep",       entities: ["Activity", "Sleep"],                                                 desc: "Activity logs and sleep records" },
   { id: "tasks",         label: "Tasks",                    entities: ["Task"],                                                              desc: "To-do list" },
   { id: "symptoms",      label: "Symptoms & Tracking",      entities: ["Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn"], desc: "Symptom definitions and check-in history" },

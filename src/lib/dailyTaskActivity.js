@@ -110,7 +110,8 @@ export async function logDailyTaskActivity(template, { when = "now", categories 
 }
 
 // A plan that came from a daily task finished as done → tick that task
-// for its own period (never untick: it may already be ticked by hand).
+// for its own period (never untick: it may already be ticked by hand), or
+// add one to its count.
 export async function markDailyTaskDoneFor(plan) {
   const templateId = plan?.daily_task_template_id;
   if (!templateId) return;
@@ -118,6 +119,12 @@ export async function markDailyTaskDoneFor(plan) {
     const templates = await base44.entities.DailyTaskTemplate.list();
     const template = (templates || []).find((t) => t.id === templateId);
     if (!template) return;
+    // A task done several times a period (or tallied) counts this one; a
+    // steps task leaves its checklist to the person.
+    const { taskCountConfig, addTaskCount } = await import("@/lib/taskCounts");
+    const countMode = taskCountConfig(template).mode;
+    if (countMode === "steps") return;
+    if (countMode !== "once") { await addTaskCount(template, { templates }); return; }
     const progress = await base44.entities.DailyProgress.list().catch(() => []);
     if (isTemplateDoneNow(template, progress)) return;
     await toggleTemplateDone(template, { templates, allProgress: progress });

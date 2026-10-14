@@ -528,7 +528,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "tasks", sectionLabel: "Tasks",
       emoji: "⚙️",
       title: "Edit Tasks (Manage)",
-      body: `The Edit button opens the Task Manager inline. Here you can add tasks, edit existing ones, toggle them hidden or visible, drag to reorder within each frequency section, and delete them. Tasks can be MANUAL (tap to complete) or AUTO (completed automatically by app actions like logging a check-in). A MANUAL task can also record activities — pick one or more and how: Timed (runs for a set time, then checks in so you can mark it done, keep going, or move it), Start active (runs until you end it), or Just log it (done now, or for today with no time). Tapping the task then asks first, and opens its link too.`,
+      body: `The Edit button opens the Task Manager inline. Here you can add tasks, edit existing ones, toggle them hidden or visible, drag to reorder within each frequency section, and delete them. Tasks can be MANUAL (tap to complete) or AUTO (completed automatically by app actions like logging a check-in). A MANUAL task can also record activities — pick one or more and how: Timed (runs for a set time, then checks in so you can mark it done, keep going, or move it), Start active (runs until you end it), or Just log it (done now, or for today with no time). Tapping the task then asks first, and opens its link too. Under "How it's completed" a MANUAL task can be done Once, Several times (a set number each period), as a Tally (just counts), or in Steps (a checklist that resets each period).`,
       route: "/tasks", target: "tasks-edit-btn",
       look: `the highlighted "Edit" button in the top-right of the Tasks header`, action: null,
     },

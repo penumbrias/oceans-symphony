@@ -38,6 +38,9 @@ const EMPTY_FORM = {
   activity_category_ids: [],         // MANUAL only: tapping the task records these activities…
   activity_mode: "timed",            // …"timed" (runs for activity_minutes) | "active" (runs until ended) | "log" (logged done, nothing runs)
   activity_minutes: "",
+  count_mode: "once",                // MANUAL only: "once" | "target" (target_count times a period) | "tally" (just counts) | "steps"
+  target_count: "",
+  steps: [],                         // [{ id, text }] for count_mode "steps"
   active_days: [],                   // daily only: which weekdays it's due (0 = Sunday); empty = every day
   reset_mode: "calendar",            // "calendar" (period / chosen weekday) | "rolling" (a full period after last completion)
   week_start_day: 1,                 // weekly + calendar: which weekday the week resets on (0 = Sunday)
@@ -66,15 +69,32 @@ function activityFields(form) {
   };
 }
 
+// How a saved task is completed (taskCounts.js). Step ids are kept on
+// edit so this period's ticks stay with their step.
+function countFields(form) {
+  const mode = form.mode === "MANUAL" && ["target", "tally", "steps"].includes(form.count_mode) ? form.count_mode : "once";
+  const target = Math.round(Number(form.target_count) || 0);
+  const steps = (form.steps || []).map((st) => ({ id: st.id, text: String(st.text || "").trim() })).filter((st) => st.text);
+  if (mode === "target" && target >= 2) return { count_mode: "target", target_count: target, steps: [] };
+  if (mode === "tally") return { count_mode: "tally", target_count: null, steps: [] };
+  if (mode === "steps" && steps.length) return { count_mode: "steps", target_count: null, steps };
+  return { count_mode: "once", target_count: null, steps: [] };
+}
+
+const newStepId = () => (globalThis.crypto?.randomUUID?.() || `step_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
+const PERIOD_WORD = { daily: "day", weekly: "week", monthly: "month", yearly: "year" };
+
 function TaskForm({ initial, onSave, onCancel, isNew }) {
   const [form, setForm] = useState(() => {
     if (!initial) return EMPTY_FORM;
     // Older tasks (v0.255.0) stored one activity and no mode — show them
     // in the current shape.
     const cfg = taskActivityConfig(initial);
-    return cfg
+    const base = cfg
       ? { ...initial, activity_category_ids: cfg.categoryIds, activity_mode: cfg.mode, activity_minutes: cfg.minutes || initial.activity_minutes || "" }
       : { ...initial, activity_category_ids: [], activity_mode: "timed" };
+    // Older tasks have no count fields — they're "once".
+    return { ...base, count_mode: base.count_mode || "once", target_count: base.target_count ?? "", steps: Array.isArray(base.steps) ? base.steps : [] };
   });
   const terms = useTerms();
   const { data: categories = [] } = useQuery({
@@ -332,6 +352,68 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             </div>
           );
         })()}
+        {form.mode === "MANUAL" && (() => {
+          const cm = form.count_mode || "once";
+          const period = PERIOD_WORD[form.frequency || "daily"] || "day";
+          const steps = form.steps || [];
+          const COUNT_MODES = [
+            ["once", "Once", "One tick and it's done."],
+            ["target", "Several times", `Needs doing a set number of times each ${period}. It's done when the count is reached.`],
+            ["tally", "Tally", `Counts how many times it happened this ${period}. It's done after the first one.`],
+            ["steps", "Steps", `A short checklist. It's done when every step is ticked, and the steps reset each ${period}.`],
+          ];
+          const setStep = (i, text) => set("steps", steps.map((st, j) => (j === i ? { ...st, text } : st)));
+          return (
+            <div className="col-span-2 space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">How it's completed</label>
+              <div role="radiogroup" aria-label="How it's completed" className="flex flex-wrap gap-1.5">
+                {COUNT_MODES.map(([id, label]) => (
+                  <button key={id} type="button" role="radio" aria-checked={cm === id}
+                    onClick={() => setForm((p) => ({
+                      ...p, count_mode: id,
+                      ...(id === "steps" && !(p.steps || []).length ? { steps: [{ id: newStepId(), text: "" }] } : {}),
+                    }))}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      cm === id ? "border-primary text-primary bg-primary/10" : "border-border/60 text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{COUNT_MODES.find(([id]) => id === cm)?.[2]}</p>
+              {cm === "target" && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input type="number" min={2} max={999} inputMode="numeric"
+                    aria-label={`Times per ${period}`}
+                    className="w-20 rounded-md border border-border bg-background px-2 py-2 text-sm"
+                    value={form.target_count ?? ""} onChange={(e) => set("target_count", e.target.value)}
+                    placeholder="3" />
+                  times a {period}
+                </label>
+              )}
+              {cm === "steps" && (
+                <div className="space-y-1.5">
+                  {steps.map((st, i) => (
+                    <div key={st.id} className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground w-4 text-right">{i + 1}.</span>
+                      <input className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                        aria-label={`Step ${i + 1}`} value={st.text} onChange={(e) => setStep(i, e.target.value)}
+                        placeholder="What's this step?" />
+                      <button type="button" onClick={() => set("steps", steps.filter((_, j) => j !== i))}
+                        aria-label={`Remove step ${i + 1}`} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => set("steps", [...steps, { id: newStepId(), text: "" }])}
+                    className="text-xs text-primary flex items-center gap-1 px-1 py-1">
+                    <Plus className="w-3.5 h-3.5" /> Add a step
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="col-span-2 flex items-center gap-2">
           <input type="checkbox" id="is_active" checked={form.is_active}
             onChange={(e) => set("is_active", e.target.checked)} className="rounded" />
@@ -468,6 +550,7 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
       ...activityFields(form),
+      ...countFields(form),
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
@@ -490,6 +573,7 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
       ...activityFields(form),
+      ...countFields(form),
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
