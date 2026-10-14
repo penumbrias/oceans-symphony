@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 14, 2026",
     changes: [
+      { type: "improve", text: "Daily tasks can have several activities, and each task chooses how they're recorded: timed, start active, or just log it done (now or for today)." },
       { type: "feature", text: "Daily tasks can start an activity: give one an activity and a length, and tapping it asks \"Open and begin?\" and times it for you." },
       { type: "improve", text: "When an activity's planned time is up, the notification has Done, +15 min and Other buttons, and skipped or early-stopped plans offer one-tap times to try again." },
       { type: "fix", text: "Quick Check-In: the {{fronting}} list shows each {{alter}}'s level instead of the old primary star, and holding a name (or a chip) opens the level rail there too." },

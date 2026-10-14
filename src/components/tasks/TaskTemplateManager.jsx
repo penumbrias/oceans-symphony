@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { SearchableMultiSelect } from "@/components/shared/SearchableSelect";
+import { taskActivityConfig } from "@/lib/dailyTaskActivity";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, WEEKDAY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
@@ -34,8 +35,9 @@ const EMPTY_FORM = {
   auto_triggers: [],                 // new: ordered list of trigger ids
   auto_trigger_mode: "any",          // "any" (OR) | "all" (AND) — only matters when 2+
   nav_path: "",
-  activity_category_id: null,        // MANUAL only: tapping the task offers to begin this activity
-  activity_minutes: "",              // …for this long (the end-of-plan check-in fires then)
+  activity_category_ids: [],         // MANUAL only: tapping the task records these activities…
+  activity_mode: "timed",            // …"timed" (runs for activity_minutes) | "active" (runs until ended) | "log" (logged done, nothing runs)
+  activity_minutes: "",
   active_days: [],                   // daily only: which weekdays it's due (0 = Sunday); empty = every day
   reset_mode: "calendar",            // "calendar" (period / chosen weekday) | "rolling" (a full period after last completion)
   week_start_day: 1,                 // weekly + calendar: which weekday the week resets on (0 = Sunday)
@@ -50,8 +52,30 @@ function readTriggers(form) {
   return form?.auto_trigger ? [form.auto_trigger] : [];
 }
 
+// What a saved task stores about its activities. The first build's single
+// `activity_category_id` is cleared once the list takes over.
+function activityFields(form) {
+  const ids = form.mode === "MANUAL" ? (form.activity_category_ids || []).filter(Boolean) : [];
+  const mode = ["timed", "active", "log"].includes(form.activity_mode) ? form.activity_mode : "timed";
+  const minutes = Math.round(Number(form.activity_minutes) || 0);
+  return {
+    activity_category_ids: ids,
+    activity_category_id: null,
+    activity_mode: ids.length ? (mode === "timed" && minutes <= 0 ? "active" : mode) : null,
+    activity_minutes: ids.length && mode === "timed" && minutes > 0 ? minutes : null,
+  };
+}
+
 function TaskForm({ initial, onSave, onCancel, isNew }) {
-  const [form, setForm] = useState(initial || EMPTY_FORM);
+  const [form, setForm] = useState(() => {
+    if (!initial) return EMPTY_FORM;
+    // Older tasks (v0.255.0) stored one activity and no mode — show them
+    // in the current shape.
+    const cfg = taskActivityConfig(initial);
+    return cfg
+      ? { ...initial, activity_category_ids: cfg.categoryIds, activity_mode: cfg.mode, activity_minutes: cfg.minutes || initial.activity_minutes || "" }
+      : { ...initial, activity_category_ids: [], activity_mode: "timed" };
+  });
   const terms = useTerms();
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"],
@@ -251,17 +275,23 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
               value={form.nav_path || ""} onChange={(e) => set("nav_path", e.target.value)} placeholder="/page-path or https://…" />
           </div>
         )}
-        {form.mode === "MANUAL" && (
-          <div className="col-span-2">
-            <label className="text-xs font-medium text-muted-foreground">Start an activity when tapped (optional)</label>
-            <div className="mt-1 grid grid-cols-[1fr_auto] gap-2 items-center">
-              <SearchableSelect
-                value={form.activity_category_id || null}
-                onChange={(id) => set("activity_category_id", id || null)}
+        {form.mode === "MANUAL" && (() => {
+          const ids = form.activity_category_ids || [];
+          const mode = form.activity_mode || "timed";
+          const MODES = [
+            ["timed", "Timed", "Starts running for a set time, then asks how it went."],
+            ["active", "Start active", "Starts running until you end it."],
+            ["log", "Just log it", "Logs it as done now, or for today without a time."],
+          ];
+          return (
+            <div className="col-span-2 space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Activities for this task (optional)</label>
+              <SearchableMultiSelect
+                value={ids}
+                onChange={(next) => set("activity_category_ids", next || [])}
                 options={categoryOptions}
-                placeholder="No activity"
+                placeholder="No activities"
                 searchPlaceholder="Search activities…"
-                allowClear
                 renderOption={(o) => (
                   <span className="flex items-center gap-2 min-w-0">
                     {o._depth > 0 && <span style={{ width: o._depth * 12 }} className="flex-shrink-0 text-muted-foreground text-xs text-right">↳</span>}
@@ -270,23 +300,38 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
                   </span>
                 )}
               />
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input type="number" min={1} max={720} inputMode="numeric"
-                  disabled={!form.activity_category_id}
-                  aria-label="Activity length in minutes"
-                  className="w-16 rounded-md border border-border bg-background px-2 py-2 text-sm disabled:opacity-50"
-                  value={form.activity_minutes ?? ""} onChange={(e) => set("activity_minutes", e.target.value)}
-                  placeholder="min" />
-                min
-              </label>
+              {ids.length > 0 && (
+                <>
+                  <div role="radiogroup" aria-label="When the task is tapped" className="flex flex-wrap gap-1.5">
+                    {MODES.map(([id, label]) => (
+                      <button key={id} type="button" role="radio" aria-checked={mode === id}
+                        onClick={() => set("activity_mode", id)}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${
+                          mode === id ? "border-primary text-primary bg-primary/10" : "border-border/60 text-muted-foreground hover:text-foreground"
+                        }`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {mode === "timed" && (
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input type="number" min={1} max={720} inputMode="numeric"
+                        aria-label="Activity length in minutes"
+                        className="w-20 rounded-md border border-border bg-background px-2 py-2 text-sm"
+                        value={form.activity_minutes ?? ""} onChange={(e) => set("activity_minutes", e.target.value)}
+                        placeholder="min" />
+                      minutes
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {MODES.find(([id]) => id === mode)?.[2]}
+                    {form.nav_path && mode !== "log" ? " The link opens at the same time." : ""}
+                  </p>
+                </>
+              )}
             </div>
-            {form.activity_category_id && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Tapping the task asks to begin this activity{form.nav_path ? " as the link opens" : ""}. When the time is up you'll be asked how it went.
-              </p>
-            )}
-          </div>
-        )}
+          );
+        })()}
         <div className="col-span-2 flex items-center gap-2">
           <input type="checkbox" id="is_active" checked={form.is_active}
             onChange={(e) => set("is_active", e.target.checked)} className="rounded" />
@@ -422,9 +467,7 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
-      activity_category_id: form.mode === "MANUAL" ? (form.activity_category_id || null) : null,
-      activity_minutes: form.mode === "MANUAL" && form.activity_category_id && Number(form.activity_minutes) > 0
-        ? Math.round(Number(form.activity_minutes)) : null,
+      ...activityFields(form),
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
@@ -446,9 +489,7 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
-      activity_category_id: form.mode === "MANUAL" ? (form.activity_category_id || null) : null,
-      activity_minutes: form.mode === "MANUAL" && form.activity_category_id && Number(form.activity_minutes) > 0
-        ? Math.round(Number(form.activity_minutes)) : null,
+      ...activityFields(form),
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0

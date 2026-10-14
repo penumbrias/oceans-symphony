@@ -16,13 +16,25 @@ import { followTaskNavPath, isTemplateDoneNow, toggleTemplateDone } from "@/lib/
 
 export const OPEN_DAILY_TASK_START_EVENT = "open-daily-task-start";
 
-// The task's activity setup, or null when it has none.
+// How a task's activities are recorded when the task is tapped:
+//   "timed"  — starts running for a set length; the end check-in asks how it went
+//   "active" — starts running with no end; it runs until it's ended
+//   "log"    — nothing runs; it's logged as done now, or for today with no time
+export const TASK_ACTIVITY_MODES = ["timed", "active", "log"];
+
+// The task's activity setup, or null when it has none. Reads the first
+// build's single `activity_category_id` too (v0.255.0), and derives its
+// mode from whether it had a length.
 export function taskActivityConfig(template) {
   if (!template || template.mode === "AUTO") return null;
-  const categoryId = template.activity_category_id || null;
-  const minutes = Number(template.activity_minutes) || 0;
-  if (!categoryId) return null;
-  return { categoryId, minutes: minutes > 0 ? Math.round(minutes) : 0 };
+  const categoryIds = Array.isArray(template.activity_category_ids) && template.activity_category_ids.length
+    ? template.activity_category_ids.filter(Boolean)
+    : (template.activity_category_id ? [template.activity_category_id] : []);
+  if (!categoryIds.length) return null;
+  const minutes = Math.round(Number(template.activity_minutes) || 0);
+  let mode = TASK_ACTIVITY_MODES.includes(template.activity_mode) ? template.activity_mode : (minutes > 0 ? "timed" : "active");
+  if (mode === "timed" && minutes <= 0) mode = "active";
+  return { categoryIds, categoryId: categoryIds[0], minutes: mode === "timed" ? minutes : 0, mode };
 }
 
 // Is there anything to do when the task is tapped?
@@ -41,20 +53,25 @@ export function openDailyTask(template, navigate) {
   followTaskNavPath(template?.nav_path, navigate);
 }
 
-// Start the task's activity now: a plan stamped at this moment for the
-// set length, started straight away. Returns the plan record.
+const colorOf = (cfg, categories) =>
+  cfg.categoryIds.map((id) => (categories || []).find((c) => c.id === id)?.color).find(Boolean) || null;
+
+// Start the task's activities now ("timed" / "active"): a plan stamped at
+// this moment (for the set length when timed), started straight away.
+// Returns the plan record.
 export async function beginDailyTaskActivity(template, { categories = [], alterIds = [] } = {}) {
   const cfg = taskActivityConfig(template);
-  if (!cfg) return null;
+  if (!cfg || cfg.mode === "log") return null;
   const cat = (categories || []).find((c) => c.id === cfg.categoryId);
+  const color = colorOf(cfg, categories);
   const now = new Date();
   const plan = await base44.entities.Activity.create({
     timestamp: now.toISOString(),
     // The task's own name ("QiGong") reads better than its category
-    // ("Stretching"); the category still files it.
+    // ("Stretching"); the categories still file it.
     activity_name: template.title || cat?.name || "Activity",
-    activity_category_ids: [cfg.categoryId],
-    ...(cat?.color ? { color: cat.color } : {}),
+    activity_category_ids: cfg.categoryIds,
+    ...(color ? { color } : {}),
     ...(cfg.minutes ? { duration_minutes: cfg.minutes } : {}),
     fronting_alter_ids: alterIds,
     notes: null,
@@ -65,6 +82,31 @@ export async function beginDailyTaskActivity(template, { categories = [], alterI
   const { startPlanActive } = await import("@/lib/planner/resolvePlan");
   await startPlanActive(plan, { startedAt: now, categories });
   return plan;
+}
+
+// "log" mode: record that it was done — at this moment (`when: "now"`, no
+// length), or for today with no time (`when: "day"`, the planner's
+// untimed-day entry). Ticks the daily task too. Returns the record.
+export async function logDailyTaskActivity(template, { when = "now", categories = [], alterIds = [] } = {}) {
+  const cfg = taskActivityConfig(template);
+  if (!cfg) return null;
+  const cat = (categories || []).find((c) => c.id === cfg.categoryId);
+  const color = colorOf(cfg, categories);
+  const now = new Date();
+  const day = new Date(now); day.setHours(0, 0, 0, 0);
+  const record = await base44.entities.Activity.create({
+    ...(when === "day" ? { planned_date: day.toISOString() } : { timestamp: now.toISOString() }),
+    activity_name: template.title || cat?.name || "Activity",
+    activity_category_ids: cfg.categoryIds,
+    ...(color ? { color } : {}),
+    fronting_alter_ids: alterIds,
+    notes: null,
+    is_planned: false,
+    status: "logged",
+    daily_task_template_id: template.id,
+  });
+  await markDailyTaskDoneFor(record);
+  return record;
 }
 
 // A plan that came from a daily task finished as done → tick that task
