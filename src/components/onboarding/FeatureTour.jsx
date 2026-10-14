@@ -914,7 +914,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "settings", sectionLabel: "Settings",
       emoji: "📦",
       title: "Tracking Presets",
-      body: `The Check-in manager (Settings → Tracking setup → Check-in manager) now has a "Browse presets" button — a catalogue of things some ${t.systems} track, organised into packs like Dissociation, Trauma responses, Focus, Sensory, and Daily care. Open a pack, tick what fits, and it joins your symptoms/habits list. Everything stays editable, nothing is ever required — they're offered, not prescribed.`,
+      body: `The Check-in manager (Settings → Tracking setup → Check-in manager) now has a "Browse presets" button — a catalogue of things some ${t.systems} track, organised into packs like Dissociation, Trauma responses, Focus, Sensory, and Daily care. Open a pack, tick what fits, and it joins your symptoms/habits list. Everything stays editable, nothing is ever required — they're offered, not prescribed. Anything already in your list under a similar name ("Energy level" for "Energy") isn't added twice, and if your list already has doubles, a "Tidy up" card appears here to merge them in one go.`,
       route: "/manage-checkin", target: "symptom-presets",
       look: `the highlighted "Browse presets" button on the Symptoms tab`, action: null,
     },

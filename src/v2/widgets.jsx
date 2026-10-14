@@ -61,6 +61,7 @@ import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
+import { resolveMergedSymptomId } from "@/lib/symptomDuplicates";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
@@ -2485,7 +2486,10 @@ function LogSymptomWidget({ settings }) {
   const tr = useT();
   const qc = useQueryClient();
   const symptoms = useList("symptoms", "Symptom");
-  const chosenIds = Array.isArray(settings?.symptomIds) ? settings.symptomIds : [];
+  // A chosen symptom that was merged away (Tidy up duplicates) follows its
+  // merged_into link to the row that now holds its history.
+  const byId = Object.fromEntries(symptoms.map((x) => [x.id, x]));
+  const chosenIds = (Array.isArray(settings?.symptomIds) ? settings.symptomIds : []).map((id) => resolveMergedSymptomId(id, byId));
   const live = symptoms.filter((x) => !x.is_archived);
   const shown = chosenIds.length ? live.filter((x) => chosenIds.includes(x.id)) : live.slice(0, 8);
 

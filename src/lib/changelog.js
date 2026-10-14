@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 14, 2026",
     changes: [
+      { type: "fix", text: "Quick Check-In saves much faster and no longer bogs down or crashes when lots of symptoms are ticked." },
+      { type: "feature", text: "Symptoms that are doubled up under similar names (like \"Energy\" and \"Energy level\") can be merged in one tap with \"Tidy up\", keeping their history." },
+      { type: "improve", text: "Preset packs no longer add a second copy of something already in your list under a similar name." },
       { type: "improve", text: "Daily tasks can have several activities, and each task chooses how they're recorded: timed, start active, or just log it done (now or for today)." },
       { type: "feature", text: "Daily tasks can start an activity: give one an activity and a length, and tapping it asks \"Open and begin?\" and times it for you." },
       { type: "improve", text: "When an activity's planned time is up, the notification has Done, +15 min and Other buttons, and skipped or early-stopped plans offer one-tap times to try again." },
