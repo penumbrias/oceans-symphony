@@ -12,14 +12,14 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Play, ExternalLink, X } from "lucide-react";
+import { Play, ExternalLink, X, Check, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
 import { isNative } from "@/lib/platform";
 import { followTaskNavPath } from "@/lib/dailyTaskSystem";
 import {
-  OPEN_DAILY_TASK_START_EVENT, taskActivityConfig, beginDailyTaskActivity,
+  OPEN_DAILY_TASK_START_EVENT, taskActivityConfig, beginDailyTaskActivity, logDailyTaskActivity,
 } from "@/lib/dailyTaskActivity";
 import { OPEN_PLAN_RESOLVE_EVENT, takePendingPlanResolve } from "@/lib/planner/resolvePlan";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
@@ -34,12 +34,21 @@ function DailyTaskStartPrompt({ template, onClose }) {
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
   const cfg = taskActivityConfig(template);
-  const cat = categories.find((c) => c.id === cfg?.categoryId);
-  const name = template.title || cat?.name;
+  const cats = (cfg?.categoryIds || []).map((id) => categories.find((c) => c.id === id)).filter(Boolean);
+  const name = template.title || cats[0]?.name;
+  const color = cats.find((c) => c.color)?.color || null;
   const hasLink = !!template.nav_path;
+  const isLog = cfg?.mode === "log";
   const endsAt = cfg?.minutes ? new Date(Date.now() + cfg.minutes * 60000) : null;
 
   const openLink = () => followTaskNavPath(template.nav_path, navigate);
+
+  // Whoever is fronting now is who's doing it (fresh read, never a stale
+  // cache — CLAUDE.md alter selection rule).
+  const frontingIds = async () => {
+    const fronts = await base44.entities.FrontingSession.filter({ is_active: true }).catch(() => []);
+    return [...new Set((fronts || []).map((s) => s.alter_id || s.primary_alter_id).filter(Boolean))];
+  };
 
   const begin = async () => {
     setBusy(true);
@@ -48,11 +57,7 @@ function DailyTaskStartPrompt({ template, onClose }) {
     // app to the background.
     if (hasLink && !isNative()) openLink();
     try {
-      // Whoever is fronting now is who's doing it (fresh read, never a
-      // stale cache — CLAUDE.md alter selection rule).
-      const fronts = await base44.entities.FrontingSession.filter({ is_active: true }).catch(() => []);
-      const alterIds = [...new Set((fronts || []).map((s) => s.alter_id || s.primary_alter_id).filter(Boolean))];
-      await beginDailyTaskActivity(template, { categories, alterIds });
+      await beginDailyTaskActivity(template, { categories, alterIds: await frontingIds() });
       qc.invalidateQueries({ queryKey: ["activities"] });
       toast.success(tr("dailyTask.started", { name }));
     } catch (e) {
@@ -61,6 +66,22 @@ function DailyTaskStartPrompt({ template, onClose }) {
     if (hasLink && isNative()) openLink();
     onClose();
   };
+
+  const logIt = async (when) => {
+    setBusy(true);
+    try {
+      await logDailyTaskActivity(template, { when, categories, alterIds: await frontingIds() });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+      toast.success(tr("dailyTask.logged", { name }));
+    } catch (e) {
+      toast.error(e?.message || "Failed");
+    }
+    onClose();
+  };
+
+  const secondary = "text-sm px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1.5 disabled:opacity-40";
+  const primary = "text-sm px-3 py-1.5 rounded-full bg-primary text-primary-foreground flex items-center gap-1.5 disabled:opacity-40";
 
   return createPortal((
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
@@ -71,9 +92,11 @@ function DailyTaskStartPrompt({ template, onClose }) {
         style={{ borderRadius: "var(--v2-radius, 16px)" }}>
         <div className="flex items-start justify-between gap-2">
           <span className="flex items-center gap-2 min-w-0">
-            {cat?.color && <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: cat.color, minHeight: 20 }} />}
+            {color && <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 20 }} />}
             <span id="daily-task-begin-title" className="text-base font-semibold">
-              {tr(hasLink ? "dailyTask.beginTitle" : "dailyTask.beginTitleNoLink", { name })}
+              {isLog
+                ? tr("dailyTask.logTitle", { name })
+                : tr(hasLink ? "dailyTask.beginTitle" : "dailyTask.beginTitleNoLink", { name })}
             </span>
           </span>
           <button type="button" onClick={onClose} disabled={busy} aria-label={tr("dailyTask.cancel")}
@@ -81,22 +104,42 @@ function DailyTaskStartPrompt({ template, onClose }) {
             <X className="w-4 h-4" />
           </button>
         </div>
+        {cats.length > 1 && (
+          <div className="flex flex-wrap gap-1">
+            {cats.map((c) => (
+              <span key={c.id} className="text-xs px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
+                {c.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />}{c.name}
+              </span>
+            ))}
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
-          {endsAt
-            ? tr("dailyTask.beginBody", { time: format(endsAt, "HH:mm") })
-            : tr("dailyTask.beginBodyNoLength")}
+          {isLog
+            ? tr("dailyTask.logBody")
+            : endsAt
+              ? tr("dailyTask.beginBody", { time: format(endsAt, "HH:mm") })
+              : tr("dailyTask.beginBodyNoLength")}
         </p>
         <div className="flex flex-wrap gap-2 justify-end">
           {hasLink && (
-            <button type="button" disabled={busy} onClick={() => { openLink(); onClose(); }}
-              className="text-sm px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1.5 disabled:opacity-40">
+            <button type="button" disabled={busy} onClick={() => { openLink(); onClose(); }} className={secondary}>
               <ExternalLink className="w-3.5 h-3.5" />{tr("dailyTask.justOpen")}
             </button>
           )}
-          <button type="button" disabled={busy} onClick={begin}
-            className="text-sm px-3 py-1.5 rounded-full bg-primary text-primary-foreground flex items-center gap-1.5 disabled:opacity-40">
-            <Play className="w-3.5 h-3.5" />{tr(hasLink ? "dailyTask.openAndBegin" : "dailyTask.begin")}
-          </button>
+          {isLog ? (
+            <>
+              <button type="button" disabled={busy} onClick={() => logIt("day")} className={secondary}>
+                <CalendarDays className="w-3.5 h-3.5" />{tr("dailyTask.logToday")}
+              </button>
+              <button type="button" disabled={busy} onClick={() => logIt("now")} className={primary}>
+                <Check className="w-3.5 h-3.5" />{tr("dailyTask.logNow")}
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={busy} onClick={begin} className={primary}>
+              <Play className="w-3.5 h-3.5" />{tr(hasLink ? "dailyTask.openAndBegin" : "dailyTask.begin")}
+            </button>
+          )}
         </div>
       </div>
     </div>
