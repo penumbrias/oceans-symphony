@@ -25,7 +25,7 @@ import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getActiveActivities, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { getActiveActivities, endAndLogActiveActivity, snoozeActiveEndReminder, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT, frontNotifLabel } from "@/lib/persistentNotifPrefs";
 import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
@@ -105,6 +105,24 @@ export default function usePersistentNotifications() {
               setTimeout(() => window.dispatchEvent(new Event("open-set-front")), 80);
             } else if (actionId === "tap" && extra.kind === "activity") {
               navigate("/activities");
+            } else if (extra.kind === "active_end_checkin" && extra.activityId) {
+              // End-of-plan check-in: done on time, keep going, or open the
+              // outcome sheet (stopped early / skipped / reschedule).
+              if (actionId === "active_end_done") {
+                const plan = (await base44.entities.Activity.filter({ id: extra.activityId }))?.[0];
+                if (plan) {
+                  const { resolveOutcome, plannedEndFor } = await import("@/lib/planner/resolvePlan");
+                  const end = plannedEndFor(plan);
+                  await resolveOutcome(plan, "done", { endedAt: end && end.getTime() <= Date.now() ? end : null });
+                  qc.invalidateQueries({ queryKey: ["activities"] });
+                  qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+                }
+              } else if (actionId === "active_end_keep_going") {
+                await snoozeActiveEndReminder(extra.sessionId);
+              } else {
+                const { requestPlanResolve } = await import("@/lib/planner/resolvePlan");
+                requestPlanResolve(extra.activityId);
+              }
             }
           } catch { /* action failed — leave state as-is */ }
         });

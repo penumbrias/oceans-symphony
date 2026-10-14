@@ -24,7 +24,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
-  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn, followTaskNavPath,
+  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
 } from "@/lib/dailyTaskSystem";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -36,6 +36,7 @@ import { CURRICULUM } from "@/components/support/TopicView";
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
+import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -353,7 +354,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
                 primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
                 secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
                 right={mode === "expanded" && t.points ? `${t.points} xp` : undefined}
-                onClick={t.nav_path ? () => followTaskNavPath(t.nav_path, navigate) : undefined}
+                onClick={isDailyTaskOpenable(t) ? () => openDailyTask(t, navigate) : undefined}
               />
             );
           })}

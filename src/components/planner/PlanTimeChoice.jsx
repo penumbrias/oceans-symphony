@@ -8,22 +8,28 @@
 //   • Now
 //   • Other time — a day + time, then Save
 // The caller gets a Date via onPick.
+//
+// kind="later" (System Needs, v0.255.0) asks "when instead?" for a plan
+// being rescheduled or given another go after a skip / early stop: in an
+// hour, this evening, tomorrow at its own time, or another time.
 
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { useT } from "@/lib/i18n";
-import { plannedStartFor, plannedEndFor } from "@/lib/planner/resolvePlan";
+import { plannedStartFor, plannedEndFor, quickRescheduleTimes } from "@/lib/planner/resolvePlan";
 
 const chip = "text-[0.6875em] px-2 py-0.5 rounded-full border disabled:opacity-40";
 const quiet = "border-border/50 text-muted-foreground hover:text-foreground";
 const lit = "border-[var(--v2-accent)] text-[var(--v2-accent)]";
 
-export default function PlanTimeChoice({ kind = "start", item, onPick, busy = false }) {
+export default function PlanTimeChoice({ kind = "start", item, onPick, busy = false, prompt = null }) {
   const tr = useT();
-  const onTime = kind === "start" ? plannedStartFor(item) : plannedEndFor(item);
+  const later = kind === "later";
+  const onTime = later ? null : kind === "start" ? plannedStartFor(item) : plannedEndFor(item);
   const showOnTime = onTime && onTime.getTime() <= Date.now();
+  const quick = later ? quickRescheduleTimes(item) : [];
   const [picking, setPicking] = useState(false);
-  const seed = showOnTime ? onTime : new Date();
+  const seed = later ? quick[quick.length - 1].when : showOnTime ? onTime : new Date();
   const [day, setDay] = useState(format(seed, "yyyy-MM-dd"));
   const [time, setTime] = useState(format(seed, "HH:mm"));
 
@@ -37,18 +43,26 @@ export default function PlanTimeChoice({ kind = "start", item, onPick, busy = fa
   return (
     <div className="mt-1.5 space-y-1.5" onClick={(e) => e.stopPropagation()}>
       <p className="text-[0.6875em] text-muted-foreground">
-        {tr(kind === "start" ? "planTime.whenStarted" : "planTime.whenFinished")}
+        {prompt || tr(later ? "planTime.whenInstead" : kind === "start" ? "planTime.whenStarted" : "planTime.whenFinished")}
       </p>
       <div className="flex flex-wrap gap-1">
+        {quick.map((q, i) => (
+          <button key={q.id} type="button" disabled={busy} onClick={() => onPick(q.when)}
+            className={`${chip} ${i === 0 ? lit : quiet}`}>
+            {tr(`planTime.later_${q.id}`, { time: format(q.when, "HH:mm") })}
+          </button>
+        ))}
         {showOnTime && (
           <button type="button" disabled={busy} onClick={() => onPick(onTime)}
             className={`${chip} ${lit}`}>
             {tr(kind === "start" ? "planTime.startedOnTime" : "planTime.finishedOnTime", { time: format(onTime, "HH:mm") })}
           </button>
         )}
-        <button type="button" disabled={busy} onClick={() => onPick(new Date())} className={`${chip} ${quiet}`}>
-          {tr(kind === "start" ? "planTime.startNow" : "planTime.endNow")}
-        </button>
+        {!later && (
+          <button type="button" disabled={busy} onClick={() => onPick(new Date())} className={`${chip} ${quiet}`}>
+            {tr(kind === "start" ? "planTime.startNow" : "planTime.endNow")}
+          </button>
+        )}
         <button type="button" disabled={busy} onClick={() => setPicking((v) => !v)}
           aria-pressed={picking}
           className={`${chip} ${picking ? lit : quiet}`}>
@@ -61,7 +75,7 @@ export default function PlanTimeChoice({ kind = "start", item, onPick, busy = fa
             aria-label={tr("planner.date")}
             className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
-            aria-label={tr(kind === "start" ? "planTime.whenStarted" : "planTime.whenFinished")}
+            aria-label={tr(later ? "planTime.whenInstead" : kind === "start" ? "planTime.whenStarted" : "planTime.whenFinished")}
             className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
           <button type="button" disabled={busy} onClick={savePicked}
             className="text-[0.6875em] px-2 py-1 rounded-lg border border-[var(--v2-accent)] text-[var(--v2-accent)] disabled:opacity-40 flex-shrink-0">

@@ -7,6 +7,7 @@
 
 import { readPlanRemindersDefaultOffset } from "@/lib/planReminderScheduler";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { getActiveActivities } from "@/lib/activitySession";
 
 const ACK_KEY = "symphony_upcoming_plan_acks";
 
@@ -26,9 +27,12 @@ export function ackPlan(id) {
 export function duePlanReminder(activities, now = Date.now()) {
   const acks = getPlanAcks();
   const defaultOffset = readPlanRemindersDefaultOffset();
+  // A plan that's already running (e.g. just begun from a daily task) is
+  // not "coming up".
+  const running = new Set(getActiveActivities().map((s) => s.planActivityId).filter(Boolean));
   return (activities || [])
     .filter((a) => {
-      if (!a?.timestamp) return false;
+      if (!a?.timestamp || running.has(a.id)) return false;
       const ts = new Date(a.timestamp).getTime();
       if (isNaN(ts) || ts <= now) return false;
       if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;

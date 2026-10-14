@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, WEEKDAY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
@@ -32,6 +34,8 @@ const EMPTY_FORM = {
   auto_triggers: [],                 // new: ordered list of trigger ids
   auto_trigger_mode: "any",          // "any" (OR) | "all" (AND) — only matters when 2+
   nav_path: "",
+  activity_category_id: null,        // MANUAL only: tapping the task offers to begin this activity
+  activity_minutes: "",              // …for this long (the end-of-plan check-in fires then)
   active_days: [],                   // daily only: which weekdays it's due (0 = Sunday); empty = every day
   reset_mode: "calendar",            // "calendar" (period / chosen weekday) | "rolling" (a full period after last completion)
   week_start_day: 1,                 // weekly + calendar: which weekday the week resets on (0 = Sunday)
@@ -49,6 +53,15 @@ function readTriggers(form) {
 function TaskForm({ initial, onSave, onCancel, isNew }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
   const terms = useTerms();
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+  // Nested picker (house rule: hierarchies never render as a flat select).
+  const categoryOptions = useMemo(
+    () => flattenCategoryTree(categories).map((c) => ({ id: c.id, label: c.name, color: c.color, _depth: c._depth })),
+    [categories],
+  );
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   return (
     <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
@@ -238,6 +251,42 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
               value={form.nav_path || ""} onChange={(e) => set("nav_path", e.target.value)} placeholder="/page-path or https://…" />
           </div>
         )}
+        {form.mode === "MANUAL" && (
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">Start an activity when tapped (optional)</label>
+            <div className="mt-1 grid grid-cols-[1fr_auto] gap-2 items-center">
+              <SearchableSelect
+                value={form.activity_category_id || null}
+                onChange={(id) => set("activity_category_id", id || null)}
+                options={categoryOptions}
+                placeholder="No activity"
+                searchPlaceholder="Search activities…"
+                allowClear
+                renderOption={(o) => (
+                  <span className="flex items-center gap-2 min-w-0">
+                    {o._depth > 0 && <span style={{ width: o._depth * 12 }} className="flex-shrink-0 text-muted-foreground text-xs text-right">↳</span>}
+                    {o.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />}
+                    <span className="truncate text-sm">{o.label}</span>
+                  </span>
+                )}
+              />
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input type="number" min={1} max={720} inputMode="numeric"
+                  disabled={!form.activity_category_id}
+                  aria-label="Activity length in minutes"
+                  className="w-16 rounded-md border border-border bg-background px-2 py-2 text-sm disabled:opacity-50"
+                  value={form.activity_minutes ?? ""} onChange={(e) => set("activity_minutes", e.target.value)}
+                  placeholder="min" />
+                min
+              </label>
+            </div>
+            {form.activity_category_id && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tapping the task asks to begin this activity{form.nav_path ? " as the link opens" : ""}. When the time is up you'll be asked how it went.
+              </p>
+            )}
+          </div>
+        )}
         <div className="col-span-2 flex items-center gap-2">
           <input type="checkbox" id="is_active" checked={form.is_active}
             onChange={(e) => set("is_active", e.target.checked)} className="rounded" />
@@ -373,6 +422,9 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
+      activity_category_id: form.mode === "MANUAL" ? (form.activity_category_id || null) : null,
+      activity_minutes: form.mode === "MANUAL" && form.activity_category_id && Number(form.activity_minutes) > 0
+        ? Math.round(Number(form.activity_minutes)) : null,
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
@@ -394,6 +446,9 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
+      activity_category_id: form.mode === "MANUAL" ? (form.activity_category_id || null) : null,
+      activity_minutes: form.mode === "MANUAL" && form.activity_category_id && Number(form.activity_minutes) > 0
+        ? Math.round(Number(form.activity_minutes)) : null,
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
       active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0

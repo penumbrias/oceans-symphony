@@ -22,9 +22,9 @@ import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { statusFor } from "@/lib/activityStatus";
 import { categoryIdOf } from "@/lib/planner/rollup";
-import { resolveOutcome } from "@/lib/planner/resolvePlan";
+import { resolveOutcome, reschedulePlan, planAnotherGo } from "@/lib/planner/resolvePlan";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
-import { getActiveActivities } from "@/lib/activitySession";
+import { getActiveActivities, snoozeActiveEndReminder, ACTIVE_END_SNOOZE_MINUTES } from "@/lib/activitySession";
 
 const fmtDur = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -41,7 +41,9 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
 
   // Done / Start ask WHEN first (PlanTimeChoice). Hooks stay above the
   // early return.
-  const [ask, setAsk] = useState(null); // "start" | "end" | null
+  // "later" = built-in reschedule (callers without their own onReschedule);
+  // "another" = after a skip / early stop, offer to plan another go.
+  const [ask, setAsk] = useState(null); // "start" | "end" | "later" | "another" | null
   useEffect(() => { setAsk(null); }, [item?.id]);
 
   if (!item) return null;
@@ -56,13 +58,32 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   const task = item.task_id ? tasks.find((x) => x.id === item.task_id) : null;
   const isRunning = getActiveActivities().some((a) => a.planActivityId === item.id);
 
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["activities"] });
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+    qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+  };
   const resolve = async (status, endedAt = null) => {
     try {
       await resolveOutcome(item, status, { endedAt });
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      qc.invalidateQueries({ queryKey: ["tasks"] });
-      onClose?.();
+      refresh();
+      // Didn't happen (fully) → offer another go before closing.
+      if (status === "partial" || status === "skipped") setAsk("another");
+      else onClose?.();
     } catch (e) { toast.error(e?.message || "Failed"); }
+  };
+  const moveLater = async (when) => {
+    try { await reschedulePlan(item, when); refresh(); onClose?.(); }
+    catch (e) { toast.error(e?.message || "Failed"); }
+  };
+  const anotherGo = async (when) => {
+    try { await planAnotherGo(item, when); refresh(); onClose?.(); }
+    catch (e) { toast.error(e?.message || "Failed"); }
+  };
+  const runningSession = getActiveActivities().find((a) => a.planActivityId === item.id) || null;
+  const keepGoing = async () => {
+    if (runningSession) await snoozeActiveEndReminder(runningSession.id);
+    onClose?.();
   };
 
   const Line = ({ label, children }) => (
@@ -156,15 +177,37 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
                     : "border-border/50 text-muted-foreground hover:text-foreground"
                 }`}>{label}</button>
             ))}
-            {onReschedule && (
-              <button type="button" onClick={() => onReschedule(item)}
-                className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+            {(onReschedule || st === "scheduled" || isRunning) && (
+              <button type="button" aria-pressed={ask === "later"}
+                onClick={() => (onReschedule ? onReschedule(item) : setAsk(ask === "later" ? null : "later"))}
+                className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+                  ask === "later" ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground hover:text-foreground"
+                }`}>
                 <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
+              </button>
+            )}
+            {isRunning && (
+              <button type="button" onClick={keepGoing}
+                className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <Play className="w-3 h-3" />{tr("planner.keepGoing", { minutes: ACTIVE_END_SNOOZE_MINUTES })}
               </button>
             )}
           </div>
           {ask === "end" && (
             <PlanTimeChoice kind="end" item={item} onPick={(d) => { setAsk(null); resolve("done", d); }} />
+          )}
+          {ask === "later" && (
+            <PlanTimeChoice kind="later" item={item} onPick={(d) => { setAsk(null); moveLater(d); }} />
+          )}
+          {ask === "another" && (
+            <div>
+              <PlanTimeChoice kind="later" item={item} prompt={tr("planner.anotherGo")}
+                onPick={(d) => { setAsk(null); anotherGo(d); }} />
+              <button type="button" onClick={() => onClose?.()}
+                className="mt-1.5 text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                {tr("planner.notNow")}
+              </button>
+            </div>
           )}
         </div>
 

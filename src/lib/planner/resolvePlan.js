@@ -11,7 +11,15 @@ import { base44 } from "@/api/base44Client";
 // happening, just later. Status stays `scheduled` and the move is recorded
 // in reschedule_history — the tracker's model, and the same write the
 // planner sheet's move-to-day commit performs.
+// A plan that's RUNNING right now is paused first (its elapsed time is
+// banked on the plan, the session leaves Active now): moving it later
+// means "not now", never "done".
 export async function reschedulePlan(item, when) {
+  try {
+    const { getActiveActivities, pauseActiveActivity } = await import("@/lib/activitySession");
+    const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
+    if (sess) await pauseActiveActivity(sess.id);
+  } catch { /* the move still happens */ }
   const to = when.toISOString();
   const from = item.timestamp || null;
   await base44.entities.Activity.update(item.id, {
@@ -21,6 +29,62 @@ export async function reschedulePlan(item, when) {
       ? { reschedule_history: [...(item.reschedule_history || []), { from, to, ts: new Date().toISOString() }] }
       : {}),
   });
+}
+
+// After a plan is skipped or stopped early: plan ANOTHER go at a new time,
+// leaving the resolved one on the record as it happened. Copies what it
+// was (name, categories, length, who, daily task link) — not its outcome.
+export async function planAnotherGo(item, when) {
+  return base44.entities.Activity.create({
+    timestamp: when.toISOString(),
+    activity_name: item.activity_name || "Activity",
+    activity_category_ids: item.activity_category_ids || [],
+    ...(item.color ? { color: item.color } : {}),
+    ...(Number(item.duration_minutes) ? { duration_minutes: Number(item.duration_minutes) } : {}),
+    fronting_alter_ids: item.fronting_alter_ids || [],
+    is_planned: true,
+    status: "scheduled",
+    ...(item.daily_task_template_id ? { daily_task_template_id: item.daily_task_template_id } : {}),
+  });
+}
+
+// The one-tap "when instead?" choices offered after a skip / early stop
+// and on Reschedule: in an hour, this evening (while it's still before
+// evening), tomorrow at the plan's own clock time. Anything else is the
+// "pick a time" row.
+export function quickRescheduleTimes(item, now = new Date()) {
+  const out = [];
+  const inHour = new Date(now.getTime() + 60 * 60000);
+  inHour.setMinutes(Math.ceil(inHour.getMinutes() / 5) * 5, 0, 0);
+  out.push({ id: "hour", when: inHour });
+  if (now.getHours() < 18) {
+    const evening = new Date(now); evening.setHours(19, 0, 0, 0);
+    out.push({ id: "evening", when: evening });
+  }
+  const base = item?.timestamp ? new Date(item.timestamp) : now;
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(base.getHours(), base.getMinutes(), 0, 0);
+  out.push({ id: "tomorrow", when: tomorrow });
+  return out;
+}
+
+// Open the outcome sheet for one plan from anywhere — a notification tap,
+// a toast button. The host (PlanResolveHost, mounted in AppLayout) may not
+// be listening yet on a cold start, so the request is also left in
+// storage for it to pick up when it mounts.
+export const OPEN_PLAN_RESOLVE_EVENT = "open-plan-resolve";
+const PENDING_RESOLVE_KEY = "symphony_pending_plan_resolve_v1";
+export function requestPlanResolve(activityId) {
+  if (!activityId) return;
+  try { localStorage.setItem(PENDING_RESOLVE_KEY, activityId); } catch { /* storage off */ }
+  window.dispatchEvent(new CustomEvent(OPEN_PLAN_RESOLVE_EVENT, { detail: { activityId } }));
+}
+export function takePendingPlanResolve() {
+  try {
+    const id = localStorage.getItem(PENDING_RESOLVE_KEY);
+    if (id) localStorage.removeItem(PENDING_RESOLVE_KEY);
+    return id || null;
+  } catch { return null; }
 }
 
 // When the plan was MEANT to start / end — the "on time" choices (owner,
@@ -121,6 +185,10 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
     }
   } catch { /* resolution still happens without session bookkeeping */ }
   await base44.entities.Activity.update(item.id, patch);
+  if (status === "done") {
+    const { markDailyTaskDoneFor } = await import("@/lib/dailyTaskActivity");
+    await markDailyTaskDoneFor(item);
+  }
   if (item.task_id && status === "done") {
     await base44.entities.Task.update(item.task_id, {
       completed: true, is_complete: true, completed_date: new Date().toISOString(),

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -248,13 +249,15 @@ function TaskRow({ template, done, terms, onToggle }) {
   // clicking it on the Daily Tasks page (TaskCard navigates to
   // task.nav_path). AUTO tasks without an explicit nav_path fall back
   // to the Daily Tasks page so the auto state can be refreshed there.
+  // A task with an activity asks to begin it first (openDailyTask).
   const navPath = template.nav_path || (isAuto ? "/tasks" : null);
-  const goToPage = () => followTaskNavPath(navPath, navigate);
+  const opens = !!navPath || isDailyTaskOpenable(template);
+  const goToPage = () => (isDailyTaskOpenable(template) ? openDailyTask(template, navigate) : followTaskNavPath(navPath, navigate));
   return (
     <div
-      onClick={navPath ? goToPage : undefined}
-      role={navPath ? "link" : undefined}
-      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors ${navPath ? "cursor-pointer" : ""} ${
+      onClick={opens ? goToPage : undefined}
+      role={opens ? "link" : undefined}
+      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors ${opens ? "cursor-pointer" : ""} ${
         done
           ? "border-border/30 bg-muted/20 opacity-60"
           : "border-border/50 bg-card hover:bg-muted/20"
