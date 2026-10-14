@@ -15,6 +15,7 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
 import LegacyCatalogueMigrationCard from "@/components/settings/LegacyCatalogueMigrationCard";
+import { SymptomDuplicatesCard } from "@/components/symptoms/SymptomDuplicatesModal";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { useTerms } from "@/lib/useTerms";
@@ -427,7 +428,10 @@ export default function ManageCheckIn() {
           category. Auto-hides when there's nothing to migrate or the
           user dismissed it. */}
       {(tab === "symptoms" || tab === "habits" || tab === "context") && (
-        <LegacyCatalogueMigrationCard />
+        <>
+          <LegacyCatalogueMigrationCard />
+          <SymptomDuplicatesCard />
+        </>
       )}
 
       {tab === "sections" && <SectionsTab />}

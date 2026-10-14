@@ -2,6 +2,8 @@ import { base44 } from "@/api/base44Client";
 import { TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, bundleById, itemToSymptomFields } from "@/lib/trackingPresets";
 import { DEFAULT_TERMS, gerund } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
+import { withBatch } from "@/lib/localDb";
 
 // Non-hook terms resolver for seeding contexts (no React tree available).
 // Mirrors useTerms' base + gerund-override logic for the forms preset
@@ -135,11 +137,12 @@ export async function seedSymptomDefaults() {
 // Create Symptom rows for an explicit picker selection (Set/array of
 // `${bundleId}:${itemIndex}` keys — the shape BundleList tracks). Terms
 // resolve at creation; duplicates (by resolved label + category) skipped.
-export async function createPresetItems(selectedKeys) {
+export function createPresetItems(selectedKeys) { return withBatch(() => createPresetItemsInner(selectedKeys)); }
+async function createPresetItemsInner(selectedKeys) {
   const terms = await getSeedTerms();
   const existing = await base44.entities.Symptom.list();
   const have = new Set(
-    existing.map((s) => `${String(s.label || "").trim().toLowerCase()}::${s.category || "symptom"}`)
+    existing.map((s) => symptomDuplicateKey(s.label, s.category || "symptom"))
   );
   let created = 0;
   for (const key of selectedKeys) {
@@ -149,7 +152,7 @@ export async function createPresetItems(selectedKeys) {
     if (!item) continue;
     const fields = itemToSymptomFields(item, bundleId, Number(idxStr));
     fields.label = applyTerms(fields.label, terms);
-    const dedupKey = `${fields.label.trim().toLowerCase()}::${fields.category}`;
+    const dedupKey = symptomDuplicateKey(fields.label, fields.category);
     if (have.has(dedupKey)) continue;
     have.add(dedupKey);
     await base44.entities.Symptom.create(fields);
@@ -163,11 +166,13 @@ export async function createPresetItems(selectedKeys) {
 // becomes plain user data from then on. Skips any item whose (resolved)
 // label already exists in the same category (case-insensitive), so
 // re-adding a bundle never duplicates rows. Returns how many were created.
-export async function seedBundles(bundleIds) {
+// One disk write for the whole pack (withBatch), not one per item.
+export function seedBundles(bundleIds) { return withBatch(() => seedBundlesInner(bundleIds)); }
+async function seedBundlesInner(bundleIds) {
   const terms = await getSeedTerms();
   const existing = await base44.entities.Symptom.list();
   const have = new Set(
-    existing.map((s) => `${String(s.label || "").trim().toLowerCase()}::${s.category || "symptom"}`)
+    existing.map((s) => symptomDuplicateKey(s.label, s.category || "symptom"))
   );
   let created = 0;
   for (const bundleId of bundleIds) {
@@ -177,7 +182,7 @@ export async function seedBundles(bundleIds) {
       const item = bundle.items[i];
       const fields = itemToSymptomFields(item, bundle.id, i);
       fields.label = applyTerms(fields.label, terms);
-      const key = `${fields.label.trim().toLowerCase()}::${fields.category}`;
+      const key = symptomDuplicateKey(fields.label, fields.category);
       if (have.has(key)) continue;
       have.add(key);
       await base44.entities.Symptom.create(fields);
@@ -211,6 +216,12 @@ async function healDuplicateDefaults(allSymptoms) {
   }
   const dupGroups = [...groups.values()].filter((g) => g.length > 1);
   if (dupGroups.length === 0) return;
+  // One disk write for the whole heal, not one per re-pointed log.
+  await withBatch(() => healGroups(dupGroups));
+  console.info(`[symptomDefaults] merged ${dupGroups.length} duplicated default symptom(s)`);
+}
+
+async function healGroups(dupGroups) {
 
   const [checkIns, sessions] = await Promise.all([
     base44.entities.SymptomCheckIn.list().catch(() => []),
@@ -251,5 +262,4 @@ async function healDuplicateDefaults(allSymptoms) {
       await base44.entities.Symptom.delete(d.id).catch(() => {});
     }
   }
-  console.info(`[symptomDefaults] merged ${dupGroups.length} duplicated default symptom(s)`);
 }
