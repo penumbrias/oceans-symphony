@@ -260,10 +260,10 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     {
       section: "alters", sectionLabel: t.Alters,
       emoji: "🖼️",
-      title: "Image Assets",
+      title: "Assets",
       body: `Every image you've stored — avatars, banners, backgrounds, bio and chat pictures — lives here, auto-sorted into folders — tap a folder to open it, and search finds images in every folder. Make your own folders, reorder and rename them, bulk-upload, tap Select to move or delete many images at once, and reuse any image anywhere a picture is accepted by tapping the 🖼 button on that upload. Any ${t.alter}'s rotating avatar/background pool also gets its own folder here (named after them), and opening this page from that ${t.alter}'s editor lands you scrolled straight to it. No re-uploading and no duplicate storage.`,
       route: "/assets", target: "assets-library",
-      look: "the Image Assets page", action: null,
+      look: "the Assets page", action: null,
     },
     {
       section: "alters", sectionLabel: t.Alters,
