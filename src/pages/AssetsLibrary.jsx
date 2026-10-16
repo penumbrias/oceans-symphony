@@ -155,7 +155,7 @@ function PreviewDialog({ item, onClose, onSave }) {
 function FolderTile({ name, items, onOpen, icon: Icon = Folder }) {
   const cover = items.find((i) => i.url && i.kind === "image")?.url || "";
   const resolved = useResolvedAvatarUrl(cover);
-  const allImages = items.every((i) => i.kind === "image");
+  const allImages = items.length > 0 && items.every((i) => i.kind === "image");
   const word = allImages ? "image" : "item";
   return (
     <button type="button" onClick={onOpen} className="text-left group min-w-0">
