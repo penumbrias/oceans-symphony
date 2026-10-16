@@ -11,7 +11,7 @@ export const ALL_PAGES = [
   { id: "therapy-report", label: "Therapy Report", path: "/therapy-report", icon: FileText },
   { id: "system-map", label: "System Map", path: "/system-map", icon: GitFork },
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart2 },
-  { id: "activities", label: "Activities", path: "/activities", icon: Zap },
+  { id: "activities", label: "Activities", path: "/planner", icon: Zap },
   { id: "sleep", label: "Sleep", path: "/sleep", icon: Activity },
   { id: "support", label: "Support & Learn", path: "/grounding", icon: Heart },
   { id: "safety-plan", label: "Safety Plan", path: "/safety-plan", icon: Shield },

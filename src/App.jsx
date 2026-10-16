@@ -12,7 +12,12 @@ import { ThemeProvider } from '@/lib/ThemeContext';
 import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
 import Dashboard from '@/pages/Dashboard';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation as useRouteLocation } from 'react-router-dom';
+
+function ActivitiesRedirect() {
+  const { search } = useRouteLocation();
+  return <Navigate to={`/planner${search || ''}`} replace />;
+}
 import Settings from '@/pages/Settings';
 
 // Route-level code splitting (v0.184.0). Every page except the landing
@@ -33,7 +38,6 @@ const GroupProfile = lazy(() => import('@/pages/GroupProfile'));
 const LocationProfile = lazy(() => import('@/pages/LocationProfile'));
 const AssetsLibrary = lazy(() => import('@/pages/AssetsLibrary'));
 const SystemCheckIn = lazy(() => import('@/pages/SystemCheckIn'));
-const ActivityTracker = lazy(() => import('@/pages/ActivityTracker'));
 const SleepTracker = lazy(() => import('@/pages/SleepTracker'));
 const ToDoList = lazy(() => import('@/pages/ToDoList'));
 const Timeline = lazy(() => import('@/pages/Timeline'));
@@ -259,7 +263,9 @@ const AuthenticatedApp = () => {
         <Route path="/location/:id" element={<LocationProfile />} />
         <Route path="/assets" element={<AssetsLibrary />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
-        <Route path="/activities" element={<ActivityTracker />} />
+        {/* The activity tracker was merged into the planner — old links,
+            saved nav tiles and notifications land there, params intact. */}
+        <Route path="/activities" element={<ActivitiesRedirect />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/system-map" element={<SystemMapPage />} />

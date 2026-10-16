@@ -23,6 +23,8 @@ export const CHANGELOG = [
       { type: "fix", text: "Bio editor: text typed in the Plain or Raw view no longer goes missing when you switch to Blocks." },
       { type: "fix", text: "Bottom tab names that don't fit now wrap onto two lines, breaking at a syllable, instead of overlapping." },
       { type: "feature", text: "Settings has a new Archived contacts section where you can find and restore archived contacts." },
+      { type: "feature", text: "The Activity Tracker is now part of the Planner: Day, Week, Month and Year views, plus Insights with totals, goals, plan follow-through and the tally." },
+      { type: "fix", text: "Plan notifications, links and the Planner tab now open the Planner instead of the old Activity Tracker." },
       { type: "fix", text: "Marking a running activity done from its notification works again, and a daily task that's already running offers to finish it instead of starting another copy." },
       { type: "fix", text: "Songs on profiles and pages no longer start on their own over music you're already playing; tap play when you want them." },
     ],

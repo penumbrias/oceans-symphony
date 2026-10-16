@@ -98,7 +98,7 @@ export function useCurrentFocus() {
       type: "activity", id: act.id,
       label: act.name || act.activity_name || "Activity in progress",
       fromSystem: foreign ? (act.systemName || "another system") : null,
-      path: "/activities", since: act.startTime || null,
+      path: "/planner", since: act.startTime || null,
     });
   }
 

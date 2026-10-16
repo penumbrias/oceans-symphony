@@ -48,7 +48,7 @@ export default function AnnouncementBanner() {
       <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
       <button
         type="button"
-        onClick={() => navigate("/activities")}
+        onClick={() => navigate("/planner")}
         className="flex-1 text-left text-foreground hover:underline"
       >
         {new Date(dueSoon.timestamp).getTime() > now

@@ -519,7 +519,7 @@ export default function ActivityPlanModal({
         }
         await recordAuthoredText({
           ...prepared, alters: alters || [], sourceType: "activity", sourceId: editingPlan.id, sourceLabel: "Plan note",
-          navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${editingPlan.id}`,
+          navigatePath: `/planner?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${editingPlan.id}`,
         });
 
         if (linkedTask) {
@@ -577,7 +577,7 @@ export default function ActivityPlanModal({
       // createPlan doesn't hand back the created ids — land on the plan's day.
       await recordAuthoredText({
         ...prepared, alters: alters || [], sourceType: "activity", sourceId: recurrenceGroupId || "", sourceLabel: "Plan note",
-        navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}`,
+        navigatePath: `/planner?date=${format(timestamp, "yyyy-MM-dd")}`,
       });
 
       // No fronting-session updates here — plan-mode plans are future-

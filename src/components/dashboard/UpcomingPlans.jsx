@@ -160,7 +160,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
           )}
           <button
             type="button"
-            onClick={() => navigate("/activities")}
+            onClick={() => navigate("/planner")}
             className="text-xs text-muted-foreground hover:text-foreground"
           >See all</button>
         </div>

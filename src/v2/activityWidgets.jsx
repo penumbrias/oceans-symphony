@@ -364,7 +364,7 @@ export function ActivityWeekWidget({ mode = "normal", settings, updateSettings }
   if (mode === "minimal") {
     const total = inRange(activities, weekDays[0], addDays(weekDays[6], 1)).reduce((s, a) => s + countableMinutes(a), 0);
     return (
-      <Section label={`Week of ${format(weekDays[0], "MMM d")}`} action={<TextAction onClick={() => navigate("/activities")}>{fmtHours(total)}</TextAction>}>
+      <Section label={`Week of ${format(weekDays[0], "MMM d")}`} action={<TextAction onClick={() => navigate("/planner")}>{fmtHours(total)}</TextAction>}>
         <TextDays days={weekDays} activities={activities} />
       </Section>
     );
@@ -446,7 +446,7 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
       .filter((a) => a.timestamp && isSameDay(new Date(a.timestamp), anchor))
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     return (
-      <Section label={format(anchor, "EEE d MMM")} action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
+      <Section label={format(anchor, "EEE d MMM")} action={<TextAction onClick={() => navigate("/planner")}>Open</TextAction>}>
         {items.length === 0 && <Muted>Nothing logged.</Muted>}
         {items.map((a) => (
           <Row key={a.id} primary={a.activity_name || "Activity"}
@@ -520,7 +520,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings, updateSetting
     const mins = items.reduce((s, a) => s + countableMinutes(a), 0);
     const planned = items.filter((a) => statusFor(a) === "scheduled");
     return (
-      <Section label={format(anchor, "EEE d MMM")} action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
+      <Section label={format(anchor, "EEE d MMM")} action={<TextAction onClick={() => navigate("/planner")}>Open</TextAction>}>
         {items.length === 0 && <Muted>Nothing logged.</Muted>}
         {items.length > 0 && <Row primary="Logged" right={fmtHours(mins)} />}
         {items.length > 0 && <Row primary="Entries" right={String(items.length - planned.length)} />}
@@ -591,7 +591,7 @@ export function ActivityMonthWidget({ mode = "normal", settings }) {
     const mins = monthItems.reduce((s, a) => s + countableMinutes(a), 0);
     const planned = monthItems.filter((a) => statusFor(a) === "scheduled").length;
     return (
-      <Section label={format(anchor, "MMMM yyyy")} action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
+      <Section label={format(anchor, "MMMM yyyy")} action={<TextAction onClick={() => navigate("/planner")}>Open</TextAction>}>
         <Row primary="Logged" right={fmtHours(mins)} />
         <Row primary="Entries" right={String(monthItems.length - planned)} />
         <Row primary="Still planned" right={String(planned)} />
@@ -647,7 +647,7 @@ export function ActivityYearWidget({ mode = "normal", settings }) {
     const mins = yearItems.reduce((s, a) => s + countableMinutes(a), 0);
     const days = new Set(yearItems.filter((a) => countableMinutes(a) > 0).map((a) => format(new Date(a.timestamp), "yyyy-MM-dd"))).size;
     return (
-      <Section label={format(anchor, "yyyy")} action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
+      <Section label={format(anchor, "yyyy")} action={<TextAction onClick={() => navigate("/planner")}>Open</TextAction>}>
         <Row primary="Logged" right={fmtHours(mins)} />
         <Row primary="Entries" right={String(yearItems.length)} />
         <Row primary="Days with something on" right={String(days)} />

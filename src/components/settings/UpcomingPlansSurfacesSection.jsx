@@ -110,7 +110,7 @@ export default function UpcomingPlansSurfacesSection() {
         <Calendar className="w-3.5 h-3.5" /> Upcoming plans visibility
       </p>
       <p className="text-xs text-muted-foreground -mt-1">
-        Pick where the planned-activity widget should surface. The Activity Tracker's Planned tab is always on. Per-{terms.alter} "Plans for me" is on by default — it's contextual and low-clutter.
+        Pick where the planned-activity widget should surface. The Planner's Plans list is always on. Per-{terms.alter} "Plans for me" is on by default — it's contextual and low-clutter.
       </p>
       <div className="space-y-2 mt-2">
         {ALL_SURFACES.map(s => (

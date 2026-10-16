@@ -255,6 +255,17 @@ export default {
 
   // ── Planner ──
   "planner.today": "Today",
+  "planner.prev": "Previous",
+  "planner.next": "Next",
+  "planner.section.calendar": "Calendar",
+  "planner.section.insights": "Insights",
+  "planner.view.day": "Day",
+  "planner.view.week": "Week",
+  "planner.view.month": "Month",
+  "planner.view.year": "Year",
+  "planner.manage": "Manage activities",
+  "planner.insights.week": "Week of {range}",
+  "planner.insights.followThrough": "Plan follow-through",
   "planner.prevWeek": "Previous week",
   "planner.nextWeek": "Next week",
   "planner.overlay.fronting": "{term}",
