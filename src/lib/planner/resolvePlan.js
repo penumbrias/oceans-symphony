@@ -107,8 +107,12 @@ export function plannedEndFor(item) {
 // mechanism the lifecycle popover's "Start now" and the classic unresolved
 // card use — lifted here so the home notice shares it). `startedAt` lets
 // the user say they started late/early instead of stamping "now".
+// A plan that's already running is left as it is — starting it again used
+// to add a second timer for the same plan. Returns the running session.
 export async function startPlanActive(item, { startedAt = new Date(), categories = [] } = {}) {
-  const { addActiveActivity } = await import("@/lib/activitySession");
+  const { addActiveActivity, sessionForPlan } = await import("@/lib/activitySession");
+  const running = sessionForPlan(item.id);
+  if (running) return running;
   const color = (() => {
     for (const id of (item.activity_category_ids || [])) {
       const c = categories.find((x) => x.id === id);
@@ -116,8 +120,9 @@ export async function startPlanActive(item, { startedAt = new Date(), categories
     }
     return item.color || null;
   })();
-  addActiveActivity({
+  const session = addActiveActivity({
     planActivityId: item.id,
+    ...(item.daily_task_template_id ? { dailyTaskTemplateId: item.daily_task_template_id } : {}),
     categoryId: (item.activity_category_ids || [])[0] || null,
     name: item.activity_name || "Activity",
     color,
@@ -129,6 +134,7 @@ export async function startPlanActive(item, { startedAt = new Date(), categories
     const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
     await cancelPlanReminder(item.id);
   } catch { /* non-fatal */ }
+  return session;
 }
 
 // `endedAt` (optional): when it actually ended — "finished on time", "just
@@ -166,7 +172,7 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
   // needs somewhere to sit.
   if (!item.timestamp && !item.planned_date) patch.timestamp = new Date().toISOString();
   try {
-    const { getActiveActivities, removeActiveActivity } = await import("@/lib/activitySession");
+    const { getActiveActivities, removeOtherSessionsForPlan } = await import("@/lib/activitySession");
     const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
     const banked = Number(item.progress_minutes) || 0;
     if (sess) {
@@ -174,7 +180,7 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
       const elapsed = Math.max(1, Math.round((until - new Date(sess.startTime).getTime()) / 60000));
       patch.actual_duration_minutes = banked + elapsed;
       patch.progress_minutes = null;
-      removeActiveActivity(sess.id);
+      removeOtherSessionsForPlan(item.id);
     } else if (banked && !Number(item.actual_duration_minutes)) {
       patch.actual_duration_minutes = banked;
       patch.progress_minutes = null;

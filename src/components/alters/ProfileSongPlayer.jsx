@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Play, Pause, X, Music } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { isOtherAudioPlaying } from "@/lib/otherAudio";
 
 // `song` lets any surface drive this (group/location profiles, the v2 home
 // board); `alter` stays supported so existing callers are untouched.
@@ -63,11 +64,17 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     el.addEventListener("error", onError);
     // "Don't start on its own" is a real choice, not a failure to start — it
     // shows the same play control the blocked case does, without trying.
+    // Someone's music is already playing: starting would stop it (Android
+    // hands the audio to whoever played last), so wait for a tap.
     if (!autoplay) {
       setState("paused");
     } else {
-      el.play().then(() => {
-        if (!cancelled) setState("playing");
+      isOtherAudioPlaying().then((busy) => {
+        if (cancelled) return undefined;
+        if (busy) { setState("paused"); return undefined; }
+        return el.play().then(() => {
+          if (!cancelled) setState("playing");
+        });
       }).catch(() => {
         // Autoplay refused (browser policy) — offer the chip instead.
         // A rejection with el.error set is a LOAD failure, not policy;
