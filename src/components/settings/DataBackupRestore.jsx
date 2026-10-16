@@ -33,6 +33,7 @@ import { isNative } from "@/lib/platform";
 import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, appendEntitiesToSystem, deleteSystem, setActiveSystem } from "@/lib/systems";
 import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
+import { bytesToBase64, base64ToBytes } from "@/lib/base64";
 
 // Single source of truth for the localStorage keys that belong in a
 // backup lives in src/lib/backupKeys.js — keep the rules and the list
@@ -64,20 +65,9 @@ export function externalKindFromJson(j) {
 function compressBackup(data) {
   const json = JSON.stringify(data);
   const compressed = pako.deflate(json);
-  // Chunked binary-string build + chunked btoa. The old
-  // `compressed.forEach(b => binary += String.fromCharCode(b))` was O(n²)
-  // — appending one char at a time to a string that keeps re-allocating —
-  // and blew up the WebView on any multi-MB backup. Now we build fixed
-  // slices, base64 each, and join once at the end.
-  const CHUNK_BYTES = 0xC000;
-  const parts = [];
-  for (let i = 0; i < compressed.length; i += CHUNK_BYTES) {
-    const slice = compressed.subarray(i, Math.min(i + CHUNK_BYTES, compressed.length));
-    let binary = "";
-    for (let j = 0; j < slice.length; j++) binary += String.fromCharCode(slice[j]);
-    parts.push(btoa(binary));
-  }
-  return "SYMPHONYZ:" + parts.join("");
+  // Platform base64 encoder (src/lib/base64.js). The per-byte
+  // String.fromCharCode loop this replaced was slow on multi-MB backups.
+  return "SYMPHONYZ:" + bytesToBase64(compressed);
 }
 
 // Decompress a SYMPHONYZ:-prefixed string back to the original JSON text.
@@ -86,10 +76,7 @@ function compressBackup(data) {
 function decompressBackup(text) {
   const trimmed = text.trim();
   if (!trimmed.startsWith("SYMPHONYZ:")) return trimmed;
-  const binary = atob(trimmed.slice("SYMPHONYZ:".length));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return pako.inflate(bytes, { to: "string" });
+  return pako.inflate(base64ToBytes(trimmed.slice("SYMPHONYZ:".length)), { to: "string" });
 }
 
 // Splits a compressed backup string into `numParts` near-equal slices and
@@ -1532,10 +1519,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       let innerJsonText;
       if (trimmed.startsWith("SYMPHONYZ:")) {
         traceStep("format", "compact (compressed)");
-        const binary = atob(trimmed.slice(10));
-        const zbytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) zbytes[i] = binary.charCodeAt(i);
-        innerJsonText = pako.inflate(zbytes, { to: "string" });
+        innerJsonText = pako.inflate(base64ToBytes(trimmed.slice(10)), { to: "string" });
         traceStep("decompressed", `${innerJsonText.length} chars`);
       } else {
         traceStep("format", "plain text/json");

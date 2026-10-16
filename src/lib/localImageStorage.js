@@ -17,6 +17,7 @@
 
 import { hasPrivateFileCopy } from './platform';
 import { mirrorMedia, deleteMediaMirror } from './nativeMirror';
+import { base64ToBytes } from './base64';
 
 const DB_NAME = 'symphony_images';
 const STORE_NAME = 'images';
@@ -44,10 +45,7 @@ export function dataUrlToBlob(dataUrl) {
       // Chunked base64 decode — same peak-memory-safe pattern used for
       // backup export (v0.86.3). Avoids String.fromCharCode.apply overflow
       // on very large images.
-      const binary = atob(payload);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return new Blob([bytes], { type: mime });
+      return new Blob([base64ToBytes(payload)], { type: mime });
     }
     return new Blob([decodeURIComponent(payload)], { type: mime });
   } catch {
