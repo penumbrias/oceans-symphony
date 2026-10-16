@@ -7,7 +7,7 @@
 //     check-in notification (tap or "Other…"), or the web toast's Resolve.
 //     It's the SAME PlanDetailsSheet the planner and Today widget use.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,7 +21,8 @@ import { followTaskNavPath } from "@/lib/dailyTaskSystem";
 import {
   OPEN_DAILY_TASK_START_EVENT, taskActivityConfig, beginDailyTaskActivity, logDailyTaskActivity,
 } from "@/lib/dailyTaskActivity";
-import { OPEN_PLAN_RESOLVE_EVENT, takePendingPlanResolve } from "@/lib/planner/resolvePlan";
+import { OPEN_PLAN_RESOLVE_EVENT, takePendingPlanResolve, resolveOutcome } from "@/lib/planner/resolvePlan";
+import { sessionForDailyTask, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 
 function DailyTaskStartPrompt({ template, onClose }) {
@@ -29,6 +30,19 @@ function DailyTaskStartPrompt({ template, onClose }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  // A tap already in flight — `busy` only lands on the next render, so a
+  // quick second tap could start the task twice.
+  const inFlight = useRef(false);
+  // This task's run that's still going, if any: tapping the task again
+  // offers to finish it instead of starting another copy.
+  const [running, setRunning] = useState(null);
+  useEffect(() => {
+    let live = true;
+    const check = () => sessionForDailyTask(template.id).then((s) => { if (live) setRunning(s); }).catch(() => {});
+    check();
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, check);
+    return () => { live = false; window.removeEventListener(ACTIVE_ACTIVITY_EVENT, check); };
+  }, [template.id]);
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
@@ -51,15 +65,17 @@ function DailyTaskStartPrompt({ template, onClose }) {
   };
 
   const begin = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     // Web: open the link while the tap still counts as a tap (pop-up
     // blockers), then start. Native: start first — the link sends the
     // app to the background.
     if (hasLink && !isNative()) openLink();
     try {
-      await beginDailyTaskActivity(template, { categories, alterIds: await frontingIds() });
+      const plan = await beginDailyTaskActivity(template, { categories, alterIds: await frontingIds() });
       qc.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(tr("dailyTask.started", { name }));
+      toast.success(tr(plan ? "dailyTask.started" : "dailyTask.alreadyRunning", { name }));
     } catch (e) {
       toast.error(e?.message || "Failed");
     }
@@ -67,7 +83,27 @@ function DailyTaskStartPrompt({ template, onClose }) {
     onClose();
   };
 
+  // Finish the run that's going (same write as the planner's "done").
+  const finish = async () => {
+    if (inFlight.current || !running?.planActivityId) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const plan = (await base44.entities.Activity.filter({ id: running.planActivityId }))?.[0];
+      if (plan) await resolveOutcome(plan, "done");
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+      qc.invalidateQueries({ queryKey: ["taskTicks"] });
+      toast.success(tr("dailyTask.finished", { name }));
+    } catch (e) {
+      toast.error(e?.message || "Failed");
+    }
+    onClose();
+  };
+
   const logIt = async (when) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     try {
       await logDailyTaskActivity(template, { when, categories, alterIds: await frontingIds() });
@@ -95,9 +131,11 @@ function DailyTaskStartPrompt({ template, onClose }) {
           <span className="flex items-center gap-2 min-w-0">
             {color && <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 20 }} />}
             <span id="daily-task-begin-title" className="text-base font-semibold">
-              {isLog
-                ? tr("dailyTask.logTitle", { name })
-                : tr(hasLink ? "dailyTask.beginTitle" : "dailyTask.beginTitleNoLink", { name })}
+              {running
+                ? tr("dailyTask.runningTitle", { name })
+                : isLog
+                  ? tr("dailyTask.logTitle", { name })
+                  : tr(hasLink ? "dailyTask.beginTitle" : "dailyTask.beginTitleNoLink", { name })}
             </span>
           </span>
           <button type="button" onClick={onClose} disabled={busy} aria-label={tr("dailyTask.cancel")}
@@ -115,7 +153,9 @@ function DailyTaskStartPrompt({ template, onClose }) {
           </div>
         )}
         <p className="text-sm text-muted-foreground">
-          {isLog
+          {running
+            ? tr("dailyTask.runningBody", { time: Number.isFinite(new Date(running.startTime).getTime()) ? format(new Date(running.startTime), "HH:mm") : "?" })
+            : isLog
             ? tr("dailyTask.logBody")
             : endsAt
               ? tr("dailyTask.beginBody", { time: format(endsAt, "HH:mm") })
@@ -127,7 +167,11 @@ function DailyTaskStartPrompt({ template, onClose }) {
               <ExternalLink className="w-3.5 h-3.5" />{tr("dailyTask.justOpen")}
             </button>
           )}
-          {isLog ? (
+          {running ? (
+            <button type="button" disabled={busy} onClick={finish} className={primary}>
+              <Check className="w-3.5 h-3.5" />{tr("dailyTask.finish")}
+            </button>
+          ) : isLog ? (
             <>
               <button type="button" disabled={busy} onClick={() => logIt("day")} className={secondary}>
                 <CalendarDays className="w-3.5 h-3.5" />{tr("dailyTask.logToday")}

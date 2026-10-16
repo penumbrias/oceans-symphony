@@ -18,7 +18,7 @@
 // Notifications are only shown when there's something to show — an empty
 // state cancels the notification rather than displaying "nothing active".
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -30,6 +30,7 @@ import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT, frontNotifLabel } from "@
 import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
+import { setAppNotificationActionHandler } from "@/lib/nativeBootstrap";
 
 const native = isNative();
 
@@ -74,63 +75,70 @@ export default function usePersistentNotifications() {
   }, []);
 
   // Register action types once + handle taps on the inline action buttons.
+  // The taps arrive through nativeBootstrap's single native listener (see
+  // setAppNotificationActionHandler there): a tap that cold-started the app
+  // is queued until this hook mounts, instead of being lost to a second
+  // listener that registered too late.
+  const handleActionRef = useRef(null);
+  handleActionRef.current = async (ev) => {
+    const actionId = ev?.actionId;
+    const extra = ev?.notification?.extra || {};
+    try {
+      if (actionId === "end_activity") {
+        await endAndLogActiveActivity(extra.id);
+        qc.invalidateQueries({ queryKey: ["activities"] });
+      } else if (actionId === "end_symptom" && extra.sessionId) {
+        await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
+        qc.invalidateQueries({ queryKey: ["symptomSessions"] });
+      } else if (actionId === "tap" && extra.kind === "symptom" && extra.sessionId) {
+        // Body tap on the symptom notification → open its severity/end
+        // menu on the dashboard (same as long-pressing the pill).
+        try { localStorage.setItem(PENDING_SYMPTOM_MENU_KEY, extra.sessionId); } catch { /* */ }
+        navigate("/");
+        window.dispatchEvent(new CustomEvent(OPEN_SYMPTOM_MENU_EVENT, { detail: { sessionId: extra.sessionId } }));
+      } else if (actionId === "tap" && extra.kind === "fronters") {
+        // Tapping the current-fronters notification opens the Set Front
+        // modal so you can switch right away (reuses CurrentFronters'
+        // existing "open-set-front" listener).
+        navigate("/");
+        setTimeout(() => window.dispatchEvent(new Event("open-set-front")), 80);
+      } else if (actionId === "tap" && extra.kind === "activity") {
+        navigate("/planner");
+      } else if (extra.kind === "active_end_checkin" && extra.activityId) {
+        // End-of-plan check-in: done on time, keep going, or open the
+        // outcome sheet (stopped early / skipped / reschedule).
+        if (actionId === "active_end_done") {
+          const plan = (await base44.entities.Activity.filter({ id: extra.activityId }))?.[0];
+          const running = getActiveActivities().some((a) => a.planActivityId === extra.activityId);
+          // Already finished (a second tap, or it was ended in the app) —
+          // nothing left to do.
+          if (plan && (running || plan.status !== "done")) {
+            const { resolveOutcome, plannedEndFor } = await import("@/lib/planner/resolvePlan");
+            const end = plannedEndFor(plan);
+            await resolveOutcome(plan, "done", { endedAt: end && end.getTime() <= Date.now() ? end : null });
+          }
+          qc.invalidateQueries({ queryKey: ["activities"] });
+          qc.invalidateQueries({ queryKey: ["dailyProgress"] });
+          qc.invalidateQueries({ queryKey: ["taskTicks"] });
+        } else if (actionId === "active_end_keep_going") {
+          await snoozeActiveEndReminder(extra.sessionId);
+        } else {
+          const { requestPlanResolve } = await import("@/lib/planner/resolvePlan");
+          requestPlanResolve(extra.activityId);
+        }
+      }
+    } catch { /* action failed — leave state as-is */ }
+  };
   useEffect(() => {
-    if (!native) return;
-    let remove;
-    (async () => {
-      try {
-        const { LocalNotifications } = await import("@capacitor/local-notifications");
-        await registerPersistentActionTypes();
-        const handle = await LocalNotifications.addListener("localNotificationActionPerformed", async (ev) => {
-          const actionId = ev?.actionId;
-          const extra = ev?.notification?.extra || {};
-          try {
-            if (actionId === "end_activity") {
-              await endAndLogActiveActivity(extra.id);
-              qc.invalidateQueries({ queryKey: ["activities"] });
-            } else if (actionId === "end_symptom" && extra.sessionId) {
-              await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
-              qc.invalidateQueries({ queryKey: ["symptomSessions"] });
-            } else if (actionId === "tap" && extra.kind === "symptom" && extra.sessionId) {
-              // Body tap on the symptom notification → open its severity/end
-              // menu on the dashboard (same as long-pressing the pill).
-              try { localStorage.setItem(PENDING_SYMPTOM_MENU_KEY, extra.sessionId); } catch { /* */ }
-              navigate("/");
-              window.dispatchEvent(new CustomEvent(OPEN_SYMPTOM_MENU_EVENT, { detail: { sessionId: extra.sessionId } }));
-            } else if (actionId === "tap" && extra.kind === "fronters") {
-              // Tapping the current-fronters notification opens the Set Front
-              // modal so you can switch right away (reuses CurrentFronters'
-              // existing "open-set-front" listener).
-              navigate("/");
-              setTimeout(() => window.dispatchEvent(new Event("open-set-front")), 80);
-            } else if (actionId === "tap" && extra.kind === "activity") {
-              navigate("/planner");
-            } else if (extra.kind === "active_end_checkin" && extra.activityId) {
-              // End-of-plan check-in: done on time, keep going, or open the
-              // outcome sheet (stopped early / skipped / reschedule).
-              if (actionId === "active_end_done") {
-                const plan = (await base44.entities.Activity.filter({ id: extra.activityId }))?.[0];
-                if (plan) {
-                  const { resolveOutcome, plannedEndFor } = await import("@/lib/planner/resolvePlan");
-                  const end = plannedEndFor(plan);
-                  await resolveOutcome(plan, "done", { endedAt: end && end.getTime() <= Date.now() ? end : null });
-                  qc.invalidateQueries({ queryKey: ["activities"] });
-                  qc.invalidateQueries({ queryKey: ["dailyProgress"] });
-                }
-              } else if (actionId === "active_end_keep_going") {
-                await snoozeActiveEndReminder(extra.sessionId);
-              } else {
-                const { requestPlanResolve } = await import("@/lib/planner/resolvePlan");
-                requestPlanResolve(extra.activityId);
-              }
-            }
-          } catch { /* action failed — leave state as-is */ }
-        });
-        remove = () => handle.remove();
-      } catch { /* listener unavailable */ }
-    })();
-    return () => { try { remove?.(); } catch { /* */ } };
-  }, [qc, navigate]);
+    if (!native) return undefined;
+    registerPersistentActionTypes().catch(() => {});
+    // One at a time: two quick taps on "Done" used to run side by side,
+    // both seeing the activity still running.
+    let chain = Promise.resolve();
+    return setAppNotificationActionHandler((ev) => {
+      chain = chain.then(() => handleActionRef.current?.(ev)).catch(() => {});
+    });
+  }, []);
 
   const wantFronters = native && prefs.fronters;
   const wantSymptoms = native && prefs.symptoms;

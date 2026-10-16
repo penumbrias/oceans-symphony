@@ -190,7 +190,13 @@ export async function snoozeActiveEndReminder(sessionId, minutes = ACTIVE_END_SN
 // Stamped with the OWNING system: the store is device-wide localStorage
 // (unlike the per-system DB blobs), so without the stamp a session started
 // in one system reads as everyone's (owner report — surfaces label it).
+// A plan that's already running isn't started twice: the running session
+// is returned instead.
 export function addActiveActivity(obj) {
+  if (obj?.planActivityId) {
+    const running = getActiveActivities().find((a) => a.planActivityId === obj.planActivityId);
+    if (running) return running;
+  }
   let systemId = null, systemName = null;
   try { systemId = getActiveSystemId() || null; systemName = getActiveSystem()?.name || null; } catch { /* registry not up yet */ }
   const item = { id: genId(), systemId, systemName, ...obj };
@@ -203,6 +209,41 @@ export function removeActiveActivity(id) {
   const gone = getActiveActivities().find((a) => a.id === id);
   if (gone) cancelActiveEndReminder(gone);
   writeArr(getActiveActivities().filter((a) => a.id !== id));
+}
+
+// A plan only ever runs once at a time. Older builds could start the same
+// plan more than once (a double tap, a retry after a notification action
+// was lost), and ending one copy left the others running. Ending, pausing
+// or resolving a plan clears every copy.
+export function removeOtherSessionsForPlan(planActivityId) {
+  if (!planActivityId) return;
+  for (const a of getActiveActivities()) {
+    if (a.planActivityId === planActivityId) removeActiveActivity(a.id);
+  }
+}
+
+// The running session for a plan, if there is one.
+export function sessionForPlan(planActivityId) {
+  if (!planActivityId) return null;
+  return getActiveActivities().find((a) => a.planActivityId === planActivityId) || null;
+}
+
+// The running session started from a daily task, if there is one. Sessions
+// started before they carried `dailyTaskTemplateId` are matched through
+// their plan record.
+export async function sessionForDailyTask(templateId) {
+  if (!templateId) return null;
+  const withPlan = getActiveActivities().filter((a) => a.planActivityId);
+  const direct = withPlan.find((a) => a.dailyTaskTemplateId === templateId);
+  if (direct) return direct;
+  for (const a of withPlan) {
+    if (a.dailyTaskTemplateId) continue;
+    try {
+      const plan = (await base44.entities.Activity.filter({ id: a.planActivityId }))?.[0];
+      if (plan?.daily_task_template_id === templateId && plan.status !== ACTIVITY_STATUSES.DONE) return a;
+    } catch { /* not this one */ }
+  }
+  return null;
 }
 
 export function updateActiveActivity(id, patch) {
@@ -274,6 +315,7 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
     });
   }
   removeActiveActivity(active.id);
+  if (active.planActivityId) removeOtherSessionsForPlan(active.planActivityId);
   const total = Number(record?.actual_duration_minutes) || minutes;
   return { record, minutes: total, name: active.name || "Activity", resolvedPlan: !!active.planActivityId };
 }
@@ -297,5 +339,6 @@ export async function pauseActiveActivity(id) {
   } catch { /* start from this session alone */ }
   await base44.entities.Activity.update(active.planActivityId, { progress_minutes: banked + minutes });
   removeActiveActivity(active.id);
+  removeOtherSessionsForPlan(active.planActivityId);
   return { minutes, total: banked + minutes, name: active.name || "Activity", paused: true };
 }
