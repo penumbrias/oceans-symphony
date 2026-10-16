@@ -38,6 +38,9 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // notebook widget). visualViewport tracks the keyboard height.
   const editorRef = useRef(null);
   const lastHtml = useRef(value);
+  // The editable's innerHTML as of the last value we applied or emitted —
+  // anything different in the DOM is typing the parent hasn't heard about.
+  const syncedBody = useRef(null);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
@@ -58,7 +61,10 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     const body = raw.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (mm) => { styles.push(mm); return ""; });
     styleTextRef.current = styles.join("");
     const { styleCss } = scopeBioStyles(raw, "wysiwyg-live");
-    if (editorRef.current) editorRef.current.innerHTML = body;
+    if (editorRef.current) {
+      editorRef.current.innerHTML = body;
+      syncedBody.current = editorRef.current.innerHTML;
+    }
     setScopedCss(styleCss || "");
   }, []);
 
@@ -77,9 +83,34 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const emit = useCallback(() => {
     const body = editorRef.current?.innerHTML ?? "";
     const full = body + (styleTextRef.current || "");
+    syncedBody.current = body;
     lastHtml.current = full;
     onChange(full);
   }, [onChange]);
+
+  // Never lose typed text. On phones the keyboard can hold a word in an
+  // unfinished composition (or commit/autocorrect it as the editor loses
+  // focus) without a final `input` event — and switching the bio editor's
+  // mode unmounts this editor in the same tap. So: emit whenever the DOM
+  // holds anything the parent hasn't been told about — when a composition
+  // ends, on blur, and as a last act on unmount (reading the detached node,
+  // which still holds its content).
+  const flush = useCallback(() => {
+    const el = editorRef.current;
+    if (el && el.innerHTML !== syncedBody.current) emit();
+  }, [emit]);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    const el = editorRef.current;
+    return () => {
+      if (!el) return;
+      const body = el.innerHTML;
+      if (body === syncedBody.current) return;
+      syncedBody.current = body;
+      onChangeRef.current?.(body + (styleTextRef.current || ""));
+    };
+  }, []);
 
   // Toggle-style formatting (bold/italic/headings/lists/align…) — flips the
   // browser's typing state so pressing Bold then typing keeps typing bold.
@@ -215,9 +246,11 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         contentEditable
         suppressContentEditableWarning
         onInput={emit}
+        onCompositionEnd={flush}
         onKeyDown={handleKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => {
+          flush();
           // Delayed: a tap on the floating bar preventDefaults, so focus
           // never actually leaves — this only fires on a real blur.
           // RESIDUAL RACE (#304): some Android WebViews blur the editor

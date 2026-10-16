@@ -1160,12 +1160,12 @@ const handleNotifClick = (mentionLog) => {
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[44px] py-1 select-none transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 flex-1 basis-0 min-w-0 min-h-[44px] py-1 px-0.5 select-none transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}>
 
-                <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
-                <span className="text-[0.6875rem] font-medium text-center leading-tight">{item.label}</span>
+                <Icon className={cn("w-5 h-5 flex-shrink-0 transition-transform", isActive && "scale-110")} />
+                <span className="os-tab-label text-[0.6875rem] font-medium leading-tight">{item.label}</span>
               </Link>);
 
             })}

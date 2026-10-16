@@ -19,6 +19,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import ArchivedContactsManager from "@/components/settings/ArchivedContactsManager";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
@@ -688,6 +689,7 @@ export default function Settings() {
           <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
           <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
           <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
+          <SubSection title="Archived contacts" defaultOpen={false}><ArchivedContactsManager /></SubSection>
           <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
           <SubSection title={`Order your ${terms.alters}`} defaultOpen={false}><AlterOrderSettings /></SubSection>
           <SubSection title="Profile songs" defaultOpen={false}><ProfileSongsSettings /></SubSection>

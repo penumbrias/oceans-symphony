@@ -90,6 +90,81 @@ export function blocksToHTML(blocks) {
   return `<div data-blocks="${encodeURIComponent(JSON.stringify(blocksForJSON))}" style="width:100%;display:block;">${inner}</div>`;
 }
 
+// Normalise markup through the browser's own parser so two strings that
+// describe the same DOM compare equal (`<img />` vs `<img>`, attribute
+// quoting, entity forms). The SW-path image form is folded onto the scheme
+// form because the JSON restore turns one into the other.
+function normalizeMarkup(html) {
+  const folded = String(html || "").replace(/\/local-image\/([^"'\s)]+)/g, (m, id) => {
+    try { return `local-image://${decodeURIComponent(id)}`; } catch { return `local-image://${id}`; }
+  });
+  const t = document.createElement("template");
+  t.innerHTML = folded;
+  return t.innerHTML.trim();
+}
+
+function serializeNode(node) {
+  const d = document.createElement("div");
+  d.appendChild(node.cloneNode(true));
+  return d.innerHTML;
+}
+
+// The data-blocks JSON is only a CACHE of the rendered markup beside it.
+// Every editor other than Blocks (Plain/WYSIWYG, Raw HTML) edits the
+// rendered markup and leaves the JSON as it was — so trusting the JSON
+// blindly showed the bio as it was BEFORE those edits, and the moment the
+// Blocks editor re-emitted it, saved that old copy over what was typed
+// ("text I typed is missing when I switch to Blocks / Raw"). When the
+// rendered markup no longer matches the JSON, the markup is the truth:
+// re-parse it, and keep anything that ended up outside the wrapper (a
+// <style> the Plain editor moved, text typed past the end) as raw blocks
+// so nothing is dropped.
+function reconcileWithRendered(html, jsonBlocks) {
+  if (typeof document === "undefined") return jsonBlocks;
+  try {
+    const t = document.createElement("template");
+    t.innerHTML = html;
+    const wrapper = t.content.querySelector("[data-blocks]");
+    if (!wrapper) return jsonBlocks;
+    const expected = document.createElement("template");
+    expected.innerHTML = blocksToHTML(jsonBlocks);
+    const expectedWrapper = expected.content.querySelector("[data-blocks]");
+    const outside = [...t.content.childNodes].filter((n) => n !== wrapper);
+    const outsideHasContent = outside.some((n) => n.nodeType !== 3 || n.textContent.trim());
+    const fresh = expectedWrapper
+      && wrapper.parentNode === t.content
+      && !outsideHasContent
+      && normalizeMarkup(wrapper.innerHTML) === normalizeMarkup(expectedWrapper.innerHTML);
+    if (fresh) return jsonBlocks;
+
+    if (wrapper.parentNode !== t.content) {
+      // The wrapper got nested (contentEditable re-parenting). Unwrap it in
+      // place and parse everything as rendered markup.
+      wrapper.replaceWith(...wrapper.childNodes);
+      const all = parseRenderedBlocks(t.innerHTML);
+      return all.length ? all : jsonBlocks;
+    }
+    const result = [];
+    let pendingRaw = "";
+    const flushRaw = () => {
+      if (pendingRaw.trim()) result.push({ id: uid(), type: "raw", content: pendingRaw.trim() });
+      pendingRaw = "";
+    };
+    for (const node of [...t.content.childNodes]) {
+      if (node === wrapper) {
+        flushRaw();
+        result.push(...parseRenderedBlocks(wrapper.innerHTML));
+      } else {
+        pendingRaw += serializeNode(node);
+      }
+    }
+    flushRaw();
+    return result.length ? result : jsonBlocks;
+  } catch {
+    return jsonBlocks;
+  }
+}
+
 export function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
 
@@ -107,7 +182,7 @@ export function htmlToBlocks(html) {
           if (src?.startsWith("__local_img_id__:")) return `local-image://${src.replace("__local_img_id__:", "")}`;
           return src;
         };
-        return blocks.map(b => {
+        const restored = blocks.map(b => {
           const id = uid();
           if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
             return { ...b, id, src: restore(b.src) };
@@ -117,9 +192,18 @@ export function htmlToBlocks(html) {
           }
           return { ...b, id };
         });
+        return reconcileWithRendered(html, restored);
       }
     } catch {}
   }
+  return parseRenderedBlocks(html);
+}
+
+// Parse rendered block markup (what blocksToHTML emits inside its wrapper,
+// or a legacy / hand-written bio) back into blocks. Anything it can't
+// classify becomes a "raw" block verbatim, so no content is ever dropped.
+function parseRenderedBlocks(html) {
+  if (!html || !html.trim()) return [];
   const blocks = [];
   const lines = html.split(/\n(?=<(?:div|hr))/);
   for (const chunk of lines) {
