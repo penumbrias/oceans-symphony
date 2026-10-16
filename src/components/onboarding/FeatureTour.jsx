@@ -882,7 +882,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "settings", sectionLabel: "Settings",
       emoji: "🧩",
       title: `${t.Alter} setup`,
-      body: `The ${t.Alter} setup section has: Custom Fields Manager (add text/number/toggle/dropdown fields to all ${t.alter} profiles), Relationship Types (add custom types for the ${t.System} Map), and the Archived ${t.Alters} Manager (view and restore archived profiles).`,
+      body: `The ${t.Alter} setup section has: Custom Fields Manager (add text/number/toggle/dropdown fields to all ${t.alter} profiles), Relationship Types (add custom types for the ${t.System} Map), the Archived ${t.Alters} Manager (view and restore archived profiles), and Archived contacts (find and restore contacts you've archived).`,
       route: "/settings", target: "settings-alters",
       look: `the highlighted ${t.Alter} setup section — tap its header to expand it`, action: null,
     },
