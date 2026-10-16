@@ -78,7 +78,7 @@ async function resolveFolderSource(url) {
       rows = await base44.entities.ImageAsset.filter({ folder: p.folder });
     }
   } catch { rows = []; }
-  const items = (rows || []).filter((a) => a && a.image_url && a.kind !== 'audio')
+  const items = (rows || []).filter((a) => a && a.image_url && (!a.kind || a.kind === 'image'))
     .map((a) => ({ url: a.image_url, ownerAlterId: a.owner_alter_id || null }));
   let primaryAlterId = null;
   if (p.mode === 'fronter') {

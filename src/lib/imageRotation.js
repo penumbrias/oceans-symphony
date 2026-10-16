@@ -102,9 +102,9 @@ export function useRotatingImageUrl({ alterId, role, mode, fallbackUrl, alter = 
     enabled: rotationOn,
   });
 
-  // Songs can be filed in the same folder as pictures — never pick one.
+  // Songs, videos and files can share a folder with pictures — never pick one.
   const urls = rotationOn
-    ? (pool || []).filter((a) => a && a.image_url && a.kind !== "audio").map((a) => a.image_url)
+    ? (pool || []).filter((a) => a && a.image_url && (!a.kind || a.kind === "image")).map((a) => a.image_url)
     : [];
   const cacheKey = scope || `${alterId}:${role}`;
   // The pick is remembered per pool source too, so a surface reading the

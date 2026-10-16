@@ -8,6 +8,7 @@
 
 import { sniffImageMime, isLocalImageUrl, getLocalImageId, getLocalImageBlob } from "@/lib/localImageStorage";
 import { isNative, getNativePlatform } from "@/lib/platform";
+import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 
 // The Assets folder that videos, audio and files land in when nobody
 // filed them anywhere else. Reserved: users can't make a folder with
@@ -17,9 +18,10 @@ export const FILES_FOLDER = "Files & videos";
 // Downloads/Oceans Symphony/files/<sub> — one subfolder per kind.
 export const SAVE_SUBFOLDERS = { image: "Images", video: "Videos", audio: "Audio", file: "Files" };
 
-// Upload cap for files (a song's cap is 25MB; files/videos get a little
-// more). Every stored file rides backups, so it can't be unbounded.
-export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+// Upload cap for files — the same as a song's. Every stored file rides
+// backups and the app's private-file copy (which holds it as text while
+// writing), so a much bigger video risks running a phone out of memory.
+export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 const ascii = (b, i, n) => String.fromCharCode(...b.slice(i, i + n));
 
@@ -153,5 +155,40 @@ export async function saveAssetToDevice({ url, name, mime: knownMime, kind: know
     return res?.result === "failed" ? { ok: false, error: res.error } : { ok: true };
   } catch (e) {
     return { ok: false, error: e?.message || "save_failed" };
+  }
+}
+
+// Library bookkeeping — describes stored files, isn't a use of one.
+const NOT_A_USE = new Set(["ImageAsset", "AssetFolder", "DeletionLog"]);
+
+// Where each stored file is still used: { [id]: { [EntityName]: count } }
+// for the ids given, found by scanning every record for its local URL.
+// Read-only. Lets the delete confirm say "used in 2 chat messages" instead
+// of breaking a message without warning. Returns {} if the database isn't
+// open (never throws).
+export function findStoredFileUses(ids) {
+  const want = (ids || []).filter(Boolean);
+  if (!want.length) return {};
+  try {
+    const db = getFullDbDump();
+    const needles = want.map((id) => [id, `/local-image/${encodeURIComponent(id)}`, `local-image://${id}`]);
+    const out = {};
+    for (const [entity, map] of Object.entries(db)) {
+      if (isReservedDbKey(entity) || NOT_A_USE.has(entity) || !map || typeof map !== "object") continue;
+      for (const rec of Object.values(map)) {
+        if (!rec || typeof rec !== "object" || rec.removed_at) continue;
+        let text;
+        try { text = JSON.stringify(rec); } catch { continue; }
+        for (const [id, a, b] of needles) {
+          if (text.includes(a) || text.includes(b)) {
+            const slot = (out[id] ||= {});
+            slot[entity] = (slot[entity] || 0) + 1;
+          }
+        }
+      }
+    }
+    return out;
+  } catch {
+    return {};
   }
 }
