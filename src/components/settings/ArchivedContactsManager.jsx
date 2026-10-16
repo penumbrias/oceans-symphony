@@ -41,7 +41,7 @@ export default function ArchivedContactsManager() {
     <Card className="border-border/50" data-testid="archived-contacts">
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+          <div className="w-10 h-10 shrink-0 rounded-xl bg-muted flex items-center justify-center">
             <Archive className="w-5 h-5 text-muted-foreground" />
           </div>
           <div>
