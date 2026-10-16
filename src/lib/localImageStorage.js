@@ -339,6 +339,60 @@ export async function countLocalImages() {
   });
 }
 
+// Size of the whole store WITHOUT loading it: walks a cursor one entry at a
+// time, reading only Blob.size (a Blob from IndexedDB is a handle — its
+// bytes stay on disk) or a legacy string's length. Returns
+// { count, bytes, base64Bytes } where base64Bytes estimates what the store
+// would weigh as data URLs inside a JSON backup. THROWS when the store
+// can't be read, so a caller can't mistake "unreadable" for "empty".
+//
+// Why it exists: the automatic backup used to call getAllLocalImages() —
+// every picture, song and video converted to a data URL and held in
+// memory at once — BEFORE checking whether that was too big to send. On a
+// phone with a large media library that killed the app a few seconds
+// after opening (auto-backup runs at boot).
+export async function measureLocalImages() {
+  const idb = await getIdb();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readonly');
+    const req = tx.objectStore(STORE_NAME).openCursor();
+    let count = 0;
+    let bytes = 0;
+    let base64Bytes = 0;
+    req.onerror = () => reject(req.error || new Error('Failed to measure images'));
+    tx.onabort = () => reject(tx.error || new Error('Image measure aborted'));
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) { resolve({ count, bytes, base64Bytes }); return; }
+      const v = cursor.value;
+      count += 1;
+      if (v instanceof Blob) {
+        bytes += v.size;
+        base64Bytes += Math.ceil(v.size / 3) * 4 + 40;
+      } else if (typeof v === 'string') {
+        bytes += Math.floor(v.length * 0.75);
+        base64Bytes += v.length;
+      } else if (v && typeof v.byteLength === 'number') {
+        bytes += v.byteLength;
+        base64Bytes += Math.ceil(v.byteLength / 3) * 4 + 40;
+      }
+      cursor.continue();
+    };
+  });
+}
+
+// One stored file as a Blob (legacy data-URL strings decoded), or null when
+// it isn't stored. THROWS when the store can't be read. Used by the zip
+// exports so they read ONE file at a time.
+export async function readLocalImageBlob(id) {
+  const v = await readLocalImage(id);
+  if (!v) return null;
+  if (v instanceof Blob) return v;
+  if (typeof v === 'string') return dataUrlToBlob(v);
+  if (v instanceof ArrayBuffer || v instanceof Uint8Array) return new Blob([v]);
+  return null;
+}
+
 export async function restoreLocalImages(imagesMap) {
   const entries = Object.entries(imagesMap || {});
   const result = { total: entries.length, restored: 0, failed: [] };

@@ -21,8 +21,8 @@
 
 import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
-import { getAllLocalImages, countLocalImages } from "@/lib/localImageStorage";
-import { getAllLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
+import { getAllLocalImages, measureLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalFonts, measureLocalFonts } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
@@ -177,7 +177,7 @@ export function clearBackupCustomPassword() {
 // The password a backup should be sealed with right now, or a
 // human-readable reason there isn't one. Never returns plaintext when the
 // user asked for locking — a missing password is a failure, not a downgrade.
-function resolveBackupPassword() {
+export function resolveBackupPassword() {
   const mode = getBackupEncryptionMode();
   if (mode === BACKUP_ENCRYPTION.OFF) return { password: null };
   if (mode === BACKUP_ENCRYPTION.STORAGE) {
@@ -302,8 +302,10 @@ export function setBackupDestination(value) {
 // alter avatars were crossing the WebView OOM ceiling as the plugin
 // bridge tried to marshal the whole base64 string in one call, killing
 // the app mid-boot. Data (entities + settings) still ships, so the
-// user's real records are always safe; images can be re-exported by
-// hand from Settings → Data & privacy → Export → Advanced → Images.
+// user's real records are always safe; the files themselves are saved
+// by hand from Settings → Data & privacy → Export ("Files as .zip" or
+// "Everything as one .zip"). The decision is made from MEASURED sizes
+// before any file is read (see buildFullBackupPayload).
 // 12 MB of raw base64 is roughly the ceiling we've seen the bridge
 // survive across Android WebView versions we ship on.
 const AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES = 12 * 1024 * 1024;
@@ -371,35 +373,62 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
       throw err;
     }
   }
-  // Pictures + fonts. A read failure used to return {} silently, so a
-  // backup with no pictures was logged as healthy (audit 2026-10-01, M1):
-  // compare against what the stores hold.
-  let images = {};
+  // Pictures, audio, video, attached files + fonts.
+  //
+  // MEASURE FIRST, READ SECOND. This used to call getAllLocalImages()
+  // up front — every stored file turned into a data URL and held in
+  // memory at once — and only THEN compare the total against the size
+  // limit. Auto-backup runs at boot, so on a phone with a big media
+  // library the app closed itself a few seconds after opening. Measuring
+  // walks the store one entry at a time and only reads sizes; the files
+  // themselves are read only when the whole backup fits under the limit.
+  // Over it, the backup is data-only (every record still ships) and the
+  // health line says so — files are saved with "Files as .zip".
+  let mediaMeasure = null;
   let imagesUnread = false;
-  try { images = await getAllLocalImages(); } catch { images = {}; }
-  try {
-    const held = await countLocalImages();
-    if (held > 0 && Object.keys(images).length < held) imagesUnread = true;
-  } catch { /* count unavailable — can't tell */ }
-  let fonts = {};
+  try { mediaMeasure = await measureLocalImages(); } catch { imagesUnread = true; }
+  let fontMeasure = null;
   let fontsUnread = false;
-  try { fonts = await getAllLocalFonts(); } catch { fonts = {}; }
-  try {
-    const held = (await listLocalFontIds()).length;
-    if (held > 0 && Object.keys(fonts).length < held) fontsUnread = true;
-  } catch { /* can't tell */ }
+  try { fontMeasure = await measureLocalFonts(); } catch { fontsUnread = true; }
   if ((imagesUnread || fontsUnread) && allSystems === "required") {
-    throw new Error(`Your stored ${imagesUnread ? "pictures" : "fonts"} couldn't be read, so a complete backup can't be made. Reload the app and try again.`);
+    throw new Error(`Your stored ${imagesUnread ? "pictures and files" : "fonts"} couldn't be read, so a complete backup can't be made. Reload the app and try again.`);
   }
   // The size guard counts the data too — several systems' data now rides
   // in the same native bridge call as the pictures (review M7).
   let dataBytes = 0;
   try { dataBytes = JSON.stringify(perSystem || dump).length; } catch { /* estimate only */ }
-  const heavyBytes = estimateBytes(images) + estimateBytes(fonts);
-  const skipHeavy = heavyBytes + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES && heavyBytes > 0;
+  let heavyBytes = (mediaMeasure?.base64Bytes || 0) + (fontMeasure?.base64Bytes || 0);
+  let skipHeavy = heavyBytes > 0 && heavyBytes + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES;
+  let images = {};
+  let fonts = {};
+  if (!skipHeavy) {
+    // Small enough to carry — read them. A read failure used to return {}
+    // silently, so a backup with no pictures was logged as healthy (audit
+    // 2026-10-01, M1): compare against what the stores hold.
+    if (!imagesUnread && mediaMeasure?.count) {
+      try { images = await getAllLocalImages(); } catch { images = {}; }
+      if (Object.keys(images).length < mediaMeasure.count) imagesUnread = true;
+    }
+    if (!fontsUnread && fontMeasure?.count) {
+      try { fonts = await getAllLocalFonts(); } catch { fonts = {}; }
+      if (Object.keys(fonts).length < fontMeasure.count) fontsUnread = true;
+    }
+    if ((imagesUnread || fontsUnread) && allSystems === "required") {
+      throw new Error(`Your stored ${imagesUnread ? "pictures and files" : "fonts"} couldn't be read, so a complete backup can't be made. Reload the app and try again.`);
+    }
+    // Belt and braces: something added between measuring and reading
+    // can't push the payload past the limit.
+    const actual = estimateBytes(images) + estimateBytes(fonts);
+    if (actual > 0 && actual + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES) {
+      heavyBytes = actual;
+      skipHeavy = true;
+      images = {};
+      fonts = {};
+    }
+  }
   if (skipHeavy) {
     console.warn(
-      `[Auto-backup] payload too large (${Math.round((heavyBytes + dataBytes) / 1024 / 1024)} MB) — writing data-only backup so the native bridge doesn't crash.`
+      `[Auto-backup] media too large (${Math.round((heavyBytes + dataBytes) / 1024 / 1024)} MB) — writing a data-only backup so the app doesn't run out of memory.`
     );
   }
   const envelope = {
@@ -416,8 +445,8 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
     // Several systems → the same container a manual "each separately"
     // export writes, so Import restores every one of them.
     ...(perSystem ? { __multisystem: 1, systems: perSystem } : { data: dump, __system_name: systems[0]?.name || null }),
-    __local_images: skipHeavy ? {} : images,
-    __local_fonts: skipHeavy ? {} : fonts,
+    __local_images: images,
+    __local_fonts: fonts,
     __local_settings: readBackupLocalSettings(),
   };
   // Caveats the health surface must be able to say out loud (they used to
@@ -531,7 +560,7 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
     const notes = [];
     if (caveats.mediaUnread) notes.push("some pictures/fonts couldn't be read");
     if (caveats.unreadableSystems?.length) notes.push(`not included (locked): ${caveats.unreadableSystems.join(", ")}`);
-    if (caveats.skippedHeavy) notes.push("images/fonts skipped (too large)");
+    if (caveats.skippedHeavy) notes.push("data only — pictures, audio & files are too large for an automatic backup (save them with \u201cFiles as .zip\u201d)");
     recordBackupAttempt({ kind, ok: true, detail: [location || result, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {
     // "cancelled" is the user's choice, not a failure — don't count it.
