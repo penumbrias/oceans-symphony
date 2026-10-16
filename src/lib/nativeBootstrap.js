@@ -57,6 +57,35 @@ function notifyRoute() {
   }
 }
 
+// Notification actions the app itself handles (the running-activity
+// "End & log", the end-of-plan check-in's Done / +15 min / Other…, symptom
+// "End", fronter taps) — usePersistentNotifications owns them. Capacitor
+// hands an action that arrived while nothing was listening (a cold start
+// from the tray) ONLY to the first listener added, which is the one below,
+// so a second listener in the hook never saw it: "Done" from the
+// notification did nothing and the activity stayed running. The single
+// native listener forwards these here; they wait in the queue until the
+// hook (mounted after unlock) takes them.
+const pendingAppActions = [];
+let appActionHandler = null;
+
+export function setAppNotificationActionHandler(fn) {
+  appActionHandler = fn;
+  while (fn && pendingAppActions.length) {
+    const ev = pendingAppActions.shift();
+    try { fn(ev); } catch { /* keep going */ }
+  }
+  return () => { if (appActionHandler === fn) appActionHandler = null; };
+}
+
+function forwardAppAction(event) {
+  if (appActionHandler) {
+    try { appActionHandler(event); } catch { /* non-fatal */ }
+  } else {
+    pendingAppActions.push(event);
+  }
+}
+
 // Trim a Capacitor app URL down to the SPA-relative bit we can hand to
 // react-router. Returns null if the URL isn't ours.
 function extractInAppRoute(rawUrl) {
@@ -251,7 +280,7 @@ export async function initNativeShell() {
 
       const reminderId = extra.reminderId;
       const scheduledFor = extra.scheduledFor;
-      if (!reminderId) return;
+      if (!reminderId) { forwardAppAction(event); return; }
 
       const actionId = event?.actionId || '';
       if (actionId === 'snooze_10') {

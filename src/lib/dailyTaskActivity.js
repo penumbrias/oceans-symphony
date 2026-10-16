@@ -58,10 +58,14 @@ const colorOf = (cfg, categories) =>
 
 // Start the task's activities now ("timed" / "active"): a plan stamped at
 // this moment (for the set length when timed), started straight away.
-// Returns the plan record.
+// Returns the plan record, or null when it didn't start — including when
+// this task is ALREADY running (tapping it again used to start another
+// copy every time).
 export async function beginDailyTaskActivity(template, { categories = [], alterIds = [] } = {}) {
   const cfg = taskActivityConfig(template);
   if (!cfg || cfg.mode === "log") return null;
+  const { sessionForDailyTask } = await import("@/lib/activitySession");
+  if (await sessionForDailyTask(template.id)) return null;
   const cat = (categories || []).find((c) => c.id === cfg.categoryId);
   const color = colorOf(cfg, categories);
   const now = new Date();

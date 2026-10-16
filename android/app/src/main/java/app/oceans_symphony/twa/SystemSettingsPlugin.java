@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
@@ -71,6 +72,20 @@ public class SystemSettingsPlugin extends Plugin {
             muted = ch != null && ch.getImportance() == NotificationManager.IMPORTANCE_NONE;
         }
         r.put("remindersChannelMuted", muted);
+        call.resolve(r);
+    }
+
+    /**
+     * Is another app (a music player, a podcast) playing right now? Read
+     * by src/lib/otherAudio.js so a profile song never starts on its own
+     * over someone's music: starting web audio takes the phone's audio
+     * focus, and music apps stop when they lose it.
+     */
+    @PluginMethod
+    public void otherAudioPlaying(PluginCall call) {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        JSObject r = new JSObject();
+        r.put("playing", am != null && am.isMusicActive());
         call.resolve(r);
     }
 

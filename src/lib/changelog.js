@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 16, 2026",
+    changes: [
+      { type: "fix", text: "Marking a running activity done from its notification works again, and a daily task that's already running offers to finish it instead of starting another copy." },
+      { type: "fix", text: "Songs on profiles and pages no longer start on their own over music you're already playing; tap play when you want them." },
+    ],
+  },
+  {
     date: "October 14, 2026",
+    version: "0.256.0",
     changes: [
       { type: "feature", text: "Recurring tasks can be done several times a period, kept as a tally, or broken into steps. Set it under \"How it's completed\" when editing a task." },
       { type: "fix", text: "Quick Check-In saves much faster and no longer bogs down or crashes when lots of symptoms are ticked." },
