@@ -230,7 +230,7 @@ export async function initNativeShell() {
       // Dashboard's critical-plan card. Doesn't record a
       // ReminderInstance (plans don't share the Reminder entity).
       if (extra.kind === "plan_reminder" && extra.activityId) {
-        pendingNativeRoute.target = `/activities?activityId=${encodeURIComponent(extra.activityId)}`;
+        pendingNativeRoute.target = `/planner?activityId=${encodeURIComponent(extra.activityId)}`;
         notifyRoute();
         return;
       }

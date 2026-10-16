@@ -147,7 +147,7 @@ export default function DailyTallyPanel({
                 const catNames = (a.activity_category_ids || []).map(id => catMap[id]?.name).filter(Boolean).join(", ");
                 const name = a.activity_name || catNames || "Activity";
                 const sub = a.duration_minutes ? `${a.duration_minutes}m` : "";
-                return <NavRow key={a.id} label={name} sublabel={sub} route="/activities" navigate={navigate} />;
+                return <NavRow key={a.id} label={name} sublabel={sub} route="/planner" navigate={navigate} />;
               })}
             </div>
           )}

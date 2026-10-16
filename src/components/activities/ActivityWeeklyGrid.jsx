@@ -1151,7 +1151,7 @@ if (isSameCell) {
                                 const cur = quickPlanTapRef.current;
                                 if (cur.id === a.id && cur.time === now) {
                                   quickPlanTapRef.current = { id: null, time: 0 };
-                                  navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
+                                  navigate(`/planner?date=${dayKey}&highlight=${a.id}`);
                                 }
                               }, 280);
                             }}

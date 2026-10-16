@@ -191,7 +191,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       onSelect: () => navigate("/settings#appearance"),
     });
   } else if (
-    path.startsWith("/activities") ||
+    path.startsWith("/planner") ||
     path.startsWith("/checkin") ||
     path.startsWith("/system-checkin")
   ) {

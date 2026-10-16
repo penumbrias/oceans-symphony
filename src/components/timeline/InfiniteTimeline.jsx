@@ -1712,7 +1712,7 @@ export default function InfiniteTimeline({
                          notes={entry.activity.notes}
                          timeStr={timeStr}
                          onTap={() => setDetailPopup({ type: "activity", entry })}
-                         onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
+                         onDoubleTap={() => navigate(`/planner?date=${dateStr}&highlight=${entry.activity.id}`)}
                        />
                      );
                     })}

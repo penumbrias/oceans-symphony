@@ -400,7 +400,7 @@ export default function ActivityLogModal({
       }
       await recordAuthoredText({
         ...prepared, alters: alters || [], sourceType: "activity", sourceId: firstCreatedId || "", sourceLabel: "Activity note",
-        navigatePath: `/activities?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${firstCreatedId || ""}`,
+        navigatePath: `/planner?date=${format(timestamp, "yyyy-MM-dd")}&highlight=${firstCreatedId || ""}`,
       });
 
       // Fronting-session sync — create an associated session for each selected

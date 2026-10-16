@@ -63,7 +63,7 @@ export function ActivityActionMenu({ activity, onClose }) {
     const sourceId = activity.planActivityId || activity.id;
     await recordAuthoredText({
       ...prepared, alters, sourceType: "activity", sourceId, sourceLabel: "Activity note",
-      navigatePath: `/activities?date=${format(new Date(activity.startTime || Date.now()), "yyyy-MM-dd")}${activity.planActivityId ? `&highlight=${activity.planActivityId}` : ""}`,
+      navigatePath: `/planner?date=${format(new Date(activity.startTime || Date.now()), "yyyy-MM-dd")}${activity.planActivityId ? `&highlight=${activity.planActivityId}` : ""}`,
     });
     toast.success("Note saved");
   };

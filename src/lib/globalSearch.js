@@ -281,7 +281,7 @@ export function buildActivityRecords({ items = [] }) {
       id: a.id,
       title: a.activity_name || "Activity",
       subtitle: snippet(a.notes) || formatDateLabel(a.timestamp) || "",
-      path: `/activities?date=${dateStr}&highlight=${a.id}`,
+      path: `/planner?date=${dateStr}&highlight=${a.id}`,
       searchableText: joinNonEmpty([a.activity_name, a.notes, a.category, dateSearchBlob(a.timestamp)]).toLowerCase(),
       sortDate: a.timestamp,
     };
