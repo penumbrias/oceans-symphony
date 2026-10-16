@@ -105,7 +105,6 @@ export function folderForMime(mime) {
 // characters or control characters; trimmed; bounded.
 export function safeFileName(raw, fallback = "file") {
   let s = String(raw || "")
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f/\\:*?"<>|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
