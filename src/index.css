@@ -543,6 +543,29 @@ html.a11y-mode .a11y-header-row svg { width: 22px !important; height: 22px !impo
 html.a11y-mode .a11y-header-title { font-size: 18px !important; line-height: 1.2 !important; }
 html.a11y-mode .a11y-bottom-nav svg { width: 22px !important; height: 22px !important; }
 html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 1.1 !important; }
+
+/* Bottom tab labels (classic tab bar + v2 tab strip). A label that doesn't
+   fit its tab — a long custom name, a wide font — breaks at a syllable
+   with a hyphen ("Head-/space") using the page language (i18n.js keeps
+   <html lang> current), falls back to a plain break only for a word the
+   dictionary can't split, and wraps to at most two lines. It never
+   widens its tab, so it can't spill over the neighbouring tabs. */
+.os-tab-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
+  text-align: center;
+  white-space: normal;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 3 2;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
 @media (orientation: landscape) {
   html.a11y-mode .a11y-header-row { height: 44px !important; }
   html.a11y-mode .a11y-header-title { font-size: 16px !important; }
