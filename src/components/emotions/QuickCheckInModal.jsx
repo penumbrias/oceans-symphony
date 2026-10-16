@@ -877,7 +877,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         notes: noteVal || null,
       });
       if (preparedActivity) {
-        await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/activities?date=${format(new Date(startAt), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
+        await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/planner?date=${format(new Date(startAt), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
       }
     }
   };

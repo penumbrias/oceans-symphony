@@ -140,7 +140,7 @@ export default function ActivityLifecyclePopover({
     };
     const record = () => recordAuthoredText({
       ...prepared, alters, sourceType: "activity", sourceId: activity.id, sourceLabel: "Plan note",
-      navigatePath: `/activities?date=${format(new Date(activity.timestamp), "yyyy-MM-dd")}&highlight=${activity.id}`,
+      navigatePath: `/planner?date=${format(new Date(activity.timestamp), "yyyy-MM-dd")}&highlight=${activity.id}`,
     });
     return { prepared, authorPatch, record };
   };

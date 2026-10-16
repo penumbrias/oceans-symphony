@@ -401,7 +401,7 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
             <Button size="sm" variant="outline" onClick={() => setShowActivityMenu(true)} className="text-xs gap-1">
               <Settings2 className="w-3 h-3" /> Add / edit manually
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/activities"); }} className="text-xs gap-1">
+            <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/planner"); }} className="text-xs gap-1">
               Open full tracker <ExternalLink className="w-3 h-3" />
             </Button>
           </div>

@@ -11,8 +11,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { addWeeks, startOfWeek, format } from "date-fns";
-import { CheckSquare, ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause } from "lucide-react";
+import { addDays, addWeeks, addMonths, addYears, startOfWeek, format } from "date-fns";
+import { CheckSquare, ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play, Pause, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ import { SearchableMultiList } from "@/v2/widgets";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
-import { BarChart3, ChevronDown, SlidersHorizontal, ListChecks } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
@@ -54,11 +54,33 @@ import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { Switch } from "@/components/ui/switch";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+// The tracker's overview calendars and panels, merged into the planner.
+import ActivityMonthView from "@/components/activities/ActivityMonthView";
+import ActivityYearView from "@/components/activities/ActivityYearView";
+import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
+import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
+import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
+import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
+import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { collectAlterDates } from "@/lib/importantDates";
+import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
 };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } };
+
+const VIEWS = ["day", "week", "month", "year"];
+
+function PanelError({ label, onRetry }) {
+  return (
+    <div className="p-3 rounded-lg border border-destructive/40 bg-destructive/5 text-xs text-destructive">
+      {label}: something went wrong showing this.
+      <button type="button" onClick={onRetry} className="ml-2 underline hover:no-underline">Retry</button>
+    </div>
+  );
+}
 
 const fmt = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -102,22 +124,38 @@ export default function PlannerSurface({
   // ?activityId= param through).
   openActivityId = null,
   onOpenedActivity = null,
+  // Deep link: start on this date (the Planner page passes ?date=).
+  initialAnchor = null,
 }) {
   const t = useTerms();
   const tr = useT();
   const formatAlter = useAlterLabel();
-  const [showTotals, setShowTotals] = useState(false);
   const [showDisplay, setShowDisplay] = useState(false);
-  // "Plans" tab (chrome only): the scheduled-plans view — series collapsed
-  // to one row each, built in the planner's own grammar (v2 rebuilds
-  // FUNCTIONS; the classic tracker components stay on their page).
-  const [plansView, setPlansView] = useState(false);
+  // The page's three parts (chrome only) — the tracker's Logged / Planned /
+  // Plan tracker tabs, merged: the calendar, the scheduled-plans list
+  // (series collapsed to one row each) and the insights (totals, goals,
+  // follow-through, tally). Remembered, like the view.
+  const [section, setSectionState] = useState(() => {
+    const v = lsGet("symphony_planner_section_v1", "calendar");
+    return ["calendar", "plans", "insights"].includes(v) ? v : "calendar";
+  });
+  const setSection = (v) => { setSectionState(v); lsSet("symphony_planner_section_v1", v); };
+  // Calendar zoom (chrome only): day / week on the time canvas, month /
+  // year as the overview calendars the tracker had. Starts from the
+  // tracker's own remembered choice so nobody's view resets.
+  const [view, setViewState] = useState(() => {
+    const v = lsGet("symphony_planner_view_v1", null) ?? lsGet("symphony_act_view_mode", "week");
+    return VIEWS.includes(v) ? v : "week";
+  });
+  const setView = (v) => { setViewState(v); lsSet("symphony_planner_view_v1", v); };
+  const effDayCount = chrome ? (view === "day" ? 1 : 7) : dayCount;
+  const [showManage, setShowManage] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [ownAnchor, setOwnAnchor] = useState(() => new Date());
+  const [ownAnchor, setOwnAnchor] = useState(() => initialAnchor || new Date());
   const anchor = anchorProp || ownAnchor;
   const setAnchor = (v) => {
     const next = typeof v === "function" ? v(anchor) : v;
@@ -472,7 +510,7 @@ export default function PlannerSurface({
         total += occurrences.length;
       }
       if (preparedNote) {
-        await recordAuthoredText({ ...preparedNote, alters, sourceType: "activity", sourceId: firstCreatedId, sourceLabel: "Plan note", navigatePath: `/activities?date=${format(new Date(timing.day), "yyyy-MM-dd")}${firstCreatedId ? `&highlight=${firstCreatedId}` : ""}` });
+        await recordAuthoredText({ ...preparedNote, alters, sourceType: "activity", sourceId: firstCreatedId, sourceLabel: "Plan note", navigatePath: `/planner?date=${format(new Date(timing.day), "yyyy-MM-dd")}${firstCreatedId ? `&highlight=${firstCreatedId}` : ""}` });
       }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
@@ -693,7 +731,7 @@ export default function PlannerSurface({
       const members = seriesMembers();
       if (members.length > 1) await applyEditToSeries(members, patch);
       else await base44.entities.Activity.update(timing.item.id, patch);
-      await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: timing.item.id, sourceLabel: "Plan note", navigatePath: `/activities?highlight=${timing.item.id}` });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: timing.item.id, sourceLabel: "Plan note", navigatePath: `/planner?highlight=${timing.item.id}` });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -870,6 +908,31 @@ export default function PlannerSurface({
     setTodoPickerOpen(false); setTodoQuery("");
   };
 
+  // Arrows step by whatever the calendar shows (a day, a week, a month, a
+  // year); the plans list has no date, insights follow the week.
+  const stepAnchor = (dir) => {
+    const v = section === "calendar" ? view : "week";
+    setAnchor((d) => (v === "day" ? addDays(d, dir) : v === "month" ? addMonths(d, dir)
+      : v === "year" ? addYears(d, dir) : addWeeks(d, dir)));
+  };
+  // The month/year calendars also show open to-dos (with a date) and
+  // important dates from custom fields, as the tracker did.
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list(), enabled: chrome,
+  });
+  const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
+  const activitiesWithTasks = useMemo(
+    () => [...activities, ...tasksAsCalendarItems(tasks)], [activities, tasks]);
+  const openFromCalendar = (picked) => {
+    const list = (Array.isArray(picked) ? picked : [picked]).filter(Boolean);
+    const real = list.filter((x) => !x._isTask);
+    if (real.length === 0 && list[0]?._task) { navigate(`/todo?id=${list[0]._task.id}`); return; }
+    if (real.length === 1) { setDetails(real[0]); return; }
+    // Several on one day: go to that day on the canvas, where each is a block.
+    const when = real[0]?.timestamp ? new Date(real[0].timestamp) : null;
+    if (when) { setAnchor(when); setView("day"); }
+  };
+
   // Plain range rather than "w/c" — that's British shorthand for "week
   // commencing" and means nothing to most people.
   const weekLabel = useMemo(() => {
@@ -879,7 +942,11 @@ export default function PlannerSurface({
     return sameMonth
       ? `${format(start, "d")}–${format(end, "d MMM")}`
       : `${format(start, "d MMM")} – ${format(end, "d MMM")}`;
-  }, [anchor]);
+  }, [anchor, prefs.weekStartsOn]);
+  const rangeLabel = (section === "calendar" && view === "day") ? format(anchor, "EEE d MMM")
+    : (section === "calendar" && view === "month") ? format(anchor, "MMMM yyyy")
+    : (section === "calendar" && view === "year") ? format(anchor, "yyyy")
+    : weekLabel;
   // The canvas used to print its own range line under this one, saying the
   // same thing twice. One heading row.
   const weekTotalLabel = useMemo(() => {
@@ -900,106 +967,89 @@ export default function PlannerSurface({
       style={applyPageLook ? pageLook : undefined}
       {...(applyPageLook ? { "data-widget-content": true } : {})}>
       <div className={chrome ? "os-page-shell space-y-2" : "flex flex-col min-h-0 h-full"}>
-        {chrome && <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" aria-label={tr("planner.prevWeek")} onClick={() => setAnchor((d) => addWeeks(d, -1))}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium tabular-nums">{weekLabel}</span>
-            <Button variant="ghost" size="sm" aria-label={tr("planner.nextWeek")} onClick={() => setAnchor((d) => addWeeks(d, 1))}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAnchor(new Date())}>{tr("planner.today")}</Button>
-            <span className="text-xs text-muted-foreground tabular-nums ml-1">{weekTotalLabel}</span>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={openCreateNow}
-              aria-label={tr("planner.new")} title={tr("planner.new")}>
-              <Plus className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowTotals((v) => !v)}
-              aria-expanded={showTotals} title={tr("planner.totals")}>
-              <BarChart3 className="w-3.5 h-3.5" />
-              <ChevronDown className="w-3 h-3" style={{ transform: showTotals ? "rotate(180deg)" : "none" }} />
-            </Button>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setPlansView((v) => !v)}
-              aria-pressed={plansView} aria-label={tr("planner.plans")} title={tr("planner.plans")}
-              style={plansView ? { color: "var(--v2-accent)" } : undefined}>
-              <ListChecks className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowDisplay((v) => !v)}
-              aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button type="button" onClick={() => setOverlay("alters", !overlays.alters)}
-              aria-pressed={overlays.alters}
-              className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                overlays.alters ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-              }`}>
-              <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", { term: t.Fronting })}
-            </button>
-            <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
-              aria-pressed={overlays.emotions}
-              className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                overlays.emotions ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-              }`}>
-              <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
-            </button>
-          </div>
-        </div>}
-
-        {chrome && showTotals && (
-          <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            {totals.total === 0 && <p className="text-muted-foreground">{tr("planner.nothingTracked")}</p>}
-            {totals.activities.length > 0 && (
-              <div>
-                <p className="font-semibold uppercase tracking-wide text-[0.625em] text-muted-foreground mb-1">
-                  {tr("planner.byActivity")}
-                </p>
-                {totals.activities.slice(0, 8).map((a) => (
-                  <div key={a.key} className="flex items-center justify-between gap-2">
-                    <span className="truncate">{a.label}</span>
-                    <span className="tabular-nums text-muted-foreground">{fmt(a.minutes)}</span>
-                  </div>
+        {chrome && (
+          <div className="space-y-2">
+            {/* Row 1: what you're looking at (calendar / plans / insights)
+                plus page config — the tracker's three tabs, merged in. */}
+            <div className="flex items-center justify-between gap-2">
+              <div role="tablist" className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40" data-tour="planner-sections">
+                {[["calendar", tr("planner.section.calendar")], ["plans", tr("planner.plans")], ["insights", tr("planner.section.insights")]].map(([id, label]) => (
+                  <button key={id} type="button" role="tab" aria-selected={section === id}
+                    onClick={() => setSection(id)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                      section === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}>{label}</button>
                 ))}
               </div>
-            )}
-            {totals.alters.length > 0 && (
-              <div>
-                <p className="font-semibold uppercase tracking-wide text-[0.625em] text-muted-foreground mb-1">
-                  {tr("planner.byMember", { members: t.alters })}
-                </p>
-                {totals.alters.map((a) => (
-                  <div key={a.key} className="flex items-center justify-between gap-2">
-                    <span className="truncate">{a.label}</span>
-                    <span className="tabular-nums text-muted-foreground">{fmt(a.minutes)}</span>
-                  </div>
-                ))}
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="sm" onClick={() => setShowDisplay((v) => !v)}
+                  aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
+                  <SlidersHorizontal className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowManage(true)}
+                  aria-label={tr("planner.manage")} title={tr("planner.manage")}>
+                  <SettingsIcon className="w-4 h-4" />
+                </Button>
+                <Button size="sm" className="gap-1 h-8 ml-1" onClick={openCreateNow}
+                  style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>
+                  <Plus className="w-4 h-4" /> {tr("planner.new")}
+                </Button>
               </div>
-            )}
-            <div>
-              <p className="font-semibold uppercase tracking-wide text-[0.625em] text-muted-foreground mb-1">
-                {tr("planner.goals")}
-              </p>
-              {goalRows.length === 0 && <p className="text-muted-foreground">{tr("planner.noGoals")}</p>}
-              {goalRows.map((g) => (
-                <div key={g.id} className="space-y-0.5 mb-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate">{g.label}</span>
-                    <span className="tabular-nums text-muted-foreground">{fmt(g.done)} / {fmt(g.target)}</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full"
-                      style={{ width: `${g.pct}%`, background: g.color || "var(--v2-accent)" }} />
-                  </div>
-                </div>
-              ))}
             </div>
+
+            {/* Row 2: date navigation — steps by whatever the view shows. */}
+            {section !== "plans" && (
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-0.5 min-w-0">
+                  <Button variant="ghost" size="sm" aria-label={tr("planner.prev")} onClick={() => stepAnchor(-1)}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium tabular-nums whitespace-nowrap">{rangeLabel}</span>
+                  <Button variant="ghost" size="sm" aria-label={tr("planner.next")} onClick={() => stepAnchor(1)}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <button type="button" onClick={() => setAnchor(new Date())}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground ml-1">
+                    {tr("planner.today")}
+                  </button>
+                  {section === "calendar" && view === "week" && (
+                    <span className="text-xs text-muted-foreground tabular-nums ml-1.5 whitespace-nowrap">{weekTotalLabel}</span>
+                  )}
+                </div>
+                {section === "calendar" && (
+                  <div className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
+                    {VIEWS.map((v) => (
+                      <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        }`}>{tr(`planner.view.${v}`)}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Row 3: overlays — only where the time canvas draws them. */}
+            {section === "calendar" && (view === "week" || view === "day") && (
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => setOverlay("alters", !overlays.alters)}
+                  aria-pressed={overlays.alters}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.alters ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", { term: t.Fronting })}
+                </button>
+                <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
+                  aria-pressed={overlays.emotions}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.emotions ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
+                </button>
+              </div>
+            )}
           </div>
         )}
-
         {chrome && showDisplay && (
           <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
@@ -1054,7 +1104,64 @@ export default function PlannerSurface({
           </div>
         )}
 
-        {chrome && plansView ? (
+        {chrome && section === "insights" && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+              <p className="font-semibold text-sm">{tr("planner.insights.week", { range: rangeLabel })}</p>
+              {totals.total === 0 && <p className="text-muted-foreground">{tr("planner.nothingTracked")}</p>}
+              {totals.activities.length > 0 && (
+                <div>
+                  <p className="font-semibold uppercase tracking-wide text-[0.625em] text-muted-foreground mb-1">
+                    {tr("planner.byActivity")}
+                  </p>
+                  {totals.activities.slice(0, 8).map((a) => (
+                    <div key={a.key} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{a.label}</span>
+                      <span className="tabular-nums text-muted-foreground">{fmt(a.minutes)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {totals.alters.length > 0 && (
+                <div>
+                  <p className="font-semibold uppercase tracking-wide text-[0.625em] text-muted-foreground mb-1">
+                    {tr("planner.byMember", { members: t.alters })}
+                  </p>
+                  {totals.alters.map((a) => (
+                    <div key={a.key} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{a.label}</span>
+                      <span className="tabular-nums text-muted-foreground">{fmt(a.minutes)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* The tracker's panels, moved here whole (goals with their
+                editor, plan follow-through, the all-time tally) — each
+                behind its own boundary so one bad record can't blank the
+                rest, and the tally keeps its un-nesting recovery. */}
+            <ErrorBoundary
+              fallback={(err, reset) => <PanelError label={tr("planner.goals")} onRetry={reset} />}
+              resetKeys={[activities.length]}>
+              <ActivityGoalsPanel weekStart={weekRange.from} />
+            </ErrorBoundary>
+            <ErrorBoundary
+              fallback={(err, reset) => <PanelError label={tr("planner.insights.followThrough")} onRetry={reset} />}
+              resetKeys={[activities.length]}>
+              <div className="space-y-2">
+                <p className="font-semibold text-sm">{tr("planner.insights.followThrough")}</p>
+                <PlanCompletionTracker />
+              </div>
+            </ErrorBoundary>
+            <ErrorBoundary
+              fallback={(err, reset) => <ActivityNestingRecovery error={err} onReset={reset} />}
+              resetKeys={[activities.length]}>
+              <ActivityTallyTracker activities={activities} />
+            </ErrorBoundary>
+          </div>
+        )}
+        {chrome && section === "plans" ? (
           <PlansList
             activities={activities}
             categories={categories}
@@ -1073,6 +1180,25 @@ export default function PlannerSurface({
                 : tr("planner.massCancelled", { count: items.length }));
             }}
           />
+        ) : chrome && section === "insights" ? null : chrome && view === "month" ? (
+          <ActivityMonthView
+            monthDate={anchor}
+            activities={activitiesWithTasks}
+            alters={alters}
+            weekStartsOn={prefs.weekStartsOn}
+            importantDates={importantDates}
+            onDayClick={(d) => { setAnchor(d); setView("day"); }}
+            onActivityClick={openFromCalendar}
+            onRangeSelect={(from) => openCreate(from, 9 * 60, 10 * 60)}
+          />
+        ) : chrome && view === "year" ? (
+          <ActivityYearView
+            yearDate={anchor}
+            activities={activitiesWithTasks}
+            weekStartsOn={prefs.weekStartsOn}
+            onMonthClick={(d) => { setAnchor(d); setView("month"); }}
+            onDayClick={(d) => { setAnchor(d); setView("day"); }}
+          />
         ) : (
         <WeekCanvas
           onOpenLive={setLiveMenu}
@@ -1080,7 +1206,7 @@ export default function PlannerSurface({
           onOpenPage={onOpenPage}
           onSetPref={onSetPref}
           prefsOverride={prefsOverride}
-          dayCount={dayCount}
+          dayCount={effDayCount}
           maxHeight={maxHeight}
           fill={!chrome}
           activities={activities}
@@ -1102,6 +1228,7 @@ export default function PlannerSurface({
       </div>
 
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
+      {showManage && <ActivityCustomizationMenu onClose={() => setShowManage(false)} />}
 
       {/* Portaled to the body: a v2 board is framer-transformed, which
           re-anchors `position: fixed` to the board instead of the viewport —

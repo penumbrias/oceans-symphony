@@ -103,7 +103,7 @@ export default function usePersistentNotifications() {
         navigate("/");
         setTimeout(() => window.dispatchEvent(new Event("open-set-front")), 80);
       } else if (actionId === "tap" && extra.kind === "activity") {
-        navigate("/activities");
+        navigate("/planner");
       } else if (extra.kind === "active_end_checkin" && extra.activityId) {
         // End-of-plan check-in: done on time, keep going, or open the
         // outcome sheet (stopped early / skipped / reschedule).

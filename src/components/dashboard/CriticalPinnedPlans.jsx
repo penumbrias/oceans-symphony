@@ -95,7 +95,7 @@ function CriticalPlanCard({ plan, openStep, onDismiss, onOpen }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
-      title="Double-tap to open in Activity Tracker"
+      title="Double-tap to open in the Planner"
       className="bg-amber-500/10 border-l-4 border-amber-500 rounded-xl p-3 cursor-pointer select-none"
     >
       <div className="flex items-start justify-between gap-2">

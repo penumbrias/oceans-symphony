@@ -193,7 +193,7 @@ function scheduleWebFallback(plan, fireMs) {
       n.onclick = () => {
         try {
           window.focus();
-          window.location.href = `/activities?activityId=${plan.id}`;
+          window.location.href = `/planner?activityId=${plan.id}`;
         } catch { /* non-fatal */ }
         n.close();
       };

@@ -294,7 +294,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       });
       await recordAuthoredText({
         ...prepared, alters, sourceType: "activity", sourceId: act.id, sourceLabel: "Activity note",
-        navigatePath: `/activities?date=${format(startDt, "yyyy-MM-dd")}&highlight=${act.id}`,
+        navigatePath: `/planner?date=${format(startDt, "yyyy-MM-dd")}&highlight=${act.id}`,
       });
 
       // If this is the auto-created Activity that mirrors a Sleep record,

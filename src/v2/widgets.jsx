@@ -537,7 +537,7 @@ function TodayWidget() {
     <Section label={tr("widget.today.label")}
       action={<span className="flex items-center gap-2">
         <TextAction onClick={() => setAddOpen(true)}>+ {tr("widget.today.addBtn")}</TextAction>
-        <TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>
+        <TextAction onClick={() => navigate("/planner")}>{tr("widget.today.open")}</TextAction>
       </span>}>
       <TodayAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
       <PlanDetailsSheet
@@ -1889,7 +1889,7 @@ function RecentActivitiesWidget({ settings }) {
     .slice(0, limit);
   return (
     <Section label={tr("widget.recentActs.label")}
-      action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
+      action={<TextAction onClick={() => navigate("/planner")}>{tr("widget.today.open")}</TextAction>}>
       {done.length === 0 && <Muted>{tr("widget.recentActs.empty")}</Muted>}
       {done.map((a) => (
         <Row key={a.id} primary={a.activity_name}
