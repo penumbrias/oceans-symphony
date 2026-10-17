@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 17, 2026",
+    changes: [
+      { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
+      { type: "feature", text: "Link {{alters}} and feelings to an activity (who enjoys, needs or avoids it; what it helps you feel). Each {{alter}} profile has an Activities tab showing theirs." },
+    ],
+  },
+  {
     date: "October 16, 2026",
+    version: "0.257.2",
     changes: [
       { type: "improve", text: "Image assets is now just \"Assets\": every item has rename, save to device, move and delete buttons, and saving keeps the file's real name and type." },
       { type: "feature", text: "New \"Files & videos\" folder in Assets: upload videos, audio or any file, play or save them, and find them in search." },

@@ -288,6 +288,23 @@ export function buildActivityRecords({ items = [] }) {
   });
 }
 
+// The activities themselves (categories), opening their page on Activities.
+export function buildActivityCategoryRecords({ items = [] }) {
+  const byId = Object.fromEntries(items.map((c) => [c.id, c]));
+  return items.filter((c) => c?.id && c.name).map((c) => {
+    const parent = c.parent_category_id && c.parent_category_id !== c.id ? byId[c.parent_category_id] : null;
+    return {
+      type: "activity",
+      id: `cat-${c.id}`,
+      title: c.name,
+      subtitle: parent ? `Activity · in ${parent.name}` : "Activity",
+      path: `/activities?category=${encodeURIComponent(c.id)}`,
+      searchableText: joinNonEmpty([c.name, parent?.name]).toLowerCase(),
+      sortDate: c.updated_date || c.created_date,
+    };
+  });
+}
+
 export function buildTaskRecords({ items = [] }) {
   return items.map((t) => ({
     type: "task",
@@ -724,7 +741,7 @@ export function buildSearchIndex(sources = {}) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -775,6 +792,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
+  records.push(...buildActivityCategoryRecords({ items: activityCategories || [] }));
   records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
   records.push(...buildContactRecords({ items: contacts || [] }));
   records.push(...buildSystemRecords({ items: systems || [] }));

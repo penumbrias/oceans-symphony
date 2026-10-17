@@ -487,7 +487,7 @@ const HISTORY_BUCKET_OF = (entityName) => {
     "AlterNote", "AlterMessage", "CustomField", "RelationshipType"].includes(entityName)) return "alters";
   if (["JournalEntry", "Bulletin", "BulletinComment", "SupportJournalEntry", "DiaryCard",
     "Poll", "StatusNote", "Note"].includes(entityName)) return "content";
-  if (["Activity", "ActivityCategory", "ActivityGoal", "EmotionCheckIn", "SymptomCheckIn",
+  if (["Activity", "ActivityCategory", "AlterActivityLink", "FeelingLink", "ActivityGoal", "EmotionCheckIn", "SymptomCheckIn",
     "Symptom", "SymptomSession", "SymptomDefinition", "Sleep", "Location", "SystemCheckIn",
     "Task", "DailyTaskTemplate", "Reminder", "TriggerType", "CustomEmotion",
     "FrontingSession"].includes(entityName)) return "tracking";

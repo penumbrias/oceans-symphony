@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Check, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +33,8 @@ export default function ActivityTreeRow({
   onSubNameChange,
   onDelete,
   onUpdate,
+  // Optional: open this activity's details page (the Activities page).
+  onOpen = null,
   seen,
 }) {
   // Cycle guard — if a malformed parent_category_id chain made the same
@@ -167,6 +169,16 @@ export default function ActivityTreeRow({
         {/* Actions (when selected, not editing) */}
         {isSelected && !isEditing && (
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            {onOpen && (
+              <button
+                type="button"
+                onClick={() => onOpen(category.id)}
+                className="px-1.5 py-1 text-xs text-primary hover:bg-primary/10 rounded flex items-center gap-1"
+                title="Details"
+              >
+                <Info className="w-3.5 h-3.5" /> Details
+              </button>
+            )}
             <button
               onClick={() => { setEditName(category.name); setEditColor(category.color || "#8b5cf6"); setIsEditing(true); }}
               className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded"
@@ -243,6 +255,7 @@ export default function ActivityTreeRow({
               onSubNameChange={onSubNameChange}
               onDelete={onDelete}
               onUpdate={onUpdate}
+              onOpen={onOpen}
               seen={nextSeen}
             />
           ))}
