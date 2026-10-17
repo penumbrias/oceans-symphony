@@ -14,7 +14,12 @@
 // marks in the gutter edge. The timeline and check-in log remain the primary
 // tools for that data.
 //
-// Reads Activity/FrontingSession/EmotionCheckIn. Writes nothing directly —
+// Open to-dos with a date (`tasks`, from tasksAsCalendarItems) draw too: a
+// timed one as a small dotted block, a due-date-only one in the untimed
+// strip. They're read-only here — no resize, never in the day totals — and
+// a tap opens the to-do.
+//
+// Reads Activity/FrontingSession/EmotionCheckIn/Task. Writes nothing directly —
 // creation and edits go through the existing modals, so stored data keeps
 // exactly the shape it already has.
 
@@ -35,6 +40,8 @@ import { planMark } from "@/lib/planner/planMark";
 const HOLD_MS = 550;
 const RESIZE_HOLD_MS = 400;
 const SLOP_PX = 8;
+// How tall a timed to-do draws on the grid.
+const TASK_BLOCK_MIN = 30;
 
 // Default row height; the live value is a preference (pinch / Display
 // popover) — see displayPrefs.js.
@@ -352,7 +359,7 @@ function DayColumn({
           <button key={u.id} type="button" onClick={() => onOpenUntimed?.(u, day)}
             className="w-full text-left text-[0.625em] leading-tight px-1 py-0.5 rounded truncate"
             style={{ background: `${colorFor(u)}22`, color: colorFor(u) }}>
-            {u.activity_name || tr("planner.untitled")}
+            {u._isTask ? "☐ " : ""}{u.activity_name || tr("planner.untitled")}
           </button>
         ))}
         {/* Always reachable, even on a day that already has items — it sits
@@ -494,7 +501,7 @@ function DayColumn({
                   : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1) * (pm.faded ? 0.55 : 1),
                 // Skipped / cancelled didn't happen — drained of colour too.
                 ...(pm.faded && !isLive ? { filter: "grayscale(1)" } : null),
-                borderStyle: b.status === "scheduled" ? "dashed" : "solid",
+                borderStyle: b._isTask ? "dotted" : b.status === "scheduled" ? "dashed" : "solid",
                 // ARMED for resize: unmistakable "you're now editing this
                 // block's time" — accent ring, richer fill, a hair of scale,
                 // and it rides above its neighbours. Snaps back on release.
@@ -518,7 +525,7 @@ function DayColumn({
                   instantly on pointerdown meant a thumb landing near an
                   edge resized the entry instead of opening it — silently
                   changing logged data by trying to LOOK at it. */}
-              {bottom - top >= 30 && !spansDays && !b._live && (
+              {bottom - top >= 30 && !spansDays && !b._live && !b._isTask && (
                 <>
                   <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
                     onPointerDown={(e) => armResize(e, { id: b.id, edge: "top", startMin: b.startMin, endMin: b.endMin }, b)} />
@@ -534,7 +541,7 @@ function DayColumn({
                   had no handles was that one day's piece would have been
                   committed as the whole record. Cut edges stay square and
                   inert. */}
-              {bottom - top >= 30 && spansDays && !b._live && realEnd && (() => {
+              {bottom - top >= 30 && spansDays && !b._live && !b._isTask && realEnd && (() => {
                 const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
                 const rel = (d) => Math.round((d.getTime() - dayStart.getTime()) / 60000);
                 const spec = (edge) => ({ id: b.id, edge, startMin: rel(realStart), endMin: rel(realEnd), spans: true });
@@ -565,7 +572,7 @@ function DayColumn({
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
                 <span className="block truncate font-medium" style={{ color: colorFor(b), textDecoration: pm.struck ? "line-through" : undefined }}
                   title={pm.labelKey ? tr(pm.labelKey) : undefined}>
-                  {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}
+                  {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b._isTask ? "☐ " : ""}
                   {pm.mark && <span aria-label={tr(pm.labelKey)}>{pm.mark} </span>}
                   {b.activity_name || tr("planner.untitled")}
                 </span>
@@ -654,6 +661,7 @@ export default function WeekCanvas({
   dayCount = 7,
   weekStartsOn = 1,
   activities = [],
+  tasks = [],
   frontingHistory = [],
   emotionCheckIns = [],
   alters = [],
@@ -834,7 +842,10 @@ export default function WeekCanvas({
     // day, not a block. `planned_date` is how the existing quick plans mark
     // "this day, no time" — read both so nothing already stored is lost.
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60000);
-    const untimed = activities.filter((a) => !a.timestamp && sameDay(a.planned_date));
+    const untimed = [
+      ...activities.filter((a) => !a.timestamp && sameDay(a.planned_date)),
+      ...tasks.filter((t) => t._dueOnly && sameDay(t.timestamp)),
+    ];
     // Timed blocks belong to EVERY day they touch, not just the day they
     // start — a sleep from 23:00 to 07:00 must draw on both days. The
     // layout engine (toSpan) already clips a block at midnight and marks
@@ -856,6 +867,14 @@ export default function WeekCanvas({
         if (!a.end) return a.start >= dayStart && a.start < dayEnd;
         return a.start < dayEnd && a.end > dayStart;
       });
+    // Timed to-dos: a short marker block at their time (a to-do has no
+    // length of its own).
+    for (const t of tasks) {
+      if (t._dueOnly) continue;
+      const start = new Date(t.timestamp);
+      if (Number.isNaN(start.getTime()) || start < dayStart || start >= dayEnd) continue;
+      timed.push({ ...t, start, end: new Date(start.getTime() + TASK_BLOCK_MIN * 60000) });
+    }
 
     // Live pieces for each running session.
     const now = nowTick;
@@ -931,8 +950,8 @@ export default function WeekCanvas({
         };
       });
 
-    return { day, blocks: laid, untimed, bands, marks, total: occupiedMinutes(laid) };
-  }), [days, activities, frontingHistory, emotionCheckIns, alterById, sessions, nowTick]);
+    return { day, blocks: laid, untimed, bands, marks, total: occupiedMinutes(laid.filter((b) => !b._isTask)) };
+  }), [days, activities, tasks, frontingHistory, emotionCheckIns, alterById, sessions, nowTick]);
 
   const weekTotal = perDay.reduce((n, d) => n + d.total, 0);
 
