@@ -155,8 +155,12 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
         } catch { /* not JSON / not Ampersand */ }
       }
       if (ampJson || lowerName.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52])) {
-        const { parseAmpar, parseAmpersandJson, ampersandToSystemDumps } = await import("@/lib/ampersand");
-        const sysDumps = ampersandToSystemDumps(ampJson ? parseAmpersandJson(ampJson) : parseAmpar(buf));
+        const { parseAmpar, parseAmpersandJson, ampersandToSystemDumps, countOpenAmpersandFronts } = await import("@/lib/ampersand");
+        const ampParsed = ampJson ? parseAmpersandJson(ampJson) : parseAmpar(buf);
+        // Fronts still open in the file stay history unless the user says yes.
+        const { askMakeOpenFrontsCurrent } = await import("@/lib/askOpenFrontsCurrent");
+        const makeOpenFrontsCurrent = await askMakeOpenFrontsCurrent(countOpenAmpersandFronts(ampParsed));
+        const sysDumps = ampersandToSystemDumps(ampParsed, { makeOpenFrontsCurrent });
         if (!sysDumps.length) throw new Error("no systems found in the archive");
         setMode("local");
         setEncryptionEnabled(false);

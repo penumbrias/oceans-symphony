@@ -32,6 +32,8 @@
 //   systems[0]             {id, name, description, color, avatar_asset_id,
 //                           banner_asset_id, extensions:{...terminology...}}
 
+import { settleOpenFront, countOpenFrontAlters } from "./openFrontsAtExport.js";
+
 // Same normalisation as simplyPlural.js — coerce a colour to a leading "#".
 export function normalizeColor(raw) {
   if (!raw) return "";
@@ -266,7 +268,27 @@ export function mapGroupToLocalGroup(group) {
 // co-fronting period produces multiple sessions). Honors OpenPlural's explicit
 // front_role: only "primary" maps to is_primary (PK/SP have no primary concept,
 // but OpenPlural does). Returns null when the assignment's member didn't import.
-export function mapFrontAssignment(period, assignment, alterIdByOpId) {
+//
+// A period with no ended_at was still open when the file was exported. It is
+// kept as history ending at `opts.closeOpenAt` (the import time) and tagged
+// `op_open_at_export`, unless `opts.makeOpenFrontsCurrent` is set (the user
+// opted in AND this alter isn't fronting here yet) — see openFrontsAtExport.js.
+export function isOpenOpenPluralPeriod(period) {
+  return !!period?.started_at && !period?.ended_at;
+}
+// Distinct members the file still has fronting (for the opt-in's count).
+export function countOpenOpenPluralFronts(periods, onlyMemberIds = null) {
+  const keys = [];
+  for (const p of periods || []) {
+    if (!isOpenOpenPluralPeriod(p)) continue;
+    for (const a of p.assignments || []) {
+      const id = a?.member_id || null;
+      keys.push(id && (!onlyMemberIds || onlyMemberIds.has(id)) ? id : null);
+    }
+  }
+  return countOpenFrontAlters(keys, (k) => k);
+}
+export function mapFrontAssignment(period, assignment, alterIdByOpId, opts = {}) {
   const memberId = assignment?.member_id;
   if (!memberId) return null;
   const alterId = alterIdByOpId[memberId];
@@ -276,6 +298,9 @@ export function mapFrontAssignment(period, assignment, alterIdByOpId) {
   if (!startTime) return null;
 
   const endTime = period.ended_at ? new Date(period.ended_at).toISOString() : null;
+  const { end_time, is_active, open } = settleOpenFront(startTime, {
+    open: !endTime, end: endTime, makeLive: !!opts.makeOpenFrontsCurrent, closeAt: opts.closeOpenAt,
+  });
 
   // Compose a single op id per (period, member) so re-imports dedup exactly.
   const opFrontId = `${period.id || ""}:${memberId}`;
@@ -284,8 +309,9 @@ export function mapFrontAssignment(period, assignment, alterIdByOpId) {
     alter_id: alterId,
     is_primary: assignment.front_role === "primary",
     start_time: startTime,
-    end_time: endTime,
-    is_active: !period.ended_at,
+    end_time,
+    is_active,
+    ...(open ? { op_open_at_export: true } : {}),
     note: assignment.note || period.note || "",
     source: "openplural",
     op_front_id: opFrontId,

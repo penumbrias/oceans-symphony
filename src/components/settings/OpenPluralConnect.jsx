@@ -19,6 +19,7 @@ import {
   mapMemberToAlter,
   mapGroupToLocalGroup,
   mapFrontAssignment,
+  countOpenOpenPluralFronts,
   noteKind,
   mapNoteToJournalEntry,
   mapNoteToAlterNote,
@@ -35,6 +36,8 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
+import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 
 // ── Front-history range presets (mirror SimplyPluralConnect) ──────────────────
@@ -100,6 +103,9 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
   const [includeAvatars, setIncludeAvatars] = useState(true);
   const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
   const [historyRange, setHistoryRange] = useState("1yr");
+  // Fronts still open in the export become CURRENT fronters only when the
+  // user ticks this — off by default (they're usually stale by import time).
+  const [makeOpenFrontsCurrent, setMakeOpenFrontsCurrent] = useState(false);
   const [includeJournals, setIncludeJournals] = useState(true);
   const [includeRelationships, setIncludeRelationships] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
@@ -168,6 +174,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
     groups: (data.groups || []).length,
     customFields: (data.custom_fields || []).length,
     fronts: (data.front_periods || []).length,
+    openFronts: countOpenOpenPluralFronts(data.front_periods, new Set(realMembers.map((m) => m.id))),
     notes: (data.notes || []).length,
     relationships: (data.relationships?.edges || []).length,
     chatChannels: (data.chat?.conversations || []).length,
@@ -494,15 +501,24 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
         const existingOpFrontIds = new Set(
           existingSessions.filter((s) => s.op_front_id).map((s) => s.op_front_id)
         );
+        // Who is fronting HERE right now — an open front for one of them is
+        // never made live a second time (that would duplicate them).
+        const liveGate = createLiveFrontGate(existingSessions, makeOpenFrontsCurrent);
+        const importedAt = new Date().toISOString();
         const toCreate = [];
         for (const period of d.front_periods || []) {
           const startedMs = period.started_at ? new Date(period.started_at).getTime() : null;
           if (cutoff && startedMs && startedMs < cutoff) continue;
           for (const assignment of period.assignments || []) {
-            const session = mapFrontAssignment(period, assignment, alterIdByOpId);
+            const makeLive = !period.ended_at && liveGate.allow(alterIdByOpId[assignment?.member_id]);
+            const session = mapFrontAssignment(period, assignment, alterIdByOpId, {
+              makeOpenFrontsCurrent: makeLive,
+              closeOpenAt: importedAt,
+            });
             if (!session) continue;
             if (session.op_front_id && existingOpFrontIds.has(session.op_front_id)) { frontsSkipped++; continue; }
             existingOpFrontIds.add(session.op_front_id);
+            liveGate.record(session);
             toCreate.push(session);
           }
         }
@@ -959,6 +975,10 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
                       ))}
                     </select>
                   </div>
+                )}
+                {includeFrontHistory && (
+                  <OpenFrontsCurrentOption count={counts.openFronts} checked={makeOpenFrontsCurrent}
+                    onChange={setMakeOpenFrontsCurrent} testId="op-open-fronts-current" />
                 )}
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeJournals} onChange={(e) => setIncludeJournals(e.target.checked)} className="rounded" />

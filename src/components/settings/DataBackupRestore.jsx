@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { askMakeOpenFrontsCurrent } from "@/lib/askOpenFrontsCurrent";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
@@ -1478,8 +1479,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       const isAmpar = lname.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52]); // "AMPAR"
       if (isAmpar) {
         traceStep("format", "ampersand archive");
-        const { parseAmpar, ampersandToSystemDumps } = await import("@/lib/ampersand");
-        const sysDumps = ampersandToSystemDumps(parseAmpar(buf));
+        const { parseAmpar, ampersandToSystemDumps, countOpenAmpersandFronts } = await import("@/lib/ampersand");
+        const ampParsed = parseAmpar(buf);
+        const makeOpenFrontsCurrent = await askMakeOpenFrontsCurrent(countOpenAmpersandFronts(ampParsed), terms);
+        const sysDumps = ampersandToSystemDumps(ampParsed, { makeOpenFrontsCurrent });
         let created = 0;
         for (const s of sysDumps) {
           if (!s || !s.data) continue;
@@ -1546,10 +1549,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       {
         let probe = null;
         try { probe = JSON.parse(innerJsonText); } catch { /* not JSON */ }
-        const { isAmpersandJson, parseAmpersandJson, ampersandToSystemDumps } = await import("@/lib/ampersand");
+        const { isAmpersandJson, parseAmpersandJson, ampersandToSystemDumps, countOpenAmpersandFronts } = await import("@/lib/ampersand");
         if (isAmpersandJson(probe)) {
           traceStep("format", "ampersand json");
-          const sysDumps = ampersandToSystemDumps(parseAmpersandJson(probe));
+          const ampParsed = parseAmpersandJson(probe);
+          const makeOpenFrontsCurrent = await askMakeOpenFrontsCurrent(countOpenAmpersandFronts(ampParsed), terms);
+          const sysDumps = ampersandToSystemDumps(ampParsed, { makeOpenFrontsCurrent });
           let created = 0;
           for (const s of sysDumps) {
             if (!s || !s.data) continue;
