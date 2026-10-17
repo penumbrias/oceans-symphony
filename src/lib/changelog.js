@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "feature", text: "New home-screen widgets: Needs balance, Wishes and Goals." },
       { type: "feature", text: "New Needs page: see how long it's been since each {{alter}} got something they enjoy, everyone's wishes in one list, and turn agreements where the second turn goes in the planner." },
       { type: "feature", text: "Starting an activity someone tends to interrupt now shows a gentle note with what they've been wishing for." },
       { type: "feature", text: "New Goals page: long-term goals with a why, who wants it and who finds it hard, built one question at a time. Steps can become to-dos, plans, daily tasks or a weekly rhythm, and weekly goals can be kept there too." },

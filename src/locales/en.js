@@ -200,6 +200,17 @@ export default {
 
   "widget.tasks.label": "To-dos",
   "widget.tasks.empty": "Nothing open.",
+  "widget.needs.label": "Needs",
+  "widget.needs.empty": "Nothing noted yet.",
+  "widget.needs.notYet": "not yet",
+  "widget.needs.ago": "{time} ago",
+  "widget.wishes.label": "Wishes",
+  "widget.wishes.empty": "No open wishes.",
+  "widget.wishes.everyone": "Everyone",
+  "widget.goals.label": "Goals",
+  "widget.goals.empty": "No goals yet.",
+  "widget.goals.new": "New",
+  "widget.goals.ongoing": "ongoing",
 
   "widget.sleep.label": "Sleep",
   "widget.sleep.empty": "No sleep logged yet.",
