@@ -1,5 +1,5 @@
 // Open to-dos with a scheduled time or due date, shaped like Activity
-// records so the month/year calendars can draw them (moved out of the old
+// records so the planner's calendars (week/day grid, month, year) can draw them (moved out of the old
 // activity tracker page). Read-only stand-ins: they carry `_isTask` +
 // `_task` so a tap routes to the to-do instead of the activity details, and
 // nothing ever writes them back as activities.
@@ -20,6 +20,9 @@ export function tasksAsCalendarItems(tasks = []) {
         id: `task-${t.id}`,
         _isTask: true,
         _task: t,
+        // Only a due date, no time: the week grid shows it in the day's
+        // untimed strip rather than as a block at a made-up 08:00.
+        _dueOnly: !t.scheduled_at,
         timestamp: ts.toISOString(),
         activity_name: t.title,
         activity_category_ids: t.activity_category_ids || [],
