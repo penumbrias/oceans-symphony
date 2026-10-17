@@ -44,6 +44,7 @@ const TYPE_ICONS = {
   syschange: "🔀",
   note:      "📝",
   wish:      "💗",
+  goal:      "🎯",
   reminder:  "⏰",
   grocery:   "🛒",
   chat:      "💬",
@@ -75,6 +76,7 @@ function getTypeLabels(t) {
     syschange: `${t.System} History`,
     note:      `${t.Alter} Notes`,
     wish:      "Wishes",
+    goal:      "Goals",
     reminder:  "Reminders",
     grocery:   "Grocery List",
     chat:      "Chat Messages",
@@ -213,6 +215,16 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryKey: ["searchWishes"],
     queryFn: () => safeList(base44.entities.Wish, "-created_date", 500),
   });
+  const { data: goals = [] } = useQuery({
+    queryKey: ["searchGoals"],
+    queryFn: () => safeList(base44.entities.Goal, "-created_date", 500),
+    staleTime: stale, enabled,
+  });
+  const { data: goalSteps = [] } = useQuery({
+    queryKey: ["searchGoalSteps"],
+    queryFn: () => safeList(base44.entities.GoalStep, "-created_date", 2000),
+    staleTime: stale, enabled,
+  });
   const { data: alterNotes = [] } = useQuery({
     queryKey: ["searchAlterNotes"],
     queryFn: () => safeList(base44.entities.AlterNote, "-created_date", 300),
@@ -317,6 +329,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
+    goals, goalSteps,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -343,6 +356,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
+    goals, goalSteps,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -389,7 +403,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish",
+    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal",
     "activity", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];

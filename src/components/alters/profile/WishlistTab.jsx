@@ -4,9 +4,10 @@
 
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  Plus, Heart, Lock, ExternalLink, CalendarPlus, ShoppingBasket, Check, Undo2, Pencil, Trash2, ChevronDown, Users,
+  Plus, Heart, Lock, ExternalLink, CalendarPlus, ShoppingBasket, Check, Undo2, Pencil, Trash2, ChevronDown, Users, Target,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const small = "text-xs px-2 py-1 rounded-full border border-border/60 text-muted
 function WishCard({ wish, alters, categories, alterById, onChanged }) {
   const t = useTerms();
   const formatAlter = useAlterLabel();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -100,6 +102,11 @@ function WishCard({ wish, alters, categories, alterById, onChanged }) {
         {canPlan && (
           <button type="button" disabled={busy} onClick={() => setPlanning((p) => !p)} className={small}>
             <CalendarPlus className="w-3.5 h-3.5" /> Plan it
+          </button>
+        )}
+        {open && wish.kind === "goal" && (
+          <button type="button" disabled={busy} className={small} onClick={() => navigate(`/goals?fromWish=${wish.id}`)}>
+            <Target className="w-3.5 h-3.5" /> Make it a goal
           </button>
         )}
         {open && wish.kind === "item" && (
