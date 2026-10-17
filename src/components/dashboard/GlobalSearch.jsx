@@ -42,6 +42,7 @@ const TYPE_ICONS = {
   location:  "📍",
   syschange: "🔀",
   note:      "📝",
+  wish:      "💗",
   reminder:  "⏰",
   grocery:   "🛒",
   chat:      "💬",
@@ -71,6 +72,7 @@ function getTypeLabels(t) {
     location:  "Locations",
     syschange: `${t.System} History`,
     note:      `${t.Alter} Notes`,
+    wish:      "Wishes",
     reminder:  "Reminders",
     grocery:   "Grocery List",
     chat:      "Chat Messages",
@@ -204,6 +206,10 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(base44.entities.SystemCheckIn, "-created_date", 200),
     staleTime: stale, enabled,
   });
+  const { data: wishes = [] } = useQuery({
+    queryKey: ["searchWishes"],
+    queryFn: () => safeList(base44.entities.Wish, "-created_date", 500),
+  });
   const { data: alterNotes = [] } = useQuery({
     queryKey: ["searchAlterNotes"],
     queryFn: () => safeList(base44.entities.AlterNote, "-created_date", 300),
@@ -275,6 +281,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.Contact),
     staleTime: stale, enabled,
   });
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => safeList(localEntities.ActivityCategory),
+    staleTime: stale, enabled,
+  });
   const { data: assets = [] } = useQuery({
     queryKey: ["imageAssets"],
     queryFn: () => safeList(localEntities.ImageAsset, "-created_date"),
@@ -286,7 +297,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -297,6 +308,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     locations,
     systemChangeEvents,
     alterNotes, alterMessages,
+    wishes,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -310,7 +322,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -321,6 +333,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     locations,
     systemChangeEvents,
     alterNotes, alterMessages,
+    wishes,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -366,7 +379,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note",
+    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish",
     "activity", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset",
   ];

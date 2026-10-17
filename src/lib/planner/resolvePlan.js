@@ -194,6 +194,8 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
   if (status === "done") {
     const { markDailyTaskDoneFor } = await import("@/lib/dailyTaskActivity");
     await markDailyTaskDoneFor(item);
+    const { markWishHappenedFor } = await import("@/lib/wishes");
+    await markWishHappenedFor(item);
   }
   if (item.task_id && status === "done") {
     await base44.entities.Task.update(item.task_id, {

@@ -28,7 +28,7 @@ import {
   cancelPlanReminder,
 } from "@/lib/planReminderScheduler";
 import { getActiveActivities, addActiveActivity } from "@/lib/activitySession";
-import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries, applyEditToSeries } from "@/lib/recurrenceUtils";
+import { RECURRENCE_BRANCHES, RECURRENCE_INTERVALS, maxOccurrences, clampOccurrenceCount, membersForBranch, deleteSeries, applyEditToSeries } from "@/lib/recurrenceUtils";
 import { resolveOutcome, startPlanActive } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
@@ -60,7 +60,6 @@ import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
-import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { collectAlterDates } from "@/lib/importantDates";
@@ -149,7 +148,6 @@ export default function PlannerSurface({
   });
   const setView = (v) => { setViewState(v); lsSet("symphony_planner_view_v1", v); };
   const effDayCount = chrome ? (view === "day" ? 1 : 7) : dayCount;
-  const [showManage, setShowManage] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
@@ -986,7 +984,7 @@ export default function PlannerSurface({
                   aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
                   <SlidersHorizontal className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowManage(true)}
+                <Button variant="ghost" size="sm" onClick={() => navigate("/activities")}
                   aria-label={tr("planner.manage")} title={tr("planner.manage")}>
                   <SettingsIcon className="w-4 h-4" />
                 </Button>
@@ -1228,7 +1226,6 @@ export default function PlannerSurface({
       </div>
 
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
-      {showManage && <ActivityCustomizationMenu onClose={() => setShowManage(false)} />}
 
       {/* Portaled to the body: a v2 board is framer-transformed, which
           re-anchors `position: fixed` to the board instead of the viewport —
@@ -1747,9 +1744,9 @@ export default function PlannerSurface({
                         <Repeat className="w-3 h-3" /> {tr("planner.repeat")}
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {["none", "daily", "weekly", "biweekly", "monthly"].map((iv) => (
+                        {RECURRENCE_INTERVALS.map((iv) => (
                           <button key={iv} type="button" aria-pressed={recur.interval === iv}
-                            onClick={() => setRecur((r) => ({ ...r, interval: iv }))}
+                            onClick={() => setRecur((r) => ({ ...r, interval: iv, count: clampOccurrenceCount(iv, r.count) }))}
                             className={`text-xs px-2.5 py-1 rounded-full border ${
                               recur.interval === iv
                                 ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
@@ -1759,11 +1756,12 @@ export default function PlannerSurface({
                       </div>
                       {recur.interval !== "none" && (
                         <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                          {tr("planner.repeatCount")}
-                          <input type="number" min={1} max={52} value={recur.count}
+                          {tr(recur.interval === "yearly" ? "planner.repeatYears" : "planner.repeatCount")}
+                          <input type="number" min={1} max={maxOccurrences(recur.interval)} value={recur.count}
+                            data-testid="plan-repeat-count"
                             onChange={(e) => {
                               const n = parseInt(e.target.value, 10);
-                              setRecur((r) => ({ ...r, count: Number.isFinite(n) ? Math.max(1, Math.min(52, n)) : 1 }));
+                              setRecur((r) => ({ ...r, count: clampOccurrenceCount(r.interval, n) }));
                             }}
                             className="w-16 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
                         </label>

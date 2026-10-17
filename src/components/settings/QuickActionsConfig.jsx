@@ -59,7 +59,7 @@ function ActivityCategoryPicker({ categories, selectedId, onChange }) {
   const selectedCat = categories.find(c => c.id === selectedId);
 
   if (categories.length === 0)
-    return <p className="text-xs text-muted-foreground mt-1">No activities yet. Add them with the gear (Manage activities) on the Planner.</p>;
+    return <p className="text-xs text-muted-foreground mt-1">No activities yet. Add them on the Activities page.</p>;
 
   return (
     <div className="space-y-1">

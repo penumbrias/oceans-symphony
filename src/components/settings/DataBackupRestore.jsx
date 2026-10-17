@@ -151,6 +151,8 @@ const ENTITY_NAMES = [
   "ImageAsset", "AssetFolder", "GroupNote", "Presence",
   "Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter",
   "CustomFont",
+  "AlterActivityLink", "FeelingLink",
+  "Wish",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -185,7 +187,7 @@ export const EXPORT_CATEGORIES = [
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport", "TherapyNote"],                    desc: "Report templates, exports, and notes saved with ~therapy" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion", "DeletionLog"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions, deletion history (for device sync)" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "AlterActivityLink", "FeelingLink", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion", "DeletionLog"], desc: "App settings, custom emotions, activities (with who & feelings links), trigger types, quick actions, unblend questions, deletion history (for device sync)" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog", "GroupNote"],             desc: "Notes, DMs, mentions, group notes" },
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
@@ -195,6 +197,7 @@ export const EXPORT_CATEGORIES = [
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
   { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
+  { id: "needs",         label: "Wishes & Needs",           entities: ["Wish"],                                                              desc: "Wishlists: wishes, who they belong to, and why they matter" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
 
