@@ -16,19 +16,12 @@
 // Callers own their UI concerns (validation, toasts, resets, query
 // invalidation); this owns exactly the writes.
 
-import { addDays, addWeeks, addMonths, format } from "date-fns";
+import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { expandOccurrences } from "@/lib/recurrenceIntervals";
 
 const todayLocalISODate = () => format(new Date(), "yyyy-MM-dd");
-
-function advance(dt, n, interval) {
-  if (interval === "daily") return addDays(dt, n);
-  if (interval === "weekly") return addWeeks(dt, n);
-  if (interval === "biweekly") return addWeeks(dt, n * 2);
-  if (interval === "monthly") return addMonths(dt, n);
-  return dt;
-}
 
 export async function createPlan({
   // One entry per activity in the plan: { activity_name, activity_category_ids, color? }
@@ -66,10 +59,7 @@ export async function createPlan({
     ? `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     : null;
   const occurrences = recurrenceGroupId
-    ? Array.from(
-        { length: Math.max(1, Math.min(52, recurrence.count || 1)) },
-        (_, i) => advance(timestamp, i, recurrence.interval)
-      )
+    ? expandOccurrences(timestamp, recurrence.interval, recurrence.count)
     : [timestamp];
 
   const createdIds = [];

@@ -36,6 +36,7 @@ function cadenceLabel(members, tr) {
   if (g === 7) return tr("planner.weekly");
   if (g === 14) return tr("planner.biweekly");
   if (g >= 28 && g <= 31) return tr("planner.monthly");
+  if (g >= 365 && g <= 366) return tr("planner.yearly");
   return tr("planner.everyNDays", { n: g });
 }
 
