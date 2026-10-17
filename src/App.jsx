@@ -57,6 +57,7 @@ const LocationHistory = lazy(() => import('@/pages/LocationHistory'));
 const FriendsPage = lazy(() => import('@/pages/Friends'));
 const PlannerPage = lazy(() => import('@/pages/Planner'));
 const GoalsPage = lazy(() => import('@/pages/Goals'));
+const NeedsPage = lazy(() => import('@/pages/Needs'));
 const ActivitiesPage = lazy(() => import('@/pages/Activities'));
 const ModsPage = lazy(() => import('@/pages/Mods'));
 const ModPage = lazy(() => import('@/pages/ModPage'));
@@ -289,6 +290,7 @@ const AuthenticatedApp = () => {
         {/* New planner — lives alongside the old tracker until it replaces it. */}
         <Route path="/planner" element={<PlannerPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/needs" element={<NeedsPage />} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ModsPage />} />
         <Route path="/mod/:modId/:pageId" element={<ModPage />} />

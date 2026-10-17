@@ -24,6 +24,9 @@ const KEY = "symphony_active_activities_v1";
 // Pre-multi single-session key (one object). Migrated into the array on read.
 const LEGACY_KEY = "symphony_active_activity_v1";
 export const ACTIVE_ACTIVITY_EVENT = "active-activity-changed";
+// Fired once when a NEW session starts (not when an already-running plan
+// is returned). The Needs check-in note listens for it.
+export const ACTIVITY_STARTED_EVENT = "activity-session-started";
 
 function genId() {
   try {
@@ -202,6 +205,7 @@ export function addActiveActivity(obj) {
   const item = { id: genId(), systemId, systemName, ...obj };
   writeArr([item, ...getActiveActivities()]);
   scheduleActiveEndReminder(item);
+  try { window.dispatchEvent(new CustomEvent(ACTIVITY_STARTED_EVENT, { detail: item })); } catch { /* no window */ }
   return item;
 }
 

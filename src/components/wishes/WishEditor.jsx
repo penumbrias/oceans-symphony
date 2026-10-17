@@ -95,7 +95,7 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
         author_alter_ids: [...new Set([...(driving.authorIds || []), ...(impact.authorIds || [])])],
       });
       const owner = form.owner_alter_ids[0];
-      const navigatePath = owner ? `/alter/${owner}?tab=wishlist&highlight=${wish.id}` : "/Home";
+      const navigatePath = owner ? `/alter/${owner}?tab=wishlist&highlight=${wish.id}` : `/needs?tab=wishes&highlight=${wish.id}`;
       for (const p of [driving, impact]) {
         if (!p.content) continue;
         await recordAuthoredText({ ...p, alters, sourceType: "wish", sourceId: wish.id, sourceLabel: `Wish: ${form.title.trim()}`, navigatePath });
