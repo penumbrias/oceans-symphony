@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus } from "lucide-react";
+import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus, Pin } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -46,9 +46,14 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
   (activeTab === "context" ? isContextItem(s) : s.category === activeTab && !isContextItem(s)) &&
   (s.label || "").toLowerCase().includes(search.toLowerCase())).
   sort((a, b) => {
+    // Pinned ("priority") items always sit at the top so a long list never
+    // buries the ones checked every time; A→Z / Z→A applies within each group.
+    const pin = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
+    if (pin) return pin;
     const cmp = (a.label || "").localeCompare(b.label || "");
     return sortAsc ? cmp : -cmp;
   });
+  const pinnedCount = visible.filter((s) => s.is_pinned).length;
 
   const getSession = (id) => activeSessions.find((s) => s.symptom_id === id) || null;
 
@@ -182,16 +187,22 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
         {visible.length === 0 ?
         <p className="text-xs text-muted-foreground text-center py-6">No {TAB_LABELS[activeTab].toLowerCase()} found</p> :
 
-        visible.map((symptom) =>
-        <SymptomCardRow
-          key={symptom.id}
-          symptom={symptom}
-          activeSession={getSession(symptom.id)}
-          state={cardStates[symptom.id]}
-          alters={alters}
-          assignDefaultIds={assignDefaultIds}
-          onStateChange={(checked, severity, alterIds) => setCard(symptom.id, checked, severity, alterIds)} />
-
+        visible.map((symptom, i) =>
+        <React.Fragment key={symptom.id}>
+          {i === 0 && pinnedCount > 0 &&
+          <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground px-1">Pinned</p>
+          }
+          {i === pinnedCount && pinnedCount > 0 &&
+          <div className="border-t border-border/50 pt-1" aria-hidden="true" />
+          }
+          <SymptomCardRow
+            symptom={symptom}
+            activeSession={getSession(symptom.id)}
+            state={cardStates[symptom.id]}
+            alters={alters}
+            assignDefaultIds={assignDefaultIds}
+            onStateChange={(checked, severity, alterIds) => setCard(symptom.id, checked, severity, alterIds)} />
+        </React.Fragment>
         )
         }
       </div>
@@ -280,6 +291,15 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
   };
   const handlePointerUp = () => {if (holdTimer) {clearTimeout(holdTimer);setHoldTimer(null);}};
 
+  const handleTogglePin = async () => {
+    try {
+      await base44.entities.Symptom.update(symptom.id, { is_pinned: !symptom.is_pinned });
+      queryClient.invalidateQueries({ queryKey: ["symptoms"] });
+    } catch (e) {
+      toast.error(e.message || "Failed");
+    }
+  };
+
   const handleArchive = async () => {
     await base44.entities.Symptom.update(symptom.id, { is_archived: true });
     queryClient.invalidateQueries({ queryKey: ["symptoms"] });
@@ -347,6 +367,17 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
             </div>
           }
         </div>
+
+        {/* Pin to top */}
+        <button onClick={handleTogglePin}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+        symptom.is_pinned ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground"}`}
+        title={symptom.is_pinned ? "Unpin" : "Pin to top"}
+        aria-label={symptom.is_pinned ? `Unpin ${symptom.label}` : `Pin ${symptom.label} to top`}
+        aria-pressed={!!symptom.is_pinned}>
+          <Pin className="w-3.5 h-3.5" fill={symptom.is_pinned ? "currentColor" : "none"} />
+        </button>
 
         {/* Session toggle */}
         <button onClick={handleToggleSession} disabled={toggling}
