@@ -256,7 +256,7 @@ export default function AlterImagePoolManager({ open, onClose, alterId, role }) 
                 onClick={() => setLinkingOpen(true)}
                 className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-dashed border-border/60 hover:border-primary/60 hover:bg-primary/5 flex items-center gap-1.5 justify-center text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Link2 className="w-3.5 h-3.5" /> Link to a folder from the Asset Library…
+                <Link2 className="w-3.5 h-3.5" /> Link to a folder from Assets…
               </button>
             )}
 

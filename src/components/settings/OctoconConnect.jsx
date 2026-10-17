@@ -23,6 +23,8 @@ import {
   mapPollToLocal,
   buildAlterNameByOctoId,
 } from "@/lib/octocon";
+import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
+import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -346,25 +348,22 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
         );
         // Who is fronting HERE right now — an open front for one of them is
         // never made live a second time (that would duplicate them).
-        const activeAlterIds = new Set(
-          existingSessions.filter((s) => s.is_active && s.alter_id).map((s) => s.alter_id)
-        );
+        const liveGate = createLiveFrontGate(existingSessions, makeOpenFrontsCurrent);
         const importedAt = new Date().toISOString();
         const toCreate = [];
         for (const front of d.fronts || []) {
           const startedMs = front.time_start ? new Date(front.time_start).getTime() : null;
           if (cutoff && startedMs && startedMs < cutoff) continue;
           const localAlterId = alterIdByOctoId[String(front?.alter_id)];
-          const makeLive = makeOpenFrontsCurrent && isOpenOctoFront(front)
-            && !!localAlterId && !activeAlterIds.has(localAlterId);
+          const makeLive = isOpenOctoFront(front) && liveGate.allow(localAlterId);
           const session = mapFrontToSession(front, alterIdByOctoId, {
             makeOpenFrontsCurrent: makeLive,
             closeOpenAt: importedAt,
           });
           if (!session) continue;
-          if (session.is_active) activeAlterIds.add(session.alter_id);
           if (session.octo_front_id && existingOpFrontIds.has(session.octo_front_id)) { frontsSkipped++; continue; }
           existingOpFrontIds.add(session.octo_front_id);
+          liveGate.record(session);
           toCreate.push(session);
         }
         if (toCreate.length > 0) {
@@ -599,16 +598,9 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
                     </select>
                   </div>
                 )}
-                {includeFrontHistory && counts.openFronts > 0 && (
-                  <label className="ml-5 flex items-start gap-2 text-xs cursor-pointer select-none" data-testid="octo-open-fronts-current">
-                    <input type="checkbox" checked={makeOpenFrontsCurrent} onChange={(e) => setMakeOpenFrontsCurrent(e.target.checked)} className="rounded mt-0.5" />
-                    <span>
-                      Also mark the {counts.openFronts} {counts.openFronts === 1 ? t.alter : t.alters} still {t.fronting} in this file as {t.fronting} now
-                      <span className="block text-muted-foreground/70">
-                        Off: those stay in history, ending at the time of import, and nobody is added to who's {t.fronting} now.
-                      </span>
-                    </span>
-                  </label>
+                {includeFrontHistory && (
+                  <OpenFrontsCurrentOption count={counts.openFronts} checked={makeOpenFrontsCurrent}
+                    onChange={setMakeOpenFrontsCurrent} testId="octo-open-fronts-current" />
                 )}
                 {counts.polls > 0 && (
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none">

@@ -1,5 +1,7 @@
 const SP_API_BASE = "https://api.apparyllis.com/v1";
 
+import { settleOpenFront, countOpenFrontAlters } from "./openFrontsAtExport.js";
+
 async function spFetch(path, token) {
   // Cache-busting without CORS-breaking headers. We must NOT send
   // Cache-Control / Pragma as REQUEST headers: they aren't CORS-safelisted,
@@ -301,7 +303,21 @@ export function mapGroupToLocalGroup(group) {
 // Each SP entry represents ONE member/customFront fronting.
 // When custom fronts have been imported as alters (sp_id = custom front ID), their
 // history entries resolve via the same alterIdBySpId lookup.
-export function mapFrontHistoryEntry(entry, alterIdBySpId) {
+//
+// An entry marked `live` was still fronting when the export was made. From a
+// file it is kept as history ending at `opts.closeOpenAt` (the import time)
+// and tagged `sp_open_at_export`, unless `opts.makeOpenFrontsCurrent` is set
+// (the user opted in AND this alter isn't fronting here yet) — see
+// openFrontsAtExport.js.
+export function isLiveSpFrontEntry(entry) {
+  const c = entry?.content || entry;
+  return !!c?.live && !!c?.startTime;
+}
+// Distinct members the file still has fronting (for the opt-in's count).
+export function countLiveSpFronts(entries) {
+  return countOpenFrontAlters(entries, (e) => (isLiveSpFrontEntry(e) ? ((e.content || e).member || null) : null));
+}
+export function mapFrontHistoryEntry(entry, alterIdBySpId, opts = {}) {
   const spFrontId = entry.id || entry._id || "";
   const c = entry.content || entry;
 
@@ -315,6 +331,9 @@ export function mapFrontHistoryEntry(entry, alterIdBySpId) {
   if (!startTime) return null;
 
   const endTime = (c.endTime && c.endTime > 0) ? new Date(c.endTime).toISOString() : null;
+  const { end_time, is_active, open } = settleOpenFront(startTime, {
+    open: !!c.live, end: endTime, makeLive: !!opts.makeOpenFrontsCurrent, closeAt: opts.closeOpenAt,
+  });
 
   return {
     alter_id: localAlterId,
@@ -325,8 +344,9 @@ export function mapFrontHistoryEntry(entry, alterIdBySpId) {
     // dormant. The user can promote one alter to primary manually.
     is_primary: false,
     start_time: startTime,
-    end_time: endTime,
-    is_active: !!c.live,
+    end_time,
+    is_active,
+    ...(open ? { sp_open_at_export: true } : {}),
     note: c.customStatus || "",
     sp_front_id: spFrontId,
   };

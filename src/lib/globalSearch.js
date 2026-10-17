@@ -288,6 +288,23 @@ export function buildActivityRecords({ items = [] }) {
   });
 }
 
+// The activities themselves (categories), opening their page on Activities.
+export function buildActivityCategoryRecords({ items = [] }) {
+  const byId = Object.fromEntries(items.map((c) => [c.id, c]));
+  return items.filter((c) => c?.id && c.name).map((c) => {
+    const parent = c.parent_category_id && c.parent_category_id !== c.id ? byId[c.parent_category_id] : null;
+    return {
+      type: "activity",
+      id: `cat-${c.id}`,
+      title: c.name,
+      subtitle: parent ? `Activity · in ${parent.name}` : "Activity",
+      path: `/activities?category=${encodeURIComponent(c.id)}`,
+      searchableText: joinNonEmpty([c.name, parent?.name]).toLowerCase(),
+      sortDate: c.updated_date || c.created_date,
+    };
+  });
+}
+
 export function buildTaskRecords({ items = [] }) {
   return items.map((t) => ({
     type: "task",
@@ -584,6 +601,31 @@ export function buildAlterNoteRecords({ items = [], alters = [] }) {
   });
 }
 
+// Wishes (System Needs). Private wishes stay out of search — they only
+// show on their own profile.
+export function buildWishRecords({ items = [], alters = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  return items.filter((w) => w && !w.is_private).map((w) => {
+    const owners = (w.owner_alter_ids || []).map((id) => alterById.get(id)).filter(Boolean);
+    const ownerNames = owners.map((a) => a.name || a.alias).filter(Boolean);
+    const driving = stripHtml(w.driving);
+    const impact = stripHtml(w.impact);
+    const first = owners[0];
+    return {
+      type: "wish",
+      id: `wish-${w.id}`,
+      title: w.title || "Wish",
+      subtitle: [w.for_everyone ? "Everyone" : ownerNames.join(", "), w.kind, w.status && w.status !== "wished" ? w.status.replace("_", " ") : null]
+        .filter(Boolean).join(" · "),
+      path: first ? `/alter/${first.id}?tab=wishlist&highlight=${w.id}` : "/Home",
+      searchableText: joinNonEmpty([
+        w.title, w.kind, driving, impact, ...ownerNames, w.url, dateSearchBlob(w.created_date),
+      ]).toLowerCase(),
+      sortDate: w.created_date,
+    };
+  });
+}
+
 export function buildSleepRecords({ items = [] }) {
   return items.map((s) => ({
     type: "activity",
@@ -642,6 +684,24 @@ export function buildGroceryRecords({ items = [] }) {
     searchableText: joinNonEmpty([g.name, g.notes, g.category]).toLowerCase(),
     sortDate: g.created_date,
   }));
+}
+
+// Named items in Assets (pictures, songs, videos, files). Unnamed stored
+// pictures have no record and nothing a person would search for.
+export function buildAssetRecords({ items = [] }) {
+  return items.filter((a) => a && (a.name || a.file_name)).map((a) => {
+    const folder = (a.folder || "").trim();
+    const kind = a.kind === "video" ? "Video" : a.kind === "audio" ? "Audio" : a.kind === "file" ? "File" : "Image";
+    return {
+      type: "asset",
+      id: a.id,
+      title: a.name || a.file_name,
+      subtitle: folder ? `${kind} · ${folder}` : kind,
+      path: folder && !a.owner_alter_id ? `/assets?folder=${encodeURIComponent(folder)}` : "/assets",
+      searchableText: joinNonEmpty([a.name, a.file_name, folder, kind]).toLowerCase(),
+      sortDate: a.created_date,
+    };
+  });
 }
 
 // ---------- index builder + searcher ----------
@@ -736,7 +796,7 @@ export function buildSearchIndex(sources = {}) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -747,6 +807,7 @@ export function buildSearchIndex(sources = {}) {
     locations,
     systemChangeEvents,
     alterNotes, alterMessages,
+    wishes,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -754,6 +815,7 @@ export function buildSearchIndex(sources = {}) {
     presences,
     contacts,
     systems,
+    assets,
     mods,
     terms,
   } = sources;
@@ -782,14 +844,17 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildSystemChangeRecords({ items: systemChangeEvents || [] }));
   records.push(...buildAlterNoteRecords({ items: alterNotes || [], alters: alters || [] }));
   records.push(...buildAlterNoteRecords({ items: alterMessages || [], alters: alters || [] }));
+  records.push(...buildWishRecords({ items: wishes || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
+  records.push(...buildActivityCategoryRecords({ items: activityCategories || [] }));
   records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
   records.push(...buildContactRecords({ items: contacts || [] }));
   records.push(...buildSystemRecords({ items: systems || [] }));
+  records.push(...buildAssetRecords({ items: assets || [] }));
   records.push(...buildModRecords({ items: mods || [] }));
   return records;
 }

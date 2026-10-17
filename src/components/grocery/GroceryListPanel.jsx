@@ -3,7 +3,8 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil, Hand, NotebookPen, Camera, Image as ImageIcon, Mic, MicOff, Clock3 } from "lucide-react";
-import { saveLocalImage, deleteLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
+import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
   readPanicTapsSetting, writePanicTapsSetting, PANIC_TAP_OPTIONS,
@@ -602,12 +603,14 @@ export default function GroceryListPanel({ lockedMode = false }) {
         try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
         await deleteCardImages(item);
       }
-      // A note's photo attachments go with it — they're unreachable
-      // once the note record is gone.
-      for (const url of Array.isArray(list.note_images) ? list.note_images : []) {
-        try { const imgId = getLocalImageId(url); if (imgId) await deleteLocalImage(imgId); } catch { /* non-fatal */ }
-      }
       await localEntities.GroceryList.delete(list.id);
+      // A note's photo attachments go with it — they're unreachable
+      // once the note record is gone (deleted after the record, so the
+      // in-use check doesn't count the note itself; a photo used anywhere
+      // else is kept).
+      for (const url of Array.isArray(list.note_images) ? list.note_images : []) {
+        try { const imgId = getLocalImageId(url); if (imgId) await deleteLocalImageIfUnused(imgId); } catch { /* non-fatal */ }
+      }
       qc.invalidateQueries({ queryKey: ["groceryLists"] });
       qc.invalidateQueries({ queryKey: ["groceryItems"] });
     }
@@ -1361,8 +1364,10 @@ function NotePad({ list, canAttach, onSave }) {
       return latest.current.images;
     });
     latest.current.dirty = true;
-    flush();
-    try { const id = getLocalImageId(url); if (id) await deleteLocalImage(id); } catch { /* non-fatal */ }
+    // Save first so the note no longer counts as a use; if it still does
+    // (save failed / not applied yet) the picture is simply kept.
+    await flush();
+    try { const id = getLocalImageId(url); if (id) await deleteLocalImageIfUnused(id); } catch { /* non-fatal */ }
   };
 
   // Voice input — Web Speech API where the platform provides it. On

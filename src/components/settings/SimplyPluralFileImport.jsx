@@ -19,6 +19,8 @@ import {
   mapMemberToAlter,
   mapGroupToLocalGroup,
   mapFrontHistoryEntry,
+  countLiveSpFronts,
+  isLiveSpFrontEntry,
   mapSPChatCategory,
   mapSPChatChannel,
   mapSPChatMessage,
@@ -26,6 +28,8 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
+import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
 
 // ── Simply Plural FILE importer ───────────────────────────────────────────────
 //
@@ -105,6 +109,9 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
   const [includeAvatars, setIncludeAvatars] = useState(true);
   const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
   const [historyRange, setHistoryRange] = useState("1yr");
+  // Fronts still live in the export become CURRENT fronters only when the
+  // user ticks this — off by default (they're usually stale by import time).
+  const [makeOpenFrontsCurrent, setMakeOpenFrontsCurrent] = useState(false);
   const [includeChat, setIncludeChat] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
 
@@ -174,6 +181,7 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
     groups: (data.groups || []).length,
     customFields: (data.customFields || []).length,
     frontHistory: (data.frontHistory || []).length,
+    openFronts: countLiveSpFronts(data.frontHistory),
     chatChannels: (data.channels || []).length,
     chatMessages: (data.chatMessages || []).length,
     system: data.users?.[0]?.username || "",
@@ -414,15 +422,25 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
         const existingSpFrontIds = new Set(
           existingSessions.filter((s) => s.sp_front_id).map((s) => s.sp_front_id)
         );
+        // Who is fronting HERE right now — a live entry for one of them is
+        // never made live a second time (that would duplicate them).
+        const liveGate = createLiveFrontGate(existingSessions, makeOpenFrontsCurrent);
+        const importedAt = new Date().toISOString();
         const toCreate = [];
         for (const entry of data.frontHistory || []) {
           const startedMs = entry.startTime ? Number(entry.startTime) : null;
           if (cutoffMs && startedMs && startedMs < cutoffMs) continue;
           const spFrontId = entry._id || entry.id || "";
           if (spFrontId && existingSpFrontIds.has(spFrontId)) { frontsSkipped++; continue; }
-          const session = mapFrontHistoryEntry(entry, alterIdBySpId);
+          const spMember = (entry.content || entry).member;
+          const makeLive = isLiveSpFrontEntry(entry) && liveGate.allow(alterIdBySpId[spMember]);
+          const session = mapFrontHistoryEntry(entry, alterIdBySpId, {
+            makeOpenFrontsCurrent: makeLive,
+            closeOpenAt: importedAt,
+          });
           if (!session) { frontsNoAlter++; continue; } // no matching local alter (e.g. custom-front history)
           existingSpFrontIds.add(spFrontId);
+          liveGate.record(session);
           toCreate.push(session);
         }
         if (toCreate.length > 0) {
@@ -740,6 +758,10 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
                       ))}
                     </select>
                   </div>
+                )}
+                {includeFrontHistory && (
+                  <OpenFrontsCurrentOption count={counts.openFronts} checked={makeOpenFrontsCurrent}
+                    onChange={setMakeOpenFrontsCurrent} testId="sp-open-fronts-current" />
                 )}
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeChat} onChange={(e) => setIncludeChat(e.target.checked)} className="rounded" />

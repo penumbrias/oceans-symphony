@@ -192,6 +192,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
     });
   } else if (
     path.startsWith("/planner") ||
+    path.startsWith("/activities") ||
     path.startsWith("/checkin") ||
     path.startsWith("/system-checkin")
   ) {

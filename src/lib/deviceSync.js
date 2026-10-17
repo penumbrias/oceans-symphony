@@ -60,8 +60,8 @@
 
 import { getFullDbDump, mergeDbDump, isEncryptionActive, encryptWithActiveKey, decryptWithActiveKey } from "@/lib/localDb";
 import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
-import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
-import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
+import { getAllLocalImages, restoreLocalImages, listLocalImageIds } from "@/lib/localImageStorage";
+import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
 import { getActiveSystemId } from "@/lib/systems";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { applyIncomingPresets, PRESETS_KEY, REMOVED_KEY } from "@/lib/presetSync";
@@ -281,9 +281,10 @@ export async function buildMediaSnapshot() {
 // when it actually changed rather than on every sync.
 export async function mediaFingerprint() {
   try {
-    const images = await getAllLocalImages();
-    const fonts = await getAllLocalFonts();
-    const ids = [...Object.keys(images), ...Object.keys(fonts)].sort();
+    // Ids only — this runs on every sync pass, and reading every picture,
+    // song and video into memory just to list their names could run a
+    // phone with a big library out of memory.
+    const ids = [...(await listLocalImageIds()), ...(await listLocalFontIds())].map(String).sort();
     return `${ids.length}:${ids.join(",").length}:${ids.slice(0, 40).join("|")}`;
   } catch {
     return null;

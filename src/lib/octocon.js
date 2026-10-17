@@ -17,6 +17,8 @@
 // `op_id` and simplyPlural.js's `sp_id`. The connector (OctoconConnect.jsx)
 // owns all IndexedDB writes; these mappers stay pure.
 
+import { settleOpenFront } from "./openFrontsAtExport.js";
+
 // Coerce a colour to a leading "#", same as openPlural.js / simplyPlural.js.
 export function normalizeColor(raw) {
   if (!raw) return "";
@@ -159,21 +161,16 @@ export function mapFrontToSession(front, alterIdByOctoId, opts = {}) {
   const start = front?.time_start ? new Date(front.time_start).toISOString() : null;
   if (!start) return null;
   const end = front?.time_end ? new Date(front.time_end).toISOString() : null;
-  const open = !end;
-  const makeLive = open && !!opts.makeOpenFrontsCurrent;
-  let closedEnd = end;
-  if (open && !makeLive) {
-    const closeAt = opts.closeOpenAt ? new Date(opts.closeOpenAt) : new Date();
-    // Never end before it started (a clock-skewed export).
-    closedEnd = (closeAt.getTime() >= new Date(start).getTime() ? closeAt : new Date(start)).toISOString();
-  }
+  const { end_time, is_active, open } = settleOpenFront(start, {
+    open: !end, end, makeLive: !!opts.makeOpenFrontsCurrent, closeAt: opts.closeOpenAt,
+  });
   return {
     octo_front_id: front?.id || `${front?.alter_id}:${front?.time_start}`,
     alter_id: localId,
     is_primary: false,
     start_time: start,
-    end_time: makeLive ? null : closedEnd,
-    is_active: makeLive,
+    end_time,
+    is_active,
     ...(open ? { octo_open_at_export: true } : {}),
     note: front?.comment || "",
     source: "octocon",

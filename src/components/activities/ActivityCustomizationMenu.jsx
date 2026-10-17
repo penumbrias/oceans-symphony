@@ -11,7 +11,25 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { indexById, wouldCreateCycle, getRootCategories } from "@/lib/categoryTreeUtils";
 
+// The dialog form (opened from places that just need a quick edit). The
+// Activities page renders ActivityManager directly, with `onOpen` so each
+// activity can open its details.
 export default function ActivityCustomizationMenu({ onClose }) {
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Customize Activities</DialogTitle>
+          <p className="text-xs text-muted-foreground">Drag to reorder or nest. Click to select, then use buttons to edit/add/delete.</p>
+        </DialogHeader>
+        <ActivityManager />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// The activity tree with add / nest / rename / recolour / delete.
+export function ActivityManager({ onOpen = null }) {
   const [showRootColorPicker, setShowRootColorPicker] = useState(false);
   const qc = useQueryClient();
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -227,13 +245,7 @@ export default function ActivityCustomizationMenu({ onClose }) {
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Customize Activities</DialogTitle>
-          <p className="text-xs text-muted-foreground">Drag to reorder or nest. Click to select, then use buttons to edit/add/delete.</p>
-        </DialogHeader>
-
+    <div className="space-y-3">
         <div className="space-y-1 bg-card rounded-lg border border-border p-3 min-h-[100px]">
           {rootCategories.length === 0 ? (
             <p className="text-center py-6 text-muted-foreground text-sm">No activities yet. Create one below.</p>
@@ -272,6 +284,7 @@ export default function ActivityCustomizationMenu({ onClose }) {
                   onSubNameChange={setNewSubName}
                   onDelete={(id) => deleteMutation.mutate(id)}
                   onUpdate={(id, data) => updateMutation.mutate({ id, data })}
+                  onOpen={onOpen}
                 />
               </ErrorBoundary>
             ))
@@ -419,7 +432,6 @@ export default function ActivityCustomizationMenu({ onClose }) {
             <Plus className="w-4 h-4" /> New Activity
           </Button>
         )}
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

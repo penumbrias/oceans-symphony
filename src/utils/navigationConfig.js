@@ -11,7 +11,7 @@ export const ALL_PAGES = [
   { id: "therapy-report", label: "Therapy Report", path: "/therapy-report", icon: FileText },
   { id: "system-map", label: "System Map", path: "/system-map", icon: GitFork },
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart2 },
-  { id: "activities", label: "Activities", path: "/planner", icon: Zap },
+  { id: "activities", label: "Activities", path: "/activities", icon: Zap },
   { id: "sleep", label: "Sleep", path: "/sleep", icon: Activity },
   { id: "support", label: "Support & Learn", path: "/grounding", icon: Heart },
   { id: "safety-plan", label: "Safety Plan", path: "/safety-plan", icon: Shield },
@@ -30,7 +30,7 @@ export const ALL_PAGES = [
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
   { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
-  { id: "assets", label: "Image Assets", path: "/assets", icon: Images },
+  { id: "assets", label: "Assets", path: "/assets", icon: Images },
   { id: "presences", label: "New Presences", path: "/presences", icon: Sparkles },
   { id: "mods", label: "Mods", path: "/mods", icon: Puzzle },
   // Pages of switched-on mods are appended at runtime (isMod: true) by
