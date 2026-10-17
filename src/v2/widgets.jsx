@@ -34,7 +34,8 @@ import { Square,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
-, Map, MapPin
+, Map, MapPin,
+  HeartHandshake, Target,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
@@ -108,6 +109,7 @@ import {
   InnerMapWidget, InnerLocationsWidget,
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
+import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // Compact "how long so far" — reads better than a clock time in a narrow
@@ -3080,6 +3082,30 @@ export const V2_WIDGETS = {
     render: sized(({ settings }) => <TasksWidget settings={settings} />),
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  needs_balance: {
+    label: "Needs balance", description: "Which {{alters}} have waited longest for something they enjoy, need or wished for.",
+    icon: HeartHandshake, category: "needs",
+    render: sized(({ settings }) => <NeedsBalanceWidget settings={settings} />),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many {{alters}}", min: 1, max: 20, default: 5 }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  wishes: {
+    label: "Wishes", description: "Everyone's open wishes, longest waiting first. Private wishes stay on their own profile.",
+    icon: Heart, category: "needs",
+    render: sized(({ settings }) => <WishesWidget settings={settings} />),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  goals: {
+    label: "Goals", description: "Goals you're working on, with steps done and the next step.",
+    icon: Target, category: "needs",
+    render: sized(({ settings }) => <GoalsWidget settings={settings} />),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 5 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   sleep: {
