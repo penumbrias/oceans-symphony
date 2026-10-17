@@ -762,7 +762,7 @@ const bioAvatars = richBio(`
     </div>
   </div>
   <p style="font-size:.9em;line-height:1.65;margin:0 0 .8em;">An alter's avatar can be a single image <em>or</em> a rotating pool — the picture changes on a schedule or at random, so a mood-fluid or age-fluid member isn't pinned to one face. Backgrounds rotate the same way.</p>
-  <p style="font-size:.9em;line-height:1.65;margin:0;">Images live in the <strong>Assets Library</strong> (folders, GIFs, per-alter ownership) and are picked from there anywhere the app wants a picture. This example seeds a small library and a rotation pool so the feature has something to show.</p>
+  <p style="font-size:.9em;line-height:1.65;margin:0;">Images, songs, videos and files live in <strong>Assets</strong> (folders, GIFs, per-alter ownership) and are picked from there anywhere the app wants a picture. This example seeds a small library and a rotation pool so the feature has something to show.</p>
 </div>
 `);
 

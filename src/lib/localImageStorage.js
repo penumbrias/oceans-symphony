@@ -702,3 +702,52 @@ export async function recompressAllStoredImages(maxDim = 512, quality = 0.82, on
 
   return { processed, savedKB };
 }
+
+// What each stored entry IS, without loading it: { [id]: { mime, size,
+// head } } where `head` is the first 16 bytes (for sniffing entries saved
+// with no / a generic type). The store holds songs, videos and files as
+// well as pictures (it's the app's one local file store), and the Assets
+// page needs to tell them apart without turning every video into a data
+// URL like getAllLocalImages does. Returns {} when the store can't be read.
+export async function listLocalImageMeta() {
+  try {
+    const idb = await getIdb();
+    const { keys, values } = await new Promise((resolve, reject) => {
+      const tx = idb.transaction([STORE_NAME], 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const kReq = store.getAllKeys();
+      kReq.onerror = () => reject(new Error('Failed to list images'));
+      kReq.onsuccess = () => {
+        const vReq = store.getAll();
+        vReq.onerror = () => reject(new Error('Failed to read images'));
+        vReq.onsuccess = () => resolve({ keys: kReq.result || [], values: vReq.result || [] });
+      };
+    });
+    const out = {};
+    for (let i = 0; i < keys.length; i++) {
+      const v = values[i];
+      if (v instanceof Blob) {
+        let head = null;
+        try { head = new Uint8Array(await v.slice(0, 16).arrayBuffer()); } catch { /* unreadable */ }
+        out[keys[i]] = { mime: v.type || '', size: v.size, head };
+      } else if (typeof v === 'string') {
+        const m = v.match(/^data:([^;,]+)/);
+        const comma = v.indexOf(',');
+        const head = comma > 0 && /;base64/i.test(v.slice(0, comma)) ? _base64Head(v.slice(comma + 1)) : null;
+        out[keys[i]] = { mime: m ? m[1] : '', size: Math.round(v.length * 0.75), head };
+      }
+    }
+    return out;
+  } catch (e) {
+    console.warn('listLocalImageMeta: IDB unavailable:', e);
+    return {};
+  }
+}
+
+// One stored entry as a Blob (legacy data-URI strings converted), or null.
+export async function getLocalImageBlob(id) {
+  const v = await getLocalImage(id);
+  if (v instanceof Blob) return v;
+  if (typeof v === 'string') return dataUrlToBlob(v);
+  return null;
+}

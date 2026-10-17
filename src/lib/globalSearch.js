@@ -644,6 +644,24 @@ export function buildGroceryRecords({ items = [] }) {
   }));
 }
 
+// Named items in Assets (pictures, songs, videos, files). Unnamed stored
+// pictures have no record and nothing a person would search for.
+export function buildAssetRecords({ items = [] }) {
+  return items.filter((a) => a && (a.name || a.file_name)).map((a) => {
+    const folder = (a.folder || "").trim();
+    const kind = a.kind === "video" ? "Video" : a.kind === "audio" ? "Audio" : a.kind === "file" ? "File" : "Image";
+    return {
+      type: "asset",
+      id: a.id,
+      title: a.name || a.file_name,
+      subtitle: folder ? `${kind} · ${folder}` : kind,
+      path: folder && !a.owner_alter_id ? `/assets?folder=${encodeURIComponent(folder)}` : "/assets",
+      searchableText: joinNonEmpty([a.name, a.file_name, folder, kind]).toLowerCase(),
+      sortDate: a.created_date,
+    };
+  });
+}
+
 // ---------- index builder + searcher ----------
 
 /**
@@ -724,6 +742,7 @@ export function buildSearchIndex(sources = {}) {
     presences,
     contacts,
     systems,
+    assets,
     terms,
   } = sources;
 
@@ -759,6 +778,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
   records.push(...buildContactRecords({ items: contacts || [] }));
   records.push(...buildSystemRecords({ items: systems || [] }));
+  records.push(...buildAssetRecords({ items: assets || [] }));
   return records;
 }
 

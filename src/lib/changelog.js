@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 16, 2026",
     changes: [
+      { type: "improve", text: "Image assets is now just \"Assets\": every item has rename, save to device, move and delete buttons, and saving keeps the file's real name and type." },
+      { type: "feature", text: "New \"Files & videos\" folder in Assets: upload videos, audio or any file, play or save them, and find them in search." },
+      { type: "fix", text: "Songs stored in Assets now show as audio instead of a broken picture." },
+      { type: "improve", text: "Deleting something in Assets now tells you where it's still used before you confirm." },
       { type: "fix", text: "Bio editor: text typed in the Plain or Raw view no longer goes missing when you switch to Blocks." },
       { type: "fix", text: "Bottom tab names that don't fit now wrap onto two lines, breaking at a syllable, instead of overlapping." },
       { type: "feature", text: "Settings has a new Archived contacts section where you can find and restore archived contacts." },
