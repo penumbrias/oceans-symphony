@@ -170,6 +170,10 @@ export default function AlterTreeSelect({
   disabledIds = null, // optional: alter ids shown but dimmed + non-selectable (keeps the subtree reachable)
   rowProps = null, // optional: (alter) => extra props for a selectable row (e.g. the level rail's hold props)
   rowBadge = null, // optional: (alter) => short text shown at the row's end (e.g. the alter's front level)
+  // optional: the whole-group level rail — { getProps(group, members, key),
+  // suppressed(), badge(members) }. Its hold props go on the group header
+  // and its "+ all", so a whole subsystem can be put at one level at once.
+  groupRail = null,
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -256,18 +260,29 @@ export default function AlterTreeSelect({
     const open = expandedSet.has(gkey);
     const bulkMembers = item.subsystem ? item.members : collectGroupMembers(item.group, liveAlters, groups, includeNested);
     const onCount = bulkMembers.filter((a) => isSelected(a.id)).length;
+    const railProps = (groupRail && bulkMembers.length > 0 && groupRail.getProps(item.group, bulkMembers, gkey)) || {};
+    const railBlocked = () => !!groupRail?.suppressed?.();
+    const groupBadge = groupRail?.badge?.(bulkMembers);
     return (
       <div key={key} className="flex items-center gap-1.5 pt-1.5 pb-0.5" style={{ paddingLeft: item.depth * 14 }}>
-        <button type="button" onClick={() => onExpand(gkey)} className="flex items-center gap-1 min-w-0 flex-1">
+        <button type="button" {...railProps} onClick={() => { if (!railBlocked()) onExpand(gkey); }} className="flex items-center gap-1 min-w-0 flex-1"
+          title={groupRail ? `Hold and slide to put everyone in ${item.group.name} at one level` : undefined}>
           {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
           {item.subsystem ? <FolderTree className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" /> : <Folder className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide truncate" style={{ color: item.group.color || undefined }}>{item.group.name}</span>
           {bulk && <span className="text-[0.625rem] text-muted-foreground">{onCount}/{bulkMembers.length}</span>}
+          {groupBadge && <span className="text-[0.625rem] font-medium px-1.5 py-0.5 rounded-md bg-primary/10 text-primary flex-shrink-0 max-w-[40%] truncate">{groupBadge}</span>}
         </button>
         {bulk && bulkMembers.length > 0 && (
           <div className="flex gap-1">
-            <button type="button" disabled={busy || onCount === bulkMembers.length} onClick={() => onSetMany(bulkMembers, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
-            <button type="button" disabled={busy || onCount === 0} onClick={() => onSetMany(bulkMembers, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
+            {/* With the group rail on, "+ all" stays live even when everyone
+                is in — holding it is how the whole group changes level. */}
+            <button type="button" {...railProps} disabled={busy || (!groupRail && onCount === bulkMembers.length)}
+              onClick={() => { if (!railBlocked() && onCount < bulkMembers.length) onSetMany(bulkMembers, true); }}
+              title={groupRail ? "Tap to add everyone · hold and slide to pick their level" : undefined}
+              className={`text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40 ${groupRail && onCount === bulkMembers.length ? "opacity-60" : ""}`}
+              style={railProps.style}>+ all</button>
+            <button type="button" disabled={busy || onCount === 0} onClick={() => { if (!railBlocked()) onSetMany(bulkMembers, false); }} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
           </div>
         )}
       </div>

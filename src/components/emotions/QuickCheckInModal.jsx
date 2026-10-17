@@ -34,7 +34,7 @@ import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
-import { useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
+import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
 import { useFrontLevels, getSessionLevel, soloDraftPlan, frontLevelLabel } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterSorter } from "@/lib/alterSort";
@@ -688,40 +688,49 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     const lvl = levelCfg.levels.find((l) => l.id === levelIdOf(id));
     return lvl ? frontLevelLabel(lvl, terms) : "";
   };
-  const pickLevel = (alterId, levelId, { solo = false } = {}) => {
+  // Takes one id or several (a whole subsystem from the tree's group rail):
+  // everyone given lands at the level; "sole" spares the whole group.
+  const pickLevel = (alterIdOrIds, levelId, { solo = false } = {}) => {
+    const ids = Array.isArray(alterIdOrIds) ? alterIdOrIds : [alterIdOrIds];
+    if (!ids.length) return;
+    const group = new Set(ids);
     const plan = solo
       ? soloDraftPlan({
-          alterId, levelId, cfg: levelCfg,
+          alterId: ids[0], levelId, cfg: levelCfg,
           levelOf: Object.fromEntries([...selectedAlterIds].map((id) => [id, levelIdOf(id)])),
         })
       : {};
+    for (const id of ids) delete plan[id];
     const gone = new Set(Object.keys(plan).filter((id) => plan[id] === null));
     setLevelById((prev) => {
       const n = { ...prev };
       for (const [id, l] of Object.entries(plan)) { if (l === null) delete n[id]; else n[id] = l; }
-      n[alterId] = levelId;
+      for (const id of ids) n[id] = levelId;
       return n;
     });
     // The primary id only seeds the derived lead now; keep it consistent
     // with the levels (the top level leads, anyone moved out stops).
     const isTop = levelId && levelId === levelCfg.levels?.[0]?.id;
     let pid = gone.has(primaryId) ? "" : primaryId;
-    let co = coFronterIds.filter((x) => !gone.has(x) && x !== alterId);
-    if (pid && pid !== alterId && plan[pid]) { co.push(pid); pid = ""; }
+    let co = coFronterIds.filter((x) => !gone.has(x) && !group.has(x));
+    if (pid && !group.has(pid) && plan[pid]) { co.push(pid); pid = ""; }
     if (isTop) {
-      if (pid && pid !== alterId) co.push(pid);
-      pid = alterId;
+      const lead = group.has(pid) ? pid : ids[0];
+      if (pid && pid !== lead) co.push(pid);
+      pid = lead;
+      co.push(...ids.filter((id) => id !== lead));
     } else {
-      if (pid === alterId) pid = "";
-      co.push(alterId);
+      if (group.has(pid)) pid = "";
+      co.push(...ids);
     }
     setPrimaryId(pid);
     setCoFronterIds([...new Set(co)]);
   };
-  const dropAlter = (alterId) => {
-    setLevelById((prev) => { const n = { ...prev }; delete n[alterId]; return n; });
-    setPrimaryId((p) => (p === alterId ? "" : p));
-    setCoFronterIds((prev) => prev.filter((x) => x !== alterId));
+  const dropAlter = (alterIdOrIds) => {
+    const ids = new Set(Array.isArray(alterIdOrIds) ? alterIdOrIds : [alterIdOrIds]);
+    setLevelById((prev) => { const n = { ...prev }; for (const id of ids) delete n[id]; return n; });
+    setPrimaryId((p) => (ids.has(p) ? "" : p));
+    setCoFronterIds((prev) => prev.filter((x) => !ids.has(x)));
   };
   // Who an emotion belongs to when the user hasn't said otherwise: every
   // fronter in this check-in, or only those at the level chosen in Manage
@@ -776,6 +785,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     if (levelRail || Date.now() < suppressRowTap.current) return;
     toggleAlter(id);
   };
+  // Hold a subsystem / group header (or its "+ all") in the tree view →
+  // the same rail, for every member at once.
+  const groupLevelRail = useGroupLevelRail({ cfg: levelCfg, onCommit: pickLevel, onRemove: dropAlter });
+  const commonLevelOf = (members) => {
+    if (!members.length || !members.every((a) => selectedAlterIds.has(a.id))) return null;
+    const lvl = levelIdOf(members[0].id);
+    return members.every((a) => levelIdOf(a.id) === lvl) ? lvl : null;
+  };
+  const treeGroupRail = levelCfg.enabled ? {
+    getProps: (group, members, key) => groupLevelRail.getGroupHoldProps(key, members, group.name || "", commonLevelOf(members)),
+    suppressed: groupLevelRail.suppressed,
+    badge: (members) => {
+      if (levelCfg.levels.length < 2) return null;
+      const lvl = levelCfg.levels.find((l) => l.id === commonLevelOf(members));
+      return lvl ? frontLevelLabel(lvl, terms) : null;
+    },
+  } : null;
 
   // Bulk add/remove for the by-subsystem/group tree view's "+ all / − all"
   // and "Select all / Clear all". Keeps primary separate; seeds one when none.
@@ -1506,7 +1532,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground flex-1">
                   {frontTreeView
-                    ? <>Browse by subsystem / group. Tap to toggle · hold and slide to pick a level.</>
+                    ? <>Browse by subsystem / group. Tap to toggle · hold and slide to pick a level · hold a group to set everyone in it.</>
                     : <>Tap to toggle · hold and slide to pick a level.</>}
                 </p>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -1533,6 +1559,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   maxHeight="40vh"
                   rowProps={(a) => getHoldProps(a.id, selectedAlterIds.has(a.id) ? levelIdOf(a.id) : null)}
                   rowBadge={(a) => (selectedAlterIds.has(a.id) && levelCfg.levels.length > 1 ? levelLabelOf(a.id) : null)}
+                  groupRail={treeGroupRail}
                 />
               ) : (
                 <>
@@ -1561,6 +1588,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   {front} sheet, alter bar and {alter} pages. Serves the
                   chips, the flat list and the tree view alike. */}
               {rowOptionsMenu.node}
+              {groupLevelRail.node}
               <FrontLevelRail rail={levelRail} cfg={levelCfg} withRemove
                 alterName={railAlter ? (railAlter.name || "") : ""} />
               {frontingActuallyChanged && (

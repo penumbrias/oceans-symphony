@@ -290,6 +290,49 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
   return { rail, getHoldProps, startRailAt };
 }
 
+// ── Whole-group rail ───────────────────────────────────────────────
+// The same hold-and-slide rail, but for a whole subsystem / group at once
+// (the tree pickers' group headers). Release on a level puts EVERY member
+// at it; the remove stop takes them all off; a "sole" slide clears that
+// level (or the whole front) of everyone outside the group. No options
+// slide — a group has no single {alter} menu to open.
+//
+// getGroupHoldProps(key, members, label, currentLevelId) goes on the
+// group's control; render `node` once; guard the control's tap with
+// suppressed() (a finished hold is followed by a click).
+export function useGroupLevelRail({ cfg, onCommit, onRemove }) {
+  const groupsRef = useRef({});
+  const suppress = useRef(0);
+  const { rail, getHoldProps } = useHoldDragLevel({
+    cfg,
+    onCommit: (key, levelId, extras = {}) => {
+      suppress.current = Date.now() + 400;
+      const g = groupsRef.current[key];
+      if (g?.members.length) onCommit(g.members.map((a) => a.id), levelId, extras);
+    },
+    onRemove: (key) => {
+      suppress.current = Date.now() + 400;
+      const g = groupsRef.current[key];
+      if (g?.members.length) onRemove(g.members.map((a) => a.id));
+    },
+  });
+  const getGroupHoldProps = (key, members, label, currentLevelId = null) => {
+    if (!members?.length) return {};
+    const k = `__group:${key}`;
+    groupsRef.current[k] = { members, label };
+    return getHoldProps(k, currentLevelId);
+  };
+  const g = rail ? groupsRef.current[rail.alterId] : null;
+  const node = (
+    <FrontLevelRail rail={rail} cfg={cfg} withRemove
+      alterName={g ? `${g.label} · ${g.members.length}` : ""} />
+  );
+  return {
+    getGroupHoldProps, node,
+    suppressed: () => !!rail || Date.now() < suppress.current,
+  };
+}
+
 // ── Static tap-to-pick variant ─────────────────────────────────────
 // Swipe gestures can't flow into a drag, so surfaces whose "set primary"
 // swipe was replaced by levels (owner decision: the star is retired when

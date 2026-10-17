@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "improve", text: "Picking {{fronters}} by sub{{system}}: hold a sub{{system}} or group (or its \"+ all\") and slide to put everyone in it at one {{fronting}} level." },
       { type: "feature", text: "Backups can now also be copied to Google Drive, OneDrive, Dropbox or an SD card, so losing your phone doesn't lose your backup. Set it up in the backup step of setup or in Settings → Auto-backup." },
       { type: "improve", text: "Planner: to-dos with a date now show on the week and day grid too; tap one to open it." },
       { type: "feature", text: "Quick check-in: tap the pin on a symptom or habit to keep it at the top of the list." },
