@@ -1,4 +1,4 @@
-// Backup-file privacy controls — the ONE place these two knobs are edited,
+// Backup-file privacy controls — the ONE place these knobs are edited,
 // mounted inside Settings → Auto-backup and inside the first-run backup
 // decision step so the two can't drift.
 //
@@ -9,6 +9,8 @@
 //      everyone else can set a separate one.
 //   2. File name. The default names the app; a plain name doesn't. Restore
 //      goes by file content, so any name imports.
+//   3. An off-device copy (BackupCopyOptions) — Drive, an SD card, a cloud
+//      folder on desktop — so a lost device doesn't take the backup with it.
 //
 // Both default to off/standard — nothing about existing files changes until
 // the user opts in. The custom password lives in localStorage and is NOT
@@ -20,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { isNative } from "@/lib/platform";
+import BackupCopyOptions from "./BackupCopyOptions";
 import {
   BACKUP_ENCRYPTION,
   getBackupEncryptionMode,
@@ -231,6 +234,8 @@ export default function BackupFileOptions({ onChange }) {
             : " in Downloads → Oceans Symphony.")}
         </p>
       </div>
+
+      <BackupCopyOptions onChange={notify} />
     </div>
   );
 }

@@ -59,6 +59,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(QuickActionsPlugin.class);
         registerPlugin(MediaStoreSavePlugin.class);
         registerPlugin(SyncFolderPlugin.class);
+        registerPlugin(BackupCopyPlugin.class);
         registerPlugin(SystemSettingsPlugin.class);
         super.onCreate(savedInstanceState);
 

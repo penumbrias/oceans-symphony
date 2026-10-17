@@ -83,7 +83,7 @@ export default function BackupDecisionStep({ onDone, compact = false }) {
           icon={Zap}
           title={NATIVE ? "Back up automatically" : "Back up automatically (limited)"}
           body={NATIVE
-            ? "Silent. On a schedule, a backup file is written to this phone's Downloads. You can lock it with a password and give it a plain name."
+            ? "Silent. On a schedule, a backup file is written to this phone's Downloads, and can also be copied to Google Drive or another place off the phone. You can lock it with a password and give it a plain name."
             : "When a backup is due and you open the app, a save prompt appears so you can put the file somewhere safe. Browsers can't do this in the background."}
         />
         {NATIVE && (

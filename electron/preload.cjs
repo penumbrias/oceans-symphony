@@ -64,6 +64,13 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
     },
   }),
 
+  // Off-device backup copy (src/lib/backupCopy.js). Main only writes
+  // files named like our own backups, into the folder the user picked.
+  backupCopy: Object.freeze({
+    pickFolder: () => ipcRenderer.invoke('symphony:backup-copy:pick-folder'),
+    write: (dir, name, text) => ipcRenderer.invoke('symphony:backup-copy:write', dir, name, text),
+  }),
+
   // Device sync (src/lib/deviceSync.js). Files only — there is no
   // network call anywhere behind these. Main refuses any filename that
   // isn't one of our own snapshot files, so this cannot be turned into a

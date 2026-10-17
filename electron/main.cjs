@@ -1001,6 +1001,46 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
+    // Off-device backup copy (src/lib/backupCopy.js). The user picks a
+    // folder once — typically inside Google Drive, OneDrive or Dropbox's
+    // desktop folder — and every backup also lands there as a dated file.
+    // Same containment as sync: only names shaped like our own backup
+    // files can be written, so this can't overwrite a user's documents.
+    const BACKUP_COPY_RE = /^[A-Za-z0-9 _-]{1,40}-\d{4}-\d{2}-\d{2}\.json$/;
+    const badBackupName = (name) =>
+      typeof name !== 'string' || name.includes('/') || name.includes('\\')
+      || name.includes('\0') || !BACKUP_COPY_RE.test(name);
+
+    ipcMain.handle('symphony:backup-copy:pick-folder', async () => {
+      const res = await dialog.showOpenDialog(mainWindow, {
+        title: 'Choose where to keep a backup copy',
+        properties: ['openDirectory', 'createDirectory'],
+        message: 'Pick a folder that is copied off this computer, like your Google Drive, OneDrive or Dropbox folder.',
+      });
+      if (res.canceled || !res.filePaths?.length) return { ok: true, path: null };
+      return { ok: true, path: res.filePaths[0] };
+    });
+
+    ipcMain.handle('symphony:backup-copy:write', async (_e, rawDir, name, text) => {
+      const dir = normDir(rawDir);
+      if (badBackupName(name)) return { ok: false, error: 'Refused: not a backup file name.' };
+      if (typeof text !== 'string' || !text) return { ok: false, error: 'Nothing to write.' };
+      if (!(await usableDir(dir))) return { ok: false, error: "The backup copy folder isn't reachable. Check the drive or cloud folder is still there, or choose it again." };
+      const dest = path.join(dir, name);
+      const tmp = `${dest}.part`;
+      try {
+        // Write-then-rename: an interrupted write never replaces a good copy.
+        await fsp.writeFile(tmp, text, 'utf8');
+        await renameWithRetry(tmp, dest);
+        const st = await fsp.stat(dest);
+        if (st.size !== Buffer.byteLength(text, 'utf8')) return { ok: false, error: "The backup copy didn't save completely. Try again." };
+        return { ok: true };
+      } catch (e) {
+        try { await fsp.unlink(tmp); } catch { /* best effort */ }
+        return { ok: false, error: e?.message || 'Could not write the backup copy.' };
+      }
+    });
+
     buildMenu();
     createWindow();
     setUpAutoUpdate();
