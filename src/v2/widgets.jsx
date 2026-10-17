@@ -37,6 +37,7 @@ import { Square,
 , Map, MapPin
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import DOMPurify from "dompurify";
@@ -883,7 +884,8 @@ function AppTileWidget({ mode, settings }) {
   const tr = useT();
   const t = useTerms();
   const navigate = useNavigate();
-  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const item = findGridItem(items, settings?.targetId);
   const customIcon = useResolvedAvatarUrl(settings?.iconUrl || "");
   if (!item) return <Muted>{tr("widget.app.missing")}</Muted>;
@@ -1302,7 +1304,8 @@ function FolderWidget({ settings, mode }) {
   const t = useTerms();
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
-  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const apps = (settings?.appIds || []).map((id) => findGridItem(items, id)).filter(Boolean);
   const label = settings?.label || tr("widget.folder.label");
 
@@ -1937,7 +1940,8 @@ function QuickLinksWidget({ settings, mode, api }) {
   const tr = useT();
   const navigate = useNavigate();
   const groups = useList("groups", "Group");
-  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const alters = api?.alters || [];
 
   const links = [

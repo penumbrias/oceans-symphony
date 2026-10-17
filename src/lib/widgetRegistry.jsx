@@ -32,6 +32,7 @@ import {
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import { getFrequentPages } from "@/lib/pageVisitTracker";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -99,7 +100,8 @@ export function widgetDescription(def, terms) {
 function AppShortcutWidget({ mode, settings }) {
   const t = useTerms();
   const navigate = useNavigate();
-  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const item = findGridItem(items, settings?.targetId);
   // Custom icon/name from the widget's advanced config (gear menu).
   const customIcon = useResolvedAvatarUrl(settings?.iconUrl || "");
@@ -141,7 +143,8 @@ function AppShortcutWidget({ mode, settings }) {
 function FrequentlyOpenedWidget({ mode }) {
   const t = useTerms();
   const navigate = useNavigate();
-  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const byPath = React.useMemo(() => new Map(items.map((i) => [i.path, i])), [items]);
   // Visit data only changes on navigation, so a per-render read is fresh
   // enough — no state/subscription needed.

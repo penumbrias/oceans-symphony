@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<!--
+  The sandbox every installed mod runs in. See docs/mods.md.
+
+  The app loads this page in <iframe sandbox="allow-scripts"> with NO
+  allow-same-origin, so it gets an opaque origin: it cannot open the app's
+  IndexedDB, localStorage, cookies or the native bridge. The policy below
+  shuts the network: a mod has no fetch/XHR/WebSocket, no remote images,
+  fonts, styles or frames, and no forms. Everything a mod reads or writes
+  goes through postMessage to the app (src/lib/mods/broker.js), which
+  checks it against the permissions the person granted.
+
+  'unsafe-eval' is here ONLY: mod code arrives as text and runs through
+  new Function. The app page itself keeps script-src 'self'.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { color-scheme: light dark; }
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body {
+    font-family: var(--font-sans, Inter, system-ui, sans-serif);
+    color: var(--color-text-primary, #1E293B);
+    font-size: 15px; line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  #mod-root { padding: 2px; }
+  .os-error {
+    border: 1px solid #ef4444; border-radius: 12px; padding: 12px;
+    color: #ef4444; background: rgba(239, 68, 68, 0.08); font-size: 14px;
+    white-space: pre-wrap;
+  }
+  /* A small starter kit so a mod looks at home with no CSS of its own. */
+  .os-card {
+    background: var(--color-surface, #E0F2FE); border: 1px solid var(--color-muted, #B6D4E3);
+    border-radius: var(--radius, 12px); padding: 12px; margin: 0 0 10px;
+  }
+  .os-muted { color: var(--color-text-secondary, #64748B); font-size: 0.875em; }
+  .os-button, button.os-button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 8px 14px;
+    background: var(--color-primary, #3B82F6); color: #fff;
+  }
+  .os-button.secondary { background: transparent; color: var(--color-text-primary, #1E293B); border: 1px solid var(--color-muted, #B6D4E3); }
+  .os-input, input.os-input, textarea.os-input {
+    font: inherit; width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px 10px;
+    border: 1px solid var(--color-muted, #B6D4E3); background: var(--color-bg, #fff);
+    color: var(--color-text-primary, #1E293B);
+  }
+  .os-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="mod-root"></div>
+<script src="/mod-host.js"></script>
+</body>
+</html>

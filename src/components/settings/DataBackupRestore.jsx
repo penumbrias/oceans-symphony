@@ -141,6 +141,7 @@ const ENTITY_NAMES = [
   "CustomFont",
   "AlterActivityLink", "FeelingLink",
   "Wish",
+  "ModPackage", "ModData",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -186,6 +187,7 @@ export const EXPORT_CATEGORIES = [
   { id: "images",        label: "Local Files & Assets",     entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded pictures, audio, videos & attached files + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
   { id: "needs",         label: "Wishes & Needs",           entities: ["Wish"],                                                              desc: "Wishlists: wishes, who they belong to, and why they matter" },
+  { id: "mods",          label: "Mods",                     entities: ["ModPackage", "ModData"],                                             desc: "Installed mods (other people's add-ons), their settings, and everything they saved" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
 

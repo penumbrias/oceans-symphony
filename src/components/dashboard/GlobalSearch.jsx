@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
 import { buildSearchIndex, searchIndex, groupResults } from "@/lib/globalSearch";
 import { listSystems } from "@/lib/systems";
+import { listMods, MODS_QUERY_KEY } from "@/lib/mods/modStore";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -52,6 +53,7 @@ const TYPE_ICONS = {
   contact:   "📇",
   system:    "🪞",
   asset:     "🖼️",
+  mod:       "🧩",
 };
 
 function getTypeLabels(t) {
@@ -82,6 +84,7 @@ function getTypeLabels(t) {
     contact:   "Contacts",
     system:    t.Systems,
     asset:     "Assets",
+    mod:       "Mods",
   };
 }
 
@@ -291,6 +294,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.ImageAsset, "-created_date"),
     staleTime: stale, enabled,
   });
+  const { data: mods = [] } = useQuery({
+    queryKey: MODS_QUERY_KEY,
+    queryFn: listMods,
+    staleTime: stale, enabled,
+  });
 
   const index = useMemo(() => buildSearchIndex({
     terms,
@@ -317,6 +325,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     contacts,
     systems: listSystems(),
     assets,
+    mods,
 }), [
     terms,
     alters, customFieldDefs,
@@ -341,6 +350,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     presences,
     contacts,
     assets,
+    mods,
 ]);
 
   const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
@@ -381,7 +391,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const TYPE_ORDER = [
     "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset",
+    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];
 
   return (

@@ -45,6 +45,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SidebarNav from "@/components/layout/SidebarNav";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
@@ -583,6 +584,7 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
 function useNavItems(settingsRow) {
   const terms = useTerms();
   const navConfig = settingsRow?.navigation_config || DEFAULT_CONFIG;
+  const modNavV = useModPagesVersion();
   const termMap = useMemo(() => ({
     alters: terms.Alters,
     checkin: `${terms.System} Meeting`,
@@ -594,7 +596,7 @@ function useNavItems(settingsRow) {
     .filter(Boolean)
     .map((p) => ({ ...p, label: termMap[p.id] || p.label }));
   const primaryIds = navConfig.bottomBar || DEFAULT_CONFIG.bottomBar;
-  const primary = useMemo(() => resolve(primaryIds), [primaryIds, termMap]);
+  const primary = useMemo(() => resolve(primaryIds), [primaryIds, termMap, modNavV]);
   // The rail has room the bottom bar doesn't — everything else the user has
   // chosen for their dashboard goes underneath, so desktop isn't limited to
   // five destinations.
@@ -606,7 +608,7 @@ function useNavItems(settingsRow) {
     return Object.entries(raw)
       .map(([label, items]) => ({ label, items: items.filter((i) => !primaryIds.includes(i.id)) }))
       .filter((g) => g.items.length > 0);
-  }, [terms.Alters, terms.System, primaryIds]);
+  }, [terms.Alters, terms.System, primaryIds, modNavV]);
   return { primary, groups };
 }
 

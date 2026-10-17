@@ -761,6 +761,36 @@ export function buildSettingsRecords({ terms = {} } = {}) {
   }));
 }
 
+// Installed mods (src/pages/Mods.jsx), and each page of a switched-on mod.
+export function buildModRecords({ items = [] }) {
+  const out = [];
+  for (const m of items || []) {
+    if (!m?.mod_id) continue;
+    out.push({
+      type: "mod",
+      id: m.id,
+      title: m.name || m.mod_id,
+      subtitle: m.enabled ? "Mod" : "Mod · turned off",
+      path: "/mods",
+      searchableText: joinNonEmpty([m.name, m.mod_id, m.author, m.description, "mod mods add-on"]).toLowerCase(),
+      sortDate: m.created_date,
+    });
+    if (!m.enabled) continue;
+    for (const p of m.pages || []) {
+      out.push({
+        type: "mod",
+        id: `${m.id}:${p.id}`,
+        title: p.title,
+        subtitle: `${m.name} · mod page`,
+        path: `/mod/${m.mod_id}/${p.id}`,
+        searchableText: joinNonEmpty([p.title, m.name]).toLowerCase(),
+        sortDate: m.created_date,
+      });
+    }
+  }
+  return out;
+}
+
 export function buildSearchIndex(sources = {}) {
   const {
     alters, customFieldDefs,
@@ -786,6 +816,7 @@ export function buildSearchIndex(sources = {}) {
     contacts,
     systems,
     assets,
+    mods,
     terms,
   } = sources;
 
@@ -824,6 +855,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildContactRecords({ items: contacts || [] }));
   records.push(...buildSystemRecords({ items: systems || [] }));
   records.push(...buildAssetRecords({ items: assets || [] }));
+  records.push(...buildModRecords({ items: mods || [] }));
   return records;
 }
 

@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -32,6 +32,9 @@ export const ALL_PAGES = [
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
   { id: "assets", label: "Assets", path: "/assets", icon: Images },
   { id: "presences", label: "New Presences", path: "/presences", icon: Sparkles },
+  { id: "mods", label: "Mods", path: "/mods", icon: Puzzle },
+  // Pages of switched-on mods are appended at runtime (isMod: true) by
+  // src/lib/mods/registry.js, so they can be pinned like any other page.
 ];
 
 export const DEFAULT_CONFIG = {
@@ -72,6 +75,7 @@ export const DEFAULT_CONFIG = {
     "contacts",
     "reminders",
     "friends",
+    "mods",
     "settings",
   ],
   // `bulletins` defaults to removed because the dashboard's own
