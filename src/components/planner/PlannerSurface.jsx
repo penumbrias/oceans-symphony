@@ -60,7 +60,6 @@ import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
-import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { collectAlterDates } from "@/lib/importantDates";
@@ -149,7 +148,6 @@ export default function PlannerSurface({
   });
   const setView = (v) => { setViewState(v); lsSet("symphony_planner_view_v1", v); };
   const effDayCount = chrome ? (view === "day" ? 1 : 7) : dayCount;
-  const [showManage, setShowManage] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
@@ -986,7 +984,7 @@ export default function PlannerSurface({
                   aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
                   <SlidersHorizontal className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowManage(true)}
+                <Button variant="ghost" size="sm" onClick={() => navigate("/activities")}
                   aria-label={tr("planner.manage")} title={tr("planner.manage")}>
                   <SettingsIcon className="w-4 h-4" />
                 </Button>
@@ -1228,7 +1226,6 @@ export default function PlannerSurface({
       </div>
 
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
-      {showManage && <ActivityCustomizationMenu onClose={() => setShowManage(false)} />}
 
       {/* Portaled to the body: a v2 board is framer-transformed, which
           re-anchors `position: fixed` to the board instead of the viewport —

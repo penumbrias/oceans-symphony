@@ -275,6 +275,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.Contact),
     staleTime: stale, enabled,
   });
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => safeList(localEntities.ActivityCategory),
+    staleTime: stale, enabled,
+  });
   const { data: assets = [] } = useQuery({
     queryKey: ["imageAssets"],
     queryFn: () => safeList(localEntities.ImageAsset, "-created_date"),
@@ -286,7 +291,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -310,7 +315,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep,
+    activities, sleep, activityCategories,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
