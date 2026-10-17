@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "improve", text: "Planner: to-dos with a date now show on the week and day grid too; tap one to open it." },
       { type: "feature", text: "New home-screen widgets: Needs balance, Wishes and Goals." },
       { type: "feature", text: "New Needs page: see how long it's been since each {{alter}} got something they enjoy, everyone's wishes in one list, and turn agreements where the second turn goes in the planner." },
       { type: "feature", text: "Starting an activity someone tends to interrupt now shows a gentle note with what they've been wishing for." },

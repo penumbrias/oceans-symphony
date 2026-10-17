@@ -919,8 +919,8 @@ export default function PlannerSurface({
     queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list(), enabled: chrome,
   });
   const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
-  const activitiesWithTasks = useMemo(
-    () => [...activities, ...tasksAsCalendarItems(tasks)], [activities, tasks]);
+  const taskItems = useMemo(() => tasksAsCalendarItems(tasks), [tasks]);
+  const activitiesWithTasks = useMemo(() => [...activities, ...taskItems], [activities, taskItems]);
   const openFromCalendar = (picked) => {
     const list = (Array.isArray(picked) ? picked : [picked]).filter(Boolean);
     const real = list.filter((x) => !x._isTask);
@@ -1208,19 +1208,20 @@ export default function PlannerSurface({
           maxHeight={maxHeight}
           fill={!chrome}
           activities={activities}
+          tasks={taskItems}
           frontingHistory={frontingHistory}
           emotionCheckIns={emotionCheckIns}
           alters={alters}
           categoryColor={catColor}
           overlays={overlays}
           onCreate={handleCreate}
-          onOpenBlock={(item) => setDetails(item)}
+          onOpenBlock={(item) => (item?._isTask ? navigate(`/todo?id=${item._task.id}`) : setDetails(item))}
           onResize={handleResize}
           // A tapped check-in dot lands on that entry in the log, highlighted.
           onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
           onOpenBand={(b, rect) => setBandInfo({ band: b, rect })}
           onAddToDay={(day) => setPlanDay(day)}
-          onOpenUntimed={(item, day) => setDetails({ ...item, _day: day })}
+          onOpenUntimed={(item, day) => (item?._isTask ? navigate(`/todo?id=${item._task.id}`) : setDetails({ ...item, _day: day }))}
         />
         )}
       </div>
