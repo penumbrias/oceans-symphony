@@ -11,7 +11,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { Plus, X, Image as ImageIcon, Camera, Pencil, RotateCcw, Shuffle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { saveLocalImage, deleteLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
+import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 const shuffle = (arr) => {
@@ -25,7 +26,7 @@ const shuffle = (arr) => {
 
 export async function deleteCardImages(item) {
   for (const url of [item?.front_image, item?.back_image]) {
-    try { const id = url && getLocalImageId(url); if (id) await deleteLocalImage(id); } catch { /* non-fatal */ }
+    try { const id = url && getLocalImageId(url); if (id) await deleteLocalImageIfUnused(id); } catch { /* non-fatal */ }
   }
 }
 
