@@ -13,9 +13,9 @@ import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategor
 import { stripDeviceBound, stripUnsharedSecrets, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
-import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages, keepOriginalImages, setKeepOriginalImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages, keepOriginalImages, setKeepOriginalImages, measureLocalImages } from "@/lib/localImageStorage";
 import { Switch } from "@/components/ui/switch";
-import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
+import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds, measureLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
   decryptEncryptedImport,
@@ -340,16 +340,15 @@ const DEVICE_BOUND_ENTITIES = ["FriendIdentity", "PushSubscription"];
 // know about them individually.
 export async function computeCategoryStats() {
   const dump = getFullDbDump();
-  let images = {};
-  try { images = await getAllLocalImages(); } catch {}
-  let fonts = {};
-  try { fonts = await getAllLocalFonts(); } catch {}
+  // Sizes are MEASURED, not read: loading every picture, song and video
+  // just to count them could run a phone out of memory.
+  const { images, fonts } = await measureMediaStores();
   const categories = {};
   for (const cat of EXPORT_CATEGORIES) {
     if (cat.isImages) {
-      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(images).length / 1024), count: Object.keys(images).length };
+      categories[cat.id] = { sizeKB: Math.round(images.base64Bytes / 1024), count: images.count };
     } else if (cat.isFonts) {
-      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(fonts).length / 1024), count: Object.keys(fonts).length };
+      categories[cat.id] = { sizeKB: Math.round(fonts.base64Bytes / 1024), count: fonts.count };
     } else {
       let total = 0, count = 0;
       for (const e of cat.entities) {
@@ -363,6 +362,16 @@ export async function computeCategoryStats() {
     deviceBound[e] = { count: dump[e] ? Object.keys(dump[e]).length : 0 };
   }
   return { categories, deviceBound };
+}
+
+// { images: { count, base64Bytes }, fonts: { count, base64Bytes } } without
+// loading any file. Zeros when a store can't be read (sizes are a preview).
+async function measureMediaStores() {
+  let images = { count: 0, base64Bytes: 0 };
+  let fonts = { count: 0, base64Bytes: 0 };
+  try { images = await measureLocalImages(); } catch { /* preview only */ }
+  try { fonts = await measureLocalFonts(); } catch { /* preview only */ }
+  return { images, fonts };
 }
 
 // Exports just ONE category, reusing the same envelope shape/format and
@@ -558,23 +567,24 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       const held = (await listLocalFontIds()).length;
       if (held > 0 && Object.keys(fonts).length < held) fontsFailed = true;
     } catch { fontsFailed = true; }
-    if (!imagesFailed && !fontsFailed) {
-      fullDumpRef.current = dump;
-      fullImagesRef.current = images;
-      fullFontsRef.current = fonts;
-    }
+    // Not cached: every export reads fresh, and keeping the whole media
+    // library in a ref held it in memory for as long as Settings was open.
     return { dump, images, fonts, imagesFailed, fontsFailed };
   }, []);
 
   const computeCatSizes = useCallback(async () => {
     if (catSizes) return;
-    const { dump, images, fonts } = await fetchFullDump();
+    // Data only — picture / audio / video / font sizes are measured, never
+    // loaded (opening this panel used to read the whole media library into
+    // memory just to print a size).
+    const dump = getFullDbDump();
+    const { images, fonts } = await measureMediaStores();
     const sizes = {};
     for (const cat of EXPORT_CATEGORIES) {
       if (cat.isImages) {
-        sizes[cat.id] = Math.round(JSON.stringify(images).length / 1024);
+        sizes[cat.id] = Math.round(images.base64Bytes / 1024);
       } else if (cat.isFonts) {
-        sizes[cat.id] = Math.round(JSON.stringify(fonts).length / 1024);
+        sizes[cat.id] = Math.round(fonts.base64Bytes / 1024);
       } else {
         let total = 0;
         for (const e of cat.entities) {
@@ -584,7 +594,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       }
     }
     setCatSizes(sizes);
-  }, [catSizes, fetchFullDump]);
+  }, [catSizes]);
 
   const handleToggleSelectiveOpen = () => {
     setSelectiveOpen(v => {
