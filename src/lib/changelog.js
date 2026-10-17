@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 16, 2026",
     changes: [
+      { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
+      { type: "feature", text: "Link {{alters}} and feelings to an activity (who enjoys, needs or avoids it; what it helps you feel). Each {{alter}} profile has an Activities tab showing theirs." },
       { type: "feature", text: "The Activity Tracker is now part of the Planner: Day, Week, Month and Year views, plus Insights with totals, goals, plan follow-through and the tally." },
       { type: "fix", text: "Plan notifications, links and the Planner tab now open the Planner instead of the old Activity Tracker." },
       { type: "fix", text: "Marking a running activity done from its notification works again, and a daily task that's already running offers to finish it instead of starting another copy." },

@@ -12,12 +12,7 @@ import { ThemeProvider } from '@/lib/ThemeContext';
 import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
 import Dashboard from '@/pages/Dashboard';
-import { Navigate, useLocation as useRouteLocation } from 'react-router-dom';
-
-function ActivitiesRedirect() {
-  const { search } = useRouteLocation();
-  return <Navigate to={`/planner${search || ''}`} replace />;
-}
+import { Navigate } from 'react-router-dom';
 import Settings from '@/pages/Settings';
 
 // Route-level code splitting (v0.184.0). Every page except the landing
@@ -61,6 +56,7 @@ const HistoryArchive = lazy(() => import('@/pages/HistoryArchive'));
 const LocationHistory = lazy(() => import('@/pages/LocationHistory'));
 const FriendsPage = lazy(() => import('@/pages/Friends'));
 const PlannerPage = lazy(() => import('@/pages/Planner'));
+const ActivitiesPage = lazy(() => import('@/pages/Activities'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
@@ -263,9 +259,9 @@ const AuthenticatedApp = () => {
         <Route path="/location/:id" element={<LocationProfile />} />
         <Route path="/assets" element={<AssetsLibrary />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
-        {/* The activity tracker was merged into the planner — old links,
-            saved nav tiles and notifications land there, params intact. */}
-        <Route path="/activities" element={<ActivitiesRedirect />} />
+        {/* Managing activities. Logging/planning is the Planner; old
+            entry links (?activityId= etc.) are forwarded there. */}
+        <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/system-map" element={<SystemMapPage />} />
