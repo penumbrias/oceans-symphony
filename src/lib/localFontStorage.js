@@ -101,6 +101,29 @@ export async function listLocalFontIds() {
   });
 }
 
+// Total size of the stored fonts without collecting them all (cursor, one
+// entry at a time). { count, base64Bytes }. THROWS when unreadable.
+export async function measureLocalFonts() {
+  const idb = await getIdb();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readonly');
+    const req = tx.objectStore(STORE_NAME).openCursor();
+    let count = 0;
+    let base64Bytes = 0;
+    req.onerror = () => reject(req.error || new Error('Failed to measure fonts'));
+    tx.onabort = () => reject(tx.error || new Error('Font measure aborted'));
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) { resolve({ count, base64Bytes }); return; }
+      const v = cursor.value;
+      count += 1;
+      if (typeof v === 'string') base64Bytes += v.length;
+      else if (v instanceof Blob) base64Bytes += Math.ceil(v.size / 3) * 4;
+      cursor.continue();
+    };
+  });
+}
+
 export async function getAllLocalFonts() {
   try {
     const idb = await getIdb();
