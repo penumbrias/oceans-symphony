@@ -1,7 +1,7 @@
 // Mods: install, switch on/off, set permissions, open and remove mods that
 // other people made and shared as .osmod files. See docs/mods.md.
 import React, { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Puzzle, Upload, ShieldCheck, Trash2, Download, ExternalLink } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   exportModData, deleteModData, MODS_QUERY_KEY,
 } from "@/lib/mods/modStore";
 import { modPagePath } from "@/lib/mods/registry";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 
 function PermissionRow({ perm, checked, onChange, terms }) {
   const meta = MOD_PERMISSIONS[perm];
@@ -89,6 +90,7 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
 }
 
 function ModCard({ mod, dataCount, terms, refresh }) {
+  const navigate = useNavigate();
   const run = async (fn, okText) => {
     try { await fn(); if (okText) toast.success(okText); refresh(); }
     catch (e) { toast.error(e?.message || "Something went wrong"); }
@@ -139,8 +141,8 @@ function ModCard({ mod, dataCount, terms, refresh }) {
       {mod.enabled && (
         <div className="flex flex-wrap gap-2">
           {(mod.pages || []).map((p) => (
-            <Button key={p.id} asChild size="sm" variant="secondary">
-              <Link to={modPagePath(mod.mod_id, p.id)}>{p.title}</Link>
+            <Button key={p.id} size="sm" variant="secondary" onClick={() => navigate(modPagePath(mod.mod_id, p.id))}>
+              {p.title}
             </Button>
           ))}
         </div>
@@ -160,8 +162,8 @@ function ModCard({ mod, dataCount, terms, refresh }) {
       )}
       <div className="flex flex-wrap gap-2 pt-1">
         {mod.homepage && (
-          <Button asChild size="sm" variant="ghost" className="gap-1.5">
-            <a href={mod.homepage} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-3.5 h-3.5" /> About</a>
+          <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => openExternalUrl(mod.homepage)}>
+            <ExternalLink className="w-3.5 h-3.5" /> About
           </Button>
         )}
         {dataCount > 0 && (

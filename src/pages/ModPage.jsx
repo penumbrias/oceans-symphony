@@ -2,7 +2,7 @@
 // inside ModFrame's sandbox; this page only adds the title and the states
 // for a mod that's missing or switched off.
 import React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMods } from "@/lib/mods/modStore";
@@ -10,6 +10,7 @@ import ModFrame from "@/components/mods/ModFrame";
 
 export default function ModPage() {
   const { modId, pageId } = useParams();
+  const navigate = useNavigate();
   const { mods, isLoading } = useMods();
   if (isLoading) return null;
   const mod = mods.find((m) => m.mod_id === modId);
@@ -22,7 +23,7 @@ export default function ModPage() {
         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
           {!mod ? "This mod isn't installed." : !mod.enabled ? `${mod.name} is turned off.` : `${mod.name} has no page here.`}
         </p>
-        <Button asChild variant="outline"><Link to="/mods">Go to Mods</Link></Button>
+        <Button variant="outline" onClick={() => navigate("/mods")}>Go to Mods</Button>
       </div>
     );
   }
