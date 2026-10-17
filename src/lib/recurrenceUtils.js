@@ -12,6 +12,10 @@
 
 import { base44 } from "@/api/base44Client";
 
+export {
+  RECURRENCE_INTERVALS, maxOccurrences, clampOccurrenceCount, advanceOccurrence, expandOccurrences,
+} from "@/lib/recurrenceIntervals";
+
 export const RECURRENCE_BRANCHES = Object.freeze({
   THIS_ONLY: "this_only",
   THIS_AND_FUTURE: "this_and_future",

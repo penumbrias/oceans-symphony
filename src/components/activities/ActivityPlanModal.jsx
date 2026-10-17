@@ -30,6 +30,8 @@ import {
   membersForBranch,
   applyEditToSeries,
   BRANCH_LABELS,
+  maxOccurrences,
+  clampOccurrenceCount,
 } from "@/lib/recurrenceUtils";
 
 // "I'm scheduling this" modal — future-dated plan path.
@@ -947,13 +949,17 @@ export default function ActivityPlanModal({
                   { value: "weekly", label: "Weekly" },
                   { value: "biweekly", label: "Every 2 weeks" },
                   { value: "monthly", label: "Monthly" },
+                  { value: "yearly", label: "Yearly" },
                 ].map((opt) => {
                   const active = recurrenceInterval === opt.value;
                   return (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setRecurrenceInterval(opt.value)}
+                      onClick={() => {
+                        setRecurrenceInterval(opt.value);
+                        setRecurrenceCount((c) => clampOccurrenceCount(opt.value, c));
+                      }}
                       className={`text-xs px-2.5 py-1 rounded-full border transition-all ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
                     >
                       {opt.label}
@@ -963,19 +969,21 @@ export default function ActivityPlanModal({
               </div>
               {recurrenceInterval !== "none" && (
                 <div className="flex items-center gap-2 pt-1">
-                  <label className="text-xs text-muted-foreground">How many occurrences?</label>
+                  <label className="text-xs text-muted-foreground">
+                    {recurrenceInterval === "yearly" ? "How many years?" : "How many occurrences?"}
+                  </label>
                   <Input
                     type="number"
                     min={1}
-                    max={52}
+                    max={maxOccurrences(recurrenceInterval)}
                     value={recurrenceCount}
                     onChange={(e) => {
                       const n = parseInt(e.target.value, 10);
-                      setRecurrenceCount(Number.isFinite(n) ? Math.max(1, Math.min(52, n)) : 1);
+                      setRecurrenceCount(clampOccurrenceCount(recurrenceInterval, n));
                     }}
                     className="w-20 h-8 text-sm"
                   />
-                  <span className="text-xs text-muted-foreground">(max 52)</span>
+                  <span className="text-xs text-muted-foreground">(max {maxOccurrences(recurrenceInterval)})</span>
                 </div>
               )}
             </div>
