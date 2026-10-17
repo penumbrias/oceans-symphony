@@ -2454,7 +2454,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">
