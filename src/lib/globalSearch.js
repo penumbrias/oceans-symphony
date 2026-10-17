@@ -617,7 +617,7 @@ export function buildWishRecords({ items = [], alters = [] }) {
       title: w.title || "Wish",
       subtitle: [w.for_everyone ? "Everyone" : ownerNames.join(", "), w.kind, w.status && w.status !== "wished" ? w.status.replace("_", " ") : null]
         .filter(Boolean).join(" · "),
-      path: first ? `/alter/${first.id}?tab=wishlist&highlight=${w.id}` : "/Home",
+      path: first ? `/alter/${first.id}?tab=wishlist&highlight=${w.id}` : `/needs?tab=wishes&highlight=${w.id}`,
       searchableText: joinNonEmpty([
         w.title, w.kind, driving, impact, ...ownerNames, w.url, dateSearchBlob(w.created_date),
       ]).toLowerCase(),
@@ -651,6 +651,23 @@ export function buildGoalRecords({ items = [], steps = [], alters = [] }) {
       sortDate: g.created_date,
     };
   });
+}
+
+// Turn agreements (Needs page): "this now, that next".
+export function buildTurnRecords({ items = [], alters = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  const names = (ids) => (ids || []).map((id) => alterById.get(id)).filter(Boolean).map((a) => a.name || a.alias).filter(Boolean);
+  return items.filter(Boolean).map((t) => ({
+    type: "turn",
+    id: `turn-${t.id}`,
+    title: `${t.first_title || "First"}, then ${t.second_title || "next"}`,
+    subtitle: [names(t.first_alter_ids).join(", "), names(t.second_alter_ids).join(", ")].filter(Boolean).join(" → "),
+    path: `/needs?tab=turns&highlight=${t.id}`,
+    searchableText: joinNonEmpty([
+      t.first_title, t.second_title, stripHtml(t.note), ...names(t.first_alter_ids), ...names(t.second_alter_ids), dateSearchBlob(t.created_date),
+    ]).toLowerCase(),
+    sortDate: t.created_date,
+  }));
 }
 
 export function buildSleepRecords({ items = [] }) {
@@ -835,7 +852,7 @@ export function buildSearchIndex(sources = {}) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
-    goals, goalSteps,
+    goals, goalSteps, turns,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -874,6 +891,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildAlterNoteRecords({ items: alterMessages || [], alters: alters || [] }));
   records.push(...buildWishRecords({ items: wishes || [], alters: alters || [] }));
   records.push(...buildGoalRecords({ items: goals || [], steps: goalSteps || [], alters: alters || [] }));
+  records.push(...buildTurnRecords({ items: turns || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));

@@ -9,7 +9,7 @@
 // (`useTerms()`) and pass the labels in, same as navigationConfig's
 // resolveLabel pattern.
 
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, Target } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, Target, HeartHandshake } from "lucide-react";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 
 // Pages of switched-on mods (src/lib/mods/registry.js keeps them in
@@ -40,6 +40,7 @@ export function buildNavGroups(altersLabel, systemLabel) {
       { id: "tasks",        label: "Daily Tasks",             icon: CheckSquare,   path: "/tasks" },
       { id: "todo",         label: "To-Do List",              icon: ClipboardList, path: "/todo" },
       { id: "goals",        label: "Goals",                   icon: Target,        path: "/goals" },
+      { id: "needs",        label: "Needs",                   icon: HeartHandshake, path: "/needs" },
       { id: "sleep",        label: "Sleep",                   icon: Activity,   path: "/sleep" },
     ],
     "Journal & Content": [
@@ -83,6 +84,7 @@ export function buildGridItems(altersLabel, systemLabel) {
     { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare,   path: "/tasks",            color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
     { id: "todo",            label: "To-Do List",             icon: ClipboardList, path: "/todo",             color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
     { id: "goals",           label: "Goals",                  icon: Target,        path: "/goals",            color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+    { id: "needs",           label: "Needs",                  icon: HeartHandshake, path: "/needs",           color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
     { id: "groups",          label: "Groups",                 icon: Users,         path: "/groups",           color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
     { id: "assets",          label: "Assets",                 icon: Images,        path: "/assets",           color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "safety-plan",     label: "Safety Plan",            icon: Shield,        path: "/safety-plan",      color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },

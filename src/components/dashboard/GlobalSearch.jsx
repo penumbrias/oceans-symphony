@@ -45,6 +45,7 @@ const TYPE_ICONS = {
   note:      "📝",
   wish:      "💗",
   goal:      "🎯",
+  turn:      "🤝",
   reminder:  "⏰",
   grocery:   "🛒",
   chat:      "💬",
@@ -77,6 +78,7 @@ function getTypeLabels(t) {
     note:      `${t.Alter} Notes`,
     wish:      "Wishes",
     goal:      "Goals",
+    turn:      "Turn agreements",
     reminder:  "Reminders",
     grocery:   "Grocery List",
     chat:      "Chat Messages",
@@ -220,6 +222,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(base44.entities.Goal, "-created_date", 500),
     staleTime: stale, enabled,
   });
+  const { data: turns = [] } = useQuery({
+    queryKey: ["searchTurns"],
+    queryFn: () => safeList(base44.entities.TurnAgreement, "-created_date", 500),
+    staleTime: stale, enabled,
+  });
   const { data: goalSteps = [] } = useQuery({
     queryKey: ["searchGoalSteps"],
     queryFn: () => safeList(base44.entities.GoalStep, "-created_date", 2000),
@@ -329,7 +336,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
-    goals, goalSteps,
+    goals, goalSteps, turns,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -356,7 +363,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
-    goals, goalSteps,
+    goals, goalSteps, turns,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -403,7 +410,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal",
+    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn",
     "activity", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];

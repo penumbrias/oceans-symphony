@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
+import InterruptCheckNote from "@/components/needs/InterruptCheckNote";
 import ActivityPromptsHost from "@/components/activities/ActivityPromptsHost";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 import FrontConflictCard from "@/components/sync/FrontConflictCard";
@@ -1205,6 +1206,7 @@ const handleNotifClick = (mentionLog) => {
           is redundant — but if the user hides quick actions entirely, the
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
+      <InterruptCheckNote />
       <GroceryListPanel />
       <ActivityPromptsHost />
       {/* Devices that disagree about who's fronting — the person picks. */}

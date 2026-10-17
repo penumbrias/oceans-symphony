@@ -715,6 +715,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page",
       look: `the Goals page`, action: null,
     },
+    {
+      section: "activities", sectionLabel: "Activities",
+      emoji: "🤝",
+      title: "Needs",
+      body: `The Needs page is one place for what everyone wants. Balance shows how long it's been since each ${t.alter} got something they enjoy, need or wished for, longest first, with a quick way to plan it. Wishes lists everyone's wishes (private ones stay on their own profile). Turns is for when ${t.alters} want different things: agree who goes first, and the second turn goes in the planner. When you start an activity an ${t.alter} tends to interrupt, a small note says who and what they've been wishing for; tap Got it to carry on.`,
+      route: "/needs", target: "needs-page",
+      look: `the Needs page`, action: null,
+    },
 
     // ─── POLLS ──────────────────────────────────────────────────────────────
     {
