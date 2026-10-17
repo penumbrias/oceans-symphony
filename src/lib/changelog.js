@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "fix", text: "Importing an older OpenPlural, Ampersand or Simply Plural export no longer marks people still fronting in that file as fronting now; you can opt in when importing." },
+      { type: "fix", text: "Deleting an image from the Image Assets library no longer breaks other places that use the same picture." },
+      { type: "feature", text: "Journals: new \"Import files\" brings in .txt, .md and .html notes (e.g. from Easy Notes) as new entries, keeping each file's date." },
       { type: "feature", text: "Plans can now repeat yearly, for birthdays and anniversaries, for up to 100 years." },
       { type: "feature", text: "{{Alter}} profiles have a Wishlist tab: add a wish in two taps, share it with others or everyone, note why it matters, and plan it or put it on the shopping list." },
       { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
