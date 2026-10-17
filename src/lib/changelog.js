@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "October 17, 2026",
     changes: [
       { type: "feature", text: "Plans can now repeat yearly, for birthdays and anniversaries, for up to 100 years." },
+      { type: "feature", text: "{{Alter}} profiles have a Wishlist tab: add a wish in two taps, share it with others or everyone, note why it matters, and plan it or put it on the shopping list." },
       { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
       { type: "feature", text: "Link {{alters}} and feelings to an activity (who enjoys, needs or avoids it; what it helps you feel). Each {{alter}} profile has an Activities tab showing theirs." },
     ],

@@ -151,6 +151,7 @@ const ENTITY_NAMES = [
   "Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter",
   "CustomFont",
   "AlterActivityLink", "FeelingLink",
+  "Wish",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -195,6 +196,7 @@ export const EXPORT_CATEGORIES = [
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
   { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
+  { id: "needs",         label: "Wishes & Needs",           entities: ["Wish"],                                                              desc: "Wishlists: wishes, who they belong to, and why they matter" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
 
