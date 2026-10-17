@@ -707,6 +707,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner-sections",
       look: `the highlighted switch — tap Insights and scroll to Plan follow-through`, action: null,
     },
+    {
+      section: "activities", sectionLabel: "Activities",
+      emoji: "🎯",
+      title: "Goals",
+      body: `The Goals page holds the long-term things your ${t.system} is working toward. "New goal" asks one question at a time: what you want, why it matters, what it would change, which ${t.alters} want it, who finds it hard, who can help, the smallest first step, and when to try it. Each answer has example picks, or start from an idea. Steps can become a to-do or a plan, and a goal can also keep a weekly rhythm on an activity or link a daily task. A step that sits untouched for a week offers to split into something smaller. If you set weekly goals in the planner, one tap keeps them here as rhythms.`,
+      route: "/goals", target: "goals-page",
+      look: `the Goals page`, action: null,
+    },
 
     // ─── POLLS ──────────────────────────────────────────────────────────────
     {

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "feature", text: "New Goals page: long-term goals with a why, who wants it and who finds it hard, built one question at a time. Steps can become to-dos, plans, daily tasks or a weekly rhythm, and weekly goals can be kept there too." },
       { type: "feature", text: "Mods: install features other people made and shared as a file, from the new Mods page. Each mod runs walled off with no internet access and only sees what you allow." },
       { type: "fix", text: "Importing an older OpenPlural, Ampersand or Simply Plural export no longer marks people still fronting in that file as fronting now; you can opt in when importing." },
       { type: "fix", text: "Deleting an image from the Image Assets library no longer breaks other places that use the same picture." },

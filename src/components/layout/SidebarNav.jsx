@@ -7,7 +7,7 @@ import { useModPagesVersion } from "@/lib/mods/registry";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange, History, LayoutGrid, Puzzle } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange, History, LayoutGrid, Puzzle, Target } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "activities",  label: "Activities",              icon: Zap,         path: "/activities" },
         { id: "tasks",       label: "Daily Tasks",             icon: CheckSquare, path: "/tasks" },
         { id: "todo",        label: "To-Do List",              icon: ClipboardList, path: "/todo" },
+        { id: "goals",       label: "Goals",                   icon: Target, path: "/goals" },
         { id: "sleep",             label: "Sleep",            icon: Activity, path: "/sleep" },
         { id: "location-history", label: "Locations",         icon: MapPin,   path: "/location-history" },
         { id: "history-archive",  label: "Recent changes",    icon: History,  path: "/history" },

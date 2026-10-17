@@ -626,6 +626,33 @@ export function buildWishRecords({ items = [], alters = [] }) {
   });
 }
 
+// Goals (System Needs). Step titles are searchable too, so finding "call
+// the dentist" lands on the goal it belongs to.
+export function buildGoalRecords({ items = [], steps = [], alters = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  const stepTitles = new Map();
+  for (const s of steps || []) {
+    if (!s || s.removed_at || !s.goal_id) continue;
+    if (!stepTitles.has(s.goal_id)) stepTitles.set(s.goal_id, []);
+    stepTitles.get(s.goal_id).push(s.title);
+  }
+  return items.filter(Boolean).map((g) => {
+    const ownerNames = (g.owner_alter_ids || []).map((id) => alterById.get(id)).filter(Boolean).map((a) => a.name || a.alias).filter(Boolean);
+    const status = { paused: "paused", done: "reached", let_go: "let go" }[g.status];
+    return {
+      type: "goal",
+      id: `goal-${g.id}`,
+      title: g.title || "Goal",
+      subtitle: [g.for_everyone ? "Everyone" : ownerNames.join(", "), status].filter(Boolean).join(" · "),
+      path: `/goals?highlight=${g.id}`,
+      searchableText: joinNonEmpty([
+        g.title, stripHtml(g.why), stripHtml(g.impact), ...ownerNames, ...(stepTitles.get(g.id) || []), dateSearchBlob(g.created_date),
+      ]).toLowerCase(),
+      sortDate: g.created_date,
+    };
+  });
+}
+
 export function buildSleepRecords({ items = [] }) {
   return items.map((s) => ({
     type: "activity",
@@ -808,6 +835,7 @@ export function buildSearchIndex(sources = {}) {
     systemChangeEvents,
     alterNotes, alterMessages,
     wishes,
+    goals, goalSteps,
     reminders,
     groceries,
     chatMessages, chatChannels,
@@ -845,6 +873,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildAlterNoteRecords({ items: alterNotes || [], alters: alters || [] }));
   records.push(...buildAlterNoteRecords({ items: alterMessages || [], alters: alters || [] }));
   records.push(...buildWishRecords({ items: wishes || [], alters: alters || [] }));
+  records.push(...buildGoalRecords({ items: goals || [], steps: goalSteps || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));

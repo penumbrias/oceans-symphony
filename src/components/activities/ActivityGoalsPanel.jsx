@@ -10,6 +10,7 @@ import { Plus, Trash2, Loader2, Pencil, Activity as ActivityIcon, Zap } from "lu
 import CircularProgressBar from "@/components/activities/CircularProgressBar";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format, startOfWeek, endOfWeek } from "date-fns";
+import { Link } from "react-router-dom";
 import { countableMinutes } from "@/lib/activityStatus";
 
 export default function ActivityGoalsPanel({ weekStart }) {
@@ -206,7 +207,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-1">
         <h3 className="text-lg font-semibold">Weekly Goals</h3>
         <Button
           size="sm"
@@ -217,6 +218,9 @@ export default function ActivityGoalsPanel({ weekStart }) {
           Add Goal
         </Button>
       </div>
+      <Link to="/goals" className="block text-xs text-muted-foreground hover:text-foreground mb-5">
+        Longer-term goals with steps and weekly rhythms live on the Goals page →
+      </Link>
 
       {progressData.length === 0 ? (
         <p className="text-muted-foreground text-sm">
