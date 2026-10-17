@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities";
 // of the experimental homescreen) so the app drawer and app-shortcut
 // widgets share the same catalogue. Re-exported here for back-compat.
 import { buildNavGroups, buildGridItems } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 export { buildNavGroups, buildGridItems };
 
 // ── Sortable tile ──────────────────────────────────────────────────────────────
@@ -177,8 +178,9 @@ export default function QuickNavMenu() {
     return systemSettingsData?.[0]?.navigation_config || DEFAULT_CONFIG;
   }, [systemSettingsData]);
 
-  const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
-  const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  const modNavV = useModPagesVersion();
+  const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System), [terms.Alters, terms.System, modNavV]);
+  const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System, modNavV]);
 
   const configuredGridItems = useMemo(() => {
     const removed = navConfig.dashboardGridRemoved || [];

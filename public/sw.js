@@ -224,6 +224,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // ── The mod sandbox page (public/mod-host.html) ──
+  // It's a navigation too (the mod frame), but it is NOT the app shell:
+  // caching it under '/' like the branch below would replace the shell
+  // with the sandbox page. Network-first under its own URL instead.
+  if (url.pathname === '/mod-host.html') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((c) => c.put('/mod-host.html', clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/mod-host.html'))
+    );
+    return;
+  }
+
   // ── Network-First: HTML navigation (app shell) ──
   // Why network-first instead of stale-while-revalidate: a cached
   // index.html references hashed JS bundle filenames (assets/

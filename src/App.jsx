@@ -61,6 +61,8 @@ const HistoryArchive = lazy(() => import('@/pages/HistoryArchive'));
 const LocationHistory = lazy(() => import('@/pages/LocationHistory'));
 const FriendsPage = lazy(() => import('@/pages/Friends'));
 const PlannerPage = lazy(() => import('@/pages/Planner'));
+const ModsPage = lazy(() => import('@/pages/Mods'));
+const ModPage = lazy(() => import('@/pages/ModPage'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
@@ -289,6 +291,9 @@ const AuthenticatedApp = () => {
         <Route path="/friends" element={<FriendsPage />} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
         <Route path="/planner" element={<PlannerPage />} />
+        {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
+        <Route path="/mods" element={<ModsPage />} />
+        <Route path="/mod/:modId/:pageId" element={<ModPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>

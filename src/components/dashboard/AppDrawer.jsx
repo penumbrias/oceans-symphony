@@ -19,6 +19,7 @@ import { SortableContext, rectSortingStrategy, arrayMove, useSortable } from "@d
 import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
@@ -267,7 +268,8 @@ export default function AppDrawer({
     });
   };
 
-  const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const modNavV = useModPagesVersion();
+  const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
   const appById = useMemo(() => new Map(apps.map((a) => [a.id, a])), [apps]);
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();

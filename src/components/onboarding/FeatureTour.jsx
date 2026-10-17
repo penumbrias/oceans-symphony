@@ -1066,6 +1066,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/history", target: "history-archive",
       look: `the Recent Changes page with its category buckets`, action: null,
     },
+    {
+      section: "settings", sectionLabel: "Settings",
+      emoji: "🧩",
+      title: "Mods",
+      body: `Mods are features other people made and shared as a file ending in .osmod. Tap Install on the Mods page (in the sidebar under Tools) to add one: you'll see what it adds and tick what it may see, like your ${t.alters} or who's ${t.fronting}. Each mod runs walled off with no internet access and can only change its own data, which is in your backups and stays when you remove the mod. Its pages show up in your navigation, ready to pin.`,
+      route: "/mods", target: "mods-page",
+      look: `the Mods page`, action: null,
+    },
 
     // ─── FRIENDS ────────────────────────────────────────────────────────────
     {

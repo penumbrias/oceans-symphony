@@ -30,6 +30,7 @@ import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, DEFAULT_CONFIG, applySidebarConfig } from "@/utils/navigationConfig";
+import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
@@ -508,12 +509,14 @@ const termMap = useMemo(() => ({
   "system-history": `${terms.System} History`,
 }), [terms]);
 
+// Bumps when mod pages join or leave ALL_PAGES (src/lib/mods/registry.js).
+const modPagesVersion = useModPagesVersion();
 const navItems = useMemo(() => {
   return (navConfig.topBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean)
     .map(page => ({ ...page, label: termMap[page.id] || page.label }));
-}, [navConfig.topBar, termMap]);
+}, [navConfig.topBar, termMap, modPagesVersion]);
 
 
 const bottomNavItems = useMemo(() => {
@@ -521,7 +524,7 @@ const bottomNavItems = useMemo(() => {
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean)
     .map(page => ({ ...page, label: termMap[page.id] || page.label }));
-}, [navConfig.bottomBar, termMap]);
+}, [navConfig.bottomBar, termMap, modPagesVersion]);
 
 // Name of the current page, for the polite screen-reader route announcer
 // below. SPA route changes are otherwise silent to assistive tech.
@@ -530,7 +533,7 @@ const routeAnnouncement = useMemo(() => {
   if (p === "/") return "Dashboard";
   const match = ALL_PAGES.find(pg => pg.path && pg.path !== "/" && p.startsWith(pg.path));
   return match ? (termMap[match.id] || match.label) : "";
-}, [location.pathname, termMap]);
+}, [location.pathname, termMap, modPagesVersion]);
 
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
@@ -1067,6 +1070,7 @@ const handleNotifClick = (mentionLog) => {
               <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
             </div>
           }>
+            <ModNavSync />
             <Outlet context={{ setShowFeatureTour }} />
           </Suspense>
         </main>

@@ -150,6 +150,7 @@ const ENTITY_NAMES = [
   "ImageAsset", "AssetFolder", "GroupNote", "Presence",
   "Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter",
   "CustomFont",
+  "ModPackage", "ModData",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -194,6 +195,7 @@ export const EXPORT_CATEGORIES = [
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
   { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
+  { id: "mods",          label: "Mods",                     entities: ["ModPackage", "ModData"],                                             desc: "Installed mods (other people's add-ons), their settings, and everything they saved" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
 

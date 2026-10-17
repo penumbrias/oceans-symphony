@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 17, 2026",
+    changes: [
+      { type: "feature", text: "Mods: install features other people made and shared as a file, from the new Mods page. Each mod runs walled off with no internet access and only sees what you allow." },
+    ],
+  },
+  {
     date: "October 16, 2026",
+    version: "0.257.1",
     changes: [
       { type: "fix", text: "Bio editor: text typed in the Plain or Raw view no longer goes missing when you switch to Blocks." },
       { type: "fix", text: "Bottom tab names that don't fit now wrap onto two lines, breaking at a syllable, instead of overlapping." },

@@ -2,11 +2,12 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { applySidebarConfig } from "@/utils/navigationConfig";
+import { ALL_PAGES, applySidebarConfig } from "@/utils/navigationConfig";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange, History, LayoutGrid } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange, History, LayoutGrid, Puzzle } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "safety-plan",    label: "Safety Plan",     icon: Shield,     path: "/safety-plan" },
         { id: "unblend",        label: "Help me unblend", icon: HelpCircle, path: "/unblend" },
         { id: "get-to-know-me", label: "Get to know me",  icon: Sparkles,   path: "/get-to-know-me" },
+        { id: "mods",           label: "Mods",            icon: Puzzle,     path: "/mods" },
       ],
     },
     {
@@ -65,6 +67,12 @@ export function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "analytics",       label: "Analytics",          icon: BarChart2,  path: "/analytics" },
         { id: "system-map",     label: `${systemLabel} Map`, icon: GitBranch,  path: "/system-map" },
       ],
+    },
+    // Pages of switched-on mods (src/lib/mods/registry.js keeps them in
+    // ALL_PAGES). Callers re-run this when useModPagesVersion() changes.
+    {
+      label: "Mods",
+      items: ALL_PAGES.filter((p) => p.isMod).map(({ id, label, icon, path }) => ({ id, label, icon, path })),
     },
   ];
 }
@@ -97,9 +105,10 @@ export default function SidebarNav({ open, onClose }) {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const sidebarCfg = (pickPrimarySystemSettings(settingsRows) || settingsRows[0])?.navigation_config?.sidebar;
+  const modNavV = useModPagesVersion();
   const groups = useMemo(
     () => applySidebarConfig(buildSidebarGroups(terms.Alters, terms.System), sidebarCfg),
-    [terms.Alters, terms.System, sidebarCfg]
+    [terms.Alters, terms.System, sidebarCfg, modNavV]
   );
 
   // Close on navigation

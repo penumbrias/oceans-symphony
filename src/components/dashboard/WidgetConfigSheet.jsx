@@ -80,6 +80,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import AlterArrangementEditor from "@/components/shared/AlterArrangementEditor";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { buildGridItems } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
@@ -154,7 +155,8 @@ function DebouncedText({ value, onCommit, multiline, rows, maxLength, placeholde
 
 function AppListField({ value = [], onChange, terms }) {
   const [q, setQ] = React.useState("");
-  const items = React.useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  const modNavV = useModPagesVersion();
+  const items = React.useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System, modNavV]);
   const needle = q.trim().toLowerCase();
   const shown = needle ? items.filter((i) => i.label.toLowerCase().includes(needle)) : items;
   const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
