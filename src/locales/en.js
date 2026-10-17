@@ -181,6 +181,7 @@ export default {
   "widget.journal.empty": "No entries yet.",
   "widget.journal.untitled": "Untitled entry",
   "widget.journal.new": "New",
+  "widget.journal.import": "Import",
 
   "widget.book.allJournals": "All journals",
   "widget.book.switch": "Switch",

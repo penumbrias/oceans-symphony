@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X } from "lucide-react";
+import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X, FileUp } from "lucide-react";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
+import JournalImportDialog from "@/components/journal/JournalImportDialog";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
@@ -74,6 +75,7 @@ export default function Journals() {
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newEntryFolder, setNewEntryFolder] = useState(null);
   const [viewingFolder, setViewingFolder] = useState(null); // full path e.g. "taiga/meadow"
@@ -225,6 +227,14 @@ export default function Journals() {
       openNew(pendingFolder || null);
       const params = new URLSearchParams(window.location.search);
       params.delete("compose");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+    }
+    // ?import=1 — open "Import files" straight away (the UI-v2 Journal
+    // widget's Import action). Stripped the same way.
+    if (searchParams.get("import") === "1") {
+      setShowImport(true);
+      const params = new URLSearchParams(window.location.search);
+      params.delete("import");
       window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
     }
      
@@ -530,6 +540,10 @@ export default function Journals() {
             <Plus className="w-4 h-4" />
             New Entry
           </Button>
+          <Button data-tour="journals-import" variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5 justify-start">
+            <FileUp className="w-4 h-4" />
+            Import files
+          </Button>
         </div>
       </div>
 
@@ -808,6 +822,17 @@ export default function Journals() {
         currentAlterId={currentAlterId}
         defaultFolder={newEntryFolder}
       />
+
+      {showImport && (
+        <JournalImportDialog
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          folderPaths={allFolderPaths}
+          defaultFolder={viewingFolder}
+          alters={alters}
+          entries={rawEntries}
+        />
+      )}
 
       <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
         <DialogContent className="max-w-sm">

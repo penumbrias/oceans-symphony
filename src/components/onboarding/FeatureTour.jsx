@@ -450,6 +450,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     },
     {
       section: "journals", sectionLabel: "Journals",
+      emoji: "📥",
+      title: "Import Files",
+      body: `Coming from a notes app like Easy Notes? Tap "Import files" and pick one or many .txt, .md or .html files. You'll see a list first — untick any you don't want, choose a folder and, if you like, which ${t.alter} wrote them. Each file becomes a new entry dated when the file was last changed, so your old notes keep their place in time. Nothing already in your journals is changed, and files over 2 MB are skipped with a note saying which. The Journal widget on the new home screen has an Import link too.`,
+      route: "/journals", target: "journals-import",
+      look: `the highlighted "Import files" button under "New Entry" on the Journals page`, action: null,
+    },
+    {
+      section: "journals", sectionLabel: "Journals",
       emoji: "🔄",
       title: `${t.Switch} Logs Tab`,
       body: `The "${t.Switch} Logs" tab shows journal entries that were automatically created from ${t.switch} events. When you check "Journal this ${t.switch}?" in the ${t.Front} modal, the entry is saved here and linked to that specific ${t.fronting} session.`,
