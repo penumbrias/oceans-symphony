@@ -1,5 +1,7 @@
 // AES-GCM encryption using Web Crypto API (native browser crypto, no dependencies)
 
+import { bytesToBase64, base64ToBytes } from './base64';
+
 // PBKDF2 iteration counts. KDF_ITERATIONS is what NEW envelopes are written
 // with; LEGACY_KDF_ITERATIONS is what pre-upgrade blobs used. Envelopes record
 // their count in `__kdf_iterations`; readers must pass the stored value to
@@ -45,21 +47,14 @@ export async function encryptData(data, key) {
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
-  // Chunked byte→binary-string conversion (v0.95.2). The previous
-  // per-byte `binary += String.fromCharCode(b)` was O(n²) on multi-MB
-  // blobs — every encrypted save stalled for seconds, which widened the
-  // window where a stale pre-import save could land after an import.
-  // Same chunked pattern as nativeMediaStoreSave.js.
-  let binary = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < combined.length; i += CHUNK) {
-    binary += String.fromCharCode.apply(null, combined.subarray(i, i + CHUNK));
-  }
-  return btoa(binary);
+  // Platform base64 encoder (base64.js) — the same bytes→text as the old
+  // chunked fromCharCode build, without the multi-MB intermediate
+  // binary string (v0.95.2 removed the O(n²) per-byte version).
+  return bytesToBase64(combined);
 }
 
 export async function decryptData(base64, key) {
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  const bytes = base64ToBytes(base64);
   const iv = bytes.slice(0, 12);
   const data = bytes.slice(12);
   const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);

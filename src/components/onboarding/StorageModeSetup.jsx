@@ -74,7 +74,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   // complete setup without offering encryption (their old data may
   // already be encrypted and re-deriving keys here would be confusing).
   // They can flip encryption on or off later from Settings.
-  const applyDumpAndComplete = async ({ data, multi = null, localImages, localFonts, localSettings }) => {
+  const applyDumpAndComplete = async ({ data, multi = null, localImages, localFonts, localSettings, zipOpened = null }) => {
     if (localSettings) {
       const { writeBackupLocalSettings } = await import("@/lib/backupKeys");
       writeBackupLocalSettings(localSettings);
@@ -103,6 +103,14 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
         if (r?.failed?.length) failed.push(`${r.failed.length} of ${r.total} pictures`);
       } catch { failed.push("the pictures"); }
     }
+    // Files that came as real files in an "Everything as one .zip" backup.
+    if (zipOpened?.files?.length) {
+      try {
+        const { restoreZipFiles } = await import("@/lib/backupZip");
+        const r = await restoreZipFiles(zipOpened);
+        if (r?.failed?.length) failed.push(`${r.failed.length} of ${r.total} files`);
+      } catch { failed.push("the files"); }
+    }
     if (localFonts && Object.keys(localFonts).length) {
       try {
         const { restoreLocalFonts } = await import("@/lib/localFontStorage");
@@ -118,6 +126,34 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
     onComplete();
   };
 
+  // Applies one parsed Symphony backup (from a .json/.txt, or the data part
+  // of a .zip — whose files ride along in zipOpened).
+  const applyParsedImport = async (parsed, zipOpened) => {
+    if (parsed.format === FORMAT_MULTISYSTEM) {
+      await applyDumpAndComplete({
+        multi: parsed.payload,
+        localImages: parsed.localImages,
+        localFonts: parsed.localFonts,
+        localSettings: parsed.localSettings,
+        zipOpened,
+      });
+    } else if (parsed.format === FORMAT_STANDARD) {
+      await applyDumpAndComplete({
+        data: parsed.data,
+        localImages: parsed.localImages,
+        localFonts: parsed.localFonts,
+        localSettings: parsed.localSettings,
+        zipOpened,
+      });
+    } else if (parsed.format === FORMAT_RAW_PLAIN) {
+      await applyDumpAndComplete({ data: parsed.data, zipOpened });
+    } else if (isEncryptedFormat(parsed.format)) {
+      // Raw encrypted snapshot OR a password-locked backup — both wait
+      // for the password prompt below (a zip's files wait with it).
+      setPendingEncryptedImport(zipOpened ? { ...parsed, zipOpened } : parsed);
+    }
+  };
+
   const handleImportFile = async (file) => {
     if (!file) return;
     setImporting(true);
@@ -129,6 +165,25 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       const peek = await peekStoredData();
       if (peek.exists) {
         setError("Existing data was found on this device. Reload — you should be prompted to unlock or recover before importing.");
+        return;
+      }
+
+      // A zip this app wrote ("Everything as one .zip") — opened from its
+      // index without reading the whole file, files restored as slices of
+      // it after the records. Checked before the full read below.
+      let zipOpened = null;
+      {
+        const head4 = file.size >= 4 ? new Uint8Array(await file.slice(0, 4).arrayBuffer()) : new Uint8Array(0);
+        if ((file.name || "").toLowerCase().endsWith(".zip") || (head4[0] === 0x50 && head4[1] === 0x4b && head4[2] === 0x03 && head4[3] === 0x04)) {
+          const { openSymphonyZip } = await import("@/lib/backupZip");
+          zipOpened = await openSymphonyZip(file);
+          if (zipOpened && !zipOpened.dataText) {
+            throw new Error("this .zip holds only pictures and files, no data. Import your data backup here first (or start fresh), then import this zip from Settings → Data & privacy → Import.");
+          }
+        }
+      }
+      if (zipOpened) {
+        await applyParsedImport(parseImportText(zipOpened.dataText), zipOpened);
         return;
       }
 
@@ -192,28 +247,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
         if (await setupLocalStorage()) setExternalImport({ file, type: externalKind });
         return;
       }
-      const parsed = parseImportText(text);
-      if (parsed.format === FORMAT_MULTISYSTEM) {
-        await applyDumpAndComplete({
-          multi: parsed.payload,
-          localImages: parsed.localImages,
-          localFonts: parsed.localFonts,
-          localSettings: parsed.localSettings,
-        });
-      } else if (parsed.format === FORMAT_STANDARD) {
-        await applyDumpAndComplete({
-          data: parsed.data,
-          localImages: parsed.localImages,
-          localFonts: parsed.localFonts,
-          localSettings: parsed.localSettings,
-        });
-      } else if (parsed.format === FORMAT_RAW_PLAIN) {
-        await applyDumpAndComplete({ data: parsed.data });
-      } else if (isEncryptedFormat(parsed.format)) {
-        // Raw encrypted snapshot OR a password-locked backup — both wait
-        // for the password prompt below.
-        setPendingEncryptedImport(parsed);
-      }
+      await applyParsedImport(parseImportText(text), null);
     } catch (e) {
       setImportStatus({ type: "error", text: `Import failed: ${e.message}` });
     } finally {
@@ -227,25 +261,37 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   const handleNativeImportPick = async () => {
     try {
       const { FilePicker } = await import("@capawesome/capacitor-file-picker");
-      const res = await FilePicker.pickFiles({ readData: true });
+      // readData: FALSE — same as the Settings importer: readData:true has
+      // the native side read the whole file and send it across the bridge
+      // as one base64 string, which runs the app out of memory on a big
+      // backup (an "Everything as one .zip" can be hundreds of MB). Take
+      // the path and stream it through the WebView's local file bridge.
+      const res = await FilePicker.pickFiles({ readData: false });
       const picked = res?.files?.[0];
       if (!picked) return;
-      const b64ToBytes = (b64) => {
-        const bin = atob(b64);
-        const out = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-        return out;
-      };
-      let bytes = null;
-      if (picked.data) {
-        bytes = b64ToBytes(picked.data);
+      const name = picked.name || "import";
+      const type = picked.mimeType || "application/octet-stream";
+      let fileObj = null;
+      if (picked.blob) {
+        fileObj = new File([picked.blob], name, { type });
       } else if (picked.path) {
-        const { Filesystem } = await import("@capacitor/filesystem");
-        const r = await Filesystem.readFile({ path: picked.path });
-        bytes = typeof r.data === "string" ? b64ToBytes(r.data) : new Uint8Array(await r.data.arrayBuffer());
+        try {
+          const { Capacitor } = await import("@capacitor/core");
+          const resp = await fetch(Capacitor.convertFileSrc(picked.path));
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          fileObj = new File([await resp.blob()], name, { type });
+        } catch (streamErr) {
+          // Paths the local bridge can't serve: the old whole-file read.
+          console.warn("[setup import] stream failed, falling back to Filesystem.readFile:", streamErr?.message || streamErr);
+          const { Filesystem } = await import("@capacitor/filesystem");
+          const { base64ToBytes } = await import("@/lib/base64");
+          const r = await Filesystem.readFile({ path: picked.path });
+          const bytes = typeof r.data === "string" ? base64ToBytes(r.data) : new Uint8Array(await r.data.arrayBuffer());
+          fileObj = new File([bytes], name, { type });
+        }
       }
-      if (!bytes) throw new Error("couldn't read the file's contents");
-      await handleImportFile(new File([bytes], picked.name || "import", { type: picked.mimeType || "application/octet-stream" }));
+      if (!fileObj) throw new Error("couldn't read the file's contents");
+      await handleImportFile(fileObj);
     } catch (err) {
       const msg = err?.message || String(err);
       if (/cancel/i.test(msg)) return;
@@ -265,6 +311,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
     setImportStatus(null);
     try {
       const res = await decryptEncryptedImport(pendingEncryptedImport, importPassword);
+      const zipOpened = pendingEncryptedImport.zipOpened || null;
       setPendingEncryptedImport(null);
       setImportPassword("");
       if (res.format === FORMAT_MULTISYSTEM) {
@@ -273,6 +320,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
           localImages: res.localImages,
           localFonts: res.localFonts,
           localSettings: res.localSettings,
+          zipOpened,
         });
       } else if (res.format === FORMAT_STANDARD) {
         await applyDumpAndComplete({
@@ -280,9 +328,10 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
           localImages: res.localImages,
           localFonts: res.localFonts,
           localSettings: res.localSettings,
+          zipOpened,
         });
       } else {
-        await applyDumpAndComplete({ data: res.data });
+        await applyDumpAndComplete({ data: res.data, zipOpened });
       }
     } catch (e) {
       setImportStatus({ type: "error", text: `Decrypt failed: ${e.message}` });
@@ -479,7 +528,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
               <span className="text-left min-w-0">
                 <span className="block">Import from a file</span>
                 <span className="block text-xs text-muted-foreground font-normal whitespace-normal break-words">
-                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar / .json) — auto-detected
+                  Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar / .json) — auto-detected
                 </span>
               </span>
             </Button>

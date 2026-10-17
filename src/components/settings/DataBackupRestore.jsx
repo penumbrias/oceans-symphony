@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { runAutoBackupNow } from "@/lib/autoBackup";
+import { runAutoBackupNow, resolveBackupPassword } from "@/lib/autoBackup";
 import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
+import { Download, Upload, FileJson, FileArchive, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { getFullDbDump, loadDbDump, mergeDbDump, restampRecords, migrateHttpImagesToLocal, getRawIdbDump, applyChosenVersion, deleteRecordRaw, isReservedDbKey } from "@/lib/localDb";
@@ -13,12 +13,13 @@ import { coveredCategoryIds, coveredEntityNames, buildScopedReplace, keptCategor
 import { stripDeviceBound, stripUnsharedSecrets, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
-import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages, keepOriginalImages, setKeepOriginalImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages, countLocalImages, keepOriginalImages, setKeepOriginalImages, measureLocalImages } from "@/lib/localImageStorage";
 import { Switch } from "@/components/ui/switch";
-import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds } from "@/lib/localFontStorage";
+import { getAllLocalFonts, restoreLocalFonts, listLocalFontIds, measureLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
   decryptEncryptedImport,
+  encryptStandardBackup,
   isEncryptedFormat,
   FORMAT_STANDARD,
   FORMAT_MULTISYSTEM,
@@ -33,6 +34,7 @@ import { isNative } from "@/lib/platform";
 import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, appendEntitiesToSystem, deleteSystem, setActiveSystem } from "@/lib/systems";
 import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
+import { bytesToBase64, base64ToBytes } from "@/lib/base64";
 
 // Single source of truth for the localStorage keys that belong in a
 // backup lives in src/lib/backupKeys.js — keep the rules and the list
@@ -64,20 +66,9 @@ export function externalKindFromJson(j) {
 function compressBackup(data) {
   const json = JSON.stringify(data);
   const compressed = pako.deflate(json);
-  // Chunked binary-string build + chunked btoa. The old
-  // `compressed.forEach(b => binary += String.fromCharCode(b))` was O(n²)
-  // — appending one char at a time to a string that keeps re-allocating —
-  // and blew up the WebView on any multi-MB backup. Now we build fixed
-  // slices, base64 each, and join once at the end.
-  const CHUNK_BYTES = 0xC000;
-  const parts = [];
-  for (let i = 0; i < compressed.length; i += CHUNK_BYTES) {
-    const slice = compressed.subarray(i, Math.min(i + CHUNK_BYTES, compressed.length));
-    let binary = "";
-    for (let j = 0; j < slice.length; j++) binary += String.fromCharCode(slice[j]);
-    parts.push(btoa(binary));
-  }
-  return "SYMPHONYZ:" + parts.join("");
+  // Platform base64 encoder (src/lib/base64.js). The per-byte
+  // String.fromCharCode loop this replaced was slow on multi-MB backups.
+  return "SYMPHONYZ:" + bytesToBase64(compressed);
 }
 
 // Decompress a SYMPHONYZ:-prefixed string back to the original JSON text.
@@ -86,10 +77,7 @@ function compressBackup(data) {
 function decompressBackup(text) {
   const trimmed = text.trim();
   if (!trimmed.startsWith("SYMPHONYZ:")) return trimmed;
-  const binary = atob(trimmed.slice("SYMPHONYZ:".length));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return pako.inflate(bytes, { to: "string" });
+  return pako.inflate(base64ToBytes(trimmed.slice("SYMPHONYZ:".length)), { to: "string" });
 }
 
 // Splits a compressed backup string into `numParts` near-equal slices and
@@ -194,7 +182,7 @@ export const EXPORT_CATEGORIES = [
   { id: "history",      label: "Recent Changes archive",    entities: ["HistoryEvent"],                                                        desc: "The silent archive of deletions, profile edits and layout rewrites shown on the Recent Changes page — snapshots included, so restores keep working after an import." },
   { id: "groceries",    label: "Grocery Lists",             entities: ["GroceryList", "GroceryItem", "GroceryFavorite"],                       desc: "Grocery / privacy-cover lists, their items, and frequent-purchase favourites. Lists marked \"available when locked\" live in localStorage and are NOT included here — they ride along with browser data instead." },
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
-  { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
+  { id: "images",        label: "Local Files & Assets",     entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded pictures, audio, videos & attached files + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
   { id: "needs",         label: "Wishes & Needs",           entities: ["Wish"],                                                              desc: "Wishlists: wishes, who they belong to, and why they matter" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
@@ -216,6 +204,15 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   const text = isCompact ? compressBackup(data) : JSON.stringify(data, null, 2);
   const mime = isCompact ? "application/octet-stream" : "application/json";
   const blob = new Blob([text], { type: mime });
+  return saveBackupBlob(blob, filename, mode, { ext: isCompact ? ".txt" : ".json" });
+}
+
+// Delivers an already-built backup file (JSON text or a .zip). Same
+// save / share rules as above. On native, big files never cross the
+// bridge as one base64 string — saveBlobToPublicDownloads and shareFile
+// both write them in pieces.
+async function saveBackupBlob(blob, filename, mode = "save", { ext = ".json" } = {}) {
+  const mime = blob.type || "application/octet-stream";
 
   // SHARE-MODE early-out: skip MediaStore entirely and go straight
   // to the share-sheet pipeline so the user can pick any
@@ -275,7 +272,7 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
     try {
       const handle = await window.showSaveFilePicker({
         suggestedName: filename,
-        types: [{ description: "Oceans Symphony backup", accept: { [mime]: [isCompact ? ".txt" : ".json"] } }],
+        types: [{ description: "Oceans Symphony backup", accept: { [mime]: [ext] } }],
       });
       const writable = await handle.createWritable();
       await writable.write(blob);
@@ -343,16 +340,15 @@ const DEVICE_BOUND_ENTITIES = ["FriendIdentity", "PushSubscription"];
 // know about them individually.
 export async function computeCategoryStats() {
   const dump = getFullDbDump();
-  let images = {};
-  try { images = await getAllLocalImages(); } catch {}
-  let fonts = {};
-  try { fonts = await getAllLocalFonts(); } catch {}
+  // Sizes are MEASURED, not read: loading every picture, song and video
+  // just to count them could run a phone out of memory.
+  const { images, fonts } = await measureMediaStores();
   const categories = {};
   for (const cat of EXPORT_CATEGORIES) {
     if (cat.isImages) {
-      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(images).length / 1024), count: Object.keys(images).length };
+      categories[cat.id] = { sizeKB: Math.round(images.base64Bytes / 1024), count: images.count };
     } else if (cat.isFonts) {
-      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(fonts).length / 1024), count: Object.keys(fonts).length };
+      categories[cat.id] = { sizeKB: Math.round(fonts.base64Bytes / 1024), count: fonts.count };
     } else {
       let total = 0, count = 0;
       for (const e of cat.entities) {
@@ -366,6 +362,16 @@ export async function computeCategoryStats() {
     deviceBound[e] = { count: dump[e] ? Object.keys(dump[e]).length : 0 };
   }
   return { categories, deviceBound };
+}
+
+// { images: { count, base64Bytes }, fonts: { count, base64Bytes } } without
+// loading any file. Zeros when a store can't be read (sizes are a preview).
+async function measureMediaStores() {
+  let images = { count: 0, base64Bytes: 0 };
+  let fonts = { count: 0, base64Bytes: 0 };
+  try { images = await measureLocalImages(); } catch { /* preview only */ }
+  try { fonts = await measureLocalFonts(); } catch { /* preview only */ }
+  return { images, fonts };
 }
 
 // Exports just ONE category, reusing the same envelope shape/format and
@@ -477,6 +483,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [debugJson, setDebugJson] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
   const [debugCopied, setDebugCopied] = useState(false);
+  // { label, done, total } while a .zip is being written / restored.
+  const [zipProgress, setZipProgress] = useState(null);
 
   // Copy/paste backup workflow — restored as a workaround for in-app
   // browsers (Facebook, Instagram, etc.) that silently block file
@@ -559,23 +567,24 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       const held = (await listLocalFontIds()).length;
       if (held > 0 && Object.keys(fonts).length < held) fontsFailed = true;
     } catch { fontsFailed = true; }
-    if (!imagesFailed && !fontsFailed) {
-      fullDumpRef.current = dump;
-      fullImagesRef.current = images;
-      fullFontsRef.current = fonts;
-    }
+    // Not cached: every export reads fresh, and keeping the whole media
+    // library in a ref held it in memory for as long as Settings was open.
     return { dump, images, fonts, imagesFailed, fontsFailed };
   }, []);
 
   const computeCatSizes = useCallback(async () => {
     if (catSizes) return;
-    const { dump, images, fonts } = await fetchFullDump();
+    // Data only — picture / audio / video / font sizes are measured, never
+    // loaded (opening this panel used to read the whole media library into
+    // memory just to print a size).
+    const dump = getFullDbDump();
+    const { images, fonts } = await measureMediaStores();
     const sizes = {};
     for (const cat of EXPORT_CATEGORIES) {
       if (cat.isImages) {
-        sizes[cat.id] = Math.round(JSON.stringify(images).length / 1024);
+        sizes[cat.id] = Math.round(images.base64Bytes / 1024);
       } else if (cat.isFonts) {
-        sizes[cat.id] = Math.round(JSON.stringify(fonts).length / 1024);
+        sizes[cat.id] = Math.round(fonts.base64Bytes / 1024);
       } else {
         let total = 0;
         for (const e of cat.entities) {
@@ -585,7 +594,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       }
     }
     setCatSizes(sizes);
-  }, [catSizes, fetchFullDump]);
+  }, [catSizes]);
 
   const handleToggleSelectiveOpen = () => {
     setSelectiveOpen(v => {
@@ -608,7 +617,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // Never ship a silently image-less backup — the user selected images
     // and deserves to know the export would be missing them.
     if (imagesFailed && activeCats.has("images") && !omitBlobs) {
-      throw new Error("Your stored images couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Images category to export without them.");
+      throw new Error("Your stored pictures and files couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect \u201cLocal Files & Assets\u201d to export without them.");
     }
     if (fontsFailed && activeCats.has("fonts") && !omitBlobs) {
       throw new Error("Your uploaded fonts couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Fonts category to export without them.");
@@ -784,7 +793,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             ? `Backup saved to ${res.location} 📁`
             : "Backup exported!";
         const imgNote = (overrideCats ?? selectedCats).has("images") && !skipHeavyBlobs
-          ? ` Includes ${imgCount} image${imgCount === 1 ? "" : "s"}.`
+          ? ` Includes ${imgCount} file${imgCount === 1 ? "" : "s"} (pictures, audio, video).`
           : "";
         showStatus("success", `${base}${imgNote}`);
         // Mark today as "backup exported" so a daily task wired to the
@@ -809,45 +818,140 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
   const handleExportFull  = () => runExport("save");
   const handleExportShare = () => runExport("share");
-  // Images-only Symphony backup — importable on another device (pairs
-  // with the data-only safety net: data-only there, images-only here).
-  const handleExportImagesOnly = () => runExport("save", { onlyCats: new Set(["images"]), tag: "images-only" });
+  // Files-only Symphony backup — importable on another device (pairs
+  // with the data-only safety net: data-only there, files-only here).
+  const handleExportFilesOnly = () => runExport("save", { onlyCats: new Set(["images"]), tag: "files-only" });
 
-  // Every stored image as a plain .zip of real files (avatar-….png etc.) —
-  // usable OUTSIDE the app, not just as a backup. fflate is already a dep
-  // (OpenPlural/Plural Star imports unzip with it).
-  const handleExportImagesZip = async () => {
+  // Names for the files in a zip come from the asset library of EVERY
+  // system (the file store is shared). Best effort — a system that can't
+  // be read just means its files keep their internal id as a name.
+  const zipNameDumps = async (activeDump) => {
+    const dumps = [activeDump];
+    try {
+      const activeId = getActiveSystemId();
+      for (const s of listSystems()) {
+        if (s.id === activeId) continue;
+        try { const raw = await getSystemData(s); if (raw) dumps.push(raw); } catch { /* skip */ }
+      }
+    } catch { /* registry unavailable */ }
+    return dumps;
+  };
+
+  const zipProgressLabel = zipProgress
+    ? `${zipProgress.label} ${zipProgress.done}/${zipProgress.total}…`
+    : null;
+
+  // Delivers a finished zip and reports. Shared by both zip exports.
+  const deliverZip = async ({ blob, filename, what, okMessage, failed }) => {
+    const res = await saveBackupBlob(blob, filename, "save", { ext: ".zip" });
+    if (res?.result === "failed") {
+      if (isChunkLoadFailure(res.error)) showStatus("error", chunkRecoveryMsg);
+      else showStatus("error", `${what} failed${res.error ? `: ${res.error}` : ""}`);
+      return false;
+    }
+    if (res?.result === "cancelled") return false;
+    const where = res?.result === "shared" ? " — pick a destination" : res?.location ? ` to ${res.location} 📁` : " 📁";
+    const missing = failed?.length ? ` ${failed.length} file${failed.length === 1 ? "" : "s"} couldn't be read and ${failed.length === 1 ? "isn't" : "aren't"} in it.` : "";
+    showStatus(missing ? "error" : "success", `${okMessage}${where}${missing}`);
+    return true;
+  };
+
+  // "Files as .zip": every stored picture, song, video and attached file
+  // in ONE zip, under its own name and real type, sorted into Pictures/,
+  // Audio/, Videos/ and Files/. Usable outside the app AND restorable with
+  // Import from File (its manifest keeps each file's internal id, so every
+  // record that points at it still resolves). Written file by file — the
+  // old version read every file into memory first.
+  const handleExportFilesZip = async () => {
     setExportLoading(true);
     try {
-      const { getAllLocalImageBlobs } = await import("@/lib/localImageStorage");
-      const blobs = await getAllLocalImageBlobs();
-      const ids = Object.keys(blobs);
-      if (ids.length === 0) { showStatus("error", "No images stored yet."); return; }
-      const extFor = (mime) => ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" }[mime] || "img");
-      const fflate = await import("fflate");
-      const entries = {};
-      for (const id of ids) {
-        const { bytes, mime } = blobs[id];
-        // Store (no re-compress) — images are already compressed formats;
-        // level 0 keeps peak memory + CPU low on phones.
-        entries[`${id}.${extFor(mime)}`] = [bytes, { level: 0 }];
-      }
-      const zipped = fflate.zipSync(entries);
-      const blob = new Blob([zipped], { type: "application/zip" });
-      const date = new Date().toISOString().slice(0, 10);
-      const { shareFile } = await import("@/lib/shareFile");
-      const res = await shareFile({
-        blob,
-        filename: `symphony-images-${date}.zip`,
-        title: "Oceans Symphony images",
-        dialogTitle: "Save or share your images",
-        prefer: isNative() ? "share" : "download",
+      const { buildBackupZip } = await import("@/lib/backupZip");
+      const dump = getFullDbDump();
+      const nameDumps = await zipNameDumps(dump);
+      setZipProgress({ label: "Adding files", done: 0, total: 0 });
+      const { blob, files, failed } = await buildBackupZip({
+        nameDumps,
+        onProgress: (p) => setZipProgress({ label: "Adding files", ...p }),
       });
-      if (res?.result === "failed") showStatus("error", `Images export failed${res.error ? `: ${res.error}` : ""}`);
-      else if (res?.result !== "cancelled") showStatus("success", `${ids.length} image${ids.length === 1 ? "" : "s"} zipped 📁`);
+      if (files === 0 && !failed.length) { showStatus("error", "No pictures, audio or files are stored yet."); return; }
+      const date = new Date().toISOString().slice(0, 10);
+      await deliverZip({
+        blob,
+        filename: `symphony-files-${date}.zip`,
+        what: "Files export",
+        okMessage: `${files} file${files === 1 ? "" : "s"} saved in one .zip`,
+        failed,
+      });
     } catch (e) {
-      showStatus("error", `Images export failed: ${e.message}`);
+      showStatus("error", `Files export failed: ${e.message}`);
     } finally {
+      setZipProgress(null);
+      setExportLoading(false);
+    }
+  };
+
+  // "Everything as one .zip": the full data backup + every file, in a
+  // single file that is never split. Respects backup locking: when it's on
+  // (Settings → Data & privacy → Auto-backup) the data inside is sealed
+  // with the same password, and if that password isn't available nothing
+  // is written — never an unlocked copy instead. The files stay plain.
+  const handleExportEverythingZip = async () => {
+    setExportLoading(true);
+    try {
+      const { password, error: pwError } = resolveBackupPassword();
+      if (pwError) {
+        showStatus("error", `Not saved — your backups are set to be password-locked, but ${pwError}.`);
+        recordBackupAttempt({ kind: "manual", ok: false, detail: pwError });
+        return;
+      }
+      setZipProgress({ label: "Preparing data", done: 0, total: 1 });
+      // Every category; the files themselves go into the zip as files, so
+      // the data part is built without them (no data URLs in memory).
+      const exportData = await buildExportData(new Set(EXPORT_CATEGORIES.map((c) => c.id)), { omitBlobs: true });
+      // Fonts are small and ride inside the (possibly locked) data part.
+      let fonts = null;
+      try { fonts = await getAllLocalFonts(); } catch { fonts = null; }
+      let heldFonts = -1;
+      try { heldFonts = (await listLocalFontIds()).length; } catch { heldFonts = -1; }
+      if (!fonts || heldFonts < 0 || Object.keys(fonts).length < heldFonts) {
+        throw new Error("Your uploaded fonts couldn't be read, so this backup would be missing them. Reload the app and try again.");
+      }
+      exportData.__local_fonts = fonts;
+      exportData.__local_images = {};
+      exportData.__media_in_zip = true;
+      const sealed = password ? await encryptStandardBackup(exportData, password) : exportData;
+      const dataText = JSON.stringify(sealed);
+      const { buildBackupZip, ZIP_DATA_NAME } = await import("@/lib/backupZip");
+      const nameDumps = await zipNameDumps(getFullDbDump());
+      const { blob, files, failed } = await buildBackupZip({
+        dataName: ZIP_DATA_NAME,
+        dataText,
+        nameDumps,
+        onProgress: (p) => setZipProgress({ label: "Adding files", ...p }),
+      });
+      const date = new Date().toISOString().slice(0, 10);
+      const ok = await deliverZip({
+        blob,
+        filename: `symphony-backup-everything-${date}.zip`,
+        what: "Backup",
+        okMessage: `Everything saved in one .zip — your data${password ? " (password-locked)" : ""} and ${files} file${files === 1 ? "" : "s"}`,
+        failed,
+      });
+      if (ok) {
+        try {
+          markBackupExportedToday();
+          recordBackupAttempt({ kind: "manual", ok: true, detail: ["everything .zip", ...(password ? ["password-locked"] : [])].join(" · "), partial: failed.length > 0 });
+        } catch { /* best effort */ }
+      }
+    } catch (e) {
+      if (isChunkLoadFailure(e?.message)) {
+        showStatus("error", chunkRecoveryMsg);
+      } else {
+        showStatus("error", `Backup failed: ${e.message}`);
+        recordBackupAttempt({ kind: "manual", ok: false, detail: e.message });
+      }
+    } finally {
+      setZipProgress(null);
       setExportLoading(false);
     }
   };
@@ -861,7 +965,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
-  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle, categories = null, systemName = null }) => {
+  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle, categories = null, systemName = null, zipMedia = null }) => {
     traceStep("importing records", importMode);
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
@@ -956,8 +1060,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let fontResult = null;
     // State it plainly in the log: a file with no pictures in it and a
     // restore that dropped them look identical from the outside.
-    traceStep("images in file", `${localImages ? Object.keys(localImages).length : 0}`);
+    traceStep("images in file", `${localImages ? Object.keys(localImages).length : 0}${zipMedia ? ` + ${zipMedia.count} in zip` : ""}`);
     if (localImages) imageResult = await restoreLocalImages(localImages);
+    // Files that travelled as real files in a .zip (Everything as one .zip).
+    if (zipMedia) {
+      const r = await zipMedia.restore();
+      imageResult = imageResult
+        ? { total: imageResult.total + r.total, restored: imageResult.restored + r.restored, failed: [...imageResult.failed, ...r.failed] }
+        : r;
+    }
     if (localFonts) fontResult = await restoreLocalFonts(localFonts);
     if (imageResult) {
       traceStep("images restored", `${imageResult.restored} of ${imageResult.total}${imageResult.failed.length ? ` (${imageResult.failed.length} failed)` : ""}`);
@@ -969,11 +1080,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let missingImagesNote = "";
     // An EMPTY image map counts as none too: data-only exports and
     // auto-backups over the size limit write `{}` (audit 2026-10-01, M6).
-    if (!localImages || Object.keys(localImages).length === 0) {
+    if ((!localImages || Object.keys(localImages).length === 0) && !zipMedia?.count) {
       try {
         const json = JSON.stringify(data || {});
         if (json.includes("local-image://") || json.includes("/local-image/")) {
-          missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Images & Assets\u201d ticked, then import that file here (records won't duplicate).";
+          missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or use \u201cEverything as one .zip\u201d), then import that file here (records won't duplicate).";
         }
       } catch { /* size — skip the check */ }
     }
@@ -1186,7 +1297,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     return true;
   };
 
-  const processImport = async (text) => {
+  const processImport = async (text, { zipMedia = null } = {}) => {
     // Detect a multi-system Symphony backup up front so we can honour the
     // Replace-vs-Add choice (and surface its own errors) instead of silently
     // falling through to the single-dump parser.
@@ -1210,16 +1321,20 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             const r = await restoreLocalFonts(maybe.__local_fonts);
             if (r.failed.length) msg += ` ${r.failed.length} of ${r.total} fonts could not be saved.`;
           }
+          if (zipMedia) {
+            const r = await zipMedia.restore();
+            if (r.failed.length) msg += ` ${r.failed.length} of ${r.total} files from the zip could not be saved — free storage space and import the same file again.`;
+          }
           return msg;
         };
         // Same "this file has no pictures" note as a single-system import.
         const noImagesNote = (() => {
           const imgs = maybe.__local_images;
-          if (imgs && Object.keys(imgs).length) return "";
+          if ((imgs && Object.keys(imgs).length) || zipMedia?.count) return "";
           try {
             const json = JSON.stringify(importedSystems.map((x) => x.data));
             return json.includes("local-image://") || json.includes("/local-image/")
-              ? " This file contains no image data — export again on the source device with \u201cLocal Images & Assets\u201d ticked, then import that file here (records won't duplicate)."
+              ? " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or use \u201cEverything as one .zip\u201d), then import that file here (records won't duplicate)."
               : "";
           } catch { return ""; }
         })();
@@ -1326,18 +1441,20 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         friendBundle: parsed.friendBundle,
         categories: parsed.categories,
         systemName: parsed.systemName,
+        zipMedia,
       });
       return;
     }
     if (parsed.format === FORMAT_RAW_PLAIN) {
-      await applyImportPayload({ data: parsed.data, friendBundle: parsed.friendBundle });
+      await applyImportPayload({ data: parsed.data, friendBundle: parsed.friendBundle, zipMedia });
       return;
     }
     if (isEncryptedFormat(parsed.format)) {
       // Raw encrypted snapshot or a password-locked backup — defer to the
-      // password modal; caller flow resumes there.
+      // password modal; caller flow resumes there. A zip's files wait
+      // with it and are restored after the data unlocks.
       traceStep("waiting for password");
-      setPendingEncryptedImport(parsed);
+      setPendingEncryptedImport(zipMedia ? { ...parsed, zipMedia } : parsed);
       return;
     }
     // Belt and braces: parseImportText throws on anything it can't name, so
@@ -1448,6 +1565,45 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
   };
 
+  // Restores a zip written by this app. Files go back under their own ids
+  // (so every record pointing at them still resolves); a zip with data in
+  // it goes through the exact same import as a .json backup — Add / Replace,
+  // password unlock, several systems — with its files restored after the
+  // records, like every other import.
+  const importSymphonyZip = async (opened) => {
+    const fileCount = opened.files.length;
+    traceStep("format", `symphony zip (${fileCount} files${opened.dataText ? " + data" : ""})`);
+    const zipMedia = {
+      count: fileCount,
+      restore: async () => {
+        try {
+          const { restoreZipFiles } = await import("@/lib/backupZip");
+          setZipProgress({ label: "Restoring files", done: 0, total: fileCount });
+          const r = await restoreZipFiles(opened, (p) => setZipProgress({ label: "Restoring files", ...p }));
+          traceStep("files restored", `${r.restored} of ${r.total}${r.failed.length ? ` (${r.failed.length} failed)` : ""}`);
+          return r;
+        } finally {
+          setZipProgress(null);
+        }
+      },
+    };
+    if (!opened.dataText) {
+      // Files only — nothing to merge or replace; files are added back
+      // (one already here under the same id is overwritten by the same file).
+      const r = await zipMedia.restore();
+      traceEnd("finished (files zip)");
+      if (r.failed.length) {
+        showStatus("error", `${r.restored} of ${r.total} files restored. ${r.failed.length} couldn't be saved (likely storage space) — free some space and import the same file again.`);
+      } else {
+        showStatus("success", `${r.restored} file${r.restored === 1 ? "" : "s"} restored (pictures, audio, video).`);
+      }
+      return;
+    }
+    traceStep("parsing");
+    await processImport(opened.dataText, { zipMedia });
+    traceEnd("finished");
+  };
+
   const handleImportFromFile = async (file) => {
     if (!file) {
       // The picker closing without a file is one of the "nothing happens"
@@ -1460,6 +1616,22 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     const lname = (file.name || "").toLowerCase();
     setImportLoading(true);
     try {
+      // A zip this app wrote (Files as .zip / Everything as one .zip) is
+      // opened WITHOUT reading the whole file: its index is read from the
+      // end and each file is restored as a slice of the picked file. Done
+      // before the full read below, which would hold a big zip in memory.
+      {
+        const head4 = file.size >= 4 ? new Uint8Array(await file.slice(0, 4).arrayBuffer()) : new Uint8Array(0);
+        const looksZip = lname.endsWith(".zip") || (head4[0] === 0x50 && head4[1] === 0x4b && head4[2] === 0x03 && head4[3] === 0x04);
+        if (looksZip) {
+          const { openSymphonyZip } = await import("@/lib/backupZip");
+          const opened = await openSymphonyZip(file);
+          if (opened) {
+            await importSymphonyZip(opened);
+            return;
+          }
+        }
+      }
       // Read the raw bytes ONCE, then decide the format. We detect binary
       // formats by MAGIC BYTES rather than the filename, because Android
       // content:// pickers (Google Drive especially) frequently hand the
@@ -1532,10 +1704,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       let innerJsonText;
       if (trimmed.startsWith("SYMPHONYZ:")) {
         traceStep("format", "compact (compressed)");
-        const binary = atob(trimmed.slice(10));
-        const zbytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) zbytes[i] = binary.charCodeAt(i);
-        innerJsonText = pako.inflate(zbytes, { to: "string" });
+        innerJsonText = pako.inflate(base64ToBytes(trimmed.slice(10)), { to: "string" });
         traceStep("decompressed", `${innerJsonText.length} chars`);
       } else {
         traceStep("format", "plain text/json");
@@ -1762,9 +1931,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // comes back raw with any FriendIdentity table surfaced as a bundle
       // (the same consent prompt as every other path).
       const res = await decryptEncryptedImport(pendingEncryptedImport, password);
+      const zipMedia = pendingEncryptedImport.zipMedia || null;
       setPendingEncryptedImport(null);
       if (res.format === FORMAT_MULTISYSTEM) {
-        await processImport(JSON.stringify(res.payload));
+        await processImport(JSON.stringify(res.payload), { zipMedia });
       } else if (res.format === FORMAT_STANDARD) {
         await applyImportPayload({
           data: res.data,
@@ -1774,9 +1944,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           friendBundle: res.friendBundle,
           categories: res.categories,
           systemName: res.systemName,
+          zipMedia,
         });
       } else {
-        await applyImportPayload({ data: res.data, friendBundle: res.friendBundle });
+        await applyImportPayload({ data: res.data, friendBundle: res.friendBundle, zipMedia });
       }
     } catch (e) {
       showStatus("error", `Decrypt failed: ${e.message}`);
@@ -1934,7 +2105,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                           {cat.isImages && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠️</span>}
                           {catSizes && <span className="text-xs text-muted-foreground ml-auto">{catSizes[cat.id] || 0}KB</span>}
                         </div>
-                        <p className="text-xs text-muted-foreground">{cat.isImages ? "Excluding this means images won't transfer" : resolveCatDesc(cat, terms)}</p>
+                        <p className="text-xs text-muted-foreground">{cat.isImages ? "Pictures, audio, videos & attached files — excluding this means they won't transfer" : resolveCatDesc(cat, terms)}</p>
                       </div>
                     </label>
                   ))}
@@ -1958,21 +2129,22 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                   </label>
                 </div>
 
-                {/* One-tap image exports — tester report: "no way to export
+                {/* One-tap file exports — tester report: "no way to export
                     just images" (technically possible by unticking 19
-                    checkboxes, but effectively invisible). */}
+                    checkboxes, but effectively invisible). Covers every
+                    stored file: pictures, audio, video, attachments. */}
                 <div className="border-t border-border/30 pt-2 space-y-1.5">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Images only</p>
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Files only</p>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={handleExportImagesOnly} disabled={exportLoading} className="text-xs gap-1.5">
-                      <Download className="w-3.5 h-3.5" /> Images-only backup
+                    <Button size="sm" variant="outline" onClick={handleExportFilesOnly} disabled={exportLoading} className="text-xs gap-1.5">
+                      <Download className="w-3.5 h-3.5" /> Files-only backup
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleExportImagesZip} disabled={exportLoading} className="text-xs gap-1.5">
-                      <Share2 className="w-3.5 h-3.5" /> Images as .zip
+                    <Button size="sm" variant="outline" onClick={handleExportFilesZip} disabled={exportLoading} className="text-xs gap-1.5">
+                      <FileArchive className="w-3.5 h-3.5" /> Files as .zip
                     </Button>
                   </div>
                   <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-                    Backup = importable on another device (pairs with a data-only backup). Zip = plain image files you can open anywhere.
+                    Backup = importable on another device (pairs with a data-only backup). Zip = one file with every picture, song, video and attachment under its own name, sorted into folders — opens anywhere, and Import from File puts them all back.
                   </p>
                 </div>
               </div>
@@ -2048,6 +2220,27 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             </Button>
           )}
 
+          {/* Everything in ONE file: data + every picture, song, video and
+              attached file. Never split. Data is password-locked when
+              backup locking is on; the files stay plain. */}
+          {isStdFormat && (
+            <Button variant="outline" onClick={handleExportEverythingZip} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
+              {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
+              <div className="text-left min-w-0">
+                <p className="font-medium">Everything as one .zip</p>
+                <p className="text-xs text-muted-foreground font-normal whitespace-normal">
+                  Your data plus every picture, song, video and attached file in a single file — never split. Restore it with Import from File. If your backups are password-locked, the data inside is locked too.
+                </p>
+              </div>
+            </Button>
+          )}
+
+          {zipProgressLabel && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5" role="status" aria-live="polite">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {zipProgressLabel}
+            </p>
+          )}
+
           {/* Safety-net fallback — the crash-proof path for testers whose
               regular backup dies mid-write. Images and custom fonts (the
               only categories with multi-MB base64 payloads) are stripped
@@ -2061,7 +2254,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               <div className="text-left min-w-0">
                 <p className="font-medium">Save data-only backup <span className="text-xs font-normal text-muted-foreground">(safety net)</span></p>
                 <p className="text-xs text-muted-foreground font-normal whitespace-normal">
-                  Use this if the regular backup crashes the app. Skips the picture and font files (your library's names and folders are still included). Export images separately from Advanced ↑.
+                  Use this if the regular backup crashes the app. Skips the picture, audio, video and font files (your library's names and folders are still included). Save those separately with “Files as .zip” (Advanced ↑), or use “Everything as one .zip”.
                 </p>
               </div>
             </Button>
@@ -2271,7 +2464,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">

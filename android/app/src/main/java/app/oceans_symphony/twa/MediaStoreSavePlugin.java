@@ -14,8 +14,11 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
@@ -76,14 +79,62 @@ public class MediaStoreSavePlugin extends Plugin {
         }
     }
 
-    private Uri save(String filename, String mimeType, byte[] bytes, String subdir) throws Exception {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return saveViaMediaStoreQ(filename, mimeType, bytes, subdir);
+    /**
+     * Same destination as saveToDownloads, but the bytes come from a file
+     * the JS side already wrote into the app's cache (in small chunks)
+     * instead of one base64 string. Big exports (a zip of every picture,
+     * song and video) can be hundreds of MB; marshalling that as a single
+     * bridge message ran the app out of memory. The copy here streams.
+     */
+    @PluginMethod
+    public void saveFileToDownloads(PluginCall call) {
+        String path = call.getString("path");
+        String filename = call.getString("filename");
+        String mimeType = call.getString("mimeType", "application/octet-stream");
+        String subdir = call.getString("subdir", "");
+        if (filename == null || filename.isEmpty() || path == null || path.isEmpty()) {
+            call.reject("filename and path are required");
+            return;
         }
-        return saveLegacy(filename, bytes, subdir);
+        String filePath = path.startsWith("file://") ? Uri.parse(path).getPath() : path;
+        File source = filePath == null ? null : new File(filePath);
+        if (source == null || !source.isFile()) {
+            call.reject("source file not found");
+            return;
+        }
+        try (InputStream in = new FileInputStream(source)) {
+            Uri uri = save(filename, mimeType, in, subdir);
+            JSObject ret = new JSObject();
+            ret.put("uri", uri == null ? null : uri.toString());
+            ret.put("filename", filename);
+            ret.put("subdir", subdir);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? "save failed" : e.getMessage());
+        }
     }
 
-    private Uri saveViaMediaStoreQ(String filename, String mimeType, byte[] bytes, String subdir) throws Exception {
+    private static void copy(InputStream in, OutputStream out) throws Exception {
+        byte[] buf = new byte[64 * 1024];
+        int n;
+        while ((n = in.read(buf)) != -1) {
+            out.write(buf, 0, n);
+        }
+        out.flush();
+    }
+
+    private Uri save(String filename, String mimeType, byte[] bytes, String subdir) throws Exception {
+        return save(filename, mimeType, new ByteArrayInputStream(bytes), subdir);
+    }
+
+    private Uri save(String filename, String mimeType, InputStream in, String subdir) throws Exception {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return saveViaMediaStoreQ(filename, mimeType, in, subdir);
+        }
+        return saveLegacy(filename, in, subdir);
+    }
+
+    private Uri saveViaMediaStoreQ(String filename, String mimeType, InputStream in, String subdir) throws Exception {
         ContentResolver resolver = getContext().getContentResolver();
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
@@ -110,8 +161,11 @@ public class MediaStoreSavePlugin extends Plugin {
 
         try (OutputStream out = resolver.openOutputStream(uri)) {
             if (out == null) throw new Exception("openOutputStream returned null");
-            out.write(bytes);
-            out.flush();
+            copy(in, out);
+        } catch (Exception e) {
+            // Don't leave a half-written, still-pending entry behind.
+            try { resolver.delete(uri, null, null); } catch (Exception ignored) { }
+            throw e;
         }
 
         // Clear IS_PENDING so the file becomes visible.
@@ -123,7 +177,7 @@ public class MediaStoreSavePlugin extends Plugin {
     }
 
     @SuppressWarnings("deprecation")
-    private Uri saveLegacy(String filename, byte[] bytes, String subdir) throws Exception {
+    private Uri saveLegacy(String filename, InputStream in, String subdir) throws Exception {
         File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         File targetDir = subdir == null || subdir.isEmpty()
             ? downloads
@@ -133,8 +187,7 @@ public class MediaStoreSavePlugin extends Plugin {
         }
         File target = new File(targetDir, filename);
         try (FileOutputStream fos = new FileOutputStream(target)) {
-            fos.write(bytes);
-            fos.flush();
+            copy(in, fos);
         }
         return Uri.fromFile(target);
     }
