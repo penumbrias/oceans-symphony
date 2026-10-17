@@ -294,6 +294,8 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
     try {
       const { markDailyTaskDoneFor } = await import("@/lib/dailyTaskActivity");
       await markDailyTaskDoneFor(record);
+      const { markWishHappenedFor } = await import("@/lib/wishes");
+      await markWishHappenedFor(record);
     } catch { /* non-fatal */ }
     // The plan happened — clear any pending pre-start OS reminder for it.
     try {
