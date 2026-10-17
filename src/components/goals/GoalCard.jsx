@@ -1,22 +1,25 @@
-// One goal on the Goals page: its why, who's in it, and its steps. Steps
-// can be ticked here, turned into a to-do or a plan, split smaller, or
-// joined by an ongoing rhythm / daily task.
+// One goal on the Goals page, kept simple like a note: a title, an
+// optional note, and a checklist. A checklist point is a tick box, one or
+// more to-dos, or an activity done a number of times. Older goals may also
+// carry plans, daily tasks or weekly-minute rhythms; those still show.
 
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  Check, Pencil, Trash2, ListTodo, CalendarPlus, Repeat, CheckSquare, X, Plus, Sparkles, Users, Target,
+  Check, Pencil, Trash2, ListTodo, CalendarPlus, Repeat, CheckSquare, X, Plus, Sparkles, Users, Target, Hash,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import RichText from "@/components/shared/RichText";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { SearchableSelect, SearchableMultiSelect } from "@/components/shared/SearchableSelect";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
-import GoalBuilder from "@/components/goals/GoalBuilder";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { createTask } from "@/lib/taskCreate";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import {
@@ -54,8 +57,14 @@ function StepRow({ step, state, steps, goal, ctx, busy, run }) {
       return cat?.name || habit?.label || habit?.name || step.title;
     }
     if (kind === "daily_task") return state.linked?.title || step.title;
+    if (kind === "activity_count") {
+      const cat = ctx.categories.find((c) => c.id === step.category_id);
+      return `${cat?.name || step.title} × ${state.target}${step.count_period === "week" ? " a week" : ""}`;
+    }
     return step.title;
   })();
+  // Points worked out from other records — nothing to tick here.
+  const derived = state.ongoing || kind === "todos" || kind === "activity_count";
 
   const subtitle = (() => {
     if (kind === "todo") return state.missing ? "Its to-do was removed" : "On the to-do list";
@@ -66,6 +75,8 @@ function StepRow({ step, state, steps, goal, ctx, busy, run }) {
     }
     if (kind === "daily_task") return state.missing ? "That task was removed" : state.done ? "Done this time round" : "Not done yet this time round";
     if (kind === "rhythm") return `${state.current} of ${state.target} min this week`;
+    if (kind === "todos") return `${state.current} of ${state.target} to-dos done`;
+    if (kind === "activity_count") return `${state.current} of ${state.target} times${step.count_period === "week" ? " this week" : " so far"}`;
     return null;
   })();
 
@@ -78,10 +89,10 @@ function StepRow({ step, state, steps, goal, ctx, busy, run }) {
   return (
     <li className="space-y-1.5">
       <div className="flex items-start gap-2">
-        {state.ongoing ? (
+        {derived ? (
           <span className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${state.done ? "bg-primary border-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
             aria-hidden="true">
-            {kind === "rhythm" ? <Repeat className="w-3 h-3" /> : <CheckSquare className="w-3 h-3" />}
+            {kind === "rhythm" ? <Repeat className="w-3 h-3" /> : kind === "activity_count" ? <Hash className="w-3 h-3" /> : <CheckSquare className="w-3 h-3" />}
           </span>
         ) : (
           <button type="button" role="checkbox" aria-checked={state.done} aria-label={step.title}
@@ -94,16 +105,25 @@ function StepRow({ step, state, steps, goal, ctx, busy, run }) {
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <button type="button" className={`text-left text-sm ${state.done && !state.ongoing ? "line-through text-muted-foreground" : "text-foreground"}`}
+          <button type="button" className={`text-left text-sm ${state.done && !derived ? "line-through text-muted-foreground" : "text-foreground"}`}
             onClick={() => {
               if (kind === "todo" && state.linked) navigate(`/todo?highlight=${state.linked.id}`);
               else if (kind === "plan" && state.linked) navigate(`/planner?activityId=${state.linked.id}`);
               else if (kind === "daily_task") navigate("/tasks");
+              else if (kind === "todos") navigate("/todo");
+              else if (kind === "activity_count" && step.category_id) navigate(`/activities?category=${step.category_id}`);
             }}>
             {linkedTitle}
           </button>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-          {kind === "rhythm" && state.target > 0 && (
+          {kind === "todos" && (state.linkedList || []).length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {state.linkedList.map((tk) => (
+                <li key={tk.id} className={`text-xs ${tk.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>• {tk.title}</li>
+              ))}
+            </ul>
+          )}
+          {(kind === "rhythm" || kind === "activity_count") && state.target > 0 && (
             <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, (state.current / state.target) * 100)}%` }} />
             </div>
@@ -126,9 +146,9 @@ function StepRow({ step, state, steps, goal, ctx, busy, run }) {
             className="p-1 text-muted-foreground hover:text-destructive"
             onClick={async () => {
               const ok = await confirm({
-                title: "Take this step off the goal?",
-                body: kind === "todo" || kind === "plan" || kind === "daily_task"
-                  ? "Only the step goes. Its to-do, plan or daily task stays where it is."
+                title: "Take this point off the goal?",
+                body: kind === "todo" || kind === "todos" || kind === "plan" || kind === "daily_task"
+                  ? "Only the point goes. Its to-dos, plan or daily task stay where they are."
                   : "It can't be undone from here.",
                 confirmLabel: "Take it off",
               });
@@ -178,38 +198,60 @@ function AddStep({ goal, steps, ctx, busy, run }) {
   const [mode, setMode] = useState("check");
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(null);
-  const [minutes, setMinutes] = useState("60");
-  const [templateId, setTemplateId] = useState(null);
+  const [count, setCount] = useState("3");
+  const [period, setPeriod] = useState("total");
+  const [taskIds, setTaskIds] = useState([]);
+  const [newTodo, setNewTodo] = useState("");
+  const [madeTasks, setMadeTasks] = useState([]); // to-dos made here, before the list refreshes
 
   const categoryOptions = useMemo(
     () => flattenCategoryTree(ctx.categories).map((c) => ({ id: c.id, label: c.name, color: c.color, _depth: c._depth })),
     [ctx.categories],
   );
-  const templateOptions = useMemo(
-    () => (ctx.templates || []).filter((tp) => tp.is_active !== false).map((tp) => ({ id: tp.id, label: tp.title })),
-    [ctx.templates],
+  const allTasks = useMemo(() => {
+    const seen = new Set((ctx.tasks || []).map((tk) => tk.id));
+    return [...(ctx.tasks || []), ...madeTasks.filter((tk) => !seen.has(tk.id))];
+  }, [ctx.tasks, madeTasks]);
+  const taskOptions = useMemo(
+    () => allTasks.filter((tk) => !tk.completed || taskIds.includes(tk.id)).map((tk) => ({ id: tk.id, label: tk.title || "Untitled" })),
+    [allTasks, taskIds],
   );
+
+  const makeTodo = () => {
+    const v = newTodo.trim();
+    if (!v) return;
+    run(async () => {
+      const task = await createTask({ title: v });
+      setMadeTasks((m) => [...m, task]);
+      setTaskIds((ids) => [...ids, task.id]);
+      setNewTodo("");
+    });
+  };
 
   const save = () => {
     if (mode === "check") {
       if (!title.trim()) return;
       run(async () => { await addStep(goal.id, { title }, steps); setTitle(""); });
-    } else if (mode === "rhythm") {
+    } else if (mode === "todo") {
+      if (taskIds.length === 0) return;
+      const picked = taskIds.map((id) => allTasks.find((tk) => tk.id === id)).filter(Boolean);
+      run(async () => {
+        if (picked.length === 1) await addStep(goal.id, { kind: "todo", title: picked[0].title || "To-do", ref_id: picked[0].id }, steps);
+        else await addStep(goal.id, { kind: "todos", title: `${picked.length} to-dos`, ref_ids: picked.map((tk) => tk.id) }, steps);
+        setTaskIds([]);
+        setMode("check");
+      }, "Added");
+    } else if (mode === "activity") {
       if (!categoryId) return;
       const cat = ctx.categories.find((c) => c.id === categoryId);
       run(async () => {
-        await addStep(goal.id, { kind: "rhythm", title: cat?.name || "Rhythm", category_id: categoryId, weekly_minutes: Math.max(1, Number(minutes) || 0) }, steps);
+        await addStep(goal.id, {
+          kind: "activity_count", title: cat?.name || "Activity", category_id: categoryId,
+          target_count: Math.max(1, Math.round(Number(count) || 0)), count_period: period === "week" ? "week" : "total",
+        }, steps);
         setCategoryId(null);
         setMode("check");
-      }, "Rhythm added");
-    } else if (mode === "daily_task") {
-      if (!templateId) return;
-      const tp = ctx.templates.find((x) => x.id === templateId);
-      run(async () => {
-        await addStep(goal.id, { kind: "daily_task", title: tp?.title || "Daily task", ref_id: templateId }, steps);
-        setTemplateId(null);
-        setMode("check");
-      }, "Linked");
+      }, "Added");
     }
   };
 
@@ -222,43 +264,104 @@ function AddStep({ goal, steps, ctx, busy, run }) {
 
   return (
     <div className="space-y-1.5 pt-1">
-      <div role="tablist" aria-label="Kind of step" className="flex gap-1">
-        {tab("check", "Step")}
-        {tab("rhythm", "Weekly rhythm")}
-        {tab("daily_task", "Daily task")}
+      <div role="tablist" aria-label="Kind of checklist point" className="flex gap-1">
+        {tab("check", "Tick box")}
+        {tab("todo", "To-dos")}
+        {tab("activity", "Activity × times")}
       </div>
       {mode === "check" && (
         <div className="flex gap-2">
-          <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New step"
-            placeholder="Add a step…" onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
-          <Button size="sm" variant="outline" disabled={busy || !title.trim()} onClick={save}><Plus className="w-4 h-4" /></Button>
+          <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New checklist point"
+            placeholder="Add a checklist point…" onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
+          <Button size="sm" variant="outline" disabled={busy || !title.trim()} onClick={save} aria-label="Add point"><Plus className="w-4 h-4" /></Button>
         </div>
       )}
-      {mode === "rhythm" && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex-1 min-w-[10rem]">
-            <SearchableSelect value={categoryId} onChange={(id) => setCategoryId(id || null)} options={categoryOptions}
-              placeholder="Pick an activity" searchPlaceholder="Search activities…" renderOption={indentOption} />
+      {mode === "todo" && (
+        <div className="space-y-1.5">
+          <SearchableMultiSelect value={taskIds} onChange={setTaskIds} options={taskOptions}
+            placeholder="Pick one or more to-dos" searchPlaceholder="Search to-dos…" emptyMessage="No open to-dos" />
+          <div className="flex gap-2">
+            <input className={inputCls} value={newTodo} onChange={(e) => setNewTodo(e.target.value)} aria-label="New to-do"
+              placeholder="Or write a new to-do…" onKeyDown={(e) => { if (e.key === "Enter") makeTodo(); }} />
+            <Button size="sm" variant="ghost" disabled={busy || !newTodo.trim()} onClick={makeTodo}>Make it</Button>
           </div>
-          <input className={`${inputCls} w-20`} type="number" min={1} inputMode="numeric" value={minutes}
-            onChange={(e) => setMinutes(e.target.value)} aria-label="Minutes each week" />
-          <span className="text-xs text-muted-foreground">min a week</span>
-          <Button size="sm" variant="outline" disabled={busy || !categoryId} onClick={save}><Plus className="w-4 h-4" /></Button>
+          <Button size="sm" variant="outline" disabled={busy || taskIds.length === 0} onClick={save} className="gap-1">
+            <Plus className="w-4 h-4" /> {taskIds.length > 1 ? `Add these ${taskIds.length} to-dos` : "Add to-do"}
+          </Button>
         </div>
       )}
-      {mode === "daily_task" && (
-        templateOptions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No daily tasks yet. Make one on the Daily Tasks page.</p>
-        ) : (
-          <div className="flex gap-2 items-center">
-            <div className="flex-1">
-              <SearchableSelect value={templateId} onChange={(id) => setTemplateId(id || null)} options={templateOptions}
-                placeholder="Pick a daily task" searchPlaceholder="Search tasks…" />
+      {mode === "activity" && (
+        <div className="space-y-1.5">
+          <SearchableSelect value={categoryId} onChange={(id) => setCategoryId(id || null)} options={categoryOptions}
+            placeholder="Pick an activity" searchPlaceholder="Search activities…" renderOption={indentOption} />
+          <div className="flex flex-wrap gap-2 items-center">
+            <input className={`${inputCls} w-20`} type="number" min={1} inputMode="numeric" value={count}
+              onChange={(e) => setCount(e.target.value)} aria-label="How many times" />
+            <span className="text-xs text-muted-foreground">times</span>
+            <div role="radiogroup" aria-label="Counted" className="flex gap-1">
+              {[["total", "in total"], ["week", "each week"]].map(([id, label]) => (
+                <button key={id} type="button" role="radio" aria-checked={period === id} onClick={() => setPeriod(id)}
+                  className={`text-xs px-2 py-0.5 rounded-full border ${period === id ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"}`}>
+                  {label}
+                </button>
+              ))}
             </div>
-            <Button size="sm" variant="outline" disabled={busy || !templateId} onClick={save}><Plus className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" disabled={busy || !categoryId} onClick={save} aria-label="Add point"><Plus className="w-4 h-4" /></Button>
           </div>
-        )
+        </div>
       )}
+    </div>
+  );
+}
+
+// Inline edit of the goal itself: just its title and a note.
+function GoalEdit({ goal, alters, onCancel, onDone }) {
+  const t = useTerms();
+  const [title, setTitle] = useState(goal.title || "");
+  const [note, setNote] = useState(goal.why || "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      let prepared = null;
+      const changed = note !== (goal.why || "");
+      if (changed && note.trim()) {
+        try {
+          prepared = await prepareAuthoredText(note.trim(), { alters, terms: t, surfaceLabel: "goal note" });
+        } catch (e) {
+          if (isLogCommandError(e)) { toast.error(e.message); return; }
+          throw e;
+        }
+        if (prepared === null) return;
+      }
+      await base44.entities.Goal.update(goal.id, {
+        title: title.trim(),
+        ...(changed ? { why: prepared ? prepared.content : "" } : {}),
+      });
+      if (prepared) {
+        await recordAuthoredText({ ...prepared, alters, sourceType: "goal", sourceId: goal.id,
+          sourceLabel: `Goal: ${title.trim()}`, navigatePath: `/goals?highlight=${goal.id}` });
+      }
+      onDone();
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save that.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Goal" autoFocus
+        placeholder="The goal…" />
+      <MentionTextarea value={note} onChange={setNote} alters={alters} signposts
+        placeholder="A note, if you like…" className="min-h-[60px] text-sm" />
+      <div className="flex gap-2 justify-end">
+        <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button size="sm" disabled={saving || !title.trim()} onClick={save}>Save</Button>
+      </div>
     </div>
   );
 }
@@ -284,13 +387,13 @@ export default function GoalCard({ goal, allSteps, alters, ctx, onChanged }) {
   if (editing) {
     return (
       <div data-highlight-id={goal.id} className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-        <GoalBuilder goal={goal} alters={alters} onCancel={() => setEditing(false)}
+        <GoalEdit goal={goal} alters={alters} onCancel={() => setEditing(false)}
           onDone={() => { setEditing(false); onChanged(); }} />
       </div>
     );
   }
 
-  const owners = goal.for_everyone ? `Everyone in the ${t.system}` : AlterNames({ ids: goal.owner_alter_ids, alterById, formatAlter });
+  const owners = goal.for_everyone ? null : AlterNames({ ids: goal.owner_alter_ids, alterById, formatAlter });
   const strugglers = AlterNames({ ids: goal.struggler_alter_ids, alterById, formatAlter });
   const supporters = AlterNames({ ids: goal.supporter_alter_ids, alterById, formatAlter });
 
@@ -304,7 +407,7 @@ export default function GoalCard({ goal, allSteps, alters, ctx, onChanged }) {
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
             {goal.status && goal.status !== "active" && <span>{goalStatusLabel(goal.status)}</span>}
             {goal.target_date && <span>By {format(new Date(`${goal.target_date}T00:00:00`), "d MMM yyyy")}</span>}
-            {total > 0 && <span>{done} of {total} steps</span>}
+            {total > 0 && <span>{done} of {total} done</span>}
           </div>
         </div>
         <button type="button" onClick={() => setEditing(true)} aria-label={`Edit ${goal.title}`} className="p-1 text-muted-foreground hover:text-foreground">
@@ -319,10 +422,7 @@ export default function GoalCard({ goal, allSteps, alters, ctx, onChanged }) {
       )}
 
       {goal.why && (
-        <div className="text-xs">
-          <span className="text-muted-foreground">Why: </span>
-          <RichText content={goal.why} alters={alters} terms={t} className="inline" />
-        </div>
+        <RichText content={goal.why} alters={alters} terms={t} className="text-sm text-foreground/90" />
       )}
       {goal.impact && (
         <div className="text-xs">
@@ -366,7 +466,7 @@ export default function GoalCard({ goal, allSteps, alters, ctx, onChanged }) {
           onClick={async () => {
             const ok = await confirm({
               title: "Delete this goal?",
-              body: "\"Reached\" or \"Let go\" keep it in the history instead. Deleting removes the goal and its steps; linked to-dos and plans stay.",
+              body: "\"Reached\" or \"Let go\" keep it in the history instead. Deleting removes the goal and its checklist; linked to-dos and plans stay.",
               confirmLabel: "Delete", destructive: true,
             });
             if (!ok) return;

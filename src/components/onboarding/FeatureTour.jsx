@@ -711,7 +711,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "activities", sectionLabel: "Activities",
       emoji: "🎯",
       title: "Goals",
-      body: `The Goals page holds the long-term things your ${t.system} is working toward. "New goal" asks one question at a time: what you want, why it matters, what it would change, which ${t.alters} want it, who finds it hard, who can help, the smallest first step, and when to try it. Each answer has example picks, or start from an idea. Steps can become a to-do or a plan, and a goal can also keep a weekly rhythm on an activity or link a daily task. A step that sits untouched for a week offers to split into something smaller. If you set weekly goals in the planner, one tap keeps them here as rhythms.`,
+      body: `The Goals page works like notes. Write a goal at the top, then add checklist points to it: a tick box, one or more to-dos (pick existing ones or write new ones), or an activity done a number of times, in total or each week. To-dos and activities tick themselves off as they get done. The pencil edits the title and a note. A tick box that sits untouched for a week offers to split into something smaller. If you set weekly goals in the planner, one tap keeps them here.`,
       route: "/goals", target: "goals-page",
       look: `the Goals page`, action: null,
     },
