@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "fix", text: "Fixed the app closing itself a few seconds after opening when the automatic backup ran with a big photo, music or video library." },
+      { type: "feature", text: "New \"Everything as one .zip\" backup: your data plus every picture, song, video and file in one file, locked with your backup password if locking is on." },
+      { type: "improve", text: "\"Files as .zip\" now saves every picture, song, video and file in one zip under its real name and type, and Import from File restores it." },
+      { type: "improve", text: "Big backups and zips save noticeably faster." },
+      { type: "improve", text: "\"Images only\" is now \"Files only\", and \"Local Images & Assets\" is now \"Local Files & Assets\"." },
       { type: "feature", text: "Plans can now repeat yearly, for birthdays and anniversaries, for up to 100 years." },
       { type: "feature", text: "{{Alter}} profiles have a Wishlist tab: add a wish in two taps, share it with others or everyone, note why it matters, and plan it or put it on the shopping list." },
       { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
