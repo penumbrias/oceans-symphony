@@ -15,9 +15,10 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useReferencedAssets, useImageUsage, BUILT_IN_FOLDER } from "@/lib/referencedAssets";
 import {
-  listLocalImageMeta, deleteLocalImage, getLocalImageId, isLocalImageUrl,
+  listLocalImageMeta, getLocalImageId, isLocalImageUrl,
   processUploadedImage, saveLocalImage, createLocalImageUrl,
 } from "@/lib/localImageStorage";
 import {
@@ -565,6 +566,7 @@ export default function AssetsLibrary() {
       BulletinComment: ["comment", "comments"], JournalEntry: ["journal entry", "journal entries"],
       Alter: [t.alter, t.alters], AlterNote: [`${t.alter} note`, `${t.alter} notes`], Group: ["group", "groups"],
       Contact: ["contact", "contacts"], SystemSettings: ["setting", "settings"],
+      ImageAsset: [`${t.alter} image-pool entry`, `${t.alter} image-pool entries`],
     }[entity];
     if (words) return `${n} ${n === 1 ? words[0] : words[1]}`;
     const plain = entity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
@@ -572,35 +574,67 @@ export default function AssetsLibrary() {
   };
   const usesSummary = (uses) => Object.entries(uses || {}).map(([e, n]) => placeWord(e, n)).join(", ");
 
-  // Remove one stored item: every library record for it, then the file.
-  // Records that USE it (a message, an avatar) are never touched — they
-  // show it as missing / "not stored on this device".
+  // Folders an alter's avatar/background pool is linked to — rows filed
+  // there are that pool's pictures, not spare library copies.
+  const linkedPoolFolders = useMemo(() => new Set(alters
+    .flatMap((a) => [a.avatar_pool_folder, a.background_pool_folder])
+    .map((f) => (f || "").trim()).filter(Boolean)), [alters]);
+  const isPoolRow = (a) => !!a.owner_alter_id || linkedPoolFolders.has((a.folder || "").trim());
+
+  // The library records a delete removes: the tile's own record, plus
+  // plain duplicate library rows for the same file. Rows that belong to an
+  // alter's image pool ("Pick from library" makes a second row pointing at
+  // the same picture) are never removed from here — they're a use of it.
+  const rowsToRemove = (item) => {
+    if (!item.asset) return assets.filter((a) => a.image_url && a.image_url === item.url && !isPoolRow(a));
+    if (isPoolRow(item.asset)) return [item.asset];
+    return assets.filter((a) => a.id === item.asset.id || (a.image_url && a.image_url === item.url && !isPoolRow(a)));
+  };
+  const storedIdFor = (item) => (isLocalImageUrl(item.url) ? getLocalImageId(item.url) : (item.asset ? null : item.id));
+
+  // Where the file stays in use once this delete is done: records that
+  // show it, plus library / pool rows that aren't being removed.
+  const usesAfterDelete = (item) => {
+    const lid = storedIdFor(item) || item.id;
+    const uses = { ...(findStoredFileUses([lid])[lid] || {}) };
+    const removing = new Set(rowsToRemove(item).map((a) => a.id));
+    const otherRows = assets.filter((a) => !removing.has(a.id) && a.image_url && getLocalImageId(a.image_url) === lid).length;
+    if (otherRows) uses.ImageAsset = otherRows;
+    return uses;
+  };
+
+  // Remove one library item: its library record(s), then the stored file —
+  // but ONLY when nothing else still uses that file (another library or
+  // pool row, an avatar, a background, a message, another system…). A
+  // file that's still used is kept so nothing that shows it breaks.
+  // Returns { keptFile }.
   const removeStored = async (item) => {
-    const lid = isLocalImageUrl(item.url) ? getLocalImageId(item.url) : (item.asset ? null : item.id);
-    const records = assets.filter((a) => (item.asset && a.id === item.asset.id) || (a.image_url && a.image_url === item.url));
-    for (const a of records) await base44.entities.ImageAsset.delete(a.id);
-    if (lid) await deleteLocalImage(lid);
+    const lid = storedIdFor(item);
+    const rows = rowsToRemove(item);
+    for (const a of rows) await base44.entities.ImageAsset.delete(a.id);
+    if (!lid) return { keptFile: false };
+    const { deleted } = await deleteLocalImageIfUnused(lid, { deletedRecords: rows.map((a) => ({ entity: "ImageAsset", id: a.id })) });
+    return { keptFile: !deleted };
   };
 
   const del = async (item) => {
     if (item.refOnly) return;
-    const lid = isLocalImageUrl(item.url) ? getLocalImageId(item.url) : item.id;
-    const uses = findStoredFileUses([lid])[lid];
-    const where = usesSummary(uses);
+    const where = usesSummary(usesAfterDelete(item));
     const word = KIND_WORD[item.kind] || "item";
     const ok = await confirm({
       title: `Delete “${item.name}”?`,
       body: where
-        ? `This ${word} is still used in ${where}. Those will stay, but show it as not stored on this device. This can't be undone — save it to the device first if you want a copy.`
+        ? `This ${word} is still used in ${where}, so it stays stored on this device for those — only this library entry is removed.`
         : `This permanently removes the ${word} from this device. This can't be undone — save it to the device first if you want a copy.`,
       confirmLabel: "Delete", destructive: true,
     });
     if (!ok) return;
     try {
-      await removeStored(item);
+      const { keptFile } = await removeStored(item);
       qc.invalidateQueries({ queryKey: ["imageAssets"] });
       await loadImages();
-      toast.success("Deleted");
+      if (keptFile) toast.success(`Removed from the library — the ${word} is kept because it's still used elsewhere`);
+      else toast.success("Deleted");
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
 
@@ -642,22 +676,20 @@ export default function AssetsLibrary() {
   };
   const bulkDelete = async () => {
     const n = selectedItems.length;
-    const ids = selectedItems.map((i) => (isLocalImageUrl(i.url) ? getLocalImageId(i.url) : i.id));
-    const uses = findStoredFileUses(ids);
-    const inUse = ids.filter((id) => uses[id] || usage[id]).length;
-    const warn = inUse ? ` ${inUse} of them ${inUse === 1 ? "is" : "are"} still in use (an avatar, background, post or message) and will show as not stored on this device there.` : "";
+    const inUse = selectedItems.filter((i) => Object.keys(usesAfterDelete(i)).length).length;
+    const warn = inUse ? ` ${inUse} of them ${inUse === 1 ? "is" : "are"} still in use (an avatar, background, image pool, post or message), so ${inUse === 1 ? "it stays" : "those stay"} stored on this device — only the library ${inUse === 1 ? "entry is" : "entries are"} removed.` : "";
     if (!(await confirm({ title: `Delete ${n} item${n === 1 ? "" : "s"}?`, body: `This permanently removes them from this device.${warn} This can't be undone.`, confirmLabel: "Delete", destructive: true }))) return;
     setBulkBusy(true);
-    let failed = 0;
+    let failed = 0, kept = 0;
     for (const item of selectedItems) {
-      try { await removeStored(item); } catch { failed++; }
+      try { if ((await removeStored(item)).keptFile) kept++; } catch { failed++; }
     }
     qc.invalidateQueries({ queryKey: ["imageAssets"] });
     await loadImages();
     setBulkBusy(false);
     stopSelecting();
     if (failed) toast.error(`${failed} couldn't be deleted`);
-    else toast.success(`Deleted ${n} item${n === 1 ? "" : "s"}`);
+    else toast.success(`Deleted ${n} item${n === 1 ? "" : "s"}${kept ? ` · ${kept} kept on this device because ${kept === 1 ? "it's" : "they're"} still used elsewhere` : ""}`);
   };
 
   // What the grid shows: search results (across every folder), the open

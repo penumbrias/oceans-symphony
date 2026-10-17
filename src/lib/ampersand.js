@@ -25,6 +25,7 @@
 // avatar_url/banner_url/tags/custom_fields/is_archived).
 
 import { decodeMulti } from './msgpackLite';
+import { settleOpenFront, createLiveFrontGate, countOpenFrontAlters } from './openFrontsAtExport.js';
 
 const AMPAR_MAGIC = [0x41, 0x4d, 0x50, 0x41, 0x52]; // "AMPAR"
 
@@ -173,7 +174,29 @@ function customFieldsToObject(cf, fieldName) {
 // Map a parsed archive into one OS "system dump" per Ampersand system.
 // Returns [{ name, data }] where data is an OS entity dump
 // ({ EntityName: { id: record } }) ready for createSystemWithData().
-export function ampersandToSystemDumps(parsed) {
+//
+// A fronting entry with no endTime was still open when the file was made.
+// By default it becomes history ending at `opts.closeOpenAt` (the import
+// time), tagged `amp_open_at_export`; only with `opts.makeOpenFrontsCurrent`
+// (the user said yes) does it stay a current front — once per member, since
+// each Ampersand system lands in a brand-new, empty system here. See
+// openFrontsAtExport.js.
+function isOpenAmpFront(f) {
+  return !!f && !f.endTime;
+}
+// Distinct members the file still has fronting (for the "mark them as
+// fronting now?" question). Counts only members that will import.
+export function countOpenAmpersandFronts(parsed) {
+  const tables = (parsed && parsed.tables) || {};
+  const memberIds = new Set((tables.members || []).filter(Boolean).map((m) => m.uuid).filter(Boolean));
+  return countOpenFrontAlters(
+    (tables.frontingEntries || []).filter(Boolean),
+    (f) => (isOpenAmpFront(f) && memberIds.has(f.member) ? f.member : null),
+  );
+}
+
+export function ampersandToSystemDumps(parsed, opts = {}) {
+  const closeOpenAt = opts.closeOpenAt || nowIso();
   const tables = (parsed && parsed.tables) || {};
   const systemRecs = [].concat(tables.systems || [], tables.system || []).filter(Boolean);
   const members = (tables.members || []).filter(Boolean);
@@ -284,6 +307,7 @@ export function ampersandToSystemDumps(parsed) {
   });
 
   // Fronting entries → FrontingSessions (only for members we imported).
+  const liveGates = dumps.map(() => createLiveFrontGate([], !!opts.makeOpenFrontsCurrent));
   fronting.forEach((f) => {
     const si = memberSysIdx[f.member];
     if (si == null) return;
@@ -291,17 +315,28 @@ export function ampersandToSystemDumps(parsed) {
     const id = f.uuid || genId();
     const note = [];
     if (f.comment) note.push({ text: String(f.comment), timestamp: toIso(f.startTime) || nowIso() });
-    dump.FrontingSession[id] = {
+    const startTime = toIso(f.startTime) || nowIso();
+    const open = isOpenAmpFront(f);
+    const settled = settleOpenFront(startTime, {
+      open,
+      end: f.endTime ? toIso(f.endTime) : null,
+      makeLive: open && liveGates[si].allow(f.member),
+      closeAt: closeOpenAt,
+    });
+    const session = {
       id,
       alter_id: f.member,
-      start_time: toIso(f.startTime) || nowIso(),
-      ...(f.endTime ? { end_time: toIso(f.endTime) } : {}),
-      is_active: !f.endTime,
+      start_time: startTime,
+      ...(settled.end_time ? { end_time: settled.end_time } : {}),
+      is_active: settled.is_active,
+      ...(open ? { amp_open_at_export: true } : {}),
       is_primary: !!f.isMainFronter,
       note: JSON.stringify(note),
       created_date: toIso(f.startTime) || nowIso(),
       ...(f.customStatus ? { custom_status: String(f.customStatus) } : {}),
     };
+    liveGates[si].record(session);
+    dump.FrontingSession[id] = session;
   });
 
   // Journal posts → JournalEntries (attributed to the first listed author).

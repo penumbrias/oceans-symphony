@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "fix", text: "Importing an older OpenPlural, Ampersand or Simply Plural export no longer marks people still fronting in that file as fronting now; you can opt in when importing." },
+      { type: "fix", text: "Deleting an image from the Image Assets library no longer breaks other places that use the same picture." },
+      { type: "feature", text: "Journals: new \"Import files\" brings in .txt, .md and .html notes (e.g. from Easy Notes) as new entries, keeping each file's date." },
       { type: "fix", text: "Fixed the app closing itself a few seconds after opening when the automatic backup ran with a big photo, music or video library." },
       { type: "feature", text: "New \"Everything as one .zip\" backup: your data plus every picture, song, video and file in one file, locked with your backup password if locking is on." },
       { type: "improve", text: "\"Files as .zip\" now saves every picture, song, video and file in one zip under its real name and type, and Import from File restores it." },

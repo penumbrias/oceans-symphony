@@ -1188,7 +1188,10 @@ function JournalWidget({ settings }) {
   const list = sortJournalsNewestFirst(entries).slice(0, limit);
   return (
     <Section label={tr("widget.journal.label")}
-      action={<TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>}>
+      action={<span className="flex items-center gap-3">
+        <TextAction onClick={() => navigate("/journals?import=1")}>{tr("widget.journal.import")}</TextAction>
+        <TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>
+      </span>}>
       {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
       {list.map((e) => (
         <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
