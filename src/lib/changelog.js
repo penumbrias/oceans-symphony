@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 17, 2026",
+    changes: [
+      { type: "feature", text: "Plans can now repeat yearly, for birthdays and anniversaries, for up to 100 years." },
+    ],
+  },
+  {
     date: "October 16, 2026",
+    version: "0.257.2",
     changes: [
       { type: "improve", text: "Image assets is now just \"Assets\": every item has rename, save to device, move and delete buttons, and saving keeps the file's real name and type." },
       { type: "feature", text: "New \"Files & videos\" folder in Assets: upload videos, audio or any file, play or save them, and find them in search." },
