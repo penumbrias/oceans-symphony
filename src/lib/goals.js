@@ -22,7 +22,8 @@
 
 import { differenceInCalendarDays, startOfWeek, endOfWeek } from "date-fns";
 import { base44 } from "@/api/base44Client";
-import { countableMinutes } from "@/lib/activityStatus";
+import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { indexById, getAncestorIds } from "@/lib/categoryTreeUtils";
 import { isTemplateDoneNow } from "@/lib/dailyTaskSystem";
 import { createTask } from "@/lib/taskCreate";
 import { syncTaskCompleted } from "@/lib/linkedCompletion";
@@ -39,11 +40,13 @@ export const GOAL_STATUSES = [
 export const goalStatusLabel = (id) => GOAL_STATUSES.find((s) => s.id === id)?.label || "Working on it";
 export const isOpenGoal = (g) => !["done", "let_go"].includes(g?.status || "active");
 
-// check: a plain step ticked here. todo / plan: the step IS that to-do or
-// plan. daily_task: an existing daily task that keeps going. rhythm: time
+// check: a plain checklist point ticked here. todo / plan: the point IS
+// that to-do or plan. todos: several to-dos (ref_ids), done when they all
+// are. activity_count: an activity done target_count times — in total
+// since the point was added, or each week (count_period "week").
+// daily_task: an existing daily task that keeps going. rhythm: minutes
 // each week on one activity (what the old weekly goals were).
-export const STEP_KINDS = ["check", "todo", "plan", "daily_task", "rhythm"];
-export const isOngoingKind = (kind) => kind === "daily_task" || kind === "rhythm";
+export const STEP_KINDS = ["check", "todo", "todos", "activity_count", "plan", "daily_task", "rhythm"];
 
 // Days an unfinished step sits untouched before it offers to get smaller.
 export const NUDGE_AFTER_DAYS = 7;
@@ -84,9 +87,41 @@ export function rhythmMinutes(step, { activities = [], symptomSessions = [], now
 // Where a step stands right now. Linked steps read their twin, so ticking
 // the to-do on the To-Do page (or doing the plan) ticks the step too.
 //   { done, ongoing, missing, linked, current, target }
+const HAPPENED = new Set([ACTIVITY_STATUSES.LOGGED, ACTIVITY_STATUSES.DONE, ACTIVITY_STATUSES.PARTIAL]);
+
+// Times an activity (or anything nested under it) actually happened —
+// since the point was added, or this week.
+export function activityCount(step, { activities = [], categories = [], now = new Date() } = {}) {
+  if (!step?.category_id) return 0;
+  const byId = indexById(categories);
+  const from = step.count_period === "week"
+    ? startOfWeek(now)
+    : (step.created_date ? new Date(step.created_date) : new Date(0));
+  let n = 0;
+  for (const a of activities || []) {
+    if (!a?.timestamp || !HAPPENED.has(statusFor(a))) continue;
+    const ts = new Date(a.timestamp);
+    if (ts < from || ts > now) continue;
+    const hit = (a.activity_category_ids || []).some((cid) =>
+      cid === step.category_id || getAncestorIds(cid, byId).includes(step.category_id));
+    if (hit) n += 1;
+  }
+  return n;
+}
+
 export function stepState(step, ctx = {}) {
   const { tasks = [], activities = [], templates = [], progress = [], now = new Date() } = ctx;
   const kind = step?.kind || "check";
+  if (kind === "todos") {
+    const linked = (step.ref_ids || []).map((id) => tasks.find((t) => t.id === id)).filter(Boolean);
+    const current = linked.filter((t) => t.completed).length;
+    return { done: linked.length > 0 && current === linked.length, ongoing: false, linkedList: linked, current, target: linked.length };
+  }
+  if (kind === "activity_count") {
+    const target = Math.max(1, Number(step.target_count) || 1);
+    const current = activityCount(step, ctx);
+    return { done: current >= target, ongoing: step.count_period === "week", current, target };
+  }
   if (kind === "todo") {
     const task = tasks.find((t) => t.id === step.ref_id);
     if (!task) return { done: !!step.done_at, ongoing: false, missing: true };
@@ -271,63 +306,28 @@ export async function carryOverWeeklyGoals(activityGoals = [], goals = [], names
   return todo.length;
 }
 
-// ── The guided builder's examples ────────────────────────────────────
+// ── Making goals ─────────────────────────────────────────────────────
 
-export const GOAL_TEMPLATES = [
-  {
-    id: "sleep", emoji: "🌙", title: "Sleep on a steadier rhythm",
-    why: "We feel more like ourselves when we've slept.",
-    steps: ["Pick a rough bedtime we can all live with", "Put the phone across the room at night", "Write down what keeps us up"],
-  },
-  {
-    id: "move", emoji: "🚶", title: "Move our body more",
-    why: "Moving helps the heavy days feel lighter.",
-    steps: ["Put shoes by the door", "Walk to the end of the street and back", "Find one kind of movement nobody hates"],
-  },
-  {
-    id: "connect", emoji: "💌", title: "Reconnect with a friend",
-    why: "We miss having someone outside to talk to.",
-    steps: ["Pick who to reach out to", "Send one short message", "Suggest a low-key time to talk"],
-  },
-  {
-    id: "space", emoji: "🧺", title: "Keep our space livable",
-    why: "A calmer room makes switching less jarring.",
-    steps: ["Clear one surface", "Take out one bag of rubbish", "Pick a 10-minute daily reset spot"],
-  },
-  {
-    id: "learn", emoji: "📚", title: "Learn something new",
-    why: "Some of us want something that's just ours to grow in.",
-    steps: ["Choose what to learn", "Find one beginner resource", "Try it for 10 minutes"],
-  },
-  {
-    id: "care", emoji: "🩺", title: "Get on top of an appointment",
-    why: "It's been hanging over us for a while.",
-    steps: ["Find the number or website", "Write down what we want to say", "Make the call or booking"],
-  },
-];
+export function createGoal(fields = {}) {
+  return base44.entities.Goal.create({
+    status: "active", status_changed_at: new Date().toISOString(),
+    for_everyone: true, owner_alter_ids: [], supporter_alter_ids: [], struggler_alter_ids: [],
+    ...fields,
+    title: String(fields.title || "").trim(),
+  });
+}
 
-export const WHY_EXAMPLES = [
-  "It would make the days feel steadier",
-  "Someone inside has wanted this for a long time",
-  "It keeps us safer",
-  "It's for the little ones",
-  "We'd feel proud of it",
-];
-
-export const IMPACT_EXAMPLES = [
-  "Less overwhelm",
-  "More energy",
-  "Fewer rough switches",
-  "More time for things we enjoy",
-];
-
-export const FIRST_STEP_EXAMPLES = [
-  "Just 5 minutes of it",
-  "Write down what it would take",
-  "Ask someone inside how they feel about it",
-  "Get the things it needs out",
-  "Look it up",
-];
+// A goal-kind wish becomes a goal straight away: its title, what's driving
+// it as the goal's note, and whose it is. The wish moves to "in progress".
+export async function goalFromWish(wish) {
+  const goal = await createGoal({
+    title: wish.title, why: wish.driving || "", impact: wish.impact || "",
+    for_everyone: !!wish.for_everyone, owner_alter_ids: wish.owner_alter_ids || [], wish_id: wish.id,
+  });
+  await base44.entities.Wish.update(wish.id, { status: "in_progress", status_changed_at: new Date().toISOString() })
+    .catch(() => { /* the goal stands */ });
+  return goal;
+}
 
 export const SMALLER_EXAMPLES = [
   "Only the first 5 minutes",
