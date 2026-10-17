@@ -528,7 +528,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
               <span className="text-left min-w-0">
                 <span className="block">Import from a file</span>
                 <span className="block text-xs text-muted-foreground font-normal whitespace-normal break-words">
-                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar / .json) — auto-detected
+                  Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar / .json) — auto-detected
                 </span>
               </span>
             </Button>
