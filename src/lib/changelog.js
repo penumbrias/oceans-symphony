@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 17, 2026",
     changes: [
+      { type: "feature", text: "Backups can now also be copied to Google Drive, OneDrive, Dropbox or an SD card, so losing your phone doesn't lose your backup. Set it up in the backup step of setup or in Settings → Auto-backup." },
       { type: "feature", text: "New home-screen widgets: Needs balance, Wishes and Goals." },
       { type: "feature", text: "New Needs page: see how long it's been since each {{alter}} got something they enjoy, everyone's wishes in one list, and turn agreements where the second turn goes in the planner." },
       { type: "feature", text: "Starting an activity someone tends to interrupt now shows a gentle note with what they've been wishing for." },

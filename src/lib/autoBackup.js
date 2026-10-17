@@ -31,6 +31,14 @@ import { recordBackupAttempt, snoozeBackupWarning } from "@/lib/backupHealth";
 import { listSystems, getActiveSystemId, getSystemData } from "@/lib/systems";
 import { isEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { encryptStandardBackup } from "@/lib/backupFormat";
+import {
+  getBackupCopyTarget,
+  backupCopyKind,
+  backupCopyWouldShrink,
+  countPayloadRecords,
+  describeBackupCopyTarget,
+  writeBackupCopy,
+} from "@/lib/backupCopy";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -464,8 +472,12 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
 //   - BACKUP_DESTINATIONS.ASK: hand the file to shareFile (system
 //     share sheet on native, navigator.share/anchor on web).
 //
+// Then, when the user chose one, the same file is also copied off the
+// device (src/lib/backupCopy.js) — whatever happened to the main save.
+//
 // Returns the result string ("filesystem" | "shared" | "downloaded"
-// | "cancelled" | "failed").
+// | "copied" | "cancelled" | "failed"). "copied" = the main save didn't
+// land (cancelled / failed) but the off-device copy did.
 export async function runAutoBackupNow({ silent = false, allSystems = "best" } = {}) {
   const kind = silent ? "auto" : "manual";
   // Locking is resolved BEFORE the (expensive) payload is built, so a
@@ -488,6 +500,7 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
     throw e;
   }
   const caveats = payload.__caveats || {};
+  const records = countPayloadRecords(payload);
   const locked = !!password;
   if (locked) payload = await encryptStandardBackup(payload, password);
   const json = JSON.stringify(payload);
@@ -555,16 +568,48 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
     error = fb.error;
   }
 
-  if (result === "filesystem" || result === "shared" || result === "downloaded") {
+  // Off-device copy. Runs even when the main save was cancelled or failed:
+  // it's a second, independent place.
+  let copy = null;
+  if (getBackupCopyTarget() && backupCopyKind()) {
+    let force = false;
+    const shrink = backupCopyWouldShrink(records);
+    if (shrink && !silent) {
+      // A person pressed the button: let them decide (deleting a lot on
+      // purpose is legitimate). Automatic runs are never forced.
+      try {
+        const { confirm } = await import("@/components/shared/ConfirmDialog");
+        force = await confirm({
+          title: "Replace your backup copy?",
+          body: `Your copy in ${describeBackupCopyTarget()} has ${shrink.previous} records. This backup has only ${shrink.now}. If something went missing, keep the copy and restore from it instead.`,
+          confirmLabel: "Replace it",
+          cancelLabel: "Keep the copy",
+          destructive: true,
+        });
+      } catch { force = false; }
+      if (!force) copy = { ok: false, skipped: "kept", error: "kept your existing copy" };
+    }
+    if (!copy) copy = await writeBackupCopy({ text: json, filename, records, force });
+  }
+
+  const mainOk = result === "filesystem" || result === "shared" || result === "downloaded";
+  if (!mainOk && copy?.ok) {
+    result = "copied";
+    location = copy.location;
+  }
+
+  if (mainOk || result === "copied") {
     setAutoBackupLastAt(new Date().toISOString());
     const notes = [];
+    if (copy && !copy.ok && copy.skipped !== "kept") notes.push(`off-device copy ${copy.skipped === "shrink" ? "" : "failed: "}${copy.error}`);
     if (caveats.mediaUnread) notes.push("some pictures/fonts couldn't be read");
     if (caveats.unreadableSystems?.length) notes.push(`not included (locked): ${caveats.unreadableSystems.join(", ")}`);
     if (caveats.skippedHeavy) notes.push("data only — pictures, audio & files are too large for an automatic backup (save them with \u201cFiles as .zip\u201d)");
-    recordBackupAttempt({ kind, ok: true, detail: [location || result, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
+    const copied = copy?.ok && mainOk ? [`copy in ${copy.location}`] : [];
+    recordBackupAttempt({ kind, ok: true, detail: [location || result, ...copied, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {
     // "cancelled" is the user's choice, not a failure — don't count it.
-    recordBackupAttempt({ kind, ok: false, detail: error || "delivery failed" });
+    recordBackupAttempt({ kind, ok: false, detail: [error || "delivery failed", ...(copy && !copy.ok ? [`off-device copy: ${copy.error}`] : [])].join(" · ") });
   }
   if (!silent) {
     try {
@@ -582,8 +627,11 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
       }
       else if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
+      else if (result === "copied") toast.success(`Backup saved to ${location}`);
       else if (result === "cancelled") toast.info("Backup canceled");
       else toast.error(`Backup failed${error ? `: ${error}` : ""}`);
+      if (copy?.ok && result !== "copied") toast.success(`Copy saved to ${copy.location}`);
+      else if (copy && !copy.ok && copy.skipped !== "kept") toast.error(`Backup copy not saved: ${copy.error}`);
     } catch { /* sonner not available */ }
   }
   if (result === "failed") {

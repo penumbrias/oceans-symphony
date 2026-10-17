@@ -17,6 +17,10 @@
 //   - the custom backup-file password (symphony_autobackup_pw_v1) — a
 //     mirrored copy would land inside the very file it locks, and inside
 //     every plain export
+//   - the off-device backup copy target + its size guard
+//     (symphony_backup_copy_v1, symphony_backup_copy_last_v1) — a file
+//     grant only means anything on the device that was given it; a second
+//     device restoring it would aim at the same cloud file
 
 export const BACKUP_LS_KEYS = [
   "symphony_newui_banner_dismissed_v1",
