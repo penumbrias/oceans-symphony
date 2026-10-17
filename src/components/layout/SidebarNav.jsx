@@ -19,7 +19,7 @@ export function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "presences",label: "New Presences",icon: Sparkles,      path: "/presences" },
         { id: "chat",     label: `${systemLabel} Chat`, icon: MessageSquare, path: "/chat" },
         { id: "groups",   label: "Groups",       icon: Users,         path: "/groups" },
-        { id: "assets",   label: "Image Assets", icon: Images,        path: "/assets" },
+        { id: "assets",   label: "Assets",   icon: Images,        path: "/assets" },
         { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
         { id: "contacts", label: "Contacts",     icon: Contact,       path: "/contacts" },
         { id: "settings", label: "Settings",     icon: Settings,      path: "/settings" },

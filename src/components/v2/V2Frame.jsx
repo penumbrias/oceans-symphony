@@ -1118,13 +1118,13 @@ function TabButtons({ items, uiV2, isActive, navigate, t }) {
         return (
           <button key={item.id} type="button" role="tab" aria-selected={on}
             onClick={() => navigate(item.path)}
-            className="flex-1 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1"
+            className="flex-1 basis-0 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
             style={{
               color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
               boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
             }}>
-            <IconSlot override={uiV2.icons?.pages?.[item.id]} Default={Icon} style={{ width: 18, height: 18 }} />
-            <span className="text-[0.625em] font-medium leading-tight whitespace-nowrap">{item.label}</span>
+            <IconSlot override={uiV2.icons?.pages?.[item.id]} Default={Icon} style={{ width: 18, height: 18, flexShrink: 0 }} />
+            <span className="os-tab-label text-[0.625em] font-medium leading-tight">{item.label}</span>
           </button>
         );
       })}

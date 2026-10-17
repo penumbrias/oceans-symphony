@@ -19,6 +19,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import ArchivedContactsManager from "@/components/settings/ArchivedContactsManager";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
@@ -536,7 +537,7 @@ export default function Settings() {
                     {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
                   </label>
-                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysAvatarAssets(true)} />
+                  <IconButton icon={Images} title="Choose from Assets" onClick={() => setSysAvatarAssets(true)} />
                   <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} picture URL:`, systemAvatarUrl || ""); if (u !== null) setSystemAvatarUrl(u.trim()); }} />
                   {systemAvatarUrl && (
                     <IconButton icon={XIcon} title="Remove image" danger onClick={() => setSystemAvatarUrl("")} />
@@ -560,7 +561,7 @@ export default function Settings() {
                     {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
                   </label>
-                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysBannerAssets(true)} />
+                  <IconButton icon={Images} title="Choose from Assets" onClick={() => setSysBannerAssets(true)} />
                   <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} banner URL:`, systemBannerUrl || ""); if (u !== null) setSystemBannerUrl(u.trim()); }} />
                   {systemBannerUrl && (
                     <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
@@ -688,6 +689,7 @@ export default function Settings() {
           <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
           <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
           <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
+          <SubSection title="Archived contacts" defaultOpen={false}><ArchivedContactsManager /></SubSection>
           <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
           <SubSection title={`Order your ${terms.alters}`} defaultOpen={false}><AlterOrderSettings /></SubSection>
           <SubSection title="Profile songs" defaultOpen={false}><ProfileSongsSettings /></SubSection>

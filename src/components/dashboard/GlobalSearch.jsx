@@ -50,6 +50,7 @@ const TYPE_ICONS = {
   presence:  "🌫️",
   contact:   "📇",
   system:    "🪞",
+  asset:     "🖼️",
 };
 
 function getTypeLabels(t) {
@@ -78,6 +79,7 @@ function getTypeLabels(t) {
     presence:  "New Presences",
     contact:   "Contacts",
     system:    t.Systems,
+    asset:     "Assets",
   };
 }
 
@@ -278,6 +280,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.ActivityCategory),
     staleTime: stale, enabled,
   });
+  const { data: assets = [] } = useQuery({
+    queryKey: ["imageAssets"],
+    queryFn: () => safeList(localEntities.ImageAsset, "-created_date"),
+    staleTime: stale, enabled,
+  });
 
   const index = useMemo(() => buildSearchIndex({
     terms,
@@ -302,6 +309,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     presences,
     contacts,
     systems: listSystems(),
+    assets,
 }), [
     terms,
     alters, customFieldDefs,
@@ -324,6 +332,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,
+    assets,
 ]);
 
   const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
@@ -364,7 +373,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const TYPE_ORDER = [
     "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system",
+    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset",
   ];
 
   return (

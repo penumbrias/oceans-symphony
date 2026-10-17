@@ -18,10 +18,23 @@
 
 export const CHANGELOG = [
   {
-    date: "October 16, 2026",
+    date: "October 17, 2026",
     changes: [
       { type: "feature", text: "New Activities page for managing your activities: add, nest, rename and recolour them, and open one to see how it's been going." },
       { type: "feature", text: "Link {{alters}} and feelings to an activity (who enjoys, needs or avoids it; what it helps you feel). Each {{alter}} profile has an Activities tab showing theirs." },
+    ],
+  },
+  {
+    date: "October 16, 2026",
+    version: "0.257.2",
+    changes: [
+      { type: "improve", text: "Image assets is now just \"Assets\": every item has rename, save to device, move and delete buttons, and saving keeps the file's real name and type." },
+      { type: "feature", text: "New \"Files & videos\" folder in Assets: upload videos, audio or any file, play or save them, and find them in search." },
+      { type: "fix", text: "Songs stored in Assets now show as audio instead of a broken picture." },
+      { type: "improve", text: "Deleting something in Assets now tells you where it's still used before you confirm." },
+      { type: "fix", text: "Bio editor: text typed in the Plain or Raw view no longer goes missing when you switch to Blocks." },
+      { type: "fix", text: "Bottom tab names that don't fit now wrap onto two lines, breaking at a syllable, instead of overlapping." },
+      { type: "feature", text: "Settings has a new Archived contacts section where you can find and restore archived contacts." },
       { type: "feature", text: "The Activity Tracker is now part of the Planner: Day, Week, Month and Year views, plus Insights with totals, goals, plan follow-through and the tally." },
       { type: "fix", text: "Plan notifications, links and the Planner tab now open the Planner instead of the old Activity Tracker." },
       { type: "fix", text: "Marking a running activity done from its notification works again, and a daily task that's already running offers to finish it instead of starting another copy." },

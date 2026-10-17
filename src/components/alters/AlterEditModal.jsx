@@ -424,7 +424,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               onClick={() => { onClose(); navigate(`/assets?alter=${alter.id}`); }}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
-              Manage all images in the Image Library →
+              Manage all images in Assets →
             </button>
           )}
 

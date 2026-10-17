@@ -30,7 +30,7 @@ export const ALL_PAGES = [
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
   { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
-  { id: "assets", label: "Image Assets", path: "/assets", icon: Images },
+  { id: "assets", label: "Assets", path: "/assets", icon: Images },
   { id: "presences", label: "New Presences", path: "/presences", icon: Sparkles },
 ];
 
