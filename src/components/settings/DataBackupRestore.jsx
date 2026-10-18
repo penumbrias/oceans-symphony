@@ -943,6 +943,97 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
   };
 
+  // "Files as .zip parts" (from ShineSpark330's fork): for a big library,
+  // the same zips split so none passes the chosen size. Each part restores
+  // on its own with Import from File (or several at once below) and only
+  // adds or updates files. Honours "skip in backups" and the file types
+  // ticked above.
+  const [partMB, setPartMB] = useState(() => {
+    try { return Number(localStorage.getItem("symphony_backup_part_mb_v1")) || 100; } catch { return 100; }
+  });
+  const changePartMB = (mb) => {
+    setPartMB(mb);
+    try { localStorage.setItem("symphony_backup_part_mb_v1", String(mb)); } catch { /* not remembered */ }
+  };
+  const handleExportFilesParts = async () => {
+    setExportLoading(true);
+    try {
+      const { buildBackupZip, packIntoParts, partFileName, MB } = await import("@/lib/backupZip");
+      const { listLocalImageIds, listLocalImageMeta } = await import("@/lib/localImageStorage");
+      // listLocalImageIds throws when the store can't be read; the meta
+      // (sizes) swallows errors, so a short list is treated as a failure.
+      const ids = (await listLocalImageIds()).map(String);
+      const meta = await listLocalImageMeta();
+      if (Object.keys(meta).length < ids.length) throw new Error("Your stored files couldn't all be read. Reload the app and try again.");
+      const exclude = await skipIdSet();
+      const kinds = FILE_KINDS.every((k) => fileKinds.has(k)) ? null : [...fileKinds];
+      const wanted = ids.filter((id) => !exclude?.has(id)).map((id) => ({ id, size: meta[id]?.size || 0 }));
+      if (!wanted.length) { showStatus("error", "No pictures, audio or files to save."); return; }
+      const parts = packIntoParts(wanted, partMB * MB);
+      const nameDumps = await zipNameDumps(getFullDbDump());
+      const date = new Date().toISOString().slice(0, 10);
+      let saved = 0, files = 0;
+      const failed = [];
+      for (let i = 0; i < parts.length; i++) {
+        setZipProgress({ label: `Part ${i + 1} of ${parts.length}:`, done: 0, total: parts[i].length });
+        const r = await buildBackupZip({
+          nameDumps, ids: parts[i], kinds,
+          onProgress: (p) => setZipProgress({ label: `Part ${i + 1} of ${parts.length}:`, ...p }),
+        });
+        failed.push(...r.failed);
+        if (!r.files) continue; // every file in this part was an unticked type
+        const res = await saveBackupBlob(r.blob, partFileName(i + 1, parts.length, date), "save", { ext: ".zip" });
+        if (res?.result === "cancelled") { showStatus("error", `Stopped after ${saved} of ${parts.length} part${parts.length === 1 ? "" : "s"}.`); return; }
+        if (res?.result === "failed") throw new Error(res.error || `part ${i + 1} couldn't be saved`);
+        saved++;
+        files += r.files;
+      }
+      const missing = failed.length ? ` ${failed.length} file${failed.length === 1 ? "" : "s"} couldn't be read and ${failed.length === 1 ? "isn't" : "aren't"} in them.` : "";
+      showStatus(missing ? "error" : "success", `${files} file${files === 1 ? "" : "s"} saved in ${saved} part${saved === 1 ? "" : "s"}. Restoring a part only adds or updates files.${missing}`);
+    } catch (e) {
+      showStatus("error", `Files export failed: ${e.message}`);
+    } finally {
+      setZipProgress(null);
+      setExportLoading(false);
+    }
+  };
+
+  // Restore several .zip parts (or any files .zip this app wrote) at once.
+  // Adds or updates files only — never deletes. A zip that also carries
+  // data goes through Import from File instead, so its data is imported
+  // with the usual choices.
+  const partsInputRef = useRef(null);
+  const handleRestoreZipParts = async (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!picked.length) return;
+    setImportLoading(true);
+    try {
+      const { openSymphonyZip, restoreZipFiles } = await import("@/lib/backupZip");
+      let restored = 0, failed = 0, unreadable = 0, withData = 0;
+      for (let i = 0; i < picked.length; i++) {
+        setZipProgress({ label: `Restoring ${i + 1} of ${picked.length}:`, done: 0, total: 0 });
+        const opened = await openSymphonyZip(picked[i]);
+        if (!opened) { unreadable++; continue; }
+        if (opened.dataText) { withData++; continue; }
+        const r = await restoreZipFiles(opened, (p) => setZipProgress({ label: `Restoring ${i + 1} of ${picked.length}:`, ...p }));
+        restored += r.restored;
+        failed += r.failed.length;
+      }
+      const notes = [];
+      if (failed) notes.push(`${failed} couldn't be restored`);
+      if (unreadable) notes.push(`${unreadable} zip${unreadable === 1 ? " wasn't" : "s weren't"} an Oceans Symphony files backup`);
+      if (withData) notes.push(`${withData} full backup${withData === 1 ? "" : "s"} skipped — restore ${withData === 1 ? "it" : "those"} with Import from File`);
+      showStatus(failed || unreadable || (withData && !restored) ? "error" : "success",
+        `Restored ${restored} file${restored === 1 ? "" : "s"}.${notes.length ? ` ${notes.join("; ")}.` : ""}`);
+    } catch (err) {
+      showStatus("error", `Restore failed: ${err.message}`);
+    } finally {
+      setZipProgress(null);
+      setImportLoading(false);
+    }
+  };
+
   // "Everything as one .zip": the full data backup + every file, in a
   // single file that is never split. Respects backup locking: when it's on
   // (Settings → Data & privacy → Auto-backup) the data inside is sealed
@@ -2215,6 +2306,27 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                       <FileArchive className="w-3.5 h-3.5" /> Files as .zip
                     </Button>
                   </div>
+                  <p className="text-[0.6875rem] font-medium text-muted-foreground pt-1">Big library? Save it in parts</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      Up to
+                      <select value={partMB} onChange={(e) => changePartMB(Number(e.target.value))} disabled={exportLoading}
+                        className="h-8 rounded-md border border-input bg-background px-1.5 text-xs" aria-label="Maximum size per part">
+                        {[25, 50, 100, 250, 500].map((mb) => <option key={mb} value={mb}>{mb} MB</option>)}
+                      </select>
+                      each
+                    </label>
+                    <Button size="sm" variant="outline" onClick={handleExportFilesParts} disabled={exportLoading} className="text-xs gap-1.5">
+                      <FileArchive className="w-3.5 h-3.5" /> Files as .zip parts
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => partsInputRef.current?.click()} disabled={exportLoading || importLoading} className="text-xs gap-1.5">
+                      <Upload className="w-3.5 h-3.5" /> Restore parts…
+                    </Button>
+                    <input ref={partsInputRef} type="file" accept=".zip,application/zip" multiple hidden onChange={handleRestoreZipParts} />
+                  </div>
+                  <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+                    Each part is a complete .zip you can restore on its own, in any order. Restoring only adds or updates files — nothing is deleted. A file bigger than the limit gets a part to itself.
+                  </p>
                   <p className="text-[0.6875rem] font-medium text-muted-foreground pt-1">Back up one type at a time</p>
                   <div className="flex flex-wrap gap-2">
                     {[["image", "Pictures"], ["audio", "Audio"], ["video", "Videos"], ["file", "Attachments"]].map(([k, label]) => (

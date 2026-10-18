@@ -52,6 +52,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_checkin_log_display",
   // "Keep original images" upload toggle (v0.253.1).
   "symphony_keep_original_images_v1",
+  "symphony_backup_part_mb_v1",
   "symphony_act_view_mode",
   "symphony_polls_default_tally_mode",
   "symphony_grounding_step_mode",
