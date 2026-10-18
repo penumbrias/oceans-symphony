@@ -68,6 +68,29 @@ export function kindFromMime(mime) {
   return m ? "file" : null;
 }
 
+// image | video | audio | file for a picked File, from its type, else its
+// extension (Android pickers sometimes leave the type blank).
+const VIDEO_EXTS = ["mp4", "m4v", "mov", "webm", "mkv", "3gp", "avi", "ogv"];
+const AUDIO_EXTS = ["mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac"];
+const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp", "svg", "heic"];
+export function classifyFile(mime = "", name = "") {
+  const k = kindFromMime(mime);
+  if (k) return k;
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  if (VIDEO_EXTS.includes(ext)) return "video";
+  if (AUDIO_EXTS.includes(ext)) return "audio";
+  if (IMAGE_EXTS.includes(ext)) return "image";
+  return "file";
+}
+
+export function formatBytes(n) {
+  const b = Number(n) || 0;
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(b < 10 * 1024 ? 1 : 0)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 // image | video | audio | file for a library item. `meta` is the store's
 // { mime, head } for it (listLocalImageMeta), `asset` its ImageAsset row.
 export function assetKind({ asset, meta, id } = {}) {
@@ -191,4 +214,14 @@ export function findStoredFileUses(ids) {
   } catch {
     return {};
   }
+}
+
+// The HTML placeholder a chat attachment drops into a message: inert text +
+// data-* attributes, which renderBulletinContent.jsx turns into the player /
+// file card. The id is the file's key in the local file store; the URL is
+// carried too so findStoredFileUses sees the message as a use of the file.
+const escAttr = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+export function mediaPlaceholderHtml({ id, kind, name, size }) {
+  const icon = kind === "video" ? "🎬" : kind === "audio" ? "🎵" : "📎";
+  return `<div data-media-id="${escAttr(id)}" data-media-url="local-image://${escAttr(id)}" data-media-kind="${escAttr(kind)}" data-media-name="${escAttr(name)}" data-media-size="${Number(size) || 0}">${icon} ${escAttr(name)} (${formatBytes(size)})</div>`;
 }

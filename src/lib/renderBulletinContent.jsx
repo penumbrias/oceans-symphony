@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { effectiveAlias } from "@/lib/alterLabel";
+import MediaAttachment from "@/components/shared/MediaAttachment";
+import { ZoomableImage } from "@/components/shared/ImageViewer";
 
 // Tags allowed in bulletin/comment content. The base set keeps simple
 // posts minimal; the rich set (used when a post was written in the
@@ -151,6 +153,20 @@ function nodeToReact(node, key, renderText) {
     // Strip the tag, keep its children inline.
     return <React.Fragment key={key}>{children}</React.Fragment>;
   }
+  // Attached video / audio / file: an inert <div data-media-id="…"> placeholder
+  // (written by the chat attach flow) becomes the player / file card. Only the
+  // id and a few display hints are read — nothing from it is executed.
+  if (tag === "div" && node.getAttribute("data-media-id")) {
+    return (
+      <MediaAttachment
+        key={key}
+        id={node.getAttribute("data-media-id")}
+        kind={node.getAttribute("data-media-kind") || "file"}
+        name={node.getAttribute("data-media-name") || ""}
+        size={node.getAttribute("data-media-size") || 0}
+      />
+    );
+  }
   if (tag === "br") return <br key={key} />;
   if (tag === "hr") return <hr key={key} className="my-2 border-border/60" />;
   if (tag === "a") {
@@ -179,11 +195,12 @@ function nodeToReact(node, key, renderText) {
     if (!safe) return null;
     const styleObj = cssStringToStyleObject(node.getAttribute("style")) || {};
     return (
-      <img
+      // Tap to zoom (and pick a viewing quality). Rendered content only —
+      // the editors never go through here, so editing stays untouched.
+      <ZoomableImage
         key={key}
         src={src}
         alt={node.getAttribute("alt") || ""}
-        loading="lazy"
         style={{ maxWidth: "100%", height: "auto", borderRadius: 8, display: "block", margin: "6px 0", ...styleObj }}
       />
     );

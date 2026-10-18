@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Send, Pencil, Trash2, Reply, X, Check, User, ChevronDown, Lock, ImagePlus, Loader2 } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, Check, User, ChevronDown, Lock, ImagePlus, Loader2, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -59,7 +59,10 @@ function useComposerLift(kb) {
   return { ref, lift };
 }
 import { parseAndStripSignposts, foldSignpostAuthors, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
-import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, blobToDataUrl } from "@/lib/localImageStorage";
+import AttachFileDialog from "@/components/shared/AttachFileDialog";
+import { mediaPlaceholderHtml, formatBytes, saveAssetToDevice } from "@/lib/assetFiles";
+import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 
 // ── Shared System-Chat surface ───────────────────────────────────────────────
@@ -227,7 +230,7 @@ function MentionPill({ label, color }) {
   );
 }
 
-export function MessageRow({ msg, alters, allMessages = [], editing, highlighted, frontingAlterIds = [], onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
+export function MessageRow({ msg, alters, allMessages = [], editing, highlighted, frontingAlterIds = [], onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete, onPurge }) {
   const formatAlter = useAlterLabel();
   const authors = authorsFor(msg, alters);
   const parent = msg.reply_to_id ? allMessages.find((x) => x.id === msg.reply_to_id) : null;
@@ -334,6 +337,17 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
               : renderRichContent(msg.content, {
                   renderText: (t, k) => <React.Fragment key={k}>{renderWithMentions(t, alters)}</React.Fragment>,
                 })}
+            {isDeleted && onPurge && (
+              <button
+                type="button"
+                onClick={onPurge}
+                className="ml-1.5 inline-flex align-middle p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-muted/60"
+                title="Remove this placeholder permanently"
+                aria-label="Remove this deleted-message placeholder"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -478,25 +492,60 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
   const [uploadingImage, setUploadingImage] = useState(false);
   // Image waiting in the preview/size dialog before it lands in the message.
   const [pendingImage, setPendingImage] = useState(null);
-  const handleComposerImage = async (e) => {
+  // Picked files wait in the attach dialog first: images offer "keep original"
+  // vs compress (with real sizes); videos / audio / other files are always the
+  // original bytes. Nothing is shrunk unless the person chooses it.
+  const fileInputRef = useRef(null);
+  const [pendingFile, setPendingFile] = useState(null);
+  const handlePickFile = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
+    if (file) setPendingFile(file);
+  };
+  const saveCopyToDevice = async (url, { name, mime, kind }) => {
+    const res = await saveAssetToDevice({ url, name: (name || "").replace(/\.[^.]+$/, ""), mime, kind, originalName: name });
+    if (res.ok) toast.success(res.location ? `Copy saved to ${res.location}` : "Copy saved to device");
+    else if (res.error !== "cancelled") toast.error("Couldn't save a copy to the device.");
+  };
+  const handleAttachConfirm = async ({ kind, blob, file, saveCopy, name }) => {
+    setPendingFile(null);
     setUploadingImage(true);
     try {
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
-      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
-      let url = dataUrl;
-      if (isLocalMode()) {
-        const id = `chatimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(id, dataUrl);
-        url = createLocalImageUrl(id);
+      if (kind === "image") {
+        const isGif = blob.type === "image/gif" || /\.gif$/i.test(file.name || "");
+        if (isGif && blob.size > 3 * 1024 * 1024) toast.warning(`Large GIF (${formatBytes(blob.size)}) — grows your storage & backups.`);
+        let url;
+        if (isLocalMode()) {
+          const id = `chatimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          await saveLocalImage(id, blob, blob.type || file.type);
+          url = createLocalImageUrl(id);
+        } else {
+          url = await blobToDataUrl(blob);
+        }
+        setPendingImage(url);
+        toast.success(isGif ? "GIF added!" : "Image added!");
+        if (saveCopy) await saveCopyToDevice(url, { name: name || file.name, mime: blob.type || file.type, kind });
+      } else {
+        // Videos, audio and other files go in the same local file store as
+        // pictures (it rides backups and the app's private-file copy), with
+        // an Assets record so they show up in the library.
+        if (!isLocalMode()) { toast.error("Files can only be stored on this device in local mode."); return; }
+        const id = `file-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const mime = blob.type || file.type || "";
+        await saveLocalImage(id, blob, mime || undefined);
+        const url = createLocalImageUrl(id);
+        const display = (file.name || "File").replace(/\.[^.]+$/, "").slice(0, 80) || "File";
+        await base44.entities.ImageAsset.create({
+          name: display, image_url: url, folder: "",
+          kind, mime, file_name: file.name, size: blob.size,
+          is_gif: false, created_date: new Date().toISOString(),
+        });
+        insertHtml(mediaPlaceholderHtml({ id, kind, name: file.name || display, size: blob.size }), "");
+        toast.success(`${kind === "video" ? "Video" : kind === "audio" ? "Audio" : "File"} attached (${formatBytes(blob.size)}, original quality).`);
+        if (saveCopy) await saveCopyToDevice(url, { name: file.name, mime, kind });
       }
-      setPendingImage(url);
-      toast.success(isGif ? "GIF added!" : "Image added!");
     } catch (err) {
-      toast.error(err?.message || "Couldn't add that image.");
+      toast.error(err?.message || "Couldn't add that file.");
     } finally {
       setUploadingImage(false);
     }
@@ -624,6 +673,12 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
             className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
             {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
           </button>
+          <button type="button" title="Attach a video or file (original quality)" aria-label="Attach a video or file" disabled={uploadingImage}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => fileInputRef.current?.click()}
+            className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 disabled:opacity-50">
+            <Paperclip className="w-3.5 h-3.5" />
+          </button>
           <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
           <button
             type="button"
@@ -640,7 +695,11 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
         {showFormatting && (
           <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} float="keyboard" />
         )}
-        <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+        <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handlePickFile} />
+        <input ref={fileInputRef} type="file" accept="*/*" hidden onChange={handlePickFile} />
+        {pendingFile && (
+          <AttachFileDialog file={pendingFile} onConfirm={handleAttachConfirm} onCancel={() => setPendingFile(null)} />
+        )}
         {pendingImage && (
           <ImageInsertPreview url={pendingImage}
             onInsert={(html) => insertHtml(html, "")}
@@ -682,6 +741,7 @@ export default function ChatSurface({
   onSend,
   onEdit,
   onDelete,
+  onPurge,
   showReply = true,
   emptyState,
   headerSlot,
@@ -874,6 +934,7 @@ export default function ChatSurface({
                 onSubmitEdit={(content) => handleSubmitEdit(m, content)}
                 onReply={showReply ? () => setReplyTo(m) : undefined}
                 onDelete={onDelete ? () => handleDeleteMsg(m) : undefined}
+                onPurge={onPurge ? () => onPurge(m) : undefined}
               />
             ))}
           </section>

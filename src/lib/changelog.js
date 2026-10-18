@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Chat: attach videos, songs and any file at original quality. They play right in the message and are kept in Assets." },
+      { type: "feature", text: "Chat: pictures can be kept full size or compressed, and pictures in chat and bulletins open full screen with zoom." },
+      { type: "feature", text: "Audio and video players have a seek bar, a Loop button, full screen that stays clear of the phone's buttons, and Tempo & pitch controls. Only one plays at a time." },
+      { type: "feature", text: "Chat: remove deleted-message placeholders one by one, per channel, or all at once in Settings → Data & privacy." },
       { type: "feature", text: "Plans: a new Color tag in a plan's details colours its day on the Month and Year calendars. Pick a preset or any colour, and save your favourites." },
       { type: "feature", text: "Month and Year calendars show a + on days with more than one event. Tap it to open the day." },
       { type: "feature", text: "Check-In Log: notes under an {{alter}} show a coloured mood dot for each kind of emotion set with them, and a caution sign when the {{switch}} was triggered." },

@@ -1522,7 +1522,7 @@ export default function ExperimentalDashboard({
       // Other hold elements (level rails, hold menus) drag vertically or
       // not at all: a sideways move cancels their hold and reads as a
       // page swipe, which is exactly right.
-      if (t.closest?.("[data-day-key], input, textarea, select, [contenteditable='true']")) return true;
+      if (t.closest?.("[data-day-key], input, textarea, select, [contenteditable='true'], [role='slider'], [data-no-page-swipe], audio, video")) return true;
       // Portaled overlays float OVER the board, so the coordinate bounds
       // check passes even though the touch belongs to them — dragging the
       // colour-picker's saturation square was flipping home pages. Any

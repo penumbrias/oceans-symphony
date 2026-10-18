@@ -20,6 +20,7 @@ import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import ArchivedContactsManager from "@/components/settings/ArchivedContactsManager";
+import ChatCleanupSettings from "@/components/settings/ChatCleanupSettings";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
@@ -892,6 +893,8 @@ export default function Settings() {
           <div data-tour="settings-device-sync">
             <SubSection title="Sync between devices" defaultOpen={false}><DeviceSyncSettings /></SubSection>
           </div>
+
+          <SubSection title="Clean up deleted chat messages" defaultOpen={false}><ChatCleanupSettings /></SubSection>
 
           {/* ── STORAGE & ENCRYPTION ── (contains "Cache Images for Offline",
               which downloads remote-URL images — incl. imported avatars — into

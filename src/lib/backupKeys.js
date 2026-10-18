@@ -100,6 +100,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_plan_reminders_enabled",
   "symphony_plan_reminders_default_offset",
   "symphony_plan_tag_colors",
+  "symphony_attach_save_copy_v1",
+  "symphony_image_view_quality_v1",
   "symphony_persist_notif_fronters_v1",
   "symphony_persist_notif_symptoms_v1",
   "symphony_persist_notif_activity_v1",
