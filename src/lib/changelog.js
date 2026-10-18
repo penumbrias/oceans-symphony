@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Backups: big libraries can save their files as .zip parts of a size you choose, and several parts restore at once." },
       { type: "feature", text: "Assets: videos, audio, other files and songs each get their own folder, every item has an info button, and pictures open full screen with zoom." },
       { type: "feature", text: "Assets: delete your own folders, keeping their files in Unorganized or deleting everything, and use the cloud button to leave a file or folder out of backups." },
       { type: "feature", text: "Backups: choose which file types to include, or save Pictures, Audio, Videos or Attachments as their own .zip. Songs keep their full name." },

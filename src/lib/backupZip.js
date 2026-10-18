@@ -261,6 +261,37 @@ export async function buildBackupZip({ dataName = null, dataText = null, nameDum
   return { blob: sink.finish("application/zip"), files: manifestFiles.length, failed, left, bytes: sink.total };
 }
 
+// ── Parts (big libraries) ───────────────────────────────────────────
+//
+// "Files as .zip parts" (from ShineSpark330's fork): the same zips, each
+// holding only some of the files so no single one passes the chosen size.
+// Every part is a complete zip with its own manifest, so parts restore in
+// any order, one at a time, and restoring one only adds or updates files.
+
+export const MB = 1024 * 1024;
+export const PART_SIZE_CHOICES_MB = [25, 50, 100, 250, 500];
+export const DEFAULT_PART_SIZE_MB = 100;
+export const PART_SIZE_KEY = "symphony_backup_part_mb_v1";
+
+// Greedy, order-preserving packing. items: [{ id, size }] → [[id, …], …].
+// A file bigger than the limit gets a part of its own (it can't be cut).
+export function packIntoParts(items, maxBytes) {
+  const parts = [];
+  let cur = [];
+  let curBytes = 0;
+  for (const { id, size } of items) {
+    const s = Math.max(0, Number(size) || 0);
+    if (cur.length && curBytes + s > maxBytes) { parts.push(cur); cur = []; curBytes = 0; }
+    cur.push(id);
+    curBytes += s;
+  }
+  if (cur.length) parts.push(cur);
+  return parts;
+}
+
+export const partFileName = (index, total, date, tag = "") =>
+  `symphony-files${tag}-part-${String(index).padStart(2, "0")}-of-${String(total).padStart(2, "0")}-${date}.zip`;
+
 // ── Reading ─────────────────────────────────────────────────────────
 
 const u16 = (b, o) => b[o] | (b[o + 1] << 8);
