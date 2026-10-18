@@ -113,7 +113,9 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         await base44.entities.ImageAsset.create({
           name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Audio",
           image_url: createLocalImageUrl(audioId),
-          folder: "Audio",
+          // Full original file name kept for exports (the title above is shortened).
+          original_name: file.name,
+          folder: "Songs Audio",
           kind: "audio",
           created_date: new Date().toISOString(),
         });
@@ -201,6 +203,11 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
             <span>Start on its own</span>
             <Switch checked={value.autoplay !== false}
               onCheckedChange={(v) => onChange({ ...value, autoplay: !!v })} />
+          </label>
+          <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>Play when there's no sound playing</span>
+            <Switch checked={value.playWhenIdle === true}
+              onCheckedChange={(v) => onChange({ ...value, playWhenIdle: !!v })} />
           </label>
           {/* Volume is saved with the SONG, so a loud track and a quiet one
               can live on two pages without re-adjusting the device each time. */}
