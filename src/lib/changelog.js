@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "fix", text: "Fixed a few rare crashes: a journal entry with an unusual imported date, rescheduling a plan with a broken time, and syncing from a phone with a very large picture, music or video library." },
+      { type: "hotfix", text: "Hotfix: a glitch in a background helper (front conflicts, activity prompts, mods) no longer blanks the whole app." },
       { type: "feature", text: "Activities: link {{alters}} with your own link types, not just the presets like \"Enjoys\" or \"Tends to interrupt\"." },
     ],
   },

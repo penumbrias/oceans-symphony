@@ -61,7 +61,8 @@ export function quickRescheduleTimes(item, now = new Date()) {
     const evening = new Date(now); evening.setHours(19, 0, 0, 0);
     out.push({ id: "evening", when: evening });
   }
-  const base = item?.timestamp ? new Date(item.timestamp) : now;
+  const stamped = item?.timestamp ? new Date(item.timestamp) : null;
+  const base = stamped && Number.isFinite(stamped.getTime()) ? stamped : now;
   const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(base.getHours(), base.getMinutes(), 0, 0);
   out.push({ id: "tomorrow", when: tomorrow });

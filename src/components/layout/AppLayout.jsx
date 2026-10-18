@@ -12,6 +12,8 @@ import InterruptCheckNote from "@/components/needs/InterruptCheckNote";
 import ActivityPromptsHost from "@/components/activities/ActivityPromptsHost";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 import FrontConflictCard from "@/components/sync/FrontConflictCard";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { recordCrash } from "@/lib/lastCrash";
 import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
@@ -72,6 +74,21 @@ function hexToHslTripletSafe(hex) {
   if (max !== min) { const d = max - min; sat = lum > 0.5 ? d / (2 - max - min) : d / (max + min);
     if (max === r) hue = (g - b) / d + (g < b ? 6 : 0); else if (max === g) hue = (b - r) / d + 2; else hue = (r - g) / d + 4; hue /= 6; }
   return `${Math.round(hue * 360)} ${Math.round(sat * 100)}% ${Math.round(lum * 100)}%`;
+}
+
+// Hosts mounted on every page sit outside the page's own boundary, so a
+// render error in one would blank the whole app (and come straight back on
+// "Go to home screen"). Each is wrapped so it just disappears instead; the
+// trace is still kept for the bug-report form.
+function QuietBoundary({ name, children }) {
+  return (
+    <ErrorBoundary
+      fallback={() => null}
+      onError={(error, info) => recordCrash(error, info, `host:${name}`)}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 export default function AppLayout() {
@@ -1071,7 +1088,7 @@ const handleNotifClick = (mentionLog) => {
               <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
             </div>
           }>
-            <ModNavSync />
+            <QuietBoundary name="ModNavSync"><ModNavSync /></QuietBoundary>
             <Outlet context={{ setShowFeatureTour }} />
           </Suspense>
         </main>
@@ -1206,11 +1223,11 @@ const handleNotifClick = (mentionLog) => {
           is redundant — but if the user hides quick actions entirely, the
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
-      <InterruptCheckNote />
+      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
       <GroceryListPanel />
-      <ActivityPromptsHost />
+      <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
       {/* Devices that disagree about who's fronting — the person picks. */}
-      <FrontConflictCard variant="floating" />
+      <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>
       {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
       <QuickActionsHost />
       {!v2HomeNotices && <ReminderToast />}

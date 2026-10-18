@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { journalEntryDate, normalizeTag } from "@/lib/journalDate";
+import { journalDisplayDate, normalizeTag } from "@/lib/journalDate";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { parseDate } from "@/lib/dateUtils";
 import { decryptContent, encryptContent, isLegacyEncryptedContent } from "@/lib/encryption";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -141,7 +140,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
             <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
             <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
               <span className="text-xs text-muted-foreground">
-                {format(parseDate(journalEntryDate(entry)), "MMMM d, yyyy · h:mm a")}
+                {format(journalDisplayDate(entry), "MMMM d, yyyy · h:mm a")}
               </span>
               {author && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
