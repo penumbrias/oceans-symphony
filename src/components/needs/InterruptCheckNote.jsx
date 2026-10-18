@@ -10,6 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { ACTIVITY_STARTED_EVENT } from "@/lib/activitySession";
 import { interruptersFor } from "@/lib/needs";
+import { relationBehavesAs } from "@/lib/activityLinks";
 
 const safe = async (entity) => { try { return (await base44.entities[entity].list()) || []; } catch { return []; } };
 
@@ -23,10 +24,10 @@ export default function InterruptCheckNote() {
       const session = e?.detail;
       if (!session?.categoryId) return;
       try {
-        const links = await safe("AlterActivityLink");
-        if (!links.some((l) => l.relation === "interrupts")) return;
+        const [links, linkTypes] = await Promise.all([safe("AlterActivityLink"), safe("ActivityLinkType")]);
+        if (!links.some((l) => relationBehavesAs(l.relation, linkTypes) === "interrupts")) return;
         const [categories, wishes, alters] = await Promise.all([safe("ActivityCategory"), safe("Wish"), safe("Alter")]);
-        const people = interruptersFor(session.categoryId, { links, categories, wishes, alters, excludeIds: session.alterIds || [] });
+        const people = interruptersFor(session.categoryId, { links, categories, wishes, alters, linkTypes, excludeIds: session.alterIds || [] });
         if (people.length) setNote({ name: session.name || "this", people });
       } catch { /* a check-in note is never worth an error */ }
     };

@@ -4,11 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { ALTER_RELATIONS, clampStrength } from "@/lib/activityLinks";
+import { allRelations, clampStrength, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 
 // "Activities" tab on an alter profile — the other side of the Activities
 // page's "Who" links: what this alter enjoys, needs, dislikes, avoids,
-// feels obligated to, or tends to interrupt. Read-only here; each row opens
+// feels obligated to, tends to interrupt, or any type the user made. Read-only here; each row opens
 // that activity on the Activities page, where links are added and edited.
 export default function ActivitiesTab({ alter }) {
   const t = useTerms();
@@ -19,14 +19,19 @@ export default function ActivitiesTab({ alter }) {
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(),
   });
+  const { data: linkTypes = [] } = useQuery({
+    queryKey: LINK_TYPES_QUERY_KEY, queryFn: () => base44.entities.ActivityLinkType.list().catch(() => []),
+  });
   const catById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
   const groups = useMemo(() => {
     const mine = links.filter((l) => l.alter_id === alter.id);
-    return ALTER_RELATIONS
-      .map((r) => ({ ...r, links: mine.filter((l) => l.relation === r.id)
+    const relations = allRelations(linkTypes, { includeRemoved: true });
+    const known = new Set(relations.map((r) => r.id));
+    return [...relations, { id: "__other", label: "Other" }]
+      .map((r) => ({ ...r, links: mine.filter((l) => (r.id === "__other" ? !known.has(l.relation) : l.relation === r.id))
         .sort((a, b) => clampStrength(b.strength) - clampStrength(a.strength)) }))
       .filter((r) => r.links.length);
-  }, [links, alter.id]);
+  }, [links, linkTypes, alter.id]);
 
   if (groups.length === 0) {
     return (

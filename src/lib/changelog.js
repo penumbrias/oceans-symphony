@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 18, 2026",
+    changes: [
+      { type: "feature", text: "Activities: link {{alters}} with your own link types, not just the presets like \"Enjoys\" or \"Tends to interrupt\"." },
+    ],
+  },
+  {
     date: "October 17, 2026",
+    version: "0.264.2",
     changes: [
       { type: "improve", text: "Goals are simpler now, like notes: write a goal, then add checklist points to it: a tick box, to-dos, or an activity a number of times." },
       { type: "improve", text: "Picking {{fronters}} by sub{{system}}: hold a sub{{system}} or group (or its \"+ all\") and slide to put everyone in it at one {{fronting}} level." },

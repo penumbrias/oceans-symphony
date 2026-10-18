@@ -23,7 +23,8 @@ import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/li
 import { indexById, getAncestorIds, getChildren, MAX_RENDER_DEPTH } from "@/lib/categoryTreeUtils";
 import { categoryIdOf, countsTowardTotals, minutesOf } from "@/lib/planner/rollup";
 import { statusFor, STATUS_LABELS } from "@/lib/activityStatus";
-import { ALTER_RELATIONS, FEELING_EFFECTS, relationLabel, clampStrength, toggleFeelingLink } from "@/lib/activityLinks";
+import { FEELING_EFFECTS, allRelations, relationLabel, clampStrength, toggleFeelingLink, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
+import RelationTypePicker from "@/components/activities/RelationTypePicker";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 
@@ -102,6 +103,9 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
   const { data: feelingLinks = [] } = useQuery({
     queryKey: ["feelingLinks"], queryFn: () => base44.entities.FeelingLink.list(),
   });
+  const { data: linkTypes = [] } = useQuery({
+    queryKey: LINK_TYPES_QUERY_KEY, queryFn: () => base44.entities.ActivityLinkType.list().catch(() => []),
+  });
 
   const byId = useMemo(() => indexById(categories), [categories]);
   const cat = byId[categoryId] || null;
@@ -168,7 +172,7 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
     const who = alterById[link.alter_id] ? formatAlter(alterById[link.alter_id]) : t.alter;
     const ok = await confirm({
       title: `Remove this link?`,
-      body: `"${who} ${relationLabel(link.relation).toLowerCase()} ${cat?.name || "this"}" will be removed. The activity and its history stay.`,
+      body: `"${who} ${relationLabel(link.relation, linkTypes).toLowerCase()} ${cat?.name || "this"}" will be removed. The activity and its history stay.`,
       confirmLabel: "Remove", destructive: true,
     });
     if (!ok) return;
@@ -211,8 +215,10 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
     );
   }
 
-  const linksByRelation = ALTER_RELATIONS
-    .map((r) => ({ ...r, links: myAlterLinks.filter((l) => l.relation === r.id) }))
+  const relations = allRelations(linkTypes, { includeRemoved: true });
+  const known = new Set(relations.map((r) => r.id));
+  const linksByRelation = [...relations, { id: "__other", label: "Other" }]
+    .map((r) => ({ ...r, links: myAlterLinks.filter((l) => (r.id === "__other" ? !known.has(l.relation) : l.relation === r.id)) }))
     .filter((r) => r.links.length);
 
   return (
@@ -279,15 +285,8 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
             <AlterSearchSelect alters={alters} value={form.alter_id} terms={t} showNone={false}
               placeholder={`Pick ${t.alter}…`}
               onChange={(id) => setForm((f) => ({ ...f, alter_id: id }))} />
-            <div className="flex flex-wrap gap-1.5">
-              {ALTER_RELATIONS.map((r) => (
-                <button key={r.id} type="button" aria-pressed={form.relation === r.id}
-                  onClick={() => setForm((f) => ({ ...f, relation: r.id }))}
-                  className={`text-xs px-2.5 py-1 rounded-full border ${form.relation === r.id ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"}`}>
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <RelationTypePicker value={form.relation} types={linkTypes}
+              onChange={(id) => setForm((f) => ({ ...f, relation: id }))} />
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">How strongly</span>
               <StrengthDots value={form.strength} onChange={(n) => setForm((f) => ({ ...f, strength: n }))} />
