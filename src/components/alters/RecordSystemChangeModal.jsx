@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { toast } from "sonner";
-import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles } from "lucide-react";
+import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
@@ -95,6 +95,14 @@ const getTypes = (t) => [
     bg: "bg-emerald-500/10 border-emerald-500/30",
     description: `One or more ${t.alters} emerge or are first recognized in the ${t.system}.`,
   },
+  {
+    id: "reformation",
+    label: "Reformation",
+    icon: RefreshCw,
+    color: "text-teal-500",
+    bg: "bg-teal-500/10 border-teal-500/30",
+    description: `One or more ${t.alters} take a new form but are still the same ${t.alter} — not a new ${t.alter}, not a fusion.`,
+  },
 ];
 
 // ─── Step components ──────────────────────────────────────────────────────────
@@ -139,6 +147,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
     : type === "split" ? `Which ${terms.alter} is splitting?`
     : type === "dormancy" ? `Which ${terms.alters} are going dormant?`
     : type === "emergence" ? `Which ${terms.alters} emerged or were first recognized?`
+    : type === "reformation" ? `Which ${terms.alters} were reformed (changed form but are still the same ${terms.alter})?`
     : `Which ${terms.alters} are returning?`;
 
   return (
@@ -532,6 +541,107 @@ function StepDetails({ year, onYear, cause, onCause, notes, onNotes, alters = []
   );
 }
 
+// ─── Reformation "Changes" step ────────────────────────────────────────────────
+// Reformation = the SAME alter in a new form. So instead of the generic
+// year/cause/notes step it asks what changed, whether they have a new name,
+// and whether there was a trigger.
+
+function YesNo({ value, onChange, labelYes = "Yes", labelNo = "No" }) {
+  return (
+    <div className="inline-flex rounded-lg border border-border overflow-hidden" role="group">
+      {[[true, labelYes], [false, labelNo]].map(([v, label]) => (
+        <button
+          key={label}
+          type="button"
+          aria-pressed={value === v}
+          onClick={() => onChange(v)}
+          className={cn(
+            "px-4 py-1.5 text-xs font-medium transition-colors",
+            value === v ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/60"
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StepReformation({
+  alterName, canRename, year, onYear,
+  whatChanged, onWhatChanged,
+  hasNewName, onHasNewName, newName, onNewName, applyRename, onApplyRename,
+  hasTrigger, onHasTrigger, trigger, onTrigger,
+  notes, onNotes, alters = [],
+}) {
+  const currentYear = new Date().getFullYear();
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Year this occurred</p>
+        <Input
+          type="number" min={1900} max={currentYear}
+          value={year} onChange={e => onYear(e.target.value)}
+          placeholder={String(currentYear)} className="text-sm"
+        />
+      </div>
+
+      <div>
+        <p className="text-xs font-medium mb-1">What changes happened{alterName ? ` to ${alterName}` : ""}?</p>
+        <p className="text-[0.6875rem] text-muted-foreground mb-1.5">Appearance, age, personality, role, abilities — whatever is different now.</p>
+        <MentionTextarea
+          value={whatChanged} onChange={onWhatChanged} alters={alters} signposts
+          placeholder="e.g. Looks older, calmer, took on a protector role…"
+          rows={3} className="text-sm resize-none"
+        />
+      </div>
+
+      {canRename && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-medium">New name?</p>
+            <YesNo value={hasNewName} onChange={onHasNewName} />
+          </div>
+          {hasNewName && (
+            <div className="space-y-2 pl-1">
+              <Input
+                value={newName} onChange={e => onNewName(e.target.value)}
+                placeholder={alterName ? `New name (was ${alterName})` : "New name"} className="text-sm"
+              />
+              <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={applyRename} onChange={e => onApplyRename(e.target.checked)} className="mt-0.5" />
+                <span>Also change their profile name. The old name is kept in this event.</span>
+              </label>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium">Is there a trigger?</p>
+          <YesNo value={hasTrigger} onChange={onHasTrigger} />
+        </div>
+        {hasTrigger && (
+          <Input
+            value={trigger} onChange={e => onTrigger(e.target.value)}
+            placeholder="What set this off? e.g. a stressful event, a memory, a milestone…"
+            className="text-sm"
+          />
+        )}
+      </div>
+
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Notes (optional)</p>
+        <MentionTextarea
+          value={notes} onChange={onNotes} alters={alters} signposts
+          placeholder="Any additional context..." rows={3} className="text-sm resize-none"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
 export default function RecordSystemChangeModal({ open, onClose, preselectedAlterIds = [] }) {
@@ -562,10 +672,17 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
   const [mergeSelections, setMergeSelections] = useState({});
   const [archiveAbsorbed, setArchiveAbsorbed] = useState(true);
   const [archiveSource, setArchiveSource] = useState(false);
+  // Reformation-only answers
+  const [whatChanged, setWhatChanged] = useState("");
+  const [hasNewName, setHasNewName] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [applyRename, setApplyRename] = useState(true);
+  const [hasTrigger, setHasTrigger] = useState(false);
+  const [trigger, setTrigger] = useState("");
 
-  const noResultStep = type === "dormancy" || type === "return" || type === "emergence";
+  const noResultStep = type === "dormancy" || type === "return" || type === "emergence" || type === "reformation";
   const steps = noResultStep
-    ? ["Type", terms.Alters, "Details"]
+    ? ["Type", terms.Alters, type === "reformation" ? "Changes" : "Details"]
     : ["Type", terms.Alters, "Result", "Details", "Apply"];
   const totalSteps = steps.length;
 
@@ -583,6 +700,14 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
       if (type === "fusion") return sourceAlterIds.length >= 2 && !!fusionType;
       return sourceAlterIds.length >= 1;
     }
+    if (step === 2 && type === "reformation") {
+      if (sourceAlterIds.length === 1 && hasNewName) {
+        const nn = newName.trim();
+        const old = (alters.find(a => a.id === sourceAlterIds[0])?.name || "").trim();
+        return !!nn && nn !== old;
+      }
+      return true;
+    }
     if (step === 2 && !noResultStep) {
       if (type === "fusion" && fusionType === "absorption") return !!absorptionTarget;
       if (type === "fusion" && fusionType === "new_formation") return !!newAlterName.trim();
@@ -598,9 +723,19 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
       prepared = await prepareAuthoredText(notes.trim(), { alters, terms, surfaceLabel: "lineage event note", chips: false });
     } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
     if (prepared === null) return; // user backed out of the whisper warning
+    // Reformation's "what changed" answer speaks the same grammar as notes.
+    let preparedChange = null;
+    if (type === "reformation" && whatChanged.trim()) {
+      try {
+        preparedChange = await prepareAuthoredText(whatChanged.trim(), { alters, terms, surfaceLabel: "reformation change", chips: false, whisper: false });
+      } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (preparedChange === null) return;
+    }
     setSaving(true);
     try {
       let resultAlterIds = [];
+      const reformOldName = (alters.find(a => a.id === sourceAlterIds[0])?.name || "").trim();
+      const reformRename = type === "reformation" && sourceAlterIds.length === 1 && hasNewName && !!newName.trim();
 
       if (type === "fusion" && fusionType === "absorption") {
         resultAlterIds = [absorptionTarget];
@@ -622,7 +757,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         );
         resultAlterIds = [...existing, ...created.map(c => c.id)];
       } else {
-        // dormancy / return — result = same as source
+        // dormancy / return / reformation — result = same as source (same alter, no new one created)
         resultAlterIds = [...sourceAlterIds];
       }
 
@@ -635,11 +770,23 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         result_alter_ids: resultAlterIds,
         fusion_type: type === "fusion" ? fusionType : null,
         absorbed_into_alter_id: (type === "fusion" && fusionType === "absorption") ? absorptionTarget : null,
-        cause: cause.trim(),
+        cause: (type === "reformation" ? (hasTrigger ? trigger.trim() : "") : cause.trim()),
         notes: prepared.content,
         author_alter_ids: prepared.authorIds,
+        ...(type === "reformation" ? {
+          what_changed: preparedChange?.content || null,
+          renamed: reformRename,
+          previous_name: reformRename ? reformOldName : null,
+          new_name: reformRename ? newName.trim() : null,
+        } : {}),
       });
       await recordAuthoredText({ ...prepared, alters, sourceType: "lineage", sourceId: event.id, sourceLabel: "Lineage event note", navigatePath: "/system-history" });
+      if (preparedChange) await recordAuthoredText({ ...preparedChange, alters, sourceType: "lineage", sourceId: event.id, sourceLabel: "Reformation change", navigatePath: "/system-history" });
+
+      // Reformation: the alter stays the same person — only optionally take the new name.
+      if (reformRename && applyRename) {
+        await localEntities.Alter.update(sourceAlterIds[0], { name: newName.trim() });
+      }
 
       // Auto-create "Split from" relationships when a split event is recorded
       if (type === "split") {
@@ -759,7 +906,22 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
             onSplitResults={setSplitResults}
           />
         )}
-        {((step === 2 && noResultStep) || (step === 3 && !noResultStep)) && (
+        {step === 2 && type === "reformation" && (
+          <StepReformation
+            alterName={sourceAlterIds.length === 1 ? (alters.find(a => a.id === sourceAlterIds[0])?.name || "") : ""}
+            canRename={sourceAlterIds.length === 1}
+            year={year} onYear={setYear}
+            whatChanged={whatChanged} onWhatChanged={setWhatChanged}
+            hasNewName={hasNewName} onHasNewName={setHasNewName}
+            newName={newName} onNewName={setNewName}
+            applyRename={applyRename} onApplyRename={setApplyRename}
+            hasTrigger={hasTrigger} onHasTrigger={setHasTrigger}
+            trigger={trigger} onTrigger={setTrigger}
+            notes={notes} onNotes={setNotes}
+            alters={alters}
+          />
+        )}
+        {((step === 2 && noResultStep && type !== "reformation") || (step === 3 && !noResultStep)) && (
           <StepDetails
             year={year} onYear={setYear}
             cause={cause} onCause={setCause}

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities, base44 } from "@/api/base44Client";
 import { format } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2 } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Sparkles, RefreshCw, Plus, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const TYPE_META = {
   dormancy:  { label: "Dormancy",  icon: MoonStar, color: "text-indigo-500", bg: "bg-indigo-500/10 border-indigo-500/20" },
   return:    { label: "Return",    icon: Sunrise,  color: "text-amber-500",  bg: "bg-amber-500/10 border-amber-500/20" },
   emergence: { label: "Emergence", icon: Sparkles, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  reformation: { label: "Reformation", icon: RefreshCw, color: "text-teal-500", bg: "bg-teal-500/10 border-teal-500/20" },
 };
 
 function AlterPill({ alter }) {
@@ -45,7 +46,7 @@ function EventCard({ event, altersById, onDelete }) {
   // For dormancy / return / emergence, "source" and "result" describe
   // the same alters — collapse the arrow display so we don't render the
   // same chips twice.
-  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence";
+  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence" && event.type !== "reformation";
 
   const fusionLabel = event.fusion_type === "absorption" ? "Absorption"
     : event.fusion_type === "new_formation" ? "New Formation"
@@ -87,8 +88,14 @@ function EventCard({ event, altersById, onDelete }) {
         )}
       </div>
 
+      {event.what_changed && (
+        <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> {event.what_changed}</p>
+      )}
+      {event.new_name && (
+        <p className="text-xs text-muted-foreground"><span className="font-medium">New name:</span> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</p>
+      )}
       {event.cause && (
-        <p className="text-xs text-muted-foreground"><span className="font-medium">Cause:</span> {event.cause}</p>
+        <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> {event.cause}</p>
       )}
       {event.notes && (
         <p className="text-xs text-muted-foreground whitespace-pre-wrap">{event.notes}</p>
@@ -106,7 +113,7 @@ function ConnectionsMap({ alterId, events, altersById }) {
   // other) — including them would falsely render co-emerged alters as
   // both "From" predecessors AND "Became" successors of this alter.
   const isTransition = (e) =>
-    e.type !== "dormancy" && e.type !== "return" && e.type !== "emergence";
+    e.type !== "dormancy" && e.type !== "return" && e.type !== "emergence" && e.type !== "reformation";
 
   // Predecessors: alters in source_alter_ids where this alter is in result_alter_ids
   const predecessorIds = useMemo(() => {
@@ -288,7 +295,7 @@ export default function LineageTab({ alterId }) {
         <div className="text-center py-10">
           <GitMerge className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No lineage events recorded yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Record a fusion, split, dormancy, or return event to build this {t.alter}'s history.</p>
+          <p className="text-xs text-muted-foreground mt-1">Record a fusion, split, dormancy, return, or reformation event to build this {t.alter}'s history.</p>
         </div>
       ) : (
         <div className="space-y-2">

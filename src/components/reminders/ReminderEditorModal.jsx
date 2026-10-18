@@ -456,7 +456,32 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
       auto_resolve_rule: hasAutoResolve ? form.auto_resolve_rule : null,
     };
     if (existing?.id) {
-      await base44.entities.Reminder.update(existing.id, data);
+      // The form was seeded from a SNAPSHOT of the reminder (`...existing`), so
+      // `data` also carries bookkeeping fields. `last_fired_at` is the
+      // dangerous one: a fast reminder keeps firing in the background while this
+      // editor is open, and writing the stale copy back made the scheduler think
+      // it was overdue — so it re-fired immediately, again and again, every time
+      // the reminder was edited. Only send what the user can actually change.
+      const patch = { ...data };
+      for (const k of ["id", "created_date", "updated_date", "created_by", "last_fired_at"]) delete patch[k];
+
+      const scheduleChanged =
+        JSON.stringify([existing.trigger_type, existing.trigger_config]) !==
+        JSON.stringify([data.trigger_type, data.trigger_config]);
+      if (scheduleChanged) {
+        // New schedule: restart an interval's clock from this edit (instead of
+        // the old anchor) and retire popups/instances that belonged to the old one.
+        if (data.trigger_type === "interval") patch.last_fired_at = new Date().toISOString();
+        try {
+          const old = await base44.entities.ReminderInstance.filter({ reminder_id: existing.id });
+          await Promise.all(
+            (old || [])
+              .filter(i => ["fired", "pending", "snoozed"].includes(i.status))
+              .map(i => base44.entities.ReminderInstance.update(i.id, { status: "dismissed" }))
+          );
+        } catch { /* best-effort cleanup */ }
+      }
+      await base44.entities.Reminder.update(existing.id, patch);
     } else {
       await base44.entities.Reminder.create(data);
     }

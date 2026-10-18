@@ -34,7 +34,7 @@ function SortableTile({ item, editMode, onRemove, pendingCount, todoAlertCount =
 
   const tileInner = (
     <div
-      className={`bg-card px-3 py-1 rounded-2xl flex flex-col items-center gap-2 border transition-all h-full ${
+      className={`bg-card px-1.5 py-1 rounded-2xl flex flex-col items-center gap-2 border transition-all h-full min-w-0 w-full overflow-hidden ${
         editMode
           ? "border-primary/30 border-dashed bg-muted/10 cursor-grab active:cursor-grabbing"
           : "border-border/50 hover:bg-muted/30 hover:border-border cursor-pointer group"
@@ -54,14 +54,17 @@ function SortableTile({ item, editMode, onRemove, pendingCount, todoAlertCount =
           </span>
         )}
       </div>
-      <span className={`text-xs font-medium text-foreground text-center leading-tight ${editMode ? "" : "group-hover:text-primary transition-colors"}`}>
+      <span
+        className={`font-medium text-foreground text-center leading-tight w-full max-w-full min-w-0 ${editMode ? "" : "group-hover:text-primary transition-colors"}`}
+        style={{ fontSize: "clamp(0.5rem, 2.4vw, 0.75rem)", overflowWrap: "anywhere", hyphens: "auto" }}
+      >
         {item.label}
       </span>
     </div>
   );
 
   return (
-    <div ref={setNodeRef} style={style} className={`relative select-none ${editMode ? "touch-none" : ""}`}>
+    <div ref={setNodeRef} style={style} className={`relative select-none min-w-0 ${editMode ? "touch-none" : ""}`}>
       {editMode ? tileInner : <Link to={item.path}>{tileInner}</Link>}
       {editMode && (
         <button
@@ -85,17 +88,20 @@ function SortableTile({ item, editMode, onRemove, pendingCount, todoAlertCount =
 function GhostTile({ item, onAdd }) {
   const Icon = item.icon;
   return (
-    <div className="relative select-none">
+    <div className="relative select-none min-w-0">
       <button
         type="button"
         onClick={() => onAdd(item.id)}
-        className="w-full bg-card/40 px-3 py-1 rounded-2xl flex flex-col items-center gap-2 border border-dashed border-border/30 opacity-50 hover:opacity-90 hover:border-primary/40 transition-all h-full cursor-pointer"
+        className="w-full min-w-0 overflow-hidden bg-card/40 px-1.5 py-1 rounded-2xl flex flex-col items-center gap-2 border border-dashed border-border/30 opacity-50 hover:opacity-90 hover:border-primary/40 transition-all h-full cursor-pointer"
         aria-label={`Add ${item.label} to dashboard`}
       >
         <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
           <Icon className="w-5 h-5" />
         </div>
-        <span className="text-xs font-medium text-foreground text-center leading-tight">
+        <span
+          className="font-medium text-foreground text-center leading-tight w-full max-w-full min-w-0"
+          style={{ fontSize: "clamp(0.5rem, 2.4vw, 0.75rem)", overflowWrap: "anywhere", hyphens: "auto" }}
+        >
           {item.label}
         </span>
       </button>

@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Users, User, Network, Check } from "lucide-react";
 import { toast } from "sonner";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useTerms } from "@/lib/useTerms";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -113,6 +114,7 @@ export default function ContactRelationshipsTab({ contact }) {
   };
 
   const remove = async (id) => {
+    if (!(await confirm({ title: "Delete this relationship?", body: "This can't be undone.", confirmLabel: "Delete", destructive: true }))) return;
     try {
       await base44.entities.ContactRelationship.delete(id);
       queryClient.invalidateQueries({ queryKey: ["contactRelationships", contactId] });
@@ -250,7 +252,7 @@ export default function ContactRelationshipsTab({ contact }) {
                   </div>
                   {r.notes && <p className="text-sm whitespace-pre-wrap mt-1.5 text-muted-foreground">{r.notes}</p>}
                 </div>
-                <button type="button" onClick={() => remove(r.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
+                <button type="button" onClick={() => remove(r.id)} aria-label="Delete relationship" className="text-muted-foreground hover:text-destructive flex-shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>

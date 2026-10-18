@@ -315,7 +315,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "🌳",
       title: "Lineage Tab",
-      body: `The Lineage tab records this ${t.alter}'s origin events — fusions (two ${t.alters} merging), splits (one ${t.alter} splitting into multiple), dormancy periods, and returns. Events are year-only dated. Split events automatically create "Split from" relationship records in the ${t.System} Map.`,
+      body: `The Lineage tab records this ${t.alter}'s origin events — fusions (two ${t.alters} merging), splits (one ${t.alter} splitting into multiple), dormancy periods, returns, and reformations (the same ${t.alter} in a new form, with what changed and an optional new name). Events are year-only dated. Split events automatically create "Split from" relationship records in the ${t.System} Map.`,
       route: ai ? `/alter/${ai}?tab=lineage` : "/Home",
       target: ai ? "alter-profile-tabs" : null,
       look: ai ? `tap the "Lineage" tab in the highlighted tab bar` : null, action: null,

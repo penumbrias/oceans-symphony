@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Lineage: a new Reformation event for when an {{alter}} takes a new form but is still the same {{alter}}. Note what changed, an optional new name, and any trigger." },
+      { type: "fix", text: "Reminders keep going after the app is closed, instead of going quiet once a short queue ran out. Each reminder gets a fair share, and the queue tops up when you reopen the app." },
+      { type: "fix", text: "Editing a reminder no longer makes it fire again and again." },
+      { type: "fix", text: "Contacts: deleting a note or a relationship now asks first." },
+      { type: "fix", text: "Dashboard shortcut names no longer spill into each other with wide fonts." },
       { type: "improve", text: "Needs, Goals and Mods are now experimental and hidden by default. Switch them on in Settings → About & help → Experimental features; nothing you made in them is lost." },
       { type: "fix", text: "Fixed a few rare crashes: a journal entry with an unusual imported date, rescheduling a plan with a broken time, and syncing from a phone with a very large picture, music or video library." },
       { type: "hotfix", text: "Hotfix: a glitch in a background helper (front conflicts, activity prompts, mods) no longer blanks the whole app." },

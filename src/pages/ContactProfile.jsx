@@ -122,6 +122,7 @@ export default function ContactProfile() {
   };
 
   const deleteNote = async (noteId) => {
+    if (!(await confirm({ title: "Delete this note?", body: "This can't be undone.", confirmLabel: "Delete", destructive: true }))) return;
     try {
       await base44.entities.ContactNote.delete(noteId);
       queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
@@ -288,7 +289,7 @@ export default function ContactProfile() {
                 <div key={n.id} className="rounded-lg border border-border/50 bg-card p-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm whitespace-pre-wrap flex-1">{n.content}</p>
-                    <button type="button" onClick={() => deleteNote(n.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => deleteNote(n.id)} aria-label="Delete note" className="text-muted-foreground hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                   <p className="text-[0.625rem] text-muted-foreground mt-1">{n.timestamp ? new Date(n.timestamp).toLocaleString() : ""}</p>
                 </div>
