@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { askMakeOpenFrontsCurrent } from "@/lib/askOpenFrontsCurrent";
-import { runAutoBackupNow, resolveBackupPassword } from "@/lib/autoBackup";
+import { runAutoBackupNow, resolveBackupPassword, SMALL_FONTS_LIMIT_BYTES } from "@/lib/autoBackup";
 import { createPortal } from "react-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -545,7 +545,18 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const fetchFullDump = useCallback(async ({ fresh = false, skipBlobs = false } = {}) => {
     if (fullDumpRef.current && !fresh) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current, imagesFailed: false };
     const dump = getFullDbDump();
-    if (skipBlobs) return { dump, images: {}, fonts: {}, imagesFailed: false };
+    if (skipBlobs) {
+      // The data-only export drops the heavy pictures but KEEPS the font
+      // files when they're small. Leaving them out made a restored backup
+      // keep the font choice without the font, so the app fell back to
+      // the default typeface.
+      let smallFonts = {};
+      try {
+        const m = await measureLocalFonts();
+        if (m?.count && m.base64Bytes <= SMALL_FONTS_LIMIT_BYTES) smallFonts = await getAllLocalFonts();
+      } catch { /* leave fonts out */ }
+      return { dump, images: {}, fonts: smallFonts, imagesFailed: false };
+    }
     let images = {};
     let imagesFailed = false;
     // A failed image read must NOT be cached — pre-v0.95.2 one bad read
@@ -643,7 +654,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // stay in: they're tiny, and leaving them out meant restoring a
     // data-only backup erased the whole asset library.
     const imagesExport = activeCats.has("images") && !omitBlobs ? images : {};
-    const fontsExport = activeCats.has("fonts") && !omitBlobs ? fonts : {};
+    // Fonts ride along even in the data-only export (fetchFullDump already
+    // left them out there if they were too big).
+    const fontsExport = activeCats.has("fonts") ? fonts : {};
     const nowIso = new Date().toISOString();
     // Which categories this file speaks for, so Replace All on import
     // replaces only those and keeps everything else on the device.

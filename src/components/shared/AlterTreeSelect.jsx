@@ -313,7 +313,7 @@ export default function AlterTreeSelect({
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
               className="w-full h-8 pl-8 pr-10 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-            <AlterSortToggle sorter={sorter} className="absolute right-1 top-1/2 -translate-y-1/2 px-1.5 py-1 border-0" />
+            <AlterSortToggle sorter={sorter} className="absolute right-1 top-1/2 -translate-y-1/2 !h-6 !w-6 !p-0 justify-center !rounded-full !border-0" />
           </div>
           <div className="flex items-center justify-between gap-2 text-[0.6875rem]">
             {bulk ? (
