@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Assets: videos, audio, other files and songs each get their own folder, every item has an info button, and pictures open full screen with zoom." },
+      { type: "feature", text: "Assets: delete your own folders, keeping their files in Unorganized or deleting everything, and use the cloud button to leave a file or folder out of backups." },
+      { type: "feature", text: "Backups: choose which file types to include, or save Pictures, Audio, Videos or Attachments as their own .zip. Songs keep their full name." },
       { type: "improve", text: "Song widget: titled \"Song: [title]\", with a seek bar, a Loop button and an option to play only when nothing else is playing." },
       { type: "feature", text: "Chat: attach videos, songs and any file at original quality. They play right in the message and are kept in Assets." },
       { type: "feature", text: "Chat: pictures can be kept full size or compressed, and pictures in chat and bulletins open full screen with zoom." },

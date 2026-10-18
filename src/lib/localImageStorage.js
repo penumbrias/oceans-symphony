@@ -255,7 +255,9 @@ export function createLocalImageUrl(id) {
 // Backup export shape: keyed map of { [id]: dataUrl }. Blobs are converted
 // to data URIs at this boundary so the JSON payload stays JSON-serialisable
 // (the wire format is unchanged from pre-v0.86.5). Strings pass through.
-export async function getAllLocalImages() {
+// `exclude` (optional Set of ids) leaves those files out without converting
+// them — used for the files marked "skip in backups" in Assets.
+export async function getAllLocalImages({ exclude = null } = {}) {
   try {
     const idb = await getIdb();
     const rows = await new Promise((resolve, reject) => {
@@ -273,6 +275,7 @@ export async function getAllLocalImages() {
     const out = {};
     for (let i = 0; i < rows.keys.length; i++) {
       const key = rows.keys[i];
+      if (exclude && exclude.has(String(key))) continue;
       const v = rows.values[i];
       if (v instanceof Blob) {
         try { out[key] = await blobToDataUrl(v); }
@@ -322,7 +325,10 @@ export async function countLocalImages() {
 // memory at once — BEFORE checking whether that was too big to send. On a
 // phone with a large media library that killed the app a few seconds
 // after opening (auto-backup runs at boot).
-export async function measureLocalImages() {
+// `exclude` (optional Set of ids): those files still count in `count` but not
+// in the sizes, and are tallied in `excluded` — so a backup that leaves them
+// out measures only what it will carry.
+export async function measureLocalImages({ exclude = null } = {}) {
   const idb = await getIdb();
   return new Promise((resolve, reject) => {
     const tx = idb.transaction([STORE_NAME], 'readonly');
@@ -330,13 +336,15 @@ export async function measureLocalImages() {
     let count = 0;
     let bytes = 0;
     let base64Bytes = 0;
+    let excluded = 0;
     req.onerror = () => reject(req.error || new Error('Failed to measure images'));
     tx.onabort = () => reject(tx.error || new Error('Image measure aborted'));
     req.onsuccess = () => {
       const cursor = req.result;
-      if (!cursor) { resolve({ count, bytes, base64Bytes }); return; }
+      if (!cursor) { resolve({ count, bytes, base64Bytes, excluded }); return; }
       const v = cursor.value;
       count += 1;
+      if (exclude && exclude.has(String(cursor.key))) { excluded += 1; cursor.continue(); return; }
       if (v instanceof Blob) {
         bytes += v.size;
         base64Bytes += Math.ceil(v.size / 3) * 4 + 40;

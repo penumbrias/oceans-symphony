@@ -27,6 +27,7 @@ import {
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
+import { loadBackupSkip, filterImagesBySkip, filterImagesByKinds, FILE_KINDS, FILE_KIND_LABELS } from "@/lib/backupSkip";
 import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
 import { recordBackupAttempt } from "@/lib/backupHealth";
 import { shareFile } from "@/lib/shareFile";
@@ -524,6 +525,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
   const [selectiveOpen, setSelectiveOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState(() => new Set(EXPORT_CATEGORIES.map(c => c.id)));
+  // Export → Advanced: which kinds of stored file go in (all by default,
+  // reset every visit so a narrowed choice never sticks by surprise).
+  const [fileKinds, setFileKinds] = useState(() => new Set(FILE_KINDS));
+  const toggleFileKind = (k) => setFileKinds((prev) => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
   // Multi-system export scope (Symphony format only): "active" (this system),
   // "separate" (every system, kept distinct), or "merged" (all flattened into
   // one, each system becoming a group). Only surfaced when >1 system exists.
@@ -653,7 +658,18 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     // FILES. Their records — the library's names, folders and owners —
     // stay in: they're tiny, and leaving them out meant restoring a
     // data-only backup erased the whole asset library.
-    const imagesExport = activeCats.has("images") && !omitBlobs ? images : {};
+    let imagesExport = activeCats.has("images") && !omitBlobs ? images : {};
+    // Files marked "skip in backups" in Assets, and file types unticked under
+    // Advanced, stay out. Done after the read check above, so leaving a file
+    // out never looks like a read failure.
+    let filesLeftOut = 0;
+    if (Object.keys(imagesExport).length) {
+      const before = Object.keys(imagesExport).length;
+      try { imagesExport = filterImagesBySkip(imagesExport, await loadBackupSkip()); } catch { /* keep everything */ }
+      if (selectiveOpen) imagesExport = filterImagesByKinds(imagesExport, fileKinds);
+      filesLeftOut = before - Object.keys(imagesExport).length;
+    }
+    const withLeftOut = (obj) => Object.defineProperty(obj, "__filesLeftOut", { enumerable: false, value: filesLeftOut });
     // Fonts ride along even in the data-only export (fetchFullDump already
     // left them out there if they were too big).
     const fontsExport = activeCats.has("fonts") ? fonts : {};
@@ -681,7 +697,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       }
       if (systemsScope === "separate") {
         // Symphony multi-system container — each system restored as its own.
-        return {
+        return withLeftOut({
           __format: "symphony_backup",
           __version: 1,
           __multisystem: 1,
@@ -692,10 +708,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           __local_fonts: fontsExport,
           __local_settings: exportLocalSettings(),
           ...bundleExtra,
-        };
+        });
       }
       // "merged" — flatten every system into one, each becoming a group.
-      return {
+      return withLeftOut({
         __format: "symphony_backup",
         __version: 1,
         __exported_at: nowIso,
@@ -705,7 +721,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         __local_fonts: fontsExport,
         __local_settings: exportLocalSettings(),
         ...bundleExtra,
-      };
+      });
     }
 
     // Single (active) system. Pictures live in ONE store shared by every
@@ -732,7 +748,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         }
       } catch { ownImages = imagesExport; }
     }
-    return {
+    return withLeftOut({
       __format: "symphony_backup",
       __version: 1,
       __exported_at: nowIso,
@@ -743,7 +759,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       __local_fonts: fontsExport,
       __local_settings: exportLocalSettings(),
       ...bundleExtra,
-    };
+    });
   };
 
   // Two-mode export. `mode = "save"` writes the backup straight to
@@ -812,7 +828,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             ? `Backup saved to ${res.location} 📁`
             : "Backup exported!";
         const imgNote = (overrideCats ?? selectedCats).has("images") && !skipHeavyBlobs
-          ? ` Includes ${imgCount} file${imgCount === 1 ? "" : "s"} (pictures, audio, video).`
+          ? ` Includes ${imgCount} file${imgCount === 1 ? "" : "s"} (pictures, audio, video).${exportData.__filesLeftOut ? ` ${exportData.__filesLeftOut} left out (skipped in Assets, or a file type you unticked).` : ""}`
           : "";
         showStatus("success", `${base}${imgNote}`);
         // Mark today as "backup exported" so a daily task wired to the
@@ -840,6 +856,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Files-only Symphony backup — importable on another device (pairs
   // with the data-only safety net: data-only there, files-only here).
   const handleExportFilesOnly = () => runExport("save", { onlyCats: new Set(["images"]), tag: "files-only" });
+
+  // Ids of the files marked "skip in backups" in Assets. Can't read the
+  // marks → nothing is skipped.
+  const skipIdSet = async () => {
+    try {
+      const marks = await loadBackupSkip();
+      return new Set([...marks].filter((k) => k.startsWith("i:")).map((k) => k.slice(2)));
+    } catch { return null; }
+  };
 
   // Names for the files in a zip come from the asset library of EVERY
   // system (the file store is shared). Best effort — a system that can't
@@ -881,24 +906,33 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Import from File (its manifest keeps each file's internal id, so every
   // record that points at it still resolves). Written file by file — the
   // old version read every file into memory first.
-  const handleExportFilesZip = async () => {
+  // `kind` (optional): one type only — "Back up one type at a time".
+  // Without it, the file types ticked under Advanced. Files marked "skip in
+  // backups" in Assets are always left out.
+  const handleExportFilesZip = async (kind = null) => {
     setExportLoading(true);
     try {
       const { buildBackupZip } = await import("@/lib/backupZip");
       const dump = getFullDbDump();
       const nameDumps = await zipNameDumps(dump);
+      const exclude = await skipIdSet();
+      const kinds = kind ? [kind] : (FILE_KINDS.every((k) => fileKinds.has(k)) ? null : [...fileKinds]);
       setZipProgress({ label: "Adding files", done: 0, total: 0 });
-      const { blob, files, failed } = await buildBackupZip({
-        nameDumps,
+      const { blob, files, failed, left } = await buildBackupZip({
+        nameDumps, exclude, kinds,
         onProgress: (p) => setZipProgress({ label: "Adding files", ...p }),
       });
-      if (files === 0 && !failed.length) { showStatus("error", "No pictures, audio or files are stored yet."); return; }
+      if (files === 0 && !failed.length) {
+        showStatus("error", kind ? `No ${FILE_KIND_LABELS[kind].toLowerCase()} to save${left ? " (any marked \u201cskip in backups\u201d stay out)" : ""}.` : "No pictures, audio or files to save.");
+        return;
+      }
       const date = new Date().toISOString().slice(0, 10);
+      const tag = kind ? `-${{ image: "pictures", audio: "audio", video: "videos", file: "attachments" }[kind]}` : "";
       await deliverZip({
         blob,
-        filename: `symphony-files-${date}.zip`,
+        filename: `symphony-files${tag}-${date}.zip`,
         what: "Files export",
-        okMessage: `${files} file${files === 1 ? "" : "s"} saved in one .zip`,
+        okMessage: `${files} file${files === 1 ? "" : "s"} saved in one .zip${!kind && left ? ` (${left} left out)` : ""}`,
         failed,
       });
     } catch (e) {
@@ -946,6 +980,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         dataName: ZIP_DATA_NAME,
         dataText,
         nameDumps,
+        exclude: await skipIdSet(),
         onProgress: (p) => setZipProgress({ label: "Adding files", ...p }),
       });
       const date = new Date().toISOString().slice(0, 10);
@@ -2132,6 +2167,20 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                       </div>
                     </label>
                   ))}
+                  {selectedCats.has("images") && (
+                    <div className="ml-7 rounded-lg border border-border/40 px-2.5 py-2 space-y-1">
+                      <p className="text-[0.6875rem] font-medium text-muted-foreground">File types to include</p>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        {FILE_KINDS.map((k) => (
+                          <label key={k} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" checked={fileKinds.has(k)} onChange={() => toggleFileKind(k)} className="w-3.5 h-3.5 rounded accent-primary flex-shrink-0" />
+                            {FILE_KIND_LABELS[k]}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-[0.6875rem] text-muted-foreground leading-snug">Files marked to skip in Assets (the cloud button) are always left out.</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Opt-in Friends identity for device moves. Not a category —
@@ -2162,9 +2211,17 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                     <Button size="sm" variant="outline" onClick={handleExportFilesOnly} disabled={exportLoading} className="text-xs gap-1.5">
                       <Download className="w-3.5 h-3.5" /> Files-only backup
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleExportFilesZip} disabled={exportLoading} className="text-xs gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => handleExportFilesZip()} disabled={exportLoading} className="text-xs gap-1.5">
                       <FileArchive className="w-3.5 h-3.5" /> Files as .zip
                     </Button>
+                  </div>
+                  <p className="text-[0.6875rem] font-medium text-muted-foreground pt-1">Back up one type at a time</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[["image", "Pictures"], ["audio", "Audio"], ["video", "Videos"], ["file", "Attachments"]].map(([k, label]) => (
+                      <Button key={k} size="sm" variant="outline" onClick={() => handleExportFilesZip(k)} disabled={exportLoading} className="text-xs gap-1.5">
+                        <FileArchive className="w-3.5 h-3.5" /> {label} .zip
+                      </Button>
+                    ))}
                   </div>
                   <p className="text-[0.6875rem] text-muted-foreground leading-snug">
                     Backup = importable on another device (pairs with a data-only backup). Zip = one file with every picture, song, video and attachment under its own name, sorted into folders — opens anywhere, and Import from File puts them all back.

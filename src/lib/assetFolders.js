@@ -27,19 +27,20 @@ export const DEFAULT_PREFIX_FOLDERS = {
   location: "Inner world",
   block: "Bio blocks",
   asset: "Library uploads",
-  song: "Music",
-  // Videos, audio and files: uploaded into Assets → Files & videos, or
-  // attached in chat (chatfile-). Same stored file, never a copy.
-  file: "Files & videos",
-  chatfile: "Files & videos",
+  song: "Songs Audio",
+  // Videos, audio and other files — uploaded into Assets or attached in chat
+  // (chatfile-) — are filed by their TYPE into Videos / Audio / Others (see
+  // kindFolderFor), so these two have no folder of their own any more.
+  file: "",
+  chatfile: "",
   migrated: "Imported",
 };
 export const PREFIX_LABELS = {
   avatar: "Alter avatars", fixed: "Repaired images", header: "Headers & banners", bg: "Backgrounds",
   bioimg: "Images in bios", bulletinimg: "Bulletin images", chatimg: "Chat images", commentimg: "Comment images",
   group: "Group images", system: "System avatar & banner", contact: "Contact pictures", location: "Inner-world backgrounds",
-  block: "Bio block images", asset: "Library uploads", song: "Music",
-  file: "Files & videos (uploads)", chatfile: "Files & videos (from chat)", migrated: "Imported (moved into the store)",
+  block: "Bio block images", asset: "Library uploads", song: "Songs (song widgets & profile songs)",
+  file: "Files (uploads)", chatfile: "Files (from chat)", migrated: "Imported (moved into the store)",
 };
 export const ROLE_LABELS = { avatar: "Avatars", header: "Banners", background: "Backgrounds" };
 
@@ -70,7 +71,43 @@ export function autoFolderFor(id, rules) {
 // All auto folder names (for "reserved name" checks).
 export function autoFolderNames(rules) {
   const map = (rules && rules.folders) || DEFAULT_PREFIX_FOLDERS;
-  return new Set([...Object.values(map).filter(Boolean), "Other"]);
+  return new Set([...Object.values(map).filter(Boolean), "Other", ...BUILT_IN_KIND_FOLDERS, UNORGANIZED_FOLDER]);
+}
+
+// Built-in folders by file TYPE (from ShineSpark330's fork): every video in
+// Videos, audio in Audio, any other file in Others — never mixed in with
+// the pictures. Songs from a song widget / profile song have their own.
+export const VIDEOS_FOLDER = "Videos";
+export const AUDIO_FOLDER = "Audio";
+export const OTHERS_FOLDER = "Others";
+export const SONGS_AUDIO_FOLDER = "Songs Audio";
+// Where a deleted folder's files go when the person keeps them.
+export const UNORGANIZED_FOLDER = "Unorganized";
+export const BUILT_IN_KIND_FOLDERS = [VIDEOS_FOLDER, AUDIO_FOLDER, OTHERS_FOLDER];
+// The old shared folder name, still honoured if someone typed it as a rule.
+const LEGACY_FILES_FOLDER = "Files & videos";
+
+export function kindFolderFor(kind, id) {
+  if (kind === "video") return VIDEOS_FOLDER;
+  if (kind === "audio") return String(id || "").startsWith("song-") ? SONGS_AUDIO_FOLDER : AUDIO_FOLDER;
+  return OTHERS_FOLDER;
+}
+
+// Where a stored item with no folder of its own is filed: pictures by their
+// upload path; videos, audio and files by their type.
+export function autoFolderForItem(id, kind, rules) {
+  const name = autoFolderFor(id, rules);
+  if (kind && kind !== "image" && (name === "Other" || name === LEGACY_FILES_FOLDER)) return kindFolderFor(kind, id);
+  return name;
+}
+
+// The folder a record itself names. Songs used to be saved into a folder
+// called "Audio", which is now the built-in folder for other audio — those
+// go to the songs folder instead.
+export function explicitFolderOf(asset, id, rules) {
+  const f = (asset?.folder || "").trim();
+  if (f === AUDIO_FOLDER && String(id || "").startsWith("song-")) return autoFolderFor(id, rules) || SONGS_AUDIO_FOLDER;
+  return f;
 }
 
 export const ALTER_FOLDER_PREFIX = "👤 ";
