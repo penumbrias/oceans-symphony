@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "improve", text: "Thank you to ShineSpark330, whose fork of the app brought the Reformation event and many of today's fixes." },
+      { type: "fix", text: "Backups without pictures now still include your custom fonts, so restoring one no longer resets the app to the default font." },
+      { type: "fix", text: "Editing a plan no longer loses its title." },
+      { type: "improve", text: "Moving and resizing widgets is less twitchy." },
+      { type: "hotfix", text: "Hotfix: the sort button sits neatly inside the picker's search box." },
       { type: "feature", text: "Lineage: a new Reformation event for when an {{alter}} takes a new form but is still the same {{alter}}. Note what changed, an optional new name, and any trigger." },
       { type: "fix", text: "Reminders keep going after the app is closed, instead of going quiet once a short queue ran out. Each reminder gets a fair share, and the queue tops up when you reopen the app." },
       { type: "fix", text: "Editing a reminder no longer makes it fire again and again." },

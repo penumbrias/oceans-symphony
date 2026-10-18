@@ -17,7 +17,7 @@
 import { useRef, useState, useCallback } from "react";
 
 const HOLD_MS = 150;
-const SLOP_PX = 6;
+const SLOP_PX = 10;
 const ROW_PX = 80;
 
 export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, rowPx = ROW_PX }) {
@@ -76,8 +76,8 @@ export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, row
     const clampC = (v) => Math.max(min?.cols ?? 1, Math.min(Math.min(max?.cols ?? 12, gridCols), v));
     const clampR = (v) => Math.max(min?.rows ?? 1, Math.min(max?.rows ?? 8, v));
     setPreview({
-      cols: s.axis.includes("x") ? clampC(s.startSpan.cols + Math.round(dx / s.pitch)) : s.startSpan.cols,
-      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + Math.round(dy / rowPx)) : s.startSpan.rows,
+      cols: s.axis.includes("x") ? clampC(s.startSpan.cols + Math.round(dx / s.pitch + Math.sign(dx) * 0.15)) : s.startSpan.cols,
+      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + Math.round(dy / rowPx + Math.sign(dy) * 0.15)) : s.startSpan.rows,
     });
   }, [gridCols, min, max, clear, rowPx]);
 

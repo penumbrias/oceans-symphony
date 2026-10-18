@@ -317,6 +317,8 @@ export function setBackupDestination(value) {
 // 12 MB of raw base64 is roughly the ceiling we've seen the bridge
 // survive across Android WebView versions we ship on.
 const AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES = 12 * 1024 * 1024;
+// Fonts this small still travel in a data-only backup (manual or automatic).
+export const SMALL_FONTS_LIMIT_BYTES = 4_000_000;
 
 function estimateBytes(obj) {
   // JSON size upper bound without stringifying the whole thing (which
@@ -433,6 +435,15 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
       images = {};
       fonts = {};
     }
+  }
+  // Fonts still ride along in a data-only backup when they're small. Leaving
+  // them out meant a restored backup kept the font CHOICE but not the font,
+  // so the whole app fell back to the default typeface.
+  if (skipHeavy && !fontsUnread && fontMeasure?.count
+      && fontMeasure.base64Bytes <= SMALL_FONTS_LIMIT_BYTES
+      && fontMeasure.base64Bytes + dataBytes <= AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES) {
+    try { fonts = await getAllLocalFonts(); } catch { fonts = {}; }
+    if (Object.keys(fonts).length < fontMeasure.count) fontsUnread = true;
   }
   if (skipHeavy) {
     console.warn(

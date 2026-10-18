@@ -45,3 +45,7 @@ Open [Base44.com](http://Base44.com) and click on Publish.
 Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
 
 Support: [https://app.base44.com/support](https://app.base44.com/support)
+
+## Thanks
+
+- **[ShineSpark330](https://github.com/ShineSpark330)**, for their fork ([ShineSpark330/OS](https://github.com/ShineSpark330/OS)). Its Reformation lineage event and many bug fixes were brought into this app from v0.266.0 on.

@@ -39,7 +39,13 @@ function scrollParent(node) {
 }
 
 const HOLD_MS = 300;
-const SLOP = 6;
+const SLOP = 14; // finger jitter allowed during the hold (was 6 — too twitchy)
+// Drag damping (v0.258.4): the drop cell only changes once the pointer is
+// well past the cell edge, and edge auto-scroll is slow and capped, so a
+// small finger movement no longer throws the widget across the board.
+const SWITCH_AT = 0.75; // fraction of a cell the pointer must travel to change target (0.5 = old behaviour)
+const AUTOSCROLL_DIVISOR = 16; // was 6
+const AUTOSCROLL_MAX = 12; // px per frame
 
 export function useFreeMove({
   gridRef,
@@ -91,8 +97,14 @@ export function useFreeMove({
       const rowPitch = rowHeight + gap;
       const cols = Math.min(span.cols || 1, gridCols);
       const off = st.grabOff || { x: 0, y: 0 };
-      const x = Math.max(0, Math.min(gridCols - cols, Math.round((clientX - rect.left) / colPitch - off.x)));
-      const y = Math.max(0, Math.round((clientY - rect.top) / rowPitch - off.y));
+      const fx = (clientX - rect.left) / colPitch - off.x;
+      const fy = (clientY - rect.top) / rowPitch - off.y;
+      const prev = st.target || { x: pos.x, y: pos.y };
+      const nx = Math.abs(fx - prev.x) >= SWITCH_AT ? Math.round(fx) : prev.x;
+      const ny = Math.abs(fy - prev.y) >= SWITCH_AT ? Math.round(fy) : prev.y;
+      const x = Math.max(0, Math.min(gridCols - cols, nx));
+      const y = Math.max(0, ny);
+      st.target = { x, y };
       // The ghost follows the FINGER on screen: since the element rides the
       // grid, scrolled distance has to be added back to the visual offset.
       const scrolled = st.scroller ? st.scroller.scrollTop - st.scrollBase : 0;
@@ -155,6 +167,7 @@ export function useFreeMove({
       if (!st) return;
       st.active = true;
       st.pointerY = startY;
+      st.target = { x: pos.x, y: pos.y };
       // Grab offset is fixed at LIFT, against the grid as it is right now.
       // Computing it lazily on the first move meant that if auto-scroll ran
       // first (lifting near an edge), the offset was taken against an
@@ -183,7 +196,7 @@ export function useFreeMove({
       const scroller = scrollParent(node);
       st.scroller = scroller;
       st.scrollBase = scroller.scrollTop;
-      const EDGE = 72;
+      const EDGE = 56;
       const step = () => {
         const cur = state.current;
         if (!cur || !cur.active) return;
@@ -197,8 +210,8 @@ export function useFreeMove({
             ? window.innerHeight
             : scroller.getBoundingClientRect().bottom;
           let moved = false;
-          if (y < top + EDGE) { scroller.scrollTop -= Math.ceil((top + EDGE - y) / 6); moved = true; }
-          else if (y > bottom - EDGE) { scroller.scrollTop += Math.ceil((y - (bottom - EDGE)) / 6); moved = true; }
+          if (y < top + EDGE) { scroller.scrollTop -= Math.min(AUTOSCROLL_MAX, Math.ceil((top + EDGE - y) / AUTOSCROLL_DIVISOR)); moved = true; }
+          else if (y > bottom - EDGE) { scroller.scrollTop += Math.min(AUTOSCROLL_MAX, Math.ceil((y - (bottom - EDGE)) / AUTOSCROLL_DIVISOR)); moved = true; }
           if (moved && cur.point) computeDrag(cur.point.x, cur.point.y);
         }
         cur.raf = requestAnimationFrame(step);
