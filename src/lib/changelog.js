@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "improve", text: "Song widget: titled \"Song: [title]\", with a seek bar, a Loop button and an option to play only when nothing else is playing." },
       { type: "feature", text: "Chat: attach videos, songs and any file at original quality. They play right in the message and are kept in Assets." },
       { type: "feature", text: "Chat: pictures can be kept full size or compressed, and pictures in chat and bulletins open full screen with zoom." },
       { type: "feature", text: "Audio and video players have a seek bar, a Loop button, full screen that stays clear of the phone's buttons, and Tempo & pitch controls. Only one plays at a time." },

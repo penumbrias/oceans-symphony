@@ -876,6 +876,11 @@ export default function WidgetConfigSheet({
               }}
               className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             />
+            {typeof def.autoLabel === "function" && (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                Leave blank and the name follows the file that's set to play, renaming itself when you pick a different one.
+              </p>
+            )}
           </div>
 
           <SubSection title="Widget config" icon={Settings2}>

@@ -13,7 +13,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, Pause, X, Music } from "lucide-react";
+import { Play, Pause, X, Music, Repeat } from "lucide-react";
+import { registerMedia, isOtherPlaying, subscribeIdle } from "@/lib/mediaExclusive";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isOtherAudioPlaying } from "@/lib/otherAudio";
@@ -23,6 +24,11 @@ import { isOtherAudioPlaying } from "@/lib/otherAudio";
 // `inline` renders the controls in normal flow (for the home-screen song
 // WIDGET, which supplies its own box) instead of the floating chip a
 // profile page gets.
+const fmtTime = (s) => {
+  if (!Number.isFinite(s) || s < 0) return "0:00";
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+};
+
 export default function ProfileSongPlayer({ alter, song: songProp, inline = false }) {
   const song = songProp || alter?.profile_song;
   const { data: settingsList = [] } = useQuery({
@@ -46,16 +52,43 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   // two different pages without the user re-adjusting their device each time.
   const volume = Number.isFinite(Number(song?.volume)) ? Math.max(0, Math.min(100, Number(song.volume))) : 100;
   const autoplay = song?.autoplay !== false;
+  // "Play when there's no sound playing": the song gives way to any other
+  // audio / video (one sound at a time) and picks back up once that stops —
+  // unless the person paused the song themselves.
+  const playWhenIdle = song?.playWhenIdle === true;
+  const userPaused = useRef(false);
+  const endedRef = useRef(false);
+  const [looping, setLooping] = useState(song?.loop !== false);
+  useEffect(() => { setLooping(song?.loop !== false); }, [song?.loop]);
+  const [time, setTime] = useState(0);
+  const [dur, setDur] = useState(0);
   const [liveVolume, setLiveVolume] = useState(volume);
   useEffect(() => { setLiveVolume(volume); }, [volume]);
 
   useEffect(() => {
     if (!enabled || !song?.ref || !resolved) return undefined;
     const el = new Audio(resolved);
-    el.loop = song.loop !== false;
+    el.loop = looping;
     el.volume = volume / 100;
     audioRef.current = el;
     let cancelled = false;
+    setTime(0); setDur(0);
+    const unregister = registerMedia(el);
+    const onPlayEv = () => { if (!cancelled) { endedRef.current = false; setState("playing"); } };
+    const onPauseEv = () => { if (!cancelled && !el.ended) setState((st) => (st === "dismissed" || st === "error" ? st : "paused")); };
+    const onEndedEv = () => { endedRef.current = true; if (!cancelled) setState("paused"); };
+    const onTime = () => setTime(el.currentTime);
+    const onDur = () => setDur(el.duration);
+    el.addEventListener("play", onPlayEv);
+    el.addEventListener("pause", onPauseEv);
+    el.addEventListener("ended", onEndedEv);
+    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("durationchange", onDur);
+    el.addEventListener("loadedmetadata", onDur);
+    const unsubIdle = playWhenIdle ? subscribeIdle(() => {
+      if (cancelled || userPaused.current || endedRef.current || !el.paused || isOtherPlaying(el)) return;
+      el.play().catch(() => {});
+    }) : () => {};
     // A link that isn't a playable audio file (a YouTube/Spotify page, a
     // dead link) used to fail silently: play() rejected, we fell into the
     // "autoplay blocked" state, and the user got a play button that did
@@ -67,6 +100,9 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     // Someone's music is already playing: starting would stop it (Android
     // hands the audio to whoever played last), so wait for a tap.
     if (!autoplay) {
+      setState("paused");
+    } else if (playWhenIdle && isOtherPlaying(el)) {
+      // Something else is already playing — wait for quiet instead of talking over it.
       setState("paused");
     } else {
       isOtherAudioPlaying().then((busy) => {
@@ -85,12 +121,21 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     }
     return () => {
       cancelled = true;
+      unsubIdle(); unregister();
+      el.removeEventListener("play", onPlayEv);
+      el.removeEventListener("pause", onPauseEv);
+      el.removeEventListener("ended", onEndedEv);
+      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("durationchange", onDur);
+      el.removeEventListener("loadedmetadata", onDur);
       el.removeEventListener("error", onError);
       el.pause();
       el.src = "";
       audioRef.current = null;
     };
-  }, [enabled, song?.ref, song?.loop, resolved, volume, autoplay, loadNonce]);
+  }, [enabled, song?.ref, resolved, volume, autoplay, playWhenIdle, loadNonce]);
+
+  useEffect(() => { if (audioRef.current) audioRef.current.loop = looping; }, [looping]);
 
   if (!enabled || !song?.ref || state === "dismissed") return null;
 
@@ -98,8 +143,9 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   const toggle = () => {
     const el = audioRef.current;
     if (!el) return;
-    if (state === "playing") { el.pause(); setState("paused"); }
+    if (state === "playing") { userPaused.current = true; el.pause(); setState("paused"); }
     else {
+      userPaused.current = false; endedRef.current = false;
       el.play()
         .then(() => setState("playing"))
         // An element that already failed to load can't be "unblocked" by a
@@ -110,6 +156,12 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   const stop = () => {
     audioRef.current?.pause();
     setState("dismissed");
+  };
+  const seek = (v) => {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(v)) return;
+    try { el.currentTime = v; } catch { /* not seekable yet */ }
+    setTime(v);
   };
   const changeVolume = (v) => {
     setLiveVolume(v);
@@ -126,9 +178,11 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
       <Music className={`w-3.5 h-3.5 flex-shrink-0 ${
         state === "error" ? "text-destructive" : state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"
       }`} />
-      <span className="text-xs font-medium truncate min-w-0">
-        {state === "error" ? "Couldn't play this song" : title}
-      </span>
+      {(!inline || state === "error") && (
+        <span className="text-xs font-medium truncate min-w-0">
+          {state === "error" ? "Couldn't play this song" : title}
+        </span>
+      )}
       {state === "error" ? (
         // Failed-load state used to HIDE the play button but keep the
         // volume slider — which read as "the pause button is broken and
@@ -152,8 +206,34 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
         </button>
       )}
       {inline && state !== "error" && (
+        <div className="flex items-center gap-1.5 flex-1 min-w-0" data-no-page-swipe>
+          <span className="text-[0.6875em] tabular-nums flex-shrink-0">{fmtTime(time)}</span>
+          <input
+            type="range" min={0} max={Number.isFinite(dur) && dur > 0 ? dur : 0} step={0.1}
+            value={Math.min(time, Number.isFinite(dur) && dur > 0 ? dur : 0)}
+            disabled={!(Number.isFinite(dur) && dur > 0)}
+            onChange={(e) => seek(Number(e.target.value))}
+            aria-label={`Seek — ${title}`}
+            title={title}
+            className="flex-1 min-w-[40px] accent-primary touch-none"
+          />
+          <span className="text-[0.6875em] tabular-nums flex-shrink-0">{fmtTime(dur)}</span>
+        </div>
+      )}
+      {state !== "error" && (
+        <button
+          type="button"
+          onClick={() => setLooping((v) => !v)}
+          aria-label="Loop" aria-pressed={looping} title={looping ? "Loop on" : "Loop off"}
+          className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${looping ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <Repeat className="w-3.5 h-3.5" />
+        </button>
+      )}
+      {inline && state !== "error" && (
         <input
           type="range" min={0} max={100} step={5}
+          data-no-page-swipe
           value={liveVolume}
           onChange={(e) => changeVolume(Number(e.target.value))}
           aria-label="Volume"
