@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { format, differenceInYears, differenceInMonths, differenceInDays } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X, Eye, EyeOff } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Sparkles, RefreshCw, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const TYPE_META = {
   dormancy:  { label: "Dormancy",   icon: MoonStar,  color: "text-indigo-500",  bg: "bg-indigo-500/10 border-indigo-500/20",  dot: "bg-indigo-500" },
   return:    { label: "Return",     icon: Sunrise,   color: "text-amber-500",   bg: "bg-amber-500/10 border-amber-500/20",    dot: "bg-amber-500" },
   emergence: { label: "Emergence",  icon: Sparkles,  color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" },
+  reformation: { label: "Reformation", icon: RefreshCw, color: "text-teal-500",   bg: "bg-teal-500/10 border-teal-500/20",      dot: "bg-teal-500" },
 };
 
 function AlterPill({ alter }) {
@@ -72,7 +73,7 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, alt
 
   const sourceAlters = (event.source_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const resultAlters = (event.result_alter_ids || []).map(id => altersById[id]).filter(Boolean);
-  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence";
+  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence" && event.type !== "reformation";
 
   const fusionLabel = event.fusion_type === "absorption" ? "Absorption"
     : event.fusion_type === "new_formation" ? "New Formation"
@@ -165,8 +166,14 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, alt
           </div>
         ) : (
           <>
+            {event.what_changed && (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> {event.what_changed}</p>
+            )}
+            {event.new_name && (
+              <p className="text-xs text-muted-foreground"><span className="font-medium">New name:</span> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</p>
+            )}
             {event.cause && (
-              <p className="text-xs text-muted-foreground"><span className="font-medium">Cause:</span> {event.cause}</p>
+              <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> {event.cause}</p>
             )}
             {event.notes && (
               <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{event.notes}</p>
@@ -368,7 +375,7 @@ export default function SystemHistory() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-display font-bold text-foreground">{t.System} History</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Fusions, splits, emergences, dormancy, and returns</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Fusions, splits, emergences, reformations, dormancy, and returns</p>
         </div>
         <Button size="sm" onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Add Event
@@ -415,7 +422,7 @@ export default function SystemHistory() {
         <div className="text-center py-16">
           <GitMerge className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-base font-medium text-muted-foreground">No events yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, emergence, dormancy, or return to build your {t.system}'s history.</p>
+          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, emergence, reformation, dormancy, or return to build your {t.system}'s history.</p>
           <Button size="sm" className="mt-4" onClick={() => setModalOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> Add first event
           </Button>

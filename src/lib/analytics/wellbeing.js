@@ -297,7 +297,7 @@ export function metricSeries({ metric, range, emotionCheckIns, symptomCheckIns, 
   }
 }
 
-const CHANGE_EMOJI = { fusion: "🌀", split: "🌱", dormancy: "🌙", return: "🌅" };
+const CHANGE_EMOJI = { fusion: "🌀", split: "🌱", dormancy: "🌙", return: "🌅", emergence: "✨", reformation: "🔄" };
 
 // Lived-event markers for trend charts (SystemChangeEvents in range).
 export function trendAnnotations({ systemChangeEvents, range }) {

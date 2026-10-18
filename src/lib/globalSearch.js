@@ -32,6 +32,7 @@ const SYS_CHANGE_TYPE_LABELS = {
   dormancy: "Dormancy",
   return: "Return",
   emergence: "Emergence",
+  reformation: "Reformation",
 };
 
 // ---------- date helpers ----------

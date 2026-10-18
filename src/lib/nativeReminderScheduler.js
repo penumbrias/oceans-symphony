@@ -84,10 +84,24 @@ const LOG_KEY = "symphony_native_reminder_log_v1";
 // import cycle with serverReminderSync.js.
 const SERVER_PUSH_ACTIVE_KEY = "symphony_server_reminder_push_active_v1";
 
-// Cap to keep AlarmManager pressure low and avoid surprise OEM throttling.
-const MAX_TOTAL_SCHEDULED = 64;
+// Defaults used by computePrescheduledFires (the relay sync in
+// serverReminderSync.js calls it with these).
 const HORIZON_DAYS = 14;
 const MAX_FIRES_PER_REMINDER = 10;
+
+// The on-device (OS alarm) queue is the ONLY thing that fires while the app is
+// swiped away, and nothing can top it up until the app runs again. The old
+// depth (10 fires / 14 days / 64 total) meant a short-interval reminder ran dry
+// within minutes of closing the app, so reminders seemed to work "only while
+// the app is open". A deeper queue keeps them going far longer between opens.
+// Android allows ~500 concurrent alarms per app; plan reminders use <= 32, so
+// 180 here leaves plenty of headroom.
+const MAX_TOTAL_SCHEDULED = 180;
+const NATIVE_HORIZON_DAYS = 60;
+const NATIVE_MAX_FIRES_PER_REMINDER = 60;
+// A reminder firing more often than this is capped to a short window so one
+// "every minute" test rule can't spend the whole alarm budget.
+const MIN_PRACTICAL_INTERVAL_MIN = 5;
 
 function readLog() {
   try {
@@ -149,11 +163,13 @@ function violatesQuietHours(fireDate, reminder, settings) {
 // ISO strings, soonest first. Pure — no side effects, no plugin calls.
 // `context` carries live data some triggers need (currently the last
 // fronting-change timestamp for "no front update for N minutes").
-export function computePrescheduledFires(reminder, settings, now = new Date(), context = {}) {
+export function computePrescheduledFires(reminder, settings, now = new Date(), context = {}, opts = {}) {
+  const HORIZON_DAYS_ = opts.horizonDays ?? HORIZON_DAYS;
+  const MAX_FIRES_ = opts.maxFires ?? MAX_FIRES_PER_REMINDER;
   const out = [];
   const cfg = reminder.trigger_config || {};
   const tz = settings?.timezone || "UTC";
-  const horizonMs = HORIZON_DAYS * 24 * 60 * 60 * 1000;
+  const horizonMs = HORIZON_DAYS_ * 24 * 60 * 60 * 1000;
   const horizonEnd = now.getTime() + horizonMs;
 
   const endDateMs = reminder.end_date ? new Date(reminder.end_date).getTime() : Infinity;
@@ -163,7 +179,7 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
     const days = cfg.days; // optional
     if (!times.length) return [];
 
-    for (let dayOffset = 0; dayOffset < HORIZON_DAYS; dayOffset++) {
+    for (let dayOffset = 0; dayOffset < HORIZON_DAYS_; dayOffset++) {
       const probeDate = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
       const localDateStr = getUserLocalDate(probeDate, tz);
       const [y, m, d] = localDateStr.split("-").map(Number);
@@ -178,7 +194,7 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
         if (fireMs > endDateMs) continue;
         if (violatesQuietHours(fireInstant, reminder, settings)) continue;
         out.push(fireInstant.toISOString());
-        if (out.length >= MAX_FIRES_PER_REMINDER) return out;
+        if (out.length >= MAX_FIRES_) return out;
       }
     }
     return out;
@@ -214,7 +230,7 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
     const awStart = aw ? parseHHMM(aw.start) : null;
     const awEnd = aw ? parseHHMM(aw.end) : null;
 
-    while (next <= horizonEnd && next <= endDateMs && out.length < MAX_FIRES_PER_REMINDER) {
+    while (next <= horizonEnd && next <= endDateMs && out.length < MAX_FIRES_) {
       if (next > now.getTime()) {
         const fireDate = new Date(next);
         let skip = false;
@@ -242,7 +258,7 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
       const fireDate = new Date(fireMs);
       if (violatesQuietHours(fireDate, reminder, settings)) continue;
       out.push(fireDate.toISOString());
-      if (out.length >= MAX_FIRES_PER_REMINDER) break;
+      if (out.length >= MAX_FIRES_) break;
     }
     return out;
   }
@@ -262,7 +278,7 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
     // Jump straight to the first slot at or after `now` instead of scanning
     // every past slot.
     let k = Math.max(1, Math.floor((now.getTime() - lastFront) / everyMs) + 1);
-    while (out.length < MAX_FIRES_PER_REMINDER) {
+    while (out.length < MAX_FIRES_) {
       const fireMs = lastFront + k * everyMs;
       k++;
       if (fireMs > horizonEnd) break;
@@ -317,7 +333,17 @@ export function isRollingFrontReminder(reminder) {
 // Top-level: re-sync the OS schedule against the current set of active
 // reminders. Idempotent. Caller passes the already-fetched reminders
 // and settings (avoids a second API round-trip).
-export async function reconcileNativeSchedule(reminders, settings, context = {}) {
+// Calls are serialized: a resume top-up landing while a data-change reconcile is
+// mid-way through cancel()/schedule() would otherwise interleave and leave the
+// OS queue half-cancelled.
+let _reconcileChain = Promise.resolve();
+export function reconcileNativeSchedule(reminders, settings, context = {}) {
+  const run = () => reconcileNativeScheduleInner(reminders, settings, context);
+  _reconcileChain = _reconcileChain.then(run, run);
+  return _reconcileChain;
+}
+
+async function reconcileNativeScheduleInner(reminders, settings, context = {}) {
   if (!isNative()) return { scheduled: 0, cancelled: 0, skipped: "not_native" };
 
   // Preview Mode swaps every entity read (including Reminder) for in-memory
@@ -387,16 +413,36 @@ export async function reconcileNativeSchedule(reminders, settings, context = {})
     return true;
   });
 
-  // Compute candidate fires per reminder, then merge + cap globally.
-  const candidates = [];
+  // Compute candidate fires per reminder, then pick them FAIRLY. Sorting every
+  // fire purely by time and cutting at the cap let one frequent reminder eat
+  // the whole budget and push everyone else's out. Round-robin instead: take
+  // each reminder's 1st upcoming fire, then each one's 2nd, and so on, until
+  // the cap — so every reminder gets an equal share of the queue.
+  const perReminder = [];
   for (const reminder of active) {
-    const fires = computePrescheduledFires(reminder, settings, now, context);
-    for (const fireISO of fires) {
-      candidates.push({ reminder, fireISO, fireMs: new Date(fireISO).getTime() });
+    let fires = computePrescheduledFires(reminder, settings, now, context, {
+      horizonDays: NATIVE_HORIZON_DAYS,
+      maxFires: NATIVE_MAX_FIRES_PER_REMINDER,
+    });
+    // Very chatty intervals only get a short window (see MIN_PRACTICAL_INTERVAL_MIN).
+    if (reminder.trigger_type === "interval" && (reminder.trigger_config?.every_minutes || 60) < MIN_PRACTICAL_INTERVAL_MIN) {
+      fires = fires.slice(0, 24);
     }
+    if (fires.length) perReminder.push({ reminder, fires });
   }
-  candidates.sort((a, b) => a.fireMs - b.fireMs);
-  const toSchedule = candidates.slice(0, MAX_TOTAL_SCHEDULED);
+  const toSchedule = [];
+  for (let round = 0; toSchedule.length < MAX_TOTAL_SCHEDULED; round++) {
+    let tookAny = false;
+    for (const { reminder, fires } of perReminder) {
+      if (round >= fires.length) continue;
+      tookAny = true;
+      const fireISO = fires[round];
+      toSchedule.push({ reminder, fireISO, fireMs: new Date(fireISO).getTime() });
+      if (toSchedule.length >= MAX_TOTAL_SCHEDULED) break;
+    }
+    if (!tookAny) break;
+  }
+  toSchedule.sort((a, b) => a.fireMs - b.fireMs);
 
   if (!toSchedule.length) {
     writeLog([]);
@@ -612,6 +658,10 @@ export async function snoozePrescheduledFire({ reminderId, scheduledFor, opt }) 
 // itself runs everywhere though (no conditional hook calls).
 export function useNativeReminderSync() {
   const lastSigRef = useRef(null);
+  // Latest inputs + last run time, so a resume / keep-alive top-up can re-fill
+  // the OS queue without waiting for a data change (see the effect below).
+  const latestRef = useRef(null);
+  const lastRunRef = useRef(0);
   const { data: reminders = [] } = useQuery({
     queryKey: ["reminders"],
     queryFn: () => base44.entities.Reminder.list("-created_date", 500),
@@ -675,6 +725,8 @@ export function useNativeReminderSync() {
       );
     }
 
+    latestRef.current = { reminders, settings, context: { lastFrontActivityMs, lastCheckInMs } };
+
     // Cheap signature so we only re-schedule on meaningful change.
     // Includes fields that affect fire times: title/body don't change
     // schedule, but trigger config + last_fired_at + active flag do.
@@ -701,8 +753,39 @@ export function useNativeReminderSync() {
     });
     if (sig === lastSigRef.current) return;
     lastSigRef.current = sig;
+    lastRunRef.current = Date.now();
     reconcileNativeSchedule(reminders, settings, { lastFrontActivityMs, lastCheckInMs }).catch(() => {});
   }, [reminders, settings, frontSessions, recentCheckIns]);
+
+  // Keep the OS queue topped up. The signature check above only re-schedules
+  // when reminder DATA changes, so an app that was merely backgrounded and
+  // reopened never refilled the alarms that had since fired — and once the
+  // queue drained while the app was closed, reminders stopped until something
+  // changed. Re-fill on resume and every 30 minutes while the app is in use
+  // (throttled to once per 20 min; each pass is a cheap cancel + re-schedule).
+  useEffect(() => {
+    if (!isNative()) return undefined;
+    const MIN_GAP_MS = 20 * 60 * 1000;
+    const topUp = () => {
+      const latest = latestRef.current;
+      if (!latest) return;
+      if (Date.now() - lastRunRef.current < MIN_GAP_MS) return;
+      lastRunRef.current = Date.now();
+      reconcileNativeSchedule(latest.reminders, latest.settings, latest.context).catch(() => {});
+    };
+    const onVis = () => { if (document.visibilityState === "visible") topUp(); };
+    document.addEventListener("visibilitychange", onVis);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") topUp(); }, 30 * 60 * 1000);
+    let removeResume;
+    import("@capacitor/app")
+      .then(({ App }) => App.addListener("resume", topUp).then((h) => { removeResume = () => h.remove(); }))
+      .catch(() => {});
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      clearInterval(timer);
+      try { removeResume?.(); } catch { /* noop */ }
+    };
+  }, []);
 }
 
 // Tap handler — called from nativeBootstrap.js when the user taps a

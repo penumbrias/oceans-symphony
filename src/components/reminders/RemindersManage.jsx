@@ -63,6 +63,7 @@ export default function RemindersManage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["reminders"] });
     queryClient.invalidateQueries({ queryKey: ["reminders", "all"] });
+    queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
   };
 
   const handleToggle = async (r) => {
