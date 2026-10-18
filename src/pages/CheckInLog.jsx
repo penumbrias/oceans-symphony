@@ -5,22 +5,26 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil, UserCheck } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil, UserCheck, AlertTriangle, Plus } from "lucide-react";
 import { contactDisplayName } from "@/lib/contacts";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
+import { moodDots, customEmotionColor } from "@/lib/emotionMood";
+import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 import DiaryCardEditDialog, { deleteDiaryCardWithConfirm } from "@/components/diary/DiaryCardEditDialog";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { formatSeverityForSymptom } from "@/lib/trackingModel";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 // Long-press / double-click helper for re-opening a check-in in the
@@ -106,10 +110,33 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
+function useCustomEmotionsList() {
+  const { data = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+  return data;
+}
+
+// Caution marker for a triggered switch (session-level trigger metadata).
+function TriggerBadge({ trigger }) {
+  const t = useTerms();
+  if (!trigger) return null;
+  const detail = [trigger.category, trigger.label].filter(Boolean).join(" · ");
+  const title = `Triggered ${t.switch}${detail ? `: ${detail}` : ""}`;
+  return (
+    <span role="img" aria-label={title} title={title}
+      className="inline-flex items-center flex-shrink-0 text-orange-500">
+      <AlertTriangle className="w-3.5 h-3.5" />
+    </span>
+  );
+}
+
 function EmotionPill({ em }) {
+  const customs = useCustomEmotionsList();
   return (
     <span className="px-2 py-0.5 rounded-full text-white text-xs font-medium"
-      style={{ backgroundColor: emotionColor(em) }}>
+      style={{ backgroundColor: customEmotionColor(em, customs, emotionColor(em)) }}>
       {em}
     </span>
   );
@@ -520,6 +547,8 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
 }
 
 function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount, onEditDiary, display = DEFAULT_DISPLAY }) {
+  const stripCustoms = useCustomEmotionsList();
+  const stripCatLabels = useEmotionCategoryLabels();
   // Emotions and fronters are surfaced from EmotionCheckIn records — both
   // get hidden when the user has the "Check-ins" toggle off, since that's
   // their parent entry type.
@@ -711,12 +740,16 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                 const pills = [];
                 for (const e of entries) {
                   if (e.kind === "note") {
-                    pills.push({ kind: "note", key: `n-${e.id}`, text: `💬 ${e.payload.text}` });
+                    pills.push({
+                      kind: "note", key: `n-${e.id}`, text: `💬 ${e.payload.text}`,
+                      moods: moodDots(e.payload?.emotions, stripCustoms, stripCatLabels),
+                      trigger: e.trigger,
+                    });
                   } else if (e.kind === "emotion") {
                     const labels = Array.isArray(e.payload?.labels) && e.payload.labels.length > 0
                       ? e.payload.labels
                       : (e.payload?.label ? [e.payload.label] : []);
-                    labels.forEach((l, i) => pills.push({ kind: "emotion", key: `e-${e.id}-${i}`, text: l, em: l }));
+                    labels.forEach((l, i) => pills.push({ kind: "emotion", key: `e-${e.id}-${i}`, text: l, em: l, trigger: i === 0 ? e.trigger : null }));
                   } else if (e.kind === "symptom") {
                     const syms = Array.isArray(e.payload?.items) && e.payload.items.length > 0
                       ? e.payload.items
@@ -725,6 +758,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                       kind: "symptom",
                       key: `s-${e.id}-${i}`,
                       text: `${s.label}${s.value !== undefined && s.value !== null && s.value !== true ? ` · ${s.value}` : ""}`,
+                      trigger: i === 0 && !pills.some(x => x.trigger) ? e.trigger : null,
                     }));
                   }
                 }
@@ -738,18 +772,27 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                       {pills.map((p) => {
                         if (p.kind === "emotion") {
                           return (
-                            <span key={p.key} className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: emotionColor(p.em) }}>
-                              {p.text}
+                            <span key={p.key} className="inline-flex items-center gap-1">
+                              <TriggerBadge trigger={p.trigger} />
+                              <span className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: emotionColor(p.em) }}>
+                                {p.text}
+                              </span>
                             </span>
                           );
                         }
                         return (
                           <span
                             key={p.key}
-                            className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                            className="inline-flex items-start gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
                             style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
                           >
-                            {p.text}
+                            {p.moods?.map((m) => (
+                              <span key={m.color} role="img" aria-label={m.title} title={m.title}
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
+                                style={{ backgroundColor: m.color }} />
+                            ))}
+                            <TriggerBadge trigger={p.trigger} />
+                            <span className="min-w-0">{p.text}</span>
                           </span>
                         );
                       })}
@@ -1098,10 +1141,91 @@ function LocationEntry({ loc }) {
   );
 }
 
+// ISO -> value for <input type="datetime-local"> in the user's local time.
+function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) return "";
+  return format(d, "yyyy-MM-dd'T'HH:mm");
+}
+
+// Add a standalone note with a chosen date & time (a StatusNote), shown in the
+// log on that day. Optionally signed by an alter.
+function CustomNoteDialog({ open, onClose, alters }) {
+  const qc = useQueryClient();
+  const terms = useTerms();
+  const [text, setText] = useState("");
+  const [when, setWhen] = useState("");
+  const [authorId, setAuthorId] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (open) { setText(""); setAuthorId(""); setWhen(toLocalInput()); } }, [open]);
+
+  const handleSave = async () => {
+    const t = new Date(when);
+    if (!text.trim()) { toast.error("Note can't be empty"); return; }
+    if (isNaN(t.getTime())) { toast.error("Pick a valid date & time"); return; }
+    setSaving(true);
+    try {
+      const prepared = await prepareAuthoredText(text, { alters, terms, whisper: false, chips: false, surfaceLabel: "status" });
+      if (prepared === null) { setSaving(false); return; }
+      const author = prepared.authorIds?.[0] || authorId || null;
+      const created = await base44.entities.StatusNote.create({
+        timestamp: t.toISOString(), note: prepared.content,
+        ...(author ? { author_alter_id: author } : {}),
+      });
+      try {
+        const { saveStatusMentions } = await import("@/lib/mentionUtils");
+        await saveStatusMentions({ note: prepared.content, alters, sourceId: created?.id, authorAlterId: author });
+        qc.invalidateQueries({ queryKey: ["mentionLogs"] });
+      } catch { /* mentions are best-effort */ }
+      qc.invalidateQueries({ queryKey: ["statusNotes"] });
+      toast.success("Note added");
+      onClose();
+    } catch (e) {
+      if (isLogCommandError(e)) toast.error(e.message); else toast.error(e?.message || "Failed to save");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Add note</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <MentionTextarea
+            value={text}
+            onChange={setText}
+            alters={alters}
+            signposts
+            rows={4}
+            placeholder="Write a note…"
+            className="w-full bg-background border border-border/60 rounded-md px-3 py-2 text-sm"
+          />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-20 flex-shrink-0">Date &amp; time</span>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}
+              className="flex-1 min-w-0 bg-background border border-border/60 rounded-md px-2 py-1 text-sm text-foreground" />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-20 flex-shrink-0">Written by</span>
+            <div className="flex-1 min-w-0">
+              <AlterSearchSelect alters={alters || []} value={authorId || null} onChange={(v) => setAuthorId(v || "")}
+                terms={terms} noneLabel="No one in particular" placeholder="No one in particular" zIndex={80} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>Save</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StatusNoteEntry({ sn }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sn.note || "");
+  const [whenDraft, setWhenDraft] = useState(() => toLocalInput(sn.timestamp));
   const [saving, setSaving] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const disarmRef = useRef(null);
@@ -1110,9 +1234,13 @@ function StatusNoteEntry({ sn }) {
   const handleSave = async () => {
     const next = draft.trim();
     if (!next) { toast.error("Status can't be empty"); return; }
+    const t = new Date(whenDraft);
+    if (isNaN(t.getTime())) { toast.error("Pick a valid date & time"); return; }
+    const patch = { note: next };
+    if (whenDraft !== toLocalInput(sn.timestamp)) patch.timestamp = t.toISOString();
     setSaving(true);
     try {
-      await localEntities.StatusNote.update(sn.id, { note: next });
+      await localEntities.StatusNote.update(sn.id, patch);
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setEditing(false);
     } catch (e) { toast.error(e.message || "Failed to save"); }
@@ -1145,10 +1273,16 @@ function StatusNoteEntry({ sn }) {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") { e.preventDefault(); handleSave(); }
-              if (e.key === "Escape") { setDraft(sn.note || ""); setEditing(false); }
+              if (e.key === "Escape") { setDraft(sn.note || ""); setWhenDraft(toLocalInput(sn.timestamp)); setEditing(false); }
             }}
             className="w-full bg-background border border-border/60 rounded-md px-2 py-1 text-sm"
             placeholder="Edit status…"
+          />
+          <input
+            type="datetime-local"
+            value={whenDraft}
+            onChange={(e) => setWhenDraft(e.target.value)}
+            className="w-full bg-background border border-border/60 rounded-md px-2 py-1 text-sm"
           />
           <div className="flex items-center gap-1.5">
             <button
@@ -1161,7 +1295,7 @@ function StatusNoteEntry({ sn }) {
             </button>
             <button
               type="button"
-              onClick={() => { setDraft(sn.note || ""); setEditing(false); }}
+              onClick={() => { setDraft(sn.note || ""); setWhenDraft(toLocalInput(sn.timestamp)); setEditing(false); }}
               className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground"
             >
               Cancel
@@ -1212,6 +1346,11 @@ function PerAlterEntry({ entry, altersById }) {
   const color = alter?.color || "#8b5cf6";
   const name = alter?.alias || alter?.name || "Unknown";
   const [editorOpen, setEditorOpen] = useState(false);
+  const customs = useCustomEmotionsList();
+  const catLabels = useEmotionCategoryLabels();
+  // Mood indicator on a note: green / orange / red dot when the alter has
+  // an emotion set for this session.
+  const moods = entry.kind === "note" ? moodDots(entry.payload?.emotions, customs, catLabels) : [];
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["frontingSessions"] });
@@ -1272,6 +1411,12 @@ function PerAlterEntry({ entry, altersById }) {
         <StandaloneEntry timestamp={entry.ts} actions={actions}>
           <div className="flex items-start gap-2 min-w-0 w-full">
             <AlterChip />
+            {moods.map((m) => (
+              <span key={m.color} role="img" aria-label={m.title} title={m.title}
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5"
+                style={{ backgroundColor: m.color }} />
+            ))}
+            <TriggerBadge trigger={entry.trigger} />
             <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
           </div>
         </StandaloneEntry>
@@ -1288,6 +1433,7 @@ function PerAlterEntry({ entry, altersById }) {
         <StandaloneEntry timestamp={entry.ts} actions={actions}>
           <div className="flex items-center gap-2 flex-wrap">
             <AlterChip />
+            <TriggerBadge trigger={entry.trigger} />
             {labels.map((em, i) => <EmotionPill key={`${em}-${i}`} em={em} />)}
           </div>
         </StandaloneEntry>
@@ -1304,6 +1450,7 @@ function PerAlterEntry({ entry, altersById }) {
       <StandaloneEntry timestamp={entry.ts} actions={actions}>
         <div className="flex items-center gap-2 flex-wrap">
           <AlterChip />
+          <TriggerBadge trigger={entry.trigger} />
           {items.map((sym, i) => (
             <span
               key={`${sym.label || sym.id || i}`}
@@ -1596,6 +1743,7 @@ export default function CheckInLog() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
 
+  const [customNoteOpen, setCustomNoteOpen] = useState(false);
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
   const symptomsById = useMemo(() => Object.fromEntries(symptoms.map(s => [s.id, s])), [symptoms]);
   const perAlterEntries = useMemo(() => extractPerAlterEntries(frontingSessions), [frontingSessions]);
@@ -1702,10 +1850,15 @@ export default function CheckInLog() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCustomNoteOpen(true)}
+            aria-label="Add note" title="Add note" className="flex-shrink-0 h-9 w-9 rounded-full">
+            <Plus className="w-4 h-4" />
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" data-tour="checkin-log-display" className="gap-1.5">
-                <SlidersHorizontal className="w-4 h-4" /> Display
+              <Button variant="outline" size="icon" data-tour="checkin-log-display"
+                aria-label="Display options" title="Display options" className="flex-shrink-0 h-9 w-9 rounded-full">
+                <SlidersHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -1747,8 +1900,9 @@ export default function CheckInLog() {
               diary cards) so we no longer gate the button on diary cards
               specifically. The component itself handles the empty-state
               for accounts with no data anywhere. */}
-          <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
-            <BarChart2 className="w-4 h-4" /> Analytics
+          <Button variant="outline" size="icon" onClick={() => setView("analytics")}
+            aria-label="Analytics" title="Analytics" className="flex-shrink-0 h-9 w-9 rounded-full">
+            <BarChart2 className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -1802,6 +1956,7 @@ export default function CheckInLog() {
         alters={alters}
         editingEntry={editingCheckIn}
       />
+      <CustomNoteDialog open={customNoteOpen} onClose={() => setCustomNoteOpen(false)} alters={alters} />
       <DiaryCardEditDialog card={editingDiaryCard} onClose={() => setEditingDiaryCard(null)} />
     </motion.div>
   );

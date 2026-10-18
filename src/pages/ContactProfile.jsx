@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, Pencil, LifeBuoy, Phone, Mail, MessageSquare, MapPin, AtSign,
-  Archive, ArchiveRestore, Trash2, Pin, PinOff, ExternalLink, Plus, UserCheck, Square,
+  Archive, ArchiveRestore, Trash2, Pin, PinOff, ExternalLink, Plus, UserCheck, Square, Check, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -127,6 +127,21 @@ export default function ContactProfile() {
       await base44.entities.ContactNote.delete(noteId);
       queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
     } catch (err) { toast.error(err?.message || "Couldn't delete note"); }
+  };
+
+  const saveNote = async (noteId, text, timestamp) => {
+    let prepared;
+    try {
+      prepared = await prepareAuthoredText(text, { alters, terms, surfaceLabel: "contact note", chips: false });
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return false; } throw e; }
+    if (prepared === null) return false; // user backed out of the whisper warning
+    try {
+      await base44.entities.ContactNote.update(noteId, { content: prepared.content, author_alter_ids: prepared.authorIds, timestamp });
+      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: noteId, sourceLabel: "Contact note", navigatePath: `/contacts/${id}` });
+      queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
+      toast.success("Note updated");
+      return true;
+    } catch (err) { toast.error(err?.message || "Couldn't update note"); return false; }
   };
 
   const handleDelete = async () => {
@@ -286,13 +301,7 @@ export default function ContactProfile() {
           ) : (
             <div className="space-y-2">
               {sortedNotes.map((n) => (
-                <div key={n.id} className="rounded-lg border border-border/50 bg-card p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm whitespace-pre-wrap flex-1">{n.content}</p>
-                    <button type="button" onClick={() => deleteNote(n.id)} aria-label="Delete note" className="text-muted-foreground hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                  <p className="text-[0.625rem] text-muted-foreground mt-1">{n.timestamp ? new Date(n.timestamp).toLocaleString() : ""}</p>
-                </div>
+                <NoteRow key={n.id} note={n} alters={alters} onDelete={deleteNote} onSave={saveNote} />
               ))}
             </div>
           )}
@@ -316,6 +325,60 @@ export default function ContactProfile() {
       )}
 
       <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} contact={contact} />
+    </div>
+  );
+}
+
+// ISO string -> value for <input type="datetime-local"> (local time).
+function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// One contact note: view, or edit text + date/time in place.
+function NoteRow({ note, alters, onDelete, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note.content || "");
+  const [when, setWhen] = useState(toLocalInput(note.timestamp));
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => { setText(note.content || ""); setWhen(toLocalInput(note.timestamp)); setEditing(true); };
+  const save = async () => {
+    const content = text.trim();
+    const d = new Date(when);
+    if (!content) { toast.error("A note can't be empty"); return; }
+    if (!when || isNaN(d.getTime())) { toast.error("Pick a valid date and time"); return; }
+    setSaving(true);
+    const ok = await onSave(note.id, content, d.toISOString());
+    setSaving(false);
+    if (ok) setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border border-primary/40 bg-card p-2.5 space-y-2">
+        <MentionTextarea value={text} onChange={setText} alters={alters} signposts rows={3} autoFocus
+          className="w-full bg-background border border-input rounded-lg px-2.5 py-1.5 text-sm resize-y outline-none" />
+        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}
+          aria-label="Note date and time"
+          className="bg-background border border-input rounded-lg px-2 py-1 text-xs outline-none" />
+        <div className="flex gap-2 justify-end">
+          <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving} className="gap-1"><X className="w-3.5 h-3.5" />Cancel</Button>
+          <Button size="sm" onClick={save} disabled={saving || !text.trim()} className="gap-1"><Check className="w-3.5 h-3.5" />Save</Button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-border/50 bg-card p-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm whitespace-pre-wrap flex-1">{note.content}</p>
+        <button type="button" onClick={startEdit} aria-label="Edit note" className="text-muted-foreground hover:text-foreground flex-shrink-0"><Pencil className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => onDelete(note.id)} aria-label="Delete note" className="text-muted-foreground hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
+      <p className="text-[0.625rem] text-muted-foreground mt-1">{note.timestamp ? new Date(note.timestamp).toLocaleString() : ""}</p>
     </div>
   );
 }

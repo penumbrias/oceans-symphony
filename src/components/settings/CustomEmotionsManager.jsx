@@ -1,3 +1,5 @@
+import EmotionColorField from "@/components/emotions/EmotionColorField";
+import { normalizeHex } from "@/lib/hexColor";
 import React, { useState, useMemo } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -132,14 +134,15 @@ function EmotionRow({ emotion, onDelete, onUpdate }) {
   const [label, setLabel] = useState(emotion.label);
   const [category, setCategory] = useState(emotion.category || "custom");
   const [isDistressing, setIsDistressing] = useState(!!emotion.is_distressing);
+  const [ownColor, setOwnColor] = useState(normalizeHex(emotion.color));
 
   const handleSave = () => {
     if (!label.trim()) return;
-    onUpdate(emotion.id, { label: label.trim(), category, is_distressing: isDistressing });
+    onUpdate(emotion.id, { label: label.trim(), category, is_distressing: isDistressing, color: ownColor });
     setEditing(false);
   };
 
-  const color = CATEGORY_COLORS[emotion.category || "custom"] || "hsl(var(--primary))";
+  const color = normalizeHex(emotion.color) || CATEGORY_COLORS[emotion.category || "custom"] || "hsl(var(--primary))";
 
   if (editing) {
     return (
@@ -165,11 +168,15 @@ function EmotionRow({ emotion, onDelete, onUpdate }) {
             <Check className="w-4 h-4" />
           </button>
           <button
-            onClick={() => { setEditing(false); setLabel(emotion.label); setCategory(emotion.category || "custom"); setIsDistressing(!!emotion.is_distressing); }}
+            onClick={() => { setEditing(false); setLabel(emotion.label); setCategory(emotion.category || "custom"); setIsDistressing(!!emotion.is_distressing); setOwnColor(normalizeHex(emotion.color)); }}
             className="text-muted-foreground hover:text-foreground flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <span>Colour:</span>
+          <EmotionColorField value={ownColor} onChange={setOwnColor} compact />
         </div>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer px-1">
           <input
@@ -291,6 +298,7 @@ export default function CustomEmotionsManager() {
   // Add-new-emotion state (inline creator: name + category dropdown).
   const [newLabel, setNewLabel] = useState("");
   const [newCategory, setNewCategory] = useState("custom");
+  const [newColor, setNewColor] = useState("");
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -298,11 +306,12 @@ export default function CustomEmotionsManager() {
   });
 
   const createMutation = useMutation({
-    mutationFn: ({ label, category }) => db.CustomEmotion.create({ label, category }),
+    mutationFn: ({ label, category, color }) => db.CustomEmotion.create({ label, category, ...(color ? { color } : {}) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
       toast.success("Custom emotion added");
       setNewLabel("");
+      setNewColor("");
     },
     onError: (e) => toast.error(e?.message || "Failed to add emotion"),
   });
@@ -332,7 +341,7 @@ export default function CustomEmotionsManager() {
       toast.error("You already have that emotion");
       return;
     }
-    createMutation.mutate({ label, category: newCategory });
+    createMutation.mutate({ label, category: newCategory, color: newColor });
   };
 
   const toggleSystemDistress = (label) => {
@@ -438,6 +447,10 @@ export default function CustomEmotionsManager() {
             >
               Add
             </Button>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Colour (optional):</span>
+            <EmotionColorField value={newColor} onChange={setNewColor} />
           </div>
           {customEmotions.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No custom emotions yet.</p>
