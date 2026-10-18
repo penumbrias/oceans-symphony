@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Plans: a new Color tag in a plan's details colours its day on the Month and Year calendars. Pick a preset or any colour, and save your favourites." },
+      { type: "feature", text: "Month and Year calendars show a + on days with more than one event. Tap it to open the day." },
       { type: "feature", text: "Check-In Log: notes under an {{alter}} show a coloured mood dot for each kind of emotion set with them, and a caution sign when the {{switch}} was triggered." },
       { type: "feature", text: "Check-In Log: the new + button adds a note with its own date and time, and notes' dates and times can now be edited." },
       { type: "improve", text: "Check-In Log: the Display and Analytics buttons are now round icons, so everything fits on one row." },
