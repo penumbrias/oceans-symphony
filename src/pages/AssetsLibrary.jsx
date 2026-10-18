@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import MediaPlayer from "@/components/shared/MediaPlayer";
+import MediaTuningPanel from "@/components/shared/MediaTuningPanel";
+import { useMediaTuning } from "@/lib/mediaTuning";
 import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -119,6 +122,19 @@ function Thumb({ item, onOpen, onRename, onSave, onMove, onDelete, moveBlockedTi
   );
 }
 
+// A song or video played from the library, with the same controls (seek,
+// loop, full screen) and tempo & pitch panel the chat player has.
+function StoredMedia({ item, src }) {
+  const ref = useRef(null);
+  const tuning = useMediaTuning(ref, item.key || item.id || item.url);
+  return (
+    <div className="w-full rounded-xl border border-border/50 bg-muted/20 p-2 space-y-1.5">
+      <MediaPlayer mediaRef={ref} src={src} kind={item.kind === "video" ? "video" : "audio"} tuning={tuning} />
+      <MediaTuningPanel tuning={tuning} />
+    </div>
+  );
+}
+
 // A song, video or file opened from its tile: play it here, or save it.
 function PreviewDialog({ item, onClose, onSave }) {
   const src = useResolvedAvatarUrl(item.kind === "audio" || item.kind === "video" ? item.url : null);
@@ -131,10 +147,10 @@ function PreviewDialog({ item, onClose, onSave }) {
           <KindIcon className="w-4 h-4 flex-shrink-0 text-primary" /> <span className="truncate">{item.name}</span>
         </DialogTitle>
         {item.kind === "video" && (src
-          ? <video src={src} controls playsInline className="w-full max-h-[60vh] rounded-lg bg-black" />
+          ? <StoredMedia item={item} src={src} />
           : <p className="text-xs text-muted-foreground">This video isn&apos;t stored on this device.</p>)}
         {item.kind === "audio" && (src
-          ? <audio src={src} controls className="w-full" />
+          ? <StoredMedia item={item} src={src} />
           : <p className="text-xs text-muted-foreground">This audio isn&apos;t stored on this device.</p>)}
         {item.kind === "file" && (
           <div className="flex flex-col items-center gap-1 py-6 text-muted-foreground">
