@@ -25,6 +25,7 @@ import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/li
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
+import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, sortWishes } from "@/lib/wishes";
 import {
   TURNS_QUERY_KEY, ALTER_ACTIVITY_LINKS_QUERY_KEY, buildBalance, altersWithoutNeeds, sharedWishes,
@@ -121,9 +122,12 @@ function BalanceTab({ alters, links, wishes, activities, categories, onChanged }
   const t = useTerms();
   const formatAlter = useAlterLabel();
   const navigate = useNavigate();
+  const { data: linkTypes = [] } = useQuery({
+    queryKey: LINK_TYPES_QUERY_KEY, queryFn: () => base44.entities.ActivityLinkType.list().catch(() => []),
+  });
   const rows = useMemo(
-    () => buildBalance({ alters, links, wishes, activities, categories }),
-    [alters, links, wishes, activities, categories],
+    () => buildBalance({ alters, links, wishes, activities, categories, linkTypes }),
+    [alters, links, wishes, activities, categories, linkTypes],
   );
   const without = useMemo(() => altersWithoutNeeds(alters, rows), [alters, rows]);
 

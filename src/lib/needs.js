@@ -19,6 +19,7 @@ import { base44 } from "@/api/base44Client";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { indexById, getAncestorIds } from "@/lib/categoryTreeUtils";
 import { isOpenWish } from "@/lib/wishes";
+import { relationBehavesAs } from "@/lib/activityLinks";
 
 export const TURNS_QUERY_KEY = ["turnAgreements"];
 export const ALTER_ACTIVITY_LINKS_QUERY_KEY = ["alterActivityLinks"];
@@ -46,7 +47,7 @@ export function lastHappenedByCategory(activities = [], categories = [], now = n
 //   { kind: "activity" | "wish", id, title, color, last (iso | null), categoryId, wish }
 // Rows are ordered longest-waiting first; an alter whose things have
 // never happened sorts to the top.
-export function buildBalance({ alters = [], links = [], wishes = [], activities = [], categories = [], now = new Date() }) {
+export function buildBalance({ alters = [], links = [], wishes = [], activities = [], categories = [], linkTypes = [], now = new Date() }) {
   const last = lastHappenedByCategory(activities, categories, now);
   const catById = new Map((categories || []).map((c) => [c.id, c]));
   const rows = [];
@@ -55,7 +56,7 @@ export function buildBalance({ alters = [], links = [], wishes = [], activities 
     const items = [];
     const seen = new Set();
     for (const l of links || []) {
-      if (l.alter_id !== alter.id || !["enjoys", "needs"].includes(l.relation)) continue;
+      if (l.alter_id !== alter.id || !["enjoys", "needs"].includes(relationBehavesAs(l.relation, linkTypes))) continue;
       const cat = catById.get(l.category_id);
       if (!cat || seen.has(cat.id)) continue;
       seen.add(cat.id);
@@ -130,7 +131,7 @@ export function setTurnStatus(turn, status) {
 // Alters linked as "tends to interrupt" to this activity (or anything it
 // sits under), with their open shareable wishes — what the start-of-
 // activity note offers. Alters already taking part are left out.
-export function interruptersFor(categoryId, { links = [], categories = [], wishes = [], alters = [], excludeIds = [] } = {}) {
+export function interruptersFor(categoryId, { links = [], categories = [], wishes = [], alters = [], linkTypes = [], excludeIds = [] } = {}) {
   if (!categoryId) return [];
   const byId = indexById(categories);
   const ids = new Set([categoryId, ...getAncestorIds(categoryId, byId)]);
@@ -138,7 +139,7 @@ export function interruptersFor(categoryId, { links = [], categories = [], wishe
   const out = [];
   const seen = new Set();
   for (const l of links || []) {
-    if (l.relation !== "interrupts" || !ids.has(l.category_id) || skip.has(l.alter_id) || seen.has(l.alter_id)) continue;
+    if (relationBehavesAs(l.relation, linkTypes) !== "interrupts" || !ids.has(l.category_id) || skip.has(l.alter_id) || seen.has(l.alter_id)) continue;
     const alter = (alters || []).find((a) => a.id === l.alter_id && !a.is_archived);
     if (!alter) continue;
     seen.add(alter.id);

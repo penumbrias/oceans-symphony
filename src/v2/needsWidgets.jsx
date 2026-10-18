@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { buildBalance, sharedWishes, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
+import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel } from "@/lib/wishes";
 import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress,
@@ -35,9 +36,10 @@ export function NeedsBalanceWidget({ settings }) {
   const wishes = useList(WISHES_QUERY_KEY, "Wish");
   const activities = useList("activities", "Activity");
   const categories = useList("activityCategories", "ActivityCategory");
+  const linkTypes = useList(LINK_TYPES_QUERY_KEY, "ActivityLinkType");
   const rows = useMemo(
-    () => buildBalance({ alters, links, wishes, activities, categories }).slice(0, limitOf(settings, 5)),
-    [alters, links, wishes, activities, categories, settings],
+    () => buildBalance({ alters, links, wishes, activities, categories, linkTypes }).slice(0, limitOf(settings, 5)),
+    [alters, links, wishes, activities, categories, linkTypes, settings],
   );
   return (
     <Section label={tr("widget.needs.label")}
