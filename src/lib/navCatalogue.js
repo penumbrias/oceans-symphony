@@ -11,13 +11,28 @@
 
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, Target, HeartHandshake } from "lucide-react";
 import { ALL_PAGES } from "@/utils/navigationConfig";
+import { withoutHiddenExperimental } from "@/lib/experimentalFeatures";
 
 // Pages of switched-on mods (src/lib/mods/registry.js keeps them in
 // ALL_PAGES). Callers that memo these builders add useModPagesVersion() to
 // their dependencies so a newly installed mod shows up straight away.
 const modPages = () => ALL_PAGES.filter((p) => p.isMod);
 
+// Experimental pages (Needs, Goals, Mods) drop out while that switch is off.
 export function buildNavGroups(altersLabel, systemLabel) {
+  const out = {};
+  for (const [group, items] of Object.entries(allNavGroups(altersLabel, systemLabel))) {
+    const kept = withoutHiddenExperimental(items);
+    if (kept.length) out[group] = kept;
+  }
+  return out;
+}
+
+export function buildGridItems(altersLabel, systemLabel) {
+  return withoutHiddenExperimental(allGridItems(altersLabel, systemLabel));
+}
+
+function allNavGroups(altersLabel, systemLabel) {
   const mods = modPages().map(({ id, label, icon, path }) => ({ id, label, icon, path }));
   return {
     [systemLabel]: [
@@ -67,7 +82,7 @@ export function buildNavGroups(altersLabel, systemLabel) {
   };
 }
 
-export function buildGridItems(altersLabel, systemLabel) {
+function allGridItems(altersLabel, systemLabel) {
   return [
     { id: "reminders",       label: "Reminders",              icon: Bell,          path: "/reminders",        color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
     { id: "alters",          label: altersLabel,              icon: Users,         path: "/Home",             color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },

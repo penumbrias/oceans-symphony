@@ -23,6 +23,7 @@
 //     device restoring it would aim at the same cloud file
 
 export const BACKUP_LS_KEYS = [
+  "symphony_experimental_features_v1",
   "symphony_newui_banner_dismissed_v1",
   "symphony_themeMode",
   "symphony_selectedTheme",

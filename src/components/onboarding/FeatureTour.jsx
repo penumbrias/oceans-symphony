@@ -10,6 +10,7 @@ import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
 import AccessibilityFab from "@/components/accessibility/AccessibilityFab";
+import { useExperimentalOn } from "@/lib/experimentalFeatures";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
@@ -712,7 +713,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "🎯",
       title: "Goals",
       body: `The Goals page works like notes. Write a goal at the top, then add checklist points to it: a tick box, one or more to-dos (pick existing ones or write new ones), or an activity done a number of times, in total or each week. To-dos and activities tick themselves off as they get done. The pencil edits the title and a note. A tick box that sits untouched for a week offers to split into something smaller. If you set weekly goals in the planner, one tap keeps them here.`,
-      route: "/goals", target: "goals-page",
+      route: "/goals", target: "goals-page", experimental: true,
       look: `the Goals page`, action: null,
     },
     {
@@ -720,7 +721,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "🤝",
       title: "Needs",
       body: `The Needs page is one place for what everyone wants. Balance shows how long it's been since each ${t.alter} got something they enjoy, need or wished for, longest first, with a quick way to plan it. Wishes lists everyone's wishes (private ones stay on their own profile). Turns is for when ${t.alters} want different things: agree who goes first, and the second turn goes in the planner. When you start an activity an ${t.alter} tends to interrupt, a small note says who and what they've been wishing for; tap Got it to carry on. Needs balance, Wishes and Goals are also home-screen widgets.`,
-      route: "/needs", target: "needs-page",
+      route: "/needs", target: "needs-page", experimental: true,
       look: `the Needs page`, action: null,
     },
 
@@ -1117,10 +1118,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     },
     {
       section: "settings", sectionLabel: "Settings",
+      emoji: "🧪",
+      title: "Experimental features",
+      body: `Some newer features are still settling: Needs, Goals and Mods. They stay hidden until you switch on Experimental features in Settings → About & help. Switching it off again only hides them; anything you made in them is kept.`,
+      route: "/settings", target: "settings-about",
+      look: `About & help, then Experimental features`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
       emoji: "🧩",
       title: "Mods",
       body: `Mods are features other people made and shared as a file ending in .osmod. Tap Install on the Mods page (in the sidebar under Tools) to add one: you'll see what it adds and tick what it may see, like your ${t.alters} or who's ${t.fronting}. Each mod runs walled off with no internet access and can only change its own data, which is in your backups and stays when you remove the mod. Its pages show up in your navigation, ready to pin.`,
-      route: "/mods", target: "mods-page",
+      route: "/mods", target: "mods-page", experimental: true,
       look: `the Mods page`, action: null,
     },
 
@@ -1239,14 +1248,18 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     }
   }, [altersLoaded]);
 
+  const experimentalOn = useExperimentalOn();
   const steps = useMemo(() => {
     const all = buildSteps(t, tourAlterId, tourAlterWasCreated, uiV2On)
       .filter((st) => !(uiV2On && st.classicOnly))
       // Desktop-only controls (the update button) aren't on screen elsewhere.
-      .filter((st) => !(st.desktopOnly && !isDesktop()));
+      .filter((st) => !(st.desktopOnly && !isDesktop()))
+      // Needs, Goals and Mods stay out of the tour until experimental
+      // features are switched on.
+      .filter((st) => !(st.experimental && !experimentalOn));
     if (!restrictToRoute) return all;
     return all.filter(s => s.route === restrictToRoute && s.section !== "welcome");
-  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On]);
+  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn]);
   const [step, setStep] = useState(0);
 
   // Safety: if a page-scoped tour ends up with no steps (bad route, or every

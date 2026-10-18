@@ -20,6 +20,7 @@ import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
+import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
@@ -270,6 +271,7 @@ export default function AppDrawer({
 
   const modNavV = useModPagesVersion();
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
+  const experimentalFeaturesOn = useExperimentalOn();
   const appById = useMemo(() => new Map(apps.map((a) => [a.id, a])), [apps]);
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -592,6 +594,8 @@ export default function AppDrawer({
                 className="w-full h-10 px-3 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {WIDGET_CATEGORIES.map((cat) => {
+                // Needs & goals widgets are experimental — hidden until switched on.
+                if (cat.id === "needs" && !experimentalFeaturesOn) return null;
                 const q = widgetSearch.trim().toLowerCase();
                 const widgets = Object.entries(registry).filter(([, d]) =>
                   d.category === cat.id && !d.hiddenFromDrawer

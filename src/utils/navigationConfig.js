@@ -1,4 +1,5 @@
 import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle, Target, HeartHandshake } from "lucide-react";
+import { EXPERIMENTAL_PAGE_IDS, experimentalOn, subscribeExperimental } from "@/lib/experimentalFeatures";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -38,6 +39,25 @@ export const ALL_PAGES = [
   // Pages of switched-on mods are appended at runtime (isMod: true) by
   // src/lib/mods/registry.js, so they can be pinned like any other page.
 ];
+
+// Experimental pages (src/lib/experimentalFeatures.js) leave ALL_PAGES while
+// the switch is off and go back to their own spots when it's turned on, so
+// every surface that reads ALL_PAGES follows without its own check. Saved
+// navigation configs keep their ids either way.
+const EXPERIMENTAL_BUILTINS = ALL_PAGES
+  .map((page, index) => ({ page, index }))
+  .filter(({ page }) => EXPERIMENTAL_PAGE_IDS.includes(page.id));
+
+function syncExperimentalPages() {
+  const on = experimentalOn();
+  for (const { page, index } of EXPERIMENTAL_BUILTINS) {
+    const at = ALL_PAGES.indexOf(page);
+    if (!on && at !== -1) ALL_PAGES.splice(at, 1);
+    if (on && at === -1) ALL_PAGES.splice(Math.min(index, ALL_PAGES.length), 0, page);
+  }
+}
+syncExperimentalPages();
+subscribeExperimental(syncExperimentalPages);
 
 export const DEFAULT_CONFIG = {
   topBar: ["home", "alters", "checkin", "journals", "tasks"],
