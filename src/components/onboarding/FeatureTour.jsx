@@ -798,9 +798,9 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "analytics", sectionLabel: "Analytics",
       emoji: "🎛️",
       title: "Check-In Log · Display Menu",
-      body: `On the Check-In Log, the Display menu lets you choose which entry types appear in the log: check-ins, status notes, symptoms, activities, locations, per-${t.alter} entries, and diary data. Toggling one off only hides it from this view — your data is still recorded and still appears on the Timeline. The choice persists across sessions.`,
+      body: `On the Check-In Log, the Display menu (the round sliders button) lets you choose which entry types appear in the log: check-ins, status notes, symptoms, activities, locations, per-${t.alter} entries, and diary data. Toggling one off only hides it from this view — your data is still recorded and still appears on the Timeline. The choice persists across sessions. The round + button next to it adds a note with its own date and time, optionally signed by one of your ${t.alters}. Notes written under an ${t.alter} show a coloured mood dot for each kind of emotion set with them, and a caution sign when the ${t.switch} was triggered.`,
       route: "/checkin-log", target: "checkin-log-display",
-      look: `the highlighted Display button in the top-right of the Check-In Log header`, action: null,
+      look: `the highlighted round sliders button in the top-right of the Check-In Log header`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",

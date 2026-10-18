@@ -33,12 +33,12 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
   });
 
   const addCustomEmotionMutation = useMutation({
-    mutationFn: async ({ label, category = "custom" }) => {
+    mutationFn: async ({ label, category = "custom", color }) => {
       const cleanLabel = (label || "").trim();
       if (!cleanLabel) return null;
       const existing = customEmotions.find((e) => e.label.toLowerCase() === cleanLabel.toLowerCase());
       if (existing) return existing;
-      return base44.entities.CustomEmotion.create({ label: cleanLabel, category });
+      return base44.entities.CustomEmotion.create({ label: cleanLabel, category, ...(color ? { color } : {}) });
     },
     onSuccess: (emotion) => {
       if (!emotion) return;
@@ -86,7 +86,7 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
                 selectedEmotions={selectedEmotions}
                 onToggle={handleToggleEmotion}
                 customEmotions={customEmotions}
-                onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+                onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
               />
             </div>
 

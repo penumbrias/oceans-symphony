@@ -55,14 +55,32 @@ export function extractPerAlterEntries(sessions, { alterId } = {}) {
     const sessionTs = s.start_time || s.timestamp;
     if (!sessionTs) continue;
 
-    for (const [i, n] of parseSessionNote(s.note).entries()) {
+    // Notes carry their OWN emotions/trigger (stamped when written), so an
+    // older note never inherits what was set later. Session-level trigger
+    // is only shown on the emotion/symptom row when the session has no notes.
+    const trigger = s.is_triggered_switch
+      ? { category: s.trigger_category || "", label: s.trigger_label || "" }
+      : null;
+    const noteList = parseSessionNote(s.note);
+    const rowTrigger = noteList.length === 0 ? trigger : null;
+    // Legacy sessions (no note carries its own stamp): the session-level
+    // emotions/trigger most plausibly belong to the LATEST note only, so
+    // older notes in that session stay clean. Once any note is stamped the
+    // per-note data is authoritative and there is no fallback.
+    // Notes written by the app always carry an `emotions` array (possibly
+    // empty) and a `trigger` key, so "legacy" = no emotions array at all.
+    const sessionEmotions = parseSessionEmotions(s.session_emotions);
+    for (const [i, n] of noteList.entries()) {
+      const legacyLast = !Array.isArray(n?.emotions) && i === noteList.length - 1;
       out.push({
         id: `pa-note-${s.id}-${i}`,
         kind: "note",
         ts: n.timestamp || sessionTs,
         sessionId: s.id,
         alterId: sessionAlter,
-        payload: { text: n.text || "" },
+        payload: { text: n.text || "", emotions: Array.isArray(n.emotions) ? n.emotions : (legacyLast ? sessionEmotions : []) },
+        // Per-note only: older notes without a stamp show nothing.
+        trigger: n.trigger || (legacyLast ? trigger : null),
       });
     }
 
@@ -77,6 +95,7 @@ export function extractPerAlterEntries(sessions, { alterId } = {}) {
         // Always plural; consumers iterate. Keeping `label` for the
         // first item too is a compat shim for older render code.
         payload: { labels: emotions, label: emotions[0] },
+        trigger: rowTrigger,
       });
     }
 
@@ -92,6 +111,8 @@ export function extractPerAlterEntries(sessions, { alterId } = {}) {
         // shim so render code that hasn't been updated still has
         // something to show.
         payload: { items: symptoms, ...(symptoms[0] || {}) },
+        // Only on the symptom row when no note/emotion row already shows it.
+        trigger: emotions.length === 0 ? rowTrigger : null,
       });
     }
   }

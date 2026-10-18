@@ -334,12 +334,12 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
   }, [controlled, note, localEmotions, symptomValues, symptoms]);
 
   const addCustomEmotionMutation = useMutation({
-    mutationFn: async ({ label, category = "custom" }) => {
+    mutationFn: async ({ label, category = "custom", color }) => {
       const cleanLabel = (label || "").trim();
       if (!cleanLabel) return null;
       const existing = customEmotions.find((e) => e.label.toLowerCase() === cleanLabel.toLowerCase());
       if (existing) return existing;
-      return base44.entities.CustomEmotion.create({ label: cleanLabel, category });
+      return base44.entities.CustomEmotion.create({ label: cleanLabel, category, ...(color ? { color } : {}) });
     },
     onSuccess: (emotion) => {
       if (!emotion) return;
@@ -369,7 +369,13 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
       if (cleanNote) {
         let existing = [];
         try { const parsed = JSON.parse(session.note || "[]"); existing = Array.isArray(parsed) ? parsed : []; } catch {}
-        updates.note = JSON.stringify([...existing, { text: cleanNote, timestamp: nowIso }]);
+        // Stamp this note with its OWN emotions + trigger so older notes
+        // never inherit what's set later.
+        const stamp = {
+          emotions: [...localEmotions],
+          trigger: showTrigger ? { category: triggerCategory || "unknown", label: triggerLabel } : null,
+        };
+        updates.note = JSON.stringify([...existing, { text: cleanNote, timestamp: nowIso, ...stamp }]);
       }
 
       if (localEmotions.length > 0) {
@@ -385,9 +391,9 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
         .filter(Boolean);
       if (symptomArr.length > 0) updates.session_symptoms = JSON.stringify(symptomArr);
 
-      if (showTrigger && triggerCategory) {
+      if (showTrigger) {
         updates.is_triggered_switch = true;
-        updates.trigger_category = triggerCategory;
+        updates.trigger_category = triggerCategory || "unknown";
         updates.trigger_label = triggerLabel;
       }
 
@@ -532,7 +538,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
               prev.includes(label) ? prev.filter(e => e !== label) : [...prev, label]
             )}
             customEmotions={customEmotions}
-            onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+            onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
           />
         </div>
       )}

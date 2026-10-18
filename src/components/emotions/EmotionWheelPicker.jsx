@@ -3,6 +3,8 @@ import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import useLongPress from "@/hooks/useLongPress";
 import { Input } from "@/components/ui/input";
 import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
+import EmotionColorField from "@/components/emotions/EmotionColorField";
+import { normalizeHex } from "@/lib/hexColor";
 
 export const WHEEL = {
   good: {
@@ -196,6 +198,8 @@ export default function EmotionWheelPicker({
   // "custom" (uncategorized); the dropdown lets the user pick a specific
   // core so new emotions land in the right place without a second edit trip.
   const [customCategory, setCustomCategory] = useState("custom");
+  // Optional own colour (hex) for the new custom emotion; "" = category colour.
+  const [customColor, setCustomColor] = useState("");
   // User-renamable root labels ("Good" → "Positive", …). Structure stays;
   // display AND the logged valence-mood string use the current name.
   const catLabels = useEmotionCategoryLabels();
@@ -270,6 +274,7 @@ export default function EmotionWheelPicker({
       }
     }
     const ce = customEmotions.find(c => c.label === label);
+    if (normalizeHex(ce?.color)) return normalizeHex(ce.color);
     if (ce?.category) {
       for (const v of Object.values(WHEEL)) {
         if (v.cores?.[ce.category]) return v.cores[ce.category].color;
@@ -285,8 +290,9 @@ export default function EmotionWheelPicker({
 
   const handleCustomSubmit = () => {
     if (!customInput.trim()) return;
-    onAddCustom?.(customInput.trim(), customCategory);
+    onAddCustom?.(customInput.trim(), customCategory, customColor || undefined);
     setCustomInput("");
+    setCustomColor("");
   };
 
   const holdCtx = useMemo(
@@ -444,7 +450,7 @@ export default function EmotionWheelPicker({
                       <span className="text-xs text-muted-foreground w-full">Custom:</span>
                       {(customByCategory[activeValence] || []).map(c => (
                         <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                          color={WHEEL[activeValence]?.color || "hsl(var(--primary))"} onToggle={onToggle} small />
+                          color={normalizeHex(c.color) || WHEEL[activeValence]?.color || "hsl(var(--primary))"} onToggle={onToggle} small />
                       ))}
                     </div>
                   )}
@@ -464,7 +470,7 @@ export default function EmotionWheelPicker({
                     ))}
                     {customForActiveCore.map(c => (
                       <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                        color={coreData.color} onToggle={onToggle} small />
+                        color={normalizeHex(c.color) || coreData.color} onToggle={onToggle} small />
                     ))}
                     <InlineAddButton category={activeCore} color={coreData.color}
                       onAdd={(label, cat) => onAddCustom?.(label, cat)} />
@@ -480,7 +486,7 @@ export default function EmotionWheelPicker({
               <div className="flex flex-wrap gap-1.5">
                 {(customByCategory["custom"] || []).map(c => (
                   <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                    color="hsl(var(--primary))" onToggle={onToggle} small />
+                    color={normalizeHex(c.color) || "hsl(var(--primary))"} onToggle={onToggle} small />
                 ))}
               </div>
             </div>
@@ -581,6 +587,12 @@ export default function EmotionWheelPicker({
             className="px-2 py-1 rounded-md bg-muted text-xs text-muted-foreground hover:bg-accent disabled:opacity-40 transition-colors flex-shrink-0">
             <Plus className="w-3 h-3" />
           </button>
+        </div>
+      )}
+      {!search && customInput.trim() && (
+        <div className="flex items-center gap-2 text-[0.6875rem] text-muted-foreground">
+          <span>Colour (optional):</span>
+          <EmotionColorField value={customColor} onChange={setCustomColor} compact />
         </div>
       )}
     </div>

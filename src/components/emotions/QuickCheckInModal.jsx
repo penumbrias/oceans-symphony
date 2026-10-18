@@ -818,10 +818,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   };
 
   const addCustomEmotionMutation = useMutation({
-    mutationFn: async ({ label, category = "custom" }) => {
+    mutationFn: async ({ label, category = "custom", color }) => {
       const existing = customEmotions.find((e) => e.label.toLowerCase() === label.toLowerCase());
       if (existing) return existing;
-      return base44.entities.CustomEmotion.create({ label, category });
+      return base44.entities.CustomEmotion.create({ label, category, ...(color ? { color } : {}) });
     },
     onSuccess: (emotion) => {
       setSelectedEmotions((prev) => prev.includes(emotion.label) ? prev : [...prev, emotion.label]);
@@ -1460,7 +1460,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   selectedEmotions={selectedEmotions}
                   onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
                   customEmotions={customEmotions}
-                  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+                  onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
                   onEmotionHold={alters.length > 0 ? holdEmotionOpen : null}
                   emotionDots={emotionDots}
                   holdAriaLabel={emotionHoldAria} />

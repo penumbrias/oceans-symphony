@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 18, 2026",
     changes: [
+      { type: "feature", text: "Check-In Log: notes under an {{alter}} show a coloured mood dot for each kind of emotion set with them, and a caution sign when the {{switch}} was triggered." },
+      { type: "feature", text: "Check-In Log: the new + button adds a note with its own date and time, and notes' dates and times can now be edited." },
+      { type: "improve", text: "Check-In Log: the Display and Analytics buttons are now round icons, so everything fits on one row." },
+      { type: "feature", text: "Custom emotions can have their own colour." },
+      { type: "feature", text: "Contacts: edit a note's text and its date and time." },
       { type: "improve", text: "Thank you to ShineSpark330, whose fork of the app brought the Reformation event and many of today's fixes." },
       { type: "fix", text: "Backups without pictures now still include your custom fonts, so restoring one no longer resets the app to the default font." },
       { type: "fix", text: "Editing a plan no longer loses its title." },
