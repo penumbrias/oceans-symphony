@@ -59,6 +59,7 @@ import { getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindo
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
+import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeaturesSettings";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -945,6 +946,7 @@ export default function Settings() {
           <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
           <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
           <SubSection title="Preview Mode" defaultOpen={false}><PreviewModeSection /></SubSection>
+          <SubSection title="Experimental features" defaultOpen={typeof window !== "undefined" && window.location.hash === "#experimental"}><ExperimentalFeaturesSettings /></SubSection>
           <SubSection title="What's new" defaultOpen={typeof window !== "undefined" && window.location.hash === "#about-updates"}><RecentUpdates /></SubSection>
         </Section>
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import { Link } from "react-router-dom";
 import { countableMinutes } from "@/lib/activityStatus";
 
 export default function ActivityGoalsPanel({ weekStart }) {
+  const experimentalFeaturesOn = useExperimentalOn();
   const qc = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   // Goal source: activity category (existing) or a habit (issue #248).
@@ -218,9 +220,11 @@ export default function ActivityGoalsPanel({ weekStart }) {
           Add Goal
         </Button>
       </div>
-      <Link to="/goals" className="block text-xs text-muted-foreground hover:text-foreground mb-5">
-        Longer-term goals with steps and weekly rhythms live on the Goals page →
-      </Link>
+      {experimentalFeaturesOn && (
+        <Link to="/goals" className="block text-xs text-muted-foreground hover:text-foreground mb-5">
+          Longer-term goals with steps and weekly rhythms live on the Goals page →
+        </Link>
+      )}
 
       {progressData.length === 0 ? (
         <p className="text-muted-foreground text-sm">

@@ -7,6 +7,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
 import { buildSearchIndex, searchIndex, groupResults } from "@/lib/globalSearch";
+import { useExperimentalOn, isExperimentalPath } from "@/lib/experimentalFeatures";
 import { listSystems } from "@/lib/systems";
 import { listMods, MODS_QUERY_KEY } from "@/lib/mods/modStore";
 
@@ -374,7 +375,12 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     mods,
 ]);
 
-  const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
+  // Results that open Needs, Goals or Mods stay out while those are hidden.
+  const experimentalFeaturesOn = useExperimentalOn();
+  const searchResults = useMemo(() => {
+    const hits = searchIndex(index, query, 80);
+    return experimentalFeaturesOn ? hits : hits.filter((r) => !isExperimentalPath(r.path));
+  }, [index, query, experimentalFeaturesOn]);
   const groupedResults = useMemo(() => groupResults(searchResults), [searchResults]);
 
   useEffect(() => {

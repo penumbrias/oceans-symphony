@@ -101,6 +101,7 @@ import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import ExperimentalGate from '@/components/shared/ExperimentalGate';
 import { recordCrash } from '@/lib/lastCrash';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
@@ -289,11 +290,11 @@ const AuthenticatedApp = () => {
         <Route path="/friends" element={<FriendsPage />} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
         <Route path="/planner" element={<PlannerPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/needs" element={<NeedsPage />} />
+        <Route path="/goals" element={<ExperimentalGate name="Goals"><GoalsPage /></ExperimentalGate>} />
+        <Route path="/needs" element={<ExperimentalGate name="Needs"><NeedsPage /></ExperimentalGate>} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
-        <Route path="/mods" element={<ModsPage />} />
-        <Route path="/mod/:modId/:pageId" element={<ModPage />} />
+        <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
+        <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
