@@ -16,7 +16,7 @@ import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 
 // Auto-folder names + the user's rules: lib/assetFolders.js (shared with
 // the Assets Library page so both file an image the same way).
-import { resolveAssetRules, autoFolderFor as autoFolderForRules, alterFolderName } from "@/lib/assetFolders";
+import { resolveAssetRules, autoFolderForItem, explicitFolderOf, alterFolderName } from "@/lib/assetFolders";
 import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
 
 function AssetThumb({ item, onSelect }) {
@@ -77,7 +77,6 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
   );
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: open });
   const rules = useMemo(() => resolveAssetRules(settingsList[0] || null), [settingsList]);
-  const autoFolderFor = (id) => autoFolderForRules(id, rules);
   const referenced = useReferencedAssets(rules, alterNameById);
   const usage = useImageUsage(rules, alterNameById);
   const ownerFolderFor = (asset) =>
@@ -106,7 +105,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
         key: id,
         url: `/local-image/${encodeURIComponent(id)}`,
         name: asset?.name || usage[id]?.name || id,
-        folder: ownerFolderFor(asset) || (asset?.folder || "").trim() || usage[id]?.folder || autoFolderFor(id),
+        folder: ownerFolderFor(asset) || explicitFolderOf(asset, id, rules) || usage[id]?.folder || autoFolderForItem(id, kind, rules),
         isGif: !!asset?.is_gif || meta?.mime === "image/gif",
         isAudio: kind === "audio",
       });

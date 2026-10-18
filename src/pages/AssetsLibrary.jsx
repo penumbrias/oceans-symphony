@@ -10,8 +10,11 @@ import { toast } from "sonner";
 import {
   Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search, SlidersHorizontal,
   ChevronRight, ArrowUp, ArrowDown, X, UserPlus2, Users, ArrowLeft, CheckSquare, Check, Folder,
-  Download, Film, Music, FileText, Play,
+  Download, Film, Music, FileText, Play, Info, Cloud, CloudOff,
 } from "lucide-react";
+import ImageViewer from "@/components/shared/ImageViewer";
+import AssetInfoDialog from "@/components/shared/AssetInfoDialog";
+import { skipKeyForImage, setBackupSkipKeys, skipSetFromSettings } from "@/lib/backupSkip";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -25,15 +28,17 @@ import {
   processUploadedImage, saveLocalImage, createLocalImageUrl,
 } from "@/lib/localImageStorage";
 import {
-  assetKind, resolveMime, extForMime, saveAssetToDevice, findStoredFileUses, MAX_FILE_BYTES,
+  assetKind, resolveMime, extForMime, saveAssetToDevice, findStoredFileUses, MAX_FILE_BYTES, classifyFile,
 } from "@/lib/assetFiles";
 import { isLocalMode } from "@/lib/storageMode";
 
 // Auto-folder names + the user's overrides live in lib/assetFolders.js
 // (shared with the picker so both file an image the same way).
 import {
-  resolveAssetRules, autoFolderFor as autoFolderForRules, autoFolderNames,
+  resolveAssetRules, autoFolderNames,
   ALTER_FOLDER_PREFIX, alterFolderName as alterFolderNameRules, DEFAULT_PREFIX_FOLDERS, PREFIX_LABELS,
+  autoFolderForItem, explicitFolderOf, kindFolderFor,
+  VIDEOS_FOLDER, AUDIO_FOLDER, OTHERS_FOLDER, SONGS_AUDIO_FOLDER, UNORGANIZED_FOLDER, BUILT_IN_KIND_FOLDERS,
 } from "@/lib/assetFolders";
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const PAGE = 24; // lazy-load page size per folder
@@ -51,21 +56,32 @@ const formatSize = (n) => {
 };
 
 // One small icon button on a tile — always titled + aria-labelled.
-function TileButton({ icon: Icon, label, onClick, danger = false, disabled = false, disabledTitle }) {
+function TileButton({ icon: Icon, label, onClick, danger = false, disabled = false, disabledTitle, active = false }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
       title={disabled && disabledTitle ? disabledTitle : label} aria-label={label}
-      className={`p-1 rounded text-muted-foreground hover:bg-muted/60 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-not-allowed ${danger ? "hover:text-destructive" : "hover:text-foreground"}`}>
+      {...(active ? { "aria-pressed": true } : {})}
+      className={`p-1 rounded hover:bg-muted/60 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-not-allowed ${active ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"} ${danger ? "hover:text-destructive" : "hover:text-foreground"}`}>
       <Icon className="w-3.5 h-3.5" />
     </button>
   );
 }
 
-function Thumb({ item, onOpen, onRename, onSave, onMove, onDelete, moveBlockedTitle, selecting = false, selected = false, onToggle, showFolder = false }) {
+// A video tile shows a frame from the video itself (metadata only — the
+// whole file isn't loaded); audio and other files show an icon.
+function VideoPoster({ url }) {
+  const src = useResolvedAvatarUrl(url);
+  if (!src) return null;
+  return <video src={`${src}#t=0.1`} preload="metadata" muted playsInline aria-hidden="true" tabIndex={-1}
+    className="absolute inset-0 w-full h-full object-cover pointer-events-none" />;
+}
+
+function Thumb({ item, onOpen, onRename, onSave, onMove, onDelete, moveBlockedTitle, backupSkipped = false, onToggleBackup, selecting = false, selected = false, onToggle, showFolder = false }) {
   // Only pictures are drawn as pictures — a song or video "as an image"
   // was a broken-picture icon.
   const isImage = item.kind === "image";
   const resolved = useResolvedAvatarUrl(isImage ? item.url : null);
+  const [panel, setPanel] = useState(null); // "view" | "info" | null
   const KindIcon = KIND_ICON[item.kind] || FileText;
   // Pictures only referenced by a record / built into the app can't be
   // moved or deleted from here — in select mode they're dimmed, not pickable.
@@ -79,13 +95,17 @@ function Thumb({ item, onOpen, onRename, onSave, onMove, onDelete, moveBlockedTi
           ? <img src={resolved} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
           : <span className="w-full h-full flex items-center justify-center text-muted-foreground"><Images className="w-5 h-5" /></span>)
         : (
-          <span className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
-            <KindIcon className="w-7 h-7 text-primary/80" />
-            {ext && <span className="text-[0.5625rem] font-semibold uppercase tracking-wide">{ext}</span>}
-            {item.kind === "video" && !selecting && <Play className="absolute bottom-1.5 right-1.5 w-3.5 h-3.5" />}
+          <span className="relative w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+            {item.kind === "video" && <VideoPoster url={item.url} />}
+            <span className={item.kind === "video" ? "relative rounded-full bg-black/50 p-1.5 text-white" : ""}>
+              <KindIcon className={item.kind === "video" ? "w-5 h-5" : "w-7 h-7 text-primary/80"} />
+            </span>
+            {ext && <span className={`relative text-[0.5625rem] font-semibold uppercase tracking-wide ${item.kind === "video" ? "px-1 rounded bg-black/50 text-white" : ""}`}>{ext}</span>}
+            {item.kind === "video" && !selecting && <Play className="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 text-white drop-shadow" />}
           </span>
         )}
       {item.isGif && <span className="absolute top-1 left-1 text-[0.5rem] font-bold px-1 rounded bg-black/60 text-white">GIF</span>}
+      {backupSkipped && <span title="Left out of backups" className="absolute bottom-1 left-1 rounded-full bg-black/60 text-white p-0.5"><CloudOff className="w-3 h-3" /></span>}
       {selecting && pickable && (
         <span className={`absolute top-1 right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
           selected ? "bg-primary border-primary text-primary-foreground" : "bg-black/40 border-white/80"}`}>
@@ -105,19 +125,32 @@ function Thumb({ item, onOpen, onRename, onSave, onMove, onDelete, moveBlockedTi
         <button type="button" onClick={() => onOpen(item)} aria-label={`Open ${item.name}`} className="block w-full text-left">
           {image}
         </button>
+      ) : resolved ? (
+        // Pictures open full screen, with zoom.
+        <button type="button" onClick={() => setPanel("view")} aria-label={`View ${item.name}`} className="block w-full text-left">
+          {image}
+        </button>
       ) : image}
       <p className="text-[0.625rem] text-muted-foreground truncate mt-0.5 px-0.5" title={item.name}>{item.name}</p>
       {showFolder && <p className="text-[0.5625rem] text-muted-foreground/70 truncate px-0.5">{item.folder}</p>}
       {!selecting && (
-        <div className="mt-1 flex items-center justify-center gap-0.5">
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-0.5">
+          <TileButton icon={Info} label={`Details for ${item.name}`} onClick={() => setPanel("info")} />
           <TileButton icon={Pencil} label={`Rename ${item.name}`} onClick={() => onRename(item)} />
           <TileButton icon={Download} label={`Save ${item.name} to device`} onClick={() => onSave(item)} />
+          {onToggleBackup && (
+            <TileButton icon={backupSkipped ? CloudOff : Cloud} onClick={() => onToggleBackup(item)}
+              label={backupSkipped ? `Include ${item.name} in backups again` : `Leave ${item.name} out of backups`}
+              active={backupSkipped} />
+          )}
           <TileButton icon={FolderInput} label={`Move ${item.name} to a folder`} onClick={() => onMove(item)}
             disabled={!!moveBlockedTitle} disabledTitle={moveBlockedTitle} />
           <TileButton icon={Trash2} label={`Delete ${item.name}`} onClick={() => onDelete(item)} danger
             disabled={!!item.refOnly} disabledTitle="In use on a record, not stored in Assets — change it where it's used" />
         </div>
       )}
+      {panel === "view" && <ImageViewer open src={resolved || item.url} name={item.name} isGif={item.isGif} onClose={() => setPanel(null)} />}
+      {panel === "info" && <AssetInfoDialog item={item} backupSkipped={backupSkipped} onClose={() => setPanel(null)} />}
     </div>
   );
 }
@@ -169,14 +202,29 @@ function PreviewDialog({ item, onClose, onSave }) {
 }
 
 // A folder in the folder grid: its first picture as the cover, name, count.
-function FolderTile({ name, items, onOpen, icon: Icon = Folder }) {
+const FOLDER_ICONS = { [VIDEOS_FOLDER]: Film, [AUDIO_FOLDER]: Music, [SONGS_AUDIO_FOLDER]: Music, [OTHERS_FOLDER]: FileText };
+
+// In select mode a folder the person made can be ticked (to delete it); the
+// built-in folders still just open.
+function FolderTile({ name, items, onOpen, selecting = false, selectable = false, selected = false, onToggle }) {
   const cover = items.find((i) => i.url && i.kind === "image")?.url || "";
   const resolved = useResolvedAvatarUrl(cover);
   const allImages = items.length > 0 && items.every((i) => i.kind === "image");
   const word = allImages ? "image" : "item";
+  const Icon = FOLDER_ICONS[name] || Folder;
+  const pick = selecting && selectable;
   return (
-    <button type="button" onClick={onOpen} className="text-left group min-w-0">
-      <div className="w-full aspect-square rounded-xl overflow-hidden border border-border/50 bg-muted/30 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+    <button type="button" onClick={pick ? onToggle : onOpen} className="text-left group min-w-0"
+      aria-pressed={pick ? selected : undefined}
+      aria-label={pick ? `${selected ? "Deselect" : "Select"} folder ${name}` : undefined}>
+      <div className={`relative w-full aspect-square rounded-xl overflow-hidden border bg-muted/30 flex items-center justify-center transition-colors ${
+        selected ? "border-primary ring-2 ring-primary" : "border-border/50 group-hover:border-primary/50"} ${selecting && !selectable ? "opacity-50" : ""}`}>
+        {pick && (
+          <span className={`absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+            selected ? "bg-primary border-primary text-primary-foreground" : "bg-black/40 border-white/80"}`}>
+            {selected && <Check className="w-3 h-3" />}
+          </span>
+        )}
         {resolved
           ? <img src={resolved} alt="" className="w-full h-full object-cover" loading="lazy" />
           : <Icon className="w-8 h-8 text-muted-foreground/60" />}
@@ -184,6 +232,48 @@ function FolderTile({ name, items, onOpen, icon: Icon = Folder }) {
       <p className="text-xs font-medium truncate mt-1 px-0.5">{name}</p>
       <p className="text-[0.625rem] text-muted-foreground px-0.5">{items.length} {word}{items.length === 1 ? "" : "s"}</p>
     </button>
+  );
+}
+
+// Confirm deleting folders: either just the folder (its files are kept and
+// land in Unorganized) or the folder AND everything in it.
+function FolderDeleteDialog({ folders, onCancel, onKeepFiles, onDeleteAll }) {
+  const totalFiles = folders.reduce((n, f) => n + f.count, 0);
+  const many = folders.length > 1;
+  const shown = folders.slice(0, 5);
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent className="max-w-sm" aria-describedby={undefined}>
+        <DialogTitle className="text-sm">Delete {many ? `${folders.length} folders` : "this folder"}?</DialogTitle>
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          {shown.map((f) => (
+            <p key={f.name} className="flex items-center justify-between gap-2">
+              <span className="truncate text-foreground">{f.name}</span>
+              <span className="flex-shrink-0">{f.count} item{f.count === 1 ? "" : "s"}</span>
+            </p>
+          ))}
+          {folders.length > shown.length && <p>+ {folders.length - shown.length} more</p>}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {totalFiles === 0 ? `${many ? "These folders are" : "This folder is"} empty.` : "Choose what happens to what's inside."}
+        </p>
+        <div className="flex flex-col gap-2">
+          <button type="button" onClick={onKeepFiles}
+            className="w-full rounded-lg border border-border px-3 py-2 text-left hover:bg-muted/40">
+            <span className="block text-sm font-medium">{totalFiles === 0 ? `Delete ${many ? "folders" : "folder"}` : `Delete ${many ? "folders" : "folder"} only`}</span>
+            {totalFiles > 0 && <span className="block text-xs text-muted-foreground">Keeps everything inside — it moves to “{UNORGANIZED_FOLDER}”.</span>}
+          </button>
+          {totalFiles > 0 && (
+            <button type="button" onClick={onDeleteAll}
+              className="w-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-left text-destructive hover:bg-destructive/15">
+              <span className="block text-sm font-medium">Delete {many ? "folders" : "folder"} and everything in {many ? "them" : "it"}</span>
+              <span className="block text-xs opacity-80">Permanently deletes {totalFiles} item{totalFiles === 1 ? "" : "s"}. Anything still in use elsewhere is kept on this device.</span>
+            </button>
+          )}
+          <button type="button" onClick={onCancel} className="w-full h-9 rounded-lg border border-border text-sm">Cancel</button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -242,7 +332,10 @@ export default function AssetsLibrary() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [preview, setPreview] = useState(null); // song / video / file opened from its tile
-  const stopSelecting = () => { setSelecting(false); setSelectedKeys(new Set()); };
+  // Folders ticked in select mode (on the folder grid), to delete.
+  const [selectedFolders, setSelectedFolders] = useState(() => new Set());
+  const [folderDeleteOpen, setFolderDeleteOpen] = useState(false);
+  const stopSelecting = () => { setSelecting(false); setSelectedKeys(new Set()); setSelectedFolders(new Set()); setFolderDeleteOpen(false); };
 
   useEffect(() => { saveArr(ORDER_KEY, folderOrder); }, [folderOrder]);
   // Uploads filed from elsewhere (an alter's avatar) announce themselves.
@@ -268,10 +361,6 @@ export default function AssetsLibrary() {
   const settingsRow = settingsList[0] || null;
   const rules = useMemo(() => resolveAssetRules(settingsRow), [settingsRow]);
   const AUTO_FOLDERS = useMemo(() => new Set([...autoFolderNames(rules), BUILT_IN_FOLDER]), [rules]);
-  const autoFolderFor = (id) => autoFolderForRules(id, rules);
-  // Where videos, audio and files land unless filed elsewhere — "Files &
-  // videos" by default (renameable in the auto-organisation panel).
-  const filesFolder = autoFolderFor("file-x");
   const alterFolderName = (alterId, role) => alterFolderNameRules(alterNameById[alterId] || "Unknown alter", role, rules);
   const [orgOpen, setOrgOpen] = useState(false);
   const saveRules = async (patch) => {
@@ -335,9 +424,6 @@ export default function AssetsLibrary() {
   const usage = useImageUsage(rules, alterNameById);
   const items = useMemo(() => {
     const out = [];
-    // A song / video / file nobody filed anywhere goes to Files & videos
-    // rather than the catch-all "Other".
-    const fileFolderFor = (kind, autoName) => (kind !== "image" && autoName === "Other" ? filesFolder : autoName);
     for (const id of Object.keys(rawImages)) {
       const asset = assetByImageId[id];
       const meta = rawImages[id];
@@ -350,7 +436,7 @@ export default function AssetsLibrary() {
         kind, mime, size: meta?.size || asset?.size || 0,
         name: asset?.name || usage[id]?.name || id,
         folder: asset?.owner_alter_id && rules.perAlter ? alterFolderName(asset.owner_alter_id, asset.owner_role)
-          : ((asset?.folder || "").trim() || usage[id]?.folder || fileFolderFor(kind, autoFolderFor(id))),
+          : (explicitFolderOf(asset, id, rules) || usage[id]?.folder || autoFolderForItem(id, kind, rules)),
         ...(usage[id]?.ownerAlterId && !asset ? { ownerAlterId: usage[id].ownerAlterId, role: usage[id].role } : {}),
         isGif: !!asset?.is_gif || mime === "image/gif",
       });
@@ -364,7 +450,7 @@ export default function AssetsLibrary() {
         kind, mime: a.mime || "", size: a.size || 0,
         name: a.name || (kind === "image" ? "Image" : "File"),
         folder: a.owner_alter_id && rules.perAlter ? alterFolderName(a.owner_alter_id, a.owner_role)
-          : ((a.folder || "").trim() || (kind === "image" ? "Library uploads" : filesFolder)),
+          : (explicitFolderOf(a, lid, rules) || (kind === "image" ? "Library uploads" : kindFolderFor(kind, lid))),
         isGif: !!a.is_gif,
       });
     }
@@ -372,7 +458,7 @@ export default function AssetsLibrary() {
     const known = new Set(out.map((i) => i.url));
     for (const r of referenced) if (!known.has(r.url)) out.push({ ...r, id: r.key, asset: null, kind: "image", mime: "", isGif: false });
     return out;
-  }, [rawImages, assets, assetByImageId, alterNameById, rules, referenced, usage, filesFolder]);
+  }, [rawImages, assets, assetByImageId, alterNameById, rules, referenced, usage]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -388,19 +474,21 @@ export default function AssetsLibrary() {
 
     const isAlterFolder = (f) => f.startsWith(ALTER_FOLDER_PREFIX);
     const userFromItems = [...new Set(filtered.map((i) => i.folder).filter((f) => !AUTO_FOLDERS.has(f) && !isAlterFolder(f)))];
-    const userNames = [...folderOrder];
+    // A saved folder name that is now a built-in one (an old "Audio" folder
+    // made before Audio was built in) would show up twice — keep the built-in.
+    const userNames = folderOrder.filter((n, i, arr) => n && !AUTO_FOLDERS.has(n) && !isAlterFolder(n) && arr.indexOf(n) === i);
     for (const n of userFromItems) if (!userNames.includes(n)) userNames.push(n);
 
     const alterFolderNames = Object.keys(map).filter(isAlterFolder).sort((a, b) => a.localeCompare(b));
 
     const autoNames = Object.keys(map)
-      .filter((f) => AUTO_FOLDERS.has(f) && f !== filesFolder)
+      .filter((f) => AUTO_FOLDERS.has(f) && !BUILT_IN_KIND_FOLDERS.includes(f))
       .sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
 
-    // Files & videos is always listed (even empty) so there's somewhere to
-    // upload files into — except while searching, when only hits show.
-    const showFiles = !search.trim() || (map[filesFolder] || []).length > 0;
-    let ordered = [...userNames, ...(showFiles && filesFolder !== "Other" ? [filesFolder] : []), ...alterFolderNames, ...autoNames];
+    // Videos, Audio and Others are always listed (even empty) so it's clear
+    // where each kind of file goes — except while searching, when only hits show.
+    const kindFolders = BUILT_IN_KIND_FOLDERS.filter((f) => !search.trim() || (map[f] || []).length > 0);
+    let ordered = [...userNames, ...kindFolders, ...alterFolderNames, ...autoNames];
     // Owner-filter narrows to just folders whose AssetFolder record lists
     // the chosen alter (and the synthetic 👤 folder for that alter, which
     // always belongs to them).
@@ -413,7 +501,7 @@ export default function AssetsLibrary() {
       });
     }
     return { byFolder: map, orderedFolders: ordered };
-  }, [filtered, folderOrder, ownerFilter, assetFolderByName, filesFolder, search]);
+  }, [filtered, folderOrder, ownerFilter, assetFolderByName, search, AUTO_FOLDERS]);
 
   // Assign / update / clear the alter-owners set for a user folder. Creates
   // an AssetFolder record on first assignment; deletes it when the user
@@ -484,34 +572,35 @@ export default function AssetsLibrary() {
     });
   };
 
-  // Uploading into Files & videos keeps the file exactly as it is (any
-  // type); anywhere else takes pictures, compressed like every upload.
-  const uploadingFiles = !search.trim() && openFolder === filesFolder;
+  // Pictures are compressed like every upload. Videos, audio and any other
+  // file are stored exactly as they are (original quality) and file
+  // themselves into Videos / Audio / Others — or the open folder.
+  const targetFolder = () => (openFolder && isUser(openFolder) ? openFolder : uploadFolder).trim();
   const handleFiles = async (e) => {
     const files = [...(e.target.files || [])];
     e.target.value = "";
     if (!files.length) return;
     setUploading(true);
-    let added = 0, tooBig = 0, notImage = 0;
+    let added = 0, addedFiles = 0, tooBig = 0, notLocal = 0;
     for (const file of files) {
       try {
-        if (uploadingFiles) {
-          if (!isLocalMode()) { toast.error("Files can only be stored on this device in local mode."); break; }
+        const picked = classifyFile(file.type, file.name);
+        if (picked !== "image") {
+          if (!isLocalMode()) { notLocal++; continue; }
           if (file.size > MAX_FILE_BYTES) { tooBig++; continue; }
           const id = `file-${Date.now()}-${Math.random().toString(36).slice(2)}`;
           const mime = file.type || "";
           await saveLocalImage(id, file, mime || undefined);
-          const kind = assetKind({ asset: { mime }, id });
+          const kind = mime ? assetKind({ asset: { mime }, id }) : picked;
           await base44.entities.ImageAsset.create({
             name: file.name.replace(/\.[^.]+$/, "").slice(0, 80) || "File",
-            image_url: createLocalImageUrl(id), folder: "",
+            image_url: createLocalImageUrl(id), folder: targetFolder(),
             kind, mime, file_name: file.name, size: file.size,
-            is_gif: mime === "image/gif", created_date: new Date().toISOString(),
+            is_gif: false, created_date: new Date().toISOString(),
           });
-          added++;
+          addedFiles++;
           continue;
         }
-        if (!file.type.startsWith("image/")) { notImage++; continue; }
         const { dataUrl, isGif } = await processUploadedImage(file, 1200, 0.85);
         let url = dataUrl;
         if (isLocalMode()) {
@@ -521,7 +610,7 @@ export default function AssetsLibrary() {
         }
         await base44.entities.ImageAsset.create({
           name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Image",
-          image_url: url, folder: (openFolder && isUser(openFolder) ? openFolder : uploadFolder).trim(), is_gif: isGif, created_date: new Date().toISOString(),
+          image_url: url, folder: targetFolder(), is_gif: isGif, created_date: new Date().toISOString(),
         });
         added++;
       } catch { /* skip */ }
@@ -529,9 +618,12 @@ export default function AssetsLibrary() {
     qc.invalidateQueries({ queryKey: ["imageAssets"] });
     await loadImages();
     setUploading(false);
-    if (added) toast.success(`${added} ${uploadingFiles ? "file" : "image"}${added === 1 ? "" : "s"} uploaded`);
+    const bits = [];
+    if (added) bits.push(`${added} image${added === 1 ? "" : "s"}`);
+    if (addedFiles) bits.push(`${addedFiles} file${addedFiles === 1 ? "" : "s"}`);
+    if (bits.length) toast.success(`${bits.join(" and ")} uploaded`);
     if (tooBig) toast.error(`${tooBig} file${tooBig === 1 ? " is" : "s are"} over ${Math.round(MAX_FILE_BYTES / (1024 * 1024))} MB and ${tooBig === 1 ? "wasn't" : "weren't"} stored.`);
-    if (notImage) toast.info(`${notImage} non-picture file${notImage === 1 ? "" : "s"} skipped — upload videos, audio and files in “${filesFolder}”.`);
+    if (notLocal) toast.error("Videos, audio and other files can only be stored on this device in local mode.");
   };
 
   // The fields a new library record for this item needs, so a picture that
@@ -708,6 +800,93 @@ export default function AssetsLibrary() {
     else toast.success(`Deleted ${n} item${n === 1 ? "" : "s"}${kept ? ` · ${kept} kept on this device because ${kept === 1 ? "it's" : "they're"} still used elsewhere` : ""}`);
   };
 
+  // ── "Skip in backups" (per file, or every file in a folder) ─────────
+  // Everything is backed up unless marked here. Marking only leaves a file
+  // OUT of backups — it is never deleted or changed — so a skipped file
+  // lives only on this device.
+  const backupSkipSet = useMemo(() => skipSetFromSettings(settingsRow), [settingsRow]);
+  const backupKeyOf = (item) => { const lid = item.refOnly ? null : storedIdFor(item); return lid ? skipKeyForImage(lid) : null; };
+  const isBackupSkipped = (item) => { const k = backupKeyOf(item); return !!k && backupSkipSet.has(k); };
+  const toggleBackupSkip = async (item) => {
+    const k = backupKeyOf(item);
+    if (!k) return;
+    const skip = !backupSkipSet.has(k);
+    if (skip && !(await confirm({
+      title: `Leave “${item.name}” out of backups?`,
+      body: "It stays on this device, but it won't be in an exported or automatic backup. If this device is lost or wiped, it can't be restored.",
+      confirmLabel: "Leave it out",
+    }))) return;
+    try {
+      await setBackupSkipKeys([k], skip);
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(skip ? "Left out of backups (it stays on this device only)" : "Included in backups again");
+    } catch (e) { toast.error(e?.message || "Couldn't change that"); }
+  };
+  // Applies to what's in the folder right now; files added later are
+  // included by default.
+  const setFolderBackupSkip = async (list, skip) => {
+    const keys = [...new Set(list.map(backupKeyOf).filter(Boolean))];
+    if (!keys.length) return;
+    if (skip && !(await confirm({
+      title: `Leave ${keys.length} file${keys.length === 1 ? "" : "s"} out of backups?`,
+      body: "They stay on this device, but they won't be in an exported or automatic backup. If this device is lost or wiped, they can't be restored. Files you add to this folder later are still included.",
+      confirmLabel: "Leave them out",
+    }))) return;
+    try {
+      await setBackupSkipKeys(keys, skip);
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(skip ? `${keys.length} left out of backups` : `${keys.length} included in backups again`);
+    } catch (e) { toast.error(e?.message || "Couldn't change that"); }
+  };
+
+  // ── Deleting folders (select mode, folder grid) ─────────────────────
+  const toggleFolderSelect = (name) => setSelectedFolders((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  // Forget a folder once it's empty: drop it from the saved order and clear its owners.
+  const forgetFolder = async (name) => {
+    setFolderOrder((o) => o.filter((n) => n !== name));
+    const rec = assetFolderByName[name];
+    if (rec) { try { await base44.entities.AssetFolder.delete(rec.id); } catch { /* owner note only */ } }
+  };
+  const folderFiles = (name) => items.filter((i) => i.folder === name && !i.refOnly);
+  const deleteSelectedFolders = async (mode) => {
+    const names = [...selectedFolders].filter(isUser);
+    if (!names.length) return;
+    setFolderDeleteOpen(false);
+    if (mode === "all") {
+      const files = names.flatMap(folderFiles);
+      const inUse = files.filter((i) => Object.keys(usesAfterDelete(i)).length).length;
+      const warn = inUse ? ` ${inUse} of them ${inUse === 1 ? "is" : "are"} still in use elsewhere, so ${inUse === 1 ? "it stays" : "those stay"} stored on this device.` : "";
+      if (!(await confirm({
+        title: `Delete ${names.length === 1 ? "this folder" : `${names.length} folders`} and ${files.length} item${files.length === 1 ? "" : "s"}?`,
+        body: `This permanently removes them from this device.${warn} This can't be undone.`,
+        confirmLabel: "Delete", destructive: true,
+      }))) { setFolderDeleteOpen(true); return; }
+    }
+    setBulkBusy(true);
+    let removed = 0, moved = 0, deleted = 0, failed = 0;
+    for (const name of names) {
+      const list = folderFiles(name);
+      let bad = 0;
+      for (const item of list) {
+        try {
+          if (mode === "all") { await removeStored(item); deleted++; }
+          else if (item.asset) { await base44.entities.ImageAsset.update(item.asset.id, { folder: UNORGANIZED_FOLDER }); moved++; }
+          else { await base44.entities.ImageAsset.create(recordFor(item, { folder: UNORGANIZED_FOLDER })); moved++; }
+        } catch { bad++; }
+      }
+      failed += bad;
+      // Only forget the folder once nothing is left in it.
+      if (bad === 0) { await forgetFolder(name); removed++; }
+    }
+    qc.invalidateQueries({ queryKey: ["imageAssets"] });
+    qc.invalidateQueries({ queryKey: ["assetFolders"] });
+    await loadImages();
+    setBulkBusy(false);
+    stopSelecting();
+    if (failed) toast.error(`${failed} item${failed === 1 ? "" : "s"} couldn't be ${mode === "all" ? "deleted" : "moved"}, so ${failed === 1 ? "its folder was" : "their folders were"} kept.`);
+    else toast.success(`Deleted ${removed} folder${removed === 1 ? "" : "s"}${mode === "all" ? (deleted ? ` and ${deleted} item${deleted === 1 ? "" : "s"}` : "") : (moved ? ` · ${moved} item${moved === 1 ? "" : "s"} moved to “${UNORGANIZED_FOLDER}”` : "")}`);
+  };
+
   // What the grid shows: search results (across every folder), the open
   // folder's images, or the folder tiles.
   const searching = !!search.trim();
@@ -722,6 +901,8 @@ export default function AssetsLibrary() {
   const openUser = inFolder && isUser(openFolder);
   const ownerRec = openUser ? assetFolderByName[openFolder] : null;
   const ownerIds = (ownerRec && Array.isArray(ownerRec.owner_alter_ids)) ? ownerRec.owner_alter_ids : [];
+  const folderBackupKeys = inFolder ? [...new Set(folderList.map(backupKeyOf).filter(Boolean))] : [];
+  const folderAllSkipped = folderBackupKeys.length > 0 && folderBackupKeys.every((k) => backupSkipSet.has(k));
 
   const imageGrid = (list, showFolder) => (
     <>
@@ -729,6 +910,7 @@ export default function AssetsLibrary() {
         {list.slice(0, limit).map((item) => (
           <Thumb key={item.key} item={item} onOpen={setPreview} onRename={renameItem} onSave={saveItem} onMove={openMove} onDelete={del}
             moveBlockedTitle={moveBlockedFor(item)}
+            backupSkipped={isBackupSkipped(item)} onToggleBackup={backupKeyOf(item) ? toggleBackupSkip : undefined}
             selecting={selecting} selected={selectedKeys.has(item.key)} onToggle={toggleSelect} showFolder={showFolder} />
         ))}
       </div>
@@ -761,10 +943,10 @@ export default function AssetsLibrary() {
         </div>
         {!selecting && (
           <div className="flex items-center gap-2">
-            {!openUser && !uploadingFiles && (
+            {!openUser && (
               <Input value={uploadFolder} onChange={(e) => setUploadFolder(e.target.value)} placeholder="Upload into folder (optional)" className="flex-1 h-9 text-sm" />
             )}
-            {(openUser || uploadingFiles) && <span className="flex-1 text-xs text-muted-foreground truncate">{uploadingFiles ? "Upload videos, audio or any file" : `Uploads go into “${openFolder}”`}</span>}
+            {openUser && <span className="flex-1 text-xs text-muted-foreground truncate">Uploads go into “{openFolder}”</span>}
             <button type="button" onClick={createFolder} title="New folder"
               className="h-9 px-2.5 flex items-center gap-1 rounded-lg border border-border bg-card/50 text-xs text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0">
               <FolderPlus className="w-4 h-4" /> Folder
@@ -777,7 +959,7 @@ export default function AssetsLibrary() {
               className="h-9 px-3 flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 flex-shrink-0">
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
             </button>
-            <input ref={fileRef} type="file" accept={uploadingFiles ? undefined : "image/*"} multiple hidden onChange={handleFiles} />
+            <input ref={fileRef} type="file" multiple hidden onChange={handleFiles} />
           </div>
         )}
         {/* Organisation rules: where each kind of image is filed by default
@@ -798,7 +980,7 @@ export default function AssetsLibrary() {
               </label>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-              {Object.keys(DEFAULT_PREFIX_FOLDERS).filter((k) => k !== "fixed").map((k) => (
+              {Object.keys(DEFAULT_PREFIX_FOLDERS).filter((k) => k !== "fixed" && k !== "file" && k !== "chatfile").map((k) => (
                 <label key={k} className="flex items-center gap-2 text-xs">
                   <span className="w-36 flex-shrink-0 text-muted-foreground truncate" title={PREFIX_LABELS[k] || k}>{PREFIX_LABELS[k] || k}</span>
                   <Input value={rules.folders[k] ?? ""} placeholder="Other"
@@ -832,6 +1014,14 @@ export default function AssetsLibrary() {
             <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
             <span className="font-medium truncate flex-1 min-w-0">{openFolder}</span>
             <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{folderList.length}</span>
+            {!selecting && folderBackupKeys.length > 0 && (
+              <button type="button" onClick={() => setFolderBackupSkip(folderList, !folderAllSkipped)}
+                aria-label={folderAllSkipped ? "Include this folder in backups again" : "Leave this folder out of backups"}
+                title={folderAllSkipped ? "Left out of backups — tap to include again" : "Included in backups — tap to leave this folder's files out"}
+                className={`p-1 rounded hover:bg-muted/60 flex-shrink-0 ${folderAllSkipped ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground hover:text-foreground"}`}>
+                {folderAllSkipped ? <CloudOff className="w-3.5 h-3.5" /> : <Cloud className="w-3.5 h-3.5" />}
+              </button>
+            )}
             {openUser && !selecting && (
               <span className="flex items-center gap-0.5 flex-shrink-0">
                 <button type="button" onClick={() => setOwnershipDialog(openFolder)} aria-label={ownerIds.length ? "Change owners" : "Assign owner"}
@@ -853,8 +1043,8 @@ export default function AssetsLibrary() {
           : imageGrid(filtered, true)
       ) : inFolder ? (
         folderList.length === 0
-          ? <p className="text-center py-16 text-sm text-muted-foreground">{openFolder === filesFolder
-            ? `Empty — videos, audio and files you upload here show up in this folder.`
+          ? <p className="text-center py-16 text-sm text-muted-foreground">{BUILT_IN_KIND_FOLDERS.includes(openFolder)
+            ? `Empty — ${openFolder === VIDEOS_FOLDER ? "videos" : openFolder === AUDIO_FOLDER ? "audio" : "other files"} you upload or attach in chat show up here.`
             : "Empty — upload into this folder, or move items here."}</p>
           : imageGrid(folderList, false)
       ) : orderedFolders.length === 0 ? (
@@ -864,7 +1054,9 @@ export default function AssetsLibrary() {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {orderedFolders.map((folder) => (
-            <FolderTile key={folder} name={folder} items={byFolder[folder] || []} icon={folder === filesFolder ? Film : Folder} onOpen={() => { goFolder(folder); setSelectedKeys(new Set()); }} />
+            <FolderTile key={folder} name={folder} items={byFolder[folder] || []}
+              selecting={selecting} selectable={isUser(folder)} selected={selectedFolders.has(folder)} onToggle={() => toggleFolderSelect(folder)}
+              onOpen={() => { goFolder(folder); setSelectedKeys(new Set()); setSelectedFolders(new Set()); }} />
           ))}
         </div>
       )}
@@ -873,7 +1065,13 @@ export default function AssetsLibrary() {
       {selecting && (
         <div className="fixed left-0 right-0 z-40 px-3" style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px) + 8px)" }}>
           <div className="max-w-3xl mx-auto rounded-2xl border border-border bg-card shadow-2xl p-2 flex items-center gap-1.5">
-            <span className="text-xs font-medium px-1.5 flex-shrink-0">{selectedKeys.size} selected</span>
+            {!inFolder && !searching ? (
+              <span className="text-xs font-medium px-1.5 flex-shrink-0 min-w-0 truncate">
+                {selectedFolders.size ? `${selectedFolders.size} folder${selectedFolders.size === 1 ? "" : "s"} selected` : "Tap your own folders to delete them, or open one"}
+              </span>
+            ) : (
+              <span className="text-xs font-medium px-1.5 flex-shrink-0">{selectedKeys.size} selected</span>
+            )}
             {(inFolder || searching) && selectableInView.length > 0 && (
               <button type="button" onClick={() => setSelectedKeys(allSelected ? new Set() : new Set(selectableInView.map((i) => i.key)))}
                 className="text-xs px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 flex-shrink-0">
@@ -881,14 +1079,23 @@ export default function AssetsLibrary() {
               </button>
             )}
             <span className="flex-1" />
-            <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={() => setMoveOpen(true)}
-              className="h-8 px-2.5 rounded-lg border border-border text-xs flex items-center gap-1 disabled:opacity-40">
-              <FolderInput className="w-3.5 h-3.5" /> Move
-            </button>
-            <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={bulkDelete}
-              className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40">
-              {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
-            </button>
+            {!inFolder && !searching ? (
+              <button type="button" disabled={!selectedFolders.size || bulkBusy} onClick={() => setFolderDeleteOpen(true)}
+                className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40 flex-shrink-0">
+                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
+              </button>
+            ) : (
+              <>
+                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={() => setMoveOpen(true)}
+                  className="h-8 px-2.5 rounded-lg border border-border text-xs flex items-center gap-1 disabled:opacity-40">
+                  <FolderInput className="w-3.5 h-3.5" /> Move
+                </button>
+                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={bulkDelete}
+                  className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40">
+                  {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
+                </button>
+              </>
+            )}
             <button type="button" onClick={stopSelecting} aria-label="Stop selecting" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
           </div>
         </div>
@@ -898,6 +1105,14 @@ export default function AssetsLibrary() {
           onCancel={() => { setMoveOpen(false); setMoveItems(null); }} onMove={runMove} />
       )}
       {preview && <PreviewDialog item={preview} onClose={() => setPreview(null)} onSave={saveItem} />}
+      {folderDeleteOpen && (
+        <FolderDeleteDialog
+          folders={[...selectedFolders].filter(isUser).map((name) => ({ name, count: folderFiles(name).length }))}
+          onCancel={() => setFolderDeleteOpen(false)}
+          onKeepFiles={() => deleteSelectedFolders("keep")}
+          onDeleteAll={() => deleteSelectedFolders("all")}
+        />
+      )}
 
       {ownershipDialog && (
         <FolderOwnershipDialog

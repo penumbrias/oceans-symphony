@@ -101,6 +101,8 @@ export function folderForMime(mime) {
   return "Files";
 }
 
+const KIND_BY_FOLDER = { Pictures: "image", Audio: "audio", Videos: "video", Files: "file" };
+
 // A name that's safe as a zip path on every OS: no separators, reserved
 // characters or control characters; trimmed; bounded.
 export function safeFileName(raw, fallback = "file") {
@@ -124,7 +126,11 @@ export function buildFileNameMap(dumps = []) {
     for (const r of rows) {
       const id = r?.image_url ? getLocalImageId(String(r.image_url)) : null;
       if (!id || names.has(id) || !r.name) continue;
-      names.set(id, String(r.name).replace(/\.[A-Za-z0-9]{1,5}$/, ""));
+      const stem = String(r.name).replace(/\.[A-Za-z0-9]{1,5}$/, "");
+      // A song's library name is cut short; the file keeps its full original
+      // name — unless the person renamed it to something else.
+      const original = String(r.original_name || r.file_name || "").replace(/\.[A-Za-z0-9]{1,5}$/, "");
+      names.set(id, original && original.length > stem.length && original.startsWith(stem) ? original : stem);
     }
   }
   return names;
@@ -162,12 +168,23 @@ function makeSink() {
 //   dataName/dataText — a JSON text to store at the root (the backup data)
 //   nameDumps         — data dumps to take file names from (ImageAsset)
 //   ids               — which stored files (default: every one)
+//   exclude           — ids to leave out (files marked "skip in backups")
+//   kinds             — only these types: any of "image" | "audio" |
+//                       "video" | "file" (default: all)
 //   onProgress({ done, total })
-// Returns { blob, files, failed: [id], bytes }. Throws when the store can't
-// be listed, or when the zip would pass the 4 GB format limit.
-export async function buildBackupZip({ dataName = null, dataText = null, nameDumps = [], ids = null, onProgress } = {}) {
+// Returns { blob, files, failed: [id], left, bytes } — `left` counts the
+// files left out by `exclude` / `kinds`, never a failure. Throws when the
+// store can't be listed, or when the zip would pass the 4 GB format limit.
+export async function buildBackupZip({ dataName = null, dataText = null, nameDumps = [], ids = null, exclude = null, kinds = null, onProgress } = {}) {
   const { Zip, ZipPassThrough, ZipDeflate, strToU8 } = await import("fflate");
-  const allIds = ids || (await listLocalImageIds()).map(String);
+  let allIds = ids || (await listLocalImageIds()).map(String);
+  let left = 0;
+  if (exclude && exclude.size) {
+    const before = allIds.length;
+    allIds = allIds.filter((id) => !exclude.has(String(id)));
+    left += before - allIds.length;
+  }
+  const kindSet = kinds ? new Set(kinds) : null;
   const names = buildFileNameMap(nameDumps);
   const sink = makeSink();
   const zip = new Zip((err, chunk) => sink.ondata(err, chunk));
@@ -201,10 +218,21 @@ export async function buildBackupZip({ dataName = null, dataText = null, nameDum
       throw new Error("Your files add up to more than 4 GB — more than one .zip file can hold. Nothing was saved.");
     }
     let mime = (blob.type || "").toLowerCase();
+    // Known type and not wanted: skip it before reading its bytes.
+    if (kindSet && !isGenericMime(mime) && !kindSet.has(KIND_BY_FOLDER[folderForMime(mime)])) {
+      left++; done++;
+      onProgress?.({ done, total: allIds.length });
+      continue;
+    }
     let bytes;
     try { bytes = new Uint8Array(await blob.arrayBuffer()); } catch { failed.push(id); done++; continue; }
     if (isGenericMime(mime)) mime = sniffMime(bytes.subarray(0, 16)) || "application/octet-stream";
     const folder = folderForMime(mime);
+    if (kindSet && !kindSet.has(KIND_BY_FOLDER[folder])) {
+      bytes = null; left++; done++;
+      onProgress?.({ done, total: allIds.length });
+      continue;
+    }
     const ext = extForMime(mime);
     const stem = safeFileName(names.get(id) || id, "file");
     let path = `${folder}/${stem}.${ext}`;
@@ -230,7 +258,7 @@ export async function buildBackupZip({ dataName = null, dataText = null, nameDum
   addDeflated(ZIP_MANIFEST_NAME, strToU8(JSON.stringify(manifest, null, 1)));
   zip.end();
   if (sink.error) throw sink.error;
-  return { blob: sink.finish("application/zip"), files: manifestFiles.length, failed, bytes: sink.total };
+  return { blob: sink.finish("application/zip"), files: manifestFiles.length, failed, left, bytes: sink.total };
 }
 
 // ── Reading ─────────────────────────────────────────────────────────

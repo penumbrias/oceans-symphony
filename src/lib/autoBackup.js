@@ -22,6 +22,7 @@
 import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
 import { getAllLocalImages, measureLocalImages } from "@/lib/localImageStorage";
+import { loadBackupSkip } from "@/lib/backupSkip";
 import { getAllLocalFonts, measureLocalFonts } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
@@ -394,9 +395,17 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // themselves are read only when the whole backup fits under the limit.
   // Over it, the backup is data-only (every record still ships) and the
   // health line says so — files are saved with "Files as .zip".
+  // Files marked "skip in backups" in Assets stay out — and out of the size
+  // measure, so leaving out a few huge videos lets the rest fit again.
+  // Can't read the marks → nothing is skipped (back up more, not less).
+  let skipIds = null;
+  try {
+    const marks = await loadBackupSkip();
+    skipIds = new Set([...marks].filter((k) => k.startsWith("i:")).map((k) => k.slice(2)));
+  } catch { skipIds = null; }
   let mediaMeasure = null;
   let imagesUnread = false;
-  try { mediaMeasure = await measureLocalImages(); } catch { imagesUnread = true; }
+  try { mediaMeasure = await measureLocalImages({ exclude: skipIds }); } catch { imagesUnread = true; }
   let fontMeasure = null;
   let fontsUnread = false;
   try { fontMeasure = await measureLocalFonts(); } catch { fontsUnread = true; }
@@ -416,8 +425,8 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
     // silently, so a backup with no pictures was logged as healthy (audit
     // 2026-10-01, M1): compare against what the stores hold.
     if (!imagesUnread && mediaMeasure?.count) {
-      try { images = await getAllLocalImages(); } catch { images = {}; }
-      if (Object.keys(images).length < mediaMeasure.count) imagesUnread = true;
+      try { images = await getAllLocalImages({ exclude: skipIds }); } catch { images = {}; }
+      if (Object.keys(images).length < mediaMeasure.count - (mediaMeasure.excluded || 0)) imagesUnread = true;
     }
     if (!fontsUnread && fontMeasure?.count) {
       try { fonts = await getAllLocalFonts(); } catch { fonts = {}; }
