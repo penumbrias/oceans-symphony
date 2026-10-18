@@ -52,6 +52,8 @@ import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } fro
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
+import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
+import { normalizeHex } from "@/lib/planTagColor";
 import { Switch } from "@/components/ui/switch";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 // The tracker's overview calendars and panels, merged into the planner.
@@ -196,6 +198,7 @@ export default function PlannerSurface({
   const [reminderOpen, setReminderOpen] = useState(null);
   const [criticalOpen, setCriticalOpen] = useState(null);
   const [locationOpen, setLocationOpen] = useState(null);
+  const [tagOpen, setTagOpen] = useState(null);
   const whoHas = (timing?.item?.fronting_alter_ids || []).length > 0;
   const notesHas = !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
   const whoOpenEff = whoOpen ?? whoHas;
@@ -228,6 +231,8 @@ export default function PlannerSurface({
   const reminderOpenEff = reminderOpen ?? reminderHas;
   const criticalOpenEff = criticalOpen ?? criticalHas;
   const locationOpenEff = locationOpen ?? locationHas;
+  const tagHas = !!normalizeHex(timing?.item?.tag_color || "");
+  const tagOpenEff = tagOpen ?? tagHas;
   const canRepeat = !!timing?.create;
   const canPlanExtras = !!(timing?.create || timing?.item?.status === "scheduled");
   // Deleting a series member must ask how far the delete reaches.
@@ -253,7 +258,7 @@ export default function PlannerSurface({
   // close directly — pressing a named button IS the confirmation.
   const [closeAsk, setCloseAsk] = useState(false);
   const EDIT_GUARD_FIELDS = ["activity_name", "notes", "fronting_alter_ids", "activity_category_ids",
-    "parent_category_id", "location", "is_critical", "color", "timestamp", "duration_minutes", "actual_duration_minutes"];
+    "parent_category_id", "location", "is_critical", "color", "tag_color", "timestamp", "duration_minutes", "actual_duration_minutes"];
   const editorDirty = () => {
     if (!timing || timing.create || !timing.snapshot) return false;
     const live = (activities || []).find((a) => a.id === timing.item.id);
@@ -392,7 +397,7 @@ export default function PlannerSurface({
     setExtraDays([]);
     autoTitleRef.current = "";
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
     setWhatOpen(true);
   };
   // Editing seeds the extras from the record, and the More section starts
@@ -406,7 +411,7 @@ export default function PlannerSurface({
     });
     // Chips fold on open; fields that hold a value auto-open via the *OpenEff
     // derivations, so nothing set is ever hidden.
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
     setWhatOpen(false);
   };
   // Opening the EDITOR for an existing entry — one seeding path for every
@@ -489,6 +494,7 @@ export default function PlannerSurface({
             activity_name: name,
             activity_category_ids: timing.item.activity_category_ids || [],
             ...(cat?.color ? { color: cat.color } : {}),
+            ...(normalizeHex(timing.item.tag_color || "") ? { tag_color: normalizeHex(timing.item.tag_color) } : {}),
             // A to-do linked while creating must ride along, or ticking one
             // off could never find the other.
             ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
@@ -766,6 +772,17 @@ export default function PlannerSurface({
     : [timing?.item].filter(Boolean));
 
   // Rename / recategorise write straight through, like the member toggle.
+  // The colour picker fires on every drag step; write the record once the
+  // pick settles (the editor shows the new colour straight away).
+  const tagSaveTimer = useRef(null);
+  const saveTagColorDebounced = (hex) => {
+    const v = normalizeHex(hex || "") || null;
+    setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, tag_color: v } } : prev));
+    if (timing?.create) return;
+    clearTimeout(tagSaveTimer.current);
+    tagSaveTimer.current = setTimeout(() => saveField({ tag_color: v }), 400);
+  };
+  useEffect(() => () => clearTimeout(tagSaveTimer.current), []);
   const saveField = async (patch) => {
     if (!timing) return;
     if (timing.create) {
@@ -1689,6 +1706,7 @@ export default function PlannerSurface({
                 <DetailChip open={criticalOpenEff} has={criticalHas} onToggle={() => setCriticalOpen(!criticalOpenEff)} label={tr("planner.critical")} />
               )}
               <DetailChip open={locationOpenEff} has={locationHas} onToggle={() => setLocationOpen(!locationOpenEff)} label={tr("planner.location")} />
+              <DetailChip open={tagOpenEff} has={tagHas} onToggle={() => setTagOpen(!tagOpenEff)} label={tr("planner.colorTag")} />
             </div>
             {/* Who was doing it — this is what makes the per-member totals
                 answer "is everyone getting fair time".
@@ -1862,6 +1880,13 @@ export default function PlannerSurface({
                         {tr("planner.openMap")}
                       </a>
                     )}
+                  </div>
+                  )}
+
+                  {tagOpenEff && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">{tr("planner.colorTagHint")}</p>
+                    <PlanColorTagPicker value={timing.item.tag_color || null} onChange={saveTagColorDebounced} />
                   </div>
                   )}
             </div>

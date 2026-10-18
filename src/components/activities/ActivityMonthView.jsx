@@ -6,6 +6,7 @@ import {
 import { countableMinutes, statusFor, visualForStatus } from "@/lib/activityStatus";
 import { datesForDay } from "@/lib/importantDates";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
+import { dayTagColor, taggedPlansForDay } from "@/lib/planTagColor";
 
 /**
  * Calendar-grid view of a single month. Each day cell shows colored bars or
@@ -74,16 +75,22 @@ export default function ActivityMonthView({
           const intensity = maxMinutes > 0 ? Math.min(1, totalMin / maxMinutes) : 0;
           const inMonth = isSameMonth(d, monthStart);
           const today = isToday(d);
+          // Plan color tag — the highest-priority tagged plan colors the box
+          // (time → daily → weekly → monthly → yearly).
+          const tag = inMonth ? dayTagColor(list) : null;
+          const tagNames = taggedPlansForDay(list).map((a) => a.activity_name || "Plan").join(", ");
 
           return (
             <button
               key={key}
               type="button"
               {...drag.cellProps(d)}
+              title={tag ? tagNames : undefined}
               onClick={() => { if (!drag.suppressClick()) onDayClick?.(d); }}
               className={`relative text-left border-b border-r border-border/40 p-1.5 min-h-[72px] transition-colors hover:bg-accent/40 ${inMonth ? "" : "bg-muted/20"} ${drag.inRange(d) ? "ring-2 ring-inset ring-primary/70" : ""}`}
               style={{
                 ...(intensity > 0 ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.18})` } : null),
+                ...(tag ? { backgroundColor: `${tag}66`, boxShadow: `inset 0 0 0 1.5px ${tag}` } : null),
                 ...(drag.dragging ? { touchAction: "none" } : null),
               }}
             >
@@ -117,6 +124,20 @@ export default function ActivityMonthView({
                 })}
                 {list.length > 6 && (
                   <span className="text-[0.5rem] text-muted-foreground leading-none">+{list.length - 6}</span>
+                )}
+                {list.length > 1 && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${list.length} events — open the day`}
+                    title={`${list.length} events — open the day`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onDayClick?.(d); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onDayClick?.(d); } }}
+                    className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full border border-border/70 bg-background/80 text-[0.625rem] leading-none text-foreground cursor-pointer"
+                  >
+                    +
+                  </span>
                 )}
               </div>
               {(() => {

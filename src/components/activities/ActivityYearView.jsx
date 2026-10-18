@@ -5,6 +5,7 @@ import {
 } from "date-fns";
 import { countableMinutes } from "@/lib/activityStatus";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
+import { dayTagColor, taggedPlansForDay, textOn } from "@/lib/planTagColor";
 
 function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, onDayClick, drag }) {
   const monthStart = startOfMonth(monthDate);
@@ -37,7 +38,11 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
           const intensity = maxMinutes > 0 ? Math.min(1, totalMin / maxMinutes) : 0;
           const inMonth = isSameMonth(d, monthStart);
           const today = isToday(d);
-          const bg = !inMonth
+          // Plan color tag wins over the minutes heatmap: the highest-priority
+          // tagged plan colors the box (time → daily → weekly → monthly → yearly).
+          const tag = inMonth ? dayTagColor(list) : null;
+          const tagNames = taggedPlansForDay(list).map((a) => a.activity_name || "Plan").join(", ");
+          const bg = tag ? tag : !inMonth
             ? "transparent"
             : intensity > 0
             ? `hsl(var(--primary) / ${0.15 + intensity * 0.65})`
@@ -48,11 +53,22 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
               type="button"
               {...(drag ? drag.cellProps(d) : {})}
               onClick={(e) => { e.stopPropagation(); if (!drag?.suppressClick()) onDayClick?.(d); }}
-              className={`aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""} ${drag?.inRange(d) ? "ring-1 ring-primary" : ""}`}
-              style={{ backgroundColor: bg, ...(drag?.dragging ? { touchAction: "none" } : null) }}
-              title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}` : undefined}
+              className={`relative aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""} ${drag?.inRange(d) ? "ring-1 ring-primary" : ""}`}
+              style={{ backgroundColor: bg, ...(tag ? { color: textOn(tag) } : null), ...(drag?.dragging ? { touchAction: "none" } : null) }}
+              title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}${tag ? ` — ${tagNames}` : ""}` : undefined}
             >
               {inMonth ? format(d, "d") : ""}
+              {inMonth && list.length > 1 && (
+                <span
+                  role="button"
+                  aria-label={`${list.length} events — open the day`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onDayClick?.(d); }}
+                  className="absolute -top-px -right-px w-[0.5625rem] h-[0.5625rem] rounded-full bg-background text-foreground border border-border/80 text-[0.4375rem] leading-none flex items-center justify-center"
+                >
+                  +
+                </span>
+              )}
             </button>
           );
         })}

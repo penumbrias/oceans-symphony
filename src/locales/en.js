@@ -459,6 +459,8 @@ export default {
   "planner.lead.15m": "15 min before",
   "planner.lead.5m": "5 min before",
   "planner.location": "Location",
+  "planner.colorTag": "Color tag",
+  "planner.colorTagHint": "Colors this day on the Month and Year calendars, separate from the activity's color.",
   "planner.openMap": "Open in Maps",
   "planner.actualMin": "Actual minutes",
   "planner.series": "Repeats — changes here affect this occurrence only",

@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
+import { normalizeHex } from "@/lib/planTagColor";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -154,6 +156,8 @@ export default function ActivityPlanModal({
   // parent hands over a fresh copy of the same plan (a background refresh);
   // without this guard that wiped whatever had been typed so far.
   const hydratedFor = useRef(null);
+  // Plan color tag — independent of the activity color (Activity.tag_color).
+  const [tagColor, setTagColor] = useState(null);
   const [location, setLocation] = useState("");
   const [isCritical, setIsCritical] = useState(false);
   const [leadSteps, setLeadSteps] = useState(DEFAULT_LEAD_STEPS);
@@ -270,6 +274,7 @@ export default function ActivityPlanModal({
       );
       setNotes(editingPlan.notes || "");
       setTitleRaw(deriveEditTitle(editingPlan, activityCategories));
+      setTagColor(normalizeHex(editingPlan.tag_color || "") || null);
       setLocation(editingPlan.location || "");
       setIsCritical(!!editingPlan.is_critical);
       setLeadSteps(editingPlan.critical_lead_steps || DEFAULT_LEAD_STEPS);
@@ -314,6 +319,7 @@ export default function ActivityPlanModal({
     setNotes(initialNotes || "");
     titleTouched.current = false;
     setTitleRaw(initialTitle || "");
+    setTagColor(null);
     setLocation("");
     setIsCritical(false);
     setLeadSteps(DEFAULT_LEAD_STEPS);
@@ -476,6 +482,7 @@ export default function ActivityPlanModal({
           activity_name: fallbackName,
           activity_category_ids: selectedActivityCategories,
           ...(firstCat?.color ? { color: firstCat.color } : {}),
+          tag_color: normalizeHex(tagColor || "") || null,
           task_id: effectiveLinkedTask?.id || null,
           duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
           fronting_alter_ids: finalAlters,
@@ -582,9 +589,10 @@ export default function ActivityPlanModal({
               activity_name: fallbackName || (cat?.name || catId),
               activity_category_ids: [catId],
               color: cat?.color,
+              tag_color: normalizeHex(tagColor || "") || null,
             };
           })
-        : [{ activity_name: fallbackName, activity_category_ids: [], color: undefined }];
+        : [{ activity_name: fallbackName, activity_category_ids: [], color: undefined, tag_color: normalizeHex(tagColor || "") || null }];
 
       // ONE plan-create path (lib/planCreate.js) — shared with
       // QuickPlanComposer. Also adopts the composer's quick-plan rule: a
@@ -623,6 +631,7 @@ export default function ActivityPlanModal({
       setNotes("");
       titleTouched.current = false;
       setTitleRaw("");
+      setTagColor(null);
       setLocation("");
       setIsCritical(false);
       setLeadSteps(DEFAULT_LEAD_STEPS);
@@ -836,6 +845,10 @@ export default function ActivityPlanModal({
                  value (editing), so nothing set is ever hidden. */}
           <section className="space-y-2.5">
             <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Details</h3>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Color tag <span className="opacity-70">(colors this day on the calendar — separate from the activity)</span></label>
+              <PlanColorTagPicker value={tagColor} onChange={setTagColor} />
+            </div>
             {!(locationOpen && todoOpen && whoOpen && notesOpen) && (
               <div className="flex flex-wrap gap-1.5">
                 {!locationOpen && (

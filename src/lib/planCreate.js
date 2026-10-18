@@ -87,6 +87,7 @@ export async function createPlan({
         activity_name: r.activity_name,
         activity_category_ids: r.activity_category_ids || [],
         ...(r.color ? { color: r.color } : {}),
+        ...(r.tag_color ? { tag_color: r.tag_color } : {}),
         task_id: effectiveLinkedTask?.id || null,
         duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? Number(durationMinutes) : null),
         fronting_alter_ids: alterIds,
