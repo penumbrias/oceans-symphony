@@ -20,6 +20,9 @@ import {
 } from "@/lib/deviceSync";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getActiveSystemId } from "@/lib/systems";
+import { isNative } from "@/lib/platform";
+import { measureLocalImages } from "@/lib/localImageStorage";
+import { measureLocalFonts } from "@/lib/localFontStorage";
 import { localEntities } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { unifyHomeBoards, RETIRED_DESKTOP_FIELD } from "@/lib/homeBoardUnify";
@@ -101,6 +104,19 @@ export function setSyncFolder(p) {
 export const getLastRun = () => readLs(LAST_RUN_KEY, "") || "";
 export const isAutoSyncOn = () => readLs(AUTO_KEY, "1") === "1";
 export const setAutoSync = (on) => writeLs(AUTO_KEY, on ? "1" : "0");
+
+// Base64 size above which the phone skips writing the media sync file.
+const NATIVE_MEDIA_SYNC_LIMIT_BYTES = 40 * 1024 * 1024;
+
+async function mediaTooBigToSync() {
+  if (!isNative()) return false;
+  try {
+    const [img, fnt] = await Promise.all([measureLocalImages(), measureLocalFonts()]);
+    return (img?.base64Bytes || 0) + (fnt?.base64Bytes || 0) > NATIVE_MEDIA_SYNC_LIMIT_BYTES;
+  } catch {
+    return false;
+  }
+}
 
 export async function pickSyncFolder() {
   const adapter = getSyncAdapter();
@@ -211,7 +227,13 @@ export async function runSync({ force = false } = {}) {
   // Media only when it actually changed — this is the 40MB file.
   try {
     const fp = await mediaFingerprint();
-    if (force || (fp && fp !== readLs(MEDIA_FP_KEY, ""))) {
+    if ((force || (fp && fp !== readLs(MEDIA_FP_KEY, ""))) && (await mediaTooBigToSync())) {
+      // Building the media file reads every picture, song and video into
+      // memory at once. On a phone with a big library that killed the web
+      // view on every launch's sync pass (renderer gone → reload → again).
+      // Measure first and leave media out; the data still syncs.
+      report.errors.push({ stage: "write-media", message: "pictures and files are too large to sync from this phone — move them with \u201cFiles as .zip\u201d instead" });
+    } else if (force || (fp && fp !== readLs(MEDIA_FP_KEY, ""))) {
       const mediaSnap = await buildMediaSnapshot();
       await adapter.write(dir, mediaFileName(), JSON.stringify(mediaSnap));
       if (fp) writeLs(MEDIA_FP_KEY, fp);

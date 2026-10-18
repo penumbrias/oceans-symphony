@@ -103,7 +103,14 @@ public class BackupCopyPlugin extends Plugin {
         Uri doc = Uri.parse(uri);
         if (!hasWriteGrant(doc)) { call.reject(lostAccess()); return; }
         ContentResolver resolver = getContext().getContentResolver();
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes;
+        try {
+            bytes = text.getBytes(StandardCharsets.UTF_8);
+        } catch (OutOfMemoryError oom) {
+            // An Error, not an Exception: uncaught it closes the whole app.
+            call.reject("This backup is too large to copy on this phone right now.");
+            return;
+        }
         try {
             OutputStream out = null;
             try {

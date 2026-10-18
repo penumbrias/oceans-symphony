@@ -1,3 +1,5 @@
+import { parseDate } from "@/lib/dateUtils";
+
 // The one place that decides WHEN a journal entry happened.
 //
 // Journal entries carry their date in different fields depending on where
@@ -39,6 +41,18 @@ export function journalEntryDate(entry) {
 // Milliseconds since epoch of the entry's effective date (0 when none).
 export function journalEntryTime(entry) {
   return validTime(journalEntryDate(entry)) ?? 0;
+}
+
+// A Date that is always safe to format(). parseDate keeps the app's usual
+// "no zone means UTC" reading; anything it can't read (e.g. "+0000" or an
+// RFC date from an import) falls back to the plain parse, then to now, so
+// one odd entry can't take down the whole Journals page.
+export function journalDisplayDate(entry) {
+  const raw = journalEntryDate(entry);
+  const d = parseDate(raw);
+  if (Number.isFinite(d.getTime())) return d;
+  const t = journalEntryTime(entry);
+  return t ? new Date(t) : new Date();
 }
 
 // Newest first, by effective date. Returns a new array.
