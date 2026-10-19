@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 19, 2026",
     changes: [
+      { type: "fix", text: "~symptom commands no longer swallow the next ~command, and two-ended scales like energy take −2 to +2 the way they're shown." },
+      { type: "fix", text: "Check-In Log: notes with ~commands show their chips instead of raw code." },
       { type: "fix", text: "Check-In Log: the \"Written by\" picker on Add note now lets you type to search." },
       { type: "improve", text: "Backups: \"Everything (.zip)\" is now one of the export formats next to .json and .txt, and can be shared as well as saved." },
     ],
