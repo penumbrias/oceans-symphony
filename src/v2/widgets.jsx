@@ -50,7 +50,7 @@ import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
 import { saveMentions, saveStatusMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
-import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
+import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { useHoldDragLevel, commitFrontLevel, FrontLevelRail, useFrontGesture } from "@/components/fronting/FrontLevelRail";
@@ -3246,13 +3246,7 @@ export const V2_WIDGETS = {
         options: Object.keys(BREATHING_PATTERNS).map((k) => ({ value: k, label: k })) },
       { key: "autoRun", type: "toggle", label: "Always running (no start button)", default: false },
       { key: "pace", type: "select", label: "Pace", default: "1",
-        options: [
-          { value: "0.75", label: "Quicker" },
-          { value: "1", label: "Normal" },
-          { value: "1.25", label: "Gentler" },
-          { value: "1.5", label: "Slow" },
-          { value: "2", label: "Very slow" },
-        ] },
+        options: BREATHING_PACE_OPTIONS },
     ],
     defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },

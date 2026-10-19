@@ -4,12 +4,12 @@ import { base44 } from "@/api/base44Client";
 import { Plus, Shield, Shuffle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { isGroundingButtonEnabled, setGroundingButtonEnabled, subscribeGroundingButton } from "@/lib/groundingButtonPrefs";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import BreathingTechniquePicker from "@/components/grounding/BreathingTechniquePicker";
+import QuickSupportRing from "@/components/grounding/QuickSupportRing";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
@@ -18,41 +18,6 @@ import {
   DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
   BREATHING_PATTERNS, resolveCategory
 } from "@/utils/groundingDefaults";
-
-// Decorative breathing pacer rendered at the bottom of the Quick
-// Support suggestions view. Slowly grows and shrinks an SVG ring on
-// a 5s loop (~2.5s expand = inhale, ~2.5s contract = exhale) — a
-// calming, no-pressure visual without being a full guided exercise.
-// Skips animating entirely when the user has reduce-motion on (the
-// accessibility hook sets the .a11y-reduce-motion root class).
-function CalmingBreathPacer() {
-  return (
-    <div className="flex flex-col items-center gap-2 py-6 select-none" aria-hidden="true">
-      <style>{`
-        @keyframes calmingBreath {
-          0%   { transform: scale(0.85); opacity: 0.55; }
-          50%  { transform: scale(1.10); opacity: 1; }
-          100% { transform: scale(0.85); opacity: 0.55; }
-        }
-        .calming-breath-ring {
-          animation: calmingBreath 5s ease-in-out infinite;
-        }
-        .a11y-reduce-motion .calming-breath-ring {
-          animation: none;
-          opacity: 0.7;
-          transform: scale(1);
-        }
-      `}</style>
-      <div className="relative w-20 h-20 flex items-center justify-center">
-        <div
-          className="calming-breath-ring absolute inset-0 rounded-full border-2 border-primary/40"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.18) 0%, transparent 70%)" }}
-        />
-      </div>
-      <p className="text-[0.6875rem] text-muted-foreground italic">Breathe with the ring if it helps.</p>
-    </div>
-  );
-}
 
 // ---- Seed helper — adds new defaults that don't exist yet by name,
 // and (post-restore cleanup) collapses any duplicate is_default rows
@@ -111,10 +76,6 @@ export default function Grounding({ initialPath = null }) {
   // open the state check with those states pre-selected so the user isn't
   // asked to re-answer what their check-in already said. One-shot.
   const deepLinkStates = searchParams.get("states");
-  // Whether the floating support bubble is currently shown (so this page can
-  // offer to bring it back after the user dragged it away to hide it).
-  const [bubbleEnabled, setBubbleEnabled] = useState(() => isGroundingButtonEnabled());
-  useEffect(() => subscribeGroundingButton(() => setBubbleEnabled(isGroundingButtonEnabled())), []);
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedTechnique, setSelectedTechnique] = useState(null);
   const [selectedBreathing, setSelectedBreathing] = useState(null);
@@ -500,12 +461,6 @@ export default function Grounding({ initialPath = null }) {
           </button>
         </div>
 
-        {/* Calming breathing pacer to fill the trailing space — the
-            ring slowly grows and shrinks on a 4s loop (inhale ~2s,
-            exhale ~2s). Purely decorative; no interaction. Respects
-            prefers-reduced-motion via the .a11y-reduce-motion root
-            class set by the accessibility hook. */}
-        <CalmingBreathPacer />
       </div>
     );
   }
@@ -631,18 +586,7 @@ export default function Grounding({ initialPath = null }) {
     <div data-tour="grounding-content" className="max-w-lg mx-auto px-4">
       <TabBar />
       <div className="space-y-8">
-        <div className="text-center space-y-2 pt-4">
-          <p className="text-3xl">🫧</p>
-          <h1 className="text-2xl font-semibold text-foreground">Quick support</h1>
-          <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
-        </div>
-
-        {!bubbleEnabled && (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground text-left">The floating support bubble (🫧) is hidden right now.</p>
-            <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setGroundingButtonEnabled(true)}>Show it</Button>
-          </div>
-        )}
+        <QuickSupportRing subtitle="Let's find something that might help right now." />
 
         <MedicalDisclaimerFooter />
 
