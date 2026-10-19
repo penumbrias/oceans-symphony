@@ -56,6 +56,10 @@ public class MainActivity extends BridgeActivity {
         // npm-installed plugins; app-local plugins like QuickActionsPlugin
         // need explicit registerPlugin so they're picked up reliably
         // across Capacitor versions.
+        // A Soundscape focus session cut short (app killed while Do Not
+        // Disturb was on for it) is undone here.
+        SystemSettingsPlugin.restoreFocusDndIfLeftOn(this);
+
         registerPlugin(QuickActionsPlugin.class);
         registerPlugin(MediaStoreSavePlugin.class);
         registerPlugin(SyncFolderPlugin.class);

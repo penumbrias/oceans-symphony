@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { isFocusQuiet, subscribeFocusQuiet } from "@/lib/soundscape/focusMode";
 
 const SESSION_KEY = "symphony_shown_toast_ids";
 const SNOOZE_KEY = "symphony_snoozed_until";
@@ -61,6 +62,9 @@ export default function ReminderToast() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const reminderCacheRef = useRef({});
+  // Soundscape distraction-free focus: toasts wait until it ends.
+  const [focusQuiet, setFocusQuiet] = useState(isFocusQuiet);
+  useEffect(() => subscribeFocusQuiet(setFocusQuiet), []);
 
   // Dedicated modal state — always rendered, open controlled by boolean (same pattern as RemindersInbox)
   const [setFrontOpen, setSetFrontOpen] = useState(false);
@@ -195,7 +199,7 @@ export default function ReminderToast() {
 
   return (
     <>
-      {visible.length > 0 && (
+      {visible.length > 0 && !focusQuiet && (
         <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
           className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
           {visible.slice(0, 3).map(({ instance, reminder }) => {
