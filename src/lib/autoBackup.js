@@ -32,6 +32,7 @@ import { recordBackupAttempt, snoozeBackupWarning } from "@/lib/backupHealth";
 import { listSystems, getActiveSystemId, getSystemData } from "@/lib/systems";
 import { isEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { encryptStandardBackup } from "@/lib/backupFormat";
+import { compressBackup } from "@/lib/backupCompress";
 import {
   getBackupCopyTarget,
   backupCopyKind,
@@ -79,6 +80,35 @@ export const BACKUP_DESTINATIONS = {
   DOCUMENTS: "documents",
   ASK: "ask",
 };
+
+// What an automatic backup writes — the same three formats as Settings →
+// Data & privacy → Export, so an automatic backup is a manual one on a
+// timer:
+//   - "json":    plain .json (the default; what auto-backup always wrote)
+//   - "compact": gzip + base64 .txt, smaller
+//   - "zip":     Everything (.zip) — the data plus every picture, song,
+//                video and file as real files. Never too big to include
+//                the files, unlike the single-file formats.
+const FORMAT_KEY = "symphony_autobackup_format_v1";
+export const BACKUP_FORMATS = {
+  JSON: "json",
+  COMPACT: "compact",
+  ZIP: "zip",
+};
+
+export function getAutoBackupFormat() {
+  try {
+    const v = localStorage.getItem(FORMAT_KEY);
+    if (Object.values(BACKUP_FORMATS).includes(v)) return v;
+  } catch { /* non-fatal */ }
+  return BACKUP_FORMATS.JSON;
+}
+
+export function setAutoBackupFormat(format) {
+  if (!Object.values(BACKUP_FORMATS).includes(format)) return;
+  try { localStorage.setItem(FORMAT_KEY, format); }
+  catch { /* non-fatal */ }
+}
 
 // ── The backup DECISION (v0.240.0) ───────────────────────────────────
 // Auto-backup defaults to OFF, on purpose: a silent plaintext file in a
@@ -353,7 +383,10 @@ function stripReserved(dump) {
 //                (audit 2026-10-01, H1/H2 — it used to hold only the
 //                active system, then offered to delete the others).
 // One system → the plain single-system file, exactly as before.
-export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
+// mediaInZip: the files travel next to this data as real files in a zip
+// (the Everything format), so none are read into the payload and the size
+// limit doesn't apply. Fonts still ride inside the data.
+export async function buildFullBackupPayload({ allSystems = "best", mediaInZip = false } = {}) {
   // Device-bound entities (friends credential + E2E private key, push
   // registration) must never ride in a general backup — see backupPolicy.
   // Manual exports already stripped them; auto-backups did NOT until
@@ -405,7 +438,9 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   } catch { skipIds = null; }
   let mediaMeasure = null;
   let imagesUnread = false;
-  try { mediaMeasure = await measureLocalImages({ exclude: skipIds }); } catch { imagesUnread = true; }
+  if (!mediaInZip) {
+    try { mediaMeasure = await measureLocalImages({ exclude: skipIds }); } catch { imagesUnread = true; }
+  }
   let fontMeasure = null;
   let fontsUnread = false;
   try { fontMeasure = await measureLocalFonts(); } catch { fontsUnread = true; }
@@ -417,7 +452,7 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   let dataBytes = 0;
   try { dataBytes = JSON.stringify(perSystem || dump).length; } catch { /* estimate only */ }
   let heavyBytes = (mediaMeasure?.base64Bytes || 0) + (fontMeasure?.base64Bytes || 0);
-  let skipHeavy = heavyBytes > 0 && heavyBytes + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES;
+  let skipHeavy = !mediaInZip && heavyBytes > 0 && heavyBytes + dataBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES;
   let images = {};
   let fonts = {};
   if (!skipHeavy) {
@@ -467,6 +502,7 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
     // A skip is recorded on the envelope so the user can see WHY their
     // auto-backup is smaller than they expect when they open the file.
     ...(skipHeavy ? { __skipped_heavy_blobs: true } : {}),
+    ...(mediaInZip ? { __media_in_zip: true } : {}),
   };
   const payload = {
     ...envelope,
@@ -481,7 +517,7 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
   // be a console.warn and a flag inside the file — invisible in-app):
   //   • images/fonts skipped over the size limit
   //   • systems that couldn't be read (locked) and so aren't in the file
-  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, unreadableSystems: unreadable, mediaUnread: imagesUnread || fontsUnread } });
+  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, unreadableSystems: unreadable, mediaUnread: imagesUnread || fontsUnread, skipIds } });
   return payload;
 }
 
@@ -498,8 +534,12 @@ export async function buildFullBackupPayload({ allSystems = "best" } = {}) {
 // Returns the result string ("filesystem" | "shared" | "downloaded"
 // | "copied" | "cancelled" | "failed"). "copied" = the main save didn't
 // land (cancelled / failed) but the off-device copy did.
-export async function runAutoBackupNow({ silent = false, allSystems = "best" } = {}) {
+// format: one of BACKUP_FORMATS; defaults to the user's Auto-backup choice.
+// Safety copies taken before a risky step pass "json" explicitly.
+export async function runAutoBackupNow({ silent = false, allSystems = "best", format = getAutoBackupFormat() } = {}) {
   const kind = silent ? "auto" : "manual";
+  if (!Object.values(BACKUP_FORMATS).includes(format)) format = BACKUP_FORMATS.JSON;
+  const isZip = format === BACKUP_FORMATS.ZIP;
   // Locking is resolved BEFORE the (expensive) payload is built, so a
   // missing password fails fast and is recorded like any other failure.
   const { password, error: pwError } = resolveBackupPassword();
@@ -514,22 +554,55 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
   }
   let payload;
   try {
-    payload = await buildFullBackupPayload({ allSystems });
+    payload = await buildFullBackupPayload({ allSystems, mediaInZip: isZip });
   } catch (e) {
     recordBackupAttempt({ kind, ok: false, detail: e?.message || String(e) });
     throw e;
   }
   const caveats = payload.__caveats || {};
   const records = countPayloadRecords(payload);
+  // Names for the files in an Everything zip, from every system's asset
+  // library — taken before locking hides the data.
+  const nameDumps = isZip
+    ? (Array.isArray(payload.systems) ? payload.systems.map((sys) => sys.data) : [payload.data])
+    : null;
   const locked = !!password;
   if (locked) payload = await encryptStandardBackup(payload, password);
   const json = JSON.stringify(payload);
+  payload = null;
   const date = new Date().toISOString().slice(0, 10);
   const name = getBackupName();
   const discreet = name !== DEFAULT_BACKUP_NAME;
-  const filename = `${name}-${date}.json`;
   const shareTitle = discreet ? "Backup" : "Oceans Symphony backup";
-  const blob = new Blob([json], { type: "application/json" });
+  // The file itself, in the chosen format. The off-device copy is always
+  // the plain .json backup (the one file the copy place was chosen for):
+  // for a zip that's its data part — every record; the files stay in the
+  // zip.
+  const copyText = json;
+  const copyName = `${name}-${date}.json`;
+  let filename, blob, mimeType, zipFailed = [];
+  if (format === BACKUP_FORMATS.COMPACT) {
+    filename = `${name}-${date}.txt`;
+    mimeType = "text/plain";
+    blob = new Blob([compressBackup(json)], { type: mimeType });
+  } else if (isZip) {
+    const { buildBackupZip, ZIP_DATA_NAME } = await import("@/lib/backupZip");
+    let built;
+    try {
+      built = await buildBackupZip({ dataName: ZIP_DATA_NAME, dataText: json, nameDumps, exclude: caveats.skipIds || null });
+    } catch (e) {
+      recordBackupAttempt({ kind, ok: false, detail: e?.message || String(e) });
+      throw e;
+    }
+    zipFailed = built.failed || [];
+    filename = `${name}-everything-${date}.zip`;
+    mimeType = "application/zip";
+    blob = built.blob;
+  } else {
+    filename = `${name}-${date}.json`;
+    mimeType = "application/json";
+    blob = new Blob([json], { type: mimeType });
+  }
 
   const destination = getBackupDestination();
   let result = "failed";
@@ -544,7 +617,7 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
     const mediaRes = await saveBlobToPublicDownloads({
       blob,
       filename,
-      mimeType: "application/json",
+      mimeType,
       ...(discreet ? { subdir: NEUTRAL_SUBDIR } : {}),
     });
     if (mediaRes.result === "filesystem") {
@@ -609,7 +682,7 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
       } catch { force = false; }
       if (!force) copy = { ok: false, skipped: "kept", error: "kept your existing copy" };
     }
-    if (!copy) copy = await writeBackupCopy({ text: json, filename, records, force });
+    if (!copy) copy = await writeBackupCopy({ text: copyText, filename: copyName, records, force });
   }
 
   const mainOk = result === "filesystem" || result === "shared" || result === "downloaded";
@@ -624,7 +697,8 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best" } =
     if (copy && !copy.ok && copy.skipped !== "kept") notes.push(`off-device copy ${copy.skipped === "shrink" ? "" : "failed: "}${copy.error}`);
     if (caveats.mediaUnread) notes.push("some pictures/fonts couldn't be read");
     if (caveats.unreadableSystems?.length) notes.push(`not included (locked): ${caveats.unreadableSystems.join(", ")}`);
-    if (caveats.skippedHeavy) notes.push("data only — pictures, audio & files are too large for an automatic backup (save them with \u201cFiles as .zip\u201d)");
+    if (zipFailed.length) notes.push(`${zipFailed.length} file${zipFailed.length === 1 ? "" : "s"} couldn't be read and ${zipFailed.length === 1 ? "isn't" : "aren't"} in the zip`);
+    if (caveats.skippedHeavy) notes.push("data only — pictures, audio & files are too large for one file (pick the \u201cEverything (.zip)\u201d format in Auto-backup to include them)");
     const copied = copy?.ok && mainOk ? [`copy in ${copy.location}`] : [];
     recordBackupAttempt({ kind, ok: true, detail: [location || result, ...copied, ...(locked ? ["password-locked"] : []), ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {
@@ -684,6 +758,9 @@ export async function runAutoBackupIfDue() {
   const mode = getAutoBackupMode();
   if (mode !== BACKUP_MODES.AUTO) return false;
   if (!isAutoBackupDue()) return false;
+  // An Everything zip reads every stored file — let the app finish
+  // opening first instead of competing with it for memory.
+  if (getAutoBackupFormat() === BACKUP_FORMATS.ZIP) await new Promise((r) => setTimeout(r, 15000));
   try {
     // Native: write straight to Documents (silent, no chooser). Web:
     // existing Web Share / anchor download path. Both routes are

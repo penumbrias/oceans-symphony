@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 19, 2026",
     changes: [
+      { type: "improve", text: "Auto-backup: a tidier menu, and it can save any Export format on a schedule, including Everything (.zip)." },
+      { type: "fix", text: "Choosing a backup copy file in Drive no longer freezes the app when the picker is slow or blocked." },
       { type: "fix", text: "~symptom commands no longer swallow the next ~command, and two-ended scales like energy take −2 to +2 the way they're shown." },
       { type: "fix", text: "Check-In Log: notes with ~commands show their chips instead of raw code." },
       { type: "fix", text: "Check-In Log: the \"Written by\" picker on Add note now lets you type to search." },

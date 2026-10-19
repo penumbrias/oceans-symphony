@@ -63,6 +63,13 @@ public class BackupCopyPlugin extends Plugin {
             return;
         }
         Uri doc = data.getData();
+        // Off the main thread: asking a cloud provider (Google Drive) about
+        // a file it has just created can wait on the network, and on the
+        // main thread that froze the whole app.
+        new Thread(() -> finishPick(call, doc), "BackupCopyPick").start();
+    }
+
+    private void finishPick(PluginCall call, Uri doc) {
         ContentResolver resolver = getContext().getContentResolver();
         try {
             resolver.takePersistableUriPermission(doc,

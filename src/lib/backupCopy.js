@@ -101,6 +101,49 @@ function setBackupCopyLast(v) {
   try { localStorage.setItem(LAST_KEY, JSON.stringify(v)); } catch { /* non-fatal */ }
 }
 
+// The system picker is a separate screen. If something stops it (a
+// security app blocked it — a tester's Bitdefender did), the answer never
+// comes back and the button spun forever. Give up a few seconds after the
+// app is back on screen with no answer (or if the picker never opened at
+// all); a late answer is then ignored.
+const PICKER_RETURN_GRACE_MS = 8000;
+const PICKER_OPEN_GRACE_MS = 10000;
+function withPickerWatchdog(promise) {
+  if (typeof document === "undefined") return promise;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let left = false;
+    let timer = null;
+    let removeApp = [];
+    const finish = () => {
+      settled = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      removeApp.forEach((r) => { try { r(); } catch { /* gone */ } });
+    };
+    const giveUp = () => {
+      if (settled) return;
+      finish();
+      reject(new Error("The file picker didn't answer. Something on your phone, like a security app, may have blocked it. Try again, or allow Oceans Symphony in that app."));
+    };
+    const onLeave = () => { left = true; clearTimeout(timer); };
+    const onBack = () => { if (!left || settled) return; clearTimeout(timer); timer = setTimeout(giveUp, PICKER_RETURN_GRACE_MS); };
+    const onVisibility = () => (document.visibilityState === "hidden" ? onLeave() : onBack());
+    document.addEventListener("visibilitychange", onVisibility);
+    // The activity's own pause/resume — fires even where the web view
+    // doesn't report itself hidden.
+    import("@capacitor/app")
+      .then(({ App }) => Promise.all([App.addListener("pause", onLeave), App.addListener("resume", onBack)]))
+      .then((hs) => { if (settled) hs.forEach((h) => h.remove()); else removeApp = hs.map((h) => () => h.remove()); })
+      .catch(() => { /* no App plugin: visibility alone */ });
+    timer = setTimeout(() => { if (!left) giveUp(); }, PICKER_OPEN_GRACE_MS);
+    promise.then(
+      (v) => { if (!settled) { finish(); resolve(v); } },
+      (e) => { if (!settled) { finish(); reject(e); } },
+    );
+  });
+}
+
 // Opens the picker. Returns the new target, or null if cancelled. Throws a
 // user-facing Error when the platform refuses.
 export async function chooseBackupCopyTarget({ suggestedName = "backup" } = {}) {
@@ -116,7 +159,7 @@ export async function chooseBackupCopyTarget({ suggestedName = "backup" } = {}) 
   if (kind === "android-file") {
     const plugin = await androidPlugin();
     const prev = getBackupCopyTarget();
-    const res = await plugin.pickFile({ suggestedName: `${suggestedName}.json` });
+    const res = await withPickerWatchdog(plugin.pickFile({ suggestedName: `${suggestedName}.json` }));
     if (!res || res.cancelled || !res.uri) return null;
     const t = { kind, uri: res.uri, name: res.name || "backup file", provider: res.provider || "" };
     setBackupCopyTarget(t);

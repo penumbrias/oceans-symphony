@@ -219,7 +219,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
       if (importMode === "wipe") {
         setProgress("Saving a safety backup to your device first…");
         try {
-          const backupResult = await runAutoBackupNow();
+          const backupResult = await runAutoBackupNow({ format: "json" });
           if (backupResult === "cancelled") {
             toast.error("Backup was canceled — nothing was deleted.");
             setProgress("");
