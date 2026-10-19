@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { effectiveAlias } from "@/lib/alterLabel";
+import { safeInternalRoute } from "@/lib/safeRoute";
 import MediaAttachment from "@/components/shared/MediaAttachment";
 import { ZoomableImage } from "@/components/shared/ImageViewer";
 
@@ -173,11 +174,11 @@ function nodeToReact(node, key, renderText) {
     // Internal app links from the link picker carry their route in
     // `data-internal-link` (no href); a plain relative href ("/…") is also
     // treated as in-app. Either renders as a router <Link> so it actually
-    // navigates instead of collapsing to plain text. `//` (protocol-relative)
-    // is NOT in-app.
+    // navigates instead of collapsing to plain text. `//`, backslashes and
+    // anything else that could leave the app are NOT in-app (safeRoute.js).
     const internal = node.getAttribute("data-internal-link") || "";
     const href = node.getAttribute("href") || "";
-    const route = /^\/(?!\/)/.test(internal) ? internal : (/^\/(?!\/)/.test(href) ? href : null);
+    const route = safeInternalRoute(internal) || safeInternalRoute(href);
     if (route) {
       return <Link key={key} to={route} className="underline text-primary">{children}</Link>;
     }

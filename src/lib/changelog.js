@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 19, 2026",
     changes: [
+      { type: "fix", text: "Security: updated the app engine on Android and iOS, and links in notes, bios and bulletins can no longer lead outside the app. Thanks to d6system for the report (#387)." },
       { type: "improve", text: "Auto-backup: a tidier menu, and it can save any Export format on a schedule, including Everything (.zip)." },
       { type: "fix", text: "Choosing a backup copy file in Drive no longer freezes the app when the picker is slow or blocked." },
       { type: "fix", text: "~symptom commands no longer swallow the next ~command, and two-ended scales like energy take −2 to +2 the way they're shown." },

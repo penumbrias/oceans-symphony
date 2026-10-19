@@ -7,6 +7,7 @@
 // the web bundle.
 
 import { isNative } from '@/lib/platform';
+import { isCapacitorInternalPath } from '@/lib/safeRoute';
 import { ensureRemindersChannel } from '@/lib/nativeNotifications';
 import {
   backfillFiredWhileClosed,
@@ -95,6 +96,7 @@ function extractInAppRoute(rawUrl) {
     // Only handle URLs that match our Capacitor hostname; ignore mailto:,
     // tel:, or external https links that happen to come through.
     if (u.hostname !== "app.local.oceans-symphony") return null;
+    if (isCapacitorInternalPath(u.pathname)) return null;
     return `${u.pathname || "/"}${u.search || ""}${u.hash || ""}`;
   } catch {
     return null;
@@ -178,6 +180,10 @@ export async function initNativeShell() {
   // Tab (swipeable back to the app). Catches all existing call sites
   // — no need to refactor every <a> in the tree.
   //
+  // Blocked outright: links to Capacitor's internal "/_capacitor_…" helpers
+  // (see safeRoute.js) — opening one as a page could load outside content
+  // with the app's access. Form submissions there are blocked the same way.
+  //
   // Skipped:
   //   - same-origin clicks (in-app react-router navigation)
   //   - non-http protocols (mailto:, tel:, geo:, sms: — let Android
@@ -194,7 +200,10 @@ export async function initNativeShell() {
       let url;
       try { url = new URL(href, window.location.href); }
       catch { return; }
-      if (url.origin === window.location.origin) return;
+      if (url.origin === window.location.origin) {
+        if (isCapacitorInternalPath(url.pathname)) { e.preventDefault(); e.stopPropagation(); }
+        return;
+      }
       if (url.protocol !== "http:" && url.protocol !== "https:") return;
       e.preventDefault();
       try {
@@ -202,6 +211,16 @@ export async function initNativeShell() {
         await Browser.open({ url: url.toString() });
       } catch (err) {
         console.warn("[nativeBootstrap] Browser.open failed:", err?.message || err);
+      }
+    }, true);
+    document.addEventListener("submit", (e) => {
+      const form = e.target;
+      let url;
+      try { url = new URL(form?.getAttribute?.("action") || "", window.location.href); }
+      catch { return; }
+      if (url.origin === window.location.origin && isCapacitorInternalPath(url.pathname)) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     }, true);
   } catch { /* non-fatal */ }

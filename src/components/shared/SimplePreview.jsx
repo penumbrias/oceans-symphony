@@ -4,6 +4,7 @@ import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { spoilersToHtml } from "@/lib/renderBulletinContent";
+import { safeInternalRoute } from "@/lib/safeRoute";
 import { scopeBioStyles, bioHasStyle, rewriteInlineAnimations, sanitizeInlineStyleAttrs } from "@/lib/scopedBioStyle";
 
 // Strip <style> blocks out of a single block's HTML — when scoping is active
@@ -98,7 +99,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false,
     const linkEl = e.target.closest("[data-internal-link]");
     if (linkEl) {
       e.preventDefault();
-      const route = linkEl.getAttribute("data-internal-link");
+      const route = safeInternalRoute(linkEl.getAttribute("data-internal-link"));
       if (route) navigate(route);
       return;
     }
