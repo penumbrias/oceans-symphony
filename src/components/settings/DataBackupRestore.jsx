@@ -417,10 +417,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const showImport = section === "all" || section === "import";
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
-  const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact" | <extra key>
+  const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact" | "zip" | <extra key>
   // Standard (Symphony-native) formats show the full export UI; non-standard
   // extras (OpenPlural / Simply Plural) render their own exporter inline.
-  const isStdFormat = exportFormat === "json" || exportFormat === "compact";
+  const isStdFormat = exportFormat === "json" || exportFormat === "compact" || exportFormat === "zip";
+  // "zip" = Everything as one .zip: data + every file, always every category.
+  const isZipFormat = exportFormat === "zip";
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   // Import trace (v0.174.1) — a tester reported "select file and then
@@ -886,8 +888,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     : null;
 
   // Delivers a finished zip and reports. Shared by both zip exports.
-  const deliverZip = async ({ blob, filename, what, okMessage, failed }) => {
-    const res = await saveBackupBlob(blob, filename, "save", { ext: ".zip" });
+  const deliverZip = async ({ blob, filename, what, okMessage, failed, mode = "save" }) => {
+    const res = await saveBackupBlob(blob, filename, mode, { ext: ".zip" });
     if (res?.result === "failed") {
       if (isChunkLoadFailure(res.error)) showStatus("error", chunkRecoveryMsg);
       else showStatus("error", `${what} failed${res.error ? `: ${res.error}` : ""}`);
@@ -1039,7 +1041,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // (Settings → Data & privacy → Auto-backup) the data inside is sealed
   // with the same password, and if that password isn't available nothing
   // is written — never an unlocked copy instead. The files stay plain.
-  const handleExportEverythingZip = async () => {
+  const handleExportEverythingZip = async (mode = "save") => {
     setExportLoading(true);
     try {
       const { password, error: pwError } = resolveBackupPassword();
@@ -1079,6 +1081,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         blob,
         filename: `symphony-backup-everything-${date}.zip`,
         what: "Backup",
+        mode,
         okMessage: `Everything saved in one .zip — your data${password ? " (password-locked)" : ""} and ${files} file${files === 1 ? "" : "s"}`,
         failed,
       });
@@ -1229,7 +1232,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       try {
         const json = JSON.stringify(data || {});
         if (json.includes("local-image://") || json.includes("/local-image/")) {
-          missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or use \u201cEverything as one .zip\u201d), then import that file here (records won't duplicate).";
+          missingImagesNote = " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or pick the \u201cEverything (.zip)\u201d format), then import that file here (records won't duplicate).";
         }
       } catch { /* size — skip the check */ }
     }
@@ -1479,7 +1482,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           try {
             const json = JSON.stringify(importedSystems.map((x) => x.data));
             return json.includes("local-image://") || json.includes("/local-image/")
-              ? " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or use \u201cEverything as one .zip\u201d), then import that file here (records won't duplicate)."
+              ? " This file contains no image data — export again on the source device with \u201cLocal Files & Assets\u201d ticked (or pick the \u201cEverything (.zip)\u201d format), then import that file here (records won't duplicate)."
               : "";
           } catch { return ""; }
         })();
@@ -2362,6 +2365,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             >
               Compact (.txt)
             </button>
+            <button
+              type="button"
+              onClick={() => setExportFormat("zip")}
+              className={`px-3 py-1 rounded-lg border transition-colors ${exportFormat === "zip" ? "bg-primary/10 border-primary/40 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}
+            >
+              Everything (.zip)
+            </button>
             {exportExtras.map((ex) => (
               <button
                 key={ex.key}
@@ -2378,17 +2388,19 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             <p className="text-xs text-muted-foreground -mt-1">
               {exportFormat === "json"
                 ? "Human-readable JSON. Larger file, easy to inspect."
-                : "Gzip + base64 envelope. Smaller file, opaque to the eye."}
+                : exportFormat === "zip"
+                  ? "Your data plus every picture, song, video and attached file in a single file, never split. Always includes everything. Restore it with Import from File. If your backups are password-locked, the data inside is locked too."
+                  : "Gzip + base64 envelope. Smaller file, opaque to the eye."}
             </p>
           )}
 
           {isStdFormat && (
-            <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
+            <Button variant="outline" onClick={isZipFormat ? () => handleExportEverythingZip("save") : handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
               {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <div className="text-left min-w-0">
                 <p className="font-medium">Save to device</p>
                 <p className="text-xs text-muted-foreground font-normal">
-                  {selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
+                  {!isZipFormat && selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
                     ? `${selectedCats.size} categories · ${isNative() ? "→ Downloads/Oceans Symphony" : (typeof window !== "undefined" && window.showSaveFilePicker) ? "you pick where to save" : "→ your Downloads folder"}`
                     : isNative()
                       ? "Saves to Downloads/Oceans Symphony (you'll see a confirmation)"
@@ -2401,27 +2413,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           )}
 
           {isStdFormat && (
-            <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
+            <Button variant="outline" onClick={isZipFormat ? () => handleExportEverythingZip("share") : handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
               {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
               <div className="text-left min-w-0">
                 <p className="font-medium">Share or send elsewhere</p>
                 <p className="text-xs text-muted-foreground font-normal">
                   Opens the share sheet — pick Drive, email, Send to PC, etc.
-                </p>
-              </div>
-            </Button>
-          )}
-
-          {/* Everything in ONE file: data + every picture, song, video and
-              attached file. Never split. Data is password-locked when
-              backup locking is on; the files stay plain. */}
-          {isStdFormat && (
-            <Button variant="outline" onClick={handleExportEverythingZip} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
-              {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
-              <div className="text-left min-w-0">
-                <p className="font-medium">Everything as one .zip</p>
-                <p className="text-xs text-muted-foreground font-normal whitespace-normal">
-                  Your data plus every picture, song, video and attached file in a single file — never split. Restore it with Import from File. If your backups are password-locked, the data inside is locked too.
                 </p>
               </div>
             </Button>
@@ -2439,14 +2436,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               so the file is always small enough for the native bridge.
               Rendered only when those heavy blobs would otherwise be
               included; hidden if the user has already deselected them. */}
-          {isStdFormat && hasHeavyBlobs && (
+          {isStdFormat && !isZipFormat && hasHeavyBlobs && (
             <Button variant="outline" onClick={handleExportSafeLite} disabled={exportLoading}
               className="w-full gap-2 justify-start h-auto py-2.5 border-amber-500/40 hover:border-amber-500/60">
               {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
               <div className="text-left min-w-0">
                 <p className="font-medium">Save data-only backup <span className="text-xs font-normal text-muted-foreground">(safety net)</span></p>
                 <p className="text-xs text-muted-foreground font-normal whitespace-normal">
-                  Use this if the regular backup crashes the app. Skips the picture, audio, video and font files (your library's names and folders are still included). Save those separately with “Files as .zip” (Advanced ↑), or use “Everything as one .zip”.
+                  Use this if the regular backup crashes the app. Skips the picture, audio, video and font files (your library's names and folders are still included). Save those separately with “Files as .zip” (Advanced ↑), or pick the “Everything (.zip)” format above.
                 </p>
               </div>
             </Button>
