@@ -866,7 +866,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "grounding", sectionLabel: "Support",
       emoji: "🫧",
       title: "Support Page",
-      body: `The Support page has two tabs: Support and Learn. On the Support tab there are three entry points: Browse all techniques, Help me figure out what I need, and Guided breathing. There's also a 🫧 floating bubble button in the bottom corner of every screen for instant access from anywhere in the app.`,
+      body: `The Support page has two tabs: Support and Learn. On the Support tab there are three entry points: Browse all techniques, Help me figure out what I need, and Guided breathing. The ring at the top breathes with a pattern you choose; tap the pattern name under it to change the pattern or slow it down. There's also a 🫧 floating bubble button in the bottom corner of every screen for instant access from anywhere in the app.`,
       route: "/grounding", target: "grounding-tabs",
       look: `the highlighted Support / Learn tab bar at the top of the page`, action: null,
     },

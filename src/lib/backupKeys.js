@@ -111,6 +111,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_pinned_daily_tasks_prefs_v1",
   "symphony_grounding_button_enabled_v1",
   "symphony_grounding_btn_pos",
+  "symphony_quick_support_ring_v1",
   "symphony_insights_muted_kinds_v1",
   "symphony_infer_presence_from_authorship",
   "symphony_infer_presence_window_min",

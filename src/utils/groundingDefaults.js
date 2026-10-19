@@ -774,6 +774,17 @@ export const BREATHING_PATTERNS = {
   },
 };
 
+// Pace multipliers shared by every breathing animation (widget, Quick
+// Support header ring, Soundscape focused mode): 1 = the pattern's own
+// timing; 1.5 stretches every phase 50% slower.
+export const BREATHING_PACE_OPTIONS = [
+  { value: "0.75", label: "Quicker" },
+  { value: "1", label: "Normal" },
+  { value: "1.25", label: "Gentler" },
+  { value: "1.5", label: "Slow" },
+  { value: "2", label: "Very slow" },
+];
+
 export const CATEGORY_LABELS = {
   breathing: "Breathing",
   sensory: "Sensory & Physical",
