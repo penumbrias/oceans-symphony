@@ -57,6 +57,7 @@ import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHo
 import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { safeInternalRoute } from "@/lib/safeRoute";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -230,12 +231,10 @@ export default function AppLayout() {
       // the alter's profile. One delegated listener covers every surface.
       const internal = e.target?.closest?.("a[data-internal-link]");
       if (internal) {
-        const route = internal.getAttribute("data-internal-link");
-        if (route && route.startsWith("/")) {
-          e.preventDefault();
-          navigate(route);
-          return;
-        }
+        e.preventDefault();
+        const route = safeInternalRoute(internal.getAttribute("data-internal-link"));
+        if (route) navigate(route);
+        return;
       }
       const wh = e.target?.closest?.(".whisper");
       if (wh) { wh.classList.toggle("revealed"); return; }
