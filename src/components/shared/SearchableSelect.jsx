@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 // hands back to the dialog when it closes. Same copies the dialog uses.
 import { FocusScope } from "@radix-ui/react-focus-scope";
 import { RemoveScroll } from "react-remove-scroll";
-function DropdownLayer({ children }) {
+export function DropdownLayer({ children }) {
   return (
     <FocusScope trapped={false} loop={false}
       onMountAutoFocus={(e) => e.preventDefault()} onUnmountAutoFocus={(e) => e.preventDefault()}>

@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Check, FolderTree } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { groupedAlterSections } from "@/lib/alterSections";
+import { DropdownLayer } from "@/components/shared/SearchableSelect";
 
 const GROUPED_KEY = "symphony_alterSearchSelect_grouped";
 
@@ -130,7 +131,10 @@ export default function AlterSearchSelect({
       </button>
 
       {open && createPortal((
-        <>
+        // DropdownLayer: the portal sits outside a parent dialog's focus
+        // trap, which snapped focus back out of the search box so nothing
+        // could be typed. Its own scope/scroll lock takes over while open.
+        <DropdownLayer>
           {/* pointer-events-auto: the parent may be a Radix modal dialog,
               which sets body{pointer-events:none}; without this the portaled
               layer is un-tappable and taps fall through to the page behind.
@@ -138,6 +142,7 @@ export default function AlterSearchSelect({
               treating taps here as an "outside" dismiss / focus escape. */}
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
           <div
+            data-searchable-dropdown=""
             className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
             style={{
               position: "fixed", zIndex: zIndex + 1, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)",
@@ -149,6 +154,7 @@ export default function AlterSearchSelect({
             <div className="px-3 py-2 border-b border-border/50 flex items-center gap-1">
               <input
                 autoFocus
+                onPointerUp={(e) => e.currentTarget.focus()}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${terms?.alters || "alters"}...`}
@@ -219,7 +225,7 @@ export default function AlterSearchSelect({
               {(sections ? sections.length === 0 : list.length === 0) && <p className="px-3 py-3 text-xs text-muted-foreground">No matches.</p>}
             </div>
           </div>
-        </>
+        </DropdownLayer>
       ), document.body)}
     </div>
   );

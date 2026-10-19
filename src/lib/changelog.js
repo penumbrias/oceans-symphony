@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 19, 2026",
+    changes: [
+      { type: "fix", text: "Check-In Log: the \"Written by\" picker on Add note now lets you type to search." },
+      { type: "improve", text: "Backups: \"Everything (.zip)\" is now one of the export formats next to .json and .txt, and can be shared as well as saved." },
+    ],
+  },
+  {
     date: "October 18, 2026",
+    version: "0.269.1",
     changes: [
       { type: "feature", text: "Backups: big libraries can save their files as .zip parts of a size you choose, and several parts restore at once." },
       { type: "feature", text: "Assets: videos, audio, other files and songs each get their own folder, every item has an info button, and pictures open full screen with zoom." },

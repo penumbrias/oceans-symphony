@@ -142,7 +142,7 @@ export default function AutoBackupSettings() {
           <Download className="w-4 h-4 text-primary" /> Auto-backup
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Writes a backup of your <strong>active {terms.system}</strong> to your device on a schedule. If your pictures, audio and files are too big to fit, it saves your data only, so it never runs the app out of memory. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios. For one complete file with every {terms.system} and all your files, use “Everything as one .zip” under Export in Data &amp; privacy. (Android's own cloud backup and device transfer are switched off for this app — this file is the only thing that moves.) Backup files can be password-locked and given a plain name below.
+          Writes a backup of your <strong>active {terms.system}</strong> to your device on a schedule. If your pictures, audio and files are too big to fit, it saves your data only, so it never runs the app out of memory. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios. For one complete file with every {terms.system} and all your files, pick the “Everything (.zip)” export format in Data &amp; privacy. (Android's own cloud backup and device transfer are switched off for this app — this file is the only thing that moves.) Backup files can be password-locked and given a plain name below.
         </p>
       </div>
 
