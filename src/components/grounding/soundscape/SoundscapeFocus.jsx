@@ -7,13 +7,13 @@ import { startDistractionFree, stopDistractionFree } from "@/lib/soundscape/focu
 import SoundscapeVisualizer from "./SoundscapeVisualizer";
 import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
 
-// Full-screen focused mode: the visualiser (and optionally the guided
-// breathing animation) and nothing else. Tap to show the controls; they
+// Full-screen focused mode: the visualiser, the guided breathing
+// animation, or both, and nothing else. Tap to show the controls; they
 // fade away again on their own. Keeps the screen awake while open. When
 // a timed session ends, focus closes by itself and anything
 // distraction-free switched on is switched back off.
 
-export default function SoundscapeFocus({ params, timer, focus, onExit }) {
+export default function SoundscapeFocus({ params, timer, focus, visual = "calm", starSpeed = "cruise", onExit }) {
   const state = useSoundscapeState();
   const remaining = useRemaining(state.endsAt);
   const [showControls, setShowControls] = useState(true);
@@ -67,20 +67,26 @@ export default function SoundscapeFocus({ params, timer, focus, onExit }) {
     else if (wasPlaying.current) onExit();
   }, [state.playing]);
 
-  const breathSize = Math.round(Math.max(120, Math.min(280, size * 0.42)));
+  // Alone, the breathing guide gets the whole stage; over the visual it
+  // sits inside the shape.
+  const breathSize = Math.round(focus.mode === "breathing"
+    ? Math.max(160, Math.min(360, size * 0.7))
+    : Math.max(120, Math.min(280, size * 0.42)));
 
   return createPortal(
     <div
       className="fixed inset-0 z-[1000] bg-background select-none"
-      style={{ background: "radial-gradient(circle at center, hsl(var(--primary) / 0.10) 0%, hsl(var(--background)) 70%)" }}
+      style={{ background: "radial-gradient(circle at center, hsl(var(--primary) / 0.10) 0%, transparent 70%), hsl(var(--background))" }}
       onClick={poke}
       role="dialog"
       aria-label="Soundscape focused mode"
     >
-      <div className="absolute inset-0">
-        <SoundscapeVisualizer params={params} variant="radial" />
-      </div>
-      {focus.breathing && (
+      {focus.mode !== "breathing" && (
+        <div className="absolute inset-0">
+          <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} />
+        </div>
+      )}
+      {focus.mode !== "visuals" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="pointer-events-none">
             <BreathingExercise embedded autoStart loop maxSize={breathSize} patternName={focus.pattern} pace={parseFloat(focus.pace) || 1} />

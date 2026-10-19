@@ -70,6 +70,25 @@ const MOTION_OPTIONS = [
   { value: "waves", label: "Waves" },
   { value: "gusts", label: "Gusts" },
 ];
+const VISUAL_OPTIONS = [
+  { value: "calm", label: "Calm" },
+  { value: "layers", label: "Layers" },
+  { value: "stars", label: "Stars" },
+  { value: "fractal", label: "Fractal" },
+  { value: "detailed", label: "Detailed" },
+];
+const VISUAL_HELP = {
+  calm: "The shape of the sound, breathing slowly with it.",
+  layers: "Each part of the sound as its own ripple: noise, tone, and each ear's wave for a binaural beat.",
+  stars: "Flying through a starfield.",
+  fractal: "A Julia set (z² + c) slowly folding into new shapes.",
+  detailed: "The live sound, frequency by frequency. Busier than the others.",
+};
+const STAR_SPEED_OPTIONS = [
+  { value: "drift", label: "Drift" },
+  { value: "cruise", label: "Cruise" },
+  { value: "warp", label: "Warp" },
+];
 const timerLabel = (m) => (m ? `${m} min` : "Until I stop");
 
 export default function SoundscapeView({ onBack }) {
@@ -157,6 +176,8 @@ export default function SoundscapeView({ onBack }) {
         params={p}
         timer={prefs.timer}
         focus={prefs.focus}
+        visual={prefs.visual}
+        starSpeed={prefs.starSpeed}
         onExit={() => setFocusOpen(false)}
       />
     );
@@ -174,74 +195,18 @@ export default function SoundscapeView({ onBack }) {
 
       <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
         <div className="h-36">
-          <SoundscapeVisualizer params={p} />
+          <SoundscapeVisualizer params={p} detail={prefs.visual} starSpeed={prefs.starSpeed} />
         </div>
-        <div className="flex items-center justify-between px-3 py-1.5 text-[0.6875rem] text-muted-foreground border-t border-border/40">
-          <span>{fmtHz(30)}</span>
-          <span>{playing.playing ? "Live sound (shape dashed)" : "The shape of this sound"}</span>
-          <span>{fmtHz(9000)}</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {playing.playing ? (
-          <button type="button" onClick={() => stopSoundscape()} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
-            <Square className="w-4 h-4" /> Stop{remaining != null ? ` · ${fmtClock(remaining)} left` : ""}
-          </button>
-        ) : (
-          <button type="button" onClick={play} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
-            <Play className="w-4 h-4" /> Play
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setFocusOpen(true)}
-          className="flex items-center gap-1.5 rounded-xl border border-primary/40 text-primary px-4 py-3 text-sm font-medium hover:bg-primary/10"
-        >
-          <Maximize2 className="w-4 h-4" /> Focus
-        </button>
-      </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-
-      <Row label="Timer">
-        <Chips options={TIMER_OPTIONS.map((m) => ({ value: m, label: timerLabel(m) }))} value={prefs.timer} onChange={pickTimer} />
-      </Row>
-
-      <Row label="Volume" value={`${Math.round(p.volume * 100)}%`}>
-        <div className="flex items-center gap-2">
-          <Volume1 className="w-4 h-4 text-muted-foreground" />
-          <Slider min={0} max={100} step={1} value={[Math.round(p.volume * 100)]} onValueChange={([v]) => setP({ volume: v / 100 })} aria-label="Volume" />
-          <Volume2 className="w-4 h-4 text-muted-foreground" />
-        </div>
-        <p className="text-[0.6875rem] text-muted-foreground">Start low, especially with headphones. It fades in and out gently.</p>
-      </Row>
-
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sounds</p>
-        <div className="grid grid-cols-2 gap-2">
-          {allPresets.map((preset) => (
-            <div key={preset.id} className="relative">
-              <button
-                type="button"
-                onClick={() => pickPreset(preset)}
-                className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${
-                  prefs.presetId === preset.id ? "border-primary bg-primary/10 text-primary" : "border-border/60 bg-card hover:bg-muted/40 text-foreground"
-                }`}
-              >
-                <span className="mr-1.5">{preset.emoji}</span>{preset.name}
-              </button>
-              {preset.custom && (
-                <button type="button" onClick={() => deleteMine(preset)} aria-label={`Delete ${preset.name}`}
-                  className="absolute top-1 right-1 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ))}
+        <div className="px-3 py-2 border-t border-border/40 space-y-2">
+          <Chips options={VISUAL_OPTIONS} value={prefs.visual} onChange={(v) => save({ ...prefs, visual: v })} />
+          {prefs.visual === "stars" && (
+            <Chips options={STAR_SPEED_OPTIONS} value={prefs.starSpeed} onChange={(v) => save({ ...prefs, starSpeed: v })} />
+          )}
+          <p className="text-[0.6875rem] text-muted-foreground">{VISUAL_HELP[prefs.visual]}</p>
         </div>
       </div>
 
-      <details className="rounded-xl border border-border/60 bg-card p-3 group">
+      <details className="rounded-xl border border-border/60 bg-card p-3">
         <summary className="cursor-pointer text-sm font-medium text-foreground select-none">
           Shape the sound{changed ? " · changed" : ""}
         </summary>
@@ -328,14 +293,74 @@ export default function SoundscapeView({ onBack }) {
         </div>
       </details>
 
+      <div className="flex items-center gap-2">
+        {playing.playing ? (
+          <button type="button" onClick={() => stopSoundscape()} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
+            <Square className="w-4 h-4" /> Stop{remaining != null ? ` · ${fmtClock(remaining)} left` : ""}
+          </button>
+        ) : (
+          <button type="button" onClick={play} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
+            <Play className="w-4 h-4" /> Play
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setFocusOpen(true)}
+          className="flex items-center gap-1.5 rounded-xl border border-primary/40 text-primary px-4 py-3 text-sm font-medium hover:bg-primary/10"
+        >
+          <Maximize2 className="w-4 h-4" /> Focus
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      <Row label="Volume" value={`${Math.round(p.volume * 100)}%`}>
+        <div className="flex items-center gap-2">
+          <Volume1 className="w-4 h-4 text-muted-foreground" />
+          <Slider min={0} max={100} step={1} value={[Math.round(p.volume * 100)]} onValueChange={([v]) => setP({ volume: v / 100 })} aria-label="Volume" />
+          <Volume2 className="w-4 h-4 text-muted-foreground" />
+        </div>
+        <p className="text-[0.6875rem] text-muted-foreground">Start low, especially with headphones. It fades in and out gently.</p>
+      </Row>
+
+      <details className="rounded-xl border border-border/60 bg-card p-3">
+        <summary className="cursor-pointer text-sm font-medium text-foreground select-none">
+          Sounds · <span className="text-primary">{basePreset.emoji} {basePreset.name}</span>
+        </summary>
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          {allPresets.map((preset) => (
+            <div key={preset.id} className="relative">
+              <button
+                type="button"
+                onClick={() => pickPreset(preset)}
+                className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${
+                  prefs.presetId === preset.id ? "border-primary bg-primary/10 text-primary" : "border-border/60 bg-card hover:bg-muted/40 text-foreground"
+                }`}
+              >
+                <span className="mr-1.5">{preset.emoji}</span>{preset.name}
+              </button>
+              {preset.custom && (
+                <button type="button" onClick={() => deleteMine(preset)} aria-label={`Delete ${preset.name}`}
+                  className="absolute top-1 right-1 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <Row label="Timer">
+        <Chips options={TIMER_OPTIONS.map((m) => ({ value: m, label: timerLabel(m) }))} value={prefs.timer} onChange={pickTimer} />
+      </Row>
+
       <div className="rounded-xl border border-border/60 bg-card p-3 space-y-3">
         <p className="text-sm font-medium text-foreground">Focused mode</p>
         <Chips
-          options={[{ value: false, label: "Visuals only" }, { value: true, label: "Visuals + breathing" }]}
-          value={prefs.focus.breathing}
-          onChange={(v) => setFocus({ breathing: v })}
+          options={[{ value: "visuals", label: "Visuals" }, { value: "both", label: "Visuals + breathing" }, { value: "breathing", label: "Breathing only" }]}
+          value={prefs.focus.mode}
+          onChange={(v) => setFocus({ mode: v })}
         />
-        {prefs.focus.breathing && (
+        {prefs.focus.mode !== "visuals" && (
           <div className="space-y-2">
             <select
               value={prefs.focus.pattern}

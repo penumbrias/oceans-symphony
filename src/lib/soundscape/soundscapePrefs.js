@@ -8,13 +8,17 @@ import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDef
 import { clampParams, presetById, DEFAULT_PRESET_ID } from "./soundMath";
 
 export const SOUNDSCAPE_PREFS_KEY = "symphony_soundscape_v1";
+export const VISUALS = ["calm", "layers", "stars", "fractal", "detailed"];
+export const FOCUS_MODES = ["visuals", "both", "breathing"];
 export const TIMER_OPTIONS = [null, 5, 10, 15, 20, 30, 45, 60, 90];
 
 const DEFAULTS = {
   presetId: DEFAULT_PRESET_ID,
   params: presetById(DEFAULT_PRESET_ID).params,
   timer: null,
-  focus: { breathing: false, pattern: "Resonant breathing", pace: "1.25", distractionFree: false },
+  visual: "calm",
+  starSpeed: "cruise",
+  focus: { mode: "visuals", pattern: "Resonant breathing", pace: "1.25", distractionFree: false },
   saved: [],
 };
 
@@ -27,8 +31,11 @@ export function readSoundscapePrefs() {
     presetId: typeof raw.presetId === "string" ? raw.presetId : DEFAULTS.presetId,
     params: clampParams(raw.params),
     timer: TIMER_OPTIONS.includes(raw.timer) ? raw.timer : null,
+    visual: VISUALS.includes(raw.visual) ? raw.visual : "calm",
+    starSpeed: ["drift", "cruise", "warp"].includes(raw.starSpeed) ? raw.starSpeed : "cruise",
     focus: {
-      breathing: !!f.breathing,
+      // "visuals" | "both" | "breathing". Older saves had breathing: bool.
+      mode: FOCUS_MODES.includes(f.mode) ? f.mode : (f.breathing ? "both" : "visuals"),
       pattern: BREATHING_PATTERNS[f.pattern] ? f.pattern : DEFAULTS.focus.pattern,
       pace: BREATHING_PACE_OPTIONS.some((o) => o.value === f.pace) ? f.pace : DEFAULTS.focus.pace,
       distractionFree: !!f.distractionFree,
