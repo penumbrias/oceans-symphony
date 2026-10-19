@@ -228,6 +228,7 @@ The merge logic in `QuickNavMenu.jsx` and `NavigationSettings.jsx` auto-appends 
 1. `src/lib/changelog.js` — add an entry under a new (or current) date block.
 2. `src/lib/appVersion.js` — bump `APP_VERSION`.
 3. `android/app/build.gradle` — bump `versionCode` (strictly greater than the last Play upload — Play rejects duplicates) AND set `versionName` to match the new `APP_VERSION` string.
+4. `ios/App/App.xcodeproj/project.pbxproj` — set `MARKETING_VERSION` (both configs) to match `APP_VERSION`. `CURRENT_PROJECT_VERSION` only has to rise before each App Store Connect upload.
 
 Skipping (3) means the next native build either gets rejected by Play (duplicate `versionCode`) or ships with a `versionName` that lies about which release it is — both happened during the early native rollout and cost real time. Treat the build.gradle bump as part of the release checklist, not a follow-up PR.
 
