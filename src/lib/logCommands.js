@@ -72,6 +72,7 @@ import { startEncounter, endEncounterForContact, logVisit } from "@/lib/contactE
 import { addActiveActivity, getActiveActivities, endAndLogActiveActivity } from "@/lib/activitySession";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getTherapyKeyword, THERAPY_NOTES_EVENT } from "@/lib/therapyCommand";
+import { isBipolarScale, formatSeverityForSymptom } from "@/lib/trackingModel";
 
 // ── Type catalogue ──────────────────────────────────────────────────────────
 export const COMMAND_TYPES = [
@@ -303,7 +304,7 @@ export function buildCatalogues({ symptoms = [], contacts = [], activityCategori
     journalFolders: [...folderSet],
     symptoms: symptoms
       .filter((s) => s && !s.is_archived)
-      .map((s) => ({ id: s.id, label: s.label || "", category: s.category, type: s.type })),
+      .map((s) => ({ id: s.id, label: s.label || "", category: s.category, type: s.type, scale: s.scale })),
     contacts: contacts
       .filter((c) => c && !c.is_archived)
       .map((c) => ({ id: c.id, name: contactDisplayName(c) })),
@@ -384,7 +385,11 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
   let j = tildeIndex + 1;
   while (j < text.length && !"\n~<>".includes(text[j])) j++;
   const bodyEnd = j;
-  const hadClose = text[bodyEnd] === "~";
+  // A "~" right after the body closes it ("~symptom:energy:2~"). One after a
+  // space starts the NEXT command — treating it as a closer swallowed that
+  // command's "~" (and the space), so "~symptom:energy:2 ~feeling:…" lost
+  // the feeling and glued its text onto the chip.
+  const hadClose = text[bodyEnd] === "~" && !/\s/.test(text[bodyEnd - 1] || "");
   const body = text.slice(tildeIndex + 1, bodyEnd);
   if (!body.trim()) return null;
 
@@ -439,20 +444,25 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     let severity = null, consumedEnd = nameEnd;
     if (sevSeg) {
       const sevTrimmable = !bounded; // sevSeg is the last value seg here
-      const sm = /^\s*(\d+)/.exec(sevSeg.text);
+      const sm = /^\s*([+\-\u2212]?\d+)/.exec(sevSeg.text);
       if (sm) {
         // Consume the numeric token regardless of type; only rating symptoms
         // keep it as a severity (booleans ignore the number but still swallow
         // it so "~symptom:amnesia:4" leaves no dangling ":4").
-        const n = parseInt(sm[1], 10);
-        if (entity.type === "rating" && n >= 0 && n <= 5) severity = n;
+        const n = parseInt(sm[1].replace("\u2212", "-"), 10);
+        if (entity.type === "rating") {
+          // Two-ended scales (energy, mood) are typed the way they're shown,
+          // −2…+2, and stored 0…4 — so "energy:2" means +2, not neutral.
+          if (isBipolarScale(entity)) { if (n >= -2 && n <= 2) severity = n + 2; }
+          else if (n >= 0 && n <= 5) severity = n;
+        }
         consumedEnd = sevTrimmable ? sevSeg.absStart + sm[0].length : sevSeg.absEnd;
       } else {
         // Non-numeric value segment: consume if bounded (clean), else leave prose.
         consumedEnd = sevTrimmable ? nameEnd : sevSeg.absEnd;
       }
     }
-    const sevTxt = severity != null ? ` · ${severity}` : "";
+    const sevTxt = severity != null ? ` · ${isBipolarScale(entity) ? formatSeverityForSymptom(entity, severity) : severity}` : "";
     if (isActive === true) return finish(consumedEnd, { kind: "symptomSessionStart", symptom_id: entity.id, severity }, `${entity.label}${sevTxt} · started`);
     if (isActive === false) return finish(consumedEnd, { kind: "symptomSessionEnd", symptom_id: entity.id }, `${entity.label} · ended`);
     return finish(consumedEnd, { kind: "symptomCheckIn", symptom_id: entity.id, severity }, `${entity.label}${sevTxt}`);
@@ -976,10 +986,11 @@ export function buildCommandSuggestions({ segments, catalogues }) {
       return { header: type === "habit" ? "Habit" : "Symptom", icon, canFinish: false, items };
     }
     const entity = matchSymptom(segments[1], type, catalogues);
-    // Rating symptom → severity 0–5 (its own stage), then active/inactive.
+    // Rating symptom → severity 0–5 (−2…+2 on a two-ended scale), then
+    // active/inactive.
     if (segments.length === 3 && entity?.type === "rating") {
-      const items = [];
-      for (let n = 0; n <= 5; n++) if (!q || String(n).startsWith(q)) items.push({ insert: String(n), terminal: false });
+      const values = isBipolarScale(entity) ? ["-2", "-1", "0", "+1", "+2"] : ["0", "1", "2", "3", "4", "5"];
+      const items = values.filter((v) => !q || v.startsWith(q) || v.replace("+", "").startsWith(q)).map((v) => ({ insert: v, terminal: false }));
       return { header: "Severity", icon, canFinish: true, items };
     }
     const items = [{ insert: "active", terminal: true }, { insert: "inactive", terminal: true }].filter((it) => !q || it.insert.startsWith(q));

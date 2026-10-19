@@ -26,6 +26,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
+import RichText from "@/components/shared/RichText";
 
 // Long-press / double-click helper for re-opening a check-in in the
 // Quick Check-In modal so the user can fix mistakes after the fact.
@@ -523,7 +524,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       ) : note ? (
         <div className="flex items-start gap-2 group">
-          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed flex-1">{note}</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed flex-1"><RichText content={note} alters={noteAlters} terms={noteTerms} /></p>
           <Button
             variant="ghost"
             size="icon"
