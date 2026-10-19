@@ -72,6 +72,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Soundscape "distraction-free" focus: turn Do Not Disturb to
+         alarms-only for the session (the person grants access once in
+         the phone's settings; SystemSettingsPlugin.startFocusDnd). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <!-- Legacy storage write — only requested on Android 9 and below.
          Android 10+ uses MediaStore.Downloads (handled by

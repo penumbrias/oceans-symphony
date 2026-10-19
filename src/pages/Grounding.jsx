@@ -10,6 +10,10 @@ import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import BreathingTechniquePicker from "@/components/grounding/BreathingTechniquePicker";
 import QuickSupportRing from "@/components/grounding/QuickSupportRing";
+import SoundscapeView from "@/components/grounding/soundscape/SoundscapeView";
+import SoundscapeMiniBar from "@/components/grounding/soundscape/SoundscapeMiniBar";
+import { stopSoundscape } from "@/lib/soundscape/engine";
+import { stopDistractionFree, isFocusQuiet } from "@/lib/soundscape/focusMode";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
@@ -89,6 +93,12 @@ export default function Grounding({ initialPath = null }) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
+  // Leaving Quick Support ends any Soundscape (fading out) and undoes a
+  // distraction-free focus that was still on.
+  useEffect(() => () => {
+    stopSoundscape();
+    if (isFocusQuiet()) stopDistractionFree();
+  }, []);
   const [seenTechniqueIds, setSeenTechniqueIds] = useState([]);
   const [shuffledIds, setShuffledIds] = useState(null); // null = use default suggestion logic
   const [suggestionFadeKey, setSuggestionFadeKey] = useState(0);
@@ -302,8 +312,21 @@ export default function Grounding({ initialPath = null }) {
 
   // ---- Render paths ----
 
+  // While a Soundscape plays, the other screens show a small bar to get
+  // back to it or stop it.
+  const wrap = (node) => (
+    <>
+      {path !== "soundscape" && <SoundscapeMiniBar onOpen={() => setPath("soundscape")} />}
+      {node}
+    </>
+  );
+
+  if (path === "soundscape") {
+    return <SoundscapeView onBack={() => setPath("entry")} />;
+  }
+
   if (path === "guided" && selectedTechnique) {
-    return (
+    return wrap(
       <div className="max-w-lg mx-auto p-4 h-full flex flex-col">
         <GuidedTechniqueView
           technique={selectedTechnique}
@@ -332,7 +355,7 @@ export default function Grounding({ initialPath = null }) {
   }
 
   if (path === "breathing-picker") {
-    return (
+    return wrap(
       <BreathingTechniquePicker
         onSelect={(name) => {
           setSelectedBreathing(name);
@@ -349,7 +372,7 @@ export default function Grounding({ initialPath = null }) {
       setBreathingReturnPath(null);
       setPath(next);
     };
-    return (
+    return wrap(
       <div className="max-w-lg mx-auto p-4">
         <BreathingExercise
           patternName={selectedBreathing || "Box breathing"}
@@ -361,7 +384,7 @@ export default function Grounding({ initialPath = null }) {
   }
 
   if (path === "state-check") {
-    return (
+    return wrap(
       <div className="max-w-lg mx-auto p-4">
         <StateCheckFlow
           initialSelected={selectedStates}
@@ -373,7 +396,7 @@ export default function Grounding({ initialPath = null }) {
   }
 
   if (path === "suggestions") {
-    return (
+    return wrap(
       <div className="max-w-lg mx-auto p-4 space-y-6">
         <div>
           <button onClick={() => setPath("state-check")} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
@@ -467,7 +490,7 @@ export default function Grounding({ initialPath = null }) {
 
   // "all" and "entry" share the all-techniques view
   if (path === "all") {
-    return (
+    return wrap(
       <div className="max-w-lg mx-auto p-4 space-y-6">
         {/* "Back to Quick Support" exit at the top of the catalogue
             so the user can return to the Quick Support entry / state-
@@ -573,7 +596,7 @@ export default function Grounding({ initialPath = null }) {
   );
 
   if (activeTab === "learn") {
-    return (
+    return wrap(
       <div className="max-w-xl mx-auto">
         <TabBar />
         <LearnSection onTryTechnique={handleTryTechniqueByName} initialTopicId={deepLinkTopicId} />
@@ -582,7 +605,7 @@ export default function Grounding({ initialPath = null }) {
   }
 
   // Entry screen (Support tab)
-  return (
+  return wrap(
     <div data-tour="grounding-content" className="max-w-lg mx-auto px-4">
       <TabBar />
       <div className="space-y-8">
@@ -627,6 +650,18 @@ export default function Grounding({ initialPath = null }) {
             <div>
               <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Guided breathing</p>
               <p className="text-xs text-muted-foreground mt-0.5">Choose a breathing technique</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
+          </button>
+
+          <button
+            data-tour="grounding-soundscape"
+            onClick={() => setPath("soundscape")}
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
+          >
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Soundscape</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Brown noise, rain, wind and tones you can shape and watch</p>
             </div>
             <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>

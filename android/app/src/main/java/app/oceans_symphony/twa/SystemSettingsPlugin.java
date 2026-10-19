@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -87,6 +88,90 @@ public class SystemSettingsPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("playing", am != null && am.isMusicActive());
         call.resolve(r);
+    }
+
+    // ── Soundscape "distraction-free" focus ─────────────────────────────
+    // Turns on the phone's Do Not Disturb in "Alarms only" mode for the
+    // length of a focus session, and puts back whatever was set before.
+    // Needs the person to allow "Do Not Disturb access" for this app once
+    // (openDndAccessSettings). "Alarms only" rather than total silence so
+    // an alarm clock still rings. The previous mode is kept in
+    // SharedPreferences so a session cut short by the app being killed is
+    // undone on the next launch (restoreFocusDndIfLeftOn, MainActivity).
+    private static final String FOCUS_PREFS = "symphony_focus_dnd";
+
+    @PluginMethod
+    public void dndStatus(PluginCall call) {
+        JSObject r = new JSObject();
+        NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        boolean supported = Build.VERSION.SDK_INT >= 23 && nm != null;
+        r.put("supported", supported);
+        r.put("accessGranted", supported && nm.isNotificationPolicyAccessGranted());
+        r.put("active", getContext().getSharedPreferences(FOCUS_PREFS, Context.MODE_PRIVATE).getBoolean("active", false));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void openDndAccessSettings(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 23) {
+            open(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS), call);
+        } else {
+            call.resolve();
+        }
+    }
+
+    @PluginMethod
+    public void startFocusDnd(PluginCall call) {
+        JSObject r = new JSObject();
+        Context ctx = getContext();
+        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT < 23 || nm == null || !nm.isNotificationPolicyAccessGranted()) {
+            r.put("applied", false);
+            call.resolve(r);
+            return;
+        }
+        SharedPreferences prefs = ctx.getSharedPreferences(FOCUS_PREFS, Context.MODE_PRIVATE);
+        try {
+            if (!prefs.getBoolean("active", false)) {
+                prefs.edit()
+                    .putInt("previous", nm.getCurrentInterruptionFilter())
+                    .putBoolean("active", true)
+                    .commit();
+            }
+            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALARMS);
+            r.put("applied", true);
+        } catch (Exception e) {
+            prefs.edit().putBoolean("active", false).commit();
+            r.put("applied", false);
+        }
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void stopFocusDnd(PluginCall call) {
+        restoreFocusDndIfLeftOn(getContext());
+        call.resolve();
+    }
+
+    /** Puts Do Not Disturb back the way it was, if a focus session set it. */
+    public static void restoreFocusDndIfLeftOn(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(FOCUS_PREFS, Context.MODE_PRIVATE);
+        if (!prefs.getBoolean("active", false)) return;
+        int previous = prefs.getInt("previous", NotificationManager.INTERRUPTION_FILTER_ALL);
+        prefs.edit().putBoolean("active", false).commit();
+        if (Build.VERSION.SDK_INT < 23) return;
+        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null || !nm.isNotificationPolicyAccessGranted()) return;
+        try {
+            // Only undo our own change: if the person picked a different
+            // Do Not Disturb mode during the session, leave theirs alone.
+            if (nm.getCurrentInterruptionFilter() == NotificationManager.INTERRUPTION_FILTER_ALARMS) {
+                nm.setInterruptionFilter(previous == NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+                    ? NotificationManager.INTERRUPTION_FILTER_ALL : previous);
+            }
+        } catch (Exception ignored) {
+            // Nothing else to do; the phone's own DND switch still works.
+        }
     }
 
     @PluginMethod

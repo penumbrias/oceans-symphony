@@ -866,7 +866,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "grounding", sectionLabel: "Support",
       emoji: "🫧",
       title: "Support Page",
-      body: `The Support page has two tabs: Support and Learn. On the Support tab there are three entry points: Browse all techniques, Help me figure out what I need, and Guided breathing. The ring at the top breathes with a pattern you choose; tap the pattern name under it to change the pattern or slow it down. There's also a 🫧 floating bubble button in the bottom corner of every screen for instant access from anywhere in the app.`,
+      body: `The Support page has two tabs: Support and Learn. On the Support tab there are four entry points: Browse all techniques, Help me figure out what I need, Guided breathing, and Soundscape. The ring at the top breathes with a pattern you choose; tap the pattern name under it to change the pattern or slow it down. There's also a 🫧 floating bubble button in the bottom corner of every screen for instant access from anywhere in the app.`,
       route: "/grounding", target: "grounding-tabs",
       look: `the highlighted Support / Learn tab bar at the top of the page`, action: null,
     },
@@ -893,6 +893,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Tap "Guided breathing" to choose a breathing technique — box breathing, 4-7-8, extended exhale, and more. Each has an animated visual cue that guides inhale, hold, and exhale phases in real time. You can set a custom session duration. Breathing can also be suggested by the State Check flow.`,
       route: "/grounding", target: "grounding-breathing",
       look: `the highlighted "Guided breathing" button on the Support tab`, action: null,
+    },
+    {
+      section: "grounding", sectionLabel: "Support",
+      emoji: "🎧",
+      title: "Soundscape",
+      body: `Soundscape makes brown noise, rain, wind, waves and soft tones from math, and draws the shape of the sound as it plays. Pick a sound, then shape it under "Shape the sound": warmth, tone pitch, binaural beat, and whether it stays constant or drifts, swells or gusts. Set a timer or let it play, save your own sounds, and use Focus for a full-screen view with an optional breathing guide and a distraction-free option. Volume and pitch are capped so it can't get harsh.`,
+      route: "/grounding", target: "grounding-soundscape",
+      look: `the highlighted "Soundscape" button on the Support tab`, action: null,
     },
     {
       section: "grounding", sectionLabel: "Support",
