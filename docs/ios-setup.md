@@ -15,17 +15,22 @@ have SPM support and are already wired into
   **before** registering the app in App Store Connect — after the first
   upload it is permanent.
 - **Versioning:** `MARKETING_VERSION` (the user-visible version) is set
-  to match `APP_VERSION` (0.88.4 at scaffold time).
+  to match `APP_VERSION` (0.272.1 for the first TestFlight build).
   `CURRENT_PROJECT_VERSION` (the build number, Apple's analogue of
   Android's `versionCode`) starts at 1 and must strictly increase per
   App Store Connect upload. **Release checklist:** the version triple in
   CLAUDE.md becomes a quadruple once iOS builds ship — bump
   `MARKETING_VERSION` alongside `appVersion.js` / `build.gradle`.
-- **Info.plist:** location usage description (Location Records feature),
+- **Info.plist:** `ITSAppUsesNonExemptEncryption = false` (the app only
+  uses standard encryption, so App Store Connect skips the export
+  question), arm64 device requirement, location usage description (Location Records feature),
   `UIBackgroundModes` (fetch, processing, remote-notification), and
   `BGTaskSchedulerPermittedIdentifiers` containing
   `app.oceans_symphony.twa.friends` — this string must always match the
   `BackgroundRunner.label` in `capacitor.config.ts`.
+- **PrivacyInfo.xcprivacy:** Apple's privacy manifest. No tracking, no
+  collected data; declares UserDefaults (CA92.1) and file timestamps
+  (C617.1).
 - **AppDelegate.swift:** Background Runner task registration + APNs
   token forwarding for `@capacitor/push-notifications`.
 

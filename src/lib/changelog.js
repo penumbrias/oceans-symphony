@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 19, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: iPhone app build prepared for its first TestFlight release." },
       { type: "improve", text: "Soundscape: a calmer visual by default with no fast flicker, new Layers, Stars and Fractal views, a Breathing only focus mode, a foldable Sounds list, and the shaping controls right under the visual." },
       { type: "feature", text: "Quick Support: Soundscape makes brown noise, rain, wind, waves and calming tones you can shape like a synth and watch as they play, with a timer and safe volume limits." },
       { type: "feature", text: "Soundscape focused mode: a full-screen view with an optional breathing guide, and a distraction-free option that turns on Do Not Disturb on Android." },
