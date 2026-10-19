@@ -61,9 +61,11 @@ function OptionCard({ active, onClick, icon: Icon, title, body, children }) {
   );
 }
 
+// `showCopy` false: the parent shows the off-device copy itself (Settings →
+// Auto-backup puts it with the other "where" choices).
 // `onChange` fires after any persisted change so a parent can refresh
 // derived labels (e.g. the destination folder in Settings).
-export default function BackupFileOptions({ onChange }) {
+export default function BackupFileOptions({ onChange, showCopy = true }) {
   const encryptedStorage = isEncryptionEnabled();
   const [encMode, setEncModeState] = useState(BACKUP_ENCRYPTION.OFF);
   const [hasCustomPw, setHasCustomPw] = useState(false);
@@ -235,7 +237,7 @@ export default function BackupFileOptions({ onChange }) {
         </p>
       </div>
 
-      <BackupCopyOptions onChange={notify} />
+      {showCopy && <BackupCopyOptions onChange={notify} />}
     </div>
   );
 }

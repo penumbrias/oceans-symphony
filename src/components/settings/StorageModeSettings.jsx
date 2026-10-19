@@ -40,7 +40,7 @@ export default function StorageModeSettings() {
       try {
         // Every system — this wipes all of them, so a system that can't be
         // read right now must stop the wipe, not be skipped (review M4).
-        const backupResult = await runAutoBackupNow({ allSystems: "required" });
+        const backupResult = await runAutoBackupNow({ allSystems: "required", format: "json" });
         if (backupResult === "cancelled") {
           setError("Backup was cancelled — nothing was deleted.");
           setDeleting(false);

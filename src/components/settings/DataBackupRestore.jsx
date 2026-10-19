@@ -36,7 +36,8 @@ import { isNative } from "@/lib/platform";
 import { listSystems, getActiveSystemId, getActiveSystem, getSystemData, createSystemWithData, appendEntitiesToSystem, deleteSystem, setActiveSystem } from "@/lib/systems";
 import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
-import { bytesToBase64, base64ToBytes } from "@/lib/base64";
+import { base64ToBytes } from "@/lib/base64";
+import { compressBackup } from "@/lib/backupCompress";
 
 // Single source of truth for the localStorage keys that belong in a
 // backup lives in src/lib/backupKeys.js — keep the rules and the list
@@ -63,14 +64,6 @@ export function externalKindFromJson(j) {
     return "ask";
   }
   return null;
-}
-
-function compressBackup(data) {
-  const json = JSON.stringify(data);
-  const compressed = pako.deflate(json);
-  // Platform base64 encoder (src/lib/base64.js). The per-byte
-  // String.fromCharCode loop this replaced was slow on multi-MB backups.
-  return "SYMPHONYZ:" + bytesToBase64(compressed);
 }
 
 // Decompress a SYMPHONYZ:-prefixed string back to the original JSON text.
@@ -1426,7 +1419,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     });
     if (!ok) return false;
     try {
-      const backupResult = await runAutoBackupNow({ allSystems: "required" });
+      const backupResult = await runAutoBackupNow({ allSystems: "required", format: "json" });
       if (backupResult === "cancelled") {
         toast.error("Backup was cancelled — nothing was replaced.");
         return false;

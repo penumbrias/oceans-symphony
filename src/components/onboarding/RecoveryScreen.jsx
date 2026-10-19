@@ -344,7 +344,7 @@ export default function RecoveryScreen({ reason, onResolved }) {
       await saveRawCopyBestEffort("pre-reset");
       // Also try to write a regular auto-backup of whatever is currently
       // loaded (might be empty, but harmless). Best-effort.
-      try { await runAutoBackupNow({ silent: true }); } catch { /* ignore */ }
+      try { await runAutoBackupNow({ silent: true, format: "json" }); } catch { /* ignore */ }
 
       // Now actually wipe. clearStoredData removes the blob from BOTH stores
       // so the next boot's peekStoredData reports "nothing here" and the
