@@ -282,6 +282,26 @@ The plain-language version for a tester is
 8. Uninstall from Settings → Apps → the data folder is still there;
    reinstall → data is back.
 
+## macOS (v0.272.2)
+
+`npm run desktop:build:mac` on a Mac builds `release/OceansSymphony-<version>-x64.dmg`
+(Intel) and `-arm64.dmg` (Apple silicon). The "Desktop release" workflow builds
+the same on `macos-latest` and attaches the `.dmg` files to the release.
+
+- **Data:** `~/Library/Application Support/Oceans Symphony/` (from
+  `app.setName`, same rule as the other platforms). The private-file copy is in
+  `symphony-safe/` inside it.
+- **Signing:** with a "Developer ID Application" certificate in the keychain
+  (Xcode → Settings → Accounts → Manage Certificates → + → Developer ID
+  Application), local builds sign themselves. In CI, set the `MAC_CSC_LINK`
+  (base64 .p12) and `MAC_CSC_KEY_PASSWORD` secrets. Notarization runs when
+  `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` are set.
+  Unsigned builds work, but the first open needs right-click → Open.
+- **Updates:** not on macOS yet. `canSelfUpdate()` returns false on darwin;
+  people download the new `.dmg`.
+- **Menu:** macOS gets the standard app menu (About / Hide / Quit ⌘Q) in front
+  of File / Edit / View / Window.
+
 ## Not done yet
 
 - **Self-hosted Friends relay.** `apiBase.js` has the host override so
@@ -289,8 +309,8 @@ The plain-language version for a tester is
   (running `api/friends/*` off Vercel against a real Redis) and the fact
   that friend codes are scoped to whichever relay minted them are both
   still to do. Not federation — one home relay per user.
-- macOS build, code signing (Windows installer is unsigned), and a tray
-  icon.
+- Code signing for Windows (the installer is unsigned), macOS
+  self-update (needs a signed build + .zip), and a tray icon.
 
 ## Update checks need a yes (v0.248.4)
 

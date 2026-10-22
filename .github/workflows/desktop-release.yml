@@ -1,5 +1,5 @@
-# Builds the desktop apps — Windows installer (NSIS) and Linux AppImage +
-# .deb — each on its own kind of runner, and optionally attaches them to a
+# Builds the desktop apps — Windows installer (NSIS), Linux AppImage +
+# .deb, and macOS .dmg (Intel + Apple silicon) — each on its own kind of runner, and optionally attaches them to a
 # GitHub Release.
 #
 # Manual only, on purpose: nothing builds or publishes on its own.
@@ -88,12 +88,17 @@ jobs:
 
           - **Windows:** the file ending in \`-Setup.exe\`
           - **Linux:** the \`.AppImage\` (any distro), or the \`.deb\` for Ubuntu / Mint / Debian
+          - **Mac:** the \`.dmg\` ending in \`-arm64\` for Apple-chip Macs (M1 and newer), or \`-x64\` for Intel Macs
 
           You don't need the \`.yml\` or \`.blockmap\` files — the app uses those to update itself.
 
           ### Installing on Windows
 
           The installer isn't signed with a paid certificate, so Windows will probably say **"Windows protected your PC"**. Click **More info**, then **Run anyway**. If your browser says the file "isn't commonly downloaded", choose **Keep**. It installs for just you, with no administrator password.
+
+          ### Installing on a Mac
+
+          Open the \`.dmg\` and drag Oceans Symphony into Applications. If macOS says it can't check the app for malicious software, right-click the app in Applications and choose **Open**, then **Open** again. You only need to do this once.
 
           ### Your data
 
@@ -207,5 +212,59 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           gh release upload "$TAG" release/*.AppImage release/*.deb release/latest-linux.yml --clobber
+          echo "Attached to $TAG:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
+
+  macos:
+    needs: prepare
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build .dmg (Intel + Apple silicon)
+        env:
+          # Signing and notarization happen only when these secrets exist
+          # (Developer ID Application .p12 as base64 + its password, and an
+          # app-specific password for notarization). Without them the .dmg
+          # is unsigned: first open needs right-click → Open.
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CSC_LINK != '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run desktop:build:mac -- --publish never
+
+      - name: List output
+        run: ls -la release
+
+      - name: Keep the Mac files as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OceansSymphony-${{ needs.prepare.outputs.version }}-mac
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to the GitHub Release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" release/*.dmg --clobber
           echo "Attached to $TAG:"
           gh release view "$TAG" --json assets --jq '.assets[].name'

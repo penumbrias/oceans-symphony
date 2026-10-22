@@ -1,4 +1,4 @@
-// electron-builder configuration for the desktop builds (Linux + Windows).
+// electron-builder configuration for the desktop builds (Linux, Windows, macOS).
 //
 // Run via `npm run desktop:build` (Linux) or `npm run desktop:build:win`
 // (Windows). Both build dist/ first — the packaged app serves that exact
@@ -202,6 +202,34 @@ module.exports = {
     // flag would be one checkbox away from wiping it. Uninstalling the app
     // leaves the data in place; reinstalling picks it straight back up.
     deleteAppDataOnUninstall: false,
+  },
+  // ── macOS ──
+  //
+  // A .dmg per chip (Intel x64 and Apple silicon arm64), built on a Mac
+  // with `npm run desktop:build:mac` or by the "Desktop release" workflow.
+  //
+  // Signing: with an "Developer ID Application" certificate in the build
+  // Mac's keychain (or CSC_LINK / CSC_KEY_PASSWORD in CI), electron-builder
+  // signs automatically; without one the app is unsigned and Gatekeeper
+  // makes people right-click → Open the first time. Notarization runs only
+  // when APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID are set,
+  // and is skipped (with a log line) otherwise.
+  //
+  // No self-update on macOS yet: electron-updater needs a signed app and a
+  // .zip next to the .dmg. canSelfUpdate() in electron/main.cjs returns
+  // false on darwin until both exist.
+  //
+  // Data lives in ~/Library/Application Support/Oceans Symphony (from
+  // app.setName), so the appId here never moves anyone's data.
+  mac: {
+    target: [{ target: 'dmg', arch: ['x64', 'arm64'] }],
+    icon: 'electron/build/icon.png',
+    category: 'public.app-category.lifestyle',
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+  },
+  dmg: {
+    artifactName: 'OceansSymphony-${version}-${arch}.${ext}',
   },
   deb: {
     artifactName: 'oceans-symphony_${version}_${arch}.deb',
