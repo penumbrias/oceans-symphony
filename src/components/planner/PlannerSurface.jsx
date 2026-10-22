@@ -933,9 +933,18 @@ export default function PlannerSurface({
   // The month/year calendars also show open to-dos (with a date) and
   // important dates from custom fields, as the tracker did.
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list(), enabled: chrome,
+    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list(),
   });
-  const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
+  // Birthdays and other date fields, labelled the way the user picked. The
+  // day/week canvas shows them under each day's header too, so tapping a
+  // day still says whose birthday it is.
+  const importantDates = useMemo(() => {
+    const byId = new Map(alters.map((a) => [a.id, a]));
+    return collectAlterDates(alters, customFields).map((x) => {
+      const a = byId.get(x.alterId);
+      return { ...x, alterName: (a && formatAlter(a)) || x.alterName };
+    });
+  }, [alters, customFields, formatAlter]);
   const taskItems = useMemo(() => tasksAsCalendarItems(tasks), [tasks]);
   const activitiesWithTasks = useMemo(() => [...activities, ...taskItems], [activities, taskItems]);
   const openFromCalendar = (picked) => {
@@ -1220,6 +1229,8 @@ export default function PlannerSurface({
           anchor={anchor}
           onOpenPage={onOpenPage}
           onSetPref={onSetPref}
+          importantDates={importantDates}
+          onOpenDate={(x) => navigate(`/alter/${x.alterId}`)}
           prefsOverride={prefsOverride}
           dayCount={effDayCount}
           maxHeight={maxHeight}

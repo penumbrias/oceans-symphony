@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 22, 2026",
+    changes: [
+      { type: "fix", text: "Planner: birthdays and other date fields show under the date again in the Day and Week views — tap one to open that profile." },
+    ],
+  },
+  {
     date: "October 19, 2026",
+    version: "0.272.1",
     changes: [
       { type: "hotfix", text: "Hotfix: iPhone app build prepared for its first TestFlight release." },
       { type: "improve", text: "Soundscape: a calmer visual by default with no fast flicker, new Layers, Stars and Fractal views, a Breathing only focus mode, a foldable Sounds list, and the shaping controls right under the visual." },
