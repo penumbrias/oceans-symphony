@@ -56,6 +56,7 @@ app.setName(APP_NAME);
 // app.setName() above decides it, so nothing here moves anyone's data.
 const IS_WINDOWS = process.platform === 'win32';
 const IS_LINUX = process.platform === 'linux';
+const IS_MAC = process.platform === 'darwin';
 
 // Windows ties notifications and taskbar grouping to an App User Model ID.
 // Without one, toasts either don't appear or are attributed to "Electron".
@@ -407,6 +408,9 @@ function buildMenu() {
       }],
     }] : []),
   ];
+  // macOS shows the first menu under the app's name, so give it the
+  // standard app menu (About, Hide, Quit ⌘Q) instead of swallowing File.
+  if (IS_MAC) template.unshift({ role: 'appMenu' });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -458,7 +462,7 @@ function canSelfUpdate() {
     }
     return true;
   }
-  return false;                                // macOS: not built yet
+  return false;                                // macOS: needs a signed build + .zip first (see electron-builder.config.cjs)
 }
 
 function setUpAutoUpdate() {
