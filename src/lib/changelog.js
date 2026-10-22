@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 22, 2026",
     changes: [
+      { type: "fix", text: "Planner: birthdays and other date fields show under the date again in the Day and Week views — tap one to open that profile." },
       { type: "feature", text: "Desktop app for Mac: a download for both Intel and Apple-chip Macs, alongside Windows and Linux." },
     ],
   },

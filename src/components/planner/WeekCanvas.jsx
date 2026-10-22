@@ -33,6 +33,7 @@ import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/lib/activitySession";
 import { getActiveSystemId } from "@/lib/systems";
 import { planMark } from "@/lib/planner/planMark";
+import { datesForDay } from "@/lib/importantDates";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -683,6 +684,10 @@ export default function WeekCanvas({
   // instead of the shared preference — pinching one widget must not
   // resize every other planner surface (owner report).
   onSetPref = null,
+  // Annual dates from alters' date fields (birthdays etc.), shown under each
+  // day's header; tapping one opens that profile.
+  importantDates = [],
+  onOpenDate = null,
 }) {  const terms = useTerms();
 
   // Display prefs: row height (pinch or popover), clock format, week start.
@@ -981,6 +986,28 @@ export default function WeekCanvas({
                   <div className="text-[0.625em] text-muted-foreground tabular-nums leading-tight">
                     {total ? formatDuration(total) : "·"}
                   </div>
+                  {(() => {
+                    const dayDates = datesForDay(importantDates, day);
+                    if (!dayDates.length) return null;
+                    return (
+                      <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
+                        {dayDates.map((x, i) => (
+                          <button key={`${x.alterId}-${x.fieldName}-${i}`} type="button"
+                            onClick={() => onOpenDate?.(x)}
+                            title={`${x.alterName} · ${x.fieldName}`}
+                            className="inline-flex items-center gap-0.5 max-w-full text-[0.625em] leading-tight px-1 py-px rounded-full border truncate"
+                            style={{
+                              borderColor: x.color ? `${x.color}66` : "var(--v2-accent)",
+                              color: x.color || "var(--v2-accent)",
+                            }}>
+                            <span aria-hidden>{/birth/i.test(x.fieldName) ? "🎂" : "📅"}</span>
+                            <span className="font-medium truncate">{x.alterName}</span>
+                            {dayCount === 1 && <span className="opacity-70 truncate">· {x.fieldName}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
