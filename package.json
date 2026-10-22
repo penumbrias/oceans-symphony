@@ -17,7 +17,8 @@
     "desktop:dev": "SYMPHONY_DEV_SERVER=http://localhost:5173 electron .",
     "desktop:start": "npm run build && electron .",
     "desktop:build": "npm run build && electron-builder --linux --config electron-builder.config.cjs",
-    "desktop:build:win": "npm run build && electron-builder --win --x64 --config electron-builder.config.cjs"
+    "desktop:build:win": "npm run build && electron-builder --win --x64 --config electron-builder.config.cjs",
+    "desktop:build:mac": "npm run build && electron-builder --mac --config electron-builder.config.cjs"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.13",
