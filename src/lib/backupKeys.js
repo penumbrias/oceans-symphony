@@ -154,6 +154,8 @@ export const BACKUP_LS_KEYS = [
   "alter_card_header_bg",
   "symphony_planner_lane_opacity",
   "symphony_planner_time_mode",
+  // Activity sheet: whether the clock field is the start or the end time.
+  "symphony_activity_time_anchor",
   "symphony_presets_theme_restyles_widgets",
   "symphony_options_peek_h",
   "symphony_alterDropdown_grouped",

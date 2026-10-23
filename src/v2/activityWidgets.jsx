@@ -29,8 +29,7 @@ import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityDayView from "@/components/activities/ActivityDayView";
-import ActivityLogModal from "@/components/activities/ActivityLogModal";
-import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
+import ActivityEditor from "@/components/activities/ActivityEditor";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 
@@ -121,24 +120,23 @@ function useFrontingWindow(frontingHistory, from, to) {
 }
 
 function useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled }) {
-  const [logOpen, setLogOpen] = useState(false);
-  const [planOpen, setPlanOpen] = useState(false);
+  // Logging and planning both open THE shared activity editor — the same
+  // sheet the planner and the quick actions bar use.
+  const [editorReq, setEditorReq] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [editingPlan, setEditingPlan] = useState(null);
   const [zoomedDate, setZoomedDate] = useState(null);
-  const [range, setRange] = useState(null); // { date, endDate, startHour, endHour, startMinute, endMinute }
 
-  const closeRange = () => { setLogOpen(false); setPlanOpen(false); setRange(null); setEditingPlan(null); };
+  const at = (date, hour = 0, minute = 0) => { const d = new Date(date); d.setHours(hour ?? 0, minute ?? 0, 0, 0); return d; };
 
   const onTimeRangeSelect = (date, startHour, endHour, startMinute = 0, endMinute = 0, endDate = null) => {
     if (!enabled) return;
-    setRange({ date, endDate: endDate || date, startHour, endHour, startMinute, endMinute });
-    // A range starting in the future is a plan, not a log — same split the
-    // tracker makes, so the right fields appear.
-    const start = new Date(date);
-    start.setHours(startHour ?? 0, startMinute ?? 0, 0, 0);
-    if (start.getTime() > Date.now()) setPlanOpen(true); else setLogOpen(true);
+    const start = at(date, startHour, startMinute);
+    const end = endHour != null ? at(endDate || date, endHour, endMinute) : null;
+    const minutes = end && end > start ? Math.round((end - start) / 60000) : 30;
+    // Whether it already happened or is coming up follows the range; the
+    // editor's first question lets the person change it.
+    setEditorReq({ create: true, start, minutes });
   };
 
   const onActivityClick = (activityOrList) => {
@@ -149,49 +147,20 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
   };
 
   const onEditPlan = (plan) => {
-    if (!enabled) return;
-    setEditingPlan(plan);
-    setRange(null);
-    setPlanOpen(true);
+    if (!enabled || !plan) return;
+    setEditorReq({ item: plan });
   };
 
   const elements = (
     <>
-      <ActivityLogModal
-        isOpen={logOpen}
-        onClose={closeRange}
-        startDate={range?.date}
-        endDate={range?.endDate}
-        startHour={range?.startHour}
-        endHour={range?.endHour}
-        startMinute={range?.startMinute}
-        endMinute={range?.endMinute}
-        alters={alters}
-        frontingHistory={frontingHistory}
-        onSave={closeRange}
-      />
-      <ActivityPlanModal
-        isOpen={planOpen}
-        onClose={closeRange}
-        editingPlan={editingPlan}
-        allActivities={activities}
-        startDate={range?.date}
-        endDate={range?.endDate}
-        startHour={range?.startHour}
-        endHour={range?.endHour}
-        startMinute={range?.startMinute}
-        endMinute={range?.endMinute}
-        alters={alters}
-        frontingHistory={frontingHistory}
-        onSave={closeRange}
-      />
+      <ActivityEditor request={editorReq} onClose={() => setEditorReq(null)} />
       <ActivityDetailsModal
         isOpen={detailsOpen}
         onClose={() => { setDetailsOpen(false); setSelected(null); }}
         activity={selected}
         alters={alters}
         onSave={() => { setDetailsOpen(false); setSelected(null); }}
-        onEditPlan={onEditPlan}
+        onEditPlan={(plan) => { setDetailsOpen(false); setSelected(null); onEditPlan(plan); }}
       />
       {zoomedDate && (
         <ActivityDayView
@@ -214,24 +183,21 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
   // the calendar equivalent of dragging a block of hours.
   const openPlanRange = (from, to) => {
     if (!enabled) return;
-    setRange({ date: from, endDate: to || from, startHour: undefined, endHour: undefined, startMinute: 0, endMinute: 0 });
-    setEditingPlan(null);
-    setPlanOpen(true);
+    const start = at(from, 9, 0);
+    const end = at(to || from, 10, 0);
+    setEditorReq({ create: true, mode: "plan", start, minutes: Math.max(60, Math.round((end - start) / 60000)) });
   };
   const openPlan = (day) => {
     if (!enabled) return;
-    const d = day || new Date();
-    setRange({ date: d, endDate: d, startHour: undefined, endHour: undefined, startMinute: 0, endMinute: 0 });
-    setEditingPlan(null);
-    setPlanOpen(true);
+    const d = day ? new Date(day) : new Date();
+    const start = day ? at(d, 12, 0) : at(new Date(Date.now() + 86400000), 12, 0);
+    setEditorReq({ create: true, mode: "plan", start, minutes: 60 });
   };
   const openLog = (day) => {
     if (!enabled) return;
-    const d = day || new Date();
-    const now = new Date();
-    setRange({ date: d, endDate: d, startHour: now.getHours(), endHour: undefined, startMinute: now.getMinutes(), endMinute: 0 });
-    setEditingPlan(null);
-    setLogOpen(true);
+    const now = new Date(); now.setSeconds(0, 0);
+    const end = day ? at(day, now.getHours(), now.getMinutes()) : now;
+    setEditorReq({ create: true, mode: "done", start: new Date(end.getTime() - 30 * 60000), minutes: 30 });
   };
 
   return { onTimeRangeSelect, onActivityClick, onEditPlan, setZoomedDate, openPlan, openPlanRange, openLog, elements };
