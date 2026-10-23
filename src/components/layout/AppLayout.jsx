@@ -38,6 +38,7 @@ import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
+import SoundscapeGlobalBar from "@/components/grounding/soundscape/SoundscapeGlobalBar";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
@@ -1233,6 +1234,7 @@ const handleNotifClick = (mentionLog) => {
       {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
       <QuickActionsHost />
       {!v2HomeNotices && <ReminderToast />}
+      <SoundscapeGlobalBar />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       {pageScopedTourRoute && !showFeatureTour && (
         <FeatureTour
