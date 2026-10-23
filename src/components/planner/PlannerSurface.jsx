@@ -1366,7 +1366,16 @@ export default function PlannerSurface({
             importantDates={importantDates}
             onDayClick={(d) => { setAnchor(d); setView("day"); }}
             onActivityClick={openFromCalendar}
-            onRangeSelect={(from) => openCreate(from, 9 * 60, 10 * 60)}
+            // Dragging across days plans ONE entry over the whole span (as
+            // the tracker did): 9:00 on the first day to 10:00 on the last,
+            // shown as start → end so both dates can be adjusted.
+            onRangeSelect={(from, to) => {
+              const a = new Date(from); a.setHours(0, 0, 0, 0);
+              const b = new Date(to || from); b.setHours(0, 0, 0, 0);
+              const days = Math.max(0, Math.round((b - a) / 86400000));
+              openCreate(a, 9 * 60, days * MINUTES_PER_DAY + 10 * 60);
+              if (days > 0) setTimeMode("range");
+            }}
           />
         ) : chrome && view === "year" ? (
           <ActivityYearView
