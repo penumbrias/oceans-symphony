@@ -55,7 +55,8 @@ import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
 import { normalizeHex } from "@/lib/planTagColor";
 import { Switch } from "@/components/ui/switch";
-import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
+import CurrentActivities, { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 // The tracker's overview calendars and panels, merged into the planner.
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
@@ -200,6 +201,11 @@ export default function PlannerSurface({
   const [criticalOpen, setCriticalOpen] = useState(null);
   const [locationOpen, setLocationOpen] = useState(null);
   const [tagOpen, setTagOpen] = useState(null);
+  // Company — the contacts the person was with (Activity.contact_ids).
+  // Descriptive only; never touches "currently with" state.
+  const [withOpen, setWithOpen] = useState(null);
+  const withHas = (timing?.item?.contact_ids || []).length > 0;
+  const withOpenEff = withOpen ?? withHas;
   const whoHas = (timing?.item?.fronting_alter_ids || []).length > 0;
   const notesHas = !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
   const whoOpenEff = whoOpen ?? whoHas;
@@ -259,7 +265,7 @@ export default function PlannerSurface({
   // close directly — pressing a named button IS the confirmation.
   const [closeAsk, setCloseAsk] = useState(false);
   const EDIT_GUARD_FIELDS = ["activity_name", "notes", "fronting_alter_ids", "activity_category_ids",
-    "parent_category_id", "location", "is_critical", "color", "tag_color", "timestamp", "duration_minutes", "actual_duration_minutes"];
+    "parent_category_id", "location", "is_critical", "contact_ids", "color", "tag_color", "timestamp", "duration_minutes", "actual_duration_minutes"];
   const editorDirty = () => {
     if (!timing || timing.create || !timing.snapshot) return false;
     const live = (activities || []).find((a) => a.id === timing.item.id);
@@ -301,7 +307,8 @@ export default function PlannerSurface({
   const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list() });
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),
-    enabled: overlays.alters,
+    // The create sheet reads it too: it fills in who was fronting.
+    enabled: overlays.alters || !!timing?.create,
   });
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
@@ -390,7 +397,7 @@ export default function PlannerSurface({
     setTiming({
       create: true,
       day,
-      item: { activity_name: "", fronting_alter_ids: [], notes: "", activity_category_ids: [] },
+      item: { activity_name: "", fronting_alter_ids: [], contact_ids: [], notes: "", activity_category_ids: [] },
     });
     setTimeValue(`${pad(Math.floor(fromMin / 60))}:${pad(fromMin % 60)}`);
     setDurValue(Math.max(15, toMin - fromMin));
@@ -399,7 +406,7 @@ export default function PlannerSurface({
     setExtraDays([]);
     autoTitleRef.current = "";
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null); setWithOpen(null);
     setWhatOpen(true);
   };
   // Editing seeds the extras from the record, and the More section starts
@@ -413,7 +420,7 @@ export default function PlannerSurface({
     });
     // Chips fold on open; fields that hold a value auto-open via the *OpenEff
     // derivations, so nothing set is ever hidden.
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null); setWithOpen(null);
     setWhatOpen(false);
   };
   // Opening the EDITOR for an existing entry — one seeding path for every
@@ -500,6 +507,7 @@ export default function PlannerSurface({
             // A to-do linked while creating must ride along, or ticking one
             // off could never find the other.
             ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
+            contact_ids: timing.item.contact_ids || [],
           }],
           timestamp: dayWhen,
           durationMinutes: Math.max(5, Number(durValue) || 60),
@@ -514,6 +522,14 @@ export default function PlannerSurface({
         });
         if (createdIds?.length && !firstCreatedId) firstCreatedId = createdIds[0];
         total += occurrences.length;
+      }
+      if (recordFronting && createHasStarted) {
+        const who = signedIds || timing.item.fronting_alter_ids || [];
+        const start = new Date(timing.day);
+        start.setHours(h || 0, m || 0, 0, 0);
+        const end = new Date(start.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
+        try { await recordFrontingFor(who, start, end); }
+        catch { toast.error(tr("planner.frontingNotSaved", { fronting: t.fronting })); }
       }
       if (preparedNote) {
         await recordAuthoredText({ ...preparedNote, alters, sourceType: "activity", sourceId: firstCreatedId, sourceLabel: "Plan note", navigatePath: `/planner?date=${format(new Date(timing.day), "yyyy-MM-dd")}${firstCreatedId ? `&highlight=${firstCreatedId}` : ""}` });
@@ -648,7 +664,7 @@ export default function PlannerSurface({
     if (!timing) return;
     const current = timing.item.fronting_alter_ids || [];
     const next = current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId];
-    setTiming((prev) => ({ ...prev, item: { ...prev.item, fronting_alter_ids: next } }));
+    setTiming((prev) => ({ ...prev, whoTouched: true, item: { ...prev.item, fronting_alter_ids: next } }));
     if (timing.create) return;
     try {
       await base44.entities.Activity.update(timing.item.id, { fronting_alter_ids: next });
@@ -720,11 +736,43 @@ export default function PlannerSurface({
       color: cat?.color || null,
       startTime: (startedAt instanceof Date ? startedAt : new Date()).toISOString(),
       alterIds: it.fronting_alter_ids || [],
+      contactIds: it.contact_ids || [],
       notes: (it.notes || "").trim(),
     });
     try { cancelPlanReminder(it.id).catch(() => {}); } catch { /* non-fatal */ }
     toast.success(tr("planner.startedToast"));
     setTiming(null);
+  };
+
+  // Start a NEW running activity straight from the create sheet — the
+  // classic Log form's "Active" mode. It runs until ended from the running
+  // strip (or the dashboard pill) and then logs itself like any entry.
+  // Starts at the chosen time when that's already passed, else now.
+  const startNewNow = async () => {
+    if (!timing?.create) return;
+    const name = (timing.item.activity_name || "").trim();
+    const catId = (timing.item.activity_category_ids || [])[0] || null;
+    const cat = catId ? categories.find((c) => c.id === catId) : null;
+    if (!name && !cat) return;
+    let prepared = null;
+    if (noteValue.trim()) {
+      try { prepared = await prepareAuthoredText(noteValue.trim(), { alters, terms: t, surfaceLabel: "activity note" }); }
+      catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (prepared === null) return;
+    }
+    const chosen = createWindow?.start;
+    const startAt = chosen && chosen.getTime() <= Date.now() ? chosen : new Date();
+    addActiveActivity({
+      categoryId: catId,
+      name: name || cat?.name || "Activity",
+      color: cat?.color || null,
+      startTime: startAt.toISOString(),
+      alterIds: prepared?.authorIds?.length ? prepared.authorIds : (timing.item.fronting_alter_ids || []),
+      contactIds: timing.item.contact_ids || [],
+      notes: prepared ? prepared.content : "",
+    });
+    setTiming(null);
+    toast.success(tr("planner.startedNew", { name: name || cat?.name || "" }));
   };
 
   const saveNote = async (rawText) => {
@@ -760,6 +808,79 @@ export default function PlannerSurface({
     when.setHours(h || 0, m || 0, 0, 0);
     return format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
   }, [timing, timeValue]);
+
+  // The new entry's window, as dates — read by the who-was-fronting fill
+  // and the "still fronting" switch.
+  const createWindow = useMemo(() => {
+    if (!timing?.create) return null;
+    const [h, m] = String(timeValue).split(":").map(Number);
+    const start = new Date(timing.day);
+    start.setHours(h || 0, m || 0, 0, 0);
+    const end = new Date(start.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
+    return { start, end };
+  }, [timing?.create, timing?.day, timeValue, durValue]);
+  // Who was fronting during the chosen time fills "Who" on a new entry —
+  // what the classic Log Activity form did. Follows the time as it changes
+  // until the person picks members themselves; a future window finds
+  // nobody (an open session only reaches as far as now).
+  useEffect(() => {
+    if (!createWindow || timing?.whoTouched) return;
+    const { start, end } = createWindow;
+    const ids = new Set();
+    for (const s of frontingHistory || []) {
+      const ss = new Date(s.start_time);
+      const se = s.end_time ? new Date(s.end_time) : new Date();
+      if (!(ss < end && se > start)) continue;
+      if (s.alter_id) ids.add(s.alter_id);
+      if (s.primary_alter_id) ids.add(s.primary_alter_id);
+      for (const id of (s.co_fronter_ids || [])) ids.add(id);
+    }
+    const next = [...ids];
+    setTiming((prev) => {
+      if (!prev?.create || prev.whoTouched) return prev;
+      const cur = prev.item.fronting_alter_ids || [];
+      if (cur.length === next.length && cur.every((x) => ids.has(x))) return prev;
+      return { ...prev, item: { ...prev.item, fronting_alter_ids: next } };
+    });
+  }, [createWindow, frontingHistory, timing?.whoTouched]);
+  // "Still fronting now" (classic Log form): saving an entry that has
+  // started also records the members' fronting — an open session when they
+  // are still here, a closed one over the entry's time when not. Starts on
+  // only when the entry is happening now. null = follow that default.
+  const [stillFrontingPick, setStillFrontingPick] = useState(null);
+  useEffect(() => { setStillFrontingPick(null); }, [timing?.create, timing?.day]);
+  const createHasStarted = !!createWindow && createWindow.start.getTime() <= Date.now();
+  const stillFronting = stillFrontingPick ?? (!!createWindow && createWindow.end.getTime() >= Date.now() - 15 * 60000);
+  const [recordFronting, setRecordFronting] = useState(false);
+  useEffect(() => { setRecordFronting(false); }, [timing?.create, timing?.day]);
+  // Writes the fronting the switch describes. Never duplicates: someone
+  // already on front isn't opened again, and a member whose fronting
+  // already covers the entry's time isn't given a second closed session.
+  const recordFrontingFor = async (alterIds, start, end) => {
+    if (!alterIds.length) return;
+    const all = await base44.entities.FrontingSession.list();
+    const idsOf = (s) => [s.alter_id, s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+    const activeIds = new Set(all.filter((s) => s.is_active).flatMap(idsOf));
+    for (const alterId of alterIds) {
+      if (stillFronting) {
+        if (activeIds.has(alterId)) continue;
+        await base44.entities.FrontingSession.create({
+          alter_id: alterId, is_primary: false, start_time: start.toISOString(), is_active: true,
+        });
+      } else {
+        const covered = all.some((s) => idsOf(s).includes(alterId)
+          && new Date(s.start_time) < end && (s.end_time ? new Date(s.end_time) : new Date()) > start);
+        if (covered) continue;
+        await base44.entities.FrontingSession.create({
+          alter_id: alterId, is_primary: false, start_time: start.toISOString(),
+          end_time: end.toISOString(), is_active: false,
+        });
+      }
+    }
+    qc.invalidateQueries({ queryKey: ["activeFront"] });
+    qc.invalidateQueries({ queryKey: ["frontHistory"] });
+    qc.invalidateQueries({ queryKey: ["frontingHistory"] });
+  };
 
   const timingDirty = useMemo(() => {
     if (!timing) return false;
@@ -1087,6 +1208,10 @@ export default function PlannerSurface({
             )}
           </div>
         )}
+        {/* Running activities (timers) — the same strip the dashboard and
+            the old tracker showed, so a running one is never out of sight
+            here. Renders nothing when nothing is running. */}
+        {chrome && section === "calendar" && <CurrentActivities />}
         {chrome && showDisplay && (
           <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
@@ -1722,6 +1847,7 @@ export default function PlannerSurface({
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.details")}</p>
             <div className="flex flex-wrap gap-1.5">
               <DetailChip open={whoOpenEff} has={whoHas} onToggle={() => setWhoOpen(!whoOpenEff)} label={tr("planner.who")} />
+              <DetailChip open={withOpenEff} has={withHas} onToggle={() => setWithOpen(!withOpenEff)} label={tr("planner.with")} />
               <DetailChip open={notesOpenEff} has={notesHas} onToggle={() => setNotesOpen(!notesOpenEff)} label={tr("planner.notes")} />
               {canRepeat && (
                 <DetailChip open={repeatOpenEff} has={repeatHas} onToggle={() => setRepeatOpen(!repeatOpenEff)} label={tr("planner.repeat")} />
@@ -1762,6 +1888,38 @@ export default function PlannerSurface({
                 selectedIds={timing.item.fronting_alter_ids || []}
                 onToggle={toggleAlter}
                 searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
+              />
+              {timing.create && createHasStarted && (timing.item.fronting_alter_ids || []).length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span>{tr("planner.recordFronting", { fronting: t.fronting })}</span>
+                    <Switch checked={recordFronting} onCheckedChange={setRecordFronting}
+                      aria-label={tr("planner.recordFronting", { fronting: t.fronting })} />
+                  </label>
+                  {recordFronting && (
+                    <>
+                      <label className="flex items-center justify-between gap-2 text-xs">
+                        <span>{tr("planner.stillFrontingNow", { fronting: t.fronting })}</span>
+                        <Switch checked={stillFronting} onCheckedChange={setStillFrontingPick}
+                          aria-label={tr("planner.stillFrontingNow", { fronting: t.fronting })} />
+                      </label>
+                      <p className="text-[0.6875em] text-muted-foreground">
+                        {stillFronting
+                          ? tr("planner.stillFrontingOn", { front: t.front, fronting: t.fronting })
+                          : tr("planner.stillFrontingOff", { fronting: t.fronting })}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            )}
+            {withOpenEff && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.withHint")}</p>
+              <ContactMultiSelectList
+                selectedContactIds={timing.item.contact_ids || []}
+                onChange={(ids) => saveField({ contact_ids: ids })}
               />
             </div>
             )}
@@ -1919,11 +2077,22 @@ export default function PlannerSurface({
             </div>
 
             {timing.create ? (
-              <Button size="sm" className="w-full" disabled={!(timing.item.activity_name || "").trim()}
-                onClick={commitCreate}>
-                {(createIsPlan ? tr("planner.plan") : tr("planner.log"))
-                  + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1" disabled={!(timing.item.activity_name || "").trim()}
+                  onClick={commitCreate}>
+                  {(createIsPlan ? tr("planner.plan") : tr("planner.log"))
+                    + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
+                </Button>
+                {/* Start a timer instead — only for a single entry that
+                    isn't repeating (a running session is one thing, now). */}
+                {!extraDays.length && recur.interval === "none" && (
+                  <Button size="sm" variant="outline" className="gap-1"
+                    disabled={!(timing.item.activity_name || "").trim()}
+                    onClick={startNewNow}>
+                    <Play className="w-3.5 h-3.5" />{tr("planner.startTimer")}
+                  </Button>
+                )}
+              </div>
             ) : timingDirty && (
               <>
                 {timing.item.status === "scheduled" && timing.item.timestamp && (
