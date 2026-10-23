@@ -48,7 +48,7 @@ import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
 import { SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
+import { usePlannerPrefs, formatClock, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
@@ -167,6 +167,8 @@ export default function PlannerSurface({
   const overlays = { ...ownOverlays, ...(overlaysOverride || {}) };
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
   const [timing, setTiming] = useState(null);
+  // Tapped empty time on the page → that hour's summary card.
+  const [cellInfo, setCellInfo] = useState(null); // { day, min, rect }
   // Tapped fronting-lane bar → who/when card (bars alone are anonymous).
   const [bandInfo, setBandInfo] = useState(null);          // { item, day } being scheduled
   // Tapping an entry OPENS ITS DETAILS — a readable summary — rather than
@@ -308,11 +310,11 @@ export default function PlannerSurface({
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),
     // The create sheet reads it too: it fills in who was fronting.
-    enabled: overlays.alters || !!timing?.create,
+    enabled: overlays.alters || !!timing?.create || !!cellInfo,
   });
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
-    enabled: overlays.emotions,
+    enabled: overlays.emotions || !!cellInfo,
   });
   // Location records pin onto the canvas at their time (on unless turned off).
   const { data: locationRecords = [] } = useQuery({
@@ -1124,6 +1126,35 @@ export default function PlannerSurface({
     return mins ? `· ${h ? `${h}h ` : ""}${m ? `${m}m` : ""}`.trim() : "";
   }, [anchor, activities]);
 
+  // What the tapped hour holds — the classic grid's cell popover: entries
+  // that overlap it, who was fronting, feelings logged, places saved.
+  const cellSummary = useMemo(() => {
+    if (!cellInfo) return null;
+    const hourStartMin = Math.floor(cellInfo.min / 60) * 60;
+    const from = new Date(cellInfo.day); from.setHours(0, 0, 0, 0); from.setMinutes(hourStartMin);
+    const to = new Date(from.getTime() + 60 * 60000);
+    const overlaps = (s, e) => s < to && e > from;
+    const entries = activities.filter((a) => {
+      if (!a?.timestamp) return false;
+      const s = new Date(a.timestamp);
+      const mins = Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0;
+      const e = new Date(s.getTime() + Math.max(1, mins) * 60000);
+      return overlaps(s, e);
+    }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const alterById = new Map(alters.map((a) => [a.id, a]));
+    const whoIds = new Set();
+    for (const f of frontingHistory || []) {
+      const s = new Date(f.start_time), e = f.end_time ? new Date(f.end_time) : new Date();
+      if (!overlaps(s, e)) continue;
+      [f.alter_id, f.primary_alter_id, ...(f.co_fronter_ids || [])].filter(Boolean).forEach((id) => whoIds.add(id));
+    }
+    const who = [...whoIds].map((id) => alterById.get(id)).filter(Boolean);
+    const inHour = (ts) => { const d = ts ? new Date(ts) : null; return d && d >= from && d < to; };
+    const feelings = [...new Set((emotionCheckIns || []).filter((c) => inHour(c.timestamp)).flatMap((c) => c.emotions || []))];
+    const places = (locationRecords || []).filter((l) => inHour(l.timestamp));
+    return { from, to, hourStartMin, entries, who, feelings, places };
+  }, [cellInfo, activities, alters, frontingHistory, emotionCheckIns, locationRecords]);
+
   return (
     <div className={chrome ? "min-h-screen p-2 sm:p-4" : "flex flex-col min-h-0 h-full"}
       {...(chrome ? { "data-tour": "planner" } : {})}
@@ -1415,6 +1446,7 @@ export default function PlannerSurface({
           onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
           onOpenBand={(b, rect) => setBandInfo({ band: b, rect })}
           onAddToDay={(day) => setPlanDay(day)}
+          onTapEmpty={chrome ? (day, min, rect) => setCellInfo({ day, min, rect }) : null}
           onOpenUntimed={(item, day) => (item?._isTask ? navigate(`/todo?id=${item._task.id}`) : setDetails({ ...item, _day: day }))}
         />
         )}
@@ -1455,6 +1487,50 @@ export default function PlannerSurface({
                 {tr("planner.frontHistory", { Front: t.Front })}
               </button>
             </div>
+          </div>
+        </div>
+      ), document.body)}
+      {cellSummary && createPortal((
+        <div className="fixed inset-0 z-[85]" onClick={() => setCellInfo(null)}>
+          <div className="fixed bg-card border border-border rounded-xl shadow-xl p-3 w-64 space-y-2 text-xs max-h-[60vh] overflow-y-auto overscroll-contain"
+            style={{
+              left: Math.max(8, Math.min(cellInfo.rect.left - 20, window.innerWidth - 264)),
+              top: Math.max(8, Math.min(cellInfo.rect.top + 8, window.innerHeight - 260)),
+              borderRadius: "var(--v2-radius, 12px)",
+            }}
+            onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold">
+              {format(cellSummary.from, "EEE d MMM")} · {formatClock(cellSummary.hourStartMin, prefs.timeFmt)}–{formatClock(cellSummary.hourStartMin + 60, prefs.timeFmt)}
+            </p>
+            {cellSummary.entries.length > 0 && (
+              <div className="space-y-0.5">
+                {cellSummary.entries.map((a) => (
+                  <button key={a.id} type="button" onClick={() => { setCellInfo(null); setDetails(a); }}
+                    className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg border border-border/40 text-left hover:bg-muted/30">
+                    <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: a.color || catColor(categoryIdOf(a)) || "var(--v2-accent)" }} />
+                    <span className="flex-1 truncate">{a.activity_name || tr("planner.untitled")}</span>
+                    <span className="text-muted-foreground tabular-nums">{format(new Date(a.timestamp), "HH:mm")}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {cellSummary.who.length > 0 && (
+              <p><span className="text-muted-foreground">{t.Fronting}: </span>{cellSummary.who.map((a) => formatAlter(a)).join(", ")}</p>
+            )}
+            {cellSummary.feelings.length > 0 && (
+              <p><span className="text-muted-foreground">{tr("planner.feelings")}: </span>{cellSummary.feelings.join(", ")}</p>
+            )}
+            {cellSummary.places.length > 0 && (
+              <p><span className="text-muted-foreground">{tr("planner.location")}: </span>{cellSummary.places.map((l) => l.name || "📍").join(", ")}</p>
+            )}
+            {!cellSummary.entries.length && !cellSummary.who.length && !cellSummary.feelings.length && !cellSummary.places.length && (
+              <p className="text-muted-foreground">{tr("planner.cellEmpty")}</p>
+            )}
+            <button type="button"
+              onClick={() => { const c = cellInfo; setCellInfo(null); openCreate(c.day, cellSummary.hourStartMin, cellSummary.hourStartMin + 60); }}
+              className="w-full text-xs px-2.5 py-1.5 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center justify-center gap-1">
+              <Plus className="w-3 h-3" />{tr("planner.addHere")}
+            </button>
           </div>
         </div>
       ), document.body)}

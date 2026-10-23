@@ -72,7 +72,7 @@ export function formatDuration(min) {
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks, overlayPlaces = [], onOpenPlace = null, onOpenBand, terms,
   onCreate, onOpenBlock, onOpenLive, onResize, colorFor, showOverlays, minWidth,
-  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
+  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null, onTapEmpty = null,
   laneOpacity = 90,
   // Cross-day creation: which column this is, and how to turn a pointer
   // x into a column index. Minutes are measured from THIS day's midnight,
@@ -251,6 +251,16 @@ function DayColumn({
       endGesture();
       setDraft(null);
       onOpenPage();
+      return;
+    }
+    // The page: a tap on empty time opens a summary of that hour (what was
+    // on, who was fronting, feelings, places) — the classic grid's cell
+    // popover. Holding still creates, exactly as before.
+    if (g && !g.armed && onTapEmpty) {
+      stopAutoScroll();
+      endGesture();
+      setDraft(null);
+      onTapEmpty(day, g.startMin, { left: g.startX, top: g.startY });
       return;
     }
     if (g?.armed && draft) {
@@ -698,6 +708,8 @@ export default function WeekCanvas({
   onOpenBand,
   prefsOverride = null,
   onOpenPage = null,
+  // Page host: tap on empty time → (day, minute, {left, top}).
+  onTapEmpty = null,
   // Widget hosts: route pinch-zoom writes into the WIDGET's own config
   // instead of the shared preference — pinching one widget must not
   // resize every other planner surface (owner report).
@@ -1108,6 +1120,7 @@ export default function WeekCanvas({
                 onOpenBand={onOpenBand}
                 terms={terms}
                 onOpenPage={onOpenPage}
+                onTapEmpty={onTapEmpty}
                 laneOpacity={prefs.laneOpacity}
               />
             ))}
