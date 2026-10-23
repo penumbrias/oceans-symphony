@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 23, 2026",
     changes: [
+      { type: "feature", text: "Soundscape: shape the rain by what it lands on, how hard it falls, drop size and how close it sounds, plus new rain presets." },
       { type: "fix", text: "Android: the bottom bar no longer hides behind the phone's navigation buttons on older phones." },
       { type: "fix", text: "Navigation bar height in Accessibility lifts the bottom bar again." },
       { type: "fix", text: "Planner: changing or deleting a sleep entry's activity updates its Sleep record again." },

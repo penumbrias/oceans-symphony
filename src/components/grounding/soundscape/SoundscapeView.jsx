@@ -37,6 +37,16 @@ function Row({ label, value, children }) {
   );
 }
 
+// A 0..1 value in 5% steps, with words at both ends.
+function PctSlider({ label, value, onChange, ends }) {
+  return (
+    <Row label={label} value={`${Math.round(value * 100)}%`}>
+      <Slider min={0} max={100} step={5} value={[Math.round(value * 100)]} onValueChange={([v]) => onChange(v / 100)} aria-label={label} />
+      <div className="flex justify-between text-[0.625rem] text-muted-foreground"><span>{ends[0]}</span><span>{ends[1]}</span></div>
+    </Row>
+  );
+}
+
 function Chips({ options, value, onChange, disabled }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -63,6 +73,13 @@ const NOISE_OPTIONS = [
   { value: "white", label: "White" },
   { value: "rain", label: "Rain" },
   { value: "none", label: "None" },
+];
+const SURFACE_OPTIONS = [
+  { value: "open", label: "Open air" },
+  { value: "leaves", label: "Leaves" },
+  { value: "puddles", label: "Puddles" },
+  { value: "roof", label: "Roof" },
+  { value: "tent", label: "Tent" },
 ];
 const MOTION_OPTIONS = [
   { value: "constant", label: "Constant" },
@@ -218,6 +235,16 @@ export default function SoundscapeView({ onBack }) {
             <Row label="Noise level" value={`${Math.round(p.noiseLevel * 100)}%`}>
               <Slider min={0} max={100} step={1} value={[Math.round(p.noiseLevel * 100)]} onValueChange={([v]) => setP({ noiseLevel: v / 100 })} aria-label="Noise level" />
             </Row>
+          )}
+          {p.noise === "rain" && (
+            <div className="rounded-lg bg-muted/30 p-3 space-y-3">
+              <Row label="Rain lands on">
+                <Chips options={SURFACE_OPTIONS} value={p.rainSurface} onChange={(v) => setP({ rainSurface: v })} />
+              </Row>
+              <PctSlider label="How hard it's raining" value={p.rainAmount} onChange={(v) => setP({ rainAmount: v })} ends={["Drizzle", "Downpour"]} />
+              <PctSlider label="Drop size" value={p.rainDrop} onChange={(v) => setP({ rainDrop: v })} ends={["Fine mist", "Big drops"]} />
+              <PctSlider label="How close" value={p.rainClose} onChange={(v) => setP({ rainClose: v })} ends={["Far away", "Right here"]} />
+            </div>
           )}
           <Row label="Warmth" value={`cuts above ${fmtHz(p.lowpass)}`}>
             <Slider min={0} max={1000} step={1} value={[toPos(p.lowpass, LIMITS.lowpass)]} onValueChange={([v]) => setP({ lowpass: fromPos(v, LIMITS.lowpass) })} aria-label="Warmth" />

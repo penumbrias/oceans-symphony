@@ -10,7 +10,7 @@
 // (setTargetAtTime) so nothing jumps; master gain tops out at MAX_GAIN;
 // the limiter squashes any peak; start and stop fade.
 
-import { clampParams, makeLoop, motionValue, windDownValue } from "./soundMath";
+import { clampParams, makeLoop, motionValue, windDownValue, rainShape, rainKey } from "./soundMath";
 
 const MAX_GAIN = 1.0;
 const CEILING = 0.9;
@@ -34,6 +34,8 @@ let motionTimer = null;
 let endTimer = null;
 let stopTimer = null;
 let onEndCb = null;
+let reshapeTimer = null;
+const MAX_CACHED = 6;
 // True while a timed session is in its closing fade (volume changes wait).
 let fading = false;
 
@@ -46,16 +48,23 @@ function getCtx() {
   return ctx;
 }
 
-function loopBuffer(color) {
+// Which loop the current params need: the colour, plus the rain shape
+// when it's rain (each shape is its own generated loop).
+const noiseKey = (p) => (p.noise === "rain" ? `rain_${rainKey(p)}` : p.noise);
+
+function loopBuffer(p) {
   const c = getCtx();
-  const key = `${color}_${c.sampleRate}`;
+  const key = `${noiseKey(p)}_${c.sampleRate}`;
   if (bufferCache.has(key)) return bufferCache.get(key);
+  const shape = p.noise === "rain" ? rainShape(p) : null;
   const buf = c.createBuffer(2, Math.floor(12 * c.sampleRate), c.sampleRate);
   // Different seeds per channel: decorrelated left/right sounds wide and
   // natural instead of a point in the middle of the head.
-  buf.copyToChannel(makeLoop(color, c.sampleRate, 12, 11), 0);
-  buf.copyToChannel(makeLoop(color, c.sampleRate, 12, 29), 1);
+  buf.copyToChannel(makeLoop(p.noise, c.sampleRate, 12, 11, shape), 0);
+  buf.copyToChannel(makeLoop(p.noise, c.sampleRate, 12, 29, shape), 1);
   bufferCache.set(key, buf);
+  // Rain shapes can pile up while someone explores; keep the newest few.
+  while (bufferCache.size > MAX_CACHED) bufferCache.delete(bufferCache.keys().next().value);
   return buf;
 }
 
@@ -104,10 +113,19 @@ function ramp(param, value, tc = RAMP) {
   param.setTargetAtTime(value, ctx.currentTime, tc);
 }
 
-function syncNoise() {
+function syncNoise({ now = false } = {}) {
   const c = ctx;
   const color = params.noise;
-  if (nodes.noiseColor === color && nodes.noiseSrc) return;
+  const key = noiseKey(params);
+  if (nodes.noiseColor === key && nodes.noiseSrc) return;
+  // Reshaping the rain means generating a new loop. While a slider is
+  // being dragged, wait until it settles instead of building every step.
+  const reshape = !now && nodes.noiseSrc && color === "rain" && String(nodes.noiseColor).startsWith("rain_");
+  clearTimeout(reshapeTimer);
+  if (reshape) {
+    reshapeTimer = setTimeout(() => { if (nodes && state.playing) syncNoise({ now: true }); }, 350);
+    return;
+  }
   const old = nodes.noiseSrc;
   if (old) {
     // Cross-fade colour changes rather than cutting.
@@ -119,10 +137,10 @@ function syncNoise() {
     try { old.stop(c.currentTime + 0.7); } catch { /* already stopped */ }
   }
   nodes.noiseSrc = null;
-  nodes.noiseColor = color;
+  nodes.noiseColor = key;
   if (color === "none") return;
   const src = c.createBufferSource();
-  src.buffer = loopBuffer(color);
+  src.buffer = loopBuffer(params);
   src.loop = true;
   const g = c.createGain();
   g.gain.setValueAtTime(old ? 0 : 1, c.currentTime);
@@ -249,6 +267,7 @@ export function setTimer(minutes, onEnd = onEndCb) {
 
 export function stopSoundscape({ fade = 1.5 } = {}) {
   clearTimeout(endTimer);
+  clearTimeout(reshapeTimer);
   fading = false;
   clearInterval(motionTimer);
   motionTimer = null;
