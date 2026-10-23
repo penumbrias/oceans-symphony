@@ -88,7 +88,10 @@ export function ConfirmRoot() {
   const o = options || {};
   return (
     <AlertDialog open={!!options} onOpenChange={(open) => { if (!open) settle(false); }}>
-      <AlertDialogContent>
+      {/* Above every sheet: a confirm asked from inside a portaled sheet
+          (the planner editor sits at z-70) was drawn underneath it, so the
+          question was invisible and its buttons couldn't be pressed. */}
+      <AlertDialogContent className="z-[200]" overlayClassName="z-[200]">
         <AlertDialogHeader>
           <AlertDialogTitle>{o.title || "Are you sure?"}</AlertDialogTitle>
           {o.body ? <AlertDialogDescription>{o.body}</AlertDialogDescription> : null}

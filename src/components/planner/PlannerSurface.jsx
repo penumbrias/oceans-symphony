@@ -48,14 +48,15 @@ import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
 import { SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
+import { usePlannerPrefs, formatClock, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 import PlansList from "@/components/planner/PlansList";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
 import { normalizeHex } from "@/lib/planTagColor";
 import { Switch } from "@/components/ui/switch";
-import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
+import CurrentActivities, { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 // The tracker's overview calendars and panels, merged into the planner.
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
@@ -66,6 +67,7 @@ import ActivityNestingRecovery from "@/components/activities/ActivityNestingReco
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { collectAlterDates } from "@/lib/importantDates";
 import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
+import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -165,6 +167,8 @@ export default function PlannerSurface({
   const overlays = { ...ownOverlays, ...(overlaysOverride || {}) };
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
   const [timing, setTiming] = useState(null);
+  // Tapped empty time on the page → that hour's summary card.
+  const [cellInfo, setCellInfo] = useState(null); // { day, min, rect }
   // Tapped fronting-lane bar → who/when card (bars alone are anonymous).
   const [bandInfo, setBandInfo] = useState(null);          // { item, day } being scheduled
   // Tapping an entry OPENS ITS DETAILS — a readable summary — rather than
@@ -199,6 +203,11 @@ export default function PlannerSurface({
   const [criticalOpen, setCriticalOpen] = useState(null);
   const [locationOpen, setLocationOpen] = useState(null);
   const [tagOpen, setTagOpen] = useState(null);
+  // Company — the contacts the person was with (Activity.contact_ids).
+  // Descriptive only; never touches "currently with" state.
+  const [withOpen, setWithOpen] = useState(null);
+  const withHas = (timing?.item?.contact_ids || []).length > 0;
+  const withOpenEff = withOpen ?? withHas;
   const whoHas = (timing?.item?.fronting_alter_ids || []).length > 0;
   const notesHas = !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
   const whoOpenEff = whoOpen ?? whoHas;
@@ -258,7 +267,7 @@ export default function PlannerSurface({
   // close directly — pressing a named button IS the confirmation.
   const [closeAsk, setCloseAsk] = useState(false);
   const EDIT_GUARD_FIELDS = ["activity_name", "notes", "fronting_alter_ids", "activity_category_ids",
-    "parent_category_id", "location", "is_critical", "color", "tag_color", "timestamp", "duration_minutes", "actual_duration_minutes"];
+    "parent_category_id", "location", "is_critical", "contact_ids", "color", "tag_color", "timestamp", "duration_minutes", "actual_duration_minutes"];
   const editorDirty = () => {
     if (!timing || timing.create || !timing.snapshot) return false;
     const live = (activities || []).find((a) => a.id === timing.item.id);
@@ -277,6 +286,7 @@ export default function PlannerSurface({
         const patch = {};
         for (const f of EDIT_GUARD_FIELDS) patch[f] = snap[f] ?? null;
         await base44.entities.Activity.update(snap.id, patch);
+        await syncLinkedSleep(snap, patch);
         qc.invalidateQueries({ queryKey: ["activities"] });
         toast.success(tr("planner.editUndone"));
       }
@@ -299,11 +309,17 @@ export default function PlannerSurface({
   const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list() });
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),
-    enabled: overlays.alters,
+    // The create sheet reads it too: it fills in who was fronting.
+    enabled: overlays.alters || !!timing?.create || !!cellInfo,
   });
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
-    enabled: overlays.emotions,
+    enabled: overlays.emotions || !!cellInfo,
+  });
+  // Location records pin onto the canvas at their time (on unless turned off).
+  const { data: locationRecords = [] } = useQuery({
+    queryKey: ["locations"], queryFn: () => base44.entities.Location.list(),
+    enabled: overlays.locations !== false,
   });
 
   // The planner wears the same look the v2 widgets do, so a style preset
@@ -388,7 +404,7 @@ export default function PlannerSurface({
     setTiming({
       create: true,
       day,
-      item: { activity_name: "", fronting_alter_ids: [], notes: "", activity_category_ids: [] },
+      item: { activity_name: "", fronting_alter_ids: [], contact_ids: [], notes: "", activity_category_ids: [] },
     });
     setTimeValue(`${pad(Math.floor(fromMin / 60))}:${pad(fromMin % 60)}`);
     setDurValue(Math.max(15, toMin - fromMin));
@@ -397,7 +413,7 @@ export default function PlannerSurface({
     setExtraDays([]);
     autoTitleRef.current = "";
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null); setWithOpen(null);
     setWhatOpen(true);
   };
   // Editing seeds the extras from the record, and the More section starts
@@ -411,7 +427,7 @@ export default function PlannerSurface({
     });
     // Chips fold on open; fields that hold a value auto-open via the *OpenEff
     // derivations, so nothing set is ever hidden.
-    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null); setTagOpen(null); setWithOpen(null);
     setWhatOpen(false);
   };
   // Opening the EDITOR for an existing entry — one seeding path for every
@@ -498,6 +514,7 @@ export default function PlannerSurface({
             // A to-do linked while creating must ride along, or ticking one
             // off could never find the other.
             ...(timing.item.task_id ? { task_id: timing.item.task_id } : {}),
+            contact_ids: timing.item.contact_ids || [],
           }],
           timestamp: dayWhen,
           durationMinutes: Math.max(5, Number(durValue) || 60),
@@ -512,6 +529,14 @@ export default function PlannerSurface({
         });
         if (createdIds?.length && !firstCreatedId) firstCreatedId = createdIds[0];
         total += occurrences.length;
+      }
+      if (recordFronting && createHasStarted) {
+        const who = signedIds || timing.item.fronting_alter_ids || [];
+        const start = new Date(timing.day);
+        start.setHours(h || 0, m || 0, 0, 0);
+        const end = new Date(start.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
+        try { await recordFrontingFor(who, start, end); }
+        catch { toast.error(tr("planner.frontingNotSaved", { fronting: t.fronting })); }
       }
       if (preparedNote) {
         await recordAuthoredText({ ...preparedNote, alters, sourceType: "activity", sourceId: firstCreatedId, sourceLabel: "Plan note", navigatePath: `/planner?date=${format(new Date(timing.day), "yyyy-MM-dd")}${firstCreatedId ? `&highlight=${firstCreatedId}` : ""}` });
@@ -541,13 +566,15 @@ export default function PlannerSurface({
     // with continuation edges. 14 days is a sanity cap, not a feature.
     const minutes = Math.max(1, Math.min(MINUTES_PER_DAY * 14, endMin - startMin));
     try {
-      await base44.entities.Activity.update(id, {
+      const patch = {
         timestamp: start.toISOString(),
         // Keep whichever duration field this record already used.
         ...(activity.actual_duration_minutes != null
           ? { actual_duration_minutes: minutes }
           : { duration_minutes: minutes }),
-      });
+      };
+      await base44.entities.Activity.update(id, patch);
+      await syncLinkedSleep(activity, patch);
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
   };
@@ -596,15 +623,16 @@ export default function PlannerSurface({
           };
         });
       } else {
+        const timePatch = { timestamp: when.toISOString(), ...lengthPatch(timing.item) };
         await base44.entities.Activity.update(timing.item.id, {
-          timestamp: when.toISOString(),
-          ...lengthPatch(timing.item),
+          ...timePatch,
           // Moving a plan is a reschedule, not a new plan: status stays
           // `scheduled` and the move is recorded, matching the tracker's model.
           ...(countReschedule && wasScheduled && from && from !== when.toISOString()
             ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
             : {}),
         });
+        await syncLinkedSleep(timing.item, timePatch);
       }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
@@ -643,7 +671,7 @@ export default function PlannerSurface({
     if (!timing) return;
     const current = timing.item.fronting_alter_ids || [];
     const next = current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId];
-    setTiming((prev) => ({ ...prev, item: { ...prev.item, fronting_alter_ids: next } }));
+    setTiming((prev) => ({ ...prev, whoTouched: true, item: { ...prev.item, fronting_alter_ids: next } }));
     if (timing.create) return;
     try {
       await base44.entities.Activity.update(timing.item.id, { fronting_alter_ids: next });
@@ -715,11 +743,45 @@ export default function PlannerSurface({
       color: cat?.color || null,
       startTime: (startedAt instanceof Date ? startedAt : new Date()).toISOString(),
       alterIds: it.fronting_alter_ids || [],
+      contactIds: it.contact_ids || [],
       notes: (it.notes || "").trim(),
     });
     try { cancelPlanReminder(it.id).catch(() => {}); } catch { /* non-fatal */ }
     toast.success(tr("planner.startedToast"));
     setTiming(null);
+  };
+
+  const isSameDayAsToday = (d) => d && new Date(d).toDateString() === new Date().toDateString();
+  // Start a NEW running activity straight from the create sheet — the
+  // classic Log form's "Active" mode. It runs until ended from the running
+  // strip (or the dashboard pill) and then logs itself like any entry.
+  // Starts at the chosen time when that's earlier today, else now; only
+  // offered for today, since a timer is something happening now.
+  const startNewNow = async () => {
+    if (!timing?.create) return;
+    const name = (timing.item.activity_name || "").trim();
+    const catId = (timing.item.activity_category_ids || [])[0] || null;
+    const cat = catId ? categories.find((c) => c.id === catId) : null;
+    if (!name && !cat) return;
+    let prepared = null;
+    if (noteValue.trim()) {
+      try { prepared = await prepareAuthoredText(noteValue.trim(), { alters, terms: t, surfaceLabel: "activity note" }); }
+      catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (prepared === null) return;
+    }
+    const chosen = createWindow?.start;
+    const startAt = chosen && chosen.getTime() <= Date.now() && isSameDayAsToday(chosen) ? chosen : new Date();
+    addActiveActivity({
+      categoryId: catId,
+      name: name || cat?.name || "Activity",
+      color: cat?.color || null,
+      startTime: startAt.toISOString(),
+      alterIds: prepared?.authorIds?.length ? prepared.authorIds : (timing.item.fronting_alter_ids || []),
+      contactIds: timing.item.contact_ids || [],
+      notes: prepared ? prepared.content : "",
+    });
+    setTiming(null);
+    toast.success(tr("planner.startedNew", { name: name || cat?.name || "" }));
   };
 
   const saveNote = async (rawText) => {
@@ -734,7 +796,10 @@ export default function PlannerSurface({
       const patch = { notes: text, ...(prepared.authorIds.length ? { author_alter_ids: prepared.authorIds } : {}) };
       const members = seriesMembers();
       if (members.length > 1) await applyEditToSeries(members, patch);
-      else await base44.entities.Activity.update(timing.item.id, patch);
+      else {
+        await base44.entities.Activity.update(timing.item.id, patch);
+        await syncLinkedSleep(timing.item, patch);
+      }
       await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: timing.item.id, sourceLabel: "Plan note", navigatePath: `/planner?highlight=${timing.item.id}` });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
@@ -752,6 +817,79 @@ export default function PlannerSurface({
     when.setHours(h || 0, m || 0, 0, 0);
     return format(when, "yyyy-MM-dd") >= format(new Date(), "yyyy-MM-dd");
   }, [timing, timeValue]);
+
+  // The new entry's window, as dates — read by the who-was-fronting fill
+  // and the "still fronting" switch.
+  const createWindow = useMemo(() => {
+    if (!timing?.create) return null;
+    const [h, m] = String(timeValue).split(":").map(Number);
+    const start = new Date(timing.day);
+    start.setHours(h || 0, m || 0, 0, 0);
+    const end = new Date(start.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
+    return { start, end };
+  }, [timing?.create, timing?.day, timeValue, durValue]);
+  // Who was fronting during the chosen time fills "Who" on a new entry —
+  // what the classic Log Activity form did. Follows the time as it changes
+  // until the person picks members themselves; a future window finds
+  // nobody (an open session only reaches as far as now).
+  useEffect(() => {
+    if (!createWindow || timing?.whoTouched) return;
+    const { start, end } = createWindow;
+    const ids = new Set();
+    for (const s of frontingHistory || []) {
+      const ss = new Date(s.start_time);
+      const se = s.end_time ? new Date(s.end_time) : new Date();
+      if (!(ss < end && se > start)) continue;
+      if (s.alter_id) ids.add(s.alter_id);
+      if (s.primary_alter_id) ids.add(s.primary_alter_id);
+      for (const id of (s.co_fronter_ids || [])) ids.add(id);
+    }
+    const next = [...ids];
+    setTiming((prev) => {
+      if (!prev?.create || prev.whoTouched) return prev;
+      const cur = prev.item.fronting_alter_ids || [];
+      if (cur.length === next.length && cur.every((x) => ids.has(x))) return prev;
+      return { ...prev, item: { ...prev.item, fronting_alter_ids: next } };
+    });
+  }, [createWindow, frontingHistory, timing?.whoTouched]);
+  // "Still fronting now" (classic Log form): saving an entry that has
+  // started also records the members' fronting — an open session when they
+  // are still here, a closed one over the entry's time when not. Starts on
+  // only when the entry is happening now. null = follow that default.
+  const [stillFrontingPick, setStillFrontingPick] = useState(null);
+  useEffect(() => { setStillFrontingPick(null); }, [timing?.create, timing?.day]);
+  const createHasStarted = !!createWindow && createWindow.start.getTime() <= Date.now();
+  const stillFronting = stillFrontingPick ?? (!!createWindow && createWindow.end.getTime() >= Date.now() - 15 * 60000);
+  const [recordFronting, setRecordFronting] = useState(false);
+  useEffect(() => { setRecordFronting(false); }, [timing?.create, timing?.day]);
+  // Writes the fronting the switch describes. Never duplicates: someone
+  // already on front isn't opened again, and a member whose fronting
+  // already covers the entry's time isn't given a second closed session.
+  const recordFrontingFor = async (alterIds, start, end) => {
+    if (!alterIds.length) return;
+    const all = await base44.entities.FrontingSession.list();
+    const idsOf = (s) => [s.alter_id, s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+    const activeIds = new Set(all.filter((s) => s.is_active).flatMap(idsOf));
+    for (const alterId of alterIds) {
+      if (stillFronting) {
+        if (activeIds.has(alterId)) continue;
+        await base44.entities.FrontingSession.create({
+          alter_id: alterId, is_primary: false, start_time: start.toISOString(), is_active: true,
+        });
+      } else {
+        const covered = all.some((s) => idsOf(s).includes(alterId)
+          && new Date(s.start_time) < end && (s.end_time ? new Date(s.end_time) : new Date()) > start);
+        if (covered) continue;
+        await base44.entities.FrontingSession.create({
+          alter_id: alterId, is_primary: false, start_time: start.toISOString(),
+          end_time: end.toISOString(), is_active: false,
+        });
+      }
+    }
+    qc.invalidateQueries({ queryKey: ["activeFront"] });
+    qc.invalidateQueries({ queryKey: ["frontHistory"] });
+    qc.invalidateQueries({ queryKey: ["frontingHistory"] });
+  };
 
   const timingDirty = useMemo(() => {
     if (!timing) return false;
@@ -792,7 +930,10 @@ export default function PlannerSurface({
     try {
       const members = seriesMembers();
       if (members.length > 1) await applyEditToSeries(members, patch);
-      else await base44.entities.Activity.update(timing.item.id, patch);
+      else {
+        await base44.entities.Activity.update(timing.item.id, patch);
+        await syncLinkedSleep(timing.item, patch);
+      }
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -842,7 +983,9 @@ export default function PlannerSurface({
     if (!ok) return;
     try {
       await base44.entities.Activity.delete(item.id);
+      await deleteLinkedSleep(item);
       qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["sleep"] });
       setTiming(null);
       toast.success(tr("planner.deleted"));
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -985,6 +1128,35 @@ export default function PlannerSurface({
     return mins ? `· ${h ? `${h}h ` : ""}${m ? `${m}m` : ""}`.trim() : "";
   }, [anchor, activities]);
 
+  // What the tapped hour holds — the classic grid's cell popover: entries
+  // that overlap it, who was fronting, feelings logged, places saved.
+  const cellSummary = useMemo(() => {
+    if (!cellInfo) return null;
+    const hourStartMin = Math.floor(cellInfo.min / 60) * 60;
+    const from = new Date(cellInfo.day); from.setHours(0, 0, 0, 0); from.setMinutes(hourStartMin);
+    const to = new Date(from.getTime() + 60 * 60000);
+    const overlaps = (s, e) => s < to && e > from;
+    const entries = activities.filter((a) => {
+      if (!a?.timestamp) return false;
+      const s = new Date(a.timestamp);
+      const mins = Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0;
+      const e = new Date(s.getTime() + Math.max(1, mins) * 60000);
+      return overlaps(s, e);
+    }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const alterById = new Map(alters.map((a) => [a.id, a]));
+    const whoIds = new Set();
+    for (const f of frontingHistory || []) {
+      const s = new Date(f.start_time), e = f.end_time ? new Date(f.end_time) : new Date();
+      if (!overlaps(s, e)) continue;
+      [f.alter_id, f.primary_alter_id, ...(f.co_fronter_ids || [])].filter(Boolean).forEach((id) => whoIds.add(id));
+    }
+    const who = [...whoIds].map((id) => alterById.get(id)).filter(Boolean);
+    const inHour = (ts) => { const d = ts ? new Date(ts) : null; return d && d >= from && d < to; };
+    const feelings = [...new Set((emotionCheckIns || []).filter((c) => inHour(c.timestamp)).flatMap((c) => c.emotions || []))];
+    const places = (locationRecords || []).filter((l) => inHour(l.timestamp));
+    return { from, to, hourStartMin, entries, who, feelings, places };
+  }, [cellInfo, activities, alters, frontingHistory, emotionCheckIns, locationRecords]);
+
   return (
     <div className={chrome ? "min-h-screen p-2 sm:p-4" : "flex flex-col min-h-0 h-full"}
       {...(chrome ? { "data-tour": "planner" } : {})}
@@ -1070,10 +1242,21 @@ export default function PlannerSurface({
                   }`}>
                   <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
                 </button>
+                <button type="button" onClick={() => setOverlay("locations", overlays.locations === false)}
+                  aria-pressed={overlays.locations !== false}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.locations !== false ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <MapPin className="w-3 h-3" /> {tr("planner.overlay.locations")}
+                </button>
               </div>
             )}
           </div>
         )}
+        {/* Running activities (timers) — the same strip the dashboard and
+            the old tracker showed, so a running one is never out of sight
+            here. Renders nothing when nothing is running. */}
+        {chrome && section === "calendar" && <CurrentActivities />}
         {chrome && showDisplay && (
           <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
@@ -1189,12 +1372,17 @@ export default function PlannerSurface({
           <PlansList
             activities={activities}
             categories={categories}
+            alters={alters}
+            weekStartsOn={prefs.weekStartsOn}
             onOpen={(item, { series } = {}) => (series ? openEditor(item, { series: true }) : setDetails(item))}
             onDeleteSeries={(item) => setBranchAsk({ item })}
             onMassChange={async (kind, items) => {
               for (const it of items) {
                 try {
-                  if (kind === "delete") await base44.entities.Activity.delete(it.id);
+                  if (kind === "delete") {
+                    await base44.entities.Activity.delete(it.id);
+                    await deleteLinkedSleep(it);
+                  }
                   else await base44.entities.Activity.update(it.id, { status: "cancelled" });
                 } catch { /* keep going — partial progress beats none */ }
               }
@@ -1213,7 +1401,16 @@ export default function PlannerSurface({
             importantDates={importantDates}
             onDayClick={(d) => { setAnchor(d); setView("day"); }}
             onActivityClick={openFromCalendar}
-            onRangeSelect={(from) => openCreate(from, 9 * 60, 10 * 60)}
+            // Dragging across days plans ONE entry over the whole span (as
+            // the tracker did): 9:00 on the first day to 10:00 on the last,
+            // shown as start → end so both dates can be adjusted.
+            onRangeSelect={(from, to) => {
+              const a = new Date(from); a.setHours(0, 0, 0, 0);
+              const b = new Date(to || from); b.setHours(0, 0, 0, 0);
+              const days = Math.max(0, Math.round((b - a) / 86400000));
+              openCreate(a, 9 * 60, days * MINUTES_PER_DAY + 10 * 60);
+              if (days > 0) setTimeMode("range");
+            }}
           />
         ) : chrome && view === "year" ? (
           <ActivityYearView
@@ -1239,6 +1436,8 @@ export default function PlannerSurface({
           tasks={taskItems}
           frontingHistory={frontingHistory}
           emotionCheckIns={emotionCheckIns}
+          locations={locationRecords}
+          onOpenPlace={(p) => navigate(`/location-history?highlight=${encodeURIComponent(p.id)}`)}
           alters={alters}
           categoryColor={catColor}
           overlays={overlays}
@@ -1249,6 +1448,7 @@ export default function PlannerSurface({
           onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
           onOpenBand={(b, rect) => setBandInfo({ band: b, rect })}
           onAddToDay={(day) => setPlanDay(day)}
+          onTapEmpty={chrome ? (day, min, rect) => setCellInfo({ day, min, rect }) : null}
           onOpenUntimed={(item, day) => (item?._isTask ? navigate(`/todo?id=${item._task.id}`) : setDetails({ ...item, _day: day }))}
         />
         )}
@@ -1289,6 +1489,50 @@ export default function PlannerSurface({
                 {tr("planner.frontHistory", { Front: t.Front })}
               </button>
             </div>
+          </div>
+        </div>
+      ), document.body)}
+      {cellSummary && createPortal((
+        <div className="fixed inset-0 z-[85]" onClick={() => setCellInfo(null)}>
+          <div className="fixed bg-card border border-border rounded-xl shadow-xl p-3 w-64 space-y-2 text-xs max-h-[60vh] overflow-y-auto overscroll-contain"
+            style={{
+              left: Math.max(8, Math.min(cellInfo.rect.left - 20, window.innerWidth - 264)),
+              top: Math.max(8, Math.min(cellInfo.rect.top + 8, window.innerHeight - 260)),
+              borderRadius: "var(--v2-radius, 12px)",
+            }}
+            onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold">
+              {format(cellSummary.from, "EEE d MMM")} · {formatClock(cellSummary.hourStartMin, prefs.timeFmt)}–{formatClock(cellSummary.hourStartMin + 60, prefs.timeFmt)}
+            </p>
+            {cellSummary.entries.length > 0 && (
+              <div className="space-y-0.5">
+                {cellSummary.entries.map((a) => (
+                  <button key={a.id} type="button" onClick={() => { setCellInfo(null); setDetails(a); }}
+                    className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg border border-border/40 text-left hover:bg-muted/30">
+                    <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: a.color || catColor(categoryIdOf(a)) || "var(--v2-accent)" }} />
+                    <span className="flex-1 truncate">{a.activity_name || tr("planner.untitled")}</span>
+                    <span className="text-muted-foreground tabular-nums">{formatClock(new Date(a.timestamp).getHours() * 60 + new Date(a.timestamp).getMinutes(), prefs.timeFmt)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {cellSummary.who.length > 0 && (
+              <p><span className="text-muted-foreground">{t.Fronting}: </span>{cellSummary.who.map((a) => formatAlter(a)).join(", ")}</p>
+            )}
+            {cellSummary.feelings.length > 0 && (
+              <p><span className="text-muted-foreground">{tr("planner.feelings")}: </span>{cellSummary.feelings.join(", ")}</p>
+            )}
+            {cellSummary.places.length > 0 && (
+              <p><span className="text-muted-foreground">{tr("planner.location")}: </span>{cellSummary.places.map((l) => l.name || "📍").join(", ")}</p>
+            )}
+            {!cellSummary.entries.length && !cellSummary.who.length && !cellSummary.feelings.length && !cellSummary.places.length && (
+              <p className="text-muted-foreground">{tr("planner.cellEmpty")}</p>
+            )}
+            <button type="button"
+              onClick={() => { const c = cellInfo; setCellInfo(null); openCreate(c.day, cellSummary.hourStartMin, cellSummary.hourStartMin + 60); }}
+              className="w-full text-xs px-2.5 py-1.5 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center justify-center gap-1">
+              <Plus className="w-3 h-3" />{tr("planner.addHere")}
+            </button>
           </div>
         </div>
       ), document.body)}
@@ -1706,6 +1950,7 @@ export default function PlannerSurface({
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.details")}</p>
             <div className="flex flex-wrap gap-1.5">
               <DetailChip open={whoOpenEff} has={whoHas} onToggle={() => setWhoOpen(!whoOpenEff)} label={tr("planner.who")} />
+              <DetailChip open={withOpenEff} has={withHas} onToggle={() => setWithOpen(!withOpenEff)} label={tr("planner.with")} />
               <DetailChip open={notesOpenEff} has={notesHas} onToggle={() => setNotesOpen(!notesOpenEff)} label={tr("planner.notes")} />
               {canRepeat && (
                 <DetailChip open={repeatOpenEff} has={repeatHas} onToggle={() => setRepeatOpen(!repeatOpenEff)} label={tr("planner.repeat")} />
@@ -1746,6 +1991,38 @@ export default function PlannerSurface({
                 selectedIds={timing.item.fronting_alter_ids || []}
                 onToggle={toggleAlter}
                 searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
+              />
+              {timing.create && createHasStarted && (timing.item.fronting_alter_ids || []).length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span>{tr("planner.recordFronting", { fronting: t.fronting })}</span>
+                    <Switch checked={recordFronting} onCheckedChange={setRecordFronting}
+                      aria-label={tr("planner.recordFronting", { fronting: t.fronting })} />
+                  </label>
+                  {recordFronting && (
+                    <>
+                      <label className="flex items-center justify-between gap-2 text-xs">
+                        <span>{tr("planner.stillFrontingNow", { fronting: t.fronting })}</span>
+                        <Switch checked={stillFronting} onCheckedChange={setStillFrontingPick}
+                          aria-label={tr("planner.stillFrontingNow", { fronting: t.fronting })} />
+                      </label>
+                      <p className="text-[0.6875em] text-muted-foreground">
+                        {stillFronting
+                          ? tr("planner.stillFrontingOn", { front: t.front, fronting: t.fronting })
+                          : tr("planner.stillFrontingOff", { fronting: t.fronting })}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            )}
+            {withOpenEff && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.withHint")}</p>
+              <ContactMultiSelectList
+                selectedContactIds={timing.item.contact_ids || []}
+                onChange={(ids) => saveField({ contact_ids: ids })}
               />
             </div>
             )}
@@ -1903,11 +2180,22 @@ export default function PlannerSurface({
             </div>
 
             {timing.create ? (
-              <Button size="sm" className="w-full" disabled={!(timing.item.activity_name || "").trim()}
-                onClick={commitCreate}>
-                {(createIsPlan ? tr("planner.plan") : tr("planner.log"))
-                  + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1" disabled={!(timing.item.activity_name || "").trim()}
+                  onClick={commitCreate}>
+                  {(createIsPlan ? tr("planner.plan") : tr("planner.log"))
+                    + (extraDays.length ? ` ×${extraDays.length + 1}` : "")}
+                </Button>
+                {/* Start a timer instead — only for a single entry that
+                    isn't repeating (a running session is one thing, now). */}
+                {!extraDays.length && recur.interval === "none" && isSameDayAsToday(timing.day) && (
+                  <Button size="sm" variant="outline" className="gap-1"
+                    disabled={!(timing.item.activity_name || "").trim()}
+                    onClick={startNewNow}>
+                    <Play className="w-3.5 h-3.5" />{tr("planner.startTimer")}
+                  </Button>
+                )}
+              </div>
             ) : timingDirty && (
               <>
                 {timing.item.status === "scheduled" && timing.item.timestamp && (

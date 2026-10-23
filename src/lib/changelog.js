@@ -18,7 +18,23 @@
 
 export const CHANGELOG = [
   {
+    date: "October 23, 2026",
+    changes: [
+      { type: "fix", text: "Planner: changing or deleting a sleep entry's activity updates its Sleep record again." },
+      { type: "fix", text: "Planner: add the contacts you were with to an entry, and see them in its details." },
+      { type: "fix", text: "Planner: a new entry fills in who was fronting at that time, with an option to record the fronting too." },
+      { type: "fix", text: "Planner: start a timer for a new activity from the New sheet, and running timers show at the top." },
+      { type: "fix", text: "Planner: saved locations show as pins in the Day and Week views (toggle with Places)." },
+      { type: "fix", text: "Planner: entry details show feelings logged around that time, and a Log again button." },
+      { type: "fix", text: "Planner: dragging across days in Month view plans one entry over the whole span again." },
+      { type: "fix", text: "Planner Plans list: overdue plans stay listed, grouped by Today / This week / This month / Later, with who and where on each row and every past plan." },
+      { type: "fix", text: "Planner: tap empty time to see what happened in that hour, or add something there." },
+      { type: "fix", text: "Confirm prompts opened from the planner's edit sheet now appear on top instead of hidden behind it." },
+    ],
+  },
+  {
     date: "October 22, 2026",
+    version: "0.272.3",
     changes: [
       { type: "fix", text: "Planner: birthdays and other date fields show under the date again in the Day and Week views — tap one to open that profile." },
       { type: "feature", text: "Desktop app for Mac: a download for both Intel and Apple-chip Macs, alongside Windows and Linux." },

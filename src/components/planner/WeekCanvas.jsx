@@ -34,6 +34,7 @@ import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/l
 import { getActiveSystemId } from "@/lib/systems";
 import { planMark } from "@/lib/planner/planMark";
 import { datesForDay } from "@/lib/importantDates";
+import { getCategoryMeta } from "@/lib/locationCategories";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -69,9 +70,9 @@ export function formatDuration(min) {
 // days, and reports minutes rather than pixels so the parent never deals in
 // geometry.
 function DayColumn({
-  day, blocks, untimed, overlayBands, overlayMarks, onOpenBand, terms,
+  day, blocks, untimed, overlayBands, overlayMarks, overlayPlaces = [], onOpenPlace = null, onOpenBand, terms,
   onCreate, onOpenBlock, onOpenLive, onResize, colorFor, showOverlays, minWidth,
-  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
+  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null, onTapEmpty = null,
   laneOpacity = 90,
   // Cross-day creation: which column this is, and how to turn a pointer
   // x into a column index. Minutes are measured from THIS day's midnight,
@@ -250,6 +251,16 @@ function DayColumn({
       endGesture();
       setDraft(null);
       onOpenPage();
+      return;
+    }
+    // The page: a tap on empty time opens a summary of that hour (what was
+    // on, who was fronting, feelings, places) — the classic grid's cell
+    // popover. Holding still creates, exactly as before.
+    if (g && !g.armed && onTapEmpty) {
+      stopAutoScroll();
+      endGesture();
+      setDraft(null);
+      onTapEmpty(day, g.startMin, { left: g.startX, top: g.startY });
       return;
     }
     if (g?.armed && draft) {
@@ -459,6 +470,20 @@ function DayColumn({
           </button>
         ))}
 
+        {/* Location records (GPS or typed) at the time they were saved —
+            the classic day view listed them beside each hour. A pin on the
+            right edge; tapping it opens that record in Location history. */}
+        {showOverlays.locations !== false && overlayPlaces.map((p, i) => (
+          <button key={`place-${p.id || i}`} type="button"
+            aria-label={p.label} title={p.label}
+            onClick={(e) => { e.stopPropagation(); onOpenPlace?.(p); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute right-0 flex items-center justify-center text-[0.75em] leading-none"
+            style={{ top: pct(p.min), width: 16, height: 16, transform: "translateY(-50%)", zIndex: 6 }}>
+            <span aria-hidden>{p.emoji}</span>
+          </button>
+        ))}
+
         {blocks.map((b) => {
           const isLive = live?.id === b.id;
           const isArming = !isLive && armingId === b.id;
@@ -665,6 +690,9 @@ export default function WeekCanvas({
   tasks = [],
   frontingHistory = [],
   emotionCheckIns = [],
+  // Location records ({ timestamp, name, category }) pinned at their time.
+  locations = [],
+  onOpenPlace = null,
   alters = [],
   categoryColor = () => "#6366f1",
   overlays = { alters: false, emotions: false },
@@ -680,6 +708,8 @@ export default function WeekCanvas({
   onOpenBand,
   prefsOverride = null,
   onOpenPage = null,
+  // Page host: tap on empty time → (day, minute, {left, top}).
+  onTapEmpty = null,
   // Widget hosts: route pinch-zoom writes into the WIDGET's own config
   // instead of the shared preference — pinching one widget must not
   // resize every other planner surface (owner report).
@@ -955,8 +985,22 @@ export default function WeekCanvas({
         };
       });
 
-    return { day, blocks: laid, untimed, bands, marks, total: occupiedMinutes(laid.filter((b) => !b._isTask)) };
-  }), [days, activities, tasks, frontingHistory, emotionCheckIns, alterById, sessions, nowTick]);
+    const places = (locations || [])
+      .filter((l) => l?.timestamp && sameDay(l.timestamp))
+      .map((l) => {
+        const d = new Date(l.timestamp);
+        const meta = getCategoryMeta(l.category);
+        return {
+          id: l.id,
+          location: l,
+          min: d.getHours() * 60 + d.getMinutes(),
+          emoji: meta?.emoji || "📍",
+          label: `${l.name || meta?.label || "Location"} · ${formatClock(d.getHours() * 60 + d.getMinutes(), prefs.timeFmt)}`,
+        };
+      });
+
+    return { day, blocks: laid, untimed, bands, marks, places, total: occupiedMinutes(laid.filter((b) => !b._isTask)) };
+  }), [days, activities, tasks, frontingHistory, emotionCheckIns, locations, alterById, sessions, nowTick, prefs.timeFmt]);
 
   const weekTotal = perDay.reduce((n, d) => n + d.total, 0);
 
@@ -1046,7 +1090,7 @@ export default function WeekCanvas({
               <div style={{ height: 24 * hourPx }} />
             </div>
 
-            {perDay.map(({ day, blocks, untimed, bands, marks }, dayIdx) => (
+            {perDay.map(({ day, blocks, untimed, bands, marks, places }, dayIdx) => (
               <DayColumn
                 key={day.toISOString()}
                 day={day}
@@ -1061,6 +1105,8 @@ export default function WeekCanvas({
                 untimed={untimed}
                 overlayBands={bands}
                 overlayMarks={marks}
+                overlayPlaces={places}
+                onOpenPlace={onOpenPlace}
                 showOverlays={overlays}
                 colorFor={colorFor}
                 onCreate={onCreate}
@@ -1074,6 +1120,7 @@ export default function WeekCanvas({
                 onOpenBand={onOpenBand}
                 terms={terms}
                 onOpenPage={onOpenPage}
+                onTapEmpty={onTapEmpty}
                 laneOpacity={prefs.laneOpacity}
               />
             ))}

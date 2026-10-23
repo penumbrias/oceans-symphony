@@ -15,12 +15,13 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Pencil, Play, Repeat, Zap, CheckSquare } from "lucide-react";
+import { X, Pencil, Play, Repeat, Zap, CheckSquare, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { statusFor } from "@/lib/activityStatus";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { contactDisplayName } from "@/lib/contacts";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { resolveOutcome, reschedulePlan, planAnotherGo } from "@/lib/planner/resolvePlan";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
@@ -38,6 +39,12 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: !!item });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!item });
   const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list(), enabled: !!item });
+  const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list(), enabled: !!item });
+  // Feelings logged around the entry (a check-in within 30 minutes of its
+  // start) — what the classic details modal showed under each activity.
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(), enabled: !!item,
+  });
 
   // Done / Start ask WHEN first (PlanTimeChoice). Hooks stay above the
   // early return.
@@ -57,6 +64,34 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   const who = (item.fronting_alter_ids || []).map((id) => alters.find((a) => a.id === id)).filter(Boolean);
   const task = item.task_id ? tasks.find((x) => x.id === item.task_id) : null;
   const isRunning = getActiveActivities().some((a) => a.planActivityId === item.id);
+  const company = (item.contact_ids || []).map((id) => contacts.find((c) => c.id === id)).filter(Boolean);
+  const feelings = (() => {
+    if (!start) return [];
+    const near = emotionCheckIns.find((e) => e?.timestamp && Math.abs(new Date(e.timestamp) - start) < 30 * 60 * 1000);
+    return Array.isArray(near?.emotions) ? near.emotions.filter(Boolean) : [];
+  })();
+  // "Log again": the same activity, logged now as a fresh instant entry —
+  // no length, nobody carried over (the classic details modal's shortcut).
+  const canLogAgain = st !== "scheduled" && !isRunning;
+  const logAgain = async () => {
+    try {
+      await base44.entities.Activity.create({
+        timestamp: new Date().toISOString(),
+        activity_name: item.activity_name,
+        activity_category_ids: item.activity_category_ids || [],
+        ...(item.color ? { color: item.color } : {}),
+        duration_minutes: null,
+        fronting_alter_ids: [],
+        contact_ids: [],
+        notes: null,
+        is_planned: false,
+        status: ACTIVITY_STATUSES.LOGGED,
+      });
+      refresh();
+      toast.success(tr("planner.loggedAgain", { name: item.activity_name || tr("planner.untitled") }));
+      onClose?.();
+    } catch (e) { toast.error(e?.message || "Failed"); }
+  };
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["activities"] });
@@ -147,7 +182,17 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
             </Line>
           )}
           {who.length > 0 && <Line label={tr("planner.who")}>{who.map((a) => formatAlter(a)).join(", ")}</Line>}
+          {company.length > 0 && <Line label={tr("planner.with")}>{company.map((c) => contactDisplayName(c)).join(", ")}</Line>}
           {item.location && <Line label={tr("planner.location")}>{item.location}</Line>}
+          {feelings.length > 0 && (
+            <Line label={tr("planner.feelings")}>
+              <span className="flex flex-wrap gap-1">
+                {feelings.map((f, i) => (
+                  <span key={`${f}-${i}`} className="text-xs px-2 py-0.5 rounded-full border border-border/50">{f}</span>
+                ))}
+              </span>
+            </Line>
+          )}
           {task && (
             <Line label={tr("planner.todoLabel")}>
               <span className="inline-flex items-center gap-1.5">
@@ -211,7 +256,7 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
           )}
         </div>
 
-        {(onEdit || (onStartNow && st === "scheduled" && !isRunning)) && (
+        {(onEdit || canLogAgain || (onStartNow && st === "scheduled" && !isRunning)) && (
           <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
             {onEdit && (
               <button type="button" onClick={() => onEdit(item)}
@@ -223,6 +268,12 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
               <button type="button" aria-pressed={ask === "start"} onClick={() => setAsk(ask === "start" ? null : "start")}
                 className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
                 <Play className="w-3 h-3" />{tr("planner.startNow")}
+              </button>
+            )}
+            {canLogAgain && (
+              <button type="button" onClick={logAgain}
+                className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <RotateCcw className="w-3 h-3" />{tr("planner.logAgain")}
               </button>
             )}
           </div>

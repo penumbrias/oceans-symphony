@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
+import { useHighlightScroll } from "@/lib/useHighlightScroll";
 
 function toDatetimeLocal(iso) {
   const d = iso ? new Date(iso) : new Date();
@@ -208,6 +209,9 @@ export default function LocationHistory() {
     queryFn: () => localEntities.Location.list(),
   });
 
+  // Arriving from a planner pin (?highlight=<id>) lands on that record.
+  useHighlightScroll([locations.length]);
+
   const sorted = [...locations].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   const grouped = groupByDay(sorted);
 
@@ -294,7 +298,7 @@ export default function LocationHistory() {
                 {dayLocs.map((loc) => {
                   const cat = getCategoryMeta(loc.category);
                   return (
-                    <Card key={loc.id} className="hover:bg-muted/20 transition-colors">
+                    <Card key={loc.id} data-highlight-id={loc.id} className="hover:bg-muted/20 transition-colors">
                       <CardContent className="p-3">
                         <div className="flex items-start gap-3">
                           <div

@@ -129,6 +129,7 @@ export async function startPlanActive(item, { startedAt = new Date(), categories
     color,
     startTime: (startedAt instanceof Date ? startedAt : new Date(startedAt)).toISOString(),
     alterIds: item.fronting_alter_ids || [],
+    contactIds: item.contact_ids || [],
     notes: (item.notes || "").trim(),
   });
   try {
