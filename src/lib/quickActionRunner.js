@@ -16,6 +16,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { toggleTemplateDone } from "@/lib/dailyTaskSystem";
 import { addActiveActivity } from "@/lib/activitySession";
+import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
@@ -94,14 +95,19 @@ export async function runQuickAction(action, extraData = {}, ctx) {
     const { category_id, duration_minutes } = action.config || {};
     if (!category_id) return;
     const cat = activityCategories.find((c) => c.id === category_id);
+    // "I just did this": a set length ENDS now (like `~activity 30m`), it
+    // doesn't run on into the future. Saved explicitly as a log.
+    const mins = Number(duration_minutes) || 0;
     await base44.entities.Activity.create({
       activity_name: cat?.name || "",
       activity_category_ids: [category_id],
-      duration_minutes: duration_minutes || null,
+      ...(cat?.color ? { color: cat.color } : {}),
+      duration_minutes: mins || null,
       fronting_alter_ids: frontingAlterIds,
-      emotions: [],
       notes: null,
-      timestamp: now,
+      timestamp: mins ? new Date(Date.parse(now) - mins * 60000).toISOString() : now,
+      is_planned: false,
+      status: ACTIVITY_STATUSES.LOGGED,
     });
     queryClient.invalidateQueries({ queryKey: ["activities"] });
     toast.success(`${cat?.name || "Activity"} logged`);

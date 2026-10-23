@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import ActivityTimeStrip from "@/components/activities/ActivityTimeStrip";
+import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
@@ -901,6 +902,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // "extend" when an activity was lengthened. The day view reads emotions
         // from the check-in, not the activity.
         notes: noteVal || null,
+        // Explicit, never guessed from the time: a block drawn later than now
+        // on the day strip is a plan, everything else happened.
+        ...(Date.parse(startAt) > Date.now() + 60000
+          ? { is_planned: true, status: ACTIVITY_STATUSES.SCHEDULED }
+          : { is_planned: false, status: ACTIVITY_STATUSES.LOGGED }),
       });
       if (preparedActivity) {
         await recordAuthoredText({ ...preparedActivity, alters, sourceType: "activity", sourceId: created?.id, sourceLabel: "Activity note", navigatePath: `/planner?date=${format(new Date(startAt), "yyyy-MM-dd")}${created?.id ? `&highlight=${created.id}` : ""}` });
