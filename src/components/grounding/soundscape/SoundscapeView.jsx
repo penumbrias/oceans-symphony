@@ -323,6 +323,14 @@ export default function SoundscapeView({ onBack }) {
         <Chips options={TIMER_OPTIONS.map((m) => ({ value: m, label: timerLabel(m) }))} value={prefs.timer} onChange={pickTimer} />
       </Row>
 
+      <label className="flex items-center justify-between gap-3">
+        <span className="text-xs">
+          <span className="font-medium text-foreground block">Keep playing around the app</span>
+          <span className="text-muted-foreground">Leave Quick Support and the sound carries on, with a small bar to stop it.</span>
+        </span>
+        <Switch checked={prefs.keepPlaying} onCheckedChange={(v) => save({ ...prefs, keepPlaying: v })} aria-label="Keep playing around the app" />
+      </label>
+
       <div className="rounded-xl border border-border/60 bg-card p-3 space-y-3">
         <p className="text-sm font-medium text-foreground">Focused mode</p>
         <Chips

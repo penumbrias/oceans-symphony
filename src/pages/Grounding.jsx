@@ -15,6 +15,7 @@ import SoundscapeMiniBar from "@/components/grounding/soundscape/SoundscapeMiniB
 import ScratchPadView from "@/components/grounding/scratchpad/ScratchPadView";
 import { stopSoundscape } from "@/lib/soundscape/engine";
 import { stopDistractionFree, isFocusQuiet } from "@/lib/soundscape/focusMode";
+import { readSoundscapePrefs } from "@/lib/soundscape/soundscapePrefs";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
@@ -73,7 +74,9 @@ export default function Grounding({ initialPath = null }) {
   // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [path, setPath] = useState(initialPath || "entry");
+  // ?view=soundscape opens the Soundscape directly (the "playing" pill
+  // shown on other pages links here).
+  const [path, setPath] = useState(initialPath || (searchParams.get("view") === "soundscape" ? "soundscape" : "entry"));
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
   // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
   const deepLinkTopicId = searchParams.get("topic");
@@ -94,10 +97,11 @@ export default function Grounding({ initialPath = null }) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
-  // Leaving Quick Support ends any Soundscape (fading out) and undoes a
-  // distraction-free focus that was still on.
+  // Leaving Quick Support undoes a distraction-free focus that was still
+  // on, and ends the Soundscape (fading out) unless the person chose to
+  // keep it playing around the app.
   useEffect(() => () => {
-    stopSoundscape();
+    if (!readSoundscapePrefs().keepPlaying) stopSoundscape();
     if (isFocusQuiet()) stopDistractionFree();
   }, []);
   const [seenTechniqueIds, setSeenTechniqueIds] = useState([]);

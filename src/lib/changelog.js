@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 23, 2026",
     changes: [
+      { type: "improve", text: "Soundscape keeps playing when you leave Quick Support, with a small bar to get back to it or stop it (switch it off in Soundscape)." },
       { type: "feature", text: "One activity sheet everywhere: log, start or plan from the planner, quick actions or widgets, and set the length by duration or end time, or tap Starts to give the end time instead." },
       { type: "improve", text: "The activity sheet keeps your activity list tucked behind \"+ Activity\", with your recent ones as one-tap chips." },
       { type: "fix", text: "Planner: something you log for earlier today is saved as done, not as a plan waiting for review." },
