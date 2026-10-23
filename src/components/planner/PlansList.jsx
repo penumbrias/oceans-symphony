@@ -17,7 +17,8 @@ import { Repeat, Zap, ChevronRight, CheckCircle2, Circle, Trash2, Ban, X } from 
 import { useT } from "@/lib/i18n";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { CheckSquare } from "lucide-react";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, isSameWeek, isSameMonth, isSameYear, startOfDay } from "date-fns";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { planMark } from "@/lib/planner/planMark";
 
@@ -59,9 +60,17 @@ function whenLabel(ts) {
   return `${format(d, "d MMM yyyy")} · ${time}`;
 }
 
-export default function PlansList({ activities = [], categories = [], onOpen, onDeleteSeries, onMassChange = null }) {
+// Horizon filter + grouping (the classic Planned list's Today / This week /
+// This month / Later). Overdue = still scheduled but its day has passed.
+const HORIZONS = ["all", "today", "week", "month", "year"];
+const PAST_PAGE = 60;
+
+export default function PlansList({ activities = [], categories = [], alters = [], weekStartsOn = 1, onOpen, onDeleteSeries, onMassChange = null }) {
   const tr = useT();
-  const [filter, setFilter] = useState("all"); // all | uncategorized
+  const formatAlter = useAlterLabel();
+  const [filter, setFilter] = useState("all"); // all | uncategorized | resolved
+  const [horizon, setHorizon] = useState("all");
+  const [pastShown, setPastShown] = useState(PAST_PAGE);
   const [openSeries, setOpenSeries] = useState(null); // groupId with actions expanded
   // Press-and-hold multiselect (owner ask): hold any row to start
   // selecting, tap rows to add, then act on all of them at once.
@@ -98,6 +107,7 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
   const endHold = () => { clearTimeout(holdTimer.current); holdStart.current = null; };
 
   const catById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
+  const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
   const rows = useMemo(() => {
     const now = Date.now();
@@ -106,10 +116,12 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
     // of why a resolved one seemed to disappear (owner report).
     const whenOf = (a) => (a.timestamp ? new Date(a.timestamp).getTime()
       : a.planned_date ? new Date(a.planned_date).getTime() : null);
+    // Every plan still waiting for an outcome — overdue ones included.
+    // A day-old cut-off used to drop an unresolved plan from the only list
+    // of plans once its day had passed (the classic list kept them).
     const scheduled = activities.filter((a) => {
       if (!a || statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
-      const w = whenOf(a);
-      return w != null && w > now - dayMs;
+      return whenOf(a) != null;
     });
     const byGroup = new Map();
     const singles = [];
@@ -130,10 +142,10 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
   }, [activities]);
 
   // Resolved plans stay findable: an outcome shouldn't make an entry
-  // vanish from the only list that shows plans. Newest first, recent
-  // window only so this never becomes a second activity log.
+  // vanish from the only list that shows plans. Newest first, every one of
+  // them (paged by "Show more" — no 30-day cut-off, as the classic Past
+  // view had none).
   const resolvedRows = useMemo(() => {
-    const cutoff = Date.now() - 30 * dayMs;
     const whenOf = (a) => (a.timestamp ? new Date(a.timestamp).getTime()
       : a.planned_date ? new Date(a.planned_date).getTime() : 0);
     return activities
@@ -141,17 +153,35 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
         const st = statusFor(a);
         return (st === ACTIVITY_STATUSES.DONE || st === ACTIVITY_STATUSES.PARTIAL
           || st === ACTIVITY_STATUSES.SKIPPED || st === ACTIVITY_STATUSES.CANCELLED)
-          && whenOf(a) > cutoff;
+          && whenOf(a) > 0;
       })
       .map((a) => ({ kind: "single", key: a.id, item: a, next: whenOf(a), resolved: statusFor(a) }))
-      .sort((a, b) => b.next - a.next)
-      .slice(0, 60);
+      .sort((a, b) => b.next - a.next);
   }, [activities]);
 
   const uncategorized = rows.filter((r) => !(r.item.activity_category_ids || []).length);
-  const visible = filter === "uncategorized" ? uncategorized
+  const inHorizon = (r) => {
+    if (horizon === "all") return true;
+    const d = new Date(r.next), now = new Date();
+    if (horizon === "today") return isSameDay(d, now);
+    if (horizon === "week") return isSameWeek(d, now, { weekStartsOn });
+    if (horizon === "month") return isSameMonth(d, now);
+    return isSameYear(d, now);
+  };
+  const filtered = (filter === "uncategorized" ? uncategorized
     : filter === "resolved" ? resolvedRows
-    : rows;
+    : rows).filter(inHorizon);
+  const visible = filter === "resolved" ? filtered.slice(0, pastShown) : filtered;
+  // Group headers for upcoming plans (not the resolved list, which reads
+  // newest-first as one run).
+  const groupOf = (r) => {
+    const d = new Date(r.next), now = new Date();
+    if (d < startOfDay(now)) return "overdue";
+    if (isSameDay(d, now)) return "today";
+    if (isSameWeek(d, now, { weekStartsOn })) return "week";
+    if (isSameMonth(d, now)) return "month";
+    return "later";
+  };
 
   const colorFor = (item) => item.color
     || catById[(item.activity_category_ids || [])[0]]?.color
@@ -205,6 +235,16 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
           ))}
         </div>
       )}
+      <div className="flex items-center gap-1 pb-0.5 flex-wrap">
+        {HORIZONS.map((h) => (
+          <button key={h} type="button" onClick={() => setHorizon(h)} aria-pressed={horizon === h}
+            className={`text-[0.6875em] px-2 py-0.5 rounded-full border ${horizon === h
+              ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+              : "border-border/50 text-muted-foreground"}`}>
+            {tr(`planner.horizon.${h}`)}
+          </button>
+        ))}
+      </div>
       {visible.length === 0 && (
         <p className="text-xs text-muted-foreground px-1 py-3">{tr("planner.noPlans")}</p>
       )}
@@ -227,13 +267,23 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
           </button>
         </div>
       )}
-      {visible.map((r) => {
+      {visible.map((r, idx) => {
         const c = colorFor(r.item);
+        const group = filter === "resolved" ? null : groupOf(r);
+        const showHeader = group && (idx === 0 || groupOf(visible[idx - 1]) !== group);
+        const who = (r.item.assigned_alter_ids?.length ? r.item.assigned_alter_ids : (r.item.fronting_alter_ids || []))
+          .map((id) => alterById[id]).filter(Boolean);
         const noCat = !(r.item.activity_category_ids || []).length;
         const expanded = r.kind === "series" && openSeries === r.key;
         const isSel = selected.has(r.key);
         return (
-          <div key={r.key} className={`rounded-lg border overflow-hidden ${isSel ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)]" : "border-border/50"}`}
+          <React.Fragment key={r.key}>
+          {showHeader && (
+            <p className={`text-[0.6875em] font-semibold uppercase tracking-wide pt-1.5 px-0.5 ${group === "overdue" ? "text-amber-500" : "text-muted-foreground"}`}>
+              {tr(`planner.group.${group}`)}
+            </p>
+          )}
+          <div className={`rounded-lg border overflow-hidden ${isSel ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)]" : "border-border/50"}`}
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
             <button type="button"
               onPointerDown={beginHold(r.key)}
@@ -281,6 +331,13 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
                   {r.resolved && ` · ${tr(`planner.${r.resolved}`)}`}
                   {r.kind === "series" && r.remaining > 1 && ` · ×${r.remaining}`}
                 </span>
+                {(who.length > 0 || r.item.location) && (
+                  <span className="text-[0.6875em] text-muted-foreground block truncate">
+                    {who.map((a) => formatAlter(a)).join(", ")}
+                    {who.length > 0 && r.item.location ? " · " : ""}
+                    {r.item.location ? `📍 ${r.item.location}` : ""}
+                  </span>
+                )}
               </span>
               {r.kind === "series"
                 ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform .15s" }} />
@@ -303,8 +360,15 @@ export default function PlansList({ activities = [], categories = [], onOpen, on
               </div>
             )}
           </div>
+          </React.Fragment>
         );
       })}
+      {filter === "resolved" && filtered.length > visible.length && (
+        <button type="button" onClick={() => setPastShown((n) => n + PAST_PAGE)}
+          className="w-full text-xs py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground">
+          {tr("planner.showMore", { count: filtered.length - visible.length })}
+        </button>
+      )}
     </div>
   );
 }

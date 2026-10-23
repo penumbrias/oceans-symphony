@@ -1339,6 +1339,8 @@ export default function PlannerSurface({
           <PlansList
             activities={activities}
             categories={categories}
+            alters={alters}
+            weekStartsOn={prefs.weekStartsOn}
             onOpen={(item, { series } = {}) => (series ? openEditor(item, { series: true }) : setDetails(item))}
             onDeleteSeries={(item) => setBranchAsk({ item })}
             onMassChange={async (kind, items) => {
