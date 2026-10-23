@@ -139,6 +139,13 @@ function applyLargeTouch(value) {
 function applyNavHeight(value) {
   const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
   document.documentElement.style.setProperty("--bottom-nav-height", h);
+  // The v2 bottom bars (which also replace the classic tab bar) size their
+  // tabs from their own token, so a taller setting adds
+  // space below the tabs instead — the manual way out when the phone's nav
+  // buttons still cover the bar. Twice the difference, so "Extra tall"
+  // (a 48px lift) clears a whole 3-button nav bar.
+  const extra = Math.max(0, (parseInt(h, 10) || 56) - 56) * 2;
+  document.documentElement.style.setProperty("--bottom-nav-extra", `${extra}px`);
 }
 
 function applyFontFamily(value) {

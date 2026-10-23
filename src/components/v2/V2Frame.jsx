@@ -1348,8 +1348,11 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
       const box = el.getBoundingClientRect().height;
       // The nav pads itself by the safe-area inset; consumers add that
       // inset themselves, so report the height above it.
+      // The "Navigation bar height" lift (--bottom-nav-extra) is part of
+      // that padding but NOT part of the inset, so it stays in the height.
       const inset = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-      const h = Math.max(0, Math.round(box - inset));
+      const extra = classicHost ? 0 : (parseFloat(getComputedStyle(root).getPropertyValue("--bottom-nav-extra")) || 0);
+      const h = Math.max(0, Math.round(box - inset + extra));
       // Classic host: this box sits ON TOP of the classic tab bar, so the
       // clearance everything stacks on includes both.
       root.style.setProperty(
@@ -1360,7 +1363,9 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
     publish();
     if (!el || typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--v2-bottom-chrome-h");
     const ro = new ResizeObserver(publish);
-    ro.observe(el);
+    // border-box: the bottom padding (inset + nav-height lift) changing
+    // must republish too, not just the content.
+    ro.observe(el, { box: "border-box" });
     window.addEventListener("resize", publish);
     window.addEventListener("orientationchange", publish);
     return () => {
@@ -1517,7 +1522,9 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         // Classic host: park above the classic tab bar (which already
         // handles the safe-area inset itself).
         bottom: classicHost ? "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" : 0,
-        paddingBottom: classicHost ? 0 : "var(--os-sab)",
+        // Plus the Accessibility "Navigation bar height" lift — the manual
+        // fallback when the phone misreports its nav-button inset.
+        paddingBottom: classicHost ? 0 : "calc(var(--os-sab) + var(--bottom-nav-extra, 0px))",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
         borderColor: "var(--v2-border-color, color-mix(in srgb, var(--v2-accent) 30%, transparent))",

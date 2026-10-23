@@ -75,11 +75,14 @@ export default function BugReportModal({ open, onClose }) {
         const probe = document.createElement("div");
         probe.style.cssText = "position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;" +
           "padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);" +
-          "padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);";
+          "padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);" +
+          "margin-bottom:var(--os-sab,0px);";
         document.body.appendChild(probe);
         const cs = getComputedStyle(probe);
         const vv = window.visualViewport;
-        lines.push(`- Insets (t/r/b/l): ${cs.paddingTop} / ${cs.paddingRight} / ${cs.paddingBottom} / ${cs.paddingLeft}` +
+        // "used bottom" is what the bars actually clear (env, Capacitor
+        // or the native reading — whichever is largest).
+        lines.push(`- Insets (t/r/b/l): ${cs.paddingTop} / ${cs.paddingRight} / ${cs.paddingBottom} / ${cs.paddingLeft} · used bottom: ${cs.marginBottom}` +
           (vv ? ` · visualViewport: ${Math.round(vv.width)}×${Math.round(vv.height)} @${vv.offsetTop}` : ""));
         probe.remove();
       } catch { /* diagnostics only */ }

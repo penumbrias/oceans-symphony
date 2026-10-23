@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 import { isDesktop } from '@/lib/platform'
+import { startNativeInsets } from '@/lib/nativeInsets'
 
 // Route-level code splitting (v0.184.0) means a page's JS is fetched on
 // first navigation. If the app was open across a deploy, that fetch can
@@ -36,6 +37,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // and intercepting /local-image/ avatar requests, which
 // imageUrlResolver.js already resolves straight from IndexedDB whenever
 // no SW controls the page — the same fallback the iOS build relies on.
+// Android: the nav buttons' real overlap, for web views whose
+// env(safe-area-inset-bottom) reports 0 (see nativeInsets.js).
+startNativeInsets()
+
 if ('serviceWorker' in navigator && !isDesktop()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
