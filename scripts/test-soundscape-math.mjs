@@ -1,6 +1,6 @@
 // Soundscape safety + generator checks: node scripts/test-soundscape-math.mjs
 import assert from "node:assert/strict";
-import { clampParams, LIMITS, PRESETS, makeLoop, motionValue, windDownValue, NOISE_COLORS, MOTION_KINDS } from "../src/lib/soundscape/soundMath.js";
+import { clampParams, LIMITS, PRESETS, makeLoop, motionValue, windDownValue, NOISE_COLORS, MOTION_KINDS, RAIN_SURFACES, rainShape, rainKey } from "../src/lib/soundscape/soundMath.js";
 
 // Out-of-range and junk values never reach the audio graph.
 const wild = clampParams({ toneFreq: 20000, lowpass: 22000, highpass: 9000, beat: 40, volume: 5, motionSpeed: 10, noiseLevel: -3, noise: "metal", motion: "strobe" });
@@ -25,9 +25,27 @@ for (const c of NOISE_COLORS) {
   let peak = 0;
   for (const v of b) { assert.ok(Number.isFinite(v)); peak = Math.max(peak, Math.abs(v)); }
   assert.ok(peak <= 0.5 + 1e-6, `${c} peak ${peak}`);
-  if (c !== "none") assert.ok(peak > 0.4);
+  if (c !== "none" && c !== "rain") assert.ok(peak > 0.4);
 }
 console.log("ok  noise loops finite and normalised");
+
+// Rain shapes: junk falls back, values move in 5% steps, and every
+// surface/size/amount stays under the same peak at a similar loudness.
+const rj = clampParams({ noise: "rain", rainAmount: 7, rainDrop: -1, rainClose: 0.333, rainSurface: "lava" });
+assert.equal(rj.rainAmount, 1);
+assert.equal(rj.rainDrop, 0);
+assert.equal(rj.rainClose, 0.35);
+assert.equal(rj.rainSurface, "open");
+assert.notEqual(rainKey(clampParams({ rainSurface: "roof" })), rainKey(clampParams({})));
+for (const surface of RAIN_SURFACES) for (const [amount, drop, close] of [[0, 0, 0], [0.35, 0.5, 0.6], [1, 1, 1]]) {
+  const b = makeLoop("rain", 8000, 2, 3, { ...rainShape(clampParams({})), surface, amount, drop, close });
+  let peak = 0, s = 0;
+  for (const v of b) { assert.ok(Number.isFinite(v)); peak = Math.max(peak, Math.abs(v)); s += v * v; }
+  const r = Math.sqrt(s / b.length);
+  assert.ok(peak <= 0.5 + 1e-6, `${surface} peak ${peak}`);
+  assert.ok(r > 0.03 && r < 0.09, `${surface} ${amount}/${drop}/${close} rms ${r}`);
+}
+console.log("ok  rain shapes bounded and evenly loud");
 
 for (const k of MOTION_KINDS) for (let t = 0; t < 120; t += 0.37) {
   const m = motionValue(k, t, 0.25, 1);

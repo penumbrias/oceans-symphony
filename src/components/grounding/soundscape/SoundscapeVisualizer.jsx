@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getAnalyser, currentMotion, getSoundscapeState } from "@/lib/soundscape/engine";
-import { motionValue } from "@/lib/soundscape/soundMath";
+import { motionValue, rainCenterHz } from "@/lib/soundscape/soundMath";
 import { createStars, drawStars, createFractal, drawFractal } from "./spaceVisuals";
 
 // Draws the sound. Two styles:
@@ -33,7 +33,12 @@ export function predictedDb(f, p) {
   const rel = f / 100;
   if (p.noise === "pink" || p.noise === "rain") db -= 10 * Math.log10(rel);
   else if (p.noise === "brown") db -= 20 * Math.log10(rel);
-  if (p.noise === "rain") db += 6 * Math.exp(-Math.pow(Math.log2(f / 2000), 2));
+  if (p.noise === "rain") {
+    // The drops' bump: where they ring (surface + size), how prominent
+    // (nearer = more), with heavier rain filling in more of the wash.
+    const lift = 3 + 6 * (p.rainClose ?? 0.6);
+    db += lift * Math.exp(-Math.pow(Math.log2(f / rainCenterHz(p)), 2));
+  }
   if (p.noise === "none") db = -60;
   else db += 20 * Math.log10(Math.max(0.001, p.noiseLevel));
   db -= 10 * Math.log10(1 + Math.pow(f / p.lowpass, 4));
@@ -56,7 +61,9 @@ function primary(alpha) {
 // stay readable; every speed here is capped well under 1 Hz.
 const CYCLES_MAX = 7;
 const noiseCycles = (p) => {
-  const base = { brown: 1.2, pink: 2, rain: 3, white: 3.2, none: 0 }[p.noise] || 2;
+  const base = p.noise === "rain"
+    ? 2 + 2 * (p.rainAmount ?? 0.35)
+    : { brown: 1.2, pink: 2, white: 3.2, none: 0 }[p.noise] || 2;
   return base * (0.6 + 0.8 * (Math.log(p.lowpass / 200) / Math.log(8000 / 200)));
 };
 const toneCycles = (p) => 1 + (CYCLES_MAX - 1) * (Math.log(p.toneFreq / 40) / Math.log(600 / 40));

@@ -898,7 +898,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "grounding", sectionLabel: "Support",
       emoji: "🎧",
       title: "Soundscape",
-      body: `Soundscape makes brown noise, rain, wind, waves and soft tones from math, and draws the shape of the sound as it plays. Pick a sound, then shape it under "Shape the sound": warmth, tone pitch, binaural beat, and whether it stays constant or drifts, swells or gusts. Set a timer or let it play, save your own sounds, and use Focus for a full-screen view of the visual, a breathing guide, or both, with a distraction-free option. The visual is Calm by default; switch under it to Layers (each part as its own ripple), Stars (a starfield), Fractal (a slowly folding Julia set) or Detailed (the live sound). Volume and pitch are capped so it can't get harsh.`,
+      body: `Soundscape makes brown noise, rain, wind, waves and soft tones from math, and draws the shape of the sound as it plays. Pick a sound, then shape it under "Shape the sound": warmth, tone pitch, binaural beat, what the rain lands on and how hard it falls, and whether it stays constant or drifts, swells or gusts. Set a timer or let it play, save your own sounds, and use Focus for a full-screen view of the visual, a breathing guide, or both, with a distraction-free option. The visual is Calm by default; switch under it to Layers (each part as its own ripple), Stars (a starfield), Fractal (a slowly folding Julia set) or Detailed (the live sound). Volume and pitch are capped so it can't get harsh.`,
       route: "/grounding", target: "grounding-soundscape",
       look: `the highlighted "Soundscape" button on the Support tab`, action: null,
     },
