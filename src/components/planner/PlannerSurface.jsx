@@ -314,6 +314,11 @@ export default function PlannerSurface({
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
     enabled: overlays.emotions,
   });
+  // Location records pin onto the canvas at their time (on unless turned off).
+  const { data: locationRecords = [] } = useQuery({
+    queryKey: ["locations"], queryFn: () => base44.entities.Location.list(),
+    enabled: overlays.locations !== false,
+  });
 
   // The planner wears the same look the v2 widgets do, so a style preset
   // set on the home screen carries here: accent, radius, borders, fonts and
@@ -1204,6 +1209,13 @@ export default function PlannerSurface({
                   }`}>
                   <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
                 </button>
+                <button type="button" onClick={() => setOverlay("locations", overlays.locations === false)}
+                  aria-pressed={overlays.locations !== false}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.locations !== false ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <MapPin className="w-3 h-3" /> {tr("planner.overlay.locations")}
+                </button>
               </div>
             )}
           </div>
@@ -1380,6 +1392,8 @@ export default function PlannerSurface({
           tasks={taskItems}
           frontingHistory={frontingHistory}
           emotionCheckIns={emotionCheckIns}
+          locations={locationRecords}
+          onOpenPlace={(p) => navigate(`/location-history?highlight=${encodeURIComponent(p.id)}`)}
           alters={alters}
           categoryColor={catColor}
           overlays={overlays}
