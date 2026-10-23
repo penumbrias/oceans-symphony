@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Play, Square, Maximize2, RotateCcw, Save, X, Volume1, Volume2, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Square, Maximize2, X, Volume1, Volume2, ShieldCheck } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
 import {
-  PRESETS, clampParams, LIMITS, fmtHz,
+  PRESETS, clampParams,
 } from "@/lib/soundscape/soundMath";
 import {
   startSoundscape, stopSoundscape, setParams as engineSetParams, setTimer as engineSetTimer,
@@ -15,15 +15,15 @@ import { canBlockSystemNotifications, getDndStatus, openDndAccessSettings } from
 import SoundscapeVisualizer from "./SoundscapeVisualizer";
 import SoundscapeFocus from "./SoundscapeFocus";
 import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
+import SoundShaper from "./SoundShaper";
+import FractalPanel from "./FractalPanel";
+import { FRACTAL_PRESETS } from "@/lib/soundscape/fractals";
+import { PREVIEW_HEIGHT } from "@/lib/soundscape/soundscapePrefs";
 
 // Quick Support → Soundscape: noise and tones generated from math, shaped
 // like a synth, drawn as they sound, with a timer and a focused mode.
 // Safety lives in the engine (clampParams, capped gain, limiter, ramps);
 // this screen only ever offers values inside LIMITS.
-
-// Log-scale slider for frequencies: position 0..1000 ↔ lo..hi Hz.
-const toPos = (v, [lo, hi]) => Math.round((Math.log(v / lo) / Math.log(hi / lo)) * 1000);
-const fromPos = (pos, [lo, hi]) => lo * Math.pow(hi / lo, pos / 1000);
 
 function Row({ label, value, children }) {
   return (
@@ -37,13 +37,46 @@ function Row({ label, value, children }) {
   );
 }
 
-// A 0..1 value in 5% steps, with words at both ends.
-function PctSlider({ label, value, onChange, ends }) {
+// The visual's window: drag the grip under it (or focus it and use the
+// arrow keys) to make it taller or shorter. Saved when the drag ends.
+function ResizablePreview({ height, onCommit, children }) {
+  const [h, setH] = useState(height);
+  const drag = useRef(null);
+  useEffect(() => { setH(height); }, [height]);
+  const clampH = (v) => Math.round(Math.min(PREVIEW_HEIGHT.max, Math.max(PREVIEW_HEIGHT.min, v)));
+  const onDown = (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { y: e.clientY, start: h };
+  };
+  const onMove = (e) => { if (drag.current) setH(clampH(drag.current.start + e.clientY - drag.current.y)); };
+  const onUp = () => { if (drag.current) { drag.current = null; onCommit(h); } };
+  const onKey = (e) => {
+    const d = { ArrowDown: 24, ArrowUp: -24, PageDown: 96, PageUp: -96 }[e.key];
+    if (d) { e.preventDefault(); const v = clampH(h + d); setH(v); onCommit(v); }
+  };
   return (
-    <Row label={label} value={`${Math.round(value * 100)}%`}>
-      <Slider min={0} max={100} step={5} value={[Math.round(value * 100)]} onValueChange={([v]) => onChange(v / 100)} aria-label={label} />
-      <div className="flex justify-between text-[0.625rem] text-muted-foreground"><span>{ends[0]}</span><span>{ends[1]}</span></div>
-    </Row>
+    <div>
+      <div style={{ height: h }}>{children}</div>
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize the visual"
+        aria-valuemin={PREVIEW_HEIGHT.min}
+        aria-valuemax={PREVIEW_HEIGHT.max}
+        aria-valuenow={h}
+        tabIndex={0}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onKeyDown={onKey}
+        className="flex items-center justify-center h-5 cursor-row-resize border-t border-border/40 bg-muted/20 outline-none focus-visible:bg-muted/50"
+        style={{ touchAction: "none" }}
+      >
+        <span className="w-10 h-1 rounded-full bg-muted-foreground/40" />
+      </div>
+    </div>
   );
 }
 
@@ -67,26 +100,6 @@ function Chips({ options, value, onChange, disabled }) {
   );
 }
 
-const NOISE_OPTIONS = [
-  { value: "brown", label: "Brown" },
-  { value: "pink", label: "Pink" },
-  { value: "white", label: "White" },
-  { value: "rain", label: "Rain" },
-  { value: "none", label: "None" },
-];
-const SURFACE_OPTIONS = [
-  { value: "open", label: "Open air" },
-  { value: "leaves", label: "Leaves" },
-  { value: "puddles", label: "Puddles" },
-  { value: "roof", label: "Roof" },
-  { value: "tent", label: "Tent" },
-];
-const MOTION_OPTIONS = [
-  { value: "constant", label: "Constant" },
-  { value: "drift", label: "Drift" },
-  { value: "waves", label: "Waves" },
-  { value: "gusts", label: "Gusts" },
-];
 const VISUAL_OPTIONS = [
   { value: "calm", label: "Calm" },
   { value: "layers", label: "Layers" },
@@ -98,7 +111,7 @@ const VISUAL_HELP = {
   calm: "The shape of the sound, breathing slowly with it.",
   layers: "Each part of the sound as its own ripple: noise, tone, and each ear's wave for a binaural beat.",
   stars: "Flying through a starfield.",
-  fractal: "A Julia set (z² + c) slowly folding into new shapes.",
+  fractal: "Shapes drawn from repeating one equation. Choose the algorithm, the numbers or write your own under Fractal settings.",
   detailed: "The live sound, frequency by frequency. Busier than the others.",
 };
 const STAR_SPEED_OPTIONS = [
@@ -113,6 +126,8 @@ export default function SoundscapeView({ onBack }) {
   const [focusOpen, setFocusOpen] = useState(false);
   const [dnd, setDnd] = useState({ supported: false, accessGranted: false });
   const [error, setError] = useState(null);
+  const [shapeOpen, setShapeOpen] = useState(false);
+  const fractalClock = useRef(0);
   const playing = useSoundscapeState();
   const remaining = useRemaining(playing.endsAt);
   const p = prefs.params;
@@ -195,6 +210,7 @@ export default function SoundscapeView({ onBack }) {
         focus={prefs.focus}
         visual={prefs.visual}
         starSpeed={prefs.starSpeed}
+        fractal={prefs.fractal}
         onExit={() => setFocusOpen(false)}
       />
     );
@@ -211,112 +227,39 @@ export default function SoundscapeView({ onBack }) {
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-        <div className="h-36">
-          <SoundscapeVisualizer params={p} detail={prefs.visual} starSpeed={prefs.starSpeed} />
-        </div>
+        <ResizablePreview height={prefs.previewHeight} onCommit={(h) => save({ ...prefs, previewHeight: h })}>
+          <SoundscapeVisualizer params={p} detail={prefs.visual} starSpeed={prefs.starSpeed} fractal={prefs.fractal} clockRef={fractalClock} />
+        </ResizablePreview>
         <div className="px-3 py-2 border-t border-border/40 space-y-2">
           <Chips options={VISUAL_OPTIONS} value={prefs.visual} onChange={(v) => save({ ...prefs, visual: v })} />
           {prefs.visual === "stars" && (
             <Chips options={STAR_SPEED_OPTIONS} value={prefs.starSpeed} onChange={(v) => save({ ...prefs, starSpeed: v })} />
           )}
           <p className="text-[0.6875rem] text-muted-foreground">{VISUAL_HELP[prefs.visual]}</p>
+          {prefs.visual === "fractal" && (
+            <details className="pt-1">
+              <summary className="cursor-pointer text-xs font-medium text-foreground select-none">
+                Fractal settings · <span className="text-primary">{FRACTAL_PRESETS.find((x) => x.id === prefs.fractalPresetId)?.name || "your settings"}</span>
+              </summary>
+              <div className="mt-2">
+                <FractalPanel
+                  fractal={prefs.fractal}
+                  presetId={prefs.fractalPresetId}
+                  clockRef={fractalClock}
+                  onChange={(fractal, presetId) => save({ ...prefs, fractal, fractalPresetId: presetId })}
+                />
+              </div>
+            </details>
+          )}
         </div>
       </div>
 
-      <details className="rounded-xl border border-border/60 bg-card p-3">
+      <details className="rounded-xl border border-border/60 bg-card p-3" open={shapeOpen} onToggle={(e) => setShapeOpen(e.currentTarget.open)}>
         <summary className="cursor-pointer text-sm font-medium text-foreground select-none">
           Shape the sound{changed ? " · changed" : ""}
         </summary>
-        <div className="space-y-4 mt-4">
-          <Row label="Noise">
-            <Chips options={NOISE_OPTIONS} value={p.noise} onChange={(v) => setP({ noise: v })} />
-          </Row>
-          {p.noise !== "none" && (
-            <Row label="Noise level" value={`${Math.round(p.noiseLevel * 100)}%`}>
-              <Slider min={0} max={100} step={1} value={[Math.round(p.noiseLevel * 100)]} onValueChange={([v]) => setP({ noiseLevel: v / 100 })} aria-label="Noise level" />
-            </Row>
-          )}
-          {p.noise === "rain" && (
-            <div className="rounded-lg bg-muted/30 p-3 space-y-3">
-              <Row label="Rain lands on">
-                <Chips options={SURFACE_OPTIONS} value={p.rainSurface} onChange={(v) => setP({ rainSurface: v })} />
-              </Row>
-              <PctSlider label="How hard it's raining" value={p.rainAmount} onChange={(v) => setP({ rainAmount: v })} ends={["Drizzle", "Downpour"]} />
-              <PctSlider label="Drop size" value={p.rainDrop} onChange={(v) => setP({ rainDrop: v })} ends={["Fine mist", "Big drops"]} />
-              <PctSlider label="How close" value={p.rainClose} onChange={(v) => setP({ rainClose: v })} ends={["Far away", "Right here"]} />
-            </div>
-          )}
-          <Row label="Warmth" value={`cuts above ${fmtHz(p.lowpass)}`}>
-            <Slider min={0} max={1000} step={1} value={[toPos(p.lowpass, LIMITS.lowpass)]} onValueChange={([v]) => setP({ lowpass: fromPos(v, LIMITS.lowpass) })} aria-label="Warmth" />
-            <div className="flex justify-between text-[0.625rem] text-muted-foreground"><span>Darker</span><span>Brighter</span></div>
-          </Row>
-          <Row label="Thin out the lows" value={`cuts below ${fmtHz(p.highpass)}`}>
-            <Slider min={0} max={1000} step={1} value={[toPos(p.highpass, LIMITS.highpass)]} onValueChange={([v]) => setP({ highpass: fromPos(v, LIMITS.highpass) })} aria-label="Thin out the lows" />
-          </Row>
-
-          <div className="border-t border-border/40 pt-3 space-y-3">
-            <label className="flex items-center justify-between text-sm text-foreground">
-              <span className="font-medium text-xs">Tone</span>
-              <Switch checked={p.toneOn} onCheckedChange={(v) => setP({ toneOn: v })} aria-label="Tone" />
-            </label>
-            {p.toneOn && (
-              <>
-                <Row label="Pitch" value={fmtHz(p.toneFreq)}>
-                  <Slider min={0} max={1000} step={1} value={[toPos(p.toneFreq, LIMITS.toneFreq)]} onValueChange={([v]) => setP({ toneFreq: Math.round(fromPos(v, LIMITS.toneFreq) * 10) / 10 })} aria-label="Pitch" />
-                </Row>
-                <Row label="Wave">
-                  <Chips options={[{ value: "sine", label: "Smooth" }, { value: "triangle", label: "Soft buzz" }]} value={p.toneWave} onChange={(v) => setP({ toneWave: v })} />
-                </Row>
-                <Row label="Tone level" value={`${Math.round(p.toneLevel * 100)}%`}>
-                  <Slider min={0} max={100} step={1} value={[Math.round(p.toneLevel * 100)]} onValueChange={([v]) => setP({ toneLevel: v / 100 })} aria-label="Tone level" />
-                </Row>
-                <Row label="Binaural beat" value={p.beat > 0 ? `${p.beat.toFixed(1)} Hz` : "Off"}>
-                  <Slider min={0} max={LIMITS.beat[1] * 10} step={5} value={[Math.round(p.beat * 10)]} onValueChange={([v]) => setP({ beat: v / 10 })} aria-label="Binaural beat" />
-                  <p className="text-[0.6875rem] text-muted-foreground">Each ear gets a slightly different pitch. Needs headphones.</p>
-                </Row>
-              </>
-            )}
-          </div>
-
-          <div className="border-t border-border/40 pt-3 space-y-3">
-            <Row label="Change over time">
-              <Chips options={MOTION_OPTIONS} value={p.motion} onChange={(v) => setP({ motion: v })} />
-            </Row>
-            {p.motion !== "constant" && (
-              <>
-                <Row label="How much" value={`${Math.round(p.motionAmount * 100)}%`}>
-                  <Slider min={0} max={100} step={1} value={[Math.round(p.motionAmount * 100)]} onValueChange={([v]) => setP({ motionAmount: v / 100 })} aria-label="How much it changes" />
-                </Row>
-                <Row label="How slowly" value={`about ${Math.round(1 / p.motionSpeed)}s per swell`}>
-                  <Slider
-                    min={0} max={1000} step={1}
-                    value={[1000 - toPos(p.motionSpeed, LIMITS.motionSpeed)]}
-                    onValueChange={([v]) => setP({ motionSpeed: fromPos(1000 - v, LIMITS.motionSpeed) })}
-                    aria-label="How slowly it changes"
-                  />
-                  <div className="flex justify-between text-[0.625rem] text-muted-foreground"><span>Quicker</span><span>Slower</span></div>
-                </Row>
-              </>
-            )}
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-xs">
-                <span className="font-medium text-foreground block">Wind down</span>
-                <span className="text-muted-foreground">With a timer, slowly gets quieter and darker towards the end.</span>
-              </span>
-              <Switch checked={p.windDown} onCheckedChange={(v) => setP({ windDown: v })} aria-label="Wind down" />
-            </label>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => pickPreset(basePreset)} disabled={!changed}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border/60 py-2 text-xs font-medium text-foreground disabled:opacity-50 hover:bg-muted/40">
-              <RotateCcw className="w-3.5 h-3.5" /> Reset to {basePreset.name}
-            </button>
-            <button type="button" onClick={saveMine}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 py-2 text-xs font-medium text-primary hover:bg-primary/10">
-              <Save className="w-3.5 h-3.5" /> Save as my sound
-            </button>
-          </div>
+        <div className="mt-3">
+          <SoundShaper p={p} setP={setP} changed={changed} basePreset={basePreset} onReset={() => pickPreset(basePreset)} onSave={saveMine} />
         </div>
       </details>
 

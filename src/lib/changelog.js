@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 23, 2026",
     changes: [
+      { type: "feature", text: "Soundscape: Shape the sound is now a synth-style panel with knobs, and you can drag the visual's window taller or shorter." },
+      { type: "feature", text: "Soundscape Fractal: choose Julia, Mandelbrot, Newton or Phoenix, turn their numbers, or type your own formula, with presets to start from." },
+      { type: "fix", text: "Soundscape: the fractal is no longer cut off in portrait focus mode." },
       { type: "feature", text: "Soundscape: shape the rain by what it lands on, how hard it falls, drop size and how close it sounds, plus new rain presets." },
       { type: "fix", text: "Android: the bottom bar no longer hides behind the phone's navigation buttons on older phones." },
       { type: "fix", text: "Navigation bar height in Accessibility lifts the bottom bar again." },
