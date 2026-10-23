@@ -29,6 +29,7 @@ export const CHANGELOG = [
       { type: "fix", text: "Planner: dragging across days in Month view plans one entry over the whole span again." },
       { type: "fix", text: "Planner Plans list: overdue plans stay listed, grouped by Today / This week / This month / Later, with who and where on each row and every past plan." },
       { type: "fix", text: "Planner: tap empty time to see what happened in that hour, or add something there." },
+      { type: "fix", text: "Confirm prompts opened from the planner's edit sheet now appear on top instead of hidden behind it." },
     ],
   },
   {

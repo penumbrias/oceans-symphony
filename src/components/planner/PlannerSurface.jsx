@@ -751,10 +751,12 @@ export default function PlannerSurface({
     setTiming(null);
   };
 
+  const isSameDayAsToday = (d) => d && new Date(d).toDateString() === new Date().toDateString();
   // Start a NEW running activity straight from the create sheet — the
   // classic Log form's "Active" mode. It runs until ended from the running
   // strip (or the dashboard pill) and then logs itself like any entry.
-  // Starts at the chosen time when that's already passed, else now.
+  // Starts at the chosen time when that's earlier today, else now; only
+  // offered for today, since a timer is something happening now.
   const startNewNow = async () => {
     if (!timing?.create) return;
     const name = (timing.item.activity_name || "").trim();
@@ -768,7 +770,7 @@ export default function PlannerSurface({
       if (prepared === null) return;
     }
     const chosen = createWindow?.start;
-    const startAt = chosen && chosen.getTime() <= Date.now() ? chosen : new Date();
+    const startAt = chosen && chosen.getTime() <= Date.now() && isSameDayAsToday(chosen) ? chosen : new Date();
     addActiveActivity({
       categoryId: catId,
       name: name || cat?.name || "Activity",
@@ -2186,7 +2188,7 @@ export default function PlannerSurface({
                 </Button>
                 {/* Start a timer instead — only for a single entry that
                     isn't repeating (a running session is one thing, now). */}
-                {!extraDays.length && recur.interval === "none" && (
+                {!extraDays.length && recur.interval === "none" && isSameDayAsToday(timing.day) && (
                   <Button size="sm" variant="outline" className="gap-1"
                     disabled={!(timing.item.activity_name || "").trim()}
                     onClick={startNewNow}>
