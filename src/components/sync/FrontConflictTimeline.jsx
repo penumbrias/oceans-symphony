@@ -285,7 +285,7 @@ export default function FrontConflictTimeline({ onClose, onSaved }) {
   return createPortal(
     <div
       className="fixed inset-0 z-[200] bg-background flex flex-col"
-      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "var(--os-sab, 0px)" }}
       role="dialog"
       aria-label={`Compare ${t.front} history between devices`}
     >

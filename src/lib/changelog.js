@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 23, 2026",
     changes: [
+      { type: "fix", text: "Android: the bottom bar no longer hides behind the phone's navigation buttons on older phones." },
+      { type: "fix", text: "Navigation bar height in Accessibility lifts the bottom bar again." },
       { type: "fix", text: "Planner: changing or deleting a sleep entry's activity updates its Sleep record again." },
       { type: "fix", text: "Planner: add the contacts you were with to an entry, and see them in its details." },
       { type: "fix", text: "Planner: a new entry fills in who was fronting at that time, with an option to record the fronting too." },

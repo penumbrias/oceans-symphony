@@ -1465,7 +1465,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
       {/* Tour card — portal-rendered as last body child so z-[100] always wins.
           Moves to top when the spotlight is in the bottom half of the screen. */}
       <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : ""}`}
-        style={cardAtTop ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
+        style={cardAtTop ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px) + 8px)" }}>
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">

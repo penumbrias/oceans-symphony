@@ -105,8 +105,12 @@
        Do NOT add a window-insets listener on the WebView to feed this —
        that replaces Chromium's own inset handling, which is what
        computes env() for the page, and the app bleeds into the status
-       bar (the v0.212.3 regression). Insets belong to Capacitor. */
-    --os-sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+       bar (the v0.212.3 regression). Insets belong to Capacitor.
+       --native-sab is the third source: some web views (Android 10,
+       3-button nav) report env() as 0 AND get no Capacitor var, so the
+       app's own plugin reads the overlap natively (src/lib/nativeInsets.js
+       — a one-off read, not a listener). */
+    --os-sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px), var(--native-sab, 0px));
   }
 
   .dark {

@@ -319,7 +319,7 @@ function Viewer({ src, name, isGif, onClose }) {
 
         {/* Zoom controls */}
         <div data-viewer-ui className="absolute bottom-0 inset-x-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-t from-black/70 to-transparent pt-8 px-3"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}>
+          style={{ paddingBottom: "calc(var(--os-sab, 0px) + 0.75rem)" }}>
           <button type="button" onClick={() => zoomBy(1 / 1.5)} disabled={tf.s <= 1.001} aria-label="Zoom out"
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40"><ZoomOut className="w-5 h-5" /></button>
           <button type="button" onClick={() => setTf({ s: 1, x: 0, y: 0 })} disabled={tf.s <= 1.001} aria-label="Fit to screen"

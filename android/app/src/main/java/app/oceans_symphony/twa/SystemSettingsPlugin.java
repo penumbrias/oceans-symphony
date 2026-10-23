@@ -13,7 +13,13 @@ import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
 
+import android.view.View;
+import android.webkit.WebView;
+
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -38,6 +44,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  *
  * Every opener falls back to the app's info page if the specific screen
  * doesn't exist on this phone.
+ *
+ *   systemBarInsets()          how far the system bars (status bar, nav
+ *                              buttons / gesture pill) overlap the web view,
+ *                              in CSS px. Read by src/lib/nativeInsets.js.
  */
 @CapacitorPlugin(name = "SystemSettings")
 public class SystemSettingsPlugin extends Plugin {
@@ -200,6 +210,57 @@ public class SystemSettingsPlugin extends Plugin {
     @PluginMethod
     public void openBatterySettings(PluginCall call) {
         open(appDetails(getContext().getPackageName()), call);
+    }
+
+    // Older Android web views (seen on Android 10 with 3-button nav) report
+    // env(safe-area-inset-bottom) as 0 while the edge-to-edge web view draws
+    // under the nav buttons, and Capacitor only injects its own
+    // --safe-area-inset-* for web views it considers old — so nothing told
+    // the page about the buttons and the bottom bar sat under them.
+    // This only READS the window insets once per call. Never install a
+    // window-insets listener on the web view to do this — that replaces
+    // Chromium's own inset handling and the page bleeds into the status bar
+    // (the v0.212.3 regression).
+    // Reported as OVERLAP with the web view rather than the raw bar size, so
+    // it is right whether or not the web view reaches the screen edge (it
+    // stops above the keyboard while one is open: overlap 0).
+    @PluginMethod
+    public void systemBarInsets(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            JSObject r = new JSObject();
+            try {
+                View decor = getActivity().getWindow().getDecorView();
+                WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+                WindowInsetsCompat wi = ViewCompat.getRootWindowInsets(decor);
+                if (wv == null || wi == null || decor.getHeight() == 0) {
+                    r.put("known", false);
+                    call.resolve(r);
+                    return;
+                }
+                Insets bars = wi.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+                );
+                int[] wvLoc = new int[2];
+                int[] decorLoc = new int[2];
+                wv.getLocationOnScreen(wvLoc);
+                decor.getLocationOnScreen(decorLoc);
+                int left = wvLoc[0] - decorLoc[0];
+                int top = wvLoc[1] - decorLoc[1];
+                int right = left + wv.getWidth();
+                int bottom = top + wv.getHeight();
+                float density = getContext().getResources().getDisplayMetrics().density;
+                if (density <= 0) density = 1;
+                r.put("known", true);
+                r.put("top", Math.max(0, bars.top - top) / density);
+                r.put("left", Math.max(0, bars.left - left) / density);
+                r.put("right", Math.max(0, right - (decor.getWidth() - bars.right)) / density);
+                r.put("bottom", Math.max(0, bottom - (decor.getHeight() - bars.bottom)) / density);
+                call.resolve(r);
+            } catch (Exception e) {
+                r.put("known", false);
+                call.resolve(r);
+            }
+        });
     }
 
     private static Intent appDetails(String pkg) {
