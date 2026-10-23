@@ -1509,7 +1509,7 @@ export default function PlannerSurface({
                     className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg border border-border/40 text-left hover:bg-muted/30">
                     <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: a.color || catColor(categoryIdOf(a)) || "var(--v2-accent)" }} />
                     <span className="flex-1 truncate">{a.activity_name || tr("planner.untitled")}</span>
-                    <span className="text-muted-foreground tabular-nums">{format(new Date(a.timestamp), "HH:mm")}</span>
+                    <span className="text-muted-foreground tabular-nums">{formatClock(new Date(a.timestamp).getHours() * 60 + new Date(a.timestamp).getMinutes(), prefs.timeFmt)}</span>
                   </button>
                 ))}
               </div>

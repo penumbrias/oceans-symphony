@@ -1000,7 +1000,7 @@ export default function WeekCanvas({
       });
 
     return { day, blocks: laid, untimed, bands, marks, places, total: occupiedMinutes(laid.filter((b) => !b._isTask)) };
-  }), [days, activities, tasks, frontingHistory, emotionCheckIns, locations, alterById, sessions, nowTick]);
+  }), [days, activities, tasks, frontingHistory, emotionCheckIns, locations, alterById, sessions, nowTick, prefs.timeFmt]);
 
   const weekTotal = perDay.reduce((n, d) => n + d.total, 0);
 
