@@ -40,6 +40,10 @@ export async function createPlan({
   linkedTask = null,            // existing Task object to link + date-sync
   createTodo = false,           // derive a new Task when none is linked
   todoTitle = "",
+  // "auto" keeps the day rule below. The shared activity editor asks the
+  // person first ("Already happened / Coming up") and passes "log" or
+  // "plan", so what they said wins over the clock.
+  kind = "auto",
 }) {
   // "Set this plan as a to-do" — build the Task up-front so its id can flow
   // into task_id on every Activity (including recurring ones).
@@ -78,9 +82,11 @@ export async function createPlan({
     // (not scheduled) without ticking anything off (not completed).
     //
     // Creating a plan is stating an intention, never recording a
-    // completion. Logging what you actually did is ActivityLogModal's job
-    // and writes LOGGED directly, so nothing here needs to guess.
-    const isPlanInstance = !!recurrenceGroupId || format(occ, "yyyy-MM-dd") >= todayLocalISODate();
+    // completion. The shared activity editor asks instead of guessing and
+    // passes kind "log" / "plan" (see lib/activityEntry).
+    const isPlanInstance = kind === "plan" ? true
+      : kind === "log" ? false
+      : (!!recurrenceGroupId || format(occ, "yyyy-MM-dd") >= todayLocalISODate());
     for (const r of records) {
       const created = await base44.entities.Activity.create({
         timestamp: occ.toISOString(),

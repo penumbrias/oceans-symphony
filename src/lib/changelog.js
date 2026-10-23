@@ -21,6 +21,11 @@ export const CHANGELOG = [
     date: "October 23, 2026",
     changes: [
       { type: "improve", text: "Soundscape keeps playing when you leave Quick Support, with a small bar to get back to it or stop it (switch it off in Soundscape)." },
+      { type: "feature", text: "One activity sheet everywhere: log, start or plan from the planner, quick actions or widgets, and set the length by duration or end time, or tap Starts to give the end time instead." },
+      { type: "improve", text: "The activity sheet keeps your activity list tucked behind \"+ Activity\", with your recent ones as one-tap chips." },
+      { type: "fix", text: "Planner: something you log for earlier today is saved as done, not as a plan waiting for review." },
+      { type: "fix", text: "A one-tap Log activity quick action now records the time ending now, and quick check-in activities are always saved as logged." },
+      { type: "feature", text: "Support: new Scratch pad. Draw a line of particles, let go, and pick a ruleset (or tune each rule) to watch them swirl, gather, orbit or fall." },
       { type: "feature", text: "Soundscape: Shape the sound is now a synth-style panel with knobs, and you can drag the visual's window taller or shorter." },
       { type: "feature", text: "Soundscape Fractal: choose Julia, Mandelbrot, Newton or Phoenix, turn their numbers, or type your own formula, with presets to start from." },
       { type: "fix", text: "Soundscape: the fractal is no longer cut off in portrait focus mode." },

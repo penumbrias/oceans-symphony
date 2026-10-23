@@ -21,7 +21,9 @@ import { readPanicTapsSetting, DEFAULT_PANIC_TAPS } from "@/components/settings/
 // CLEARS rather than ADDS to the tap count.
 //
 // Triggers in form/textarea/[contenteditable] elements are still ignored
-// so the gesture doesn't fire while the user is typing.
+// so the gesture doesn't fire while the user is typing, and so are
+// surfaces marked [data-no-panic-taps] where quick taps ARE the input
+// (the Scratch pad); tapping anywhere outside them still works.
 //
 // The tap count is user-configurable via Settings → Data & Privacy →
 // Quick-tap privacy cover. Setting it to "off" disables the listener
@@ -44,7 +46,7 @@ export default function useTripleTapPanic() {
 
     const onPointerDown = (e) => {
       const t = e.target;
-      if (t && (t.closest("input, textarea, [contenteditable=true]"))) return;
+      if (t && (t.closest("input, textarea, [contenteditable=true], [data-no-panic-taps]"))) return;
 
       // Track this pointer's lifetime. pointerId is unique per finger /
       // mouse button until the corresponding up/cancel event.

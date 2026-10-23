@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
@@ -19,12 +19,11 @@ import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import ClassicHomeCanvas from "@/components/dashboard/ClassicHomeCanvas";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
-import StartActivityModal from "@/components/activities/StartActivityModal";
+import ActivityEditor from "@/components/activities/ActivityEditor";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
-const LazyActivityPlanModal = React.lazy(() => import("@/components/activities/ActivityPlanModal"));
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
@@ -99,6 +98,25 @@ export default function Dashboard() {
   // full plan form (repeats, reminders, location, who it's for) with what
   // you already typed carried over.
   const [planDraft, setPlanDraft] = useState(null);
+  // Stable requests for the shared activity editor (it re-seeds whenever
+  // the request object changes).
+  const startActivityReq = useMemo(
+    () => (showStartActivity ? { create: true, mode: "now", start: new Date(), minutes: null } : null),
+    [showStartActivity]
+  );
+  const planDraftReq = useMemo(() => {
+    if (!planDraft) return null;
+    const d = planDraft.date ? new Date(`${planDraft.date}T00:00:00`) : new Date();
+    const [h, m] = String(planDraft.time || "").split(":").map((n) => parseInt(n, 10));
+    if (planDraft.time) d.setHours(h || 0, m || 0, 0, 0); else d.setHours(9, 0, 0, 0);
+    return {
+      create: true, mode: "plan", start: d,
+      minutes: planDraft.time ? (planDraft.durationMinutes || 60) : null,
+      untimed: !planDraft.time,
+      name: planDraft.title || "", notes: planDraft.note || "",
+      categoryIds: planDraft.categoryId ? [planDraft.categoryId] : [],
+    };
+  }, [planDraft]);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
@@ -831,13 +849,9 @@ export default function Dashboard() {
         currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
 
-      {showStartActivity && (
-        <StartActivityModal
-          isOpen
-          onClose={() => setShowStartActivity(false)}
-          alters={alters}
-        />
-      )}
+      {/* "Start an activity" (quick actions bar / command strip) → the shared
+          activity editor, opened on "Still going". */}
+      <ActivityEditor request={startActivityReq} onClose={() => setShowStartActivity(false)} />
       <Dialog open={showQuickTask} onOpenChange={(v) => !v && setShowQuickTask(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -855,26 +869,9 @@ export default function Dashboard() {
       </Dialog>
 
 
-      {planDraft && (
-        <React.Suspense fallback={null}>
-          <LazyActivityPlanModal
-            isOpen
-            onClose={() => setPlanDraft(null)}
-            startDate={planDraft.date ? new Date(`${planDraft.date}T00:00:00`) : new Date()}
-            endDate={planDraft.date ? new Date(`${planDraft.date}T00:00:00`) : new Date()}
-            startHour={planDraft.time ? parseInt(planDraft.time.split(":")[0], 10) : undefined}
-            startMinute={planDraft.time ? parseInt(planDraft.time.split(":")[1], 10) : 0}
-            endHour={planDraft.time && planDraft.durationMinutes
-              ? parseInt(planDraft.time.split(":")[0], 10) + Math.floor(planDraft.durationMinutes / 60)
-              : undefined}
-            endMinute={0}
-            initialTitle={planDraft.title || ""}
-            initialNotes={planDraft.note || ""}
-            alters={alters}
-            onSave={() => setPlanDraft(null)}
-          />
-        </React.Suspense>
-      )}
+      {/* A to-do's "More options" → the shared editor on "Coming up", with
+          what was already typed carried over. */}
+      <ActivityEditor request={planDraftReq} onClose={() => setPlanDraft(null)} />
 
       {/* "Customize dashboard" (header cog) → the section drag/drop layout
           editor in a popup. Reuses the exact component from Settings →

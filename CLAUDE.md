@@ -602,7 +602,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Primary surfaces.**
 - `src/pages/ActivityTracker.jsx`.
-- `src/components/activities/*` — `ActivityDayView`, `ActivityWeeklyGrid`, `ActivityMonthView`, `ActivityYearView`, `ActivityPlanModal`, `ActivityLogModal`, `ActivityEntryModal`, `ActivityDetailsModal`, `ActivityLifecyclePopover`, `ActivityNestingRecovery`, `ActivityPicker`, `ActivityPillSelector`, `ActivityTreeRow`, `ActivityCustomizationMenu`, `ActivityTallyTracker`, `ActivityGoalsPanel`, `PlanCompletionTracker`, `PlannedActivitiesList`, `RecurrenceBranchDialog`, `activityHelpers.jsx`.
+- `src/components/activities/*` — `ActivityDayView`, `ActivityWeeklyGrid`, `ActivityMonthView`, `ActivityYearView`, `ActivityEditor` (THE log/start/plan/edit sheet every door opens — see `src/lib/activityEntry.js`), `ActivityWhenField` (day + start + length by duration or end), `ActivityDetailsModal`, `ActivityLifecyclePopover`, `ActivityNestingRecovery`, `ActivityPicker`, `ActivityPillSelector`, `ActivityTreeRow`, `ActivityCustomizationMenu`, `ActivityTallyTracker`, `ActivityGoalsPanel`, `PlanCompletionTracker`, `PlannedActivitiesList`, `RecurrenceBranchDialog`, `activityHelpers.jsx`.
 - `src/lib/activityStatus.js` — status enum + `statusFor()` derivation.
 - `src/lib/categoryTreeUtils.js` — cycle-safe tree walk (`getAncestorIds`, `getChildren`, `getRootCategories`, `hasCycle`, `wouldCreateCycle`, `detectCorruption`, `MAX_RENDER_DEPTH`).
 - `src/lib/recurrenceUtils.js` — recurrence expansion / branching.
@@ -632,7 +632,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Primary surfaces.**
 - `src/components/emotions/QuickCheckInModal.jsx` — the modal opened from the Dashboard. Save/Cancel pinned at the top of the modal (PR #102); long-press / double-click a Check-In Log row reopens the modal in edit mode.
-- `src/components/emotions/EmotionCheckInModal.jsx`, `EmotionWheelPicker.jsx`, `EmotionAnalytics.jsx`.
+- `src/components/emotions/EmotionWheelPicker.jsx`, `EmotionAnalytics.jsx`.
 - `src/pages/CheckInLog.jsx`, `src/pages/ManageCheckIn.jsx`.
 - `src/lib/emotionDistress.js`.
 - `src/components/settings/CustomEmotionsManager.jsx`.

@@ -307,10 +307,18 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       await cancelPlanReminder(active.planActivityId);
     } catch { /* non-fatal */ }
   } else {
+    // `extra` carries what the shared editor collected beyond the session
+    // basics (every picked activity, location, color tag, linked to-do).
+    const extra = active.extra && typeof active.extra === "object" ? active.extra : {};
     record = await base44.entities.Activity.create({
       timestamp: start.toISOString(),
       activity_name: active.name || "Activity",
-      activity_category_ids: active.categoryId ? [active.categoryId] : [],
+      activity_category_ids: Array.isArray(extra.activity_category_ids) && extra.activity_category_ids.length
+        ? extra.activity_category_ids
+        : (active.categoryId ? [active.categoryId] : []),
+      ...(extra.location ? { location: extra.location } : {}),
+      ...(extra.tag_color ? { tag_color: extra.tag_color } : {}),
+      ...(extra.task_id ? { task_id: extra.task_id } : {}),
       ...(active.color ? { color: active.color } : {}),
       duration_minutes: minutes,
       fronting_alter_ids: alterIds,
@@ -319,6 +327,13 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       is_planned: false,
       status: ACTIVITY_STATUSES.LOGGED,
     });
+    // Finished with a linked to-do → that to-do is done too.
+    if (extra.task_id) {
+      try {
+        const { syncActivityResolved } = await import("@/lib/linkedCompletion");
+        await syncActivityResolved(record, ACTIVITY_STATUSES.DONE);
+      } catch { /* non-fatal */ }
+    }
   }
   removeActiveActivity(active.id);
   if (active.planActivityId) removeOtherSessionsForPlan(active.planActivityId);

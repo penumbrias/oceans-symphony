@@ -113,6 +113,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_grounding_btn_pos",
   "symphony_quick_support_ring_v1",
   "symphony_soundscape_v1",
+  "symphony_scratchpad_v1",
   "symphony_insights_muted_kinds_v1",
   "symphony_infer_presence_from_authorship",
   "symphony_infer_presence_window_min",
@@ -153,6 +154,8 @@ export const BACKUP_LS_KEYS = [
   "alter_card_header_bg",
   "symphony_planner_lane_opacity",
   "symphony_planner_time_mode",
+  // Activity sheet: whether the clock field is the start or the end time.
+  "symphony_activity_time_anchor",
   "symphony_presets_theme_restyles_widgets",
   "symphony_options_peek_h",
   "symphony_alterDropdown_grouped",
