@@ -66,6 +66,7 @@ import ActivityNestingRecovery from "@/components/activities/ActivityNestingReco
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { collectAlterDates } from "@/lib/importantDates";
 import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
+import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -277,6 +278,7 @@ export default function PlannerSurface({
         const patch = {};
         for (const f of EDIT_GUARD_FIELDS) patch[f] = snap[f] ?? null;
         await base44.entities.Activity.update(snap.id, patch);
+        await syncLinkedSleep(snap, patch);
         qc.invalidateQueries({ queryKey: ["activities"] });
         toast.success(tr("planner.editUndone"));
       }
@@ -541,13 +543,15 @@ export default function PlannerSurface({
     // with continuation edges. 14 days is a sanity cap, not a feature.
     const minutes = Math.max(1, Math.min(MINUTES_PER_DAY * 14, endMin - startMin));
     try {
-      await base44.entities.Activity.update(id, {
+      const patch = {
         timestamp: start.toISOString(),
         // Keep whichever duration field this record already used.
         ...(activity.actual_duration_minutes != null
           ? { actual_duration_minutes: minutes }
           : { duration_minutes: minutes }),
-      });
+      };
+      await base44.entities.Activity.update(id, patch);
+      await syncLinkedSleep(activity, patch);
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
   };
@@ -596,15 +600,16 @@ export default function PlannerSurface({
           };
         });
       } else {
+        const timePatch = { timestamp: when.toISOString(), ...lengthPatch(timing.item) };
         await base44.entities.Activity.update(timing.item.id, {
-          timestamp: when.toISOString(),
-          ...lengthPatch(timing.item),
+          ...timePatch,
           // Moving a plan is a reschedule, not a new plan: status stays
           // `scheduled` and the move is recorded, matching the tracker's model.
           ...(countReschedule && wasScheduled && from && from !== when.toISOString()
             ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
             : {}),
         });
+        await syncLinkedSleep(timing.item, timePatch);
       }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
@@ -734,7 +739,10 @@ export default function PlannerSurface({
       const patch = { notes: text, ...(prepared.authorIds.length ? { author_alter_ids: prepared.authorIds } : {}) };
       const members = seriesMembers();
       if (members.length > 1) await applyEditToSeries(members, patch);
-      else await base44.entities.Activity.update(timing.item.id, patch);
+      else {
+        await base44.entities.Activity.update(timing.item.id, patch);
+        await syncLinkedSleep(timing.item, patch);
+      }
       await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: timing.item.id, sourceLabel: "Plan note", navigatePath: `/planner?highlight=${timing.item.id}` });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
@@ -792,7 +800,10 @@ export default function PlannerSurface({
     try {
       const members = seriesMembers();
       if (members.length > 1) await applyEditToSeries(members, patch);
-      else await base44.entities.Activity.update(timing.item.id, patch);
+      else {
+        await base44.entities.Activity.update(timing.item.id, patch);
+        await syncLinkedSleep(timing.item, patch);
+      }
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -842,7 +853,9 @@ export default function PlannerSurface({
     if (!ok) return;
     try {
       await base44.entities.Activity.delete(item.id);
+      await deleteLinkedSleep(item);
       qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["sleep"] });
       setTiming(null);
       toast.success(tr("planner.deleted"));
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -1194,7 +1207,10 @@ export default function PlannerSurface({
             onMassChange={async (kind, items) => {
               for (const it of items) {
                 try {
-                  if (kind === "delete") await base44.entities.Activity.delete(it.id);
+                  if (kind === "delete") {
+                    await base44.entities.Activity.delete(it.id);
+                    await deleteLinkedSleep(it);
+                  }
                   else await base44.entities.Activity.update(it.id, { status: "cancelled" });
                 } catch { /* keep going — partial progress beats none */ }
               }
