@@ -6,11 +6,18 @@
 
 import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
 import { clampParams, presetById, DEFAULT_PRESET_ID } from "./soundMath";
+import { clampFractal, DEFAULT_FRACTAL } from "./fractals";
 
 export const SOUNDSCAPE_PREFS_KEY = "symphony_soundscape_v1";
 export const VISUALS = ["calm", "layers", "stars", "fractal", "detailed"];
 export const FOCUS_MODES = ["visuals", "both", "breathing"];
 export const TIMER_OPTIONS = [null, 5, 10, 15, 20, 30, 45, 60, 90];
+// The visual's preview window height on the Soundscape screen (px).
+export const PREVIEW_HEIGHT = { min: 96, max: 560, initial: 144 };
+const clampHeight = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(Math.min(PREVIEW_HEIGHT.max, Math.max(PREVIEW_HEIGHT.min, n))) : PREVIEW_HEIGHT.initial;
+};
 
 const DEFAULTS = {
   presetId: DEFAULT_PRESET_ID,
@@ -18,6 +25,9 @@ const DEFAULTS = {
   timer: null,
   visual: "calm",
   starSpeed: "cruise",
+  previewHeight: PREVIEW_HEIGHT.initial,
+  fractal: DEFAULT_FRACTAL,
+  fractalPresetId: "drifting_julia",
   focus: { mode: "visuals", pattern: "Resonant breathing", pace: "1.25", distractionFree: false },
   saved: [],
 };
@@ -33,6 +43,9 @@ export function readSoundscapePrefs() {
     timer: TIMER_OPTIONS.includes(raw.timer) ? raw.timer : null,
     visual: VISUALS.includes(raw.visual) ? raw.visual : "calm",
     starSpeed: ["drift", "cruise", "warp"].includes(raw.starSpeed) ? raw.starSpeed : "cruise",
+    previewHeight: clampHeight(raw.previewHeight),
+    fractal: clampFractal(raw.fractal),
+    fractalPresetId: typeof raw.fractalPresetId === "string" ? raw.fractalPresetId : DEFAULTS.fractalPresetId,
     focus: {
       // "visuals" | "both" | "breathing". Older saves had breathing: bool.
       mode: FOCUS_MODES.includes(f.mode) ? f.mode : (f.breathing ? "both" : "visuals"),

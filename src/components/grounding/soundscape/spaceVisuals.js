@@ -1,11 +1,12 @@
+import { clampFractal, compileFormula, renderFractalField } from "@/lib/soundscape/fractals";
+
 // Soundscape "space" visuals, drawn from math alone:
 //   • Stars — the classic flying-through-a-starfield screensaver. Each star
 //     is a point (x, y, z) moving towards the viewer; it's drawn where
 //     perspective puts it (x/z, y/z) as a short streak from where it was a
 //     moment ago. Stars fade in from the distance so none pop into view.
-//   • Fractal — a Julia set, z → z² + c, coloured by how fast each point
-//     escapes. c travels slowly along the edge of the Mandelbrot set, so
-//     the shape keeps folding into new forms; a lap takes several minutes.
+//   • Fractal — Julia, Mandelbrot, Newton, Phoenix or the person's own
+//     formula (see lib/soundscape/fractals.js), moving along slow paths.
 // Photosensitivity: nothing blinks or strobes, brightness changes are
 // gradual, and reduce-motion slows both right down.
 
@@ -53,68 +54,62 @@ export function drawStars(g, w, h, field, dt, speed, color) {
   }
 }
 
-// Julia set into a small offscreen buffer, scaled up smoothly.
+// Fractal into a small offscreen buffer shaped like the screen, scaled
+// up smoothly. The math lives in lib/soundscape/fractals.js.
+const FRACTAL_PIXELS = 240 * 240;
 export function createFractal() {
   const c = document.createElement("canvas");
-  c.width = 240;
-  c.height = 240;
-  return { canvas: c, ctx: c.getContext("2d"), img: null };
+  return { canvas: c, ctx: c.getContext("2d"), img: null, tone: null, bright: null, formula: null, program: null };
 }
 
-export function drawFractal(g, w, h, fr, t, hue, presence = 1, render = true) {
-  if (render || !fr.img) renderFractal(fr, t, hue, presence);
-  const side = Math.max(w, h);
+export function drawFractal(g, w, h, fr, t, hue, settings, render = true) {
+  if (render || !fr.img) renderFractal(fr, w / h, t, hue, settings);
   g.imageSmoothingEnabled = true;
   g.imageSmoothingQuality = "high";
-  g.filter = `blur(${Math.max(1, side / 400)}px)`;
+  g.filter = `blur(${Math.max(1, Math.max(w, h) / 400)}px)`;
   g.globalAlpha = 0.9;
-  g.drawImage(fr.canvas, (w - side) / 2, (h - side) / 2, side, side);
+  g.drawImage(fr.canvas, 0, 0, w, h);
   g.globalAlpha = 1;
   g.filter = "none";
 }
 
-function renderFractal(fr, t, hue, presence) {
-  const W = fr.canvas.width, H = fr.canvas.height;
-  if (!fr.img) fr.img = fr.ctx.createImageData(W, H);
-  const data = fr.img.data;
-  // c walks just outside the edge of the Mandelbrot set's main cardioid
-  // (c = ½e^iθ − ¼e^2iθ), where every Julia set is connected and
-  // intricate. One lap ≈ 8.7 minutes.
-  const th = 1.9 + t * 0.012;
-  const cr = 1.02 * (0.5 * Math.cos(th) - 0.25 * Math.cos(2 * th));
-  const ci = 1.02 * (0.5 * Math.sin(th) - 0.25 * Math.sin(2 * th));
-  const zoom = 1.55 - 0.08 * presence;
-  const rot = t * 0.01;
-  const cosR = Math.cos(rot), sinR = Math.sin(rot);
-  const MAX = 48;
-  // A small palette: the theme colour, drifting 70° round the colour wheel
-  // as points get closer to the edge.
-  if (!fr.palette || fr.paletteHue !== hue) {
-    fr.palette = Array.from({ length: 65 }, (_, i) => hslToRgb(hue + 70 * (i / 64), 0.6, 0.62));
-    fr.paletteHue = hue;
+function renderFractal(fr, aspect, t, hue, settings) {
+  const f = clampFractal(settings);
+  // A formula is costlier per point than the built-in kinds: fewer points.
+  const budget = f.kind === "custom" ? FRACTAL_PIXELS * 0.6 : FRACTAL_PIXELS;
+  const W = Math.max(40, Math.round(Math.sqrt(budget * aspect)));
+  const H = Math.max(40, Math.round(budget / W));
+  if (fr.canvas.width !== W || fr.canvas.height !== H || !fr.img) {
+    fr.canvas.width = W;
+    fr.canvas.height = H;
+    fr.img = fr.ctx.createImageData(W, H);
+    fr.tone = new Float32Array(W * H);
+    fr.bright = new Float32Array(W * H);
   }
-  for (let j = 0; j < H; j++) {
-    for (let i = 0; i < W; i++) {
-      const u = ((i / W) * 2 - 1) * zoom, v = ((j / H) * 2 - 1) * zoom;
-      let zr = u * cosR - v * sinR, zi = u * sinR + v * cosR;
-      let n = 0;
-      while (n < MAX && zr * zr + zi * zi < 4) {
-        const nr = zr * zr - zi * zi + cr;
-        zi = 2 * zr * zi + ci;
-        zr = nr;
-        n++;
-      }
-      // Smooth (fractional) escape count, so bands blend instead of stepping.
-      let k = n;
-      if (n < MAX) k = n + 1 - Math.log2(Math.log2(zr * zr + zi * zi) / 2 || 1);
-      // The set itself is a dark silhouette; points that escape slowly (near
-      // its edge) glow, fading out with distance.
-      const f = n >= MAX ? 0 : Math.min(1, k / MAX) ** 0.55;
-      const b = n >= MAX ? 0.1 : 0.06 + 0.94 * f;
-      const idx = (j * W + i) * 4;
-      const [r0, g0, b0] = fr.palette[Math.round(f * 64)];
-      data[idx] = r0 * b; data[idx + 1] = g0 * b; data[idx + 2] = b0 * b; data[idx + 3] = 255;
+  let program = null;
+  if (f.kind === "custom") {
+    if (fr.formula !== f.formula) {
+      const res = compileFormula(f.formula);
+      fr.formula = f.formula;
+      fr.program = res.ok ? res.program : null;
     }
+    program = fr.program;
+    // A formula that doesn't compile shows the plain z² + c meanwhile.
+    if (!program) f.kind = "julia";
+  }
+  renderFractalField(f, t, W, H, fr.tone, fr.bright, program);
+  // The theme colour, drifting `spread` degrees round the colour wheel.
+  if (!fr.palette || fr.paletteHue !== hue || fr.paletteSpread !== f.spread) {
+    fr.palette = Array.from({ length: 65 }, (_, i) => hslToRgb(hue + f.spread * (i / 64), 0.6, 0.62));
+    fr.paletteHue = hue;
+    fr.paletteSpread = f.spread;
+  }
+  const data = fr.img.data;
+  for (let i = 0; i < W * H; i++) {
+    const [r0, g0, b0] = fr.palette[Math.round(fr.tone[i] * 64)];
+    const b = fr.bright[i];
+    const idx = i * 4;
+    data[idx] = r0 * b; data[idx + 1] = g0 * b; data[idx + 2] = b0 * b; data[idx + 3] = 255;
   }
   fr.ctx.putImageData(fr.img, 0, 0);
 }

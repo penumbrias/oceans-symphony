@@ -13,7 +13,7 @@ import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
 // a timed session ends, focus closes by itself and anything
 // distraction-free switched on is switched back off.
 
-export default function SoundscapeFocus({ params, timer, focus, visual = "calm", starSpeed = "cruise", onExit }) {
+export default function SoundscapeFocus({ params, timer, focus, visual = "calm", starSpeed = "cruise", fractal = null, onExit }) {
   const state = useSoundscapeState();
   const remaining = useRemaining(state.endsAt);
   const [showControls, setShowControls] = useState(true);
@@ -83,7 +83,7 @@ export default function SoundscapeFocus({ params, timer, focus, visual = "calm",
     >
       {focus.mode !== "breathing" && (
         <div className="absolute inset-0">
-          <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} />
+          <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} fractal={fractal} />
         </div>
       )}
       {focus.mode !== "visuals" && (

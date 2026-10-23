@@ -172,8 +172,10 @@ const N = 96; // points across the frequency range
 
 export const STAR_SPEEDS = { drift: 0.08, cruise: 0.22, warp: 0.55 };
 
-export default function SoundscapeVisualizer({ params, variant = "spectrum", detail = "calm", starSpeed = "cruise", className = "", style }) {
+export default function SoundscapeVisualizer({ params, variant = "spectrum", detail = "calm", starSpeed = "cruise", fractal: fractalSettings = null, clockRef = null, className = "", style }) {
   const canvasRef = useRef(null);
+  const fractalRef = useRef(fractalSettings);
+  fractalRef.current = fractalSettings;
   const paramsRef = useRef(params);
   paramsRef.current = params;
   const starSpeedRef = useRef(starSpeed);
@@ -196,6 +198,7 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
     const stars = detail === "stars" ? createStars() : null;
     const fractal = detail === "fractal" ? createFractal() : null;
     let fractalAt = 0;
+    let fractalT = 0; // the fractal's own clock: seconds × its speed
     let prevNow = 0;
     let hue = 210;
 
@@ -277,9 +280,14 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
       }
       if (fractal) {
         // Re-rendered ~10 times a second; the shape moves far slower than that.
-        const due = now - fractalAt > (reduce ? 400 : 100);
+        const fs = fractalRef.current || {};
+        fractalT += dt * (Number.isFinite(fs.speed) ? fs.speed : 1) * (reduce ? 0.3 : 1);
+        if (clockRef) clockRef.current = fractalT;
+        const due = now - fractalAt > (reduce ? 400 : fs.kind === "custom" ? 160 : 100);
         if (due) fractalAt = now;
-        drawFractal(g, w, h, fractal, (reduce ? 0.3 : 1) * now / 1000, hue, presence, due);
+        // The sound's presence breathes the zoom a touch.
+        const zoom = (Number.isFinite(fs.zoom) ? fs.zoom : 1) * (0.97 + 0.05 * presence);
+        drawFractal(g, w, h, fractal, fractalT, hue, { ...fs, zoom }, due);
         return;
       }
       if (detail === "layers") {
