@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 23, 2026",
     changes: [
+      { type: "feature", text: "Support: new Scratch pad. Draw a line of particles, let go, and pick a ruleset (or tune each rule) to watch them swirl, gather, orbit or fall." },
       { type: "feature", text: "Soundscape: Shape the sound is now a synth-style panel with knobs, and you can drag the visual's window taller or shorter." },
       { type: "feature", text: "Soundscape Fractal: choose Julia, Mandelbrot, Newton or Phoenix, turn their numbers, or type your own formula, with presets to start from." },
       { type: "fix", text: "Soundscape: the fractal is no longer cut off in portrait focus mode." },
