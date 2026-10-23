@@ -12,6 +12,7 @@ import BreathingTechniquePicker from "@/components/grounding/BreathingTechniqueP
 import QuickSupportRing from "@/components/grounding/QuickSupportRing";
 import SoundscapeView from "@/components/grounding/soundscape/SoundscapeView";
 import SoundscapeMiniBar from "@/components/grounding/soundscape/SoundscapeMiniBar";
+import ScratchPadView from "@/components/grounding/scratchpad/ScratchPadView";
 import { stopSoundscape } from "@/lib/soundscape/engine";
 import { stopDistractionFree, isFocusQuiet } from "@/lib/soundscape/focusMode";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
@@ -323,6 +324,12 @@ export default function Grounding({ initialPath = null }) {
 
   if (path === "soundscape") {
     return <SoundscapeView onBack={() => setPath("entry")} />;
+  }
+
+  // The scratch pad keeps the Soundscape bar, so a sound can play on
+  // while drawing.
+  if (path === "scratchpad") {
+    return wrap(<ScratchPadView onBack={() => setPath("entry")} />);
   }
 
   if (path === "guided" && selectedTechnique) {
@@ -662,6 +669,18 @@ export default function Grounding({ initialPath = null }) {
             <div>
               <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Soundscape</p>
               <p className="text-xs text-muted-foreground mt-0.5">Brown noise, rain, wind and tones you can shape and watch</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
+          </button>
+
+          <button
+            data-tour="grounding-scratchpad"
+            onClick={() => setPath("scratchpad")}
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
+          >
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Scratch pad</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Draw a line of particles and watch simple rules move it</p>
             </div>
             <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>
