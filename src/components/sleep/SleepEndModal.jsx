@@ -11,6 +11,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZapOff, Cloud, AlarmClock, BookOpen, X } from "lucide-react";
+import { endSleep } from "@/lib/sleepEntry";
 
 // Finalize an in-progress sleep record. Mirrors the fields of
 // SleepLogModal but starts from an existing Sleep entity with
@@ -189,7 +190,6 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         setIsLoading(false);
         return;
       }
-      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
 
       // Dream journal entry (optional). Mirrors SleepLogModal's
       // create-time behaviour so finalized sleeps look the same as
@@ -217,8 +217,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         }
       }
 
-      await base44.entities.Sleep.update(sleep.id, {
-        wake_time: wakeTimeISO,
+      await endSleep(sleep, {
+        wakeTime: wakeTimeISO,
         quality: quality || null,
         notes: cleanNotes || null,
         author_alter_ids: prepared.authorIds,
@@ -230,45 +230,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         journal_entry_id: journalEntryId,
       });
 
+      // endSleep also mirrors the night into the planner (sleepEntry.js).
       await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: sleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
-      // Create the linked Activity row. Mirrors SleepLogModal — the
-      // Sleep entity is the source of truth, the Activity row is a
-      // cosmetic mirror so the sleep block shows up on the Activity
-      // Tracker's weekly grid. If the sleep already had a linked
-      // activity (e.g. from an earlier failed end attempt) update
-      // its duration instead.
-      try {
-        const categories = await base44.entities.ActivityCategory.list();
-        let sleepCat = categories.find(c => c.name?.toLowerCase() === "sleep");
-        if (!sleepCat) {
-          sleepCat = await base44.entities.ActivityCategory.create({ name: "sleep", color: "#6366f1" });
-        }
-        if (sleep.linked_activity_id) {
-          await base44.entities.Activity.update(sleep.linked_activity_id, {
-            timestamp: bedtimeISO,
-            duration_minutes: durationMinutes,
-            notes: cleanNotes || null,
-          });
-        } else {
-          const newAct = await base44.entities.Activity.create({
-            timestamp: bedtimeISO,
-            // Explicitly a LOG: without this the status is derived from the
-            // timestamp, and a bedtime that lands in the future (logging tonight's
-            // sleep, or a date slip) read as "scheduled" — the sleep then showed
-            // up as an unresolved PLAN on the Today widget (owner report).
-            status: "logged",
-            activity_name: "Sleep",
-            duration_minutes: durationMinutes,
-            activity_category_ids: [sleepCat.id],
-            color: sleepCat.color,
-            notes: cleanNotes || null,
-            source_sleep_id: sleep.id,
-          });
-          await base44.entities.Sleep.update(sleep.id, { linked_activity_id: newAct.id });
-        }
-      } catch (actErr) {
-        console.warn("Failed to mirror sleep into an Activity row", actErr);
-      }
 
       onSave?.();
     } catch (err) {

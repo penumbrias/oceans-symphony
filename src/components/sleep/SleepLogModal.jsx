@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZapOff, Cloud, AlarmClock, X, BookOpen } from "lucide-react";
+import { mirrorSleepActivity } from "@/lib/sleepEntry";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -167,13 +168,6 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       const dateStr = sleepDate || format(selectedDate || new Date(), "yyyy-MM-dd");
       const bedtimeISO = new Date(bedtime).toISOString();
       const wakeTimeISO = new Date(wakeTime).toISOString();
-      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
-
-      const categories = await base44.entities.ActivityCategory.list();
-      let sleepCat = categories.find(c => c.name?.toLowerCase() === "sleep");
-      if (!sleepCat) {
-        sleepCat = await base44.entities.ActivityCategory.create({ name: "sleep", color: "#6366f1" });
-      }
 
       // Create the dream JournalEntry FIRST (if applicable) so we can capture
       // its id and store it on the Sleep record. Two-way linkage means later
@@ -220,23 +214,8 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         journal_entry_id: journalEntryId,
       });
 
-      const newAct = await base44.entities.Activity.create({
-        timestamp: bedtimeISO,
-        // Explicitly a LOG: without this the status is derived from the
-        // timestamp, and a bedtime that lands in the future (logging tonight's
-        // sleep, or a date slip) read as "scheduled" — the sleep then showed
-        // up as an unresolved PLAN on the Today widget (owner report).
-        status: "logged",
-        activity_name: "Sleep",
-        duration_minutes: durationMinutes,
-        color: "#6366f1",
-        notes: cleanNotes || null,
-        activity_category_ids: [sleepCat.id],
-        source_sleep_id: newSleep.id,
-      });
-
-      // Two-way FK so either side can find the other on later edits.
-      await base44.entities.Sleep.update(newSleep.id, { linked_activity_id: newAct.id });
+      // The planner mirror (one logged "Sleep" activity, linked both ways).
+      await mirrorSleepActivity(newSleep, { bedtime: bedtimeISO, wakeTime: wakeTimeISO, notes: cleanNotes });
       await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: newSleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
 
       toast.success("Sleep logged!");

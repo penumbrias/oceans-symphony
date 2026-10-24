@@ -18,7 +18,6 @@
 import React from "react";
 import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
-import { prepareAuthoredText } from "@/lib/authoredText";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -47,7 +46,7 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
 import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
-import { saveMentions, saveStatusMentions, htmlToPlainText } from "@/lib/mentionUtils";
+import { saveMentions, htmlToPlainText } from "@/lib/mentionUtils";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
@@ -72,7 +71,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -111,6 +110,7 @@ import {
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
+import { startSleep } from "@/lib/sleepEntry";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // Compact "how long so far" — reads better than a clock time in a narrow
@@ -666,15 +666,9 @@ function StatusWidget() {
     if (!text || saving) return;
     setSaving(true);
     try {
-      // Same pipeline as the classic status card: inline ~commands run
-      // (plain-label tokens — statuses render as plain text).
-      const prepared = await prepareAuthoredText(text, { alters, whisper: false, chips: false, surfaceLabel: "status" });
-      if (prepared === null) { setSaving(false); return; }
-      const note = prepared.content;
-      const authorAlterId = prepared.authorIds[0] || null;
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
-      // @mentions notify like every other surface.
-      await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId });
+      // The one status save path, same as the status card.
+      const created = await saveStatusNote(text, { alters });
+      if (!created) { setSaving(false); return; }
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
@@ -1718,11 +1712,7 @@ function SleepControlWidget() {
     if (active) { setEnding(active); return; }
     setBusy(true);
     try {
-      // `date` is how the Sleep tracker files a record under a day —
-      // records without it are invisible there (owner bug, 2026-08-06).
-      const d = new Date();
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      await base44.entities.Sleep.create({ date: dateStr, bedtime: d.toISOString() });
+      await startSleep();
       qc.invalidateQueries({ queryKey: ["sleep"] });
     } finally { setBusy(false); }
   };

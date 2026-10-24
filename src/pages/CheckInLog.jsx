@@ -68,6 +68,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
 
 // User-controllable filter for what shows in the Check-In Log. Stored in
 // localStorage so the choice persists across sessions. All toggles default
@@ -1166,18 +1167,9 @@ function CustomNoteDialog({ open, onClose, alters }) {
     if (isNaN(t.getTime())) { toast.error("Pick a valid date & time"); return; }
     setSaving(true);
     try {
-      const prepared = await prepareAuthoredText(text, { alters, terms, whisper: false, chips: false, surfaceLabel: "status" });
-      if (prepared === null) { setSaving(false); return; }
-      const author = prepared.authorIds?.[0] || authorId || null;
-      const created = await base44.entities.StatusNote.create({
-        timestamp: t.toISOString(), note: prepared.content,
-        ...(author ? { author_alter_id: author } : {}),
-      });
-      try {
-        const { saveStatusMentions } = await import("@/lib/mentionUtils");
-        await saveStatusMentions({ note: prepared.content, alters, sourceId: created?.id, authorAlterId: author });
-        qc.invalidateQueries({ queryKey: ["mentionLogs"] });
-      } catch { /* mentions are best-effort */ }
+      const created = await saveStatusNote(text, { alters, terms, timestamp: t.toISOString(), authorAlterId: authorId || null });
+      if (!created) { setSaving(false); return; }
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success("Note added");
       onClose();
@@ -1222,8 +1214,9 @@ function CustomNoteDialog({ open, onClose, alters }) {
   );
 }
 
-function StatusNoteEntry({ sn }) {
+function StatusNoteEntry({ sn, alters = [] }) {
   const qc = useQueryClient();
+  const terms = useTerms();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sn.note || "");
   const [whenDraft, setWhenDraft] = useState(() => toLocalInput(sn.timestamp));
@@ -1237,14 +1230,16 @@ function StatusNoteEntry({ sn }) {
     if (!next) { toast.error("Status can't be empty"); return; }
     const t = new Date(whenDraft);
     if (isNaN(t.getTime())) { toast.error("Pick a valid date & time"); return; }
-    const patch = { note: next };
-    if (whenDraft !== toLocalInput(sn.timestamp)) patch.timestamp = t.toISOString();
+    const timestamp = whenDraft !== toLocalInput(sn.timestamp) ? t.toISOString() : undefined;
     setSaving(true);
     try {
-      await localEntities.StatusNote.update(sn.id, patch);
+      // Same grammar as a new status: ~commands, signposts, @mentions.
+      const saved = await updateStatusNote(sn, next, { alters, terms, timestamp });
+      if (!saved) return;
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       setEditing(false);
-    } catch (e) { toast.error(e.message || "Failed to save"); }
+    } catch (e) { toast.error(isLogCommandError(e) ? e.message : (e.message || "Failed to save")); }
     finally { setSaving(false); }
   };
 
@@ -1630,7 +1625,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
               return <LocationEntry key={`loc-${entry.data.id || i}`} loc={entry.data} />;
             }
             if (entry.kind === "status") {
-              return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} />;
+              return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} alters={Object.values(altersById || {})} />;
             }
             if (entry.kind === "per-alter") {
               return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;

@@ -34,7 +34,7 @@ import { emotionAttributionDefault, defaultEmotionAlterIds } from "@/lib/emotion
 import DiarySection, { hasDiaryData, extraDiaryGroups } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
-import { logEmotionCheckIn, logSymptomCheckIns } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIns, logLocation } from "@/lib/checkinEntry";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
@@ -1115,13 +1115,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
         }
         if (openSections.has("location") && (locationName.trim() || locationCategory)) {
-          await localEntities.Location.create({
+          await logLocation({
             timestamp: now,
-            name: locationName.trim() || getCategoryMeta(locationCategory).label,
-            category: locationCategory || "other",
-            latitude: locationLat ?? null,
-            longitude: locationLng ?? null,
-            source: locationLat != null ? "gps" : "manual",
+            name: locationName,
+            category: locationCategory,
+            lat: locationLat,
+            lng: locationLng,
           });
           queryClient.invalidateQueries({ queryKey: ["locations"] });
         }
@@ -1259,13 +1258,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
       // Location
       if (openSections.has("location") && (locationName.trim() || locationCategory)) {
-        await localEntities.Location.create({
+        await logLocation({
           timestamp: now,
-          name: locationName.trim() || getCategoryMeta(locationCategory).label,
-          category: locationCategory || "other",
-          latitude: locationLat ?? null,
-          longitude: locationLng ?? null,
-          source: locationLat != null ? "gps" : "manual",
+          name: locationName,
+          category: locationCategory,
+          lat: locationLat,
+          lng: locationLng,
         });
         queryClient.invalidateQueries({ queryKey: ["locations"] });
       }

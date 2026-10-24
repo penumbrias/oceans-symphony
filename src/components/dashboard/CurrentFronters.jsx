@@ -8,7 +8,6 @@ import {
   Check, Loader2, BookOpen
 } from "lucide-react";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
-import { saveStatusMentions } from "@/lib/mentionUtils";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
@@ -29,6 +28,7 @@ import { commitFrontLevel, useHoldDragLevel, FrontLevelRail, useFrontOptionsMenu
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
+import { saveStatusNote } from "@/lib/checkinEntry";
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -797,13 +797,10 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
     if (!note) { setEditingStatus(false); return; }
     setEditingStatus(false);
     setTempStatus("");
-    // Each save creates a NEW immutable timestamped record — never overwrites old ones
-    const created = await localEntities.StatusNote.create({
-      timestamp: new Date().toISOString(),
-      note,
-    });
-    // @mentions notify like every other surface.
-    await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId: primaryAlterId });
+    // The one status save path, so ~commands, signposts and @mentions work here too.
+    try {
+      if (!(await saveStatusNote(note, { alters, terms }))) return;
+    } catch (e) { toast.error(isLogCommandError(e) ? e.message : (e?.message || "Couldn't save")); setTempStatus(note); setEditingStatus(true); return; }
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     toast.success("Status saved");

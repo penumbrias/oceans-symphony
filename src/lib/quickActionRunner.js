@@ -12,8 +12,7 @@
 
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { base44, localEntities } from "@/api/base44Client";
-import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
+import { base44 } from "@/api/base44Client";
 import { toggleTemplateDone } from "@/lib/dailyTaskSystem";
 import { addActiveActivity } from "@/lib/activitySession";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -21,7 +20,8 @@ import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters"
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { startSymptomSession } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, saveStatusNote, logLocation } from "@/lib/checkinEntry";
+import { findSleepInProgress, startSleep, endSleep } from "@/lib/sleepEntry";
 
 const safe = (p) => Promise.resolve(p).then((v) => (Array.isArray(v) ? v : [])).catch(() => []);
 
@@ -171,15 +171,7 @@ export async function runQuickAction(action, extraData = {}, ctx) {
       return;
     }
     const { category, name, coords } = extraData;
-    const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);
-    await localEntities.Location.create({
-      timestamp: now,
-      name: name?.trim() || catMeta?.label || "Location",
-      category: category || "other",
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      source: coords ? "gps" : "manual",
-    });
+    await logLocation({ timestamp: now, name, category, lat: coords?.lat, lng: coords?.lng });
     queryClient.invalidateQueries({ queryKey: ["locations"] });
     toast.success("Location logged");
   } else if (action.type === "view_grocery_list") {
@@ -258,20 +250,15 @@ export async function runQuickAction(action, extraData = {}, ctx) {
     }
     queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
   } else if (action.type === "toggle_sleep") {
-    const sleepRecords = await base44.entities.Sleep.list();
-    const inProgress = [...sleepRecords]
-      .filter((s) => s.bedtime && !s.wake_time)
-      .sort((a, b) => new Date(b.bedtime) - new Date(a.bedtime))[0] || null;
+    const inProgress = await findSleepInProgress();
     if (inProgress) {
       // Minimal end — no quality/notes prompt (that's what SleepEndModal
-      // is for). Matches the "no picker, one tap" spirit of quick actions.
-      await base44.entities.Sleep.update(inProgress.id, { wake_time: now });
+      // is for). Same end path as the modal, so the night reaches the planner.
+      await endSleep(inProgress, { wakeTime: now });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       toast.success("😴 Sleep ended");
     } else {
-      await base44.entities.Sleep.create({
-        date: format(new Date(), "yyyy-MM-dd"),
-        bedtime: now,
-      });
+      await startSleep({ bedtime: now });
       toast.success("💤 Sleep started");
     }
     queryClient.invalidateQueries({ queryKey: ["sleep"] });
@@ -284,11 +271,10 @@ export async function runQuickAction(action, extraData = {}, ctx) {
     }
     const text = (extraData.text || "").trim();
     if (!text) return;
-    // StatusNote is an immutable log — always create, never update.
-    const createdStatus = await localEntities.StatusNote.create({ timestamp: now, note: text });
-    // @mentions notify like every other surface.
-    const { saveStatusMentions } = await import("@/lib/mentionUtils");
-    await saveStatusMentions({ note: text, alters, sourceId: createdStatus?.id, authorAlterId: currentAlterId });
+    // The one status save path, so ~commands, signposts and @mentions work here too.
+    try {
+      if (!(await saveStatusNote(text, { alters, terms, timestamp: now }))) return;
+    } catch (e) { toast.error(e?.message || "Couldn't post the status"); return; }
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     toast.success("Status posted");
