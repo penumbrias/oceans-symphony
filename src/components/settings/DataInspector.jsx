@@ -81,6 +81,14 @@ export default function DataInspector() {
     const cat = confirmCat;
     if (!cat) return;
     setConfirmCat(null);
+    // A whole-category wipe skips the trash, so the time lock refuses it.
+    try {
+      const { getTrashSettings } = await import("@/lib/trash");
+      if ((await getTrashSettings()).lock) {
+        toast.error("The trash time lock is on, so a whole category can't be wiped. Things deleted one at a time still go to the trash.");
+        return;
+      }
+    } catch { /* settings unreadable: fall through to the backup-first path */ }
     setBusyCatId(cat.id);
     try {
       // Non-skippable safety net: back up just this category BEFORE

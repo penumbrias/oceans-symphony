@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const TYPE_ICONS = {
   text: Type,
@@ -211,7 +212,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
   };
 
   const deleteField = async (field) => {
-    if (!(await confirm(`Delete custom field "${field.name}"? Per-alter values for this field will also be removed. This cannot be undone.`))) return;
+    if (!(await confirm(`Delete custom field "${field.name}"? It stops showing on profiles. ${TRASH_HINT}`))) return;
     await base44.entities.CustomField.delete(field.id);
     queryClient.invalidateQueries({ queryKey: ["customFields"] });
   };

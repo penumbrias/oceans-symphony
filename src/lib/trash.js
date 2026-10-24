@@ -103,7 +103,32 @@ export async function listTrash() {
 }
 
 export async function restoreFromTrash(items) {
-  return restoreTrashedRecords(items.map(({ entity, record, id }) => ({ entity, id: id || record?.id })));
+  const n = await restoreTrashedRecords(items.map(({ entity, record, id }) => ({ entity, id: id || record?.id })));
+  await relinkRestoredGroups(items);
+  return n;
+}
+
+// Deleting a group scrubs its chip off every member's `groups` (and the
+// boot-time prune does the same for a group sitting in the trash), but the
+// group keeps its own member list. Once it's back, write that membership to
+// both sides again so every screen shows the members. Best-effort.
+async function relinkRestoredGroups(items) {
+  const groupIds = items.filter((i) => i.entity === "Group").map((i) => i.id || i.record?.id).filter(Boolean);
+  if (!groupIds.length) return;
+  try {
+    const [{ setGroupMembers, currentMemberIds }, groups, alters] = await Promise.all([
+      import("@/lib/groupMembership"),
+      localEntities.Group.list(),
+      localEntities.Alter.list(),
+    ]);
+    for (const id of groupIds) {
+      const group = groups.find((g) => g.id === id);
+      if (!group) continue;
+      await setGroupMembers({ group, alterIds: currentMemberIds(group, alters) });
+    }
+  } catch (e) {
+    try { console.warn("[trash] group members not relinked:", e); } catch { /* ignore */ }
+  }
 }
 
 // Delete for good, now. Refuses anything the lock protects.

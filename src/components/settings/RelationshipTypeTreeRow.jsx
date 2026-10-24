@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { getChildTypes, MAX_TYPE_DEPTH } from "@/lib/relationshipTypes";
+import { TRASH_HINT_MANY } from "@/lib/trashSettings";
 
 /**
  * Recursive tree row for nestable relationship types. Mirrors
@@ -281,7 +282,7 @@ export default function RelationshipTypeTreeRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete relationship type?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{type.label}" and all its sub-types. Existing relationships already saved with these labels keep their text, but the labels will no longer appear as pickable types. This cannot be undone.
+              This will delete "{type.label}" and all its sub-types. Existing relationships already saved with these labels keep their text, but the labels will no longer appear as pickable types. {TRASH_HINT_MANY}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-2 justify-end">

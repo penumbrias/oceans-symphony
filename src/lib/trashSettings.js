@@ -61,3 +61,7 @@ export function changeTrashSettings(raw, want, now = Date.now()) {
     : null;
   return { days: next.days, lock: next.lock, pending };
 }
+
+// What a delete confirm says instead of "This can't be undone".
+export const TRASH_HINT = "You can put it back from the trash in Recent Changes.";
+export const TRASH_HINT_MANY = "You can put them back from the trash in Recent Changes.";

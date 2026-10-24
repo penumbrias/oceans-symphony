@@ -16,6 +16,7 @@ import GroupMembersModal from "./GroupMembersModal";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import { MAX_GROUP_DEPTH, byGroupOrder } from "@/lib/groupTreeUtils";
+import { TRASH_HINT_MANY } from "@/lib/trashSettings";
 
 export default function GroupTreeRow({
   group,
@@ -361,7 +362,7 @@ export default function GroupTreeRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Group?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{group.name}" and all its subgroups. This action cannot be undone.
+              This will delete "{group.name}" and all its subgroups. {TRASH_HINT_MANY}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-2 justify-end">

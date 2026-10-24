@@ -28,6 +28,7 @@ import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import { parsePreferences } from "@/lib/alterPreferences";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { useNavigate } from "react-router-dom";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 // Profile-style custom_field keys — shared with the profile renderer
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
@@ -299,7 +300,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   };
 
   const handleDelete = async () => {
-    if (!(await confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`))) return;
+    if (!(await confirm(`Delete ${alter?.name}? ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
       // The avatar picture is NOT deleted with the record: a deleted alter

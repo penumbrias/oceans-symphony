@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { getChildren, MAX_RENDER_DEPTH } from "@/lib/categoryTreeUtils";
+import { TRASH_HINT_MANY } from "@/lib/trashSettings";
 
 export default function ActivityTreeRow({
   category,
@@ -275,7 +276,7 @@ export default function ActivityTreeRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Activity?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{category.name}" and all its sub-activities. This cannot be undone.
+              This will delete "{category.name}" and all its sub-activities. {TRASH_HINT_MANY}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-2 justify-end">

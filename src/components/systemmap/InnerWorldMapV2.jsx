@@ -41,6 +41,7 @@ import LocationNode from "./LocationNode";
 import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
+import { TRASH_HINT_MANY } from "@/lib/trashSettings";
 
 const SNAP = 20;
 const NODE_RADIUS = 28;
@@ -672,7 +673,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <>
                 <button onClick={async () => { const n = await promptText({ title: "Rename map", defaultValue: activeMap.name }); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
                 {maps.length > 1 && (
-                  <button onClick={async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`))) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? ${TRASH_HINT_MANY}`))) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
                 )}
               </>
             )}

@@ -37,6 +37,7 @@ import MarkdownText from "@/components/shared/MarkdownText";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -325,7 +326,7 @@ useEffect(() => {
   };
 
   const handleDelete = async () => {
-    if (!(await confirm(`Permanently delete ${alter?.name}? This cannot be undone.`))) return;
+    if (!(await confirm(`Delete ${alter?.name}? ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
       await base44.entities.Alter.delete(alter.id);
