@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { RotateCcw, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { restorePatchFrom, applyAppTheme } from "@/lib/setupPacks";
+import { writeSettingsWithBoards } from "@/lib/boardWriter";
 
 const MARK_KEY = "symphony_pack_trial_v1";
 
@@ -54,7 +55,9 @@ export default function PackRestoreBar() {
     if (!settingsRow?.id || !point) { clear(); return; }
     try {
       const patch = restorePatchFrom(point);
-      if (patch) await base44.entities.SystemSettings.update(settingsRow.id, patch);
+      // An undo is an edit too: stamped, so the other device's copy of
+      // the imported layout can't win the next sync.
+      if (patch) await writeSettingsWithBoards(settingsRow, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       applyAppTheme(point.appTheme);
       clear();

@@ -10,6 +10,7 @@ import { LayoutGrid, Pencil } from "lucide-react";
 import { CLASSIC_TO_V2_WIDGET } from "@/lib/widgetRegistry";
 import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
 import { seedClassicHome } from "@/components/dashboard/ClassicHomeCanvas";
+import { writeBoard } from "@/lib/boardWriter";
 import { newInstanceId, newPageId } from "@/lib/experimentalHome";
 import { DEFAULT_LAYOUT } from "@/lib/dashboardLayout";
 import { toast } from "sonner";
@@ -145,13 +146,15 @@ export function HomeScreenResetDialog({ open, onClose }) {
             })
             .filter(Boolean),
         }));
-        await base44.entities.SystemSettings.update(record.id, {
-          [boardField]: { ...board, pages: [...(Array.isArray(board.pages) ? board.pages : []), ...copies] },
+        // Through the board writer, stamped against the board as it is now
+        // (v0.277.0), so the saved copy reaches the other device too.
+        await writeBoard(record, boardField, (cur) => {
+          const base = cur && typeof cur === "object" ? cur : board;
+          return { ...base, pages: [...(Array.isArray(base.pages) ? base.pages : []), ...copies] };
         });
       }
-      await base44.entities.SystemSettings.update(record.id, {
-        classic_home: seedClassicHome(null),
-        dashboard_layout: DEFAULT_LAYOUT.map((e) => ({ ...e })),
+      await writeBoard(record, "classic_home", seedClassicHome(null), {
+        extra: { dashboard_layout: DEFAULT_LAYOUT.map((e) => ({ ...e })) },
       });
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
       try { window.dispatchEvent(new CustomEvent("dashboard-layout-changed")); } catch { /* ignore */ }

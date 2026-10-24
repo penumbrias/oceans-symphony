@@ -711,15 +711,19 @@ export default function AssetsLibrary() {
     return uses;
   };
 
-  // Remove one library item: its library record(s), then the stored file —
-  // but ONLY when nothing else still uses that file (another library or
-  // pool row, an avatar, a background, a message, another system…). A
-  // file that's still used is kept so nothing that shows it breaks.
-  // Returns { keptFile }.
+  // Remove one library item. With library record(s), those go to the
+  // trash and the stored file stays, so it can be put back; the trash
+  // removes the file later, once nothing uses it. A file with no record
+  // (only in the picture store) is deleted now, but ONLY when nothing else
+  // still uses it (another library or pool row, an avatar, a background,
+  // a message, another system…). Returns { keptFile, trashed }.
   const removeStored = async (item) => {
     const lid = storedIdFor(item);
     const rows = rowsToRemove(item);
-    for (const a of rows) await base44.entities.ImageAsset.delete(a.id);
+    if (rows.length) {
+      for (const a of rows) await base44.entities.ImageAsset.delete(a.id);
+      return { keptFile: false, trashed: true };
+    }
     if (!lid) return { keptFile: false };
     const { deleted } = await deleteLocalImageIfUnused(lid, { deletedRecords: rows.map((a) => ({ entity: "ImageAsset", id: a.id })) });
     return { keptFile: !deleted };
@@ -733,15 +737,18 @@ export default function AssetsLibrary() {
       title: `Delete “${item.name}”?`,
       body: where
         ? `This ${word} is still used in ${where}, so it stays stored on this device for those — only this library entry is removed.`
-        : `This permanently removes the ${word} from this device. This can't be undone — save it to the device first if you want a copy.`,
+        : rowsToRemove(item).length
+          ? `This moves the ${word} to the trash. You can put it back from Settings → Trash until the trash empties.`
+          : `This permanently removes the ${word} from this device. This can't be undone — save it to the device first if you want a copy.`,
       confirmLabel: "Delete", destructive: true,
     });
     if (!ok) return;
     try {
-      const { keptFile } = await removeStored(item);
+      const { keptFile, trashed } = await removeStored(item);
       qc.invalidateQueries({ queryKey: ["imageAssets"] });
       await loadImages();
-      if (keptFile) toast.success(`Removed from the library — the ${word} is kept because it's still used elsewhere`);
+      if (trashed) toast.success("Moved to the trash");
+      else if (keptFile) toast.success(`Removed from the library — the ${word} is kept because it's still used elsewhere`);
       else toast.success("Deleted");
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };

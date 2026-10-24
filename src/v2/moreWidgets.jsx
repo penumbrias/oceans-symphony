@@ -32,6 +32,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
+import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
 import { CURRICULUM } from "@/components/support/TopicView";
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -453,6 +454,7 @@ export function ChatChannelsWidget({ mode = "normal", settings }) {
 // Tap runs the technique right here, in the app's own guided view.
 export function GroundingWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const techniques = useList("groundingTechniques", "GroundingTechnique");
   const prefs = useList("groundingPreferences", "GroundingPreference");
   const alters = useList("alters", "Alter");
@@ -509,6 +511,11 @@ export function GroundingWidget({ mode = "normal", settings }) {
                 alters={sortAlters(alters.filter((a) => !a.is_archived))}
                 onBack={() => setRunning(null)}
                 backLabel="Close"
+                // Built-in placeholders (Support page not visited yet) have
+                // no stored row to hang a rating or note on.
+                {...(String(running.id).startsWith("default-") ? {} : groundingPreferenceHandlers(
+                  () => qc.invalidateQueries({ queryKey: ["groundingPreferences"] })
+                ))}
               />
             )}
           </div>

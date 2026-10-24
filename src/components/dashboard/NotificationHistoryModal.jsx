@@ -3,7 +3,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
-import { Bell, Trash2, Loader2 } from "lucide-react";
+import { Bell, EyeOff, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -21,10 +21,16 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     enabled: open,
   });
 
+  const [showCleared, setShowCleared] = useState(false);
+
   // Filter out authored self-logs; also skip entries with no identifiable recipient
-  const mentionLogs = rawLogs.filter(
+  const allMentionLogs = rawLogs.filter(
     (m) => m.log_type !== "authored" && (m.mentioned_alter_id || m.alter_id)
   );
+  // "Clear all" hides from this list; it never deletes (the rows are also
+  // what @mention history and "who wrote this" read).
+  const clearedCount = allMentionLogs.filter((m) => m.history_cleared_at).length;
+  const mentionLogs = showCleared ? allMentionLogs : allMentionLogs.filter((m) => !m.history_cleared_at);
 
   useEffect(() => {
     if (!open) { setVisibleCount(PAGE_SIZE); return; }
@@ -36,15 +42,26 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
   }, [open, mentionLogs.length]);
 
   const handleClearAll = async () => {
-    const n = rawLogs.length;
-    if (!(await confirm({ title: "Clear all notifications?", body: `${n} notification${n === 1 ? "" : "s"} will be permanently removed from the history.`, confirmLabel: "Clear all", destructive: true }))) return;
+    const targets = allMentionLogs.filter((m) => !m.history_cleared_at);
+    const n = targets.length;
+    if (!n) return;
+    if (!(await confirm({ title: "Clear all notifications?", body: `${n} notification${n === 1 ? "" : "s"} will be hidden from this list and marked as seen. Nothing is deleted, and "Show cleared" brings them back.`, confirmLabel: "Clear all" }))) return;
     setClearing(true);
+    const now = new Date().toISOString();
     try {
       await Promise.all(
-        rawLogs.map(m =>
-          base44.entities.MentionLog.delete(m.id).catch(() => null)
-        )
+        targets.map((m) => {
+          const patch = { history_cleared_at: now };
+          if (m.mentioned_alter_id) {
+            const by = m.dismissed_by_alter_ids || [];
+            if (!by.includes(m.mentioned_alter_id)) patch.dismissed_by_alter_ids = [...by, m.mentioned_alter_id];
+          } else {
+            patch.is_read = true;
+          }
+          return base44.entities.MentionLog.update(m.id, patch).catch(() => null);
+        })
       );
+      setShowCleared(false);
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     } finally {
       setClearing(false);
@@ -80,22 +97,32 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
               <Bell className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="truncate">Notification History</span>
             </DialogTitle>
-            {rawLogs.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                disabled={clearing}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 flex-shrink-0"
-                title="Delete all notification history"
-              >
-                {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                Clear all
-              </button>
-            )}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {clearedCount > 0 && (
+                <button
+                  onClick={() => setShowCleared((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showCleared ? "Hide cleared" : `Show cleared (${clearedCount})`}
+                </button>
+              )}
+              {allMentionLogs.length > clearedCount && (
+                <button
+                  onClick={handleClearAll}
+                  disabled={clearing}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  title="Hide everything here and mark it seen"
+                >
+                  {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-2 mt-2">
           {mentionLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No mentions yet</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{clearedCount > 0 ? "All caught up" : "No mentions yet"}</p>
           )}
           {mentionLogs.slice(0, visibleCount).map((m) => {
             // Graceful fallbacks for legacy notifications created with wrong field names

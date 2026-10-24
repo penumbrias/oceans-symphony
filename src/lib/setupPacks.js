@@ -271,7 +271,10 @@ export function packLooksSafe(pack) {
 // ONE implementation for the import sheet AND the Presets section's
 // saved-pack rows (rule: reuse, don't fork). Layout lands as NEW pages,
 // styles merge by label (clashes skipped), uiTheme REPLACES ui_v2.
-export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow, imageMap = null }) {
+// `homeField`: the board the sheet was opened on — the home screen
+// (classic_home) or the widget board (ui_v2_home). v0.277.0: packs always
+// landed on the widget board, even when imported from the home screen.
+export function buildApplyPatch({ pack, which = {}, savePreset = false, settingsRow, imageMap = null, homeField = "ui_v2_home" }) {
   // Images arrived in the archive and were saved to this device first;
   // every pack-image:// reference becomes that local picture here.
   const t = imageMap && Object.keys(imageMap).length
@@ -306,7 +309,7 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     }
   }
   if (which.layout && t.layout) {
-    const cur = JSON.parse(JSON.stringify(settingsRow?.ui_v2_home || {}));
+    const cur = JSON.parse(JSON.stringify(settingsRow?.[homeField] || {}));
     if (!Array.isArray(cur.pages)) cur.pages = [];
     // Placement (owner spec): "new" appends the pack's pages as NEW pages
     // (the safe default); "merge" pours the widgets into the current page
@@ -436,7 +439,7 @@ export function buildApplyPatch({ pack, which = {}, savePreset = false, settings
     if (t.layout.wallpaper?.url && !which.stripLayoutLook) {
       cur.wallpaper = { ...(cur.wallpaper || {}), url: t.layout.wallpaper.url };
     }
-    patch.ui_v2_home = cur;
+    patch[homeField] = cur;
   }
   if (which.uiTheme && t.uiTheme) {
     const cur = settingsRow?.ui_v2 || {};
@@ -627,11 +630,15 @@ export function filterUiThemeParts(uiTheme = {}, parts) {
 // restore point holds exactly those personal references, so it must
 // never sit in the shareable packs list where it could be sent to
 // someone. It lives in its own field, ui_v2_restore_point.
-export function buildRestorePoint({ settingsRow, appTheme, title = "import" }) {
+export function buildRestorePoint({ settingsRow, appTheme, title = "import", homeField = "ui_v2_home" }) {
+  const copy = (v) => (v ? JSON.parse(JSON.stringify(v)) : null);
   return {
     title: `Before ${title}`,
     created: new Date().toISOString(),
-    ui_v2_home: settingsRow?.ui_v2_home ? JSON.parse(JSON.stringify(settingsRow.ui_v2_home)) : null,
+    homeField,
+    // Both boards, so putting it back can't miss whichever one changed.
+    ui_v2_home: copy(settingsRow?.ui_v2_home),
+    classic_home: copy(settingsRow?.classic_home),
     ui_v2_styles: Array.isArray(settingsRow?.ui_v2_styles) ? JSON.parse(JSON.stringify(settingsRow.ui_v2_styles)) : [],
     ui_v2: settingsRow?.ui_v2 ? JSON.parse(JSON.stringify(settingsRow.ui_v2)) : null,
     appTheme: appTheme ? { ...appTheme } : null,
@@ -644,6 +651,7 @@ export function restorePatchFrom(point) {
   if (!point) return null;
   const patch = {};
   if (point.ui_v2_home) patch.ui_v2_home = point.ui_v2_home;
+  if (point.classic_home) patch.classic_home = point.classic_home;
   // Restore points from before one-board-per-device (v0.248.0) may hold a
   // separate desktop board; on a wide screen that's the one that was shown.
   if (point.ui_v2_home_desktop && isWideScreen()) patch.ui_v2_home = point.ui_v2_home_desktop;

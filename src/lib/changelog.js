@@ -20,6 +20,15 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "feature", text: "Deleting something now moves it to a trash at the top of Recent Changes, where you can put it back for 30 days (or however long you choose)." },
+      { type: "feature", text: "Trash time lock: switch it on and protected things can't be deleted early, and turning it off only takes effect after the current window." },
+      { type: "fix", text: "Backup warnings, critical plans, reminders and mentions now show inside the home screen, the same way as on the widget board, and never twice." },
+      { type: "fix", text: "Notes and ratings on a grounding technique opened from the home-screen widget are saved now." },
+      { type: "fix", text: "Notification history's Clear all hides notifications instead of deleting them, and Show cleared brings them back." },
+      { type: "fix", text: "One widget with bad data can no longer blank the whole home screen." },
+      { type: "improve", text: "The \"Expected your data to be here?\" row can be hidden; it comes back by itself if your data ever goes missing later." },
+      { type: "fix", text: "Home screen background, widget style, presets, undo and setup packs now change the home screen you're on, and those changes are no longer undone by the next device sync." },
+      { type: "fix", text: "The home screen no longer gets re-tidied after the app's storage is cleared, and widgets from a newer version are kept instead of dropped." },
       { type: "improve", text: "Tapping an activity in a home-screen widget opens the same details as the planner, and Edit opens the activity sheet right there." },
       { type: "improve", text: "Quick check-in: give each activity's length by duration or end time, like every other activity sheet." },
     ],

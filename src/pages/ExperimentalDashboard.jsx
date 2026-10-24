@@ -18,6 +18,7 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
 import UndoRedoButtons, { markMachineWrite } from "@/components/v2/UndoRedoHistory";
@@ -74,6 +75,7 @@ import { DOCK_KEY } from "@/components/v2/V2Frame";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
+import { BoardFieldContext } from "@/lib/boardWriter";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -523,13 +525,24 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           const css = [extra, own].filter(Boolean).join("\n");
           return css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null;
         })()}
-        {def.render({
-          mode,
-          settings: widget.settings || {},
-          instanceId: widget.instanceId,
-          api,
-          updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
-        })}
+        {/* One widget's bad data can only take down that widget, never
+            the whole home page (a malformed running activity once did). */}
+        <ErrorBoundary
+          resetKeys={[widget.settings]}
+          fallback={(err, retry) => (
+            <div className="p-2 text-[0.75em] text-muted-foreground">
+              This widget couldn't show. Nothing was lost.
+              <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
+            </div>
+          )}>
+          {def.render({
+            mode,
+            settings: widget.settings || {},
+            instanceId: widget.instanceId,
+            api,
+            updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
+          })}
+        </ErrorBoundary>
         </div>
       </div>
 
@@ -812,6 +825,7 @@ export default function ExperimentalDashboard({
     { cols: 6, rowPx: 60, label: "6 across" }, { cols: 8, rowPx: 40, label: "8 across" },
   ];
   const setDensity = (d) => {
+    const home = boardRef.current.board; // newest board, never the render copy
     const oldCols = home.grid?.phoneCols || 4, oldRow = rowPx;
     const fx = d.cols / oldCols, fy = oldRow / d.rowPx;
     const scaleW = (w) => ({
@@ -819,7 +833,7 @@ export default function ExperimentalDashboard({
       span: { cols: Math.max(1, Math.round((w.span?.cols || 1) * fx)), rows: Math.max(1, Math.round((w.span?.rows || 1) * fy)) },
       pos: w.pos ? { x: Math.round((w.pos.x || 0) * fx), y: Math.round((w.pos.y || 0) * fy) } : w.pos,
     });
-    persist({ ...home, grid: { phoneCols: d.cols, rowPx: d.rowPx }, pages: home.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
+    persist({ ...boardRef.current.board, grid: { phoneCols: d.cols, rowPx: d.rowPx }, pages: boardRef.current.board.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
   };
 
   const goToPage = useCallback((idx) => {
@@ -871,7 +885,11 @@ export default function ExperimentalDashboard({
       if (settingsRow?.id) {
         await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
       } else {
-        await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
+        // No row in hand yet: look again before creating, so a slow first
+        // load can't leave a second settings record behind.
+        const existing = (await base44.entities.SystemSettings.list())[0];
+        if (existing?.id) await base44.entities.SystemSettings.update(existing.id, { [settingsField]: nextHome });
+        else await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
       }
       if (opts.undoLabel) {
         undoRef.current = previous;
@@ -922,6 +940,7 @@ export default function ExperimentalDashboard({
 
   // ── Edit operations ────────────────────────────────────────────
   const handleRemove = (instanceId) => {
+    const home = boardRef.current.board; // newest board, never the render copy
     const gone = widgets.find((w) => w.instanceId === instanceId);
     const label = gone ? widgetLabel(registry[gone.widgetId], t) : "Widget";
     persist({
@@ -1004,6 +1023,7 @@ export default function ExperimentalDashboard({
   const [pickLookFrom, setPickLookFrom] = useState(null);   // instanceId
   const [pickLookIds, setPickLookIds] = useState([]);       // chosen targets
   const applyLookTo = (sourceId, targetIds) => {
+    const home = boardRef.current.board; // newest board, never the render copy
     const source = home.pages.flatMap((p) => p.widgets).find((w) => w.instanceId === sourceId);
     if (!source) return;
     // The style REFERENCE has to travel with the explicit keys. Most of a
@@ -1058,9 +1078,9 @@ export default function ExperimentalDashboard({
     );
   // Address this page to specific alters (empty = everyone sees it).
   const setPageShowAs = (v) =>
-    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, showAs: v } : p)) });
+    persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, showAs: v } : p)) });
   const setPageAudience = (ids) =>
-    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, visibleTo: ids } : p)) });
+    persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, visibleTo: ids } : p)) });
   const handleMove = (instanceId, dir) =>
     updatePageWidgets((ws) => {
       const i = ws.findIndex((w) => w.instanceId === instanceId);
@@ -1120,7 +1140,7 @@ export default function ExperimentalDashboard({
     setEditMode(true);
   };
 
-  const setWallpaper = (url) => persist({ ...home, wallpaper: { url: url || "" } });
+  const setWallpaper = (url) => persist({ ...boardRef.current.board, wallpaper: { url: url || "" } });
   // Route the shared AssetPickerModal's selection to whatever asked for it.
   const handleAssetSelected = (url) => {
     if (assetPickerFor === "wallpaper") setWallpaper(url);
@@ -1132,14 +1152,14 @@ export default function ExperimentalDashboard({
   // ── Page operations (Phase 2) ──────────────────────────────────
   const handleAddPage = () => {
     const id = newPageId();
-    persist({ ...home, pages: [...home.pages, { id, label: `Page ${home.pages.length + 1}`, layoutMode: "free", widgets: [] }] });
+    persist({ ...boardRef.current.board, pages: [...boardRef.current.board.pages, { id, label: `Page ${boardRef.current.board.pages.length + 1}`, layoutMode: "free", widgets: [] }] });
     setSwipeDir(1);
     setActivePageId(id);
   };
   const handleRenamePage = (label) => {
-    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, label } : p)) });
+    persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, label } : p)) });
   };
-  const handleSetDefaultPage = () => persist({ ...home, defaultPageId: page.id });
+  const handleSetDefaultPage = () => persist({ ...boardRef.current.board, defaultPageId: page.id });
   // "Overwrite as homescreen" (classic-hosted boards only, i.e. when
   // onExitLeft exists): the app opens on THIS page and the Home button
   // lands here instead of the classic home. Off = the classic home
@@ -1149,7 +1169,7 @@ export default function ExperimentalDashboard({
   const toggleHomeOverride = async () => {
     try {
       if (!homeOverrideOn && home.defaultPageId !== page.id) {
-        await persist({ ...home, defaultPageId: page.id });
+        await persist({ ...boardRef.current.board, defaultPageId: page.id });
       }
       const nextUi = { ...(settingsRow?.ui_v2 || {}), homeDefault: homeOverrideOn ? "classic" : "board" };
       if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: nextUi });
@@ -1163,6 +1183,7 @@ export default function ExperimentalDashboard({
     }
   };
   const handleDeletePage = () => {
+    const home = boardRef.current.board; // newest board, never the render copy
     if (home.pages.length <= 1) return;
     const remaining = home.pages.filter((p) => p.id !== page.id);
     // Deleting a page deletes its widgets WITH it (owner: "I'm tryna
@@ -1196,6 +1217,7 @@ export default function ExperimentalDashboard({
   // used to run packPositions, which re-flows the page from scratch and so
   // also moved widgets sideways and resized them to their measured height.
   const collapseGaps = () => {
+    const home = boardRef.current.board; // newest board, never the render copy
     persist({
       ...home,
       pages: home.pages.map((p) => (p.id !== page.id ? p : {
@@ -1204,7 +1226,7 @@ export default function ExperimentalDashboard({
     });
     toast.success("Gaps closed up");
   };
-  const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...home, enabled: false }));
+  const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...boardRef.current.board, enabled: false }));
   // Hold-still-to-lift (owner spec): 0.3s stationary hold starts a move;
   // tolerance cancels activation if the pointer moves during the delay, so
   // a scroll gesture can never lift a widget. MouseSensor + TouchSensor
@@ -1819,7 +1841,9 @@ export default function ExperimentalDashboard({
             <div className="mt-4 pt-3 border-t border-border/40">
               {homeSettingsOpen && (
                 <React.Suspense key={homeSettingsNonce} fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
-                  <UiEditSheetBody />
+                  <BoardFieldContext.Provider value={settingsField}>
+                    <UiEditSheetBody />
+                  </BoardFieldContext.Provider>
                 </React.Suspense>
               )}
             </div>
@@ -2010,7 +2034,7 @@ export default function ExperimentalDashboard({
           <div className="flex items-center gap-1 mb-1.5">
             {[["only", "Only these"], ["except", "Everyone except"]].map(([m, label]) => (
               <button key={m} type="button"
-                onClick={() => persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, visibleMode: m } : p)) })}
+                onClick={() => persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, visibleMode: m } : p)) })}
                 className={`text-[0.625rem] px-2 py-1 rounded-full border transition-all ${
                   (page.visibleMode || "only") === m
                     ? "border-primary/50 bg-primary/10 text-primary"
@@ -2213,9 +2237,9 @@ export default function ExperimentalDashboard({
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
         folders={home.drawer.folders}
-        onSaveFolders={(folders) => persist({ ...home, drawer: { ...home.drawer, folders } })}
+        onSaveFolders={(folders) => persist({ ...boardRef.current.board, drawer: { ...boardRef.current.board.drawer, folders } })}
         order={home.drawer.order || []}
-        onSaveOrder={(order) => persist({ ...home, drawer: { ...home.drawer, order } })}
+        onSaveOrder={(order) => persist({ ...boardRef.current.board, drawer: { ...boardRef.current.board.drawer, order } })}
       />
 
       <AssetPickerModal
@@ -2291,6 +2315,7 @@ export default function ExperimentalDashboard({
                     style={{ ...lookToStyle(st.look), ...boxStyle() }} />
                   <button type="button"
                     onClick={() => {
+                      const home = boardRef.current.board; // newest board, never the render copy
                       if (multiMode && multiIds.length) {
                         // A selection is showing — the tap means "give
                         // THESE this style", not "restyle the board".
@@ -2306,7 +2331,7 @@ export default function ExperimentalDashboard({
                         });
                         toast.success(`${st.label} applied to ${ids.size} widget${ids.size === 1 ? "" : "s"}`);
                       } else {
-                        persist({ ...home, styleMode: st.id });
+                        persist({ ...boardRef.current.board, styleMode: st.id });
                       }
                       setStylePickerOpen(false);
                     }}
@@ -2337,6 +2362,7 @@ export default function ExperimentalDashboard({
                   <button type="button"
                     title={`Copy ${st.label} into this page's widgets to edit`}
                     onClick={() => {
+                      const home = boardRef.current.board; // newest board, never the render copy
                       persist({
                         ...home,
                         styleMode: "current",
@@ -2454,7 +2480,7 @@ export default function ExperimentalDashboard({
         document.body
       )}
       <SetupPackSheet open={packSheetOpen} onClose={() => setPackSheetOpen(false)} initialTab={packSheetTab}
-        home={home} currentPageId={page?.id} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} />
+        home={home} currentPageId={page?.id} uiV2Raw={settingsRow?.ui_v2 || {}} userStyles={userStyles} settingsRow={settingsRow} homeField={settingsField} />
     </div>
     </div>
   );

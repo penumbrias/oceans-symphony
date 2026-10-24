@@ -1133,7 +1133,124 @@ function emit(entityName, event) {
 // would come straight back from the other device) — every screen just
 // stops seeing them. The review itself reads the raw database to show
 // them and put them back.
-const isHiddenRecord = (entityName, r) => entityName === "FrontingSession" && !!r?.removed_at;
+const isHiddenRecord = (entityName, r) =>
+  !!r?.[TRASHED_AT] || (entityName === "FrontingSession" && !!r?.removed_at);
+
+// ── Trash (v0.278.0) ───────────────────────────────────────────────
+// A delete puts the record in the trash instead of removing it: it gets
+// `trashed_at` and a `trash_batch` id, and every list/filter/get stops
+// seeing it (isHiddenRecord). It stays in the database, so it rides the
+// encrypted blob, the private-file copy, backups and sync like any other
+// field, and Settings → Trash can put it back. src/lib/trash.js owns the
+// recovery window, the time lock and the purge; only a purge (or a
+// deliberate "delete forever") removes the row and writes the tombstone.
+//
+// Instant entities skip the trash: the grocery cover, derived/progress
+// rows, notification bookkeeping, device-bound identity, mods' private
+// storage and on/off marks whose "delete" just means "switch off".
+export const TRASHED_AT = "trashed_at";
+export const TRASH_BATCH = "trash_batch";
+const TRASH_INSTANT = new Set([
+  "HistoryEvent", "DeletionLog", "FriendIdentity", "PushSubscription", "SystemSettings",
+  "GroceryItem", "GroceryFavorite", "GroceryList",
+  "ReminderInstance", "DailyProgress", "TaskTick", "MentionLog", "LearningProgress",
+  "HiddenUnblendQuestion", "ModData", "ModPackage",
+]);
+export const isTrashable = (entityName) =>
+  typeof entityName === "string" && !TRASH_INSTANT.has(entityName)
+  && !entityName.startsWith("__") && !isReservedDbKey(entityName);
+
+// Deletes that belong together (an alter and its notes, a category and
+// its children) share one batch so they come back together. withTrashBatch
+// names the batch for everything deleted inside it; outside one, deletes
+// within a couple of seconds of each other share a batch, which catches
+// the cascades the app already does one delete at a time.
+let _trashBatch = null;
+let _autoTrashBatch = null;
+let _autoTrashAt = 0;
+const AUTO_TRASH_BATCH_MS = 2000;
+function currentTrashBatch() {
+  if (_trashBatch) return _trashBatch;
+  const t = Date.now();
+  if (!_autoTrashBatch || t - _autoTrashAt > AUTO_TRASH_BATCH_MS) _autoTrashBatch = generateId();
+  _autoTrashAt = t;
+  return _autoTrashBatch;
+}
+export async function withTrashBatch(fn) {
+  if (_trashBatch) return fn(_trashBatch);
+  _trashBatch = generateId();
+  const id = _trashBatch;
+  try { return await fn(id); } finally { _trashBatch = null; }
+}
+
+// Mark one record trashed in place (no save, no event). Stamped like an
+// edit so the trash state wins the next sync.
+function trashInPlace(col, id, now, batch) {
+  const prev = col[id];
+  if (!prev || prev[TRASHED_AT]) return false;
+  const patch = { [TRASHED_AT]: now, [TRASH_BATCH]: batch };
+  col[id] = { ...prev, ...patch, updated_date: now, [FIELD_TIMES]: stampUpdate(prev, patch, now) };
+  return true;
+}
+
+// Remove a record for good: tombstone + a last Recent-changes snapshot.
+function hardDeleteInPlace(col, entityName, id) {
+  const existing = col[id] || null;
+  delete col[id];
+  recordDeletionTombstone(entityName, id);
+  recordHistoryDeletion(entityName, existing);
+  return existing;
+}
+
+// Everything in the trash: [{ entity, record }], newest first.
+export function listTrashedRecords() {
+  const db = getDb();
+  const out = [];
+  for (const [entity, col] of Object.entries(db)) {
+    if (!isTrashable(entity) || !col || typeof col !== "object") continue;
+    for (const r of Object.values(col)) {
+      if (r && typeof r === "object" && r[TRASHED_AT]) out.push({ entity, record: r });
+    }
+  }
+  return out.sort((a, b) => String(b.record[TRASHED_AT]).localeCompare(String(a.record[TRASHED_AT])));
+}
+
+// Put trashed records back ([{ entity, id }]), in one save. Stamped, so
+// a restore on any device wins over the other device's trashed copy.
+export async function restoreTrashedRecords(items) {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const restored = [];
+  for (const { entity, id } of items || []) {
+    const col = db[entity];
+    const prev = col?.[id];
+    if (!prev || !prev[TRASHED_AT]) continue;
+    const patch = { [TRASHED_AT]: null, [TRASH_BATCH]: null };
+    col[id] = { ...prev, ...patch, updated_date: now, [FIELD_TIMES]: stampUpdate(prev, patch, now) };
+    try { if (db.DeletionLog) delete db.DeletionLog[`${entity}:${id}`]; } catch { /* non-fatal */ }
+    restored.push({ entity, id, data: col[id] });
+  }
+  if (restored.length) await saveDb();
+  for (const r of restored) emit(r.entity, { type: "create", id: r.id, data: r.data });
+  return restored.length;
+}
+
+// Remove trashed records for good ([{ entity, id }]), in one save. Only
+// rows already in the trash: this never reaches a live record. The
+// recovery-window and lock rules live in trash.js, which is the only
+// caller. Returns the removed records.
+export async function purgeTrashedRecords(items) {
+  const db = getDb();
+  const removed = [];
+  for (const { entity, id } of items || []) {
+    const col = db[entity];
+    if (!col?.[id] || !col[id][TRASHED_AT]) continue;
+    removed.push({ entity, record: hardDeleteInPlace(col, entity, id) });
+  }
+  if (removed.length) await saveDb();
+  for (const r of removed) emit(r.entity, { type: "delete", id: r.record.id });
+  return removed;
+}
 
 // Which device recorded a fronting session, for that review. Read straight
 // from the sync device id; a device that has never synced has none yet,
@@ -1186,12 +1303,16 @@ export function createLocalDbEntities() {
           emit(entityName, { type: 'update', id, data: col[id] });
           return col[id];
         },
-        delete: async (id) => {
+        // Goes to the trash (see "Trash" above) unless the entity is
+        // Instant. `{ forever: true }` is for removing things that are
+        // already gone from the person's view (chat placeholders).
+        delete: async (id, { forever = false } = {}) => {
           const col = getCollection(entityName);
-          const existing = col[id] || null;
-          delete col[id];
-          recordDeletionTombstone(entityName, id);
-          recordHistoryDeletion(entityName, existing);
+          if (!forever && isTrashable(entityName)) {
+            if (!trashInPlace(col, id, new Date().toISOString(), currentTrashBatch())) return;
+          } else {
+            hardDeleteInPlace(col, entityName, id);
+          }
           await saveDb();
           emit(entityName, { type: 'delete', id });
         },
@@ -1228,15 +1349,16 @@ export function createLocalDbEntities() {
           return { updated, missing };
         },
         // ONE save for N deletes (per-record tombstones + events preserved).
-        bulkDelete: async (ids) => {
+        bulkDelete: async (ids, { forever = false } = {}) => {
           const col = getCollection(entityName);
           const removed = [];
+          const toTrash = !forever && isTrashable(entityName);
+          const now = new Date().toISOString();
+          const batch = toTrash ? currentTrashBatch() : null;
           for (const id of ids || []) {
             if (!id || !(id in col)) continue;
-            const existing = col[id];
-            delete col[id];
-            recordDeletionTombstone(entityName, id);
-            recordHistoryDeletion(entityName, existing);
+            if (toTrash) { if (!trashInPlace(col, id, now, batch)) continue; }
+            else hardDeleteInPlace(col, entityName, id);
             removed.push(id);
           }
           if (removed.length) await saveDb();
@@ -1555,9 +1677,11 @@ function mergeIncomingFrontingSessions(records, noteEditConflict, frontConflicts
     recordSyncOverwrite("FrontingSession", local, col[id]);
     if (record.is_active === true && !record.sync_demoted && col[id]?.sync_demoted) frontConflicts?.push(id);
   }
-  const liveHere = Object.values(col).some((r) => r && r.is_active === true);
+  // Trashed and review-removed sessions are hidden everywhere, so they
+  // are never "the front here" and an incoming trashed one is no conflict.
+  const liveHere = Object.values(col).some((r) => r && r.is_active === true && !r.trashed_at && !r.removed_at);
   for (const [id, record] of fresh) {
-    if (liveHere && record.is_active === true && !record.revived_at && !record.removed_at) {
+    if (liveHere && record.is_active === true && !record.revived_at && !record.removed_at && !record.trashed_at) {
       frontConflicts?.push(id);
       col[id] = {
         ...record,

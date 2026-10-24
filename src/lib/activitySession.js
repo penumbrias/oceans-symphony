@@ -60,8 +60,11 @@ export function getActiveActivities() {
       writeArr(arr);
     }
   } catch { /* ignore migration errors */ }
-  // Guarantee every entry has an id.
-  return arr.map((a) => (a && a.id ? a : { ...a, id: genId() }));
+  // Guarantee every entry has an id; skip anything that isn't a record
+  // at all (null, a string) instead of handing it to the screens.
+  return arr
+    .filter((a) => a && typeof a === "object" && !Array.isArray(a))
+    .map((a) => (a.id ? a : { ...a, id: genId() }));
 }
 
 // ── End-of-plan check-in (owner spec) ──────────────────────────────

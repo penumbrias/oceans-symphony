@@ -54,10 +54,11 @@ import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars, V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { applyHomePresetToBoard } from "@/lib/homePresetParts";
+import { writeBoard, BOARD_SETTINGS_FIELDS, WIDGET_BOARD_FIELD } from "@/lib/boardWriter";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
 import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
-import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 import { safeInternalRoute } from "@/lib/safeRoute";
 
 
@@ -147,6 +148,15 @@ export default function AppLayout() {
   // active system — or seed it from this system the first time. Best-effort.
   useEffect(() => {
     import("@/lib/friendsApi").then((m) => m.syncSharedFriendIdentity?.()).catch(() => {});
+  }, []);
+
+  // Empty what has outlived the trash's recovery window. A little after
+  // the app opens, so it never competes with boot or the first sync.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import("@/lib/trash").then((m) => m.runTrashPurge()).catch(() => {});
+    }, 20000);
+    return () => clearTimeout(t);
   }, []);
 
   // One-time post-onboarding redirect. The first-run "Set up encryption" link
@@ -364,12 +374,14 @@ const uiV2Vars = useMemo(
   () => ((uiV2On || classicV2VarsOn) ? buildTokenVars(uiV2) : null),
   [uiV2On, classicV2VarsOn, uiV2]
 );
-// On the v2 home the board's own notice stack (V2Notices) carries plan
-// reminders, fired reminders and mentions — the classic overlays are
+// On the home page the board's own notice stack (V2Notices) carries plan
+// reminders, fired reminders and mentions — on the home screen and on its
+// swipe-left widget board alike (v0.277.1). The classic overlays are
 // suppressed there so nothing double-surfaces or fights the wallpaper's
-// stacking context. Everywhere else (no wallpaper) the classic surfaces
-// still run, even under v2.
-const v2HomeNotices = uiV2On && location.pathname === "/";
+// stacking context. Everywhere else (no wallpaper), and on the old opt-in
+// experimental home, the classic surfaces still run.
+const experimentalHomeOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && settings0?.experimental_home?.enabled === true;
+const v2HomeNotices = !experimentalHomeOn && location.pathname === "/";
 
 // Dialogs, drawers and dropdowns are portaled to <body>, OUTSIDE the app
 // root div — tokens set only there never reach them (the "popups ignore
@@ -647,18 +659,21 @@ useEffect(() => {
   // alter's linked preset restore THEIR home screen on fronting — picking
   // the preset by hand already did it; the fronting path never did.
   if (preset.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
-  {
-    const cur = systemSettings?.[0];
-    const nextHome = applyHomePresetToBoard(preset, cur?.ui_v2_home);
-    if (nextHome) settingsPatch.ui_v2_home = nextHome;
-  }
-  if (Object.keys(settingsPatch).length > 0) {
-    const settings = systemSettings?.[0];
-    const op = settings?.id
-      ? base44.entities.SystemSettings.update(settings.id, settingsPatch)
-      : base44.entities.SystemSettings.create(settingsPatch);
-    op.catch(() => {});
-  }
+  // The home board part goes through the shared board writer: applied to
+  // the board as it is NOW (not this hook's cached copy) and stamped, so a
+  // sync can't quietly put the old layout back (v0.277.0).
+  const boardField = BOARD_SETTINGS_FIELDS.includes(preset.homeField) ? preset.homeField : WIDGET_BOARD_FIELD;
+  const hasBoardPart = !!applyHomePresetToBoard(preset, {});
+  const settings = systemSettings?.[0];
+  (async () => {
+    if (Object.keys(settingsPatch).length > 0) {
+      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, settingsPatch);
+      else await base44.entities.SystemSettings.create(settingsPatch);
+    }
+    if (hasBoardPart && settings?.id) {
+      await writeBoard(settings, boardField, (cur) => applyHomePresetToBoard(preset, cur));
+    }
+  })().catch(() => {});
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {

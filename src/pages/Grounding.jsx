@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
 import { Plus, Shield, Shuffle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -184,35 +185,13 @@ export default function Grounding({ initialPath = null }) {
 
   const visibleTechniques = techniques.filter(t => !t.is_archived);
 
-  const handleToggleFavorite = async (technique) => {
-    const pref = prefMap[technique.id];
-    if (pref) {
-      await base44.entities.GroundingPreference.update(pref.id, { is_favorited: !pref.is_favorited });
-    } else {
-      await base44.entities.GroundingPreference.create({ technique_id: technique.id, is_favorited: true });
-    }
-    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
-  };
-
-  const handleRate = async (technique, rating, alterId) => {
-    const pref = prefMap[technique.id];
-    if (pref) {
-      await base44.entities.GroundingPreference.update(pref.id, { rating, alter_id: alterId || null });
-    } else {
-      await base44.entities.GroundingPreference.create({ technique_id: technique.id, rating, alter_id: alterId || null });
-    }
-    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
-  };
-
-  const handleSaveNote = async (technique, notes, alterId) => {
-    const pref = prefMap[technique.id];
-    if (pref) {
-      await base44.entities.GroundingPreference.update(pref.id, { notes, alter_id: alterId || null });
-    } else {
-      await base44.entities.GroundingPreference.create({ technique_id: technique.id, notes, alter_id: alterId || null });
-    }
-    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
-  };
+  // Rating, note and favourite share one save path with the home-screen
+  // grounding widget.
+  const prefHandlers = groundingPreferenceHandlers(
+    () => queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] })
+  );
+  const handleToggleFavorite = prefHandlers.onToggleFavorite;
+  const handleRate = prefHandlers.onRate;
 
   const handleStateCheckComplete = (states) => {
     setSelectedStates(states);
@@ -357,9 +336,7 @@ export default function Grounding({ initialPath = null }) {
             }
           }}
           backLabel={returnPath === "learn" ? "Back to lesson" : returnPath === "suggestions" ? "Back to suggestions" : undefined}
-          onRate={handleRate}
-          onSaveNote={handleSaveNote}
-          onToggleFavorite={handleToggleFavorite}
+          {...prefHandlers}
         />
       </div>
     );

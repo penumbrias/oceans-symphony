@@ -43,6 +43,7 @@ import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook, SHADOW_PRESETS, BORDER_STYLES } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
+import { writeBoard, writeSettingsWithBoards, useBoardField } from "@/lib/boardWriter";
 import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
@@ -1226,7 +1227,10 @@ function PresetsSection({ v2 }) {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsRows[0] || null;
-  const homeField = "ui_v2_home";
+  // The board this sheet was opened on — the home screen or the widget
+  // board (v0.277.0: this was always the widget board, so a change made
+  // while editing the home screen landed somewhere else).
+  const homeField = useBoardField();
   const currentStyleMode = settingsRow?.[homeField]?.styleMode || "current";
 
   // ONE list, TWO tabs (the user's call — "one thing, maybe two: style
@@ -1269,8 +1273,8 @@ function PresetsSection({ v2 }) {
   const applySavedPack = async (pk) => {
     if (!settingsRow?.id) return;
     try {
-      const patch = buildApplyPatch({ pack: pk, which: { layout: true, widgetStyles: true, uiTheme: true }, settingsRow });
-      await base44.entities.SystemSettings.update(settingsRow.id, patch);
+      const patch = buildApplyPatch({ pack: pk, which: { layout: true, widgetStyles: true, uiTheme: true }, settingsRow, homeField });
+      await writeSettingsWithBoards(settingsRow, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       applyAppTheme(pk.types?.uiTheme?.appTheme);
       toast.success(`${pk.title || "Pack"} applied`);
@@ -1323,8 +1327,8 @@ function PresetsSection({ v2 }) {
       font: getAccessibilitySettings().fontFamily || "",
       headingFont: getAccessibilitySettings().headingFont || "",
       uiV2Tokens: Object.fromEntries(SIZE_TOKEN_IDS.filter((id) => v2.uiV2.tokens[id] !== undefined).map((id) => [id, v2.uiV2.tokens[id]])),
-      uiV2HomeLook: captureHomeLook(settingsRow?.ui_v2_home),
-      uiV2HomeLayout: captureHomeLayout(settingsRow?.ui_v2_home),
+      uiV2HomeLook: captureHomeLook(settingsRow?.[homeField]),
+      uiV2HomeLayout: captureHomeLayout(settingsRow?.[homeField]),
     };
   };
   const [history, setHistory] = useState(() => listLookHistory());
@@ -1367,11 +1371,14 @@ function PresetsSection({ v2 }) {
     // there are the same kind of thing (and both apply through the shared
     // applyHomePresetToBoard helper).
     if (parts.widgets) {
-      payload.uiV2HomeLook = captureHomeLook(settingsRow?.ui_v2_home);
+      payload.uiV2HomeLook = captureHomeLook(settingsRow?.[homeField]);
     }
     if (parts.layout) {
-      payload.uiV2HomeLayout = captureHomeLayout(settingsRow?.ui_v2_home);
+      payload.uiV2HomeLayout = captureHomeLayout(settingsRow?.[homeField]);
     }
+    // Which board the home parts came from, so applying the preset when
+    // someone starts fronting lands them on the same board.
+    if (parts.widgets || parts.layout) payload.homeField = homeField;
     saveCustomPreset(trimmed, payload);
     if (linkAlterId) linkAlterTheme(linkAlterId, trimmed);
     setName(""); setLinkAlterId("");
@@ -1393,8 +1400,8 @@ function PresetsSection({ v2 }) {
       const others = resolveUserStyles(settingsRow.ui_v2_styles).filter((x) => x.id !== styleId);
       patch.ui_v2_styles = [...others, { id: styleId, label: st.label, look: st.look }];
     }
-    patch[homeField] = { ...(settingsRow[homeField] || {}), styleMode: st.id };
-    await writeSettings(patch);
+    await writeBoard(settingsRow, homeField, (cur) => ({ ...(cur || {}), styleMode: st.id }), { extra: patch });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
 
   // `presetName`: set when the payload came from a NAMED preset (theme
@@ -1415,9 +1422,13 @@ function PresetsSection({ v2 }) {
     if (preset.uiV2Tokens) {
       patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
     }
-    const nextHome = applyHomePresetToBoard(preset, settingsRow?.ui_v2_home);
-    if (nextHome) patch.ui_v2_home = nextHome;
     await writeSettings(patch);
+    // The board part goes through the shared writer: applied to the board
+    // as it is now and stamped, so the next sync can't quietly undo it.
+    if (settingsRow?.id && applyHomePresetToBoard(preset, settingsRow?.[homeField])) {
+      await writeBoard(settingsRow, homeField, (cur) => applyHomePresetToBoard(preset, cur));
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    }
     // A theme brings its widget look along only when the user asked for it.
     if (presetName && themeRestylesWidgets && allPresets[presetName] && (preset.light || preset.dark)) {
       await applyWidgetStyle({
@@ -1752,14 +1763,12 @@ export default function UiEditSheet() {
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsRows[0] || null;
 
-  // Which home board this device edits — same breakpoint HomeV2 uses.
-  const homeField = "ui_v2_home";
+  // The board this sheet was opened on (home screen or widget board).
+  const homeField = useBoardField();
   const background = resolveBackground(settingsRow?.[homeField]?.background);
   const writeBackground = async (next) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, {
-      [homeField]: { ...(settingsRow[homeField] || {}), background: next },
-    });
+    await writeBoard(settingsRow, homeField, (cur) => ({ ...(cur || {}), background: next }));
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
   const wallpaper = settingsRow?.[homeField]?.wallpaper || {};

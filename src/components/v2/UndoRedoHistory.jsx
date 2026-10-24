@@ -18,11 +18,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Undo2, Redo2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTheme } from "@/lib/ThemeContext";
+import { writeSettingsWithBoards } from "@/lib/boardWriter";
 
 // Every field a Display options control writes — bars included (the
 // pinned bar's size lives in pinned_alters_config, the bottom tabs in
 // navigation_config, the wave colour on the row itself).
-const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "ui_v2_styles", "pinned_alters_config", "navigation_config", "wave_color_key", "wave_color_custom"];
+// classic_home is the home screen (built from widgets) — v0.277.0: it was
+// missing, so the undo pill on the home screen did nothing.
+const SETTINGS_FIELDS = ["ui_v2", "ui_v2_home", "classic_home", "ui_v2_styles", "pinned_alters_config", "navigation_config", "wave_color_key", "wave_color_custom"];
 const MAX = 40;
 const HOLD_MS = 450;
 
@@ -64,7 +67,7 @@ function diffLabel(prev, next) {
   if (JSON.stringify(prev.settings.ui_v2) !== JSON.stringify(next.settings.ui_v2)) {
     parts.push(...subDiff(prev.settings.ui_v2, next.settings.ui_v2, UI_V2_AREAS, "UI theme"));
   }
-  for (const [field, label] of [["ui_v2_home", "Home board"]]) {
+  for (const [field, label] of [["ui_v2_home", "Widget board"], ["classic_home", "Home screen"]]) {
     if (JSON.stringify(prev.settings[field]) !== JSON.stringify(next.settings[field])) {
       parts.push(...subDiff(prev.settings[field], next.settings[field], HOME_AREAS, label));
     }
@@ -167,7 +170,9 @@ export default function UndoRedoButtons() {
     hist.restoringUntil = Date.now() + 1500;
     emit();
     try {
-      await base44.entities.SystemSettings.update(settingsRow.id, { ...e.snap.settings });
+      // Boards are stamped against the board as it is now, so the other
+      // device's copy can't undo the undo on the next sync.
+      await writeSettingsWithBoards(settingsRow, { ...e.snap.settings });
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       const t = e.snap.theme || {};
       if (t.customColors) updateCustomColorsFull(t.customColors.light, t.customColors.dark);

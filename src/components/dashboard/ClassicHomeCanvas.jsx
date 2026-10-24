@@ -3,8 +3,7 @@
 // difference is WHAT it edits: the home screen's own layout, stored in
 // SystemSettings.classic_home and seeded once from the user's
 // dashboard_layout so the first render looks like the dashboard they
-// already had. dashboard_layout itself is never modified or deleted — it
-// stays the seed source of truth for "reset to default".
+// already had. "Restore to default" seeds from the app's default layout.
 //
 // Event scope is "os-classic" (os-classic-edit-home / symphony_classic_*)
 // so "Edit home screen" edits THIS surface and "Edit widget board" (os-v2)
@@ -22,6 +21,8 @@ import {
 } from "@/lib/experimentalHome";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { writeBoard } from "@/lib/boardWriter";
+import V2Notices from "@/v2/notices";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
 
@@ -137,6 +138,8 @@ export function seedClassicHome(dashboardLayoutStored) {
     grid: { phoneCols: 4, rowPx: 40 },
     pages: [packSeededPage({ id: "p1", label: "Home", layoutMode: "free", widgets })],
     defaultPageId: "p1",
+    // A fresh home screen needs neither one-time tidy-up below.
+    _heals: { norm_v4: true, headerline_v1: true },
   };
 }
 
@@ -272,46 +275,67 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
       try {
         const stored = settingsRow[CLASSIC_HOME_FIELD];
         if (!stored) {
-          await base44.entities.SystemSettings.update(settingsRow.id, {
-            [CLASSIC_HOME_FIELD]: seedClassicHome(settingsRow.dashboard_layout),
-          });
+          await writeBoard(settingsRow, CLASSIC_HOME_FIELD,
+            (cur) => (cur && typeof cur === "object" ? null : seedClassicHome(settingsRow.dashboard_layout)),
+            { machine: true });
           await qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
-        let healed = false;
-        try { healed = localStorage.getItem("classic_home_norm_v4") === "1"; } catch { /* storage off */ }
+        // Which one-time tidy-ups already ran. v0.277.0: these marks live
+        // IN the board (they used to live only in this device's browser
+        // storage, so a cache clear or a second device re-ran the tidy-up
+        // and re-packed the person's whole home page). Boards the old code
+        // already tidied are recognised by what the tidy-up leaves behind:
+        // the 40px row grid, or the header / buttons / Active now widgets
+        // it adds — none of which a pre-v0.228 board has.
+        const lsFlag = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
+        const marks = stored._heals && typeof stored._heals === "object" ? stored._heals : {};
         const pages = Array.isArray(stored.pages) ? stored.pages : [];
+        const hasWidget = (ids) => pages.some((p) => (p.widgets || []).some((w) => ids.includes(w?.widgetId)));
+        const looksTidied = stored.grid?.rowPx === 40 || hasWidget(["system_header", "page_buttons", "active_now"]);
+        const healed = !!marks.norm_v4 || lsFlag("classic_home_norm_v4") || looksTidied;
+        // A board recognised as tidied elsewhere had its header line done
+        // there too (that tidy-up shipped three versions later, long ago).
+        const headerLined = !!marks.headerline_v1 || lsFlag("classic_home_headerline_v1")
+          || (healed && !lsFlag("classic_home_norm_v4"));
         const unpacked = (p) => (p.widgets || []).length > 1 && (p.widgets || []).every((w) => !w?.pos);
-        let headerLined = false;
-        try { headerLined = localStorage.getItem("classic_home_headerline_v1") === "1"; } catch { /* storage off */ }
+        const allMarked = !!marks.norm_v4 && !!marks.headerline_v1;
+        if (healed && headerLined && !pages.some(unpacked)) {
+          if (!allMarked) {
+            await writeBoard(settingsRow, CLASSIC_HOME_FIELD,
+              (cur) => (cur ? { ...cur, _heals: { ...(cur._heals || {}), norm_v4: true, headerline_v1: true } } : null),
+              { machine: true });
+          }
+          return;
+        }
         if (healed) {
-          // Already migrated on this device — re-seat a page that somehow
-          // arrived with no positions at all (the overlap pile), and run
-          // the one-shot header-line merge if this device hasn't yet.
-          if (headerLined && !pages.some(unpacked)) return;
-          const nextPages = pages.map((p) => {
-            const q = unpacked(p) ? packSeededPage(p) : p;
-            return headerLined ? q : mergeHeaderLine(q);
-          });
-          try { localStorage.setItem("classic_home_headerline_v1", "1"); } catch { /* storage off */ }
-          await base44.entities.SystemSettings.update(settingsRow.id, {
-            [CLASSIC_HOME_FIELD]: { ...stored, pages: nextPages },
-          });
+          // Already tidied — re-seat a page that somehow arrived with no
+          // positions at all (the overlap pile), and run the header-line
+          // merge if it hasn't run.
+          await writeBoard(settingsRow, CLASSIC_HOME_FIELD, (cur) => {
+            if (!cur) return null;
+            const curPages = Array.isArray(cur.pages) ? cur.pages : [];
+            const nextPages = curPages.map((p) => {
+              const q = unpacked(p) ? packSeededPage(p) : p;
+              return headerLined ? q : mergeHeaderLine(q);
+            });
+            return { ...cur, pages: nextPages, _heals: { ...(cur._heals || {}), norm_v4: true, headerline_v1: true } };
+          }, { machine: true });
           await qc.invalidateQueries({ queryKey: ["systemSettings"] });
           return;
         }
-        const oldRowPx = stored.grid?.rowPx || 80;
         const layout = resolveLayout(settingsRow.dashboard_layout);
-        const nextPages = pages.map((p) => mergeHeaderLine(healPage(p, oldRowPx, layout)));
-        try { localStorage.setItem("classic_home_norm_v4", "1"); } catch { /* storage off */ }
-        try { localStorage.setItem("classic_home_headerline_v1", "1"); } catch { /* storage off */ }
-        await base44.entities.SystemSettings.update(settingsRow.id, {
-          [CLASSIC_HOME_FIELD]: {
-            ...stored,
-            grid: { ...(stored.grid || {}), phoneCols: stored.grid?.phoneCols || 4, rowPx: 40 },
-            pages: nextPages,
-          },
-        });
+        await writeBoard(settingsRow, CLASSIC_HOME_FIELD, (cur) => {
+          if (!cur) return null;
+          const oldRowPx = cur.grid?.rowPx || 80;
+          const curPages = Array.isArray(cur.pages) ? cur.pages : [];
+          return {
+            ...cur,
+            grid: { ...(cur.grid || {}), phoneCols: cur.grid?.phoneCols || 4, rowPx: 40 },
+            pages: curPages.map((p) => mergeHeaderLine(healPage(p, oldRowPx, layout))),
+            _heals: { ...(cur._heals || {}), norm_v4: true, headerline_v1: true },
+          };
+        }, { machine: true });
         await qc.invalidateQueries({ queryKey: ["systemSettings"] });
       } catch { /* non-fatal: the canvas just starts empty */ }
       finally { setReady(true); }
@@ -332,6 +356,10 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
       eventPrefix="os-classic"
       onExitRight={onOpenBoard}
       viewFlow
+      // The same notice stack as the widget board (backups, empty-app
+      // rescue, critical and unresolved plans, reminders, mentions), so
+      // safety notices never depend on which board is showing.
+      notices={<V2Notices />}
       // The frame's command bar (the classic-hosted quick-action strip) is
       // THE quick-action bar here — this stops the canvas drawing its own
       // duplicate strip, and the edit toolbar's Bar row edits these keys.

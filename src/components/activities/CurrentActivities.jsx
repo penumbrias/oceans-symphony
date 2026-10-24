@@ -18,6 +18,14 @@ import { getActiveSystemId } from "@/lib/systems";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { useTerms } from "@/lib/useTerms";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+
+// A running activity with a missing or broken start time must still show
+// (and be stoppable), not crash the page.
+const validDate = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 function toLocalDatetimeValue(iso) {
@@ -63,7 +71,7 @@ export function ActivityActionMenu({ activity, onClose }) {
     const sourceId = activity.planActivityId || activity.id;
     await recordAuthoredText({
       ...prepared, alters, sourceType: "activity", sourceId, sourceLabel: "Activity note",
-      navigatePath: `/planner?date=${format(new Date(activity.startTime || Date.now()), "yyyy-MM-dd")}${activity.planActivityId ? `&highlight=${activity.planActivityId}` : ""}`,
+      navigatePath: `/planner?date=${format(validDate(activity.startTime) || new Date(), "yyyy-MM-dd")}${activity.planActivityId ? `&highlight=${activity.planActivityId}` : ""}`,
     });
     toast.success("Note saved");
   };
@@ -109,7 +117,7 @@ export function ActivityActionMenu({ activity, onClose }) {
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        <p className="text-xs text-muted-foreground">In progress · {formatDistanceToNow(new Date(activity.startTime))}</p>
+        <p className="text-xs text-muted-foreground">In progress{validDate(activity.startTime) ? ` · ${formatDistanceToNow(validDate(activity.startTime))}` : ""}</p>
 
         {editingStart ? (
           <div className="space-y-2">
@@ -131,7 +139,7 @@ export function ActivityActionMenu({ activity, onClose }) {
           <button type="button" onClick={() => setEditingStart(true)}
             className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground hover:bg-muted transition-colors">
             <Clock className="w-3.5 h-3.5" /> Edit start time
-            <span className="text-xs text-muted-foreground">({format(new Date(activity.startTime), "MMM d, h:mm a")})</span>
+            {validDate(activity.startTime) && <span className="text-xs text-muted-foreground">({format(validDate(activity.startTime), "MMM d, h:mm a")})</span>}
           </button>
         )}
 
@@ -253,7 +261,7 @@ export default function CurrentActivities() {
                   {a.systemName || "another system"}
                 </span>
               )}
-              <span className="opacity-60 font-normal">· {formatDistanceToNow(new Date(a.startTime))}</span>
+              {validDate(a.startTime) && <span className="opacity-60 font-normal">· {formatDistanceToNow(validDate(a.startTime))}</span>}
             </button>
           );
         })}

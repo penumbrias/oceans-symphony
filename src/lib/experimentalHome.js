@@ -159,10 +159,19 @@ export function resolveExperimentalHome(stored, registry = {}) {
     const pageId = typeof p.id === "string" && p.id ? p.id : `p${out.pages.length + 1}`;
     if (out.pages.some((x) => x.id === pageId)) continue;
     const widgets = [];
-    for (const w of Array.isArray(p.widgets) ? p.widgets : []) {
+    // A widget this build doesn't know (a newer version's widget arriving
+    // by sync or restore, or one this board's registry lacks) is kept as it
+    // was, out of sight, and written back with the page, so editing the
+    // page here can never delete it from the other device (v0.277.0).
+    const unknownWidgets = [];
+    const rawWidgets = [
+      ...(Array.isArray(p.widgets) ? p.widgets : []),
+      ...(Array.isArray(p.unknownWidgets) ? p.unknownWidgets : []),
+    ];
+    for (const w of rawWidgets) {
       if (!w || typeof w !== "object") continue;
       const def = registry[w.widgetId];
-      if (!def) continue; // widget no longer exists — drop the instance
+      if (!def) { if (typeof w.widgetId === "string") unknownWidgets.push(w); continue; }
       let instanceId = typeof w.instanceId === "string" && w.instanceId ? w.instanceId : newInstanceId();
       if (seenInstance.has(instanceId)) instanceId = newInstanceId();
       seenInstance.add(instanceId);
@@ -201,6 +210,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // (A page-level song lived here briefly in v0.148.0; it's the `song`
       // WIDGET now, so a page can have one, several, or none.)
       widgets,
+      ...(unknownWidgets.length ? { unknownWidgets } : {}),
       // "Show as" (owner, 2026-10-01): "auto" fits whatever screen shows
       // the page; phone / tablet / desktop keep that shape everywhere (a
       // phone-shaped page is a centred phone-width column on a computer).
@@ -215,6 +225,10 @@ export function resolveExperimentalHome(stored, registry = {}) {
   // Pages deleted on this device, so a sync can't bring them back from the
   // other one (id → when). Kept through every read.
   if (src._removedPages && typeof src._removedPages === "object") out._removedPages = { ...src._removedPages };
+  // When the board's look last changed by hand (see stampBoardChanges) and
+  // which one-time tidy-ups already ran on it (ClassicHomeCanvas).
+  if (typeof src._lt === "string") out._lt = src._lt;
+  if (src._heals && typeof src._heals === "object") out._heals = { ...src._heals };
   return out;
 }
 
@@ -223,28 +237,9 @@ export const PAGE_SHOW_AS = ["auto", "phone", "tablet", "desktop"];
 // use the full width.
 export const SHOW_AS_MAX_WIDTH = { phone: 440, tablet: 820 };
 
-// Called on every board write by a person (not the board's own auto-fit):
-// stamp each page that changed, record pages that were deleted, and drop
-// the record for any page that's back. `prev` / `next` are boards.
-const REMOVED_KEEP_MS = 180 * 86400000;
-export function stampBoardChanges(prev, next, now = new Date().toISOString()) {
-  if (!next || typeof next !== "object" || !Array.isArray(next.pages)) return next;
-  const before = new Map((prev?.pages || []).map((p) => [p.id, p]));
-  const strip = (p) => { const { _ut, ...rest } = p || {}; return JSON.stringify(rest); };
-  const pages = next.pages.map((p) => {
-    const old = before.get(p.id);
-    return !old || strip(old) !== strip(p) ? { ...p, _ut: now } : p;
-  });
-  const removed = { ...(next._removedPages || prev?._removedPages || {}) };
-  const ids = new Set(pages.map((p) => p.id));
-  for (const id of before.keys()) if (!ids.has(id)) removed[id] = now;
-  for (const id of ids) delete removed[id];
-  const cutoff = Date.parse(now) - REMOVED_KEEP_MS;
-  for (const [id, at] of Object.entries(removed)) if (!(Date.parse(at) >= cutoff)) delete removed[id];
-  const out = { ...next, pages };
-  if (Object.keys(removed).length) out._removedPages = removed; else delete out._removedPages;
-  return out;
-}
+// Page stamping lives in boardStamp.js (pure, so the sync tests can load
+// it); re-exported here for the callers that already import it from here.
+export { stampBoardChanges } from "@/lib/boardStamp";
 
 // Degrade a requested display mode to the nearest one a widget supports.
 export function effectiveMode(requested, supportsModes = ["normal"]) {

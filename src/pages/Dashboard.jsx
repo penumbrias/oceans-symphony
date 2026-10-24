@@ -710,16 +710,18 @@ export default function Dashboard() {
           board's stacking context where the wallpaper can't cover them —
           these classic cards sit outside it and would render invisibly
           under the wallpaper. */}
-      {/* The v2 board carries these in its own V2Notices stack — hide the
-          classic overlays while the board page is showing too. */}
-      {!uiV2On && !boardShowing && <BackupHealthNotice className="mb-3" />}
-      {!uiV2On && !boardShowing && <EmptyAppRescueNotice className="mb-3" />}
+      {/* The home screen and the widget board both carry these in their
+          own V2Notices stack (inside the canvas, where the wallpaper can't
+          cover them). Only the old experimental home still uses the
+          classic cards. */}
+      {experimentalOn && <BackupHealthNotice className="mb-3" />}
+      {experimentalOn && <EmptyAppRescueNotice className="mb-3" />}
       {/* The "Top/Bottom of Dashboard" upcoming-plans surfaces are the
           upcoming_top / upcoming_bottom WIDGETS on the home canvas — never
           mount them here as well (0.243.x did, and "Coming up" showed
           twice, the extra copy above the header). */}
-      {!uiV2On && !boardShowing && <CriticalPinnedPlans />}
-      {!uiV2On && !boardShowing && <UnresolvedPlansCard />}
+      {experimentalOn && <CriticalPinnedPlans />}
+      {experimentalOn && <UnresolvedPlansCard />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}

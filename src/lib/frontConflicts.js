@@ -145,7 +145,8 @@ export async function resolveFrontConflict(choice) {
 export async function getAdvancedReview({ extraDays = 0 } = {}) {
   const now = new Date().toISOString();
   const sessions = Object.values(getFullDbDump().FrontingSession || {})
-    .filter((s) => s && typeof s === "object" && s.start_time);
+    // Sessions in the trash aren't part of anyone's front history.
+    .filter((s) => s && typeof s === "object" && s.start_time && !s.trashed_at);
   const thisDevice = thisDeviceId();
   const origins = readObj(ORIGINS_KEY);
   const names = readObj(NAMES_KEY);

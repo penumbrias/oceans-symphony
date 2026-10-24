@@ -3,7 +3,10 @@
 // deleted records with a full snapshot, alter profile edits, and home /
 // board layout rewrites. This page lists them in categorized buckets and
 // can restore any of them — the safety net against one member of a
-// system quietly erasing what the rest didn't agree to lose.
+// system quietly erasing what the rest didn't agree to lose. Since
+// v0.278.0 deletes go to the trash first (TrashPanel, at the top); a
+// "deleted" entry here is written when the trash removes something for
+// good.
 
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +20,7 @@ import {
   LayoutGrid, Archive, RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import TrashPanel from "@/components/settings/TrashPanel";
 
 const FIELD_LABELS = {
   classic_home: "Home screen layout",
@@ -136,12 +140,15 @@ export default function HistoryArchive() {
           <History className="w-5 h-5 text-muted-foreground" /> Recent changes
         </h1>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Deletions, {t.alter} profile edits, layout rewrites and anything a sync replaced are archived
-          here automatically, each bucket keeping its own recent window — so
-          one kind of change can never flush the record of another. Anything
-          listed can be restored.
+          Anything deleted waits in the trash, where it can be put back until
+          the trash empties. Below it, {t.alter} profile edits, layout rewrites,
+          anything a sync replaced and things removed for good are archived
+          automatically, each bucket keeping its own recent window — so one
+          kind of change can never flush the record of another.
         </p>
       </div>
+
+      <TrashPanel />
 
       {CATS.map((cat) => {
         const rows = byCat[cat.id] || [];
