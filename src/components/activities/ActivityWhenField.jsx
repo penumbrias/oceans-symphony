@@ -36,7 +36,7 @@ export const fmtLength = (min) => {
 };
 const chipLabel = (m) => (m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}½h` : `${m / 60}h`);
 
-const chip = "text-[0.6875em] px-2 py-0.5 rounded-full border";
+const chip = "text-[0.6875em] px-2 py-0.5 rounded-full border whitespace-nowrap";
 const quiet = "border-border/50 text-muted-foreground hover:text-foreground";
 const lit = "text-[var(--v2-accent)] border-[var(--v2-accent)]";
 const field = "w-full h-9 px-2 rounded-lg border border-input bg-background text-sm";
@@ -59,8 +59,9 @@ export default function ActivityWhenField({
   const setLenMode = (m) => { setLenModeState(m); lsSet(LEN_MODE_KEY, m); };
   const [anchorPref, setAnchorState] = React.useState(() => (lsGet(ANCHOR_KEY, "start") === "end" ? "end" : "start"));
   const setAnchor = (a) => { setAnchorState(a); lsSet(ANCHOR_KEY, a); };
-  // A running timer only has a start.
-  const anchor = mode === "now" ? "start" : anchorPref;
+  // A running timer only has a start, and the compact row has no clock
+  // field to swap, so both count from the start.
+  const anchor = mode === "now" || compact ? "start" : anchorPref;
   const byEnd = anchor === "end";
   const s = start instanceof Date && !Number.isNaN(start.getTime()) ? start : new Date();
   const hasLength = Number(minutes) > 0;
@@ -130,7 +131,7 @@ export default function ActivityWhenField({
 
   const lengthRow = (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1" role="group" aria-label={tr("planner.durLabel")}>
+      <div className="flex flex-wrap items-center gap-1" role="group" aria-label={tr("planner.durLabel")}>
         {[["duration", tr("planner.lenFor")], ["range", byEnd ? tr("planner.lenFrom") : tr("planner.lenUntil")]].map(([id, label]) => (
           <button key={id} type="button" aria-pressed={lenMode === id} onClick={() => setLenMode(id)}
             className={`${chip} ${lenMode === id ? lit : quiet}`}>{label}</button>

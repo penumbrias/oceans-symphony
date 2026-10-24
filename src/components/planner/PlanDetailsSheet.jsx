@@ -8,8 +8,11 @@
 // Self-sufficient on purpose: it fetches the categories / {alters} /
 // to-dos it needs, and resolves outcomes through the shared
 // resolvePlan write path, so a caller only has to hand it an activity.
-// `onEdit` is optional — surfaces that have an editor (the planner) pass
-// one; those that don't (widgets) simply omit it.
+// `onEdit` / `onStartNow` are optional: a surface that runs its own (the
+// planner) passes them; everywhere else the sheet opens THE shared
+// ActivityEditor itself and starts through the shared startPlanActive, so
+// every door can read, resolve, start and edit the same way (v0.276.2 —
+// this replaced the board's ActivityDetailsModal + lifecycle popover).
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -23,7 +26,8 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { contactDisplayName } from "@/lib/contacts";
 import { categoryIdOf } from "@/lib/planner/rollup";
-import { resolveOutcome, reschedulePlan, planAnotherGo } from "@/lib/planner/resolvePlan";
+import { resolveOutcome, reschedulePlan, planAnotherGo, startPlanActive } from "@/lib/planner/resolvePlan";
+import ActivityEditor from "@/components/activities/ActivityEditor";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { getActiveActivities, snoozeActiveEndReminder, ACTIVE_END_SNOOZE_MINUTES } from "@/lib/activitySession";
 
@@ -32,7 +36,7 @@ const fmtDur = (min) => {
   return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 };
 
-export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStartNow = null, onReschedule = null }) {
+export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = null, onStartNow: onStartNowProp = null, onReschedule = null }) {
   const tr = useT();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -52,8 +56,24 @@ export default function PlanDetailsSheet({ item, onClose, onEdit = null, onStart
   // "another" = after a skip / early stop, offer to plan another go.
   const [ask, setAsk] = useState(null); // "start" | "end" | "later" | "another" | null
   useEffect(() => { setAsk(null); }, [item?.id]);
+  // The built-in editor (when the caller has none). While it's open the
+  // details step aside; closing it closes the whole thing, so a caller
+  // that unmounts the sheet on close never cuts the editor off mid-edit.
+  const [editReq, setEditReq] = useState(null);
+  useEffect(() => { setEditReq(null); }, [item?.id]);
 
   if (!item) return null;
+  if (editReq) return <ActivityEditor request={editReq} onClose={() => { setEditReq(null); onClose?.(); }} />;
+
+  const onEdit = onEditProp || ((it) => setEditReq({ item: it }));
+  const onStartNow = onStartNowProp || (async (it, startedAt) => {
+    try {
+      await startPlanActive(it, { startedAt: startedAt || new Date(), categories });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      toast.success(tr("planner.startedToast"));
+      onClose?.();
+    } catch (e) { toast.error(e?.message || "Failed"); }
+  });
 
   const st = statusFor(item);
   const cat = categories.find((c) => c.id === categoryIdOf(item));

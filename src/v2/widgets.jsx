@@ -546,7 +546,6 @@ function TodayWidget() {
       <PlanDetailsSheet
         item={detailItem}
         onClose={() => setDetailItem(null)}
-        onEdit={(it) => { setDetailItem(null); navigate(`/planner?activityId=${it.id}`); }}
       />
       {plans.length === 0 && due.length === 0 && (
         <button type="button" onClick={() => setAddOpen(true)} className="text-left w-full">

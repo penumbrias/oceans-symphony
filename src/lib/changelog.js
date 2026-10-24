@@ -18,6 +18,13 @@
 
 export const CHANGELOG = [
   {
+    date: "October 24, 2026",
+    changes: [
+      { type: "improve", text: "Tapping an activity in a home-screen widget opens the same details as the planner, and Edit opens the activity sheet right there." },
+      { type: "improve", text: "Quick check-in: give each activity's length by duration or end time, like every other activity sheet." },
+    ],
+  },
+  {
     date: "October 23, 2026",
     changes: [
       { type: "improve", text: "Soundscape keeps playing when you leave Quick Support, with a small bar to get back to it or stop it (switch it off in Soundscape)." },

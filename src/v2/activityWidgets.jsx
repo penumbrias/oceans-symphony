@@ -30,7 +30,7 @@ import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityDayView from "@/components/activities/ActivityDayView";
 import ActivityEditor from "@/components/activities/ActivityEditor";
-import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
+import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 
 // The grid's display filters and sizing live in the WIDGET's options (gear
@@ -154,13 +154,12 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
   const elements = (
     <>
       <ActivityEditor request={editorReq} onClose={() => setEditorReq(null)} />
-      <ActivityDetailsModal
-        isOpen={detailsOpen}
+      {/* The SAME details sheet the planner and Today widget use: read it,
+          resolve it, start it, and Edit opens the shared editor. */}
+      <PlanDetailsSheet
+        item={detailsOpen ? selected : null}
         onClose={() => { setDetailsOpen(false); setSelected(null); }}
-        activity={selected}
-        alters={alters}
-        onSave={() => { setDetailsOpen(false); setSelected(null); }}
-        onEditPlan={(plan) => { setDetailsOpen(false); setSelected(null); onEditPlan(plan); }}
+        onEdit={enabled ? (plan) => { setDetailsOpen(false); setSelected(null); onEditPlan(plan); } : null}
       />
       {zoomedDate && (
         <ActivityDayView
