@@ -17,7 +17,7 @@ import { X, ChevronDown, Search, Check, Trash2, Unlink, Save, Download, Loader2,
 import { toast } from 'sonner';
 import { useTerms } from '@/lib/useTerms';
 import '@/lib/editorFonts.js'; // ensure all bundled fonts are loaded
-import { saveLocalFont, deleteLocalFont, fileToDataUrl, sniffFontFormat, MAX_FONT_SIZE_BYTES } from '@/lib/localFontStorage';
+import { saveLocalFont, fileToDataUrl, sniffFontFormat, MAX_FONT_SIZE_BYTES } from '@/lib/localFontStorage';
 import { refreshCustomFontFaces, customFontFamilyCss } from '@/lib/customFontFaces';
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from '@/lib/waveColorKey';
 import { SubSection } from '@/components/settings/SettingsUI';
@@ -536,8 +536,9 @@ export default function AdvancedAppearance() {
   const handleDeleteCustomFont = async (id) => {
     try {
       const deletedFamily = customFontFamilyCss(id);
+      // The font goes to the trash; its file stays until the trash purges
+      // it (trash.js), so restoring the font brings the typeface back.
       await base44.entities.CustomFont.delete(id);
-      await deleteLocalFont(id);
       await refreshCustomFontFaces();
       qc.invalidateQueries({ queryKey: ['customFonts'] });
       // If the deleted font was actively selected, fall back so the app

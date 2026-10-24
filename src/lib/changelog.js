@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "feature", text: "Deleting something now moves it to a trash at the top of Recent Changes, where you can put it back for 30 days (or however long you choose)." },
+      { type: "feature", text: "Trash time lock: switch it on and protected things can't be deleted early, and turning it off only takes effect after the current window." },
       { type: "fix", text: "Backup warnings, critical plans, reminders and mentions now show inside the home screen, the same way as on the widget board, and never twice." },
       { type: "fix", text: "Notes and ratings on a grounding technique opened from the home-screen widget are saved now." },
       { type: "fix", text: "Notification history's Clear all hides notifications instead of deleting them, and Show cleared brings them back." },

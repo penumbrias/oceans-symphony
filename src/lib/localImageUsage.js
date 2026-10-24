@@ -61,7 +61,9 @@ function scanDump(db, needles, ignore) {
 function ignoreDeleted(deletedRecords) {
   const keys = new Set((deletedRecords || []).filter((r) => r?.entity && r?.id).map((r) => `${r.entity}:${r.id}`));
   if (!keys.size) return null;
-  return (entity, rid, rec) => keys.has(`${entity}:${rid}`)
+  // A record that went to the trash still uses its picture: it can be
+  // restored until the trash purges it (trash.js re-checks then).
+  return (entity, rid, rec) => (keys.has(`${entity}:${rid}`) && !rec?.trashed_at)
     || (entity === "HistoryEvent" && rec?.action === "deleted" && keys.has(`${rec.entity}:${rec.record_id}`));
 }
 

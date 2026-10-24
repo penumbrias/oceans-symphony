@@ -150,6 +150,15 @@ export default function AppLayout() {
     import("@/lib/friendsApi").then((m) => m.syncSharedFriendIdentity?.()).catch(() => {});
   }, []);
 
+  // Empty what has outlived the trash's recovery window. A little after
+  // the app opens, so it never competes with boot or the first sync.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import("@/lib/trash").then((m) => m.runTrashPurge()).catch(() => {});
+    }, 20000);
+    return () => clearTimeout(t);
+  }, []);
+
   // One-time post-onboarding redirect. The first-run "Set up encryption" link
   // lives outside the Router, so instead of navigating it drops a localStorage
   // flag; we honour it here once and land the user on Settings → Data & privacy
