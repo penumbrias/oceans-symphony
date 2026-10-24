@@ -25,6 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistance } from "date-fns";
 import { AtSign, Calendar, ChevronDown, MoreHorizontal, X, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { logSymptomCheckIn } from "@/lib/checkinEntry";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -119,9 +120,7 @@ function ReminderNotice({ reminder, onSettle }) {
       const path = action.payload?.path;
       if (path && path !== "/") navigate(path);
     } else if (type === "log_symptom") {
-      await base44.entities.SymptomCheckIn.create({
-        symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString(),
-      });
+      await logSymptomCheckIn({ symptomId: action.payload?.symptom_id });
     } else if (type === "dismiss") {
       onSettle({ status: "dismissed" });
       return;

@@ -20,6 +20,8 @@
 // `is_distressing` flag instead (see CustomEmotionsManager).
 
 import { base44 } from "@/api/base44Client";
+import { getFullDbDump } from "@/lib/localDb";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const LS_KEY = "symphony_system_distress";
 
@@ -73,9 +75,9 @@ export function saveSystemDistressSet(set) {
 }
 
 async function persistToSettings(arr) {
-  const rows = await base44.entities.SystemSettings.list();
-  if (rows[0]?.id) {
-    await base44.entities.SystemSettings.update(rows[0].id, { distress_emotions: arr });
+  const row = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
+  if (row?.id) {
+    await base44.entities.SystemSettings.update(row.id, { distress_emotions: arr });
   } else {
     await base44.entities.SystemSettings.create({ distress_emotions: arr });
   }
@@ -84,8 +86,8 @@ async function persistToSettings(arr) {
 // One-shot boot reconcile (called from App's post-init effect).
 export async function reconcileDistressStore() {
   try {
-    const rows = await base44.entities.SystemSettings.list();
-    const settingsSet = Array.isArray(rows[0]?.distress_emotions) ? rows[0].distress_emotions : null;
+    const row = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
+    const settingsSet = Array.isArray(row?.distress_emotions) ? row.distress_emotions : null;
     const local = readLocal();
     if (local === null && settingsSet !== null) {
       // Fresh device / restored backup → adopt the persisted set.
@@ -98,6 +100,50 @@ export async function reconcileDistressStore() {
     // Both present: device-local wins (newest edits happen here) — the next
     // user save re-syncs settings anyway. Neither: defaults, persist nothing.
   } catch { /* non-fatal — sync reads keep working off localStorage/defaults */ }
+}
+
+// ── Is this check-in distressing? ────────────────────────────────────────
+// ONE answer for every reader (analytics, planner colours, widgets).
+// New check-ins carry `is_distress`, stamped when they're saved (see
+// src/lib/checkinEntry.js). Older rows never had it, so for those the
+// labels are checked against the distress set and the custom emotions
+// flagged distressing, the same rule the check-in uses for its prompt.
+
+// Labels of custom emotions marked distressing, read from the loaded
+// database (trashed rows skipped). Cached briefly: analytics ask once per
+// check-in.
+let _customCache = { at: 0, set: new Set() };
+function customDistressLabels() {
+  const now = Date.now();
+  if (now - _customCache.at < 2000) return _customCache.set;
+  const set = new Set();
+  try {
+    for (const ce of Object.values(getFullDbDump().CustomEmotion || {})) {
+      if (ce && !ce.trashed_at && ce.is_distressing && typeof ce.label === "string") set.add(ce.label.toLowerCase());
+    }
+  } catch { /* database not loaded yet: system set only */ }
+  _customCache = { at: now, set };
+  return set;
+}
+
+export function isDistressLabel(label, customEmotions = null) {
+  if (typeof label !== "string" || !label) return false;
+  const key = label.toLowerCase();
+  if (loadSystemDistressSet().has(key)) return true;
+  if (Array.isArray(customEmotions)) {
+    return customEmotions.some((ce) => ce?.is_distressing && typeof ce.label === "string" && ce.label.toLowerCase() === key);
+  }
+  return customDistressLabels().has(key);
+}
+
+export function emotionsAreDistressing(labels, customEmotions = null) {
+  return (Array.isArray(labels) ? labels : []).some((l) => isDistressLabel(l, customEmotions));
+}
+
+export function checkInIsDistress(checkIn) {
+  if (!checkIn) return false;
+  if (typeof checkIn.is_distress === "boolean") return checkIn.is_distress;
+  return emotionsAreDistressing(checkIn.emotions);
 }
 
 // ── Grounding handoff ─────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import { normalizeSessions, sessionsInRange } from "@/lib/sessionNormalizer";
 import { whKey } from "@/components/analytics/primitives/WeekHourHeatmap";
 import { toMs, inRange } from "./range";
 import { TEXTURE_BUCKETS } from "./fronting";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 function taggedToAlter(record, alterId) {
   if (!record) return false;
@@ -89,7 +90,7 @@ export function alterFingerprint({
     }
     if (countedAny || (recordTagged && (c.emotions || []).length === 0)) {
       emotionN++;
-      if (c.is_distress) distressCount++;
+      if (checkInIsDistress(c)) distressCount++;
     }
   }
   const topEmotions = [...emotionCounts.entries()]

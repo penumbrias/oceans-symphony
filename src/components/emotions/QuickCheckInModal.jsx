@@ -33,7 +33,8 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { emotionAttributionDefault, defaultEmotionAlterIds } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData, extraDiaryGroups } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
-import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
+import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
+import { logEmotionCheckIn, logSymptomCheckIns } from "@/lib/checkinEntry";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
@@ -1033,6 +1034,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         await base44.entities.EmotionCheckIn.update(editingEntry.id, {
           timestamp: now,
           emotions: selectedEmotions,
+          is_distress: emotionsAreDistressing(selectedEmotions, customEmotions),
           fronting_alter_ids: selectedAlters,
           // Always write the map on edit (empty object clears removed
           // overrides — an edit is an explicit re-statement of the record).
@@ -1198,10 +1200,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // Per-emotion assignment overrides (only for still-selected emotions
         // with a non-empty explicit assignment — everything else inherits).
         const cleanEmotionAlters = resolvedEmotionAlters();
-        const checkIn = await base44.entities.EmotionCheckIn.create({
+        const checkIn = await logEmotionCheckIn({
           timestamp: now,
           emotions: selectedEmotions,
-          fronting_alter_ids: selectedAlters,
+          frontingAlterIds: selectedAlters,
+          customEmotions,
           ...(Object.keys(cleanEmotionAlters).length > 0 ? { emotion_alters: cleanEmotionAlters } : {}),
           // Company rides on the record so the Check-In Log can show it —
           // the live ContactEncounter sessions are managed separately in
@@ -1220,13 +1223,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // symptom check-ins carried no attribution at all — the per-alter
       // symptom analytics were silently empty.)
       if (symptomCheckIns.length > 0) {
-        await base44.entities.SymptomCheckIn.bulkCreate(symptomCheckIns.map((sc) => ({
-          symptom_id: sc.symptom_id,
-          timestamp: now,
-          severity: sc.severity,
-          fronting_alter_ids: sc.alter_ids ?? selectedAlters,
-          check_in_id: checkInId
-        })));
+        await logSymptomCheckIns(
+          symptomCheckIns.map((sc) => ({ symptomId: sc.symptom_id, severity: sc.severity, frontingAlterIds: sc.alter_ids ?? selectedAlters })),
+          { timestamp: now, checkInId },
+        );
       }
       if (symptomCheckIns.length > 0) queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
 

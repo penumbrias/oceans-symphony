@@ -9,6 +9,7 @@
 import { normalizeSessions, sessionsInRange, sliceByOverlap } from "@/lib/sessionNormalizer";
 import { toMs, dayKey, bucketByDay, inRange, DAY_MS } from "./range";
 import { dailySeries, baseline, trend, deviation } from "./baselines";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -99,7 +100,7 @@ export function emotionRollup({ emotionCheckIns, range, priorRangeObj, baselineR
       if (!e) continue;
       emotionCounts.set(e, (emotionCounts.get(e) || 0) + 1);
     }
-    if (c.is_distress) distressCount++;
+    if (checkInIsDistress(c)) distressCount++;
     const val = Number(c.intensity);
     if (Number.isFinite(val) && val > 0) { intensitySum += val; intensityN++; }
   }
@@ -107,8 +108,8 @@ export function emotionRollup({ emotionCheckIns, range, priorRangeObj, baselineR
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count);
 
-  const distressSeries = dailySeries(all.filter((c) => c.is_distress), getMs, range, { kind: "count" });
-  const priorDistress = priorRangeObj ? dailySeries(all.filter((c) => c.is_distress), getMs, priorRangeObj, { kind: "count" }) : null;
+  const distressSeries = dailySeries(all.filter(checkInIsDistress), getMs, range, { kind: "count" });
+  const priorDistress = priorRangeObj ? dailySeries(all.filter(checkInIsDistress), getMs, priorRangeObj, { kind: "count" }) : null;
 
   return {
     countSeries,

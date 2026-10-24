@@ -20,6 +20,7 @@ import {
 import { normalizeSessions, sessionsInRange, effectiveDurationMs } from "./sessionNormalizer";
 import { buildClinicianParagraphs } from "./analytics/clinicianSummary";
 import { journalEntryDate } from "@/lib/journalDate";
+import { meetingTextParts } from "@/lib/systemMeetingText";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,17 @@ function fmtDate(str) {
 
 function fmtDateTime(str) {
   try { return format(parseISO(str), "MMM d, yyyy h:mm a"); } catch { return str || ""; }
+}
+
+// Who a check-in belongs to: its own alter_id (System Meeting rows), else
+// everyone it was attributed to.
+function checkInWho(c, alters, includeAlterInfo) {
+  const ids = c.alter_id ? [c.alter_id]
+    : Array.isArray(c.fronting_alter_ids) && c.fronting_alter_ids.length ? c.fronting_alter_ids
+      : [c.fronting_alter_id].filter(Boolean);
+  if (!ids.length) return alterName(null, alters, includeAlterInfo);
+  if (!includeAlterInfo) return alterName(ids[0], alters, includeAlterInfo);
+  return ids.map((id) => alterName(id, alters, includeAlterInfo)).join(", ");
 }
 
 function alterName(alterId, alters, includeAlterInfo) {
@@ -203,7 +215,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
       date: fmtDateTime(c.timestamp || c.created_date),
       emotions: (c.emotions || []).join(", "),
       note: c.note || "",
-      who: alterName(c.alter_id || c.fronting_alter_id, alters, includeAlterInfo),
+      who: checkInWho(c, alters, includeAlterInfo),
       label: "Crisis check-in",
     }));
 
@@ -211,7 +223,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
     date: fmtDateTime(c.timestamp || c.created_date),
     emotions: (c.emotions || []).join(", "),
     note: c.note || "",
-    who: includeAlterInfo ? alterName(c.alter_id || c.fronting_alter_id, alters, includeAlterInfo) : null,
+    who: includeAlterInfo ? checkInWho(c, alters, includeAlterInfo) : null,
   }));
 
   return { topEmotions, checkInList, noteworthy, totalCheckIns: checkins.length };
@@ -722,11 +734,9 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
 
   return items.map(c => {
-    const responses = c.responses || c.answers || {};
-    const summaryParts = Object.entries(responses)
-      .filter(([, v]) => v != null && v !== "")
+    const summaryParts = meetingTextParts(c)
       .slice(0, 5)
-      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${stripHtml(String(v))}`);
+      .map((part) => `${part.label}: ${part.text}`);
     return {
       id: c.id,
       date: fmtDateTime(c.created_date),

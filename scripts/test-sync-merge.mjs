@@ -314,6 +314,13 @@ console.log("advanced front review (spans, days, edits)");
 }
 
 console.log("logs and settings");
+test("symptom episode ratings from both devices are all kept", () => {
+  const base = created({ id: "ss", symptom_id: "x", is_active: true, severity_snapshots: [{ severity: 2, timestamp: T(1) }] }, T(1));
+  const a = updated(base, { severity_snapshots: [...base.severity_snapshots, { severity: 3, timestamp: T(5) }] }, T(5));
+  const b = updated(base, { severity_snapshots: [...base.severity_snapshots, { severity: 4, timestamp: T(7) }] }, T(7));
+  assert.deepEqual(mergeForEntity("SymptomSession", a, b).severity_snapshots.map((x) => x.severity), [2, 3, 4]);
+});
+
 test("presence sightings from both devices are all kept", () => {
   const base = created({ id: "pr", name: "fog", sightings: [T(1)] }, T(1));
   const a = updated(base, { sightings: [T(1), T(5)] }, T(5));

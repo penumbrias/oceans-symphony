@@ -35,6 +35,7 @@ import { getActiveSystemId } from "@/lib/systems";
 import { planMark } from "@/lib/planner/planMark";
 import { datesForDay } from "@/lib/importantDates";
 import { getCategoryMeta } from "@/lib/locationCategories";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -980,7 +981,7 @@ export default function WeekCanvas({
           id: c.id,
           checkIn: c,
           min: d.getHours() * 60 + d.getMinutes(),
-          color: c.is_distress ? "#ef4444" : "#22c55e",
+          color: checkInIsDistress(c) ? "#ef4444" : "#22c55e",
           label: (c.emotions || []).join(", "),
         };
       });

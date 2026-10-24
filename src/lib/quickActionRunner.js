@@ -21,6 +21,7 @@ import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters"
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { startSymptomSession } from "@/lib/symptomSessions";
+import { logEmotionCheckIn, logSymptomCheckIn } from "@/lib/checkinEntry";
 
 const safe = (p) => Promise.resolve(p).then((v) => (Array.isArray(v) ? v : [])).catch(() => []);
 
@@ -121,28 +122,15 @@ export async function runQuickAction(action, extraData = {}, ctx) {
     await startSymptomSession(symptom_id, { startTime: now, severity });
     queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
 
-    // Create a parent check-in to tie the symptom to fronting alters (mirrors QuickCheckInModal)
-    let checkInId = null;
-    if (frontingAlterIds.length > 0) {
-      const parent = await base44.entities.EmotionCheckIn.create({
-        timestamp: now,
-        emotions: [],
-        fronting_alter_ids: frontingAlterIds,
-      }).catch(() => null);
-      checkInId = parent?.id || null;
-      if (checkInId) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-    }
-    await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now, check_in_id: checkInId });
+    // The symptom row records who was in front itself, the same way the
+    // check-in's symptoms do (no empty feeling check-in needed to carry it).
+    await logSymptomCheckIn({ symptomId: symptom_id, severity, timestamp: now, frontingAlterIds });
     queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
     toast.success("Logged");
   } else if (action.type === "log_emotion") {
     const { emotion_label } = action.config || {};
     if (!emotion_label) return;
-    await base44.entities.EmotionCheckIn.create({
-      timestamp: now,
-      emotions: [emotion_label],
-      fronting_alter_ids: frontingAlterIds,
-    });
+    await logEmotionCheckIn({ timestamp: now, emotions: [emotion_label], frontingAlterIds });
     queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
     toast.success(`${emotion_label} logged`);
   } else if (action.type === "log_diary") {
