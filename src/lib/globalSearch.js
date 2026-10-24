@@ -1,4 +1,5 @@
 import { journalEntryDate } from "@/lib/journalDate";
+import { meetingTextParts } from "@/lib/systemMeetingText";
 /**
  * Global search engine — shared between the Dashboard "Search everything"
  * input and any other surface that wants to query across the user's data.
@@ -406,19 +407,24 @@ export function buildSymptomRecords({ items = [] }) {
   }));
 }
 
-export function buildSymptomCheckInRecords({ items = [] }) {
-  return items.map((s) => ({
-    type: "symptom",
-    id: `sc-${s.id}`,
-    title: s.symptom_name || s.label || "Symptom Check-in",
-    subtitle: snippet(s.notes) || formatDateLabel(s.timestamp || s.created_date) || "",
-    path: `/checkin-log`,
-    searchableText: joinNonEmpty([
-      s.symptom_name, s.label, s.notes, s.severity,
-      dateSearchBlob(s.timestamp), dateSearchBlob(s.created_date),
-    ]).toLowerCase(),
-    sortDate: s.timestamp || s.created_date,
-  }));
+export function buildSymptomCheckInRecords({ items = [], symptoms = [] }) {
+  // Check-ins store only the symptom's id; the name comes from the catalogue.
+  const nameOf = new Map((symptoms || []).map((x) => [x.id, x.label || x.name]));
+  return items.map((s) => {
+    const name = nameOf.get(s.symptom_id) || s.symptom_name || s.label;
+    return {
+      type: "symptom",
+      id: `sc-${s.id}`,
+      title: name || "Symptom Check-in",
+      subtitle: snippet(s.notes) || formatDateLabel(s.timestamp || s.created_date) || "",
+      path: `/checkin-log`,
+      searchableText: joinNonEmpty([
+        name, s.notes, s.severity,
+        dateSearchBlob(s.timestamp), dateSearchBlob(s.created_date),
+      ]).toLowerCase(),
+      sortDate: s.timestamp || s.created_date,
+    };
+  });
 }
 
 export function buildGroupRecords({ items = [], alters = [] }) {
@@ -530,15 +536,18 @@ export function buildDiaryCardRecords({ items = [] }) {
 }
 
 export function buildSystemCheckInRecords({ items = [] }) {
-  return items.map((c) => ({
-    type: "checkin",
-    id: c.id,
-    title: "System Meeting",
-    subtitle: snippet(c.notes || c.content) || formatDateLabel(c.created_date) || "",
-    path: `/system-checkin?id=${c.id}`,
-    searchableText: joinNonEmpty([c.notes, c.content, dateSearchBlob(c.created_date)]).toLowerCase(),
-    sortDate: c.created_date,
-  }));
+  return items.map((c) => {
+    const text = meetingTextParts(c).map((p) => p.text);
+    return {
+      type: "checkin",
+      id: c.id,
+      title: "System Meeting",
+      subtitle: snippet(text[0]) || formatDateLabel(c.created_date) || "",
+      path: `/system-checkin?id=${c.id}`,
+      searchableText: joinNonEmpty([...text, dateSearchBlob(c.date), dateSearchBlob(c.created_date)]).toLowerCase(),
+      sortDate: c.created_date,
+    };
+  });
 }
 
 export function buildLocationRecords({ items = [] }) {
@@ -882,7 +891,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildTherapyNoteRecords({ items: therapyNotes || [] }));
   records.push(...buildEmotionCheckInRecords({ items: emotionCheckIns || [] }));
   records.push(...buildSymptomRecords({ items: symptoms || [] }));
-  records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [] }));
+  records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [], symptoms: symptoms || [] }));
   records.push(...buildGroupRecords({ items: groups || [], alters: alters || [] }));
   records.push(...buildDiaryCardRecords({ items: diaryCards || [] }));
   records.push(...buildSystemCheckInRecords({ items: systemCheckIns || [] }));

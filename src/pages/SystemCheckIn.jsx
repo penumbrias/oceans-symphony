@@ -3,6 +3,7 @@ import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import React, { useState, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
+import { logEmotionCheckIn } from "@/lib/checkinEntry";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAuth } from "@/lib/AuthContext";
@@ -241,10 +242,9 @@ export default function SystemCheckInPage() {
     if (sensations) noteParts.push(`Sensations: ${sensations}`);
     if (stepNotes) noteParts.push(`Notes: ${stepNotes}`);
     try {
-      await base44.entities.EmotionCheckIn.create({
-        timestamp: new Date().toISOString(),
+      await logEmotionCheckIn({
         emotions: emotionLabels,
-        fronting_alter_ids: alterIds,
+        frontingAlterIds: alterIds,
         note: noteParts.join(". "),
       });
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
@@ -267,10 +267,9 @@ export default function SystemCheckInPage() {
       const noteBits = ["From system meeting"];
       if ((p.note || "").trim()) noteBits.push(p.note.trim());
       try {
-        await base44.entities.EmotionCheckIn.create({
-          timestamp: new Date().toISOString(),
+        await logEmotionCheckIn({
           emotions: emos,
-          fronting_alter_ids: [p.alter_id],
+          frontingAlterIds: [p.alter_id],
           alter_id: p.alter_id,
           note: noteBits.join(". "),
         });

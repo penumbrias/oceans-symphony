@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { logSymptomCheckIn } from "@/lib/checkinEntry";
 import { useNavigate } from "react-router-dom";
 import { X, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -183,7 +184,7 @@ export default function ReminderToast() {
       if (path && path !== "/") navigate(path);
       else return;
     } else if (type === "log_symptom") {
-      await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
+      await logSymptomCheckIn({ symptomId: action.payload?.symptom_id });
     } else if (type === "dismiss") {
       await updateInstance(instance.id, { status: "dismissed" });
       return;

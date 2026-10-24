@@ -72,6 +72,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -2359,16 +2360,11 @@ function LogEmotionWidget({ mode, settings }) {
     if (picked.length === 0) return;
     setSaving(true);
     try {
-      // Attribute to whoever is closest to front, like the check-in does.
-      const active = await base44.entities.FrontingSession.filter({ is_active: true });
-      const lead = active.find((x) => x.is_primary) || active[0];
-      await base44.entities.EmotionCheckIn.create({
-        timestamp: new Date().toISOString(),
+      // Same save path and "who" rule as the check-in: everyone in front.
+      await logEmotionCheckIn({
         emotions: picked,
         intensity: Number(intensity) || 3,
-        alter_id: lead?.alter_id || null,
-        // Analytics, the check-in log and reports attribute by fronting_alter_ids.
-        fronting_alter_ids: lead?.alter_id ? [lead.alter_id] : [],
+        customEmotions,
       });
       qc.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       toast.success(applyTerms(tr("widget.logEmotion.saved"), t));
@@ -2426,17 +2422,13 @@ function LogSymptomFullWidget({ api }) {
     try {
       const now = new Date().toISOString();
       const ids = [];
-      // Same record shape the Quick Check-In writes, minus the parent
-      // check-in id (there is no emotion check-in here to attach to).
-      for (const sc of rows) {
-        const created = await base44.entities.SymptomCheckIn.create({
-          symptom_id: sc.symptom_id,
-          timestamp: now,
-          severity: sc.severity,
-          fronting_alter_ids: sc.alter_ids ?? fronterIds,
-        });
-        ids.push(created.id);
-      }
+      // The check-in's own save path, minus the parent check-in id (there
+      // is no feeling check-in here to attach to).
+      const created = await logSymptomCheckIns(
+        rows.map((sc) => ({ symptomId: sc.symptom_id, severity: sc.severity, frontingAlterIds: sc.alter_ids ?? undefined })),
+        { timestamp: now },
+      );
+      for (const c of created || []) if (c?.id) ids.push(c.id);
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       setLastSaved({ ids, at: now });
       // Remount the section so the form comes back clean — leaving the
@@ -2513,16 +2505,12 @@ function LogSymptomWidget({ settings }) {
     if (busyId) return;
     setBusyId(symptom.id);
     try {
-      const active = await base44.entities.FrontingSession.filter({ is_active: true });
-      const lead = active.find((x) => x.is_primary) || active[0];
-      const created = await base44.entities.SymptomCheckIn.create({
-        timestamp: new Date().toISOString(),
-        symptom_id: symptom.id,
+      const created = await logSymptomCheckIn({
+        symptomId: symptom.id,
         // `severity` is the field every reader uses (SymptomsSection,
         // analytics, reports); intensity is kept for the widget's own recent-state.
         severity: value,
         intensity: value,
-        alter_id: lead?.alter_id || null,
       });
       setRecent((prev) => ({ ...prev, [symptom.id]: { id: created.id, value } }));
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });

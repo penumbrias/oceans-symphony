@@ -23,6 +23,7 @@ import {
   staleOpenSessions,
 } from "./sessionNormalizer";
 import { statusFor, ACTIVITY_STATUSES } from "./activityStatus";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 // ── Date helpers ────────────────────────────────────────────────────
 // Normalises `from` / `to` Date instances into a stable range
@@ -275,7 +276,7 @@ export function computeEmotionRollup(checkIns, sessions, range) {
   const intensityByDay = new Map();
   let distressCount = 0;
   for (const ci of filteredCheckIns) {
-    if (ci.is_distress) distressCount += 1;
+    if (checkInIsDistress(ci)) distressCount += 1;
     for (const e of ci.emotions || []) {
       emotionFreq.set(e, (emotionFreq.get(e) || 0) + 1);
     }

@@ -65,6 +65,8 @@
 //   ~journal:dreams:title[flying again]:body[it was the ocean one]
 
 import { base44 } from "@/api/base44Client";
+import { logEmotionCheckIn, logSymptomCheckIn } from "@/lib/checkinEntry";
+import { startSymptomSession, endSymptomSessions, activeSessionsFor } from "@/lib/symptomSessions";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { contactDisplayName } from "@/lib/contacts";
 import { getActivePrimaryId, getActiveFronterIds } from "@/lib/frontingUtils";
@@ -749,29 +751,25 @@ async function executePlan(plan, ctx) {
   const now = ctx.now;
   switch (plan.kind) {
     case "symptomCheckIn": {
-      const r = await base44.entities.SymptomCheckIn.create({ symptom_id: plan.symptom_id, timestamp: now, severity: plan.severity ?? null });
+      const r = await logSymptomCheckIn({ symptomId: plan.symptom_id, timestamp: now, severity: plan.severity ?? null, frontingAlterIds: ctx.fronting_alter_ids });
       return r?.id || null;
     }
     case "symptomSessionStart": {
-      const r = await base44.entities.SymptomSession.create({
-        symptom_id: plan.symptom_id, start_time: now, is_active: true,
-        severity_snapshots: plan.severity != null ? [{ severity: plan.severity, timestamp: now }] : [],
-      });
+      // The one session writer: reuses an episode that's already running
+      // instead of starting a duplicate.
+      const { session } = await startSymptomSession(plan.symptom_id, { startTime: now, severity: plan.severity ?? null });
       try { window.dispatchEvent(new Event("symphony-symptoms-changed")); } catch { /* SSR */ }
-      return r?.id || null;
+      return session?.id || null;
     }
     case "symptomSessionEnd": {
-      const active = await base44.entities.SymptomSession.filter({ is_active: true });
-      const s = (active || []).find((x) => x.symptom_id === plan.symptom_id);
-      if (s) {
-        await base44.entities.SymptomSession.update(s.id, { is_active: false, end_time: now });
-        try { window.dispatchEvent(new Event("symphony-symptoms-changed")); } catch { /* SSR */ }
-        return s.id;
-      }
-      return null;
+      const ended = await activeSessionsFor(plan.symptom_id);
+      if (!ended.length) return null;
+      await endSymptomSessions(plan.symptom_id, { endTime: now });
+      try { window.dispatchEvent(new Event("symphony-symptoms-changed")); } catch { /* SSR */ }
+      return ended[0].id;
     }
     case "emotion": {
-      const r = await base44.entities.EmotionCheckIn.create({ timestamp: now, emotions: [plan.label], fronting_alter_ids: ctx.fronting_alter_ids });
+      const r = await logEmotionCheckIn({ timestamp: now, emotions: [plan.label], frontingAlterIds: ctx.fronting_alter_ids });
       return r?.id || null;
     }
     case "companyStart": {

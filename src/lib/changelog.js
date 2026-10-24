@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "fix", text: "Feelings and symptoms logged from widgets, quick actions, reminders, ~commands and the symptom menus now record who was in {{front}}, so per-{{alter}} charts include them." },
+      { type: "fix", text: "Distress counts in Analytics and distress colours in the planner work again." },
+      { type: "fix", text: "Therapy reports show who each check-in belongs to, and System Meeting notes now show up in reports and search." },
+      { type: "fix", text: "Symptom names show in search and the check-in log widget instead of just \"Symptom\"." },
+      { type: "fix", text: "Severity ratings on a running symptom made on two synced devices are all kept." },
       { type: "fix", text: "Delete messages now say things go to the trash, and restoring a group from the trash puts its members back." },
       { type: "improve", text: "With the trash time lock on, Recent Changes entries and whole-category wipes in the Data inspector are protected too." },
       { type: "feature", text: "Deleting something now moves it to a trash at the top of Recent Changes, where you can put it back for 30 days (or however long you choose)." },

@@ -15,6 +15,7 @@ import { normalizeSessions } from "@/lib/sessionNormalizer";
 import { getAncestorIds } from "@/lib/categoryTreeUtils";
 import { toMs, dayKey, inRange } from "./range";
 import { dailySeries } from "./baselines";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 const HOUR_MS = 3600000;
 
@@ -55,7 +56,7 @@ export function distressOutcomeByDay(emotionCheckIns, range) {
     if (ms == null || !inRange(ms, range)) continue;
     const key = dayKey(ms);
     const prev = byDay.get(key) || 0;
-    byDay.set(key, c.is_distress ? 1 : prev);
+    byDay.set(key, checkInIsDistress(c) ? 1 : prev);
   }
   return byDay;
 }
@@ -159,14 +160,14 @@ export function afterDistress({ emotionCheckIns, range, windowHours = 12 }) {
 
   const pairs = [];
   for (let i = 0; i < sorted.length; i++) {
-    if (!sorted[i].c.is_distress) continue;
+    if (!checkInIsDistress(sorted[i].c)) continue;
     const next = sorted.slice(i + 1).find((x) => x.ms - sorted[i].ms <= windowHours * HOUR_MS);
     if (!next) continue;
     const a = Number(sorted[i].c.intensity);
     const b = Number(next.c.intensity);
     let calmer;
     if (Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0) calmer = b < a;
-    else calmer = !next.c.is_distress;
+    else calmer = !checkInIsDistress(next.c);
     pairs.push({ calmer, minutes: Math.round((next.ms - sorted[i].ms) / 60000) });
   }
   if (pairs.length < 3) return { gated: true, pairsN: pairs.length, need: 3 };
@@ -271,7 +272,7 @@ export function metricSeries({ metric, range, emotionCheckIns, symptomCheckIns, 
     case "checkins":
       return dailySeries(emotionCheckIns || [], emoMs, range, { kind: "count" });
     case "distress":
-      return dailySeries((emotionCheckIns || []).filter((c) => c.is_distress), emoMs, range, { kind: "count" });
+      return dailySeries((emotionCheckIns || []).filter(checkInIsDistress), emoMs, range, { kind: "count" });
     case "intensity":
       return dailySeries(
         (emotionCheckIns || []).filter((c) => Number(c.intensity) > 0),

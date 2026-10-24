@@ -39,6 +39,7 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
 import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { isCountedTask, taskCountState, taskCountConfig, addTaskCount, countLabel, TASK_TICKS_QUERY_KEY } from "@/lib/taskCounts";
+import { checkInIsDistress } from "@/lib/emotionDistress";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -192,6 +193,7 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const checkIns = useList("emotionCheckIns", "EmotionCheckIn");
   const symptomCheckIns = useList("symptomCheckIns", "SymptomCheckIn");
+  const symptoms = useList("symptoms", "Symptom");
   const alters = useList("alters", "Alter");
   const limit = Math.max(1, Math.min(50, parseInt(settings?.limit, 10) || (mode === "expanded" ? 20 : 8)));
 
@@ -199,14 +201,16 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
     const emo = checkIns.map((c) => ({
       id: c.id, kind: "emotion", ts: c.timestamp,
       title: (c.emotions || []).join(", ") || "Check-in",
-      intensity: c.intensity, alterId: c.alter_id, distress: c.is_distress,
+      intensity: c.intensity, alterId: c.alter_id || c.fronting_alter_ids?.[0], distress: checkInIsDistress(c),
     }));
+    const symptomLabel = new Map(symptoms.map((x) => [x.id, x.label || x.name]));
     const sym = mode === "minimal" ? [] : symptomCheckIns.map((s) => ({
       id: s.id, kind: "symptom", ts: s.timestamp,
-      title: s.symptom_name || s.name || "Symptom", intensity: s.intensity, alterId: s.alter_id,
+      title: symptomLabel.get(s.symptom_id) || "Symptom",
+      intensity: s.severity ?? s.intensity, alterId: s.alter_id || s.fronting_alter_ids?.[0],
     }));
     return [...emo, ...sym].sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, limit);
-  }, [checkIns, symptomCheckIns, limit, mode]);
+  }, [checkIns, symptomCheckIns, symptoms, limit, mode]);
 
   const alterOf = (id) => alters.find((a) => a.id === id);
   const stamp = (ts) => (isSameDay(new Date(ts), new Date())

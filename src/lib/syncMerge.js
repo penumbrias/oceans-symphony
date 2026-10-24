@@ -330,6 +330,8 @@ function parseJsonArray(raw) {
 export const LOG_FIELDS = {
   Presence: { sightings: "array" },
   FrontingSession: { note: "json" },
+  // Severity ratings during a running symptom episode: both devices' ratings are kept.
+  SymptomSession: { severity_snapshots: "array" },
 };
 
 export function unionLogField(kind, a, b) {

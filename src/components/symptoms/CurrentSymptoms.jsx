@@ -7,6 +7,7 @@ import { X, Clock } from "lucide-react";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import { rateSymptomSession } from "@/lib/checkinEntry";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -73,14 +74,7 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
   const handleSetSeverity = async (severity) => {
     setSaving(true);
     try {
-      const existingSnapshots = sess.severity_snapshots || [];
-      const newSnapshots = [...existingSnapshots, { severity, timestamp: new Date().toISOString() }];
-      await base44.entities.SymptomSession.update(sess.id, { severity_snapshots: newSnapshots });
-      await base44.entities.SymptomCheckIn.create({
-        symptom_id: sess.symptom_id,
-        severity,
-        timestamp: new Date().toISOString(),
-      });
+      await rateSymptomSession(sess, severity);
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
     } finally {

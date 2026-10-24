@@ -25,7 +25,8 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
   });
 
   const { data: sessions = symptomSessions ?? [] } = useQuery({
-    queryKey: ["symptomSessionsAll"],
+    // Under the "symptomSessions" prefix so every session write refreshes it.
+    queryKey: ["symptomSessions", "analytics500"],
     queryFn: () => base44.entities.SymptomSession.list("-start_time", 500),
     enabled: !symptomSessions,
   });

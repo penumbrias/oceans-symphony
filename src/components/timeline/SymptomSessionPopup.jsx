@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
+import { rateSymptomSession } from "@/lib/checkinEntry";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -83,15 +84,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     if (saving) return;
     setSaving(true);
     try {
-      const existingSnapshots = session.severity_snapshots || [];
-      await base44.entities.SymptomSession.update(session.id, {
-        severity_snapshots: [...existingSnapshots, { severity, timestamp: new Date().toISOString() }],
-      });
-      await base44.entities.SymptomCheckIn.create({
-        symptom_id: session.symptom_id,
-        severity,
-        timestamp: new Date().toISOString(),
-      });
+      await rateSymptomSession(session, severity);
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success(`Severity ${severity} logged`);
