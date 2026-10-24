@@ -10,7 +10,6 @@
 // Fronting/alters/categories are read FRESH on every run (refetch before
 // write) instead of trusting whatever a page had cached.
 
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { toggleTemplateDone } from "@/lib/dailyTaskSystem";
@@ -20,7 +19,7 @@ import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters"
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { startSymptomSession } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, saveStatusNote, logLocation } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, saveStatusNote, logLocation, logDiaryCard } from "@/lib/checkinEntry";
 import { findSleepInProgress, startSleep, endSleep } from "@/lib/sleepEntry";
 
 const safe = (p) => Promise.resolve(p).then((v) => (Array.isArray(v) ? v : [])).catch(() => []);
@@ -137,26 +136,9 @@ export async function runQuickAction(action, extraData = {}, ctx) {
     const { value } = extraData;
     const { group_id, field_data_key, field_label } = action.config || {};
     if (!group_id || !field_data_key || value === undefined || value === null) return;
-    const cardData = {};
-    if (group_id === "urges") {
-      cardData.urges = { [field_data_key]: value };
-    } else if (group_id === "body_mind") {
-      cardData.body_mind = { [field_data_key]: value };
-    } else if (group_id === "skills") {
-      if (field_data_key === "skills_practiced") {
-        cardData.skills_practiced = value;
-      } else {
-        cardData.medication_safety = { [field_data_key]: value };
-      }
-    }
-    await base44.entities.DiaryCard.create({
-      card_type: "daily",
-      date: format(new Date(), "yyyy-MM-dd"),
-      name: `Daily — ${format(new Date(), "MMM d, yyyy")}`,
-      fronting_alter_ids: frontingAlterIds,
-      emotions: [],
-      ...cardData,
-    });
+    // Any group the diary template has, built-in or added by the person
+    // (those used to save an empty card).
+    await logDiaryCard({ [group_id]: { [field_data_key]: value } }, { frontingAlterIds });
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
     toast.success(`${field_label || "Diary"} logged`);
   } else if (action.type === "log_location") {

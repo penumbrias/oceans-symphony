@@ -31,10 +31,10 @@ import RatingMeter from "@/components/emotions/RatingMeter";
 import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { emotionAttributionDefault, defaultEmotionAlterIds } from "@/lib/emotionAttribution";
-import DiarySection, { hasDiaryData, extraDiaryGroups } from "@/components/diary/DiarySection";
+import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
-import { logEmotionCheckIn, logSymptomCheckIns, logLocation } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIns, logLocation, logDiaryCard } from "@/lib/checkinEntry";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
@@ -1094,24 +1094,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           queryClient.invalidateQueries({ queryKey: ["activities"] });
         }
         if (hasDiaryData(diaryData)) {
-          const cardDate = new Date(now);
-          await base44.entities.DiaryCard.create({
-            card_type: "daily",
-            date: format(cardDate, "yyyy-MM-dd"),
-            name: `Daily — ${format(cardDate, "MMM d, yyyy")}`,
-            fronting_alter_ids: selectedAlters,
-            emotions: selectedEmotions,
-            urges: diaryData.urges || null,
-            body_mind: diaryData.body_mind || null,
-            skills_practiced: diaryData.skills?.skills_practiced ?? null,
-            medication_safety: diaryData.skills ? {
-              rx_meds_taken: diaryData.skills.rx_meds_taken,
-              self_harm_occurred: diaryData.skills.self_harm_occurred,
-              substances_count: diaryData.skills.substances_count
-            } : null,
-            notes: trimmedNote ? { optional: trimmedNote } : null,
-            custom_groups: extraDiaryGroups(diaryData),
-          });
+          await logDiaryCard(diaryData, { timestamp: now, emotions: selectedEmotions, note: trimmedNote, frontingAlterIds: selectedAlters });
           queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
         }
         if (openSections.has("location") && (locationName.trim() || locationCategory)) {
@@ -1231,26 +1214,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
       // DiaryCard (only if diary-specific fields have data)
       if (hasDiaryData(diaryData)) {
-        const cardDate = new Date(now);
-        await base44.entities.DiaryCard.create({
-          card_type: "daily",
-          date: format(cardDate, "yyyy-MM-dd"),
-          name: `Daily — ${format(cardDate, "MMM d, yyyy")}`,
-          fronting_alter_ids: selectedAlters,
-          emotions: selectedEmotions,
-          urges: diaryData.urges || null,
-          body_mind: diaryData.body_mind || null,
-          skills_practiced: diaryData.skills?.skills_practiced ?? null,
-          medication_safety: diaryData.skills ?
-          {
-            rx_meds_taken: diaryData.skills.rx_meds_taken,
-            self_harm_occurred: diaryData.skills.self_harm_occurred,
-            substances_count: diaryData.skills.substances_count
-          } :
-          null,
-          notes: noteOut.trim() ? { optional: noteOut.trim() } : null,
-          custom_groups: extraDiaryGroups(diaryData),
-        });
+        await logDiaryCard(diaryData, { timestamp: now, emotions: selectedEmotions, note: noteOut, frontingAlterIds: selectedAlters });
         queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
       }
 

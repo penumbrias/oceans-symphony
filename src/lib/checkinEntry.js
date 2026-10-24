@@ -25,6 +25,8 @@
 import { base44 } from "@/api/base44Client";
 import { emotionsAreDistressing } from "@/lib/emotionDistress";
 import { getCategoryMeta } from "@/lib/locationCategories";
+import { hasDiaryData, diaryDataToPatch } from "@/lib/diaryData";
+import { format } from "date-fns";
 
 // Alter ids in front from a list of active sessions. Handles the current
 // per-alter rows and the legacy grouped rows (primary_alter_id +
@@ -198,5 +200,27 @@ export async function logLocation({ category, name, lat, lng, timestamp, frontin
     longitude: hasGps ? lng : null,
     source: hasGps ? "gps" : "manual",
     fronting_alter_ids: await whoFor(frontingAlterIds),
+  });
+}
+
+// ── Diary cards ───────────────────────────────────────────────────────
+// The check-in (create and edit), the diary widget and the diary quick
+// action each built a card by hand. The widget and the quick action
+// dropped the groups the person added to their template, and every door
+// kept only three of the safety fields. One shape now, from
+// diaryDataToPatch, with the same "who" rule as the check-ins.
+// data: DiarySection's { groupKey: { fieldKey: value } }.
+export async function logDiaryCard(data, { timestamp, emotions = [], note = "", frontingAlterIds } = {}) {
+  if (!hasDiaryData(data)) return null;
+  const at = timestamp ? new Date(timestamp) : new Date();
+  const text = typeof note === "string" ? note.trim() : "";
+  return base44.entities.DiaryCard.create({
+    card_type: "daily",
+    date: format(at, "yyyy-MM-dd"),
+    name: `Daily — ${format(at, "MMM d, yyyy")}`,
+    fronting_alter_ids: await whoFor(frontingAlterIds),
+    emotions: Array.isArray(emotions) ? emotions : [],
+    ...diaryDataToPatch(data),
+    notes: text ? { optional: text } : null,
   });
 }
