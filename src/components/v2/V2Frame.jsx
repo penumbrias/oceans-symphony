@@ -62,6 +62,7 @@ import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
 import { IconSlot } from "@/components/shared/LucideByName";
 import { readPinnedBar, pinnedBarPatch, openBarsEditor } from "@/lib/barsModel";
+import { saveStatusNote } from "@/lib/checkinEntry";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -267,16 +268,9 @@ export function QuickNoteSheet({ open, onClose }) {
     if (!text || saving) return;
     setSaving(true);
     try {
-      // Shared text pipeline: ~commands, "-name" signposts (sign the status), @mentions.
-      const { prepareAuthoredText } = await import("@/lib/authoredText");
-      const prepared = await prepareAuthoredText(text, { alters: qnAlters, whisper: false, chips: false, surfaceLabel: "status" });
-      if (prepared === null) { setSaving(false); return; }
-      const noteText = prepared.content;
-      const authorAlterId = prepared.authorIds[0] || null;
-      const created = await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText, ...(authorAlterId ? { author_alter_id: authorAlterId } : {}) });
-      // @mentions notify like every other surface.
-      const { saveStatusMentions } = await import("@/lib/mentionUtils");
-      await saveStatusMentions({ note: noteText, alters: qnAlters, sourceId: created?.id, authorAlterId });
+      // The one status save path: ~commands, "-name" signposts, @mentions.
+      const created = await saveStatusNote(text, { alters: qnAlters });
+      if (!created) { setSaving(false); return; }
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success(t("note.saved"));

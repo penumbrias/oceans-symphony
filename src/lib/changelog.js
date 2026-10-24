@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "fix", text: "Statuses set from the {{fronters}} panel, the quick note sheet and quick actions now understand ~commands, signposts and @mentions, and so do edits in the Check-In Log." },
+      { type: "fix", text: "Waking up from the sleep quick action now adds the night to the planner, and starting sleep twice no longer makes two nights." },
+      { type: "improve", text: "Locations logged from a check-in or quick action now record who was in {{front}}." },
       { type: "fix", text: "Feelings and symptoms logged from widgets, quick actions, reminders, ~commands and the symptom menus now record who was in {{front}}, so per-{{alter}} charts include them." },
       { type: "fix", text: "Distress counts in Analytics and distress colours in the planner work again." },
       { type: "fix", text: "Therapy reports show who each check-in belongs to, and System Meeting notes now show up in reports and search." },

@@ -24,6 +24,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { emotionsAreDistressing } from "@/lib/emotionDistress";
+import { getCategoryMeta } from "@/lib/locationCategories";
 
 // Alter ids in front from a list of active sessions. Handles the current
 // per-alter rows and the legacy grouped rows (primary_alter_id +
@@ -111,5 +112,91 @@ async function doRateSymptomSession(session, severity, { frontingAlterIds } = {}
     severity,
     timestamp: now,
     frontingAlterIds,
+  });
+}
+
+// ── Status notes ──────────────────────────────────────────────────────
+// Six doors saved a status (the status card, the fronters panel, the quick
+// note sheet, two widgets, a quick action, the check-in log); two skipped
+// the ~command / signpost / @mention grammar and each signed it its own
+// way. They all save through here now.
+//
+// The note is signed (`author_alter_id` + `author_alter_ids`) only when the
+// text signposts someone, or the caller passes an explicit author (the
+// log's "Written by" picker). Mentions notify as usual. Statuses render as
+// plain text, so commands become plain labels and whispers are off.
+// Returns the saved row, or null when there was nothing to save. A broken
+// ~command throws (isLogCommandError) so the text stays editable.
+
+const STATUS_TEXT_OPTS = { whisper: false, chips: false, surfaceLabel: "status" };
+
+async function authoredText() {
+  return import("@/lib/authoredText");
+}
+
+export async function saveStatusNote(text, { alters = [], terms = {}, timestamp, authorAlterId = null } = {}) {
+  if (typeof text !== "string" || !text.trim()) return null;
+  const { prepareAuthoredText, recordAuthoredText } = await authoredText();
+  const prepared = await prepareAuthoredText(text.trim(), { alters, terms, ...STATUS_TEXT_OPTS });
+  if (prepared === null) return null;
+  const note = prepared.content.trim();
+  if (!note) return null;
+  const authors = prepared.authorIds?.length ? prepared.authorIds : [authorAlterId].filter(Boolean);
+  const created = await base44.entities.StatusNote.create({
+    timestamp: timestamp || new Date().toISOString(),
+    note,
+    ...(authors.length ? { author_alter_id: authors[0], author_alter_ids: authors } : {}),
+  });
+  await recordAuthoredText({
+    ...prepared, content: note, alters, authorIds: authors,
+    sourceType: "status", sourceId: created?.id, sourceLabel: "Status", navigatePath: "/checkin-log",
+  });
+  return created;
+}
+
+// Editing a status runs the same grammar. Only people newly mentioned in
+// the edit are notified, and a signpost in the edit re-signs the note.
+export async function updateStatusNote(statusNote, text, { alters = [], terms = {}, timestamp } = {}) {
+  if (!statusNote?.id || typeof text !== "string" || !text.trim()) return null;
+  const [{ prepareAuthoredText }, { saveMentions, extractMentionedIds }] = await Promise.all([
+    authoredText(), import("@/lib/mentionUtils"),
+  ]);
+  const prepared = await prepareAuthoredText(text.trim(), { alters, terms, ...STATUS_TEXT_OPTS });
+  if (prepared === null) return null;
+  const note = prepared.content.trim();
+  if (!note) return null;
+  const patch = { note };
+  if (timestamp) patch.timestamp = timestamp;
+  if (prepared.authorIds?.length) {
+    patch.author_alter_id = prepared.authorIds[0];
+    patch.author_alter_ids = prepared.authorIds;
+  }
+  const updated = await base44.entities.StatusNote.update(statusNote.id, patch);
+  try {
+    await saveMentions({
+      content: note, alters, sourceType: "status", sourceId: statusNote.id, sourceLabel: "Status",
+      navigatePath: "/checkin-log", authorAlterId: patch.author_alter_id || statusNote.author_alter_id || null,
+      excludeIds: extractMentionedIds(statusNote.note || "", alters),
+    });
+  } catch { /* notifications are best-effort */ }
+  return updated;
+}
+
+// ── Locations ─────────────────────────────────────────────────────────
+// The check-in, the quick action and the Locations page each built the
+// record by hand. One shape now: a name (the category's label when none
+// was typed), GPS only when coordinates came with it, and who was in
+// front, by the same "who" rule as the check-ins above.
+export async function logLocation({ category, name, lat, lng, timestamp, frontingAlterIds, ...rest } = {}) {
+  const hasGps = lat != null && lng != null;
+  return base44.entities.Location.create({
+    ...rest,
+    timestamp: timestamp || new Date().toISOString(),
+    name: (typeof name === "string" && name.trim()) || getCategoryMeta(category || "other").label,
+    category: category || "other",
+    latitude: hasGps ? lat : null,
+    longitude: hasGps ? lng : null,
+    source: hasGps ? "gps" : "manual",
+    fronting_alter_ids: await whoFor(frontingAlterIds),
   });
 }

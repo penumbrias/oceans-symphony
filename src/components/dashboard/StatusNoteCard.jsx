@@ -6,8 +6,8 @@ import { Edit2, X } from "lucide-react";
 import { toast } from "sonner";
 import { localEntities, base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
-import { saveStatusMentions } from "@/lib/mentionUtils";
+import { isLogCommandError } from "@/lib/authoredText";
+import { saveStatusNote } from "@/lib/checkinEntry";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -47,25 +47,11 @@ export default function StatusNoteCard() {
     if (!raw) { setEditing(false); return; }
     setEditing(false);
     setTempStatus("");
-    // Execute any inline ~commands (status notes render as plain text, so use
-    // plain-label tokens rather than HTML chips).
-    let note;
-    // Shared text pipeline: ~commands run (plain tokens — statuses render as
-    // plain text), "-name" signposts sign the status, @mentions notify.
-    let prepared;
-    try { prepared = await prepareAuthoredText(raw, { alters, terms, whisper: false, chips: false, surfaceLabel: "status" }); }
-    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-    if (prepared === null) return;
-    note = prepared.content;
-    const authorAlterId = prepared.authorIds[0] || null;
-    const created = await localEntities.StatusNote.create({
-      timestamp: new Date().toISOString(),
-      note,
-      ...(authorAlterId ? { author_alter_id: authorAlterId } : {}),
-    });
-    // @mentions notify like every other surface — the log row is what the
-    // "mentions for current fronters" banner and popups read.
-    await saveStatusMentions({ note, alters, sourceId: created?.id, authorAlterId });
+    // The one status save path: ~commands, signposts and @mentions.
+    try {
+      const created = await saveStatusNote(raw, { alters, terms });
+      if (!created) return;
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });

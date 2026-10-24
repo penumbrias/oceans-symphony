@@ -10,6 +10,7 @@ import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDi
 import SleepLogModal from "@/components/sleep/SleepLogModal";
 import SleepEditModal from "@/components/sleep/SleepEditModal";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
+import { startSleep } from "@/lib/sleepEntry";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
@@ -80,14 +81,8 @@ export default function SleepTracker() {
     }
     setStartingNow(true);
     try {
-      const now = new Date();
-      const nowISO = now.toISOString();
-      const dateStr = format(now, "yyyy-MM-dd");
-      await base44.entities.Sleep.create({
-        date: dateStr,
-        bedtime: nowISO,
-        // wake_time intentionally left null — finalized via SleepEndModal.
-      });
+      // wake_time stays empty until the night is ended via SleepEndModal.
+      await startSleep();
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
       toast.success("💤 Sleep started. Tap End sleep when you wake up.");
     } catch (err) {

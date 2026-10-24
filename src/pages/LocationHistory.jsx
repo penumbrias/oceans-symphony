@@ -14,6 +14,7 @@ import { Loader2, MapPin, Plus, Trash2, Pencil } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
+import { logLocation } from "@/lib/checkinEntry";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
@@ -96,7 +97,8 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
         rowId = location.id;
         toast.success("Location updated");
       } else {
-        const row = await localEntities.Location.create(data);
+        const { name: _n, category: _c, latitude, longitude, source: _s, ...fields } = data;
+        const row = await logLocation({ ...fields, name, category, lat: latitude, lng: longitude });
         rowId = row.id;
         toast.success("Location logged");
       }
