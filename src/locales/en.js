@@ -324,7 +324,7 @@ export default {
   "planner.editUndone": "Changes undone",
   "planner.massCancel": "Cancel plans",
   "planner.exitSelect": "Done selecting",
-  "planner.massDeleteConfirm": "Delete {count} plan(s)? This cannot be undone.",
+  "planner.massDeleteConfirm": "Delete {count} plan(s)? You can put them back from the trash in Recent Changes.",
   "planner.massCancelConfirm": "Mark {count} plan(s) as cancelled?",
   "planner.massDeleted": "{count} plan(s) deleted",
   "planner.massCancelled": "{count} plan(s) cancelled",

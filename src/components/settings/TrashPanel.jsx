@@ -98,7 +98,7 @@ export default function TrashPanel() {
   const setLock = async (lock) => {
     if (lock && !(await confirm({
       title: "Turn on the time lock?",
-      body: `While it's on, protected things (${t.alters} with history, groups, journals, chat channels, bulletins and maps) can't be deleted early, and turning it off or shortening how long things are kept only takes effect after ${settings.days ? `${settings.days} days` : "30 days"}. Nobody can undo it in the moment.`,
+      body: `While it's on, protected things (${t.alters} with history, groups, journals, chat channels, bulletins and maps) can't be deleted early, and turning it off or shortening how long things are kept only takes effect after ${settings.days ? `${settings.days} days` : "30 days"}. Recent Changes entries and whole-category wipes are locked too. Nobody can undo it in the moment.`,
       confirmLabel: "Turn on",
     }))) return;
     run(async () => {

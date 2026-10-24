@@ -10,6 +10,7 @@ import ActivityTreeRow from "@/components/activities/ActivityTreeRow";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { indexById, wouldCreateCycle, getRootCategories } from "@/lib/categoryTreeUtils";
+import { withTrashBatch } from "@/lib/localDb";
 
 // The dialog form (opened from places that just need a quick edit). The
 // Activities page renders ActivityManager directly, with `onOpen` so each
@@ -122,7 +123,8 @@ export function ActivityManager({ onOpen = null }) {
         for (const child of children) await deleteTree(child.id);
         await base44.entities.ActivityCategory.delete(catId);
       };
-      await deleteTree(id);
+      // One trash batch, so Restore brings the whole branch back.
+      await withTrashBatch(() => deleteTree(id));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["activityCategories"] }); toast.success("Deleted!"); setSelectedId(null); },
     onError: (e) => toast.error(e.message),

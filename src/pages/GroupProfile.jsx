@@ -50,6 +50,7 @@ import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -255,7 +256,7 @@ function GroupProfileInner() {
   };
 
   const handleDelete = async () => {
-    if (!(await confirm(`Delete the group "${group.name}"? Members are not deleted — they just leave the group. This can't be undone.`))) return;
+    if (!(await confirm(`Delete the group "${group.name}"? Members are not deleted — they just leave the group. ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
       // Cascade: also scrubs the group's membership entries off every

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { loadSystemDistressSet, saveSystemDistressSet } from "@/lib/emotionDistress";
 import { useEmotionCategoryLabels, EMOTION_CATEGORY_KEYS, DEFAULT_CATEGORY_LABELS } from "@/lib/emotionCategories";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const db = isLocalMode() ? localEntities : base44.entities;
 
@@ -478,7 +479,7 @@ export default function CustomEmotionsManager() {
                         key={e.id}
                         emotion={e}
                         onDelete={async (id) => {
-                          if ((await confirm(`Delete the custom emotion "${e.label}"? Past check-ins that recorded this emotion keep the label, but it will no longer appear in the picker. This cannot be undone.`))) {
+                          if ((await confirm(`Delete the custom emotion "${e.label}"? Past check-ins that recorded this emotion keep the label, but it will no longer appear in the picker. ${TRASH_HINT}`))) {
                             deleteMutation.mutate(id);
                           }
                         }}

@@ -491,7 +491,9 @@ These rules came out of a critical bug where encrypted data became unreachable o
   device-bound, mods' storage, on/off marks) are removed at once. Rows leave
   the database only through `src/lib/trash.js` — the purge after the
   recovery window (`SystemSettings.trash`, default 30 days) or "Delete now",
-  which the time lock refuses for protected things. Group deletes that belong
+  which the time lock refuses for protected things. The lock also refuses
+  removing Recent Changes (`HistoryEvent`) entries and the Data inspector's
+  whole-category wipe, since both skip the trash. Group deletes that belong
   together with `withTrashBatch`. Files behind a trashed record (pictures,
   fonts) stay until the purge. `{ forever: true }` is only for things already
   gone from the person's view. A screen that reads the raw dump must skip

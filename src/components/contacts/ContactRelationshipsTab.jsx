@@ -12,6 +12,7 @@ import { fetchActiveContactRelationshipTypes, contactDisplayName } from "@/lib/c
 import ContactRelationshipTypeField from "@/components/contacts/ContactRelationshipTypeField";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 // Phase 3 — relationships between a contact and the system / individual
 // alters / groups. The relationship TYPE comes from a SEPARATE, editable
@@ -114,7 +115,7 @@ export default function ContactRelationshipsTab({ contact }) {
   };
 
   const remove = async (id) => {
-    if (!(await confirm({ title: "Delete this relationship?", body: "This can't be undone.", confirmLabel: "Delete", destructive: true }))) return;
+    if (!(await confirm({ title: "Delete this relationship?", body: TRASH_HINT, confirmLabel: "Delete", destructive: true }))) return;
     try {
       await base44.entities.ContactRelationship.delete(id);
       queryClient.invalidateQueries({ queryKey: ["contactRelationships", contactId] });

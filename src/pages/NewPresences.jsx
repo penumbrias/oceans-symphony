@@ -14,6 +14,7 @@ import PresenceFormModal from "@/components/presences/PresenceFormModal";
 import CreateAlterFromPresence from "@/components/presences/CreateAlterFromPresence";
 import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 function AlterChip({ alter, onRemove }) {
   const formatAlter = useAlterLabel();
@@ -79,7 +80,7 @@ export default function NewPresences() {
   };
 
   const remove = async (presence) => {
-    if (!(await confirm("Delete this presence record? This can't be undone."))) return;
+    if (!(await confirm(`Delete this presence record? ${TRASH_HINT}`))) return;
     try {
       await base44.entities.Presence.delete(presence.id);
       qc.invalidateQueries({ queryKey: ["presences"] });

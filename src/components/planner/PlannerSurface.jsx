@@ -46,6 +46,7 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { collectAlterDates } from "@/lib/importantDates";
 import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
 import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
+import { withTrashBatch } from "@/lib/localDb";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -583,7 +584,7 @@ export default function PlannerSurface({
             weekStartsOn={prefs.weekStartsOn}
             onOpen={(item, { series } = {}) => (series ? openEditor(item, { series: true }) : setDetails(item))}
             onDeleteSeries={(item) => setBranchAsk({ item })}
-            onMassChange={async (kind, items) => {
+            onMassChange={async (kind, items) => withTrashBatch(async () => {
               for (const it of items) {
                 try {
                   if (kind === "delete") {
@@ -597,7 +598,7 @@ export default function PlannerSurface({
               toast.success(kind === "delete"
                 ? tr("planner.massDeleted", { count: items.length })
                 : tr("planner.massCancelled", { count: items.length }));
-            }}
+            })}
           />
         ) : chrome && section === "insights" ? null : chrome && view === "month" ? (
           <ActivityMonthView

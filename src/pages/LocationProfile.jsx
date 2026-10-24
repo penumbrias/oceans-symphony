@@ -43,6 +43,7 @@ import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_BG_KEY = "_header_bg_color";
@@ -265,7 +266,7 @@ function LocationProfileInner() {
   };
 
   const handleDelete = async () => {
-    if (!(await confirm(`Delete the location "${location.name}"? ${t.Alters} placed here are not deleted — they just lose this location. This can't be undone.`))) return;
+    if (!(await confirm(`Delete the location "${location.name}"? ${t.Alters} placed here are not deleted. ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
       await base44.entities.InnerWorldLocation.delete(location.id);

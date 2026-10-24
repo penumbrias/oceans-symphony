@@ -21,6 +21,7 @@ import {
   getSafetyMeta, getAwarenessMeta, contactDisplayName,
   contactMethodHref, getContactMethodMeta,
 } from "@/lib/contacts";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const TABS = [
   { id: "about", label: "About" },
@@ -122,7 +123,7 @@ export default function ContactProfile() {
   };
 
   const deleteNote = async (noteId) => {
-    if (!(await confirm({ title: "Delete this note?", body: "This can't be undone.", confirmLabel: "Delete", destructive: true }))) return;
+    if (!(await confirm({ title: "Delete this note?", body: TRASH_HINT, confirmLabel: "Delete", destructive: true }))) return;
     try {
       await base44.entities.ContactNote.delete(noteId);
       queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
@@ -145,7 +146,7 @@ export default function ContactProfile() {
   };
 
   const handleDelete = async () => {
-    if (!(await confirm(`Permanently delete ${name}? This can't be undone. (Tip: "Archive" hides them without losing the record.)`))) return;
+    if (!(await confirm(`Delete ${name}? ${TRASH_HINT} (Tip: "Archive" hides them without deleting.)`))) return;
     try {
       await base44.entities.Contact.delete(contact.id);
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
@@ -320,7 +321,7 @@ export default function ContactProfile() {
             label={contact.is_archived ? "Unarchive" : "Archive (hide without deleting)"}
             onClick={() => patch({ is_archived: !contact.is_archived }, contact.is_archived ? "Unarchived" : "Archived")}
           />
-          <OptionRow icon={Trash2} label="Delete permanently" danger onClick={handleDelete} />
+          <OptionRow icon={Trash2} label="Delete" danger onClick={handleDelete} />
         </div>
       )}
 

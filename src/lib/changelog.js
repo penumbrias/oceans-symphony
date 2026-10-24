@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "fix", text: "Delete messages now say things go to the trash, and restoring a group from the trash puts its members back." },
+      { type: "improve", text: "With the trash time lock on, Recent Changes entries and whole-category wipes in the Data inspector are protected too." },
       { type: "feature", text: "Deleting something now moves it to a trash at the top of Recent Changes, where you can put it back for 30 days (or however long you choose)." },
       { type: "feature", text: "Trash time lock: switch it on and protected things can't be deleted early, and turning it off only takes effect after the current window." },
       { type: "fix", text: "Backup warnings, critical plans, reminders and mentions now show inside the home screen, the same way as on the widget board, and never twice." },

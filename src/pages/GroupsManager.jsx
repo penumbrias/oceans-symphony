@@ -45,6 +45,7 @@ import { byGroupOrder } from "@/lib/groupTreeUtils";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { setGroupMembers, currentMemberIds, deleteGroupCascade } from "@/lib/groupMembership";
 import { isValidHexColor } from "@/lib/colorUtils";
+import { withTrashBatch } from "@/lib/localDb";
 
 const dotColor = (c) => (isValidHexColor(c) ? c : "hsl(var(--muted))");
 
@@ -242,7 +243,8 @@ export default function GroupsManager() {
     });
     if (!ok) return;
     try {
-      for (const id of ids) {
+      // One trash batch for the whole selection.
+      await withTrashBatch(async () => { for (const id of ids) {
         // Re-home the children FIRST, so a failure can't strand them under
         // a group that no longer exists.
         for (const kid of childGroups(groups, id)) {
@@ -251,7 +253,7 @@ export default function GroupsManager() {
         // Cascade: also scrubs the group's membership entries off every
         // member, so no "Group not found" chips are left behind.
         await deleteGroupCascade(byId[id] || { id });
-      }
+      } });
       refresh();
       setSelected(new Set());
       setSelectMode(false);

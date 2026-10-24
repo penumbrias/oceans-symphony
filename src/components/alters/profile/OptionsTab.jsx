@@ -14,6 +14,7 @@ import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
 import { mergeAlterInto } from "@/lib/alterMerge";
 import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { Settings2 } from "lucide-react";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 export default function OptionsTab({ alter }) {
   const queryClient = useQueryClient();
@@ -201,7 +202,7 @@ export default function OptionsTab({ alter }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete {alter.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete this alter and all their data. This cannot be undone.
+                This moves {alter.name} to the trash. {TRASH_HINT}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

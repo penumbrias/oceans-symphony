@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   const queryClient = useQueryClient();
@@ -104,7 +105,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
 
   const handleDelete = async () => {
     if (saving) return;
-    if (!(await confirm("Delete this symptom session? This can't be undone."))) return;
+    if (!(await confirm(`Delete this symptom session? ${TRASH_HINT}`))) return;
     setSaving(true);
     try {
       await base44.entities.SymptomSession.delete(session.id);

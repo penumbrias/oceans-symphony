@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import TrashPanel from "@/components/settings/TrashPanel";
+import { getTrashSettings } from "@/lib/trash";
 
 const FIELD_LABELS = {
   classic_home: "Home screen layout",
@@ -120,7 +121,20 @@ export default function HistoryArchive() {
     }
   };
 
+  // The time lock also protects this archive: while it's on, nobody can
+  // erase the record of what was deleted or changed.
+  const lockRefuses = async () => {
+    try {
+      if ((await getTrashSettings()).lock) {
+        toast.error("The trash time lock is on, so entries here can't be removed.");
+        return true;
+      }
+    } catch { /* settings unreadable: allow, as before */ }
+    return false;
+  };
+
   const removeEvent = async (e) => {
+    if (await lockRefuses()) return;
     if (!(await confirm("Remove this entry from the archive? A deleted item's snapshot is gone for good once its entry is removed."))) return;
     await localEntities.HistoryEvent.delete(e.id);
     qc.invalidateQueries({ queryKey: ["historyEvents"] });
@@ -128,6 +142,7 @@ export default function HistoryArchive() {
 
   const clearBucket = async (catId, rows) => {
     if (!rows.length) return;
+    if (await lockRefuses()) return;
     if (!(await confirm(`Clear all ${rows.length} entries in this bucket? Deleted items' snapshots are gone for good.`))) return;
     await localEntities.HistoryEvent.bulkDelete(rows.map((r) => r.id));
     qc.invalidateQueries({ queryKey: ["historyEvents"] });

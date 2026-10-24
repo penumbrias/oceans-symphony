@@ -13,6 +13,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 // Small avatar that resolves legacy local-image:// URLs (a raw <img src> on
 // those renders broken). Mirrors AlterAvatar in RelationshipsPanel.jsx.
@@ -348,7 +349,7 @@ export default function RelationshipsTab({ alter, alters }) {
           <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs mx-4 space-y-3"
             onClick={e => e.stopPropagation()}>
             <p className="text-sm font-semibold">Delete relationship?</p>
-            <p className="text-xs text-muted-foreground">This cannot be undone.</p>
+            <p className="text-xs text-muted-foreground">{TRASH_HINT}</p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>
               <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDelete(confirmDelete)}>Delete</Button>

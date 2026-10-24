@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 // One saved reflection — read-only by default, with inline edit (each response
 // becomes an editable field) and delete. SupportJournalEntry.responses is a
@@ -40,7 +41,7 @@ function ReflectionCard({ entry }) {
   };
 
   const del = async () => {
-    if (!(await confirm("Delete this reflection? This can't be undone."))) return;
+    if (!(await confirm(`Delete this reflection? ${TRASH_HINT}`))) return;
     try {
       await base44.entities.SupportJournalEntry.delete(entry.id);
       invalidate();

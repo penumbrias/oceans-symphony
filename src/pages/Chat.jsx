@@ -18,6 +18,8 @@ import { GripVertical } from "lucide-react";
 import { CSS } from "@dnd-kit/utilities";
 import { AlterAvatar } from "@/components/chat/ChatSurface";
 import ChannelView from "@/components/chat/ChannelView";
+import { TRASH_HINT_MANY } from "@/lib/trashSettings";
+import { withTrashBatch } from "@/lib/localDb";
 
 // System Chat — Discord-style multi-channel chat for the system.
 //
@@ -701,10 +703,13 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
     setBusy(true);
     try {
       if (editChannel) {
-        if (!(await confirm(`Delete #${editChannel.name} and every message in it? This cannot be undone.`))) { setBusy(false); return; }
-        const msgs = await localEntities.SystemChatMessage.filter({ channel_id: editChannel.id });
-        for (const m of msgs) { try { await localEntities.SystemChatMessage.delete(m.id); } catch {} }
-        await localEntities.SystemChatChannel.delete(editChannel.id);
+        if (!(await confirm(`Delete #${editChannel.name} and every message in it? ${TRASH_HINT_MANY}`))) { setBusy(false); return; }
+        // One trash batch, so Restore brings the channel back with its messages.
+        await withTrashBatch(async () => {
+          const msgs = await localEntities.SystemChatMessage.filter({ channel_id: editChannel.id });
+          for (const m of msgs) { try { await localEntities.SystemChatMessage.delete(m.id); } catch {} }
+          await localEntities.SystemChatChannel.delete(editChannel.id);
+        });
       } else if (editCategory) {
         if (!(await confirm(`Delete the "${editCategory.name}" category? Its channels and sub-categories move up a level — no channels or messages are deleted.`))) { setBusy(false); return; }
         const up = editCategory.parent_category_id || null;

@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Edit2, Lock, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 function processSignposts(html, altersById) {
   if (!html || !altersById) return html;
@@ -239,7 +240,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
               size="sm"
               className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40"
               onClick={async () => {
-                if (!(await confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`))) return;
+                if (!(await confirm(`Delete "${entry.title || "this entry"}"? ${TRASH_HINT}`))) return;
                 const target = entry;
                 handleClose();
                 onDelete(target);
