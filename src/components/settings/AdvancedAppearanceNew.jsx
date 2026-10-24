@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { captureHomeLayout, captureHomeLook, applyHomePresetToBoard } from "@/lib/homePresetParts";
+import { writeBoard, BOARD_SETTINGS_FIELDS, WIDGET_BOARD_FIELD } from "@/lib/boardWriter";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/lib/ThemeContext';
@@ -693,13 +694,12 @@ export default function AdvancedAppearance() {
     if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
     if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
     if (preset?.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
-    {
-      // Home board: legacy whole-board presets replace; new layout/look
-      // parts merge onto the CURRENT board independently (shared helper —
-      // AppLayout's fronter-change apply uses the same one).
-      const nextHome = applyHomePresetToBoard(preset, systemSettings?.ui_v2_home);
-      if (nextHome) settingsPatch.ui_v2_home = nextHome;
-    }
+    // Home board: legacy whole-board presets replace; new layout/look
+    // parts merge onto the CURRENT board independently (shared helper —
+    // AppLayout's fronter-change apply uses the same one). Written below
+    // through the board writer so the change is stamped (v0.277.0).
+    const boardField = BOARD_SETTINGS_FIELDS.includes(preset?.homeField) ? preset.homeField : WIDGET_BOARD_FIELD;
+    const hasBoardPart = !!applyHomePresetToBoard(preset, {});
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
     // System banner config — only re-apply when the preset captured it.
@@ -716,8 +716,11 @@ export default function AdvancedAppearance() {
       } else {
         await base44.entities.SystemSettings.create(settingsPatch);
       }
-      qc.invalidateQueries({ queryKey: ['systemSettings'] });
     }
+    if (hasBoardPart && systemSettings?.id) {
+      await writeBoard(systemSettings, boardField, (cur) => applyHomePresetToBoard(preset, cur));
+    }
+    if (Object.keys(settingsPatch).length > 0 || hasBoardPart) qc.invalidateQueries({ queryKey: ['systemSettings'] });
   };
 
   // ── Color editing ────────────────────────────────────────────

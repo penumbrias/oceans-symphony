@@ -179,8 +179,18 @@ export function mergeBoards(a, b, aTime = "", bTime = "") {
     if (keep(p, olderT)) pages.push(p);
   }
   for (const p of pages) delete removed[p.id];
-  const out = { ...newer, pages: pages.length ? pages : newer.pages };
+  // Board-wide look (background, grid, style…) comes from the side whose
+  // look was last changed BY HAND (_lt, v0.277.0). Field time alone also
+  // moves when a board quietly re-fits itself to a screen, which used to
+  // let an idle device undo a real change made on the other one.
+  const lookNewer = (a._lt || b._lt) && ms(b._lt || "") !== ms(a._lt || "")
+    ? (ms(b._lt || "") > ms(a._lt || "") ? b : a)
+    : newer;
+  const base = lookNewer === newer ? newer : { ...lookNewer, defaultPageId: newer.defaultPageId };
+  const out = { ...base, pages: pages.length ? pages : newer.pages };
   if (Object.keys(removed).length) out._removedPages = removed; else delete out._removedPages;
+  // A one-time tidy-up that ran on either device has run on the board.
+  if (a._heals || b._heals) out._heals = { ...(a._heals || {}), ...(b._heals || {}) };
   if (!out.pages.some((p) => p.id === out.defaultPageId)) out.defaultPageId = out.pages[0]?.id;
   return out;
 }

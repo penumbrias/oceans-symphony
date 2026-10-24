@@ -412,6 +412,40 @@ console.log("home boards (page by page)");
     assert.deepEqual(m.ui_v2_home.pages.map((p) => p.id).sort(), ["pa", "pb"]);
     assert.deepEqual(m.classic_home.pages.map((p) => p.id).sort(), ["c1", "c2"]);
   });
+  test("a look changed by hand beats a board that only re-fitted later", () => {
+    const a = { pages: [pg("p1", "x", T(1))], background: { color: "#123" }, _lt: T(5) };
+    const b = { pages: [pg("p1", "x", T(1))], background: { color: "#old" }, grid: { phoneCols: 4 } };
+    const m = mergeBoards(a, b, T(5), T(9)); // b's field time is newer (auto-fit)
+    assert.equal(m.background.color, "#123");
+    assert.equal(mergeBoards(b, a, T(9), T(5)).background.color, "#123");
+  });
+  test("one-time tidy-up marks from either device are kept", () => {
+    const a = { pages: [pg("p1", "x", T(1))], _heals: { norm_v4: true } };
+    const b = { pages: [pg("p1", "x", T(1))], _heals: { headerline_v1: true } };
+    assert.deepEqual(mergeBoards(a, b, T(1), T(2))._heals, { norm_v4: true, headerline_v1: true });
+  });
+}
+
+console.log("board stamping");
+{
+  const { stampBoardChanges } = await import("../src/lib/boardStamp.js");
+  test("a preset carrying old page times can't make unchanged pages look older or changed pages look old", () => {
+    const cur = { pages: [{ id: "p1", widgets: ["a"], _ut: T(8) }, { id: "p2", widgets: ["b"], _ut: T(8) }] };
+    const preset = { pages: [{ id: "p1", widgets: ["a"], _ut: T(1) }, { id: "p2", widgets: ["CHANGED"], _ut: T(1) }] };
+    const out = stampBoardChanges(cur, preset, T(10));
+    assert.equal(out.pages[0]._ut, T(8));
+    assert.equal(out.pages[1]._ut, T(10));
+  });
+  test("deletion records from the current board survive a wholesale replace", () => {
+    const cur = { pages: [{ id: "p1", widgets: [] }], _removedPages: { gone: T(9) } };
+    const out = stampBoardChanges(cur, { pages: [{ id: "p1", widgets: [] }] }, T(10));
+    assert.equal(out._removedPages.gone, T(9));
+  });
+  test("a look change stamps _lt, a page-only change keeps the old one", () => {
+    const cur = { pages: [{ id: "p1", widgets: [] }], background: { color: "#1" }, _lt: T(2) };
+    assert.equal(stampBoardChanges(cur, { ...cur, background: { color: "#2" } }, T(10))._lt, T(10));
+    assert.equal(stampBoardChanges(cur, { ...cur, pages: [{ id: "p1", widgets: ["x"] }] }, T(10))._lt, T(2));
+  });
 }
 
 console.log(`\n${passed} passed${process.exitCode ? ", SOME FAILED" : ""}`);

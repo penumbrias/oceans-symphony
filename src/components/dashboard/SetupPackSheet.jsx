@@ -9,7 +9,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Download, ClipboardPaste, Upload, Copy } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
@@ -20,6 +19,7 @@ import {
   buildRestorePoint, formatShareMessage,
   buildPackZip, parsePackZip, rehostPackImages,
 } from "@/lib/setupPacks";
+import { writeSettingsWithBoards } from "@/lib/boardWriter";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
 
@@ -198,7 +198,7 @@ function RawReview({ json }) {
   );
 }
 
-export default function SetupPackSheet({ open, onClose, home, currentPageId = null, uiV2Raw, userStyles, settingsRow, initialTab = null }) {
+export default function SetupPackSheet({ open, onClose, home, currentPageId = null, uiV2Raw, userStyles, settingsRow, initialTab = null, homeField = "ui_v2_home" }) {
   const qc = useQueryClient();
   const sheetTerms = useTerms();
   // The base colour scheme rides the UI-theme type (it lives in
@@ -390,7 +390,7 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     if (!imported || !settingsRow?.id) return;
     try {
       const restorePoint = buildRestorePoint({
-        settingsRow,
+        settingsRow, homeField,
         appTheme: { selectedTheme, themeMode, customColors, selectedFont },
         title: imported.title || "import",
       });
@@ -404,12 +404,14 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
           ...apply, layoutPlacement: placement, currentPageId,
           stripLayoutLook: !applyLook, themeParts: [...themeParts],
         },
-        savePreset: saveAsPreset, settingsRow,
+        savePreset: saveAsPreset, settingsRow, homeField,
       });
       // The restore point rides the SAME write, so a failure between the
       // two can never leave the old setup unrecoverable.
       patch.ui_v2_restore_point = restorePoint;
-      await base44.entities.SystemSettings.update(settingsRow.id, patch);
+      // Board fields are stamped against the board as it is now, so the
+      // next sync can't put the old layout back.
+      await writeSettingsWithBoards(settingsRow, patch);
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
       if (apply.uiTheme) applyAppTheme(filterUiThemeParts(imported.types.uiTheme || {}, [...themeParts]).appTheme);
       setImported(null);

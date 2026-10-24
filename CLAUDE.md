@@ -409,6 +409,15 @@ Rules for keeping the targets healthy:
   does; its auto-fit passes `{ machine: true }` and must not stamp). Each
   page has `showAs` (auto/phone/tablet/desktop) — shape only, every page
   shows on every device.
+- **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
+  through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
+  (fresh row, stamped, never blanks a board). Editing sheets learn which
+  board they're on from `BoardFieldContext` (`useBoardField()`) — never
+  hardcode `ui_v2_home`; the home screen is `classic_home`. Hand changes to
+  non-page fields stamp `_lt`, which `mergeBoards` uses for the look.
+  One-time tidy-ups record themselves in the board's `_heals`, not only in
+  localStorage. Widgets this version doesn't know are kept in
+  `page.unknownWidgets`, never dropped.
 - **Sync merges field by field (v0.245.0).** Every record carries `_ft`,
   its per-field change times, and `src/lib/syncMerge.js` merges on them.
   **Any code that writes a record OUTSIDE the entity proxy's

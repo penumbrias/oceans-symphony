@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 24, 2026",
     changes: [
+      { type: "fix", text: "Home screen background, widget style, presets, undo and setup packs now change the home screen you're on, and those changes are no longer undone by the next device sync." },
+      { type: "fix", text: "The home screen no longer gets re-tidied after the app's storage is cleared, and widgets from a newer version are kept instead of dropped." },
       { type: "improve", text: "Tapping an activity in a home-screen widget opens the same details as the planner, and Edit opens the activity sheet right there." },
       { type: "improve", text: "Quick check-in: give each activity's length by duration or end time, like every other activity sheet." },
     ],
