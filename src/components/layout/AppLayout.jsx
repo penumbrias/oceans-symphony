@@ -58,7 +58,7 @@ import { writeBoard, BOARD_SETTINGS_FIELDS, WIDGET_BOARD_FIELD } from "@/lib/boa
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
 import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
-import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 import { safeInternalRoute } from "@/lib/safeRoute";
 
 
@@ -365,12 +365,14 @@ const uiV2Vars = useMemo(
   () => ((uiV2On || classicV2VarsOn) ? buildTokenVars(uiV2) : null),
   [uiV2On, classicV2VarsOn, uiV2]
 );
-// On the v2 home the board's own notice stack (V2Notices) carries plan
-// reminders, fired reminders and mentions — the classic overlays are
+// On the home page the board's own notice stack (V2Notices) carries plan
+// reminders, fired reminders and mentions — on the home screen and on its
+// swipe-left widget board alike (v0.277.1). The classic overlays are
 // suppressed there so nothing double-surfaces or fights the wallpaper's
-// stacking context. Everywhere else (no wallpaper) the classic surfaces
-// still run, even under v2.
-const v2HomeNotices = uiV2On && location.pathname === "/";
+// stacking context. Everywhere else (no wallpaper), and on the old opt-in
+// experimental home, the classic surfaces still run.
+const experimentalHomeOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && settings0?.experimental_home?.enabled === true;
+const v2HomeNotices = !experimentalHomeOn && location.pathname === "/";
 
 // Dialogs, drawers and dropdowns are portaled to <body>, OUTSIDE the app
 // root div — tokens set only there never reach them (the "popups ignore

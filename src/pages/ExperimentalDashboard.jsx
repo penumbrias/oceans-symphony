@@ -18,6 +18,7 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
 import UndoRedoButtons, { markMachineWrite } from "@/components/v2/UndoRedoHistory";
@@ -524,13 +525,24 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           const css = [extra, own].filter(Boolean).join("\n");
           return css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null;
         })()}
-        {def.render({
-          mode,
-          settings: widget.settings || {},
-          instanceId: widget.instanceId,
-          api,
-          updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
-        })}
+        {/* One widget's bad data can only take down that widget, never
+            the whole home page (a malformed running activity once did). */}
+        <ErrorBoundary
+          resetKeys={[widget.settings]}
+          fallback={(err, retry) => (
+            <div className="p-2 text-[0.75em] text-muted-foreground">
+              This widget couldn't show. Nothing was lost.
+              <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
+            </div>
+          )}>
+          {def.render({
+            mode,
+            settings: widget.settings || {},
+            instanceId: widget.instanceId,
+            api,
+            updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
+          })}
+        </ErrorBoundary>
         </div>
       </div>
 

@@ -22,6 +22,7 @@ import {
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { writeBoard } from "@/lib/boardWriter";
+import V2Notices from "@/v2/notices";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
 
@@ -355,6 +356,10 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
       eventPrefix="os-classic"
       onExitRight={onOpenBoard}
       viewFlow
+      // The same notice stack as the widget board (backups, empty-app
+      // rescue, critical and unresolved plans, reminders, mentions), so
+      // safety notices never depend on which board is showing.
+      notices={<V2Notices />}
       // The frame's command bar (the classic-hosted quick-action strip) is
       // THE quick-action bar here — this stops the canvas drawing its own
       // duplicate strip, and the edit toolbar's Bar row edits these keys.

@@ -116,7 +116,8 @@ export default function GuidedTechniqueView({
   };
 
   const handleRate = (r) => {
-    onRate?.(technique, r, selectedAlterId);
+    Promise.resolve(onRate?.(technique, r, selectedAlterId))
+      .catch(() => toast.error("Couldn't save the rating. Try again."));
   };
 
   // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
@@ -129,8 +130,10 @@ export default function GuidedTechniqueView({
     const signposted = parseSignpostAuthors(note || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
     const alterId = signposted ? (prepared.authorIds[0] || null) : selectedAlterId;
     if (signposted) setSelectedAlterId(alterId);
+    // Keep what they wrote on screen until the save has really landed.
+    try { await onSaveNote(technique, prepared.content, alterId); }
+    catch { toast.error("Couldn't save the note. It's still here, try again."); return; }
     setNote(prepared.content);
-    await onSaveNote?.(technique, prepared.content, alterId);
     await recordAuthoredText({ ...prepared, alters, sourceType: "technique", sourceId: technique?.id || "", sourceLabel: technique?.name ? `Note on ${technique.name}` : "Technique note", navigatePath: "/grounding" });
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 2000);
@@ -255,7 +258,16 @@ export default function GuidedTechniqueView({
             </div>
           )}
 
-          <div className="flex gap-1">
+          {/* Nowhere to save (a built-in technique the Support page
+              hasn't set up yet): say so instead of a box that looks
+              like it saves and doesn't. */}
+          {!onRate && !onSaveNote && (
+            <p className="text-xs text-muted-foreground">
+              Open the Support page once to rate techniques and save notes on them.
+            </p>
+          )}
+
+          {onRate && <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n}
                 onMouseEnter={() => setRatingHover(n)}
@@ -265,9 +277,9 @@ export default function GuidedTechniqueView({
                 <Star className={`w-6 h-6 ${(ratingHover || rating) >= n ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
               </button>
             ))}
-          </div>
+          </div>}
 
-          <div>
+          {onSaveNote && <div>
             <MentionTextarea
               value={note}
               onChange={setNote}
@@ -281,7 +293,7 @@ export default function GuidedTechniqueView({
               className="mt-1 text-xs text-primary hover:underline">
               {noteSaved ? "Saved ✓" : "Save note"}
             </button>
-          </div>
+          </div>}
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={onBack} className="flex-1 text-sm">
