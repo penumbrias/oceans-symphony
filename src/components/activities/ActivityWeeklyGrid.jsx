@@ -58,12 +58,10 @@ const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSlot as _getActivitiesForSlot, getAlterIdsForSlot as _getAlterIdsForSlot, getEmotionsForSlot as _getEmotionsForSlot } from "./activityHelpers";
 import { statusFor, visualForStatus, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { useNavigate } from "react-router-dom";
-import ActivityLifecyclePopover from "./ActivityLifecyclePopover";
-import ActivityDetailsModal from "./ActivityDetailsModal";
+import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 
-// Quick-plan row with tap vs press-and-hold gestures. Tap opens the
-// Activity Details modal (mark done / edit / delete affordances);
-// long-press jumps straight to the Manage Plan lifecycle popover.
+// Quick-plan row with tap vs press-and-hold gestures. Both open the
+// shared details sheet (read it, resolve it, start it, edit it).
 function QuickPlanRow({ activity, getActivityColor, onTap, onLongPress }) {
   const color = getActivityColor(activity) || "hsl(var(--primary))";
   const st = statusFor(activity);
@@ -253,7 +251,7 @@ export default function ActivityWeeklyGrid({
   useEffect(() => { rowHRef.current = rowH; }, [rowH]);
   const lastTapRef     = useRef({ key: "", time: 0 });
   const tooltipTimerRef = useRef(null);
-  // Long-press detection for opening the lifecycle popover. We track the
+  // Long-press detection for opening the details sheet. We track the
   // press target separately from the cell-tap state — a real "long press"
   // is anchored to a single activity chip, not the slot the chip happens
   // to live in.
@@ -265,16 +263,13 @@ export default function ActivityWeeklyGrid({
   // impossible to trigger on a real touchscreen).
   const touchStartPosRef = useRef(null);
   const TOUCH_SLOP_PX = 10;
-  const [lifecycleActivity, setLifecycleActivity] = useState(null);
-  // Set when a quick-plan chip in the day popup is tapped (not held).
-  // Tap → Activity Details (lets the user mark done / edit / delete).
-  // Long-press → skip details and jump straight to Manage Plan.
+  // The entry whose details sheet is open (tap, or press and hold).
   const [detailsActivity, setDetailsActivity] = useState(null);
   // Popup that lists every quick plan for a single day, with full
   // (un-truncated) names. Triggered by double-tap on a quick-plan
   // pill — a single tap still navigates to the day view, double-tap
   // is the "view in full" affordance. From the popup, tapping a row
-  // opens the same ActivityLifecyclePopover that timed plans use.
+  // opens the same details sheet that timed plans use.
   const [quickPlanDayPopup, setQuickPlanDayPopup] = useState(null);
   const quickPlanTapRef = useRef({ id: null, time: 0 });
 
@@ -600,7 +595,7 @@ if (isSameCell) {
     return (dx * dx + dy * dy) > (TOUCH_SLOP_PX * TOUCH_SLOP_PX);
   }, []);
 
-  // Long-press to open the lifecycle popover. We only arm it when the
+  // Long-press to open the details sheet. We only arm it when the
   // cell actually has an activity to act on. If a long-press fires, we
   // also set `longPressFiredRef` so the trailing click doesn't double-
   // fire as a normal cell tap.
@@ -613,9 +608,9 @@ if (isSameCell) {
       longPressFiredRef.current = true;
       if (navigator.vibrate) try { navigator.vibrate(20); } catch {}
       if (real.length > 0) {
-        // Cell has an activity → existing behaviour: open lifecycle
-        // popover on the first activity.
-        setLifecycleActivity(real[0]);
+        // Cell has an activity → existing behaviour: open the details
+        // sheet on the first activity.
+        setDetailsActivity(real[0]);
       } else {
         // Cell is empty → enter long-press-drag selection mode:
         // start cell is this one, drag end will follow the finger
@@ -1576,7 +1571,7 @@ if (isSameCell) {
       {/* Quick plan day popup — opens on double-tap of any quick
           plan pill. Lists every quick plan for that day with the
           full (un-truncated) name and current status. Tapping a row
-          opens the same lifecycle popover used everywhere else. */}
+          opens the same details sheet used everywhere else. */}
       <Dialog open={!!quickPlanDayPopup} onOpenChange={(open) => { if (!open) setQuickPlanDayPopup(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -1591,42 +1586,22 @@ if (isSameCell) {
                 activity={a}
                 getActivityColor={getActivityColor}
                 onTap={() => { setQuickPlanDayPopup(null); setDetailsActivity(a); }}
-                onLongPress={() => { setQuickPlanDayPopup(null); setLifecycleActivity(a); }}
+                onLongPress={() => { setQuickPlanDayPopup(null); setDetailsActivity(a); }}
               />
             )) : (
               <p className="text-xs text-muted-foreground text-center py-4">No quick plans for this day.</p>
             )}
           </div>
           <p className="text-[0.6875rem] text-muted-foreground pt-1">
-            Tap to open details · press &amp; hold to jump straight to Manage Plan.
+            Tap to open details, mark it done or edit it.
           </p>
         </DialogContent>
       </Dialog>
 
-      <ActivityDetailsModal
-        isOpen={!!detailsActivity}
+      <PlanDetailsSheet
+        item={detailsActivity}
         onClose={() => setDetailsActivity(null)}
-        activity={detailsActivity}
-        alters={alters}
-        onEditPlan={(act) => {
-          setDetailsActivity(null);
-          // Open the real plan editor (handed down from ActivityTracker)
-          // so "Edit" reaches the full edit form. Fall back to the
-          // Manage/lifecycle popover only if no editor was provided.
-          if (onEditPlan) { onEditPlan(act); return; }
-          setLifecycleActivity(act);
-        }}
-      />
-
-      <ActivityLifecyclePopover
-        isOpen={!!lifecycleActivity}
-        activity={lifecycleActivity}
-        onClose={() => setLifecycleActivity(null)}
-        onChanged={() => {
-          // The Activity subscribe handler in ActivityTracker will
-          // invalidate the activities query; the grid re-renders
-          // automatically once the patched record lands.
-        }}
+        onEdit={onEditPlan ? (act) => { setDetailsActivity(null); onEditPlan(act); } : null}
       />
     </div>
   );

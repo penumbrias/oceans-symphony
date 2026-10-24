@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import ActivityTimeStrip from "@/components/activities/ActivityTimeStrip";
+import ActivityWhenField from "@/components/activities/ActivityWhenField";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
@@ -1695,19 +1696,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                         })()}
                         {open && (
                           <div className="px-2.5 pb-2 pt-1 space-y-1.5 border-t border-border/40">
-                            <div className="flex flex-wrap items-center gap-1">
-                              <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide mr-0.5">Duration</span>
-                              {["5", "15", "30", "60", "90"].map((m) => (
-                                <button key={m} type="button"
-                                  onClick={() => setDetail({ duration: d.duration === m ? "" : m })}
-                                  className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${d.duration === m ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
-                                  {m}m
-                                </button>
-                              ))}
-                              <input type="number" min="0" inputMode="numeric" placeholder="min" value={d.duration || ""}
-                                onChange={(e) => setDetail({ duration: e.target.value })}
-                                className="w-14 h-6 px-1.5 text-[0.6875rem] rounded border border-border/60 bg-background" />
-                            </div>
+                            {/* The shared length row — the same "for how long / until"
+                                control as every other activity sheet. A start is only
+                                stored once one was picked; otherwise it's the check-in time. */}
+                            <ActivityWhenField compact mode="done"
+                              start={d.start ? new Date(d.start) : new Date()}
+                              minutes={parseInt(d.duration) || null}
+                              onChange={({ minutes: m }) => setDetail({ duration: m ? String(m) : "" })} />
                             <input type="text" placeholder="Note for this activity (optional)" value={d.note || ""}
                               onChange={(e) => setDetail({ note: e.target.value })}
                               className="w-full h-7 px-2 text-xs rounded border border-border/60 bg-background" />
