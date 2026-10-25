@@ -9,6 +9,7 @@ import { Clock, AlertTriangle, X, ArrowRight, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { endFrontSession } from "@/lib/frontSessionEdit";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // Modal opened from the stale-sessions banner on the Analytics
@@ -73,10 +74,7 @@ export default function StaleSessionsModal({ isOpen, onClose, staleSessions = []
   const closeNow = async (session) => {
     setBusyId(session.id);
     try {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: new Date().toISOString(),
-        is_active: false,
-      });
+      await endFrontSession({ session });
       toast.success("Session closed now");
       invalidate();
     } catch (err) {
@@ -94,10 +92,7 @@ export default function StaleSessionsModal({ isOpen, onClose, staleSessions = []
     if (dt.getTime() > Date.now() + 60_000) { toast.error("End time can't be in the future"); return; }
     setBusyId(session.id);
     try {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: dt.toISOString(),
-        is_active: false,
-      });
+      await endFrontSession({ session, at: dt.toISOString() });
       toast.success(`Session closed at ${format(dt, "MMM d, HH:mm")}`);
       setPickerOpenId(null);
       invalidate();

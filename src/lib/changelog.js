@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Deleting one {{alter}}'s part of an older shared session no longer deletes everyone else's part too." },
+      { type: "fix", text: "Session edits and splits now check the end comes after the start, and adding a past session for someone already in {{front}} no longer doubles them up." },
       { type: "fix", text: "Your own trigger types now show in Quick Check-In, and analytics show their names instead of a code." },
       { type: "fix", text: "A triggered {{switch}} saved without picking a category is now kept (as Unknown) and counted in analytics." },
       { type: "fix", text: "Trigger analytics now use your own word for {{switches}}." },

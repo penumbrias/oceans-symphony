@@ -5,12 +5,11 @@ import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import { splitFrontSession, addPastFrontSessions } from "@/lib/frontSessionEdit";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useFrontLook } from "@/lib/frontLook";
-import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate, activityDate } from "@/lib/dateUtils";
@@ -1366,80 +1365,14 @@ export default function InfiniteTimeline({
     if (!splitPopover) return;
     const { alter, session } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
-    const isNewModel = !!session.alter_id;
-    // Levels are the split vocabulary now; "promote"/"demote" survive only
-    // for the legacy group-row model below (mapped from the level index).
-    const levelIdx = levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0;
 
     try {
-      if (isNewModel) {
-        // New individual model — each record is one alter
-        if (action === "end") {
-          // Simply end this alter's session at split time
-          await base44.entities.FrontingSession.update(session.id, {
-            end_time: splitTime,
-            is_active: false,
-          });
-        } else if (action === "level") {
-          // End the current segment; the continuation carries the picked
-          // level. is_primary follows the level (top level = the lead) and
-          // — for still-active sessions — the shared recompute settles ties
-          // exactly like every other write path.
-          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: levelIdx === 0,
-            front_level: levelId,
-            start_time: splitTime,
-            end_time: session.end_time || null,
-            is_active: !session.end_time,
-          });
-          // Active new sessions settle the lead through the shared recompute.
-          if (!session.end_time) {
-            await recomputePrimaryFromLevels({ cfg: levelCfgTimeline, queryClient: null });
-          }
-        }
-      } else {
-        // Legacy model fallback — a picked level maps onto the old binary:
-        // top level = promote, anything else = demote.
-        if (action === "level") action = levelIdx === 0 ? "promote" : "demote";
-        if (action === "end") {
-          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-          if (others.length > 0) {
-            await base44.entities.FrontingSession.create({
-              primary_alter_id: others[0],
-              co_fronter_ids: others.slice(1),
-              start_time: splitTime,
-              end_time: session.end_time || null,
-              is_active: !session.end_time,
-            });
-          }
-        } else {
-          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          const newSession = {
-            primary_alter_id: session.primary_alter_id,
-            co_fronter_ids: session.co_fronter_ids || [],
-            start_time: splitTime,
-            end_time: session.end_time || null,
-            is_active: !session.end_time,
-          };
-          if (action === "promote") {
-            newSession.primary_alter_id = alter.id;
-            newSession.co_fronter_ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-          } else if (action === "demote") {
-            const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-            newSession.primary_alter_id = others[0] || null;
-            newSession.co_fronter_ids = [...others.slice(1), alter.id];
-          }
-          await base44.entities.FrontingSession.create(newSession);
-        }
-      }
-
+      await splitFrontSession({ session, alterId: alter.id, at: splitTime, action, levelId, levelCfg: levelCfgTimeline });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
     } catch (err) {
       console.error("Split session failed", err);
+      toast.error(err?.message || "Couldn't split the session");
     }
     setSplitPopover(null);
   };
@@ -1457,18 +1390,12 @@ export default function InfiniteTimeline({
         const [eh, em] = endTime.split(":").map(Number);
         endDate.setHours(eh, em, 0, 0);
       }
-      // The top occupied level leads (same rule as every other write path):
-      // only alters at the highest picked level are marked primary.
-      const idxOf = (levelId) => (levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0);
-      const topIdx = Math.min(...selections.map((x) => idxOf(x.levelId)));
-      await base44.entities.FrontingSession.bulkCreate(selections.map(({ alterId, levelId }) => ({
-        alter_id: alterId,
-        front_level: levelId,
-        is_primary: idxOf(levelId) === topIdx && topIdx === 0,
-        start_time: startDate.toISOString(),
-        end_time: endDate?.toISOString() || null,
-        is_active: !endDate,
-      })));
+      await addPastFrontSessions({
+        start: startDate.toISOString(),
+        end: endDate?.toISOString() || null,
+        selections,
+        levelCfg: levelCfgTimeline,
+      });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
     } catch (err) {
