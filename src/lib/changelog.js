@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 25, 2026",
+    changes: [
+      { type: "feature", text: "New in Manage Check-In → Feelings: choose who entries belong to when you don't pick — everyone in {{front}}, everyone except some levels, or nobody." },
+    ],
+  },
+  {
     date: "October 24, 2026",
+    version: "0.279.2",
     changes: [
       { type: "fix", text: "Diary fields you added yourself now save from the diary widget and diary quick actions, and every safety field is kept." },
       { type: "fix", text: "Statuses set from the {{fronters}} panel, the quick note sheet and quick actions now understand ~commands, signposts and @mentions, and so do edits in the Check-In Log." },

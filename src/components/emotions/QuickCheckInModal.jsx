@@ -30,7 +30,7 @@ import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
 import RatingMeter from "@/components/emotions/RatingMeter";
 import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { emotionAttributionDefault, defaultEmotionAlterIds } from "@/lib/emotionAttribution";
+import { defaultEmotionAlterIds, checkInEmotionDefault, applyAttributionPolicy } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
@@ -738,13 +738,19 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // Who an emotion belongs to when the user hasn't said otherwise: every
   // fronter in this check-in, or only those at the level chosen in Manage
   // Check-In → Feelings (falls back to everyone if nobody is at it).
-  const emotionDefaultSetting = emotionAttributionDefault(pickPrimarySystemSettings(ssList) || ssList?.[0], levelCfg);
-  const defaultEmotionIds = useMemo(() => defaultEmotionAlterIds({
-    fronterIds: selectedAlters,
-    setting: emotionDefaultSetting,
-    levelOf: levelIdOf,
+  // Once the person sets "Entries belong to", that rule applies here too.
+  const emotionDefault = checkInEmotionDefault(pickPrimarySystemSettings(ssList) || ssList?.[0], levelCfg);
+  const emotionDefaultKind = emotionDefault.kind;
+  const emotionDefaultSetting = emotionDefault.value;
+  const defaultEmotionIds = useMemo(() => (emotionDefaultKind === "policy"
+    ? applyAttributionPolicy({ fronterIds: selectedAlters, policy: emotionDefaultSetting, levelOf: levelIdOf })
+    : defaultEmotionAlterIds({
+      fronterIds: selectedAlters,
+      setting: emotionDefaultSetting,
+      levelOf: levelIdOf,
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [selectedAlters, emotionDefaultSetting, levelById, sessionLevelById, primaryId, levelCfg]);
+  ), [selectedAlters, emotionDefaultKind, emotionDefaultSetting, levelById, sessionLevelById, primaryId, levelCfg]);
   const alterColorById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.color || "#8b5cf6"])), [alters]);
   // Dots only when an emotion's people differ from the default.
   const emotionDots = useCallback((label) => {
