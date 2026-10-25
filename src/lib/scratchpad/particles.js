@@ -16,6 +16,7 @@
 //   link    – a spring to the particles drawn either side of it
 //   jitter  – a little random wander
 //   edges   – "bounce" | "wrap" | "fade" (leave and vanish)
+// Tilting the phone is not a rule: it is passed to stepPad as `push`.
 //
 // The field is measured in units where the shorter side of the pad is
 // 1000, so the same rules look the same on any screen. Plain typed
@@ -216,8 +217,10 @@ function buildGrid(pad, cell) {
 }
 
 // Advance dt seconds. Returns how much is still moving (0 = all still),
-// so the screen can stop drawing when nothing changes.
-export function stepPad(pad, rules, dt) {
+// so the screen can stop drawing when nothing changes. `push` is an
+// outside force on every particle ({ x, y } in units/s², e.g. the
+// phone's tilt), on top of the rules.
+export function stepPad(pad, rules, dt, push = null) {
   const r = rules;
   const { x, y, vx, vy, alive, pinned, cap } = pad;
   const { ax, ay } = pad;
@@ -305,11 +308,12 @@ export function stepPad(pad, rules, dt) {
   const ck = r.center * 4;
   const tk = r.tether * 40;
   const jit = r.jitter * 300;
+  const px = push ? push.x || 0 : 0, py = push ? push.y || 0 : 0;
   let moving = 0;
   for (let i = 0; i < cap; i++) {
     if (!alive[i]) continue;
     if (pinned[i]) { moving += 1; continue; }
-    let fx = ax[i], fy = ay[i] + g;
+    let fx = ax[i] + px, fy = ay[i] + g + py;
     if (ck) { fx += (cxm - x[i]) * ck; fy += (cym - y[i]) * ck; }
     if (tk) { fx += (pad.hx[i] - x[i]) * tk; fy += (pad.hy[i] - y[i]) * tk; }
     if (jit) { fx += (pad.rand() - 0.5) * jit; fy += (pad.rand() - 0.5) * jit; }

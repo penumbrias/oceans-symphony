@@ -41,3 +41,48 @@ const pad = createPad();
 draw(pad, PRESETS[0].rules, [100, 100], [800, 100]);
 assert.ok(Math.abs(pad.count - 101) <= 2, `count ${pad.count}`);
 console.log("ok  stroke spacing");
+
+// A tilt push moves particles that way; no push leaves the rules alone.
+{
+  const rules = clampRules({ ...PRESETS[0].rules, carry: 0, drag: 0.5, life: 0 });
+  const pad = createPad({ capacity: 200 });
+  resizePad(pad, 1000, 1000);
+  draw(pad, rules, [300, 500], [700, 500]);
+  const meanX = () => { let s = 0, n = 0; for (let i = 0; i < pad.cap; i++) if (pad.alive[i]) { s += pad.x[i]; n++; } return s / n; };
+  const x0 = meanX();
+  for (let f = 0; f < 60; f++) stepPad(pad, rules, 1 / 60, { x: 600, y: 0 });
+  assert.ok(meanX() > x0 + 50, "push to the right moves them right");
+  console.log("ok  tilt push");
+}
+
+// The tilt vector: flat is nothing, upright is straight down, right side
+// down is to the right, and landscape turns it.
+{
+  const handlers = [];
+  globalThis.window = {
+    DeviceOrientationEvent: function () {},
+    screen: { orientation: { angle: 0 } },
+    addEventListener: (_t, fn) => handlers.push(fn),
+    removeEventListener: () => {},
+  };
+  const { startTilt } = await import("../src/lib/scratchpad/tilt.js");
+  let v = null;
+  const stop = startTilt("gravity", (t) => { v = t; });
+  const send = (beta, gamma) => handlers.at(-1)({ beta, gamma, timeStamp: 0 });
+  const near = (a, b) => Math.abs(a - b) < 1e-6;
+  send(0, 0); assert.ok(near(v.x, 0) && near(v.y, 0), "flat");
+  send(90, 0); assert.ok(near(v.x, 0) && near(v.y, 1), "upright falls down");
+  send(0, 90); assert.ok(near(v.x, 1) && near(v.y, 0), "right side down");
+  window.screen.orientation.angle = 90;
+  send(90, 0); assert.ok(near(v.x, 1) && near(v.y, 0), "landscape: phone's bottom is the screen's right");
+  stop();
+  window.screen.orientation.angle = 0;
+  startTilt("nudge", (t) => { v = t; });
+  handlers.at(-1)({ beta: 60, gamma: 0, timeStamp: 0 });
+  assert.ok(near(v.y, 0), "nudge: holding still is no push");
+  for (let k = 1; k <= 200; k++) handlers.at(-1)({ beta: 60, gamma: 0, timeStamp: k * 50 });
+  assert.ok(Math.abs(v.y) < 1e-3, "nudge: still stays still");
+  handlers.at(-1)({ beta: 90, gamma: 0, timeStamp: 10050 });
+  assert.ok(v.y > 0.1, "nudge: tilting further pushes down");
+  console.log("ok  tilt vector");
+}
