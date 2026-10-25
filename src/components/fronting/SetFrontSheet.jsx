@@ -37,7 +37,8 @@ import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import PresencePicker from "@/components/presences/PresencePicker";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
-import { SetFrontGridCard, TRIGGER_CATEGORIES } from "@/components/fronting/SetFrontModal";
+import { SetFrontGridCard } from "@/components/fronting/SetFrontModal";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -170,15 +171,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
     enabled: open && (sorter.mode === "most" || sorter.mode === "least"),
     staleTime: 60000,
   });
-  const { data: customTriggerTypes = [] } = useQuery({
-    queryKey: ["customTriggerTypes"],
-    queryFn: () => base44.entities.TriggerType.list(),
-    enabled: open,
-  });
-  const allTriggerCategories = useMemo(() => [
-    ...TRIGGER_CATEGORIES,
-    ...customTriggerTypes.map((t) => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
-  ], [customTriggerTypes]);
+  const allTriggerCategories = useTriggerCategories({ enabled: open });
 
   // Members of groups flagged hide_from_set_front stay out of this picker
   // (same rule as the old modal).
@@ -357,7 +350,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       const { firstSessionId } = await applyFrontSelection({
         clearAll: isUnsure,
         selections: draft,
-        triggered: triggeredSwitch && triggerCategory ? { category: triggerCategory, label: triggerLabel } : null,
+        triggered: triggeredSwitch ? { category: triggerCategory, label: triggerLabel } : null,
         levelsEnabled: levelCfg.enabled,
         levelCfg,
         alters,

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import useFormDraft from "@/hooks/useFormDraft";
 import { withBatch } from "@/lib/localDb";
 import { base44, localEntities } from "@/api/base44Client";
@@ -91,16 +92,6 @@ function FrontPickRow({ alter, isSelected, levelLabel, holdProps, onToggle }) {
     </div>
   );
 }
-
-const TRIGGER_CATEGORIES = [
-  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
-  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
-  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
-  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
-  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
-  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
-  { id: "unknown",         label: "Unknown",        emoji: "❓" },
-];
 
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
@@ -226,6 +217,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [journalSwitch, setJournalSwitch] = useState(false);
   const [isTriggeredSwitch, setIsTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
+  const triggerCategories = useTriggerCategories({ enabled: isOpen });
   const [triggerLabel, setTriggerLabel] = useState("");
   const [showJournalModal, setShowJournalModal] = useState(false);
   const [newSessionId, setNewSessionId] = useState(null);
@@ -653,9 +645,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   }, [note, isOpen, alters, selectedAlterIds, primaryId]);
 
   const triggerString = useMemo(() => {
-    const cat = TRIGGER_CATEGORIES.find(c => c.id === triggerCategory);
+    const cat = triggerCategories.find(c => c.id === triggerCategory);
     return [cat?.label, triggerLabel].filter(Boolean).join(": ");
-  }, [triggerCategory, triggerLabel]);
+  }, [triggerCategory, triggerLabel, triggerCategories]);
 
   const toggleAlter = (id) => {
     if (primaryId === id) {
@@ -1155,7 +1147,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           : (freshPrimaryId && desiredIds.has(freshPrimaryId) ? freshPrimaryId : primaryId);
         const { firstSessionId } = await applyFrontSelection({
           selections: [...desiredIds].map((id) => ({ alterId: id, isPrimary: id === wantPrimaryId, level: levelById[id] })),
-          triggered: isTriggeredSwitch && triggerCategory ? { category: triggerCategory, label: triggerLabel } : null,
+          triggered: isTriggeredSwitch ? { category: triggerCategory, label: triggerLabel } : null,
           levelsEnabled: levelCfg.enabled,
           levelCfg,
           alters: alters,
@@ -1579,7 +1571,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                     <div className="border border-orange-400/30 rounded-lg p-2.5 bg-orange-50/30 dark:bg-orange-900/10 space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">What triggered it?</p>
                       <div className="flex flex-wrap gap-1">
-                        {TRIGGER_CATEGORIES.map(cat => (
+                        {triggerCategories.map(cat => (
                           <button key={cat.id} type="button" onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)} title={cat.hint}
                             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
                               triggerCategory === cat.id

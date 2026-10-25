@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Your own trigger types now show in Quick Check-In, and analytics show their names instead of a code." },
+      { type: "fix", text: "A triggered {{switch}} saved without picking a category is now kept (as Unknown) and counted in analytics." },
+      { type: "fix", text: "Trigger analytics now use your own word for {{switches}}." },
       { type: "fix", text: "Changing who's primary in Get to know me no longer resets their \"{{fronting}} since\" time." },
       { type: "fix", text: "Swipes, holds, the level slider and quick actions now update {{front}} the same way as the {{front}} sheet, so friends see the change and old or duplicate entries get tidied up." },
       { type: "feature", text: "New in Manage Check-In → Feelings: choose who entries belong to when you don't pick — everyone in {{front}}, everyone except some levels, or nobody." },
