@@ -175,11 +175,17 @@ export const BACKUP_LS_KEYS = [
   "symphony_critical_pin_dismissals", "symphony_upcoming_plan_acks",
   // How the "who's fronting" notification names each alter + hidden levels.
   "symphony_persist_notif_fronters_opts_v1",
+  // Planner's last section and view (its other choices are listed above).
+  "symphony_planner_section_v1", "symphony_planner_view_v1",
+  // Which grocery list is open, and the starter symptom bundles picked.
+  "grocery_active_list_v1", "symphony_onboarding_bundles_chosen_v1",
 ];
 
 // Keys stored once per record (the key ends in an id). Matched by prefix.
 export const BACKUP_LS_PREFIXES = [
   "symphony_alter_inherit_history_v1_",
+  // Each Upcoming plans panel's own limit ("<key>__<panel>").
+  "upcoming_plans_limit_mode__", "upcoming_plans_limit_count__", "upcoming_plans_limit_window__",
 ];
 
 const BACKUP_LS_KEY_SET = new Set(BACKUP_LS_KEYS);

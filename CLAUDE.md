@@ -32,7 +32,7 @@ Whenever you render an alter's name in a list, dropdown, picker, mention popup, 
 
 - The hook returns a `formatAlter(alter)` function tied to the user's `SystemSettings.alter_label_mode` preference (`name` / `alias` / `both`).
 - The default mode is `name` (most distinguishable when alters share aliases).
-- The setting lives in Settings → Appearance → `AlterLabelSettings.jsx`.
+- The setting lives in Settings → Alter setup → "Alter labels in lists" (`AlterLabelSettings.jsx`, mounted in `Settings.jsx` since v0.279.18).
 - Helpers: `formatAlterLabel(alter, mode)` (pure) and `useAlterLabel()` (hook) are in `src/lib/alterLabel.js` / `src/lib/useAlterLabel.js`.
 - Already wired into: `FronterPicker`, `AlterDropdownPicker`, the chat composer (speaker chip, mention popup, signpost popup, SpeakerRow), `MessageRow`. Other surfaces still using `alter.alias || alter.name` should be progressively migrated when they're touched.
 - The hook re-uses the existing `["systemSettings"]` react-query cache (shared with `useTerms` / `useAccessibility`) — no extra fetch per consumer.

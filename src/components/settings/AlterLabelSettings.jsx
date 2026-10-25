@@ -11,7 +11,7 @@ const OPTIONS = [
     id: ALTER_LABEL_MODES.NAME,
     label: "Display name",
     sample: (a) => a.name,
-    desc: "Show the full display name everywhere. Most distinguishable when alters share aliases.",
+    desc: (t) => `Show the full display name everywhere. Most distinguishable when ${t.alters} share aliases.`,
   },
   {
     id: ALTER_LABEL_MODES.ALIAS,
@@ -83,7 +83,7 @@ export default function AlterLabelSettings({ embedded = false } = {}) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{typeof opt.desc === "function" ? opt.desc(terms) : opt.desc}</p>
                 <p className="text-xs text-muted-foreground/80 mt-1 font-mono truncate">
                   e.g. {opt.sample(SAMPLE)}
                 </p>
@@ -94,7 +94,14 @@ export default function AlterLabelSettings({ embedded = false } = {}) {
     </div>
   );
 
-  if (embedded) return list2;
+  if (embedded) return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        How {terms.alters} appear in dropdowns, pickers, mention popups, and other lists across the app.
+      </p>
+      {list2}
+    </div>
+  );
 
   return (
     <Card className="border-border/50">
