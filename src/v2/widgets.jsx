@@ -29,10 +29,10 @@ import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker
 import { statusFor as statusForActivity } from "@/lib/activityStatus";
 import { Square,
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
-  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
+  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
-  CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
+  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music
 , Map, MapPin,
   HeartHandshake, Target,
 } from "lucide-react";
@@ -522,6 +522,22 @@ function TodayAddSheet({ open, onClose }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+// One widget for "what's on": today at a glance, or just the to-dos, the
+// plans, or the classic Coming up panel (v0.280.1).
+function TodayViews({ settings }) {
+  const show = settings?.show;
+  if (show === "todos") return <TasksWidget settings={settings} />;
+  if (show === "plans") return <PlansWidget settings={settings} />;
+  if (show === "upcoming") {
+    return (
+      <Section>
+        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"} />
+      </Section>
+    );
+  }
+  return <TodayWidget />;
 }
 
 function TodayWidget() {
@@ -2891,12 +2907,26 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
-    label: "Today", description: "Today's schedule: plans at their times, anything due today, and anything left unresolved.",
+    label: "Today", description: "Today's schedule — or switch it to your open to-dos, the plans coming up, or the Coming up panel.",
     icon: CalendarCheck, category: "home",
-    render: sized(() => <TodayWidget />),
-    supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+    render: sized(({ settings }) => <TodayViews settings={settings} />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "show", type: "select", label: "Show", default: "today",
+        options: [
+          { value: "today", label: "Today's schedule" },
+          { value: "todos", label: "Open to-dos" },
+          { value: "plans", label: "Plans over the coming days" },
+          { value: "upcoming", label: "Coming up panel (with its own reminder window)" },
+        ] },
+      { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7,
+        showIf: (st) => st?.show === "plans" },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8,
+        showIf: (st) => st?.show === "plans" || st?.show === "todos" },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
+
   status: {
     label: "Status", description: "The latest status note, with a box to set a new one — or as a scrolling ticker.",
     icon: StickyNote, category: "home",
@@ -3060,25 +3090,26 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   bulletin_board: {
-    label: "Bulletin board", description: "The board itself — post and read. Can show group boards too, with arrows to flip between them.",
+    label: "Bulletin board", description: "The board itself — post and read, with group boards too — or just the latest posts.",
     icon: Megaphone, category: "bulletins",
-    render: ({ api, settings, updateSettings }) => (
-      <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />
-    ),
+    render: ({ api, settings, updateSettings }) => (settings?.show === "latest"
+      ? <BulletinsWidget settings={settings} />
+      : <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />),
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
-      { key: "boards", type: "dynamicMulti", source: "boards", label: "Boards" },
+      { key: "show", type: "select", label: "Show", default: "board",
+        options: [
+          { value: "board", label: "The board (post and read)" },
+          { value: "latest", label: "Latest posts only" },
+        ] },
+      { key: "boards", type: "dynamicMulti", source: "boards", label: "Boards",
+        showIf: (st) => st?.show !== "latest" },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6,
+        showIf: (st) => st?.show === "latest" },
     ],
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
-  tasks: {
-    label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",
-    icon: ListTodo, category: "tasks",
-    render: sized(({ settings }) => <TasksWidget settings={settings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
-  },
+
   needs_balance: {
     label: "Needs balance", description: "Which {{alters}} have waited longest for something they enjoy, need or wished for.",
     icon: HeartHandshake, category: "needs",
@@ -3104,20 +3135,21 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   sleep: {
-    label: "Sleep", description: "Last night's sleep, or the one in progress.",
+    label: "Sleep", description: "Last night's sleep or the one in progress — or one-tap start / wake controls.",
     icon: Moon, category: "sleep",
-    render: sized(() => <SleepWidget />),
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ settings }) => (settings?.show === "controls" ? <SleepControlWidget /> : <SleepWidget />)),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "show", type: "select", label: "Show", default: "summary",
+        options: [
+          { value: "summary", label: "Last night / in progress" },
+          { value: "controls", label: "Start / wake controls" },
+        ] },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
-  board: {
-    label: "Board", description: "The latest posts on the bulletin board.",
-    icon: Megaphone, category: "bulletins",
-    render: ({ settings }) => <BulletinsWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
-  },
+
+
   reminders: {
     label: "Reminders", description: "What's coming up from your reminders.",
     icon: Bell, category: "reminders",
@@ -3203,13 +3235,7 @@ export const V2_WIDGETS = {
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
-  sleep_controls: {
-    label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",
-    icon: Moon, category: "sleep",
-    render: sized(() => <SleepControlWidget />),
-    supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
-  },
+
   song: {
     label: "Song", description: "A song that plays while this page is open.",
     icon: Music, category: "support",
@@ -3237,35 +3263,8 @@ export const V2_WIDGETS = {
     ],
     defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
-  upcoming_plans: {
-    label: "Coming up", description: "The classic Upcoming plans panel, with its own reminder window.",
-    icon: AlarmClock, category: "activities",
-    // The classic component verbatim — it fetches, groups by day, offers
-    // the inline window cog and the resolve actions. Section supplies the
-    // one visible box; UpcomingPlans keeps its own header (it carries the
-    // window label and cog), so Section is label-less to avoid two titles.
-    render: sized(({ settings }) => (
-      <Section>
-        {/* No limit prop: that keeps the panel's own cog visible, so how
-            many plans / how far ahead stays the one control users already
-            know from the classic dashboard rather than a second copy of it. */}
-        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"} />
-      </Section>
-    )),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
-  },
-  plans: {
-    label: "Plans", description: "What's scheduled over the coming days.",
-    icon: CalendarDays, category: "activities",
-    render: sized(({ settings }) => <PlansWidget settings={settings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [
-      { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7 },
-      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8 },
-    ],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
-  },
+
+
   plan_tracker: {
     label: "Plan tracker", description: "The plan-completion tracker — how many plans got done, partly done, or skipped.",
     icon: ListChecks, category: "activities",
@@ -3299,13 +3298,28 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   polls: {
-    label: "Polls", description: "The latest polls and their vote counts.",
+    label: "Polls", description: "The latest polls and their votes — or one poll's results as bars, or a button for a new poll.",
     icon: Vote, category: "bulletins",
-    render: sized(({ settings }) => <PollsWidget settings={settings} />),
+    render: sized(({ settings, updateSettings, api }) => (
+      settings?.show === "results" ? <PollResultsWidget settings={settings} updateSettings={updateSettings} />
+        : settings?.show === "new" ? <PollComposerWidget api={api} />
+          : <PollsWidget settings={settings} />)),
     supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+    configFields: [
+      { key: "show", type: "select", label: "Show", default: "list",
+        options: [
+          { value: "list", label: "Latest polls" },
+          { value: "results", label: "One poll's results" },
+          { value: "new", label: "A New poll button" },
+        ] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4,
+        showIf: (st) => (st?.show || "list") === "list" },
+      { key: "pollId", type: "dynamicSelect", source: "polls", label: "Poll",
+        showIf: (st) => st?.show === "results" },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
+
   chat_channel: {
     label: "Chat channel", description: "A {{system}}-chat channel you can read and send in, right here.",
     icon: MessageSquare, category: "chat",
@@ -3317,24 +3331,8 @@ export const V2_WIDGETS = {
     ],
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
-  poll_results: {
-    label: "Poll results", description: "One poll's live results as bars — pick which in the header.",
-    icon: BarChart2, category: "bulletins",
-    render: sized(({ settings, updateSettings }) =>
-      <PollResultsWidget settings={settings} updateSettings={updateSettings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [
-      { key: "pollId", type: "dynamicSelect", source: "polls", label: "Poll" },
-    ],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
-  },
-  poll_new: {
-    label: "New poll", description: "A button that opens the real poll composer.",
-    icon: Vote, category: "bulletins",
-    render: ({ api }) => <PollComposerWidget api={api} />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
-  },
+
+
   folder: {
     label: "Folder", description: "A folder on the page that holds apps — tap to open it.",
     icon: FolderOpen, category: "nav",
@@ -3464,3 +3462,18 @@ V2_WIDGETS.status_banner = foldWidget(V2_WIDGETS.status, () => ({ look: "ticker"
 V2_WIDGETS.recent = foldWidget(V2_WIDGETS.checkin_log, (s) => ({
   kinds: "feelings", limit: Math.max(1, Math.min(10, parseInt(s.limit, 10) || 4)),
 }));
+V2_WIDGETS.tasks = foldWidget(V2_WIDGETS.today, () => ({ show: "todos", limit: 6 }), {
+  minSpan: { cols: 2, rows: 1 },
+});
+V2_WIDGETS.plans = foldWidget(V2_WIDGETS.today, () => ({ show: "plans" }), { minSpan: { cols: 2, rows: 1 } });
+V2_WIDGETS.upcoming_plans = foldWidget(V2_WIDGETS.today, () => ({ show: "upcoming" }));
+V2_WIDGETS.board = foldWidget(V2_WIDGETS.bulletin_board, () => ({ show: "latest" }), {
+  minSpan: { cols: 2, rows: 1 },
+});
+V2_WIDGETS.sleep_controls = foldWidget(V2_WIDGETS.sleep, () => ({ show: "controls" }), {
+  supportsMultiInstance: false, minSpan: { cols: 2, rows: 1 },
+});
+V2_WIDGETS.poll_results = foldWidget(V2_WIDGETS.polls, () => ({ show: "results" }));
+V2_WIDGETS.poll_new = foldWidget(V2_WIDGETS.polls, () => ({ show: "new" }), {
+  supportsMultiInstance: false, minSpan: { cols: 2, rows: 1 },
+});

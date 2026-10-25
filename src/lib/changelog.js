@@ -19,6 +19,7 @@
 export const CHANGELOG = [
   {
     date: "October 25, 2026",
+      { type: "improve", text: "More look-alike widgets are folded together: Today can show to-dos, plans or Coming up, and Sleep, Polls and Bulletin board let you pick their view. Widgets you already placed stay put." },
     changes: [
       { type: "improve", text: "Widgets that did the same job are folded together: Status can be a ticker, Check-in log can show feelings only, and Active and Page buttons let you pick what they show. Widgets you already placed stay put." },
       { type: "fix", text: "The \"Theme color changed\" daily task ticks again when you pick a colour preset or save a colour." },
