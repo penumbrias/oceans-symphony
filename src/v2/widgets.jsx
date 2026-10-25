@@ -113,6 +113,7 @@ import {
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
+import { foldWidget } from "@/lib/widgetFold";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
@@ -335,7 +336,9 @@ function PresenceWidget({ mode, api, settings }) {
 }
 
 // ── Running right now ──────────────────────────────────────────────
-function ActiveWidget({ api }) {
+// Each kind can be switched off in the options; "Active now" and the
+// classic single-kind cards fold into this one (v0.280.0).
+function ActiveWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -378,13 +381,21 @@ function ActiveWidget({ api }) {
   }, [qc]);
   const symById = React.useMemo(() => Object.fromEntries(symptoms.map((s) => [s.id, s])), [symptoms]);
   const contactById = React.useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
-  const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time);
-  const nothing = activities.length === 0 && symptomSessions.length === 0 && !activeSleep && encounters.length === 0;
+  const showActs = settings?.showActivities !== false;
+  const showSyms = settings?.showSymptoms !== false;
+  const showWith = settings?.showContacts !== false;
+  const showSleep = settings?.showSleep !== false;
+  const actRows = showActs ? activities : [];
+  const symRows = showSyms ? symptomSessions : [];
+  const withRows = showWith ? encounters : [];
+  const activeSleep = showSleep ? sleeps.find((s) => s.bedtime && !s.wake_time) : null;
+  const nothing = actRows.length === 0 && symRows.length === 0 && !activeSleep && withRows.length === 0;
+  if (nothing && settings?.hideWhenIdle) return null;
 
   return (
     <Section label={tr("widget.active.label")}>
       {nothing && <Muted>{tr("widget.active.empty")}</Muted>}
-      {activities.map((a) => (
+      {actRows.map((a) => (
         <Row key={a.id}
           left={<Dot color={a.color || "var(--v2-accent)"} />}
           primary={a.name || tr("widget.active.activity")}
@@ -393,7 +404,7 @@ function ActiveWidget({ api }) {
           onClick={() => setActivityMenu(a)} />
       ))}
       {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => setActivityMenu(null)} />}
-      {symptomSessions.map((s) => {
+      {symRows.map((s) => {
         const def = symById[s.symptom_id || s.symptom_definition_id];
         if (!def) return null;
         const snaps = s.severity_snapshots || [];
@@ -419,7 +430,7 @@ function ActiveWidget({ api }) {
             onClick={() => setSymptomMenu({ sess: s, symptom: { ...def, label: def.label || def.name } })} />
         );
       })}
-      {encounters.map((enc) => {
+      {withRows.map((enc) => {
         const ct = contactById[enc.contact_id];
         return (
           <Row key={enc.id} left={<Dot color="#34d399" />}
@@ -667,7 +678,13 @@ function StatusBannerWidget() {
 }
 
 // ── Status note ────────────────────────────────────────────────────
-function StatusWidget() {
+// "Ticker" is the read-only scrolling banner (the old Status banner
+// widget, folded in here in v0.280.0).
+function StatusWidget({ settings }) {
+  if (settings?.look === "ticker") return <StatusBannerWidget />;
+  return <StatusCard />;
+}
+function StatusCard() {
   const tr = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -723,28 +740,6 @@ function StatusWidget() {
         </div>
         <TextAction onClick={save}>{tr("widget.status.save")}</TextAction>
       </div>
-    </Section>
-  );
-}
-
-// ── Recent captures ────────────────────────────────────────────────
-function RecentWidget({ settings }) {
-  const tr = useT();
-  const navigate = useNavigate();
-  const limit = rowsForMode(useWidgetMode(), Math.max(1, Math.min(10, parseInt(settings?.limit, 10) || 4)));
-  const checkIns = useList("emotionCheckIns", "EmotionCheckIn");
-  const recent = [...checkIns]
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, limit);
-  return (
-    <Section label={tr("widget.recent.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.recent.all")}</TextAction>}>
-      {recent.length === 0 && <Muted>{tr("widget.recent.empty")}</Muted>}
-      {recent.map((c) => (
-        <Row key={c.id} primary={(c.emotions || []).join(", ") || tr("widget.recent.item")}
-          right={sameDay(c.timestamp, Date.now()) ? fmtTime(c.timestamp)
-            : new Date(c.timestamp).toLocaleDateString([], { month: "short", day: "numeric" })}
-          onClick={() => navigate(`/checkin-log?id=${c.id}`)} />
-      ))}
     </Section>
   );
 }
@@ -2823,6 +2818,11 @@ export const V2_WIDGETS = {
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 50, default: 8 },
+      { key: "kinds", type: "select", label: "Show", default: "all",
+        options: [
+          { value: "all", label: "Feelings and symptoms" },
+          { value: "feelings", label: "Feelings only" },
+        ] },
     ],
     defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
@@ -2879,8 +2879,15 @@ export const V2_WIDGETS = {
   running: {
     label: "Active", description: "What's running right now — activities, symptom episodes, sleep — and how long for.",
     icon: Timer, category: "home",
-    render: sized(({ api }) => <ActiveWidget api={api} />),
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ settings }) => <ActiveWidget settings={settings} />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "showActivities", type: "toggle", label: "Activities", default: true },
+      { key: "showSymptoms", type: "toggle", label: "Symptoms", default: true },
+      { key: "showContacts", type: "toggle", label: "Who you're with", default: true },
+      { key: "showSleep", type: "toggle", label: "Sleep", default: true },
+      { key: "hideWhenIdle", type: "toggle", label: "Hide when nothing is running", default: false },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
@@ -2891,25 +2898,18 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   status: {
-    label: "Status", description: "The latest status note.",
+    label: "Status", description: "The latest status note, with a box to set a new one — or as a scrolling ticker.",
     icon: StickyNote, category: "home",
-    render: sized(() => <StatusWidget />),
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ settings }) => <StatusWidget settings={settings} />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "look", type: "select", label: "Look", default: "card",
+        options: [
+          { value: "card", label: "Latest status + a box for a new one" },
+          { value: "ticker", label: "Scrolling ticker (read only)" },
+        ] },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
-  },
-  status_banner: {
-    label: "Status banner", description: "The latest status note as a scrolling ticker.",
-    icon: Megaphone, category: "home",
-    render: sized(() => <StatusBannerWidget />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
-  },
-  recent: {
-    label: "Recent check-ins", description: "Your most recent check-ins.",
-    icon: History, category: "home",
-    render: sized(({ settings }) => <RecentWidget settings={settings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   log_emotion: {
     label: "Log a feeling", description: "The emotion picker, right on the page \u2014 pick and save without opening the check-in.",
@@ -3455,3 +3455,12 @@ for (const c of COMMAND_WIDGETS) {
 for (const legacy of ["action_quick_task", "action_quick_plan"]) {
   V2_WIDGETS[legacy] = { ...V2_WIDGETS.action_quick_thing, hiddenFromDrawer: true };
 }
+
+// ── Folded duplicates (v0.280.0) ──────────────────────────────────
+// Widgets that did another widget's job now render that widget, set up
+// to look like the old one. Placed copies keep their spot and settings;
+// only the add-widget list loses them (src/lib/widgetFold.js).
+V2_WIDGETS.status_banner = foldWidget(V2_WIDGETS.status, () => ({ look: "ticker" }));
+V2_WIDGETS.recent = foldWidget(V2_WIDGETS.checkin_log, (s) => ({
+  kinds: "feelings", limit: Math.max(1, Math.min(10, parseInt(s.limit, 10) || 4)),
+}));

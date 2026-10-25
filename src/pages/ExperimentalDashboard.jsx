@@ -76,6 +76,7 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { BoardFieldContext } from "@/lib/boardWriter";
+import { foldedSettings } from "@/lib/widgetFold";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -537,7 +538,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           )}>
           {def.render({
             mode,
-            settings: widget.settings || {},
+            settings: foldedSettings(def, widget.settings),
             instanceId: widget.instanceId,
             api,
             updateSettings: (patch) => onSettings?.(widget.instanceId, patch),

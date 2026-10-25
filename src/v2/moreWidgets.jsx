@@ -204,13 +204,14 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
       intensity: c.intensity, alterId: c.alter_id || c.fronting_alter_ids?.[0], distress: checkInIsDistress(c),
     }));
     const symptomLabel = new Map(symptoms.map((x) => [x.id, x.label || x.name]));
-    const sym = mode === "minimal" ? [] : symptomCheckIns.map((s) => ({
+    const feelingsOnly = settings?.kinds === "feelings";
+    const sym = mode === "minimal" || feelingsOnly ? [] : symptomCheckIns.map((s) => ({
       id: s.id, kind: "symptom", ts: s.timestamp,
       title: symptomLabel.get(s.symptom_id) || "Symptom",
       intensity: s.severity ?? s.intensity, alterId: s.alter_id || s.fronting_alter_ids?.[0],
     }));
     return [...emo, ...sym].sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, limit);
-  }, [checkIns, symptomCheckIns, symptoms, limit, mode]);
+  }, [checkIns, symptomCheckIns, symptoms, limit, mode, settings?.kinds]);
 
   const alterOf = (id) => alters.find((a) => a.id === id);
   const stamp = (ts) => (isSameDay(new Date(ts), new Date())

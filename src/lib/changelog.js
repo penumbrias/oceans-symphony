@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "improve", text: "Widgets that did the same job are folded together: Status can be a ticker, Check-in log can show feelings only, and Active and Page buttons let you pick what they show. Widgets you already placed stay put." },
       { type: "fix", text: "The \"Theme color changed\" daily task ticks again when you pick a colour preset or save a colour." },
       { type: "hotfix", text: "Hotfix: removed a batch of unused old screens." },
       { type: "fix", text: "Home screen: the clock, current focus, frequently opened pages and a few more widgets now follow their Text size option." },
