@@ -2194,11 +2194,9 @@ function MultiListRowIcon({ option }) {
   );
 }
 
-// `sections` (optional) renders the list under the user's own group /
-// subsystem headings, indented by nesting depth. Searching flattens back to
-// `options` — when you're typing a name you want to find it, not navigate
-// to it (same behaviour as the groups manager).
-export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder, sections }) {
+// The flat list. Member pickers that offer the nested group/subsystem view
+// switch to NestedMemberList for it (components/shared).
+export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
   const [q, setQ] = React.useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
@@ -2220,19 +2218,7 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder}
         className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
       <div className="max-h-40 overflow-y-auto overscroll-contain space-y-0.5">
-        {sections && !needle
-          ? sections.map((sec) => (
-              <React.Fragment key={sec.id}>
-                {sec.label && (
-                  <p className="text-[0.625em] font-semibold uppercase tracking-wide truncate pt-1"
-                    style={{ paddingLeft: (sec.depth || 0) * 10, color: sec.color || "var(--v2-text-muted, hsl(var(--muted-foreground)))" }}>
-                    {sec.label}
-                  </p>
-                )}
-                {sec.options.map(renderRow)}
-              </React.Fragment>
-            ))
-          : shown.map(renderRow)}
+        {shown.map(renderRow)}
       </div>
     </div>
   );

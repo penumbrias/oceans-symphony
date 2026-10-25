@@ -37,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import NestedMemberList from "@/components/shared/NestedMemberList";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
 import ActivityWhenField from "@/components/activities/ActivityWhenField";
@@ -66,7 +67,6 @@ import DetailChip from "@/components/shared/DetailChip";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
-import { groupedAlterSections } from "@/lib/alterSections";
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } };
@@ -270,15 +270,27 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     return previousActivityEnd(activities, { before, excludeId: item.id || null });
   }, [activities, entry, create, item.timestamp, item.id]);
 
+  // "After the one just added": the newest entry with a time and a length
+  // (any status but cancelled/skipped), so plans entered in bulk chain.
+  const lastAdded = useMemo(() => {
+    if (!entry) return null;
+    let best = null;
+    for (const a of activities || []) {
+      if (!a?.timestamp || a.id === item.id || a.status === "cancelled" || a.status === "skipped") continue;
+      const len = Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0;
+      if (!len) continue;
+      const made = a.created_date || a.timestamp;
+      if (!best || String(made) > String(best.made)) best = { a, len, made };
+    }
+    if (!best) return null;
+    return { end: new Date(new Date(best.a.timestamp).getTime() + best.len * 60000), name: best.a.activity_name || "", id: best.a.id };
+  }, [activities, entry, item.id]);
+
   // ── Member list (searchable, fronters first, optional group view) ──
   const sorter = useAlterSorter("symphony_planner_alter_sort");
   const [whoGrouped, setWhoGrouped] = useState(() => lsGet("symphony_planner_who_grouped", false));
   const toggleWhoGrouped = () => setWhoGrouped((v) => { lsSet("symphony_planner_who_grouped", !v); return !v; });
   const toMemberOption = useMemo(() => (a) => ({ id: a.id, label: formatAlter(a), color: a.color, avatarUrl: a.avatar_url }), [formatAlter]);
-  const memberSections = useMemo(
-    () => (whoGrouped ? groupedAlterSections({ alters, groups, sort: sorter.sort, toOption: toMemberOption }) : undefined),
-    [whoGrouped, alters, groups, sorter, toMemberOption]
-  );
   const memberOptions = useMemo(
     () => sorter.sort(alters.filter((a) => !a.is_archived)).map(toMemberOption),
     [alters, sorter, toMemberOption]
@@ -326,10 +338,17 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
   };
-  const toggleAlter = async (alterId) => {
-    if (!entry) return;
+  const toggleAlter = (alterId) => {
     const current = item.fronting_alter_ids || [];
-    const next = current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId];
+    return setAlters(current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId]);
+  };
+  // A whole group or subsystem at once (the nested Who view): one write.
+  const setManyAlters = (ids, on) => {
+    const current = item.fronting_alter_ids || [];
+    return setAlters(on ? [...current, ...ids.filter((id) => !current.includes(id))] : current.filter((id) => !ids.includes(id)));
+  };
+  const setAlters = async (next) => {
+    if (!entry) return;
     setEntry((prev) => ({ ...prev, whoTouched: true, item: { ...prev.item, fronting_alter_ids: next } }));
     if (create) return;
     try {
@@ -879,7 +898,11 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
             mode={create ? mode : "edit"}
             allowNoLength={!create || mode === ENTRY_MODES.DONE || !isPlanLike}
             prevEnd={prevEnd}
+            lastAdded={lastAdded}
+            excludeId={item.id || null}
+            entryName={item.activity_name || ""}
             dayInputRef={dayInputRef}
+            weekStartsOn={weekStartsOn}
           />
         )}
         {create && mode === ENTRY_MODES.DONE && startsLater && (
@@ -938,13 +961,24 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
                 <AlterSortToggle sorter={sorter} />
               </span>
             </div>
-            <SearchableMultiList
-              options={memberOptions}
-              sections={memberSections}
-              selectedIds={item.fronting_alter_ids || []}
-              onToggle={toggleAlter}
-              searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
-            />
+            {whoGrouped ? (
+              <NestedMemberList
+                alters={alters}
+                groups={groups}
+                selectedIds={item.fronting_alter_ids || []}
+                onToggle={toggleAlter}
+                onSetMany={setManyAlters}
+                labelOf={formatAlter}
+                sort={sorter.sort}
+              />
+            ) : (
+              <SearchableMultiList
+                options={memberOptions}
+                selectedIds={item.fronting_alter_ids || []}
+                onToggle={toggleAlter}
+                searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
+              />
+            )}
             {create && mode !== ENTRY_MODES.PLAN && (item.fronting_alter_ids || []).length > 0 && (
               <div className="mt-2 space-y-1.5">
                 <label className="flex items-center justify-between gap-2 text-xs">

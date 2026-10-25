@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "feature", text: "Activity sheet: the Who group view now shows groups and subsystems nested as you arranged them, lets you add a whole group with one tap, filter to groups or subsystems, and search group names." },
+      { type: "feature", text: "Activity sheet: \"Line up with…\" opens the planner's day (or week) so you can start right after, end right before, or start with another activity." },
+      { type: "improve", text: "Activity sheet: \"After the one just added\" chains plans you enter in a row, and Still going can start \"20 minutes ago\"." },
+      { type: "fix", text: "Activity sheet: the For how long / Until switch no longer looks like the length chips, and the Ends date and time fields are the same width." },
       { type: "feature", text: "Scratch pad: tilt your phone and the particles slide with it (or let them always fall to the lowest edge)." },
       { type: "improve", text: "Full-screen Scratch pad and Soundscape Focus: tap the screen for a Settings button to change the sound, visual, breathing guide or rules without leaving." },
       { type: "fix", text: "Full-screen Leave buttons no longer sit up in the notification bar." },
