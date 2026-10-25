@@ -8,19 +8,14 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, FolderTree, Trash2, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import { Search, User, Star, X, List, Grid3x3, FolderTree, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import PresencePicker from "@/components/presences/PresencePicker";
 import { useTerms } from "@/lib/useTerms";
-import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useAlterSorter } from "@/lib/alterSort";
-import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 function getContrastColor(hex) {
@@ -234,19 +229,17 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove, onSolePrimary 
   );
 }
 
-// `selectionMode` (optional, non-breaking): when truthy, the modal does NOT
-// mutate any FrontingSession on save. Instead it returns the chosen alter ids
-// to the caller via `onConfirm(alterIds)` and closes. Used by the System
-// Meeting flow's "notice who's near" — the meeting adds the chosen alters as
-// participants rather than starting a front. All the switch-meta extras
-// (journal / triggered / unsure) are hidden in this mode since there's no
-// session to attach them to. When the prop is absent, behaviour is unchanged.
-// `withLevels` (selection mode only): also pick a fronting level per chosen
-// alter; onConfirm then receives (ids, { levels: { [alterId]: levelId } }).
-// Used by the timeline's retroactive "who was fronting" picker.
-// `selectionTitle` / `selectionHint` override the meeting wording.
-export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel, allowPresenceTab = false, withLevels = false, preselectedLevels = null, selectionTitle = null, selectionHint = null }) {
-  const queryClient = useQueryClient();
+// The searchable alter picker (list / grid / by-subsystem tree) that hands
+// the chosen ids back to the caller. It never writes a fronting session:
+// setting who's in front is SetFrontSheet's job (v0.279.7 retired this
+// modal's own set-front path, roadmap step 3). Used by the meeting's
+// "notice who's near" and the timeline's retroactive "who was fronting".
+//   onConfirm(ids)                         — the chosen alter ids
+//   withLevels → onConfirm(ids, { levels }) — plus a level per alter
+//   allowPresenceTab                       — adds the New presence tab
+//   selectionTitle / selectionHint / confirmLabel — the wording
+// `selectionMode` is still accepted (every caller passes it) and ignored.
+export default function SetFrontModal({ open, onClose, alters: altersProp, onConfirm, preselectedIds, confirmLabel, allowPresenceTab = false, withLevels = false, preselectedLevels = null, selectionTitle = null, selectionHint = null }) {
   const terms = useTerms();
 
   // Always fetch alters internally so the modal is never dependent on caller passing fresh data
@@ -268,38 +261,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     return hidden.size ? base.filter((a) => !hidden.has(a.id)) : base;
   }, [altersProp, fetchedAlters, groups]);
   const [search, setSearch] = useState("");
-  // Derive current fronter state from active sessions (new individual model)
-  // currentSession may be a single session record; fetch all active sessions to initialize properly
-  const getInitialState = () => {
-    // In selection mode there's no session — seed from the caller's preselection
-    // (e.g. the meeting's existing participants) so they show as already-chosen.
-    if (selectionMode) {
-      const ids = Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : [];
-      return { primary: "", coFronters: ids };
-    }
-    if (!currentSession) return { primary: "", coFronters: [] };
-    if (currentSession.alter_id) {
-      // New model: we only have one session record here — we can only read this alter's primary state
-      // The caller (CurrentFronters/FrontingBar) should pass activeSessions instead, but for compat:
-      return {
-        primary: currentSession.is_primary ? currentSession.alter_id : "",
-        coFronters: [],
-      };
-    }
-    // Legacy fallback
-    return {
-      primary: currentSession.primary_alter_id || "",
-      coFronters: currentSession.co_fronter_ids || [],
-    };
-  };
-  const init = getInitialState();
-  const [primaryId, setPrimaryId] = useState(init.primary);
-  const [coFronterIds, setCoFronterIds] = useState(init.coFronters);
-  const [saving, setSaving] = useState(false);
-  const [journalSwitch, setJournalSwitch] = useState(false);
-  const [showJournalModal, setShowJournalModal] = useState(false);
-  const [newSessionId, setNewSessionId] = useState(null);
-  const [isUnsure, setIsUnsure] = useState(false);
+  const [chosenIds, setChosenIds] = useState(() => (Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : []));
   // Remembered across sessions — reopening should look how you left it,
   // not reset to the list view (owner request, same as the sort choice).
   const [viewMode, setViewModeState] = useState(() => {
@@ -309,35 +271,24 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     setViewModeState(v);
     try { localStorage.setItem("setFrontModal_view", v); } catch { /* storage off */ }
   };
-  // "fronters" (the existing flow) | "presence" (record a sensed-but-not-yet-
-  // identified fragment). The presence tab renders a self-contained form and
-  // touches NO FrontingSession logic.
+  // "fronters" | "presence" (record a sensed-but-not-yet-identified
+  // fragment, only when the caller allows it).
   const [tab, setTab] = useState("fronters");
   const formatAlter = useAlterLabel();
-  // Fronting levels (opt-in): per-selected-alter picks, applied on save.
-  // Keys are alter ids; absent = keep whatever the session already has.
   const [pendingLevels, setPendingLevels] = useState({});
   const levelCfg = useFrontLevels();
-  const { data: modalActiveSessions = [] } = useQuery({
-    queryKey: ["activeFront"],
-    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
-    enabled: !!open,
-  });
-  useEffect(() => { if (open) setPendingLevels(selectionMode && preselectedLevels ? { ...preselectedLevels } : {}); }, [open]);
 
-  const [triggeredSwitch, setTriggeredSwitch] = useState(false);
-  const [triggerCategory, setTriggerCategory] = useState("");
-  const [triggerLabel, setTriggerLabel] = useState("");
+  // (Re)seed from the caller's preselection every time the picker opens.
+  useEffect(() => {
+    if (!open) return;
+    setTab("fronters");
+    setChosenIds(Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : []);
+    setPendingLevels(preselectedLevels ? { ...preselectedLevels } : {});
+  }, [open]);
 
-  // Already-selected fronters lead; the shared sort vocabulary (manual
-  // arrangement, A→Z, most/least time…) orders the rest.
-  const selectedForSort = useMemo(() => {
-    const ids = new Set(coFronterIds || []);
-    if (primaryId) ids.add(primaryId);
-    return ids;
-  }, [primaryId, coFronterIds]);
-  const sorter = useAlterSorter("setFrontModal_sort", { frontingIds: selectedForSort });
-
+  const selectedIds = useMemo(() => new Set(chosenIds), [chosenIds]);
+  // Already-chosen alters lead; the shared sort vocabulary orders the rest.
+  const sorter = useAlterSorter("setFrontModal_sort", { frontingIds: selectedIds });
 
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
@@ -345,16 +296,6 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     enabled: open && (sorter.mode === "most" || sorter.mode === "least"),
     staleTime: 60000,
   });
-
-  const allTriggerCategories = useTriggerCategories({ enabled: open });
-
-  const triggerDefaultText = useMemo(() => {
-    if (!triggeredSwitch) return "";
-    const cat = allTriggerCategories.find(c => c.id === triggerCategory);
-    const parts = [cat ? `${cat.emoji} ${cat.label}` : "", triggerLabel].filter(Boolean);
-    return parts.join(": ");
-  }, [triggeredSwitch, triggerCategory, triggerLabel, allTriggerCategories]);
-
   const alterFrontTotals = useMemo(() => {
     if (sorter.mode !== "most" && sorter.mode !== "least") return {};
     const totals = {};
@@ -374,515 +315,235 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     return totals;
   }, [allSessions, sorter.mode]);
 
-  // Sync state when modal opens — load actual active sessions to populate
-  // current front. Also dedupe stale data: collapse duplicate active sessions
-  // for the same alter and demote any extra is_primary rows so the modal
-  // never shows ghost selections that the user didn't tap.
-  useEffect(() => {
-    if (!open) return;
-    setTab("fronters");
-    setIsUnsure(false);
-    setJournalSwitch(false);
-    setTriggeredSwitch(false);
-    setTriggerCategory("");
-    setTriggerLabel("");
-
-    // Selection mode never touches FrontingSession — just (re)seed the
-    // pending selection from the caller's preselected ids and stop.
-    if (selectionMode) {
-      const ids = Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : [];
-      setPrimaryId("");
-      setCoFronterIds(ids);
-      return;
-    }
-
-    (async () => {
-      try {
-        // The one cleaner (setFront.js) — dedupe, demote extra primaries,
-        // close ghost rows — then seed the draft from what it returns.
-        const { sessions, cleanupHappened } = await reconcileActiveFront();
-        if (sessions.length > 0) {
-          const primarySess = sessions.find(s => s.is_primary);
-          setPrimaryId(primarySess?.alter_id || "");
-          setCoFronterIds(sessions.filter(s => !s.is_primary).map(s => s.alter_id));
-        } else {
-          // No active sessions — clear stale state from any prior open
-          // so the modal doesn't appear to have the last-known fronter
-          // pre-selected after the user cleared the front.
-          setPrimaryId("");
-          setCoFronterIds([]);
-        }
-
-        if (cleanupHappened) {
-          queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-          queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-        }
-      } catch {}
-    })();
-  }, [open]);
-
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = useMemo(() => {
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
     return sorter.sort(list, alterFrontTotals);
   }, [activeAlters, search, sorter, alterFrontTotals]);
 
-  const selectedIds = useMemo(() => {
-    const ids = new Set(coFronterIds);
-    if (primaryId) ids.add(primaryId);
-    return ids;
-  }, [primaryId, coFronterIds]);
-
-  const toggleAlter = (id) => {
-    // Selection mode has no "primary" concept — it's a flat multi-select, so
-    // toggling never promotes the first pick to primary (which would otherwise
-    // make it un-deselectable). Just add/remove from the co-fronter list.
-    if (selectionMode) {
-      setCoFronterIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-      return;
-    }
-    if (primaryId === id) {
-      setPrimaryId("");
-      return;
-    }
-    if (coFronterIds.includes(id)) {
-      setCoFronterIds(coFronterIds.filter((x) => x !== id));
-    } else {
-      setCoFronterIds([...coFronterIds, id]);
-      if (!primaryId) setPrimaryId(id);
-    }
-  };
-
-  const setPrimary = (id) => {
-    // No "primary" in selection mode — treat a primary gesture (long-press /
-    // swipe-left / star) as a plain toggle so it can't strand a ghost
-    // selection in primaryId.
-    if (selectionMode) { toggleAlter(id); return; }
-    if (primaryId === id) {
-      // Tapping primary fronter removes them from primary (co-front only)
-      setPrimaryId("");
-      return;
-    }
-    if (!coFronterIds.includes(id) && primaryId !== id) {
-      setCoFronterIds([...coFronterIds, primaryId].filter(Boolean).filter((x) => x !== id));
-    } else {
-      setCoFronterIds([...coFronterIds.filter((x) => x !== id), primaryId].filter(Boolean));
-    }
-    setPrimaryId(id);
-  };
-
-  // "Swipe left then up" — clear the whole current selection and make
-  // this alter the sole primary. Mirrors replaceFrontWith on the live
-  // surfaces, but here it only rewrites the modal's pending selection
-  // (it's applied when the user hits Save).
-  const setSolePrimary = (id) => {
-    // Selection mode: "make sole" → select only this one (no primary concept).
-    if (selectionMode) { setPrimaryId(""); setCoFronterIds([id]); return; }
-    setIsUnsure(false);
-    setCoFronterIds([]);
-    setPrimaryId(id);
-  };
-
-  // Bulk add/remove, used by the by-subsystem/group tree view's "+ all / − all"
-  // and "Select all / Clear all". Mirrors toggleAlter's invariant: primary is
-  // kept separate from coFronterIds, and adding seeds a primary when none yet.
+  // A flat multi-select: every gesture (tap, hold, swipe) toggles, and
+  // "make sole" picks only this one.
+  const toggleAlter = (id) => setChosenIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const chooseOnly = (id) => setChosenIds([id]);
   const setManyFronters = (arr, on) => {
     const ids = arr.map((a) => a.id);
     if (!ids.length) return;
-    setIsUnsure(false);
-    setCoFronterIds((prev) => {
-      const s = new Set(prev);
-      for (const id of ids) { if (on) s.add(id); else s.delete(id); }
-      return [...s];
+    setChosenIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) { if (on) next.add(id); else next.delete(id); }
+      return [...next];
     });
-    if (!selectionMode) {
-      if (on) setPrimaryId((p) => p || ids[0] || "");
-      else setPrimaryId((p) => (ids.includes(p) ? "" : p));
-    }
   };
 
-  const handleSave = async () => {
-    // Selection mode: hand the chosen alter ids back to the caller and close.
-    // No FrontingSession is read or written. An empty selection is allowed —
-    // the meeting just ends up with no participants added from here.
-    if (selectionMode) {
-      const ids = [...selectedIds];
-      if (withLevels) {
-        const levels = Object.fromEntries(ids.map((id) => [id, pendingLevels[id] ?? levelCfg.levels[0]?.id]));
-        onConfirm?.(ids, { levels });
-      } else {
-        onConfirm?.(ids);
-      }
-      onClose();
-      return;
+  const handleConfirm = () => {
+    const ids = [...chosenIds];
+    if (withLevels) {
+      const levels = Object.fromEntries(ids.map((id) => [id, pendingLevels[id] ?? levelCfg.levels[0]?.id]));
+      onConfirm?.(ids, { levels });
+    } else {
+      onConfirm?.(ids);
     }
-    if (!isUnsure && !primaryId && coFronterIds.length === 0) {
-      toast.error(`Select at least one ${terms.fronter} or mark as unsure`);
-      return;
-    }
-    setSaving(true);
-    try {
-      // ONE write path for every set-front surface: src/lib/setFront.js
-      // (extracted from this modal's original handleSave, v0.117.0).
-      const coIds = coFronterIds.filter((id) => id !== primaryId);
-      const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
-      const { firstSessionId } = await applyFrontSelection({
-        clearAll: isUnsure,
-        selections: allSelectedIds.map((id) => ({
-          alterId: id,
-          isPrimary: id === primaryId,
-          level: levelCfg.enabled
-            ? (pendingLevels[id]
-                ?? modalActiveSessions.find((s) => (s.alter_id || s.primary_alter_id) === id)?.front_level
-                ?? levelCfg.levels[0]?.id)
-            : undefined,
-        })),
-        triggered: triggeredSwitch
-          ? { category: triggerCategory, label: triggerLabel }
-          : null,
-        levelsEnabled: levelCfg.enabled,
-        levelCfg,
-        alters,
-        terms,
-        queryClient,
-      });
-      toast.success(isUnsure ? `✅ ${terms.Front} cleared` : `✅ ${terms.Front} updated!`);
-      if (!isUnsure && journalSwitch) {
-        setNewSessionId(firstSessionId);
-        setShowJournalModal(true);
-      } else {
-        onClose();
-      }
-    } catch (e) {
-      toast.error(e.message || `Failed to set ${terms.front}`);
-    } finally {
-      setSaving(false);
-    }
+    onClose();
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent
-          // Outer scroll + bounded list, not a rigid flex column — on
-          // landscape phones the flex-1 list collapsed to zero height and
-          // the footer clipped with no way to scroll (same class of bug as
-          // the rebuilt sheet had; fixed the same way).
-          className="max-w-md flex flex-col overflow-y-auto overscroll-contain"
-          style={{
-            // Don't let the modal stretch up under the device status bar.
-            // The base Dialog uses `top: 50%` + `translate-y(-50%)` and
-            // a maxHeight calc that doesn't account for the top/bottom
-            // safe-area inset — on Android with a tall status bar /
-            // Spotify pill the modal's top edge bled into the bar.
-            // Subtract both insets so the modal stays inside the safe
-            // viewport.
-            maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)",
-          }}
-        >
-          <DialogHeader>
-            {/* Right-pad past the 44x44 close X (positioned right-2)
-                so the label-mode toggle pill doesn't end up under it. */}
-            <div className="flex items-center justify-between gap-2 pr-14">
-              <DialogTitle>{selectionMode ? (selectionTitle || `Notice who's near`) : `Set ${terms.Front}ers`}</DialogTitle>
-              <AlterLabelToggle size="xs" />
-            </div>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        // Outer scroll + bounded list, not a rigid flex column — on
+        // landscape phones the flex-1 list collapsed to zero height and
+        // the footer clipped with no way to scroll.
+        className="max-w-md flex flex-col overflow-y-auto overscroll-contain"
+        style={{
+          // Keep the modal inside the safe viewport (status bar / home bar).
+          maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)",
+        }}
+      >
+        <DialogHeader>
+          {/* Right-pad past the 44x44 close X so the label toggle isn't under it. */}
+          <div className="flex items-center justify-between gap-2 pr-14">
+            <DialogTitle>{selectionTitle || `Notice who's near`}</DialogTitle>
+            <AlterLabelToggle size="xs" />
+          </div>
+        </DialogHeader>
 
-          {/* Fronters vs. New-presence tabs. Shown in the normal flow and, when
-              the caller opts in via `allowPresenceTab` (the meeting "notice
-              who's near" picker), in selection mode too — so a sensed-but-
-              unidentified presence can be recorded right there, exactly like the
-              dashboard's Set Fronters modal. */}
-          {(!selectionMode || allowPresenceTab) && (
-            <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-1" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "fronters"}
-                onClick={() => setTab("fronters")}
-                className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "fronters" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {selectionMode ? terms.Alters : `Set ${terms.Front}ers`}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "presence"}
-                onClick={() => setTab("presence")}
-                className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "presence" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                New presence
-              </button>
-            </div>
-          )}
+        {allowPresenceTab && (
+          <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-1" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "fronters"}
+              onClick={() => setTab("fronters")}
+              className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "fronters" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {terms.Alters}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "presence"}
+              onClick={() => setTab("presence")}
+              className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "presence" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              New presence
+            </button>
+          </div>
+        )}
 
-          {tab === "presence" && (!selectionMode || allowPresenceTab) ? (
-            <PresencePicker onClose={onClose} />
-          ) : (
-          <>
-          {/* Selected chips */}
-          {(selectedIds.size > 0 || isUnsure) &&
+        {tab === "presence" && allowPresenceTab ? (
+          <PresencePicker onClose={onClose} />
+        ) : (
+        <>
+        {selectedIds.size > 0 && (
           <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
-              <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto">
-                {isUnsure ?
-              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs">Unsure</span> :
-
-              [...selectedIds].map((id) => {
+            <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto">
+              {chosenIds.map((id) => {
                 const a = (alters || []).find((x) => x.id === id);
                 if (!a) return null;
                 return (
                   <SelectedChip
                     key={id}
                     alter={a}
-                    isPrimary={id === primaryId}
-                    onSetPrimary={() => setPrimary(id)}
-                    onSolePrimary={() => setSolePrimary(id)}
+                    isPrimary={false}
+                    onSetPrimary={() => toggleAlter(id)}
+                    onSolePrimary={() => chooseOnly(id)}
                     onRemove={() => toggleAlter(id)}
                   />
                 );
-              })
-              }
-              </div>
-              {/* Fronting levels (opt-in) — per-alter closeness pick, applied
-                  when the front is saved. */}
-              {(!selectionMode || withLevels) && !isUnsure && levelCfg.enabled && selectedIds.size > 0 && (
-                <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
-                  <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wide">{terms.Front} levels</p>
-                  {[...selectedIds].map((id) => {
-                    const a = (alters || []).find((x) => x.id === id);
-                    if (!a) return null;
-                    // Picking for the past (selection mode): today's live
-                    // front says nothing about then — default to the top level.
-                    const existing = selectionMode ? null : modalActiveSessions.find(s => (s.alter_id || s.primary_alter_id) === id);
-                    const value = pendingLevels[id] ?? existing?.front_level ?? levelCfg.levels[0]?.id;
-                    return (
-                      <div key={id} className="flex items-center gap-2">
-                        <span className="text-xs truncate flex-1 min-w-0">{formatAlter(a)}</span>
-                        <div className="w-[55%] flex-shrink-0">
-                          <SearchableSelect
-                            value={value}
-                            onChange={(v) => { if (v) setPendingLevels(prev => ({ ...prev, [id]: v })); }}
-                            options={levelCfg.levels.map(l => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
-                            placeholder={`${terms.Front} level`}
-                            searchPlaceholder="Search levels..."
-                            zIndex={70}
-                          />
-                        </div>
+              })}
+            </div>
+            {/* Levels (opt-in): picking for the past, so default to the top level. */}
+            {withLevels && levelCfg.enabled && (
+              <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+                <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wide">{terms.Front} levels</p>
+                {chosenIds.map((id) => {
+                  const a = (alters || []).find((x) => x.id === id);
+                  if (!a) return null;
+                  const value = pendingLevels[id] ?? levelCfg.levels[0]?.id;
+                  return (
+                    <div key={id} className="flex items-center gap-2">
+                      <span className="text-xs truncate flex-1 min-w-0">{formatAlter(a)}</span>
+                      <div className="w-[55%] flex-shrink-0">
+                        <SearchableSelect
+                          value={value}
+                          onChange={(v) => { if (v) setPendingLevels((prev) => ({ ...prev, [id]: v })); }}
+                          options={levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+                          placeholder={`${terms.Front} level`}
+                          searchPlaceholder="Search levels..."
+                          zIndex={70}
+                        />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          }
-
-          <div className="text-xs text-muted-foreground space-y-1">
-            {selectionMode ? (
-              <p>{selectionHint || `Tap an ${terms.alter} to add or remove them from this meeting.`}</p>
-            ) : (
-              <>
-                <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
-                <p>💡 On mobile: swipe right to toggle, swipe left to set primary, swipe left then up to make them the sole {terms.front}</p>
-                {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
-              </>
-            )}
-          </div>
-
-          {/* Search and View Toggle — the tree view brings its own search +
-              by-subsystem/group organisation, so the modal's search + sort are
-              hidden there to avoid two competing search boxes. */}
-          <div className="flex gap-2">
-            {viewMode !== "tree" && (
-              <>
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder={`Search ${terms.alters}...`}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9" />
-                </div>
-                <AlterSortToggle sorter={sorter} className="p-2 rounded-md flex-shrink-0" />
-              </>
-            )}
-            {viewMode === "tree" && (
-              <p className="flex-1 self-center text-xs text-muted-foreground">Browse by subsystem or group. Tap to select; set the primary using the chips above.</p>
-            )}
-            <div className="flex gap-1 bg-muted/50 rounded-md p-1 flex-shrink-0" role="group" aria-label="View mode">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label="List view"
-                aria-pressed={viewMode === "list"}>
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label="Grid view"
-                aria-pressed={viewMode === "grid"}>
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("tree")}
-                title={`Organise by subsystem / group`}
-                className={`p-2 rounded transition-colors ${viewMode === "tree" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label="By subsystem or group"
-                aria-pressed={viewMode === "tree"}>
-                <FolderTree className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* List or Grid View — the switch-meta toggles (journal /
-              triggered) and the orange triggered-switch expansion now
-              live INSIDE this scroll region so they can never push the
-              pinned action bar below the modal's clipped bottom edge.
-              Previously they sat in the non-scrolling footer; expanding
-              the triggered-switch box grew the footer past the modal's
-              max-height and overflow-hidden clipped the Save button off
-              the bottom of the screen, leaving no way to save. */}
-          <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: "40vh", minHeight: 120 }}>
-            {viewMode === "tree" ? (
-              <AlterTreeSelect
-                alters={activeAlters}
-                groups={groups}
-                isSelected={(id) => selectedIds.has(id)}
-                onToggle={(a) => toggleAlter(a.id)}
-                onSetMany={setManyFronters}
-                maxHeight="46vh"
-              />
-            ) : viewMode === "list" ?
-            <div className="space-y-1.5">
-                {filtered.map((a) =>
-              <AlterPill
-                key={a.id}
-                alter={a}
-                selected={selectedIds.has(a.id)}
-                isPrimary={primaryId === a.id}
-                onToggle={() => toggleAlter(a.id)}
-                onSetPrimary={() => setPrimary(a.id)}
-                onSolePrimary={() => setSolePrimary(a.id)} />
-
-              )}
-              </div> :
-
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {filtered.map((a) => (
-                  <SetFrontGridCard
-                    key={a.id}
-                    alter={a}
-                    selected={selectedIds.has(a.id)}
-                    isPrimary={primaryId === a.id}
-                    onToggle={() => toggleAlter(a.id)}
-                    onSetPrimary={() => setPrimary(a.id)}
-                    onSolePrimary={() => setSolePrimary(a.id)}
-                  />
-                ))}
+                    </div>
+                  );
+                })}
               </div>
-            }
-
-            {!selectionMode && (
-            <div className="space-y-2 pt-2 mt-2 border-t border-border/50">
-              <div className="flex items-center gap-2" data-tour="setfront-journal">
-                <Checkbox
-                  id="journal-switch"
-                  checked={journalSwitch}
-                  onCheckedChange={setJournalSwitch}
-                  disabled={isUnsure} />
-                <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Journal this {terms.switch}?
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2" data-tour="setfront-triggered">
-                <Checkbox
-                  id="triggered-switch"
-                  checked={triggeredSwitch}
-                  onCheckedChange={setTriggeredSwitch}
-                  disabled={isUnsure} />
-                <label htmlFor="triggered-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-                  <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                  Triggered {terms.switch}?
-                </label>
-              </div>
-
-              {triggeredSwitch && !isUnsure && (
-                <div className="rounded-xl bg-orange-500/5 border border-orange-400/20 px-3 py-2 space-y-2">
-                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                    {allTriggerCategories.map(cat => (
-                      <button key={cat.id} type="button"
-                        onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
-                        title={cat.hint}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
-                          triggerCategory === cat.id
-                            ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
-                            : "text-muted-foreground border-border/60 hover:bg-muted/50"
-                        }`}>
-                        {cat.emoji} {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    value={triggerLabel}
-                    onChange={e => setTriggerLabel(e.target.value)}
-                    aria-label={`Describe what triggered the ${terms.switch}`}
-                    placeholder={`Describe what triggered the ${terms.switch}...`}
-                    className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
-                  />
-                </div>
-              )}
-            </div>
             )}
           </div>
+        )}
 
-          {/* Pinned action bar — stays at the bottom and reachable no
-              matter how tall the scroll content above grows. */}
-          <div className="flex gap-2 pt-2 border-t border-border/50">
-            <Button
-              variant="outline"
-              onClick={() => { setPrimaryId(""); setCoFronterIds([]); setIsUnsure(false); }}
-              disabled={saving}
-              title={`Clear all selected ${terms.fronters}`}
-              className="flex-shrink-0 px-3">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            {!selectionMode && (
-            <Button
-              variant={isUnsure ? "default" : "outline"}
-              onClick={() => {
-                setIsUnsure(!isUnsure);
-                if (!isUnsure) {
-                  setPrimaryId("");
-                  setCoFronterIds([]);
-                }
-              }}
-              disabled={saving}
-              className="flex-1">
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Unsure
-            </Button>
-            )}
-            <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-              {selectionMode ? (confirmLabel || "Add to meeting") : `Set ${terms.Front}ers`}
-            </Button>
-          </div>
-          </>
+        <div className="text-xs text-muted-foreground">
+          <p>{selectionHint || `Tap an ${terms.alter} to add or remove them from this meeting.`}</p>
+        </div>
+
+        {/* Search and view toggle — the tree view brings its own search. */}
+        <div className="flex gap-2">
+          {viewMode !== "tree" && (
+            <>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={`Search ${terms.alters}...`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9" />
+              </div>
+              <AlterSortToggle sorter={sorter} className="p-2 rounded-md flex-shrink-0" />
+            </>
           )}
-        </DialogContent>
-      </Dialog>
+          {viewMode === "tree" && (
+            <p className="flex-1 self-center text-xs text-muted-foreground">Browse by subsystem or group. Tap to select.</p>
+          )}
+          <div className="flex gap-1 bg-muted/50 rounded-md p-1 flex-shrink-0" role="group" aria-label="View mode">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}>
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}>
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("tree")}
+              title={`Organise by subsystem / group`}
+              className={`p-2 rounded transition-colors ${viewMode === "tree" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="By subsystem or group"
+              aria-pressed={viewMode === "tree"}>
+              <FolderTree className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-      {showJournalModal &&
-      <SwitchJournalModal
-        open={showJournalModal}
-        onClose={() => {setShowJournalModal(false);onClose();}}
-        sessionId={newSessionId}
-        authorAlterId={primaryId}
-        defaultTrigger={triggerDefaultText} />
+        <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: "40vh", minHeight: 120 }}>
+          {viewMode === "tree" ? (
+            <AlterTreeSelect
+              alters={activeAlters}
+              groups={groups}
+              isSelected={(id) => selectedIds.has(id)}
+              onToggle={(a) => toggleAlter(a.id)}
+              onSetMany={setManyFronters}
+              maxHeight="46vh"
+            />
+          ) : viewMode === "list" ? (
+            <div className="space-y-1.5">
+              {filtered.map((a) => (
+                <AlterPill
+                  key={a.id}
+                  alter={a}
+                  selected={selectedIds.has(a.id)}
+                  isPrimary={false}
+                  onToggle={() => toggleAlter(a.id)}
+                  onSetPrimary={() => toggleAlter(a.id)}
+                  onSolePrimary={() => chooseOnly(a.id)} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {filtered.map((a) => (
+                <SetFrontGridCard
+                  key={a.id}
+                  alter={a}
+                  selected={selectedIds.has(a.id)}
+                  isPrimary={false}
+                  onToggle={() => toggleAlter(a.id)}
+                  onSetPrimary={() => toggleAlter(a.id)}
+                  onSolePrimary={() => chooseOnly(a.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
-      }
-    </>);
-
+        {/* Pinned action bar. */}
+        <div className="flex gap-2 pt-2 border-t border-border/50">
+          <Button
+            variant="outline"
+            onClick={() => setChosenIds([])}
+            title={`Clear all selected ${terms.alters}`}
+            className="flex-shrink-0 px-3">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          <Button onClick={handleConfirm} className="flex-1 bg-primary hover:bg-primary/90">
+            {confirmLabel || "Add to meeting"}
+          </Button>
+        </div>
+        </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
