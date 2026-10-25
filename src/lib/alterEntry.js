@@ -1,5 +1,17 @@
-// THE delete for an alter (v0.279.8, roadmap step 4).
+// THE writers for an alter's own record (roadmap step 4):
 //
+//   • createAlter     — the "new alter" sheet (v0.279.11)
+//   • saveAlterEdits  — the profile editor's Save (v0.279.11)
+//   • deleteAlter     — every delete button (v0.279.8)
+//
+// saveAlterEdits writes only what the person changed, onto a FRESH read
+// of the record. The profile editor loads its form once when the page
+// opens; saving that whole snapshot used to put back anything written in
+// the meantime — custom-field values typed on the Info tab, Get to know me
+// answers, a sync from another device — so their edits were silently
+// undone. custom_fields merges key by key for the same reason.
+//
+// The delete (v0.279.8):
 // The edit sheet, the profile tab and the options tab each had their own
 // delete button; only the alter row went to the trash, so restoring an
 // alter brought back an empty board with its notes and relationships gone
@@ -17,6 +29,93 @@
 
 import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
+import { setAlterGroups } from "@/lib/groupMembership";
+
+// A 4-digit year out of a free-form "first appeared" string, so the
+// integer origin_year (lineage, timeline) follows whatever was typed.
+export function extractYear(str) {
+  if (!str) return "";
+  const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
+  return m ? m[1] : "";
+}
+
+// The single "first appeared" field backs both birthday (display) and
+// origin_year; seed each from the other when only one was ever stored.
+export function firstAppearanceOf(alter) {
+  let birthday = alter?.birthday || "";
+  let originYear = alter?.origin_year ? String(alter.origin_year) : "";
+  if (!birthday && originYear) birthday = originYear;
+  if (!originYear && birthday) originYear = extractYear(birthday);
+  return { birthday, origin_year: originYear };
+}
+
+const toRecord = (form) => ({
+  ...form,
+  origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null,
+});
+
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+export async function createAlter(form, { groupIds = [] } = {}) {
+  if (!form?.name?.trim()) throw new Error("Name is required");
+  // A new record carries only what was filled in — empty form slots
+  // (e.g. profile_song: null) aren't written onto it.
+  const filled = Object.fromEntries(
+    Object.entries(toRecord(form)).filter(([, v]) => v !== null && v !== undefined && v !== "")
+  );
+  const created = await base44.entities.Alter.create({ ...filled, is_archived: false });
+  if (groupIds.length && created?.id) {
+    try {
+      await setAlterGroups({ alterId: created.id, groupIds });
+    } catch { /* the alter is saved; groups can be set from the profile */ }
+  }
+  return created;
+}
+
+export async function saveAlterEdits({ alterId, baseline, form }) {
+  if (!form?.name?.trim()) throw new Error("Name is required");
+  const before = toRecord(baseline || {});
+  const after = toRecord(form);
+  const fresh = (await base44.entities.Alter.get(alterId)) || {};
+  const patch = {};
+  for (const key of Object.keys(after)) {
+    if (key === "custom_fields") continue;
+    if (!same(after[key], before[key])) patch[key] = after[key];
+  }
+  // custom_fields: only the keys this editor changed, onto what's stored now.
+  const cfBefore = before.custom_fields || {};
+  const cfAfter = after.custom_fields || {};
+  const cfKeys = new Set([...Object.keys(cfBefore), ...Object.keys(cfAfter)]);
+  const changed = [...cfKeys].filter((k) => !same(cfAfter[k], cfBefore[k]));
+  if (changed.length) {
+    const cf = { ...(fresh.custom_fields || {}) };
+    for (const k of changed) {
+      if (k in cfAfter) cf[k] = cfAfter[k];
+      else delete cf[k];
+    }
+    patch.custom_fields = cf;
+  }
+  if (!Object.keys(patch).length) return fresh;
+  return base44.entities.Alter.update(alterId, patch);
+}
+
+// Change some custom_fields keys (undefined removes one) on a fresh read,
+// leaving every other key exactly as stored.
+export async function patchAlterCustomFields(alterId, changes) {
+  const fresh = (await base44.entities.Alter.get(alterId)) || {};
+  const cf = { ...(fresh.custom_fields || {}) };
+  for (const [k, v] of Object.entries(changes || {})) {
+    if (v === undefined) delete cf[k];
+    else cf[k] = v;
+  }
+  return base44.entities.Alter.update(alterId, { custom_fields: cf });
+}
+
+// Every screen that shows this alter (the list, the profile, pickers).
+export function refreshAlter(queryClient, alterId) {
+  queryClient?.invalidateQueries({ queryKey: ["alters"] });
+  if (alterId) queryClient?.invalidateQueries({ queryKey: ["alter", alterId] });
+}
 
 async function safeFilter(entity, query) {
   try { return (await base44.entities[entity].filter(query)) || []; } catch { return []; }

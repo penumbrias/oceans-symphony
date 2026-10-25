@@ -77,7 +77,7 @@ export default function Home() {
             Add {terms.Alter}
           </Button>
         </div>
-        <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} mode="create" />
+        <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} />
         <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
       </motion.div>);
 
@@ -137,8 +137,7 @@ export default function Home() {
 
       <AlterEditModal
         open={showAddAlter}
-        onClose={() => setShowAddAlter(false)}
-        mode="create" />
+        onClose={() => setShowAddAlter(false)} />
 
       <AlterExportModal
         isOpen={showExport}

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
@@ -171,7 +170,6 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const [setFrontOpen, setSetFrontOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAlter, setSelectedAlter] = useState(null);
   const navigate = useNavigate();
 
@@ -439,15 +437,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
             setSelectedAlter(null);
           }}
           alters={alters} />
-        
-          <AlterEditModal
-          alter={selectedAlter}
-          open={editModalOpen}
-          onClose={() => {
-            setEditModalOpen(false);
-            setSelectedAlter(null);
-          }} />
-        
+
         </>
       }
     </div>);

@@ -37,7 +37,7 @@ export default function SubsystemActionMenu({ group, onClose }) {
   if (showCreate) {
     // Opens the full "Add New" modal prefilled into this subsystem, so the
     // user can fill out the whole profile and it lands in the subsystem.
-    return <AlterEditModal alter={null} open mode="create" initialGroupIds={[group.id]} onClose={() => { setShowCreate(false); close(); }} />;
+    return <AlterEditModal open initialGroupIds={[group.id]} onClose={() => { setShowCreate(false); close(); }} />;
   }
 
   const Item = ({ icon: Icon, label, onClick, busy }) => (

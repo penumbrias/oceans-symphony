@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Saving an {{alter}}'s profile no longer undoes changes made elsewhere while it was open, like custom field values from the Info tab or Get to know me answers." },
       { type: "improve", text: "Choosing a group's {{alters}} from Groups now uses the same picker as everywhere else, with search, sort, grid view and subgroups." },
       { type: "fix", text: "The group {{alters}} picker now shows everyone already in an imported group, and uses your name/alias choice and your own words." },
       { type: "fix", text: "Imported groups now nest in the right place everywhere, including Groups and the group pickers." },

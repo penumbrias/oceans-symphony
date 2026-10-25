@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
-import { deleteAlter as deleteAlterEverywhere } from "@/lib/alterEntry";
+import { deleteAlter as deleteAlterEverywhere, extractYear, firstAppearanceOf, saveAlterEdits, refreshAlter } from "@/lib/alterEntry";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,11 +43,6 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
 // to whatever the user typed in Birthday.
-function extractYear(str) {
-  if (!str) return "";
-  const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
-  return m ? m[1] : "";
-}
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -240,16 +235,14 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     }
   };
 
+  // What the form was loaded from: Save writes only what differs from it
+  // (alterEntry.saveAlterEdits), so edits made elsewhere meanwhile stay.
+  const baselineRef = useRef(null);
   useEffect(() => {
-    let birthday = alter.birthday || "";
-    let origin_year = alter.origin_year ? String(alter.origin_year) : "";
-    // Mirror a blank field from the filled one — birthday and
-    // origin_year are conceptually the same "first appeared" idea.
-    if (!birthday && origin_year) birthday = origin_year;
-    if (!origin_year && birthday) origin_year = extractYear(birthday);
+    const { birthday, origin_year } = firstAppearanceOf(alter);
     // reset() (not setForm) so the load is the baseline: it creates no undo
     // history and undo can never wipe the form back to empty.
-    formHistory.reset({
+    const loaded = {
       name: alter.name || "",
       alias: alter.alias || "",
       pronouns: alter.pronouns || "",
@@ -266,7 +259,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
       preferences: parsePreferences(alter),
-    });
+    };
+    baselineRef.current = loaded;
+    formHistory.reset(loaded);
     setPrefsOpen(parsePreferences(alter).length > 0);
     // Keyed on the {alter}'s ID, not the object. The alters query is
     // invalidated constantly (fronting, pins, avatars, this page's own
@@ -301,14 +296,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   if (!form.name.trim()) { toast.error("Name is required"); return; }
   setSaving(true);
   try {
-    const payload = {
-      ...form,
-      origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null,
-    };
-    await base44.entities.Alter.update(alter.id, payload);
+    await saveAlterEdits({ alterId: alter.id, baseline: baselineRef.current, form });
+    baselineRef.current = form;
     toast.success("Saved!");
-    queryClient.invalidateQueries({ queryKey: ["alters"] });
-    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    refreshAlter(queryClient, alter.id);
     onEditModeChange(false);
   } catch (e) { toast.error(e.message || "Failed to save"); }
   finally { setSaving(false); }
