@@ -54,7 +54,7 @@ export async function createPlan({
       completed: false,
       priority: "medium",
       due_date: format(timestamp, "yyyy-MM-dd"),
-      notes: (notes || "").trim() || null,
+      description: (notes || "").trim(),
     });
   }
   const effectiveLinkedTask = linkedTask || derivedTask;

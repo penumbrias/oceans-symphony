@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import TaskQuickActionsSheet from "./TaskQuickActionsSheet";
 import RichText from "@/components/shared/RichText";
+import { taskNote } from "@/lib/taskCreate";
 
 export default function TaskItem({
   task,
@@ -178,8 +179,8 @@ export default function TaskItem({
             </div>
           )}
 
-          {task.description && (
-            <div className="text-xs text-muted-foreground mt-1 line-clamp-2"><RichText content={task.description} /></div>
+          {taskNote(task) && (
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2"><RichText content={taskNote(task)} /></div>
           )}
         </div>
 

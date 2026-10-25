@@ -12,6 +12,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { useTerms } from "@/lib/useTerms";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import { taskNote } from "@/lib/taskCreate";
 
 const PRIORITIES = [
   { id: "low",    label: "Low",    cls: "border-blue-500/40 text-blue-500 bg-blue-500/10" },
@@ -47,7 +48,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     if (editingTask) {
       setFormData({
         title: editingTask.title || "",
-        description: editingTask.description || "",
+        description: taskNote(editingTask),
         // Read the array field only. The legacy single-string `category` held a
         // category NAME, not an id — folding it into the id array corrupted the
         // ids on re-save, so we no longer seed from it.
@@ -102,6 +103,9 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       const data = {
         ...formData,
         description,
+        // An older planner to-do kept its note in `notes`; the form showed
+        // it as the description, so it moves there now.
+        ...(editingTask?.notes ? { notes: null } : {}),
         author_alter_ids: prepared.authorIds,
         parent_task_id: parentTaskId || null,
         goal_target: formData.goal_target ? parseInt(formData.goal_target) : null,

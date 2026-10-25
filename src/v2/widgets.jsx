@@ -113,6 +113,14 @@ import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets
 import { startSleep } from "@/lib/sleepEntry";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
+// midnight, which is the day before west of Greenwich, so read it as local
+// noon; full timestamps from older builds pass through.
+const isDayOnly = (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
+const dueAt = (d) => (isDayOnly(d) ? new Date(`${d}T12:00:00`) : new Date(d));
+const fmtDue = (d) => (isDayOnly(d)
+  ? dueAt(d).toLocaleDateString([], { month: "short", day: "numeric" })
+  : fmtTime(d));
 // Compact "how long so far" — reads better than a clock time in a narrow
 // tile, and answers the question the row is actually asked.
 const fmtElapsed = (start) => {
@@ -452,12 +460,12 @@ function TodayAddSheet({ open, onClose }) {
   const { data: activeSessions = [] } = useQuery({ queryKey: ["activeFront"], queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }) });
   const frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
   const candidates = tasks
-    .filter((t) => !t.completed && !(t.due_date && sameDay(t.due_date, Date.now())))
+    .filter((t) => !t.completed && !(t.due_date && sameDay(dueAt(t.due_date), Date.now())))
     .filter((t) => (t.title || "").toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
   const addToToday = async (t) => {
     try {
-      await base44.entities.Task.update(t.id, { due_date: new Date(`${todayKey}T12:00:00`).toISOString() });
+      await base44.entities.Task.update(t.id, { due_date: todayKey });
       qc.invalidateQueries({ queryKey: ["tasks"] });
     } catch { /* non-fatal */ }
   };
@@ -530,9 +538,9 @@ function TodayWidget() {
   // belongs on today's list.
   const due = tasks
     .filter((x) => !x.completed && !plannedTaskIds.has(x.id)
-      && ((x.due_date && new Date(x.due_date).getTime() <= endOfToday())
+      && ((x.due_date && dueAt(x.due_date).getTime() <= endOfToday())
         || (x.scheduled_at && sameDay(x.scheduled_at, now))))
-    .sort((a, b) => new Date(a.due_date || a.scheduled_at) - new Date(b.due_date || b.scheduled_at));
+    .sort((a, b) => (a.due_date ? dueAt(a.due_date) : new Date(a.scheduled_at)) - (b.due_date ? dueAt(b.due_date) : new Date(b.scheduled_at)));
   const unresolved = activities.filter(
     (a) => a.status === "scheduled" && a.timestamp && new Date(a.timestamp).getTime() < now - 3600000
   ).length;
@@ -602,7 +610,7 @@ function TodayWidget() {
         <Row key={x.id}
           left={<CheckSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
           primary={x.title} title={tr("widget.today.task")}
-          right={sameDay(x.due_date, now) ? tr("widget.today.dueToday") : fmtTime(x.due_date)}
+          right={sameDay(dueAt(x.due_date), now) ? tr("widget.today.dueToday") : fmtDue(x.due_date)}
           onClick={() => navigate(`/todo?id=${x.id}`)} />
       ))}
       {unresolved > 0 && (
@@ -1209,7 +1217,7 @@ function TasksWidget({ settings }) {
   const capRaw = parseInt(settings?.limit, 10);
   const limit = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
   const open = tasks.filter((x) => !x.completed)
-    .sort((a, b) => new Date(a.due_date || 8.64e15) - new Date(b.due_date || 8.64e15))
+    .sort((a, b) => (a.due_date ? dueAt(a.due_date) : 8.64e15) - (b.due_date ? dueAt(b.due_date) : 8.64e15))
     .slice(0, limit);
   return (
     <Section label={tr("widget.tasks.label")}
@@ -1217,7 +1225,7 @@ function TasksWidget({ settings }) {
       {open.length === 0 && <Muted>{tr("widget.tasks.empty")}</Muted>}
       {open.map((x) => (
         <Row key={x.id} left={<CheckSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
-          primary={x.title} right={x.due_date ? fmtTime(x.due_date) : undefined}
+          primary={x.title} right={x.due_date ? fmtDue(x.due_date) : undefined}
           onClick={() => navigate(`/todo?id=${x.id}`)} />
       ))}
     </Section>

@@ -766,5 +766,14 @@ export async function toggleTemplateDone(template, { templates = [], allProgress
     periodKey: getPeriodKey(f), dateKey: getTodayString(), frequency: f,
     setIds: done ? [] : [template.id], clearIds: done ? [template.id] : [], templates: templatesFor,
   });
+  // Every door that ticks a daily task (quick action, shortcut, widgets,
+  // a finished plan) counts for "any daily task done" — except the task
+  // that tracks that trigger itself.
+  if (!done && f === "daily") {
+    const triggers = Array.isArray(template.auto_triggers) && template.auto_triggers.length > 0
+      ? template.auto_triggers
+      : [template.auto_trigger];
+    if (!triggers.includes("daily_task_completed")) markDailyTaskCompletedToday();
+  }
   return !done;
 }

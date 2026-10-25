@@ -20,6 +20,25 @@
 
 import { base44 } from "@/api/base44Client";
 
+// The fields a to-do's done/not-done state lives in. `is_complete` is the
+// legacy echo older readers still check, so it always moves with
+// `completed` — a task unticked in one place must not stay "done" in another.
+export function taskCompletionPatch(completed) {
+  return {
+    completed: !!completed,
+    is_complete: !!completed,
+    completed_date: completed ? new Date().toISOString() : null,
+  };
+}
+
+// THE way a person ticks or unticks a to-do (list, pins, bulletin card,
+// goal step). Ticking resolves its scheduled plans too.
+export async function setTaskCompleted(taskId, completed) {
+  if (!taskId) return;
+  await base44.entities.Task.update(taskId, taskCompletionPatch(completed));
+  if (completed) await syncTaskCompleted(taskId);
+}
+
 // After a Task flips to completed: resolve its linked scheduled plans.
 // (Un-completing a task deliberately does nothing to plans.)
 export async function syncTaskCompleted(taskId) {
@@ -45,9 +64,6 @@ export async function syncActivityResolved(activity, status) {
     if (status !== "done" && status !== "partial") return;
     const task = await base44.entities.Task.get(taskId).catch(() => null);
     if (!task || task.completed) return;
-    await base44.entities.Task.update(taskId, {
-      completed: true,
-      completed_date: new Date().toISOString(),
-    });
+    await base44.entities.Task.update(taskId, taskCompletionPatch(true));
   } catch { /* best-effort */ }
 }

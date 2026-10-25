@@ -315,10 +315,10 @@ export function buildTaskRecords({ items = [] }) {
     type: "task",
     id: t.id,
     title: t.title || "Task",
-    subtitle: snippet(t.notes) || formatDateLabel(t.due_date || t.created_date) || "",
+    subtitle: snippet(t.description || t.notes) || formatDateLabel(t.due_date || t.created_date) || "",
     path: `/todo?highlight=${t.id}`,
     searchableText: joinNonEmpty([
-      t.title, t.notes, t.priority, t.status,
+      t.title, stripHtml(t.description), stripHtml(t.notes), t.priority,
       dateSearchBlob(t.due_date), dateSearchBlob(t.created_date),
     ]).toLowerCase(),
     sortDate: t.created_date,

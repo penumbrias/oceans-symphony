@@ -6,6 +6,7 @@
 // done so the two can never disagree.
 
 import { base44 } from "@/api/base44Client";
+import { syncActivityResolved } from "@/lib/linkedCompletion";
 
 // Rescheduling is the other way out of "unresolved": the plan is still
 // happening, just later. Status stays `scheduled` and the move is recorded
@@ -153,11 +154,7 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
       const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
       if (sess) {
         await endAndLogActiveActivity(sess.id, (end || new Date()).toISOString());
-        if (item.task_id) {
-          await base44.entities.Task.update(item.task_id, {
-            completed: true, is_complete: true, completed_date: new Date().toISOString(),
-          }).catch(() => { /* the activity outcome stands even if the task write fails */ });
-        }
+        await syncActivityResolved(item, status);
         return;
       }
     } catch { /* fall through to the plain resolve */ }
@@ -199,9 +196,6 @@ export async function resolveOutcome(item, status, { endedAt = null } = {}) {
     const { markWishHappenedFor } = await import("@/lib/wishes");
     await markWishHappenedFor(item);
   }
-  if (item.task_id && status === "done") {
-    await base44.entities.Task.update(item.task_id, {
-      completed: true, is_complete: true, completed_date: new Date().toISOString(),
-    }).catch(() => { /* the activity outcome stands even if the task write fails */ });
-  }
+  // Its to-do follows the same rule as every other door (done or partial).
+  await syncActivityResolved(item, status);
 }
