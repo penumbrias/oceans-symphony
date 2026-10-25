@@ -43,9 +43,9 @@ import BackupHealthNotice, { useBackupHealth } from "@/components/dashboard/Back
 import EmptyAppRescueNotice, { useEmptyApp } from "@/components/dashboard/EmptyAppRescueNotice";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
-import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { mentionPreviewText } from "@/lib/whisperRedact";
+import { mentionLogsQuery, pendingMentionsFor, mentionRecipientId, dismissMention as dismissMentionFor } from "@/lib/mentionNotices";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -418,7 +418,7 @@ export default function V2Notices() {
     queryKey: ["reminders", "all"], queryFn: () => base44.entities.Reminder.list(),
   });
   const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"], queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+    ...mentionLogsQuery,
   });
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"], queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
@@ -502,12 +502,7 @@ export default function V2Notices() {
 
   // Mentions of whoever is fronting, not yet dismissed by them.
   const mentionNotices = useMemo(() => {
-    return mentionLogs
-      .filter((m) => {
-        if (m.log_type === "authored") return false;
-        if (!frontingAlterIds.includes(m.mentioned_alter_id)) return false;
-        return !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id);
-      })
+    return pendingMentionsFor(mentionLogs, frontingAlterIds)
       .map((m) => ({ key: `men-${m.id}`, type: "mention", mention: m }));
   }, [mentionLogs, frontingAlterIds]);
 
@@ -537,15 +532,7 @@ export default function V2Notices() {
     } catch { /* the card stays; next tap retries */ }
   };
 
-  const dismissMention = async (m) => {
-    const dismissedBy = m.dismissed_by_alter_ids || [];
-    if (dismissedBy.includes(m.mentioned_alter_id)) return;
-    await base44.entities.MentionLog.update(m.id, {
-      dismissed_by_alter_ids: [...dismissedBy, m.mentioned_alter_id],
-    });
-    markMentionAcknowledgedToday();
-    qc.invalidateQueries({ queryKey: ["mentionLogs"] });
-  };
+  const dismissMention = (m) => dismissMentionFor(m, { queryClient: qc });
 
   return (
     <div className="space-y-1.5 mb-2" role="status" aria-live="polite" aria-atomic="false">
@@ -617,7 +604,7 @@ export default function V2Notices() {
         }
         const m = n.mention;
         return (
-          <MentionNotice key={n.key} mention={m} alter={altersById[m.mentioned_alter_id]}
+          <MentionNotice key={n.key} mention={m} alter={altersById[mentionRecipientId(m)]}
             formatAlter={formatAlter}
             onDismiss={() => dismissMention(m)}
             onOpen={async () => {

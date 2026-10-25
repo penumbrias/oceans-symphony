@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import { Bell, EyeOff, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { mentionPreviewText } from "@/lib/whisperRedact";
+import { mentionLogsQuery, isMentionNotice, isMentionDismissed, mentionRecipientId, dismissMention } from "@/lib/mentionNotices";
 
 const PAGE_SIZE = 20;
 
@@ -17,17 +17,14 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
   const queryClient = useQueryClient();
 
   const { data: rawLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"],
-    queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+    ...mentionLogsQuery,
     enabled: open,
   });
 
   const [showCleared, setShowCleared] = useState(false);
 
   // Filter out authored self-logs; also skip entries with no identifiable recipient
-  const allMentionLogs = rawLogs.filter(
-    (m) => m.log_type !== "authored" && (m.mentioned_alter_id || m.alter_id)
-  );
+  const allMentionLogs = rawLogs.filter(isMentionNotice);
   // "Clear all" hides from this list; it never deletes (the rows are also
   // what @mention history and "who wrote this" read).
   const clearedCount = allMentionLogs.filter((m) => m.history_cleared_at).length;
@@ -71,20 +68,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
 
   const handleDismiss = async (e, m) => {
     e.stopPropagation();
-    if (!m.mentioned_alter_id) {
-      // Legacy format — mark via is_read field
-      await base44.entities.MentionLog.update(m.id, { is_read: true });
-      markMentionAcknowledgedToday();
-      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-      return;
-    }
-    const dismissedBy = m.dismissed_by_alter_ids || [];
-    if (dismissedBy.includes(m.mentioned_alter_id)) return;
-    await base44.entities.MentionLog.update(m.id, {
-      dismissed_by_alter_ids: [...dismissedBy, m.mentioned_alter_id],
-    });
-    markMentionAcknowledgedToday();
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
+    await dismissMention(m, { queryClient });
   };
 
   return (
@@ -127,10 +111,9 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
           )}
           {mentionLogs.slice(0, visibleCount).map((m) => {
             // Graceful fallbacks for legacy notifications created with wrong field names
-            const recipientId = m.mentioned_alter_id || m.alter_id;
+            const recipientId = mentionRecipientId(m);
             const alter = alters.find((a) => a.id === recipientId);
-            const dismissedBy = m.dismissed_by_alter_ids || [];
-            const isDismissed = m.is_read === true || dismissedBy.includes(recipientId);
+            const isDismissed = isMentionDismissed(m);
             const isForCurrentFronter = frontingAlterIds.includes(recipientId);
             const displayLabel = m.source_label || (m.content ? "Message" : "Notification");
             const displayPreview = mentionPreviewText({ ...m, preview_text: m.preview_text || m.content }) || null;

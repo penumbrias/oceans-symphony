@@ -45,6 +45,7 @@ export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
 import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
 import { runQuickAction } from "@/lib/quickActionRunner";
+import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
 
 // THE host for the "open-set-front" event — the only listener, whichever
 // UI is on. (It used to be v2-only while CurrentFronters also listened;
@@ -327,10 +328,7 @@ export default function Dashboard() {
   // render; ClassicHomeCanvas owns the home layout now via classic_home,
   // with dashboard_layout kept as its seed source.)
 
-  const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"],
-    queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
-  });
+  const { data: mentionLogs = [] } = useQuery(mentionLogsQuery);
 
   // Extract currently active alter IDs from active FrontingSession records.
   // Supports both new individual model (alter_id per row, is_primary flag)
@@ -630,13 +628,7 @@ export default function Dashboard() {
     };
      
   }, [classicBoardAvailable, boardOpen]);
-  const hasUnreadMentions = mentionLogs.some(m =>
-    m.log_type !== "authored" &&
-    (m.mentioned_alter_id || m.alter_id) &&
-    frontingAlterIds.includes(m.mentioned_alter_id || m.alter_id) &&
-    !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id || m.alter_id) &&
-    m.is_read !== true
-  );
+  const hasUnreadMentions = pendingMentionsFor(mentionLogs, frontingAlterIds).length > 0;
 
   // Handler/data bundle handed to the experimental view + its widgets, so
   // chrome widgets and the action bar reuse Dashboard's plumbing (the

@@ -1,27 +1,21 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { mentionPreviewText } from "@/lib/whisperRedact";
+import { mentionLogsQuery, pendingMentionsFor, mentionRecipientId } from "@/lib/mentionNotices";
 
 export default function MentionNotifications({ frontingAlterIds = [], alters = [] }) {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
 
   const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"],
-    queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+    ...mentionLogsQuery,
     enabled: frontingAlterIds.length > 0,
   });
 
-  const relevant = mentionLogs.filter((m) => {
-    if (m.log_type === "authored") return false;
-    if (!frontingAlterIds.includes(m.mentioned_alter_id)) return false;
-    const dismissedBy = m.dismissed_by_alter_ids || [];
-    return !dismissedBy.includes(m.mentioned_alter_id);
-  });
+  const relevant = pendingMentionsFor(mentionLogs, frontingAlterIds);
   if (relevant.length === 0) return null;
 
   return (
@@ -40,7 +34,7 @@ export default function MentionNotifications({ frontingAlterIds = [], alters = [
       {expanded && (
          <div className="mt-3 space-y-2">
            {relevant.slice(0, 15).map((m) => {
-             const alter = alters.find((a) => a.id === m.mentioned_alter_id);
+             const alter = alters.find((a) => a.id === mentionRecipientId(m));
              return (
                <button
                  key={m.id}

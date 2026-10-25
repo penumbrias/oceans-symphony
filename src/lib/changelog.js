@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Mentions no longer drop out of notifications after a busy day of writing notes." },
+      { type: "fix", text: "Pop-ups, the notification history, the home banner and both bells now agree on what's unread, including older mentions." },
       { type: "fix", text: "Deleting a to-do now puts its subtasks and board card in the trash with it, so restoring brings the whole list back." },
       { type: "fix", text: "Notes on to-dos made from the planner now show on the to-do and can be found in search." },
       { type: "fix", text: "Finishing a plan partly now completes its to-do from every screen, and unticking a to-do no longer leaves it done in the planner." },

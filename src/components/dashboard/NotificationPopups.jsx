@@ -1,10 +1,9 @@
 import React from "react";
 import { Bell, X } from "lucide-react";
 import { format } from "date-fns";
-import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import { mentionPreviewText } from "@/lib/whisperRedact";
+import { pendingMentionsFor, dismissMention, mentionRecipientId } from "@/lib/mentionNotices";
 
 export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
   const queryClient = useQueryClient();
@@ -12,22 +11,9 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
   // Show notifications where:
   // - the mentioned alter is currently fronting
   // - that specific alter hasn't dismissed it yet
-  const relevant = mentionLogs.filter((m) => {
-    if (m.log_type === "authored") return false;
-    if (!frontingAlterIds.includes(m.mentioned_alter_id)) return false;
-    const dismissedBy = m.dismissed_by_alter_ids || [];
-    return !dismissedBy.includes(m.mentioned_alter_id);
-  });
+  const relevant = pendingMentionsFor(mentionLogs, frontingAlterIds);
 
-  const handleDismiss = async (m) => {
-    const dismissedBy = m.dismissed_by_alter_ids || [];
-    if (dismissedBy.includes(m.mentioned_alter_id)) return;
-    await base44.entities.MentionLog.update(m.id, {
-      dismissed_by_alter_ids: [...dismissedBy, m.mentioned_alter_id],
-    });
-    markMentionAcknowledgedToday();
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-  };
+  const handleDismiss = (m) => dismissMention(m, { queryClient });
 
   const handleClick = async (m) => {
     await handleDismiss(m);
@@ -46,7 +32,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
     >
       {relevant.slice(0, 5).map((m) => {
-        const alter = alters.find((a) => a.id === m.mentioned_alter_id);
+        const alter = alters.find((a) => a.id === mentionRecipientId(m));
         return (
           <div
             key={m.id}
