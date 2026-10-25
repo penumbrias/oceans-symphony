@@ -63,6 +63,7 @@ import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/
 import { IconSlot } from "@/components/shared/LucideByName";
 import { readPinnedBar, pinnedBarPatch, openBarsEditor } from "@/lib/barsModel";
 import { saveStatusNote } from "@/lib/checkinEntry";
+import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -369,7 +370,7 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: mentionLogs = [] } = useQuery({ queryKey: ["mentionLogs"], queryFn: () => base44.entities.MentionLog.list("-created_date", 200) });
+  const { data: mentionLogs = [] } = useQuery(mentionLogsQuery);
 
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const fronters = activeSessions
@@ -381,7 +382,8 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
     : fronters.length === 1
       ? formatAlter(fronters[0].alter)
       : `${formatAlter(fronters[0].alter)} +${fronters.length - 1}`;
-  const hasUnread = mentionLogs.some((m) => m.is_active !== false && !m.seen && !m.read);
+  // Unread for whoever is here now — the same rule as every other bell.
+  const hasUnread = pendingMentionsFor(mentionLogs, activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean)).length > 0;
 
   const openOptions = () => window.dispatchEvent(new CustomEvent("os-open-display-options"));
 

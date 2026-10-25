@@ -60,6 +60,7 @@ import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 import { safeInternalRoute } from "@/lib/safeRoute";
+import { mentionLogsQuery } from "@/lib/mentionNotices";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -332,8 +333,7 @@ const { data: sessions = [] } = useQuery({
 });
 
 const { data: mentionLogs = [] } = useQuery({
-  queryKey: ["mentionLogs"],
-  queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+  ...mentionLogsQuery,
   refetchInterval: 15000, // refetch every 15 seconds
   refetchIntervalInBackground: false, // only when tab is active
 });
