@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HexColorPicker } from 'react-colorful';
 import { normalizeHexInput } from '@/lib/colorUtils';
+import { DropdownLayer } from '@/components/shared/SearchableSelect';
 
 // compact: show ONLY the swatch in the row — the name, the hex field and any
 // actions (Clear, "use the app colour") live inside the popover, which is
@@ -25,6 +26,10 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   // the hex field is clicked — the tester's "can't type colour codes".
   // Modal dialogs don't scroll-clip the way the sheets do, so there the
   // popover renders inline (absolute) exactly as it did before v0.172.1.
+  // Everywhere else the portaled popover sits in a DropdownLayer, which
+  // makes it the active focus scope while open: the widget options sheet
+  // (a vaul drawer) still traps focus, and used to pull it back to the
+  // swatch the moment the hex field was tapped.
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const [inModal, setInModal] = useState(false);
   // Sized to the content (react-colorful is 200px + padding) but never
@@ -210,7 +215,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
             )}
           </div>
         );
-        return inModal ? pop : createPortal(pop, document.body);
+        return inModal ? pop : createPortal(<DropdownLayer>{pop}</DropdownLayer>, document.body);
       })()}
     </div>
   );
