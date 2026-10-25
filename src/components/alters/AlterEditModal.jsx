@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
+import { deleteAlter as deleteAlterEverywhere } from "@/lib/alterEntry";
+import { setAlterGroups } from "@/lib/groupMembership";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -256,20 +258,12 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
     const formData = { ...form, origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null };
     try {
       if (isNew) {
-        const created = await base44.entities.Alter.create({ ...formData, is_archived: false });
+        // A new record carries only what was filled in — empty form slots
+        // (e.g. profile_song: null) aren't written onto it.
+        const filled = Object.fromEntries(Object.entries(formData).filter(([, v]) => v !== null && v !== undefined && v !== ""));
+        const created = await base44.entities.Alter.create({ ...filled, is_archived: false });
         if (selectedGroupIds.size > 0 && created?.id) {
-          const memberKey = created.sp_id || created.id;
-          const newGroups = [];
-          for (const g of allGroups) {
-            if (!selectedGroupIds.has(g.id)) continue;
-            const members = new Set(g.member_sp_ids || []);
-            members.add(memberKey);
-            try { await base44.entities.Group.update(g.id, { member_sp_ids: [...members] }); } catch { /* keep going */ }
-            newGroups.push({ id: g.sp_id || g.id, name: g.name, color: g.color || "" });
-          }
-          if (newGroups.length) {
-            try { await base44.entities.Alter.update(created.id, { groups: newGroups }); } catch { /* non-fatal */ }
-          }
+          try { await setAlterGroups({ alterId: created.id, groupIds: [...selectedGroupIds] }); } catch { /* the alter is saved; groups can be set from the profile */ }
           queryClient.invalidateQueries({ queryKey: ["groups"] });
         }
         toast.success(`✅ ${t.Alter} created!`);
@@ -307,9 +301,9 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
       // can be restored from Recent changes, and the same picture can be
       // another system's copy of this alter, a library asset or a post
       // (audit 2026-10-01, H2 — restores came back with broken avatars).
-      await base44.entities.Alter.delete(alter.id);
+      await deleteAlterEverywhere(alter);
       toast.success(`🗑 ${t.Alter} deleted.`);
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries();
       onClose();
     } catch (e) {
       toast.error(e.message || "Failed to delete");

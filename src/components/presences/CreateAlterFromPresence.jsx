@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { addGroupMember } from "@/lib/groupMembership";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -84,13 +85,7 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
             owner_alter_id: ownerId,
           });
         }
-        const memberKey = newAlter.sp_id || newAlter.id;
-        const members = new Set(group.member_sp_ids || []);
-        members.add(memberKey);
-        await base44.entities.Group.update(group.id, { member_sp_ids: [...members] });
-        await base44.entities.Alter.update(newAlter.id, {
-          groups: [{ id: group.sp_id || group.id, name: group.name, color: group.color || "" }],
-        });
+        await addGroupMember({ group, alterId: newAlter.id });
       } else {
         // Keep the associated alters as defined relationships.
         for (const a of associated) {

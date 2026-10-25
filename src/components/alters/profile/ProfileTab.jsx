@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
+import { deleteAlter as deleteAlterEverywhere } from "@/lib/alterEntry";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -329,9 +330,9 @@ useEffect(() => {
     if (!(await confirm(`Delete ${alter?.name}? ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
-      await base44.entities.Alter.delete(alter.id);
-      toast.success("Alter deleted.");
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      await deleteAlterEverywhere(alter);
+      toast.success(`${t.Alter} deleted.`);
+      queryClient.invalidateQueries();
     } catch (e) { toast.error(e.message || "Failed to delete"); }
     finally { setDeleting(false); }
   };

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { deleteAlter as deleteAlterEverywhere } from "@/lib/alterEntry";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
@@ -61,8 +62,8 @@ export default function OptionsTab({ alter }) {
   };
 
   const deleteAlter = async () => {
-    await base44.entities.Alter.delete(alter.id);
-    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    await deleteAlterEverywhere(alter);
+    queryClient.invalidateQueries();
     navigate("/Home");
   };
 
