@@ -6,7 +6,6 @@ import { Sparkles, Plus, Share2, Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
-import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import AlterExportModal from "@/components/alters/AlterExportModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
@@ -127,10 +126,8 @@ export default function Home() {
         />
       </motion.div>
 
-      <div className="mb-4">
-        <CurrentFronters alters={activeAlters} />
-      </div>
-      {/* This page (/Home) is the alters directory. Upcoming-plans
+      {/* This page (/Home) is the alters directory. Who's in front lives on
+          the Dashboard (/) — one fronters panel, not two. Upcoming-plans
           surfaces with placement="home_top" / "home_bottom" now render
           on the Dashboard (/) instead — that's what their Settings
           labels say and where users expect them. */}
