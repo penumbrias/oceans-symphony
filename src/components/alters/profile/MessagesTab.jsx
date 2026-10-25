@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
+import { mentionPreview, mentionPreviewText } from "@/lib/whisperRedact";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -79,7 +80,7 @@ function LogItem({ item, onDelete, alters = [], terms = null }) {
             // image cap keeps the feed scannable; "tap to view" opens the full
             // thing. NOT stripped to plain text.
             <div className="text-xs text-foreground leading-relaxed break-words wysiwyg-content max-h-48 overflow-hidden [&_img]:max-h-40 [&_img]:rounded-lg">
-              {renderBulletinContent(item.preview_text, alters, terms)}
+              {renderBulletinContent(mentionPreview(item), alters, terms)}
             </div>
           )}
           {item.navigate_path && (
@@ -182,7 +183,7 @@ export default function MessagesTab({ alterId, alters }) {
   const filtered = allItems.filter(item => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!item.preview_text?.toLowerCase().includes(q) && !item.source_label?.toLowerCase().includes(q)) return false;
+      if (!mentionPreviewText(item).toLowerCase().includes(q) && !item.source_label?.toLowerCase().includes(q)) return false;
     }
     if (activeFilter === "all") return true;
     if (activeFilter === "mention") return item.log_type === "mention" || (!item.log_type && !item._is_message && !item._is_session);

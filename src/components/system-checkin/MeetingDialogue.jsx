@@ -6,6 +6,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { WHISPER_PREVIEW } from "@/lib/whisperRedact";
 import ChatSurface from "@/components/chat/ChatSurface";
 import { confirm } from "@/components/shared/ConfirmDialog";
 
@@ -305,7 +306,7 @@ export default function MeetingDialogue({
           sourceId: created.id,
           sourceLabel: label,
           navigatePath: `/chat?channel=${storageChannelId}&message=${created.id}`,
-          previewText: payload.cleanText,
+          previewText: payload.isWhisper ? WHISPER_PREVIEW : payload.cleanText,
         });
       }
       if (payload.isWhisper) {
@@ -318,7 +319,7 @@ export default function MeetingDialogue({
             source_id: created.id,
             source_label: label,
             source_date: new Date().toISOString(),
-            preview_text: payload.cleanText.slice(0, 120),
+            preview_text: WHISPER_PREVIEW,
             navigate_path: `/chat?channel=${storageChannelId}&message=${created.id}`,
           });
         }

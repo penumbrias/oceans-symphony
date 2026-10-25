@@ -45,6 +45,7 @@ import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
+import { mentionPreviewText } from "@/lib/whisperRedact";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -213,7 +214,7 @@ function MentionNotice({ mention, alter, formatAlter, onDismiss, onOpen }) {
           )}
         </div>
         {mention.preview_text && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{mention.preview_text}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{mentionPreviewText(mention)}</p>
         )}
         {mention.source_label && (
           <span className="text-[0.625em] mt-0.5 block" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>

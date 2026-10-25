@@ -205,3 +205,6 @@ export async function applyWhisper(content, alters, {
     mode: parsed.mode,
   };
 }
+
+
+export { WHISPER_PREVIEW, redactWhispers, mentionPreview, mentionPreviewText } from "@/lib/whisperRedact";
