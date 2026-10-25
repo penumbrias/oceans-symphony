@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
-import { wouldCreateCycle } from "@/lib/groupTreeUtils";
+import { wouldNest, parentGroupOf } from "@/lib/groupTree";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ export default function GroupEditModal({
     if (group) {
       setName(group.name || "");
       setColor(group.color || "#000000");
-      setParent(group.parent || "root");
+      setParent(parentGroupOf(group, allGroups)?.id || "root");
     }
   }, [group, isOpen]);
 
@@ -52,7 +52,7 @@ export default function GroupEditModal({
     // brick navigation, the same class of bug that hit Activity
     // categories before cycle-safety was added.
     const nextParentId = parent === "root" ? "" : parent;
-    if (nextParentId && wouldCreateCycle(nextParentId, group.id, allGroups)) {
+    if (nextParentId && wouldNest(allGroups, group.id, nextParentId)) {
       toast.error("Can't move a group into one of its own subgroups");
       return;
     }
@@ -71,12 +71,12 @@ export default function GroupEditModal({
 
   // Exclude self AND any descendants from the parent picker so the
   // user can't even attempt to create a cycle. handleSave still
-  // calls wouldCreateCycle as a defence-in-depth check for stale
+  // calls wouldNest as a defence-in-depth check for stale
   // dropdown state.
   const parentOptions = (allGroups || []).filter((g) => {
     if (!g.id || g.id === group?.id) return false;
     if (!group?.id) return true;
-    return !wouldCreateCycle(g.id, group.id, allGroups);
+    return !wouldNest(allGroups, group.id, g.id);
   });
 
   return (

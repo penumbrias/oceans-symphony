@@ -8,6 +8,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, getSubsystemsOwnedBy, isSubsystem, getAltersInsideSubsystems, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { childGroups } from "@/lib/groupTree";
 
 // Small round alter avatar for tree rows — same vibe as the alters list, just
 // minimal. Resolves local-image:// URLs; falls back to a colour disc with the
@@ -147,8 +148,7 @@ function collectGroupMembers(group, alters, groups, includeNested) {
       if (includeNested) for (const sub of getSubsystemsOwnedBy(groups, m.id)) walk(sub, depth + 1, nv);
     }
     if (includeNested) {
-      const key = groupKeyOf(g);
-      for (const child of (groups || []).filter((x) => !isSubsystem(x) && (x.parent || "") === key)) walk(child, depth + 1, nv);
+      for (const child of childGroups(groups, g.id).filter((x) => !isSubsystem(x))) walk(child, depth + 1, nv);
     }
   };
   walk(group, 0, new Set());

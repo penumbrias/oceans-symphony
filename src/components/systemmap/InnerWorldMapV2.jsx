@@ -22,7 +22,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
-import { byGroupOrder } from "@/lib/groupTreeUtils";
+import { flattenGroupTree } from "@/lib/groupTree";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
@@ -58,27 +58,6 @@ function toLocalScheme(url) {
   return url;
 }
 
-// Flatten groups into a depth-tagged list by folder nesting (group.parent may
-// reference an id OR an sp_id), cycle-guarded + depth-clamped. Feeds the nested
-// group/subsystem FILTER picker — never a flat native <select> (CLAUDE.md rule).
-function flattenGroupTree(groups) {
-  const byId = Object.fromEntries(groups.map((g) => [g.id, g]));
-  const spToId = {};
-  for (const g of groups) if (g.sp_id) spToId[g.sp_id] = g.id;
-  const resolveParent = (p) => (!p || p === "root" ? null : byId[p] ? p : spToId[p] || null);
-  const childrenOf = (pid) => groups.filter((g) => resolveParent(g.parent) === pid).sort(byGroupOrder);
-  const out = [];
-  const seen = new Set();
-  const visit = (g, depth) => {
-    if (!g || seen.has(g.id) || depth > 12) return;
-    seen.add(g.id);
-    out.push({ ...g, _depth: depth });
-    for (const c of childrenOf(g.id)) visit(c, depth + 1);
-  };
-  for (const g of childrenOf(null)) visit(g, 0);
-  for (const g of groups) if (!seen.has(g.id)) { seen.add(g.id); out.push({ ...g, _depth: 0 }); }
-  return out;
-}
 
 function UnplacedAlterAvatar({ alter }) {
   const resolved = useResolvedAvatarUrl(alter?.avatar_url);
@@ -631,7 +610,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   // Group/subsystem filter options (folder-nested + subsystem-marked).
   const groupFilterOptions = useMemo(() => ([
     { id: "all", label: `All ${terms.groups || "groups"}` },
-    ...flattenGroupTree(groups).map((g) => ({ id: g.id, label: g.name || "Unnamed", color: g.color, _depth: g._depth, isSub: isSubsystem(g) })),
+    ...flattenGroupTree(groups, { sort: "order" }).map((g) => ({ id: g.id, label: g.name || "Unnamed", color: g.color, _depth: g._depth, isSub: isSubsystem(g) })),
   ]), [groups, terms.groups]);
   // Location-link options — other maps and (nested under them) their layers.
   const linkOptions = useMemo(() => {

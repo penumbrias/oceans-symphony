@@ -51,6 +51,7 @@ import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -73,26 +74,6 @@ function getContrastColor(hex) {
   const g = parseInt(clean.substring(2, 4), 16);
   const b = parseInt(clean.substring(4, 6), 16);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? "#1a1a2e" : "#ffffff";
-}
-
-// Would setting `candidateParentId` as the parent of `childId` create a
-// group-nesting loop? Walk UP from the candidate; if we reach the child,
-// it loops. Depth-clamped + visited-guarded against pre-existing bad data.
-function wouldCreateGroupParentCycle(groups, childId, candidateParentId) {
-  if (!candidateParentId) return false;
-  if (childId === candidateParentId) return true;
-  let cur = groups.find((g) => g.id === candidateParentId || g.sp_id === candidateParentId);
-  const seen = new Set();
-  let depth = 0;
-  while (cur && depth < 50) {
-    if (cur.id === childId) return true;
-    if (seen.has(cur.id)) break;
-    seen.add(cur.id);
-    const pid = cur.parent;
-    cur = pid ? groups.find((g) => g.id === pid || g.sp_id === pid) : null;
-    depth++;
-  }
-  return false;
 }
 
 function GroupAvatar({ url, color, emoji, size = "w-24 h-24", iconSize = "w-10 h-10" }) {
@@ -283,9 +264,9 @@ function GroupProfileInner() {
   }
 
   const ownerAlter = group.owner_alter_id ? alters.find((a) => a.id === group.owner_alter_id) : null;
-  const parentGroup = group.parent ? allGroups.find((g) => g.id === group.parent || g.sp_id === group.parent) : null;
+  const parentGroup = parentGroupOf(group, allGroups);
   const members = getMemberAlters(group, alters).filter((m) => !(group.hide_archived_members && m.is_archived));
-  const childGroups = allGroups.filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id));
+  const childGroups = childGroupsOf(allGroups, group.id).sort(byGroupOrder);
   const subsystem = isSubsystem(group);
 
   const cf = group.custom_fields || {};

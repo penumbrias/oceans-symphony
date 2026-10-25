@@ -38,10 +38,9 @@ import {
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import {
-  flattenGroupTree, childGroups, wouldNest, normalizeParent, strandedGroups,
-  indexGroups, ancestorIds,
+  flattenGroupTree, childGroups, rootGroups, wouldNest, resolvedParentId, strandedGroups,
+  indexGroups, ancestorIds, byGroupOrder,
 } from "@/lib/groupTree";
-import { byGroupOrder } from "@/lib/groupTreeUtils";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { setGroupMembers, currentMemberIds, deleteGroupCascade } from "@/lib/groupMembership";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -154,7 +153,7 @@ export default function GroupsManager() {
   // The current level's subgroups, in display order. At the root the
   // filter chips narrow to plain groups or sub{systems}.
   const siblings = useMemo(() => {
-    const kids = childGroups(groups, current?.id || null).sort(byGroupOrder);
+    const kids = (current ? childGroups(groups, current.id) : rootGroups(groups)).sort(byGroupOrder);
     if (current || rootFilter === "all") return kids;
     return kids.filter((g) => (rootFilter === "subsystems" ? !!g.owner_alter_id : !g.owner_alter_id));
   }, [groups, current, rootFilter]);
@@ -577,7 +576,7 @@ export default function GroupsManager() {
               </button>
             </div>
             <SearchableSelect
-              value={movingIds.length === 1 ? (normalizeParent(byId[movingIds[0]]) || "") : ""}
+              value={movingIds.length === 1 ? (resolvedParentId(byId[movingIds[0]], byId) || "") : ""}
               onChange={(id) => handleMove(movingIds, id || "")}
               options={moveOptions}
               placeholder="Choose where they go"

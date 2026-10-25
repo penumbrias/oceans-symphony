@@ -11,9 +11,18 @@
 // them across two tabs, and the subsystem tab couldn't nest at all — which
 // is why nesting felt broken.
 //
-// `parent` has THREE historical spellings for "top level": the string
-// "root", null, and the field being absent. normalizeParent collapses them
-// so nothing downstream has to remember that.
+// `parent` has several historical spellings for "top level": the string
+// "root", "none", "", null, and the field being absent. normalizeParent
+// collapses them so nothing downstream has to remember that.
+//
+// `parent` also points at a group in TWO ways: its id, or — for groups
+// imported from Simply Plural — its sp_id. indexGroups keys both, and
+// resolvedParentId always answers with the parent's real id.
+//
+// THE one group tree library (v0.279.9, roadmap step 4). The old
+// groupTreeUtils.js (a second walker with its own depth limit and no sp_id
+// support) now re-exports from here; never add a second tree walker or an
+// inline `g.parent === …` filter.
 //
 // LOAD-BEARING: every walk here is cycle-guarded and depth-clamped. One bad
 // parent pointer must never be able to hang a render — the user would have
@@ -33,11 +42,43 @@ export function normalizeParent(group) {
 // forever — being wrong about placement beats being invisible.
 export function resolvedParentId(group, byId) {
   const p = normalizeParent(group);
-  return p && byId[p] ? p : ROOT;
+  const parent = p ? byId[p] : null;
+  return parent ? parent.id : ROOT;
 }
 
+// The parent group itself (or null when top level / missing).
+export function parentGroupOf(group, groups) {
+  const byId = indexGroups(groups);
+  const pid = resolvedParentId(group, byId);
+  return pid ? byId[pid] : null;
+}
+
+// True when the group is deliberately top level (no stored parent).
+export function isTopLevel(group) {
+  return normalizeParent(group) === ROOT;
+}
+
+/**
+ * THE group display comparator — use this for every group list/tree sort.
+ * Explicit `order` wins; ties fall back to created_date ASCENDING (the
+ * order groups were made or imported), then name. Without the created_date
+ * leg, order-less groups inherit Group.list()'s default newest-first sort,
+ * so every import (and every hand-built set of groups) rendered REVERSED.
+ */
+export function byGroupOrder(a, b) {
+  return (
+    (a?.order || 0) - (b?.order || 0) ||
+    String(a?.created_date || "").localeCompare(String(b?.created_date || "")) ||
+    (a?.name || "").localeCompare(b?.name || "")
+  );
+}
+
+// id → group, plus sp_id → group for imported parents (an id always wins).
 export function indexGroups(groups) {
-  return Object.fromEntries((groups || []).map((g) => [g.id, g]));
+  const byId = {};
+  for (const g of groups || []) if (g?.sp_id && !byId[g.sp_id]) byId[g.sp_id] = g;
+  for (const g of groups || []) if (g?.id) byId[g.id] = g;
+  return byId;
 }
 
 // Walk up from a group, stopping on a cycle or the depth clamp.
@@ -73,11 +114,31 @@ export function rootGroups(groups) {
   });
 }
 
+// Children of `parentId`; null gives the top-level groups (not the ones in
+// a loop — rootGroups adds those).
 export function childGroups(groups, parentId) {
   const byId = indexGroups(groups);
   return (groups || []).filter(
-    (g) => resolvedParentId(g, byId) === parentId && !isInCycle(g, byId)
+    (g) => (!parentId || g.id !== parentId) && resolvedParentId(g, byId) === parentId && !isInCycle(g, byId)
   );
+}
+
+// Every group nested anywhere under `groupId` (not including it), cycle-
+// guarded and depth-clamped.
+export function descendantGroupIds(groups, groupId) {
+  const out = [];
+  const seen = new Set([groupId]);
+  const walk = (id, depth) => {
+    if (depth > MAX_GROUP_DEPTH) return;
+    for (const c of childGroups(groups, id)) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      out.push(c.id);
+      walk(c.id, depth + 1);
+    }
+  };
+  walk(groupId, 0);
+  return out;
 }
 
 // Would moving `groupId` under `targetId` create a loop? Also blocks
@@ -108,8 +169,8 @@ export function wouldNest(groups, groupId, targetId) {
 export function flattenGroupTree(groups, { sort = true } = {}) {
   const out = [];
   const visited = new Set();
-  const order = (list) =>
-    sort ? [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "")) : list;
+  const cmp = sort === "order" ? byGroupOrder : (a, b) => (a.name || "").localeCompare(b.name || "");
+  const order = (list) => (sort ? [...list].sort(cmp) : list);
 
   const walk = (list, depth) => {
     if (depth > MAX_GROUP_DEPTH) return;

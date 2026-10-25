@@ -8,7 +8,7 @@ import { Loader2, Save, ChevronDown, ChevronRight, Check, Crown, Ban, Folder } f
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle } from "@/lib/subsystemUtils";
-import { byGroupOrder } from "@/lib/groupTreeUtils";
+import { byGroupOrder, indexGroups, ancestorIds, rootGroups, childGroups, MAX_GROUP_DEPTH } from "@/lib/groupTree";
 
 // One row in the nested group tree
 function GroupRow({ group, depth, isSelected, subgroupDotColors, onToggle, children }) {
@@ -152,60 +152,30 @@ export default function GroupPickerModal({ alter, open, onClose }) {
   // Compute ancestor group IDs (groups that transitively contain the alter via a selected subgroup)
   const ancestorGroupIds = useMemo(() => {
     const ancestors = new Set();
-    const groupById = Object.fromEntries(allGroups.map((g) => [g.id, g]));
+    // Cycle-guarded walk (a looping chain from an import used to freeze
+    // the app the moment the picker opened).
+    const groupById = indexGroups(allGroups);
     for (const id of selectedGroupIds) {
-      let g = groupById[id];
-      // Cycle guard: a looping parent chain (possible from imports — the
-      // editor blocks it, groupTree.js tolerates it) used to spin this
-      // loop forever and freeze the app the moment the picker opened.
-      const seen = new Set();
-      while (g && g.parent && g.parent !== "root" && g.parent !== "") {
-        if (seen.has(g.id)) break;
-        seen.add(g.id);
-        const parentGroup = allGroups.find(x => x.id === g.parent || x.sp_id === g.parent);
-        if (!parentGroup) break;
-        ancestors.add(parentGroup.id);
-        g = parentGroup;
-      }
+      for (const a of ancestorIds(groupById[id], groupById)) ancestors.add(a);
     }
     return ancestors;
   }, [allGroups, selectedGroupIds]);
 
   // Build nested tree
   const tree = useMemo(() => {
-    const idSet = new Set(allGroups.map((g) => g.id));
-
     function getSubgroupDotColors(parentId) {
-      // Find direct children of parentId that are selected or are ancestors
-      return allGroups
-        .filter((g) => {
-          const p = g.parent || "";
-          const matchesParent = p === parentId || p === allGroups.find(x => x.id === parentId)?.sp_id;
-          return matchesParent && (selectedGroupIds.has(g.id) || ancestorGroupIds.has(g.id));
-        })
+      // Direct children of parentId that are selected or are ancestors
+      return childGroups(allGroups, parentId)
+        .filter((g) => selectedGroupIds.has(g.id) || ancestorGroupIds.has(g.id))
         .map((g) => g.color || "hsl(var(--primary))");
     }
 
-    // Build a lookup: sp_id → id for parent resolution
-    const spToId = Object.fromEntries(
-      allGroups.filter(g => g.sp_id).map(g => [g.sp_id, g.id])
-    );
-
-    // Resolve a parent reference (could be an id or an sp_id) to an entity id
-    const resolveParentId = (parent) => {
-      if (!parent || parent === "" || parent === "root") return null;
-      if (idSet.has(parent)) return parent; // it's already an id
-      if (spToId[parent]) return spToId[parent]; // it's an sp_id → resolve to id
-      return null; // orphan — treat as root
-    };
-
+    // groupTree resolves id / sp_id parents; groups whose parent is gone or
+    // loops sit at the top so they can still be picked.
     function buildTree(parentId, depth) {
-      return allGroups
-        .filter((g) => {
-          if (g.owner_alter_id) return false; // subsystems live in their own tab
-          const resolvedParent = resolveParentId(g.parent);
-          return resolvedParent === parentId;
-        })
+      if (depth > MAX_GROUP_DEPTH) return [];
+      return (parentId === null ? rootGroups(allGroups) : childGroups(allGroups, parentId))
+        .filter((g) => !g.owner_alter_id) // subsystems live in their own tab
         .sort(byGroupOrder)
         .map((g) => {
           const childNodes = buildTree(g.id, depth + 1);

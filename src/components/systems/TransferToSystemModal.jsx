@@ -9,6 +9,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { listSystems, getActiveSystemId, appendEntitiesToSystem } from "@/lib/systems";
 import { getMemberAlters, getSubsystemsOwnedBy, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
+import { childGroups as childGroupsOf } from "@/lib/groupTree";
 
 // Move or COPY an alter (or a group + its members) from the ACTIVE system into
 // another system. Reuses the cross-system blob writer (appendEntitiesToSystem):
@@ -42,10 +43,8 @@ function collectGroupSubtree(rootGroup, allGroups, allAlters) {
         if (!groupIds.has(owned.id)) stack.push({ g: owned, depth: depth + 1 });
       }
     }
-    for (const child of allGroups) {
-      if (child.parent && child.parent === g.id && !groupIds.has(child.id)) {
-        stack.push({ g: child, depth: depth + 1 });
-      }
+    for (const child of childGroupsOf(allGroups, g.id)) {
+      if (!groupIds.has(child.id)) stack.push({ g: child, depth: depth + 1 });
     }
   }
   return {
