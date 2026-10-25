@@ -57,7 +57,7 @@ function RichTextField({ value, onCommit, placeholder }) {
     </React.Suspense>
   );
 }
-import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
@@ -65,9 +65,8 @@ import FontUploadButton from "@/components/shared/FontUploadButton";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import { useFontOptions } from "@/lib/useFontOptions";
-// Same collapsible section shell Display options uses, so the two editors
-// read as one system rather than two conventions.
-import { SubSection } from "@/components/settings/SettingsUI";
+// The planner editor's add-chip, so the two editors read as one system.
+import DetailChip from "@/components/shared/DetailChip";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -592,6 +591,17 @@ function useLiveColors(open, instanceId, revision = "") {
   }, [open, instanceId, tick]);
 }
 
+// One look part of the sheet, opened from its chip (see lookParts).
+function LookPart({ open, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="rounded-lg border border-border/40 px-3 py-3 space-y-3">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  );
+}
+
 // Mirrors the TokenRow slider in Display options (− / range / + / readout)
 // so both editors handle a size the same way, plus this sheet's own Reset
 // (a widget value can be unset = follow the app).
@@ -744,6 +754,9 @@ export default function WidgetConfigSheet({
     ...Object.entries(allPresets).map(([name, preset]) => ({ name, preset, mine: false })),
   ].filter(({ preset }) => preset && (preset.light || preset.dark)), [allPresets, userCustomPresets]);
   const t = useTerms();
+  // Which look parts (Size & text / Colours / Styles / Icon) are open.
+  const [openParts, setOpenParts] = React.useState([]);
+  const toggleOpenPart = (id) => setOpenParts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   if (!open) return null;
 
   const defLabel = widgetAutoLabel(def, settings, t);
@@ -792,6 +805,25 @@ export default function WidgetConfigSheet({
     : effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
+  const hasOwnFields = (def.configFields || []).some((f) => f.section !== "ui");
+  const setHere = (keys) => keys.some((k) => {
+    const v = settings[k];
+    return v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
+  });
+  const lookParts = [
+    { id: "ui", label: "Size & text", icon: Type, has: setHere([
+      "controlScale", "halign", "valign", "fontScale", "radius", "borderW", "outlineW", "padding",
+      "borderStyle", "shadow", "font", "fontStyles", "headerFont", "headerFontStyles",
+      ...(def.configFields || []).filter((f) => f.section === "ui").map((f) => f.key),
+    ]) },
+    { id: "colors", label: "Colours", icon: Palette, has: setHere([
+      "accent", "bg", "bgImage", "textColor", "borderColor", "gradFrom", "gradTo", "blur", "css",
+    ]) },
+    { id: "styles", label: "Styles", icon: Star, has: setHere(["style"]) },
+    ...(widget.widgetId === "app_shortcut"
+      ? [{ id: "icon", label: "Icon", icon: ImageIcon, has: setHere(["iconName", "iconUrl"]) }]
+      : []),
+  ];
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
@@ -863,6 +895,33 @@ export default function WidgetConfigSheet({
               <LayoutGrid className="w-4 h-4" /> Move &amp; resize widgets
             </button>
           )}
+          {/* Display mode — the one question, as a segmented control like
+              the planner editor's Done / Now / Plan. `def.extraModes` lets a
+              HOST add modes of its own — the classic home offers "Classic"
+              (the untouched classic card) ahead of the board modes. */}
+          {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
+            <div role="radiogroup" aria-label="Display mode"
+              className="flex rounded-full border border-border/60 p-0.5 gap-0.5">
+              {[
+                ...(def.extraModes || []).map((x) => x.id),
+                ...HOME_MODES.filter((m) => def.supportsModes.includes(m)),
+              ].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={m === mode}
+                  onClick={() => onMode(widget.instanceId, m)}
+                  className={`flex-1 min-w-0 truncate text-xs py-1.5 px-1 rounded-full ${
+                    m === mode ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {(def.extraModes || []).find((x) => x.id === m)?.label || MODE_LABEL[m]}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div>
             <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
               Display name
@@ -885,7 +944,10 @@ export default function WidgetConfigSheet({
             )}
           </div>
 
-          <SubSection title="Widget config" icon={Settings2}>
+          {/* What the widget shows — its own settings, always open, first. */}
+          {hasOwnFields && (
+          <div className="space-y-3">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">What it shows</p>
           {/* Widget-specific options, declared by the registry entry. A
               field with section:"ui" (a size, a shape) renders under UI &
               text instead — config is WHAT the widget shows. */}
@@ -1028,14 +1090,25 @@ export default function WidgetConfigSheet({
             );
           })}
 
-          </SubSection>
+          </div>
+          )}
           {/* Appearance overrides, in the unified edit-menu anatomy
               (docs/v2-edit-menu-spec.md): UI size / Colors / Background /
               Presets, each a chevron section, sliders behind set buttons.
               These write CSS variables onto the widget wrapper, so the
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
-          <SubSection title="UI & text" icon={Type} defaultOpen>
+          {/* Everything about how it looks sits behind add-chips, like the
+              planner editor's optional fields: tap to open, a dot while
+              closed means this widget has its own setting there. */}
+          <div className="flex flex-wrap gap-1.5">
+            {lookParts.map((part) => (
+              <DetailChip key={part.id} open={openParts.includes(part.id)} has={part.has}
+                onToggle={() => toggleOpenPart(part.id)} label={part.label}
+                icon={<part.icon className="w-3 h-3" />} />
+            ))}
+          </div>
+          <LookPart open={openParts.includes("ui")} title="Size & text">
           {/* Same set-then-slide row as every other size here — a bare
               slider moved on a scroll through the sheet (the report). */}
           <SliderRow label="Content size" value={settings.controlScale} fallback={100}
@@ -1044,36 +1117,6 @@ export default function WidgetConfigSheet({
             onReset={() => onSettings(widget.instanceId, { controlScale: "" })} />
           {/* Layout (mode / across / down / content size) lives here with type
               and shape — one standard section, not two (the user's call). */}
-
-          {/* Display mode. `def.extraModes` lets a HOST add modes of its
-              own — the classic home offers "Classic" (the untouched
-              classic card) ahead of the board modes. */}
-          {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
-            <div>
-              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                Display mode
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  ...(def.extraModes || []).map((x) => x.id),
-                  ...HOME_MODES.filter((m) => def.supportsModes.includes(m)),
-                ].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => onMode(widget.instanceId, m)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                      m === mode
-                        ? "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border/50 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {(def.extraModes || []).find((x) => x.id === m)?.label || MODE_LABEL[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Content alignment within the widget's box. Centered by
               default; overflowing content still starts at the top. */}
@@ -1251,9 +1294,9 @@ export default function WidgetConfigSheet({
               </div>
             </div>
           </div>
-          </SubSection>
+          </LookPart>
 
-          <SubSection title="Colors & background" icon={Palette}>
+          <LookPart open={openParts.includes("colors")} title="Colours & background">
           <div className="space-y-3">
             {/* Four swatches on one line. The name, hex field, opacity,
                 Clear and "use the app colour" all live inside each picker's
@@ -1405,9 +1448,9 @@ export default function WidgetConfigSheet({
               )}
             </div>
           </div>
-          </SubSection>
+          </LookPart>
 
-          <SubSection title="Presets">
+          <LookPart open={openParts.includes("styles")} title="Styles">
           {/* Style presets — collapsed, because nine full-width cards open by
               default buried everything else in this sheet. */}
           <div>
@@ -1591,11 +1634,11 @@ export default function WidgetConfigSheet({
             </div>
           </div>
 
-          </SubSection>
+          </LookPart>
 
           {/* Icon override — app shortcuts only */}
           {widget.widgetId === "app_shortcut" && (
-            <SubSection title="Icon">
+            <LookPart open={openParts.includes("icon")} title="Icon">
             <div>
               <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
                 Icon
@@ -1637,7 +1680,7 @@ export default function WidgetConfigSheet({
                 )}
               </div>
             </div>
-            </SubSection>
+            </LookPart>
           )}
           <div className="pt-2 border-t border-border/50 space-y-2">
             {/* Copy this widget's look onto others — the alternative is

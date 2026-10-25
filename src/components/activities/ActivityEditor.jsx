@@ -30,7 +30,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek } from "date-fns";
 import { toast } from "sonner";
-import { CheckSquare, ChevronLeft, FolderTree, MapPin, Minus, Pause, Play, Plus, Repeat } from "lucide-react";
+import { CheckSquare, ChevronLeft, FolderTree, MapPin, Pause, Play, Repeat } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -62,6 +62,7 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { normalizeHex } from "@/lib/planTagColor";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
+import DetailChip from "@/components/shared/DetailChip";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
@@ -73,20 +74,6 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const chipCls = (on) => `text-xs px-2.5 py-1 rounded-full border ${
   on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
 }`;
-
-// One chip per optional field: always present, toggles its section.
-function DetailChip({ open, has, onToggle, label, icon }) {
-  return (
-    <button type="button" onClick={onToggle} aria-expanded={open}
-      className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${
-        open ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground hover:text-foreground"
-      }`}>
-      {open ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-      {icon}{label}
-      {!open && has && <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />}
-    </button>
-  );
-}
 
 const SectionLabel = ({ children }) => (
   <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{children}</p>

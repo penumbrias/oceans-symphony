@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "improve", text: "The Add widget menu is sorted by what widgets are for (Right now, Log, Plan & track and more), one row each with a quick + to add." },
+      { type: "improve", text: "Widget options start with the display mode and what the widget shows; size, colours and styles open from + chips like the planner." },
       { type: "improve", text: "More look-alike widgets are folded together: Today can show to-dos, plans or Coming up, and Sleep, Polls and Bulletin board let you pick their view. Widgets you already placed stay put." },
       { type: "improve", text: "Widgets that did the same job are folded together: Status can be a ticker, Check-in log can show feelings only, and Active and Page buttons let you pick what they show. Widgets you already placed stay put." },
       { type: "fix", text: "The \"Theme color changed\" daily task ticks again when you pick a colour preset or save a colour." },
