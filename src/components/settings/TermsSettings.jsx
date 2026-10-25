@@ -16,12 +16,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { markTermsCustomizedToday } from "@/lib/dailyTaskSystem";
 
+// Each base word and the key of its plural override.
+const PLURAL_KEY = { system: "systems", alter: "alters", switch: "switches", front: "fronts" };
+
 export default function TermsSettings({ embedded = false } = {}) {
   const qc = useQueryClient();
   const terms = useTerms();
   const [vals, setVals] = useState({
     system: "", alter: "", switch: "", front: "",
     fronting: "", fronter: "", switching: "",
+    systems: "", alters: "", switches: "", fronts: "",
     signpostAdd: "", signpostReplace: "",
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -34,6 +38,7 @@ export default function TermsSettings({ embedded = false } = {}) {
       system: preset.system, alter: preset.alter, switch: preset.switch, front: preset.front,
       // Presets are regular bases — clear any overrides the user had.
       fronting: "", fronter: "", switching: "",
+      systems: "", alters: "", switches: "", fronts: "",
     }));
   };
 
@@ -49,6 +54,10 @@ export default function TermsSettings({ embedded = false } = {}) {
   const setBase = (key, value) => {
     setVals((prev) => {
       const next = { ...prev, [key]: value };
+      // Same for the plural: an irregular plural belongs to the word it
+      // was typed for ("children" must not outlive "child").
+      const pk = PLURAL_KEY[key];
+      if (pk && prev[key] !== value) next[pk] = "";
       if (key === "front") {
         if (prev.fronting && prev.fronting === gerund(prev.front)) next.fronting = "";
         if (prev.fronter && prev.fronter === agent(prev.front)) next.fronter = "";
@@ -71,10 +80,14 @@ export default function TermsSettings({ embedded = false } = {}) {
       fronting: terms.fronting,
       fronter: terms.fronter,
       switching: terms.switching,
+      systems: terms.systems,
+      alters: terms.alters,
+      switches: terms.switches,
+      fronts: terms.fronts,
       signpostAdd: terms.signpostAdd || "+",
       signpostReplace: terms.signpostReplace || "-",
     });
-  }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching, terms.signpostAdd, terms.signpostReplace]);
+  }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching, terms.systems, terms.alters, terms.switches, terms.fronts, terms.signpostAdd, terms.signpostReplace]);
 
   // A signpost trigger must be a single symbol that can't blend into a name or
   // clash with the app's other inline syntax (@mention, /whisper, [ ] whisper
@@ -106,6 +119,12 @@ export default function TermsSettings({ embedded = false } = {}) {
     const autoFronting = gerund(baseFront);
     const autoFronter = agent(baseFront);
     const autoSwitching = gerund(baseSwitch);
+    const data0 = {
+      system: vals.system.trim() || "system",
+      alter: vals.alter.trim() || "alter",
+      switch: baseSwitch,
+      front: baseFront,
+    };
     const data = {
       term_system: vals.system.trim() || "system",
       term_alter: vals.alter.trim() || "alter",
@@ -114,6 +133,13 @@ export default function TermsSettings({ embedded = false } = {}) {
       term_fronting: vals.fronting.trim() && vals.fronting.trim() !== autoFronting ? vals.fronting.trim() : "",
       term_fronter: vals.fronter.trim() && vals.fronter.trim() !== autoFronter ? vals.fronter.trim() : "",
       term_switching: vals.switching.trim() && vals.switching.trim() !== autoSwitching ? vals.switching.trim() : "",
+      // Plurals: only an irregular one is stored (blank = add an "s"), the
+      // same rule the first-run setup uses.
+      ...Object.fromEntries(Object.entries(PLURAL_KEY).map(([base, pk]) => {
+        const word = data0[base];
+        const typed = (vals[pk] || "").trim();
+        return [`term_${pk}`, typed && typed !== pluralize(word) ? typed : ""];
+      })),
       signpost_add: addSign,
       signpost_replace: replaceSign,
     };
@@ -165,19 +191,19 @@ export default function TermsSettings({ embedded = false } = {}) {
         <div className="text-xs text-muted-foreground space-y-0.5">
           <p>
             <span className="font-medium">System:</span>{" "}
-            <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{pluralize(vals.system)}</span>
+            <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{vals.systems || pluralize(vals.system)}</span>
           </p>
           <p>
             <span className="font-medium">Alter:</span>{" "}
-            <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{pluralize(vals.alter)}</span>
+            <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{vals.alters || pluralize(vals.alter)}</span>
           </p>
           <p>
             <span className="font-medium">Switch:</span>{" "}
-            <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{gerund(vals.switch)}</span>
+            <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.switches || pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{gerund(vals.switch)}</span>
           </p>
           <p>
             <span className="font-medium">Front:</span>{" "}
-            <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronting || gerund(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronter || agent(vals.front)}</span>
+            <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{vals.fronts || pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronting || gerund(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronter || agent(vals.front)}</span>
           </p>
         </div>
 
@@ -231,7 +257,7 @@ export default function TermsSettings({ embedded = false } = {}) {
           {showAdvanced && (
             <div className="mt-2 space-y-2">
               <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
-                Used when the base term isn't a regular verb. e.g. setting Front to "active" would auto-conjugate to "activing" / "activer" — type "activating" / "active fronter" here instead. Leave blank to fall back to auto-conjugation.
+                Used when the base term isn't a regular word. e.g. setting Front to "active" would auto-conjugate to "activing" / "activer" — type "activating" / "active fronter" here instead, or "children" for the plural of "child". Leave blank to fall back to the automatic form.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -252,6 +278,17 @@ export default function TermsSettings({ embedded = false } = {}) {
                     className="h-8 text-sm"
                   />
                 </div>
+                {Object.entries(PLURAL_KEY).map(([base, pk]) => (
+                  <div key={pk}>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Plural of “{vals[base] || base}”</label>
+                    <Input
+                      value={vals[pk]}
+                      onChange={(e) => setVals((p) => ({ ...p, [pk]: e.target.value }))}
+                      placeholder={pluralize(vals[base] || base)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                ))}
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-muted-foreground block mb-1">Switching form</label>
                   <Input

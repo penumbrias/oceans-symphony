@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "feature", text: "Settings → Terminology can now spell plurals your way (child → children), not only during setup." },
+      { type: "feature", text: "Settings → {{Alter}} setup has a screen for showing {{alters}} by name, alias or both." },
+      { type: "fix", text: "Backups now keep the planner's last view, each Upcoming plans panel's limit and your open grocery list." },
       { type: "fix", text: "The notebook widget runs ~commands and signs entries with who's in {{front}}, like the journal editor." },
       { type: "fix", text: "The \"running now\" widget updates as soon as an activity starts or ends, and ending a contact visit there updates the contacts screens." },
       { type: "fix", text: "Widget options: you can type a colour code into the colour picker again." },
