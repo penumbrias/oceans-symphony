@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Changing who's primary in Get to know me no longer resets their \"{{fronting}} since\" time." },
+      { type: "fix", text: "Swipes, holds, the level slider and quick actions now update {{front}} the same way as the {{front}} sheet, so friends see the change and old or duplicate entries get tidied up." },
       { type: "feature", text: "New in Manage Check-In → Feelings: choose who entries belong to when you don't pick — everyone in {{front}}, everyone except some levels, or nobody." },
     ],
   },

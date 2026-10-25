@@ -29,6 +29,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { saveStatusNote } from "@/lib/checkinEntry";
+import { changeFront } from "@/lib/setFront";
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -720,32 +721,15 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   // any open per-alter panel since the session it referenced may be gone.
   useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
+  // Both write through the one set-front path (setFront.js), which reads
+  // the front fresh at write time, demotes every other primary, converts a
+  // legacy grouped row instead of rewriting it, and ends duplicate rows.
   const handleSetPrimaryFromHold = async (alter) => {
     try {
-      // Refetch so the handler doesn't act on a stale `activeSessions`
-      // closure and so we can find every existing primary, not just the first.
-      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-      const newModel = fresh.filter(s => s.alter_id);
-      if (newModel.length > 0) {
-        const targetSession = newModel.find(s => s.alter_id === alter.id);
-        // Demote every existing primary so we never leave duplicates.
-        for (const s of newModel.filter(s => s.is_primary && s.alter_id !== alter.id)) {
-          try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
-        }
-        if (targetSession) {
-          await base44.entities.FrontingSession.update(targetSession.id, { is_primary: true });
-        } else {
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: true,
-            start_time: new Date().toISOString(),
-            is_active: true,
-          });
-        }
-      } else if (active) {
-        const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])].filter(id => id !== alter.id);
-        await base44.entities.FrontingSession.update(active.id, { primary_alter_id: alter.id, co_fronter_ids: newCoFronters });
-      }
+      await changeFront((cur) => {
+        const rest = cur.map((s) => ({ ...s, isPrimary: s.alterId === alter.id }));
+        return rest.some((s) => s.alterId === alter.id) ? rest : [...rest, { alterId: alter.id, isPrimary: true }];
+      }, { queryClient, terms, alters });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
@@ -754,17 +738,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
 
   const handleRemoveFromFront = async (alter) => {
     try {
-      // Refetch — the closure-captured `activeSessions` snapshot may be
-      // stale, AND if duplicate active rows exist for this alter (e.g.
-      // after a botched sync) the old `.find()` would only end the first
-      // one and leave the rest active. End EVERY active row matching this
-      // alter so the alter is truly off front.
-      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-      const now = new Date().toISOString();
-      const targets = fresh.filter(s => (s.alter_id || s.primary_alter_id) === alter.id);
-      for (const s of targets) {
-        try { await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now }); } catch {}
-      }
+      await changeFront((cur) => cur.filter((s) => s.alterId !== alter.id), { queryClient, terms, alters });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       toast.success(`${alter.name} removed from ${terms.front}`);

@@ -67,7 +67,8 @@ export async function recomputePrimaryFromLevels({ cfg, queryClient = null }) {
   } catch { /* best-effort — never block the user's own action */ }
 }
 
-// Open-time read + repair (ported from the old modal's open effect): sweep
+// THE ghost-session cleaner — the app-load sweep and the set-front
+// surfaces all run this one. Read + repair: sweep
 // ghost-active rows (is_active false, end_time null), dedupe multiple
 // active sessions per alter (keep newest), demote phantom extra primaries.
 // Returns the clean picture a set-front surface should seed its draft from.
@@ -83,10 +84,20 @@ async function reconcileActiveFrontInner() {
   try {
     const ghosts = await base44.entities.FrontingSession.filter({ is_active: false, end_time: null });
     for (const g of ghosts || []) {
-      await base44.entities.FrontingSession.update(g.id, { end_time: now });
-      cleanupHappened = true;
+      try { await base44.entities.FrontingSession.update(g.id, { end_time: now }); cleanupHappened = true; } catch { /* keep going */ }
     }
   } catch { /* not all backends support filter on end_time: null */ }
+
+  // Sort key hardened against bad rows: an unparseable start_time compared
+  // as NaN, which makes Array.sort order arbitrary — the cleaner could keep
+  // the broken row and end the alter's real, live session ("my fronting
+  // status randomly disappeared overnight"). Invalid times sort oldest,
+  // and on a tie the primary row survives.
+  const ts = (s) => {
+    const t = new Date(s.start_time || NaN).getTime();
+    return Number.isFinite(t) ? t : -Infinity;
+  };
+  const newestFirst = (a, b) => (ts(b) - ts(a)) || ((b.is_primary === true) - (a.is_primary === true));
 
   const sessionsByAlter = {};
   for (const s of newModelSessions) {
@@ -94,7 +105,7 @@ async function reconcileActiveFrontInner() {
   }
   const survivors = [];
   for (const sessions of Object.values(sessionsByAlter)) {
-    sessions.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    sessions.sort(newestFirst);
     survivors.push(sessions[0]);
     for (const stale of sessions.slice(1)) {
       try { await base44.entities.FrontingSession.update(stale.id, { is_active: false, end_time: now }); cleanupHappened = true; } catch { /* keep going */ }
@@ -103,7 +114,7 @@ async function reconcileActiveFrontInner() {
 
   const stillPrimary = survivors.filter((s) => s.is_primary);
   if (stillPrimary.length > 1) {
-    stillPrimary.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    stillPrimary.sort(newestFirst);
     for (const s of stillPrimary.slice(1)) {
       try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); s.is_primary = false; cleanupHappened = true; } catch { /* keep going */ }
     }
@@ -176,8 +187,14 @@ async function applyFrontSelectionInner({
   }
 
   // Handle legacy sessions (old format with primary_alter_id)
+  // Each alter's row is recreated in the new shape; one still in front keeps
+  // the grouped row's start, so converting doesn't reset "fronting since".
   const legacySessions = activeSessions.filter((s) => !s.alter_id && s.primary_alter_id);
+  const legacyStart = {};
   for (const s of legacySessions) {
+    for (const id of [s.primary_alter_id, ...(s.co_fronter_ids || [])]) {
+      if (id && s.start_time && !legacyStart[id]) legacyStart[id] = s.start_time;
+    }
     await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
   }
 
@@ -230,7 +247,7 @@ async function applyFrontSelectionInner({
       const newSession = await base44.entities.FrontingSession.create({
         alter_id: id,
         is_primary: want.isPrimary,
-        start_time: now,
+        start_time: (!sessions.length && legacyStart[id]) || now,
         is_active: true,
         ...(levelsEnabled && want.level !== undefined ? { front_level: want.level } : {}),
       });
@@ -284,4 +301,65 @@ async function applyFrontSelectionInner({
   }).catch(() => {});
 
   return { firstSessionId };
+}
+
+// ── Small front changes (v0.279.4, roadmap step 3) ────────────────────
+// Swipes, holds, the level rail, quick actions and Get to know me each
+// wrote FrontingSession rows by hand. Between them they reset "fronting
+// since" on a primary change, left duplicates and legacy rows behind,
+// skipped the friends push and dropped levels. They all edit the front
+// through here now:
+//
+//   changeFront(edit) — reads the front fresh, hands `edit` the current
+//   selections ([{ alterId, isPrimary, level }], one per alter, legacy
+//   rows included) and writes whatever it returns through
+//   applyFrontSelection. Return null/undefined to leave the front alone;
+//   an empty list clears it. Pass levelCfg when the change is about
+//   levels so the lead follows the spectrum (as the rail always did).
+export function currentFrontSelections(activeSessions) {
+  const byAlter = new Map();
+  for (const s of activeSessions || []) {
+    if (!s || s.is_active === false) continue;
+    if (s.alter_id) {
+      const prev = byAlter.get(s.alter_id);
+      byAlter.set(s.alter_id, {
+        alterId: s.alter_id,
+        isPrimary: !!s.is_primary || !!prev?.isPrimary,
+        level: prev?.level ?? s.front_level ?? undefined,
+      });
+    } else if (s.primary_alter_id) {
+      if (!byAlter.has(s.primary_alter_id)) byAlter.set(s.primary_alter_id, { alterId: s.primary_alter_id, isPrimary: true, level: undefined });
+      for (const id of s.co_fronter_ids || []) {
+        if (id && !byAlter.has(id)) byAlter.set(id, { alterId: id, isPrimary: false, level: undefined });
+      }
+    }
+  }
+  return [...byAlter.values()];
+}
+
+let frontChain = Promise.resolve();
+export function changeFront(edit, opts = {}) {
+  // Queued: two quick gestures each see the other's result.
+  const run = frontChain.then(() => doChangeFront(edit, opts));
+  frontChain = run.catch(() => {});
+  return run;
+}
+
+async function doChangeFront(edit, { queryClient = null, terms = {}, alters = null, levelCfg = null, triggered = null } = {}) {
+  const active = await base44.entities.FrontingSession.filter({ is_active: true });
+  const current = currentFrontSelections(active);
+  const next = edit(current.map((s) => ({ ...s })), active);
+  if (!Array.isArray(next)) return { changed: false, current };
+  const roster = alters || await base44.entities.Alter.list().catch(() => []);
+  const result = await applyFrontSelection({
+    selections: next,
+    clearAll: next.length === 0,
+    triggered,
+    levelsEnabled: true,
+    levelCfg,
+    alters: roster,
+    terms,
+    queryClient,
+  });
+  return { changed: true, current, ...result };
 }

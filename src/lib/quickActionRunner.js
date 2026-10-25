@@ -21,6 +21,7 @@ import { ALL_PAGES } from "@/utils/navigationConfig";
 import { startSymptomSession } from "@/lib/symptomSessions";
 import { logEmotionCheckIn, logSymptomCheckIn, saveStatusNote, logLocation, logDiaryCard } from "@/lib/checkinEntry";
 import { findSleepInProgress, startSleep, endSleep } from "@/lib/sleepEntry";
+import { changeFront } from "@/lib/setFront";
 
 const safe = (p) => Promise.resolve(p).then((v) => (Array.isArray(v) ? v : [])).catch(() => []);
 
@@ -63,32 +64,24 @@ export async function runQuickAction(action, extraData = {}, ctx) {
   } else if (action.type === "set_front_alter") {
     const alterId = action.config?.alter_id;
     if (!alterId) return;
-    const active = await base44.entities.FrontingSession.filter({ is_active: true });
-    await Promise.all(active.map((s) =>
-      base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now })
-    ));
-    await base44.entities.FrontingSession.create({ alter_id: alterId, is_primary: true, start_time: now, is_active: true });
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    // The same write path as every set-front surface: their own session
+    // (and "fronting since") is kept if they were already in front.
+    await changeFront((cur) => [{ alterId, isPrimary: true, level: cur.find((x) => x.alterId === alterId)?.level }], { queryClient, terms, alters });
     const alterObj = alters.find((a) => a.id === alterId);
     toast.success(`${alterObj?.name || "Alter"} set as ${terms.fronting}`);
   } else if (action.type === "add_to_front_alter") {
     const alterId = action.config?.alter_id;
     if (!alterId) return;
-    // Refetch-before-write: creating unconditionally gave an already-
-    // fronting alter a SECOND active row — and the next boot sweep would
-    // end the original (older) row, silently dropping their primary flag
-    // and resetting "fronting since".
-    const activeNow = await base44.entities.FrontingSession.filter({ is_active: true });
-    const already = activeNow.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
-    if (already) {
+    // changeFront reads the front fresh, so an alter already in front is
+    // left alone instead of getting a second row.
+    const { changed } = await changeFront((cur) => (
+      cur.some((x) => x.alterId === alterId) ? null : [...cur, { alterId, isPrimary: false }]
+    ), { queryClient, terms, alters });
+    if (!changed) {
       const alterObj = alters.find((a) => a.id === alterId);
       toast.info(`${alterObj?.name || "Alter"} is already ${terms.fronting}`);
       return;
     }
-    await base44.entities.FrontingSession.create({ alter_id: alterId, is_primary: false, start_time: now, is_active: true });
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
     const alterObj = alters.find((a) => a.id === alterId);
     toast.success(`${alterObj?.name || "Alter"} added as co-${terms.fronter}`);
   } else if (action.type === "log_activity") {

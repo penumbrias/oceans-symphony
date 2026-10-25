@@ -16,10 +16,9 @@ import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import PresencePicker from "@/components/presences/PresencePicker";
 import { useTerms } from "@/lib/useTerms";
-import { applyFrontSelection } from "@/lib/setFront";
+import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
-import { formatInTimeZone } from "date-fns-tz";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
@@ -32,12 +31,6 @@ export const TRIGGER_CATEGORIES = [
   { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
   { id: "unknown",         label: "Unknown",        emoji: "❓" },
 ];
-
-// Returns an ISO string in the user's detected local timezone (not hardcoded)
-function nowLocalIso() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return formatInTimeZone(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-}
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -422,65 +415,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
     (async () => {
       try {
-        const active = await base44.entities.FrontingSession.filter({ is_active: true });
-        const newModelSessions = active.filter(s => s.alter_id);
-        const now = nowLocalIso();
-        let cleanupHappened = false;
-
-        // Sweep orphaned "ghost active" sessions: rows where end_time is
-        // still null but is_active was already flipped to false. They
-        // render as "Active" in the Timeline popover (which keys off
-        // end_time being null) but don't appear in the modal or
-        // CurrentFronters (which key off is_active === true), so the
-        // user can't end them via any normal path. Set end_time = now
-        // for the lot so they reconcile and stop displaying as Active.
-        try {
-          const ghosts = await base44.entities.FrontingSession.filter({ is_active: false, end_time: null });
-          for (const g of ghosts || []) {
-            await base44.entities.FrontingSession.update(g.id, { end_time: now });
-            cleanupHappened = true;
-          }
-        } catch { /* not all backends support filter on end_time: null */ }
-
-        // 1. Group by alter_id; for any alter with >1 active session, keep
-        // the newest and end the rest. Mirrors the dedupe that already runs
-        // inside handleSave so the in-modal state matches what would be
-        // saved.
-        const sessionsByAlter = {};
-        for (const s of newModelSessions) {
-          (sessionsByAlter[s.alter_id] ||= []).push(s);
-        }
-        const survivors = [];
-        for (const sessions of Object.values(sessionsByAlter)) {
-          sessions.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-          survivors.push(sessions[0]);
-          for (const stale of sessions.slice(1)) {
-            try { await base44.entities.FrontingSession.update(stale.id, { is_active: false, end_time: now }); cleanupHappened = true; } catch {}
-          }
-        }
-
-        // 2. If multiple survivors are still marked is_primary, demote all
-        // but the newest. Prevents the "phantom primary" where a leftover
-        // is_primary row keeps showing as primary even after a fresh
-        // promotion happened.
-        const stillPrimary = survivors.filter(s => s.is_primary);
-        if (stillPrimary.length > 1) {
-          stillPrimary.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-          for (const s of stillPrimary.slice(1)) {
-            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); s.is_primary = false; cleanupHappened = true; } catch {}
-          }
-        }
-
-        if (survivors.length > 0) {
-          const primarySess = survivors.find(s => s.is_primary);
-          const coSessions = survivors.filter(s => !s.is_primary);
+        // The one cleaner (setFront.js) — dedupe, demote extra primaries,
+        // close ghost rows — then seed the draft from what it returns.
+        const { sessions, cleanupHappened } = await reconcileActiveFront();
+        if (sessions.length > 0) {
+          const primarySess = sessions.find(s => s.is_primary);
           setPrimaryId(primarySess?.alter_id || "");
-          setCoFronterIds(coSessions.map(s => s.alter_id));
-        } else if (active.length > 0) {
-          // Legacy fallback
-          const s = active[0];
-          setPrimaryId(s.primary_alter_id || "");
-          setCoFronterIds(s.co_fronter_ids || []);
+          setCoFronterIds(sessions.filter(s => !s.is_primary).map(s => s.alter_id));
         } else {
           // No active sessions — clear stale state from any prior open
           // so the modal doesn't appear to have the last-known fronter
