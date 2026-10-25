@@ -19,6 +19,7 @@ import SubsystemAlterList from "./SubsystemAlterList";
 import AlterFilterPopup from "./AlterFilterPopup";
 import MassArchiveModal from "./MassArchiveModal";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { rootGroups as topLevelGroups } from "@/lib/groupTree";
 
 export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
@@ -219,7 +220,7 @@ export default function AlterGrid({ alters }) {
   });
 
   // Root-level groups for display
-  const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
+  const rootGroups = topLevelGroups(allGroups);
 
   // Alters that live inside someone's subsystem — by default they show
   // nested under their owner in the list (not flat at the top level).

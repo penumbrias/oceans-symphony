@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Imported groups now nest in the right place everywhere, including Groups and the group pickers." },
+      { type: "fix", text: "A group whose folder was deleted, or that ended up inside itself, now shows at the top level in every list instead of disappearing." },
       { type: "fix", text: "Deleting an {{alter}} now puts their notes, board messages and relationships in the trash with them, so restoring brings everything back." },
       { type: "fix", text: "Group changes from an {{alter}}'s profile, a new {{alter}} or a new presence now stick, including for imported groups." },
       { type: "fix", text: "Merging duplicate {{alters}} now moves everything recorded for a copy onto the one you keep." },

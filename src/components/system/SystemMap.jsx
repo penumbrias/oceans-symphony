@@ -11,7 +11,7 @@ import useSystemMapLayout from "@/lib/useSystemMapLayout";
 import { computeFrontingTimeAll } from "@/lib/systemMapCompute";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { byGroupOrder } from "@/lib/groupTreeUtils";
+import { byGroupOrder } from "@/lib/groupTree";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";

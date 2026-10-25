@@ -12,7 +12,7 @@ import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
-import { byGroupOrder } from "@/lib/groupTreeUtils";
+import { byGroupOrder, rootGroups, childGroups as childGroupsOf } from "@/lib/groupTree";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
 import useLongPress from "@/hooks/useLongPress";
@@ -196,20 +196,16 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   const currentGroupKey = currentGroup ? currentGroup.id : null;
 
   // Get child groups at current level
-  const childGroups = allGroups.
-  filter((g) => {
-    if (currentGroupKey === null) {
-      const isRoot = !g.parent || g.parent === "" || g.parent === "root";
-      // At the top level, keep subsystems out unless the toggle is on.
-      if (isRoot && g.owner_alter_id && !showSubsystems) return false;
-      return isRoot;
-    }
-    return g.parent && (g.parent === currentGroupKey || g.parent === currentGroup?.sp_id);
-  }).
-  sort(byGroupOrder);
+  // Top level includes groups whose parent is gone or loops, so none can
+  // be buried out of reach.
+  const childGroups = (currentGroupKey === null
+    // At the top level, keep subsystems out unless the toggle is on.
+    ? rootGroups(allGroups).filter((g) => !g.owner_alter_id || showSubsystems)
+    : childGroupsOf(allGroups, currentGroupKey)
+  ).sort(byGroupOrder);
 
   // Are there any subsystems at root that the toggle could reveal?
-  const rootSubsystemCount = allGroups.filter((g) => (!g.parent || g.parent === "" || g.parent === "root") && g.owner_alter_id).length;
+  const rootSubsystemCount = rootGroups(allGroups).filter((g) => g.owner_alter_id).length;
 
   // The owner alter of a subsystem group, if any. Shown as the "parent"
   // at the top, and excluded from the member list below so they don't

@@ -1,43 +1,28 @@
 import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Crown, Check, Search } from "lucide-react";
+import { flattenGroupTree, descendantGroupIds } from "@/lib/groupTree";
 
 // Single-select, nested, parent-respecting group/subsystem dropdown — the
-// single-select sibling of GroupTreeSelect. Used as the "Parent group" picker
+// single-select group picker. Used as the "Parent group" picker
 // so the chosen parent respects the nesting tree instead of a flat <select>.
 //
 // Portaled to <body> with fixed positioning so it escapes the dialog's CSS
 // transform (which would otherwise detach a plain fixed popover) and any
 // overflow clipping.
 //
-// Groups nest via `parent` (a group id OR sp_id). Cycle-safe via a `seen` set.
+// Groups nest via `parent` (a group id OR sp_id); the tree, its cycle guard
+// and depth clamp all come from groupTree.
 
-function childrenOf(group, groups) {
-  return groups.filter((g) => {
-    const p = g.parent || "";
-    if (!p || p === "root") return false;
-    return p === group.id || (group.sp_id && p === group.sp_id);
-  });
-}
-
-// Ordered, depth-tagged, cycle-safe flatten. Skips any group in excludeIds
-// (the group being edited + its descendants) so you can't pick yourself or a
-// child as your own parent.
+// Ordered, depth-tagged flatten. Skips any group in excludeIds (the group
+// being edited + its descendants) so you can't pick yourself or a child as
+// your own parent. Groups whose parent is gone or loops show at the top.
 function flatten(groups, excludeIds) {
-  const roots = groups.filter((g) => {
-    const p = g.parent || "";
-    if (!p || p === "root") return true;
-    return !groups.some((x) => x.id === p || x.sp_id === p);
-  });
   const rows = [];
-  const walk = (group, level, seen) => {
-    if (seen.has(group.id) || excludeIds.has(group.id)) return;
-    rows.push({ group, level });
-    const next = new Set(seen);
-    next.add(group.id);
-    childrenOf(group, groups).forEach((k) => walk(k, level + 1, next));
-  };
-  roots.forEach((r) => walk(r, 0, new Set()));
+  for (const g of flattenGroupTree(groups, { sort: "order" })) {
+    if (excludeIds.has(g.id)) continue;
+    rows.push({ group: g, level: g._depth || 0 });
+  }
   return rows;
 }
 
@@ -86,14 +71,8 @@ export default function GroupSelect({
       ids.add(excludeId);
       return ids;
     }
-    const collect = (g, seen) => {
-      if (seen.has(g.id)) return;
-      ids.add(g.id);
-      const s = new Set(seen);
-      s.add(g.id);
-      childrenOf(g, groups).forEach((k) => collect(k, s));
-    };
-    collect(target, new Set());
+    ids.add(target.id);
+    for (const id of descendantGroupIds(groups, target.id)) ids.add(id);
     return ids;
   }, [groups, excludeId]);
 

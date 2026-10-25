@@ -18,6 +18,7 @@ import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { descendantGroupIds } from "@/lib/groupTree";
 
 // Avatar that resolves local-image:// (and the SW /local-image/ path) the
 // way the rest of the app does — a raw <img src> on a legacy
@@ -57,22 +58,10 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
   });
 
   // Get all group IDs including subgroups if needed
-  const getGroupIds = (groupId, includeSubgroups, seen = new Set()) => {
-    if (!includeSubgroups) return [groupId];
-    // Cycle guard: a parent loop (A→B→A) used to overflow the stack the
-    // moment "Include alters from subgroups" was ticked.
-    if (seen.has(groupId)) return [];
-    seen.add(groupId);
-    const ids = [groupId];
-    // Check both parent === groupId and parent === sp_id of groupId
-    const currentGroup = allGroups.find((g) => g.id === groupId);
-    const parentMatch = currentGroup?.sp_id || groupId;
-    const subgroups = allGroups.filter((g) => g.parent === groupId || g.parent === parentMatch);
-    subgroups.forEach((sg) => {
-      ids.push(...getGroupIds(sg.id, true, seen));
-    });
-    return ids;
-  };
+  // Cycle-guarded and depth-clamped in groupTree (a parent loop used to
+  // overflow the stack the moment "Include subgroups" was ticked).
+  const getGroupIds = (groupId, includeSubgroups) =>
+    includeSubgroups ? [groupId, ...descendantGroupIds(allGroups, groupId)] : [groupId];
 
   const groupIds = useMemo(
     () => getGroupIds(group.id, includeSubgroups),
