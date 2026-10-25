@@ -4,11 +4,12 @@ import { Pin, Zap, Flag, Clock, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
-import { syncTaskCompleted } from "@/lib/linkedCompletion";
+import { setTaskCompleted } from "@/lib/linkedCompletion";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
 import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
 import { toast } from "sonner";
+import { taskNote } from "@/lib/taskCreate";
 
 // Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
 // ones (and the Tapestry preview) store full ISO timestamps. Concatenating
@@ -129,11 +130,7 @@ function PinnedTaskRow({ task }) {
       // completed_date must move with completed (matches ToDoList.jsx) —
       // without it the todo_completed daily trigger, Timeline, and analytics
       // never see completions made from this pin.
-      await base44.entities.Task.update(task.id, {
-        completed: !task.completed,
-        completed_date: !task.completed ? new Date().toISOString() : null,
-      });
-      if (!task.completed) await syncTaskCompleted(task.id);
+      await setTaskCompleted(task.id, !task.completed);
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["pinnedTasks"] });
@@ -237,8 +234,8 @@ function PinnedTaskRow({ task }) {
               )}
             </div>
           )}
-          {task.description && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+          {taskNote(task) && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{taskNote(task)}</p>
           )}
         </div>
       </div>

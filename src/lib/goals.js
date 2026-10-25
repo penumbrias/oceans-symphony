@@ -26,7 +26,7 @@ import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activitySt
 import { indexById, getAncestorIds } from "@/lib/categoryTreeUtils";
 import { isTemplateDoneNow } from "@/lib/dailyTaskSystem";
 import { createTask } from "@/lib/taskCreate";
-import { syncTaskCompleted } from "@/lib/linkedCompletion";
+import { setTaskCompleted } from "@/lib/linkedCompletion";
 
 export const GOALS_QUERY_KEY = ["goals"];
 export const GOAL_STEPS_QUERY_KEY = ["goalSteps"];
@@ -217,10 +217,7 @@ export async function toggleStep(step, state) {
   const kind = step.kind || "check";
   if (kind === "todo" && state?.linked) {
     const completed = !state.linked.completed;
-    await base44.entities.Task.update(state.linked.id, {
-      completed, completed_date: completed ? new Date().toISOString() : null,
-    });
-    if (completed) await syncTaskCompleted(state.linked.id);
+    await setTaskCompleted(state.linked.id, completed);
     return;
   }
   if (kind === "plan" && state?.linked) {

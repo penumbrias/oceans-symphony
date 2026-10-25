@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { taskCountConfig, taskCountState, countLabel } from "@/lib/taskCounts";
 import { TaskCounter, TaskStepList, useTaskTicks } from "@/components/tasks/TaskCountControls";
+import { taskNote } from "@/lib/taskCreate";
 
 export default function TaskCard({ task, completed, onToggle }) {
   const navigate = useNavigate();
@@ -39,8 +40,8 @@ export default function TaskCard({ task, completed, onToggle }) {
               {task.points} pts
             </span>
           </div>
-          {task.description && (
-            <p className="text-xs text-muted-foreground leading-relaxed">{task.description}</p>
+          {taskNote(task) && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{taskNote(task)}</p>
           )}
           {countMode === "steps" && <TaskStepList task={task} ticks={ticks} />}
         </div>

@@ -20,7 +20,7 @@
 
 import { base44 } from "@/api/base44Client";
 import {
-  getPeriodKey, customWindowStart, isTemplateDoneNow, toggleTemplateDone, markDailyTaskCompletedToday,
+  getPeriodKey, customWindowStart, isTemplateDoneNow, toggleTemplateDone,
 } from "@/lib/dailyTaskSystem";
 
 export const TASK_COUNT_MODES = ["once", "target", "tally", "steps"];
@@ -94,12 +94,8 @@ async function syncDone(template, before, after, templates) {
   const done = isTemplateDoneNow(template, progress);
   if (after.complete === done) return null;
   const all = templates?.length ? templates : await base44.entities.DailyTaskTemplate.list().catch(() => []);
+  // toggleTemplateDone also sets the "any daily task done" trigger.
   await toggleTemplateDone(template, { templates: all, allProgress: progress });
-  // Same meta trigger a hand tick sets (never for the task that tracks it).
-  const triggers = Array.isArray(template.auto_triggers) ? template.auto_triggers : [template.auto_trigger];
-  if (after.complete && (template.frequency || "daily") === "daily" && !triggers.includes("daily_task_completed")) {
-    markDailyTaskCompletedToday();
-  }
   return after.complete;
 }
 

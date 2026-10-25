@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { syncTaskCompleted } from "@/lib/linkedCompletion";
+import { setTaskCompleted } from "@/lib/linkedCompletion";
+import { deleteTask } from "@/lib/taskCreate";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -50,18 +51,17 @@ export default function ToDoList() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (taskId) => base44.entities.Task.delete(taskId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks"] }); },
+    mutationFn: (taskId) => deleteTask(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["bulletins"] });
+    },
   });
 
   const toggleMutation = useMutation({
     mutationFn: async ({ taskId, completed }) => {
-      await base44.entities.Task.update(taskId, {
-        completed,
-        completed_date: completed ? new Date().toISOString() : null,
-      });
       // Ticking the to-do resolves its linked plan too (Phase 1 sync).
-      if (completed) await syncTaskCompleted(taskId);
+      await setTaskCompleted(taskId, completed);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });

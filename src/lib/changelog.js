@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Deleting a to-do now puts its subtasks and board card in the trash with it, so restoring brings the whole list back." },
+      { type: "fix", text: "Notes on to-dos made from the planner now show on the to-do and can be found in search." },
+      { type: "fix", text: "Finishing a plan partly now completes its to-do from every screen, and unticking a to-do no longer leaves it done in the planner." },
+      { type: "fix", text: "To-dos added to today from a widget now show on the right day everywhere, and widgets show due days instead of odd times." },
+      { type: "fix", text: "Ticking a daily task from a widget, shortcut or quick action now counts for \"any daily task done\"." },
       { type: "fix", text: "Privacy: whispers no longer show up in search, therapy reports or notification previews." },
       { type: "fix", text: "Privacy: messages in a private chat channel only show up in search while one of its {{alters}} is in {{front}}." },
       { type: "fix", text: "Therapy reports no longer print the scrambled text of locked journal entries." },
