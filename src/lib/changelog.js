@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Home screen: the clock, current focus, frequently opened pages and a few more widgets now follow their Text size option." },
       { type: "feature", text: "Settings → Terminology can now spell plurals your way (child → children), not only during setup." },
       { type: "feature", text: "Settings → {{Alter}} setup has a screen for showing {{alters}} by name, alias or both." },
       { type: "fix", text: "Backups now keep the planner's last view, each Upcoming plans panel's limit and your open grocery list." },

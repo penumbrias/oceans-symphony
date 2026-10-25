@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/finalize-build.mjs",
     "lint": "eslint . --quiet",
+    "check:widgets": "node scripts/check-widget-contract.mjs",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",

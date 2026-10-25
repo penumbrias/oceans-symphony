@@ -196,6 +196,7 @@ function MentionNotice({ mention, alter, formatAlter, onDismiss, onOpen }) {
       {avatarUrl ? (
         <img src={avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5" />
       ) : (
+        // contract-ok: white initial on the member's own colour (content).
         <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5"
           style={{ backgroundColor: alter?.color || "var(--v2-accent, hsl(var(--primary)))" }}>
           {(alter?.name || "?").charAt(0)}
