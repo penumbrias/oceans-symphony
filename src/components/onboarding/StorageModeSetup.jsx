@@ -6,7 +6,6 @@ import { Cloud, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } f
 import { setMode, setEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
-import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import DesktopFirstRunNotice from "@/components/onboarding/DesktopFirstRunNotice";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
@@ -59,7 +58,6 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   // the same fileInputRef the "Import a backup file" button below
   // uses, so they land in the same well-tested code path. Dismiss
   // sets a localStorage flag so it only fires once per install.
-  const [showMigration, setShowMigration] = useState(() => shouldShowTwaToNativeMigration());
 
   const handleChooseCloud = () => { setMode("cloud"); onComplete(); };
   const handleChooseLocal = () => { setStep("local_password"); };
@@ -426,23 +424,6 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
 
   return (
     <div className="space-y-4">
-      {/* Native-only TWA-to-native migration prompt. Rendered as the
-          first UI on the onboarding screen so users coming from a
-          Play Store auto-update see it BEFORE the storage-mode picker.
-          onImport delegates to the existing fileInputRef so the
-          import flow reuses the well-tested first-run importer
-          below. */}
-      <TwaToNativeMigrationModal
-        open={showMigration}
-        onClose={() => setShowMigration(false)}
-        onImport={() => {
-          setShowMigration(false);
-          // Defer one tick so the modal unmounts before we open the
-          // file picker — otherwise some Android WebView versions race
-          // the activity-stack transitions and suppress the dialog.
-          setTimeout(() => openImportPicker(), 50);
-        }}
-      />
       {/* Desktop-only: explain the separate-origin database before the
           user concludes their data is gone. Reuses the same import picker
           as the "Import a backup file" button further down, so there is
