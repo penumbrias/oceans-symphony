@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "The notebook widget runs ~commands and signs entries with who's in {{front}}, like the journal editor." },
+      { type: "fix", text: "The \"running now\" widget updates as soon as an activity starts or ends, and ending a contact visit there updates the contacts screens." },
       { type: "fix", text: "Widget options: you can type a colour code into the colour picker again." },
       { type: "fix", text: "Tapping \"+\" or \"−\" quickly in a sheet no longer opens the privacy cover." },
       { type: "fix", text: "Mentions no longer drop out of notifications after a busy day of writing notes." },

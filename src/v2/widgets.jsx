@@ -71,7 +71,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -90,7 +90,9 @@ import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getActiveActivities } from "@/lib/activitySession";
+import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { applyLogCommands } from "@/lib/logCommands";
+import { isLogCommandError } from "@/lib/authoredText";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 import { IconSlot } from "@/components/shared/LucideByName";
 import { Section, Row, Muted, TextAction, Dot, boxStyle, WidgetModeContext, useWidgetMode, rowsForMode } from "@/v2/primitives";
@@ -349,7 +351,14 @@ function ActiveWidget({ api }) {
   }).data || [];
   const symptoms = useList("symptoms", "Symptom");
   const sleeps = useList("sleep", "Sleep");
-  const activities = getActiveActivities();
+  // Running activities live outside react-query: re-read them whenever one
+  // starts, pauses or ends anywhere, not only on an unrelated re-render.
+  const [activities, setActivities] = React.useState(() => getActiveActivities());
+  React.useEffect(() => {
+    const refresh = () => setActivities(getActiveActivities());
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+    return () => window.removeEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+  }, []);
   const encounters = useQuery({
     queryKey: ["contactEncounters", "active"],
     queryFn: () => base44.entities.ContactEncounter.filter({ is_active: true }),
@@ -422,7 +431,8 @@ function ActiveWidget({ api }) {
                   e.stopPropagation();
                   const { endEncounter } = await import("@/lib/contactEncounters");
                   await endEncounter(enc.id, new Date().toISOString());
-                  qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
+                  // Whole family: the contacts screens read ["contactEncounters"].
+                  qc.invalidateQueries({ queryKey: ["contactEncounters"] });
                   try { window.dispatchEvent(new Event("symphony-encounters-changed")); } catch { /* SSR */ }
                 }}
                 className="text-[0.625em] px-1.5 py-0.5 border border-border/60 hover:border-primary/60"
@@ -1533,11 +1543,24 @@ function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" 
     // trailing &nbsp; (typed spaces become non-breaking at the end of a
     // node) — which then renders as literal "&nbsp;" wherever the entry is
     // shown as text. Strip trailing entity/whitespace runs before saving.
-    const content = text.replace(/(?:&nbsp;|<br\s*\/?>|\s)+$/gi, "").trim();
+    let content = text.replace(/(?:&nbsp;|<br\s*\/?>|\s)+$/gi, "").trim();
     if (!content || saving) return;
     setSaving(true);
     try {
+      // Inline ~commands run here exactly as in the Journals editor; a
+      // malformed one blocks the save so the text stays to fix.
+      try {
+        content = (await applyLogCommands(content, { isRich: true, source: "journal entry" })).content;
+      } catch (e) {
+        if (isLogCommandError(e)) { toast.error(e.message); return; }
+        throw e;
+      }
+      // Signed like every other new journal: the first person in front is
+      // the author, the others co-authors.
+      const who = await defaultAttributionIds();
       const created = await base44.entities.JournalEntry.create({
+        author_alter_id: who[0] || null,
+        co_author_alter_ids: who.slice(1),
         // Untitled entries match the Journals page editor exactly (it falls
         // back to the date-time string) so the entry lists read the same no
         // matter where the entry was written.
