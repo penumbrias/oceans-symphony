@@ -19,45 +19,10 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import DiarySection, { extraDiaryGroups } from "@/components/diary/DiarySection";
+import DiarySection from "@/components/diary/DiarySection";
+import { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 
-const plain = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : null);
-
-// Saved card → the { groupKey: { fieldKey: value } } shape DiarySection edits.
-// Inverse of what QuickCheckInModal writes: urges / body_mind are stored as-is,
-// the "skills" group is split into skills_practiced + medication_safety, and
-// any user-added template group lives in custom_groups.
-export function diaryCardToData(card) {
-  if (!card) return {};
-  const data = {};
-  for (const [key, group] of Object.entries(plain(card.custom_groups) || {})) {
-    if (plain(group)) data[key] = { ...group };
-  }
-  if (plain(card.urges)) data.urges = { ...card.urges };
-  if (plain(card.body_mind)) data.body_mind = { ...card.body_mind };
-  const skills = { ...(plain(card.medication_safety) || {}) };
-  if (card.skills_practiced !== undefined && card.skills_practiced !== null) skills.skills_practiced = card.skills_practiced;
-  if (Object.keys(skills).length) data.skills = skills;
-  return data;
-}
-
-// DiarySection data → the DiaryCard fields to update. Only diary fields.
-export function diaryDataToPatch(data) {
-  const d = data || {};
-  const skills = plain(d.skills);
-  let medication = null;
-  if (skills) {
-    const { skills_practiced: _sp, ...rest } = skills;
-    medication = Object.keys(rest).length ? rest : null;
-  }
-  return {
-    urges: plain(d.urges) ? { ...d.urges } : null,
-    body_mind: plain(d.body_mind) ? { ...d.body_mind } : null,
-    skills_practiced: skills?.skills_practiced ?? null,
-    medication_safety: medication,
-    custom_groups: extraDiaryGroups(d),
-  };
-}
+export { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 
 export async function deleteDiaryCardWithConfirm(card, queryClient) {
   if (!card?.id) return false;

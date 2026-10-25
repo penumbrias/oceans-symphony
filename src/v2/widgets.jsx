@@ -71,7 +71,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -2588,33 +2588,12 @@ function DiaryCardWidget({ mode = "normal" }) {
   // same shape the check-in writes.
   const [diaryData, setDiaryData] = React.useState({});
   const [saving, setSaving] = React.useState(false);
-  const { data: activeFront = [] } = useQuery({
-    queryKey: ["activeFront"],
-    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
-  });
   const dirty = hasDiaryData(diaryData);
   const save = async () => {
     if (!dirty || saving) return;
     setSaving(true);
     try {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, "0");
-      await base44.entities.DiaryCard.create({
-        card_type: "daily",
-        date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-        name: `Daily — ${now.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`,
-        fronting_alter_ids: activeFront.map((x) => x.alter_id || x.primary_alter_id).filter(Boolean),
-        emotions: [],
-        urges: diaryData.urges || null,
-        body_mind: diaryData.body_mind || null,
-        skills_practiced: diaryData.skills?.skills_practiced ?? null,
-        medication_safety: diaryData.skills ? {
-          rx_meds_taken: diaryData.skills.rx_meds_taken,
-          self_harm_occurred: diaryData.skills.self_harm_occurred,
-          substances_count: diaryData.skills.substances_count,
-        } : null,
-        notes: null,
-      });
+      await logDiaryCard(diaryData);
       qc.invalidateQueries({ queryKey: ["diaryCards"] });
       setDiaryData({});
       toast.success("Diary saved");

@@ -131,22 +131,6 @@ export default function DiarySection({ data, onChange }) {
   );
 }
 
-const BUILTIN_DIARY_GROUPS = new Set(["urges", "body_mind", "skills"]);
-const groupHasData = (group) => !!group && typeof group === "object"
-  && Object.values(group).some(v => v !== undefined && v !== null && v !== "");
-
-// Helper: check if any diary field has data — including groups the user
-// added to their template (those used to render here but never save).
-export function hasDiaryData(data) {
-  return Object.values(data || {}).some(groupHasData);
-}
-
-// The user-added template groups with data, keyed by group id, for the
-// DiaryCard's `custom_groups` field. Null when there are none.
-export function extraDiaryGroups(data) {
-  const out = {};
-  for (const [key, group] of Object.entries(data || {})) {
-    if (!BUILTIN_DIARY_GROUPS.has(key) && groupHasData(group)) out[key] = group;
-  }
-  return Object.keys(out).length ? out : null;
-}
+// The pure data helpers live in src/lib/diaryData.js; re-exported here for
+// the components that already import them from this file.
+export { hasDiaryData, extraDiaryGroups } from "@/lib/diaryData";
