@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Widget options: you can type a colour code into the colour picker again." },
+      { type: "fix", text: "Tapping \"+\" or \"−\" quickly in a sheet no longer opens the privacy cover." },
       { type: "fix", text: "Mentions no longer drop out of notifications after a busy day of writing notes." },
       { type: "fix", text: "Pop-ups, the notification history, the home banner and both bells now agree on what's unread, including older mentions." },
       { type: "fix", text: "Deleting a to-do now puts its subtasks and board card in the trash with it, so restoring brings the whole list back." },

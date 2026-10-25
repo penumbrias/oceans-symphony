@@ -23,13 +23,21 @@ import { readPanicTapsSetting, DEFAULT_PANIC_TAPS } from "@/components/settings/
 // Triggers in form/textarea/[contenteditable] elements are still ignored
 // so the gesture doesn't fire while the user is typing, and so are
 // surfaces marked [data-no-panic-taps] where quick taps ARE the input
-// (the Scratch pad); tapping anywhere outside them still works.
+// (the Scratch pad); tapping anywhere outside them still works. Buttons
+// and sliders inside a sheet or dialog are skipped too: steppers and chips
+// there are tapped quickly on purpose, and pressing "+" three times used to
+// throw up the cover mid-edit. Taps on a sheet's blank space still count.
 //
 // The tap count is user-configurable via Settings → Data & Privacy →
 // Quick-tap privacy cover. Setting it to "off" disables the listener
 // entirely so accidental gestures can't fire on accessibility-heavy
 // touch devices.
 const WINDOW_MS = 500;
+const IGNORE_SELECTOR = [
+  "input", "textarea", "[contenteditable=true]", "[data-no-panic-taps]",
+  "[data-color-picker-popover]",
+  '[role="dialog"] button', '[role="dialog"] [role="button"]', '[role="dialog"] [role="slider"]',
+].join(", ");
 
 export default function useTripleTapPanic() {
   const tapsRef = useRef([]);
@@ -46,7 +54,7 @@ export default function useTripleTapPanic() {
 
     const onPointerDown = (e) => {
       const t = e.target;
-      if (t && (t.closest("input, textarea, [contenteditable=true], [data-no-panic-taps]"))) return;
+      if (t && (t.closest(IGNORE_SELECTOR))) return;
 
       // Track this pointer's lifetime. pointerId is unique per finger /
       // mouse button until the corresponding up/cancel event.
