@@ -128,10 +128,12 @@ export default function SoundShaper({ p, setP, changed, basePreset, onReset, onS
           className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-border/70 bg-card py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-foreground disabled:opacity-40 hover:bg-muted/40">
           <RotateCcw className="w-3.5 h-3.5" /> Reset
         </button>
-        <button type="button" onClick={onSave}
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-primary/50 bg-card py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-primary hover:bg-primary/10">
-          <Save className="w-3.5 h-3.5" /> Save as my sound
-        </button>
+        {onSave && (
+          <button type="button" onClick={onSave}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-primary/50 bg-card py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-primary hover:bg-primary/10">
+            <Save className="w-3.5 h-3.5" /> Save as my sound
+          </button>
+        )}
       </div>
     </SynthPanel>
   );

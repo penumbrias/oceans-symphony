@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "feature", text: "Scratch pad: tilt your phone and the particles slide with it (or let them always fall to the lowest edge)." },
+      { type: "improve", text: "Full-screen Scratch pad and Soundscape Focus: tap the screen for a Settings button to change the sound, visual, breathing guide or rules without leaving." },
+      { type: "fix", text: "Full-screen Leave buttons no longer sit up in the notification bar." },
       { type: "improve", text: "The Add widget menu is sorted by what widgets are for (Right now, Log, Plan & track and more), one row each with a quick + to add." },
       { type: "improve", text: "Widget options start with the display mode and what the widget shows; size, colours and styles open from + chips like the planner." },
       { type: "improve", text: "More look-alike widgets are folded together: Today can show to-dos, plans or Coming up, and Sleep, Polls and Bulletin board let you pick their view. Widgets you already placed stay put." },

@@ -2,11 +2,13 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import {
   createPad, resizePad, clearPad, beginStroke, extendStroke, endStroke, stepPad, alphaOf,
 } from "@/lib/scratchpad/particles";
+import { startTilt } from "@/lib/scratchpad/tilt";
 
 // The drawing surface: press and drag to lay down a line of particles,
 // let go and the rules take over. Several fingers draw several lines.
 // Stops drawing once nothing moves, so a still pad costs no battery.
 // Colours are soft and fixed per particle bucket; nothing flashes.
+// Tilting the phone pushes every particle (tilt: off | nudge | gravity).
 
 const BUCKETS = 12;
 const SPRITE = 24;
@@ -46,12 +48,13 @@ function makeSprites(hue, mode) {
   return out;
 }
 
-const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "speed", trails = 0.6, className = "" }, ref) {
+const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "speed", trails = 0.6, tilt = "off", tiltStrength = 0.5, className = "" }, ref) {
   const canvasRef = useRef(null);
   const padRef = useRef(null);
   const rulesRef = useRef(rules);
   const lookRef = useRef({ color, trails });
   const wakeRef = useRef(() => {});
+  const pushRef = useRef({ x: 0, y: 0 });
 
   rulesRef.current = rules;
   lookRef.current = { color, trails };
@@ -62,6 +65,21 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
 
   // New rules or look apply to what's already on the pad.
   useEffect(() => { wakeRef.current(true); }, [rules, color, trails]);
+
+  // The phone's tilt, as a push in pad units/s². Only a real change wakes
+  // a sleeping pad, so a phone lying still costs nothing.
+  useEffect(() => {
+    pushRef.current = { x: 0, y: 0 };
+    const k = tiltStrength * 1200;
+    let last = { x: 0, y: 0 };
+    return startTilt(tilt, (v) => {
+      pushRef.current = { x: v.x * k, y: v.y * k };
+      if (Math.abs(v.x - last.x) + Math.abs(v.y - last.y) > 0.03 || Math.abs(v.x) + Math.abs(v.y) > 0.05) {
+        last = v;
+        wakeRef.current(false);
+      }
+    });
+  }, [tilt, tiltStrength]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -102,7 +120,7 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
 
       const rules = rulesRef.current;
       const { color: mode, trails: tr } = lookRef.current;
-      const moving = stepPad(pad, rules, dt);
+      const moving = stepPad(pad, rules, dt, pushRef.current);
 
       const key = `${hue}|${mode}`;
       if (key !== spriteKey) {

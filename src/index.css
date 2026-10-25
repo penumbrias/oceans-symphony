@@ -111,6 +111,12 @@
        app's own plugin reads the overlap natively (src/lib/nativeInsets.js
        — a one-off read, not a listener). */
     --os-sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px), var(--native-sab, 0px));
+    /* The top safe area (status bar / cutout), resolved the same way, for
+       full-screen overlays that cover the app's own header — the focus
+       screens' Leave buttons sat up in the notification tray on Android
+       phones whose web view reports env() as 0. --native-sat comes from
+       src/lib/nativeInsets.js like --native-sab. */
+    --os-sat: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px), var(--native-sat, 0px));
   }
 
   .dark {

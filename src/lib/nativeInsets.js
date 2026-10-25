@@ -8,7 +8,8 @@
 // SystemSettings plugin reads the window insets natively
 // (SystemSettingsPlugin.systemBarInsets) and this publishes them as
 // --native-sab, which --os-sab (index.css) takes the max() of — so a phone
-// whose env() is right is never double-padded.
+// whose env() is right is never double-padded. The top inset goes out as
+// --native-sat the same way (--os-sat).
 //
 // Read again on resize (keyboard, rotation, split screen) and when the app
 // comes back to the foreground. An older native build without the method
@@ -28,8 +29,10 @@ async function readInsets() {
     const r = await SystemSettings.systemBarInsets();
     if (!r?.known) return;
     const b = Number(r.bottom);
-    if (!Number.isFinite(b)) return;
-    document.documentElement.style.setProperty("--native-sab", `${Math.max(0, Math.round(b))}px`);
+    if (Number.isFinite(b)) document.documentElement.style.setProperty("--native-sab", `${Math.max(0, Math.round(b))}px`);
+    // --native-sat feeds --os-sat, read only by full-screen overlays.
+    const t = Number(r.top);
+    if (Number.isFinite(t)) document.documentElement.style.setProperty("--native-sat", `${Math.max(0, Math.round(t))}px`);
   } catch {
     // Older native build, or the window isn't laid out yet — env() stands.
   }
