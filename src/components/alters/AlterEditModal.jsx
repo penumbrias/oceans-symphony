@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
-import { deleteAlter as deleteAlterEverywhere } from "@/lib/alterEntry";
-import { setAlterGroups } from "@/lib/groupMembership";
+import { createAlter, refreshAlter, extractYear } from "@/lib/alterEntry";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User } from "lucide-react";
+import { Loader2, Save, Upload, Pin, X, Link2, Palette, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
@@ -25,12 +22,8 @@ import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
-import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
-import { parsePreferences } from "@/lib/alterPreferences";
 import RotationModeControl from "@/components/shared/RotationModeControl";
-import { useNavigate } from "react-router-dom";
-import { TRASH_HINT } from "@/lib/trashSettings";
 
 // Profile-style custom_field keys — shared with the profile renderer
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
@@ -46,14 +39,6 @@ const HIDE_HEADER_KEY = "_hide_header";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
 
-// Pull a 4-digit year out of a free-form "first appeared" string so we keep
-// the integer origin_year (used by Alter History / lineage / timeline) in
-// sync with whatever the user typed — even if it's "March 2018" or just "2018".
-function extractYear(str) {
-  if (!str) return "";
-  const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
-  return m ? m[1] : "";
-}
 
 // Small system-safe font picker reused for the header and the body.
 function FontSelect({ value, onChange, ariaLabel }) {
@@ -82,11 +67,12 @@ function FontSelect({ value, onChange, ariaLabel }) {
   );
 }
 
-export default function AlterEditModal({ alter, open, onClose, mode = "edit", initialGroupIds = [] }) {
+// THE "new alter" sheet (v0.279.11). Editing an existing alter happens on
+// their profile (ProfileTab), which saves through alterEntry.saveAlterEdits;
+// this sheet only creates, through alterEntry.createAlter.
+export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const t = useTerms();
-  const isNew = mode === "create";
   const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
 
   const [form, setForm] = useState({
@@ -98,10 +84,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   // "Advanced" pronouns/preferences drawer (pronouns.cc-style comfort
   // levels). Auto-opens when the alter already has entries.
   const [prefsOpen, setPrefsOpen] = useState(false);
-  const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [showAvatarUrl, setShowAvatarUrl] = useState(false);
   // Which profile-style colour field has the picker open. We use the
   // fixed-position ColorPickerModal (not the inline ColorPicker dropdown)
@@ -119,48 +102,22 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   const headerFileRef = useRef(null);
   const bgFileRef = useRef(null);
 
-  // Create-mode group/subsystem membership (edit mode uses GroupPickerModal
-  // on the existing alter). Prefilled from initialGroupIds — e.g. when
+  // Group/subsystem membership for the new alter. Prefilled from initialGroupIds — e.g. when
   // "create a new member" is launched from a subsystem.
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const [selectedGroupIds, setSelectedGroupIds] = useState(new Set());
   useEffect(() => {
-    if (open && isNew) setSelectedGroupIds(new Set(initialGroupIds || []));
-  }, [open, isNew, JSON.stringify(initialGroupIds)]);
+    if (open) setSelectedGroupIds(new Set(initialGroupIds || []));
+  }, [open, JSON.stringify(initialGroupIds)]);
   const addGroup = (id) => setSelectedGroupIds((s) => new Set(s).add(id));
   const removeGroup = (id) => setSelectedGroupIds((s) => { const n = new Set(s); n.delete(id); return n; });
 
   useEffect(() => {
-    if (alter && !isNew) {
-      // Single "first appeared" field now backs both the free-form
-      // birthday text and the integer origin_year. Seed the text from
-      // whichever the alter already had, and keep origin_year if the
-      // text itself has no parseable year (e.g. legacy "Age 7").
-      const birthday = alter.birthday || (alter.origin_year ? String(alter.origin_year) : "");
-      const origin_year = extractYear(birthday) || (alter.origin_year ? String(alter.origin_year) : "");
-      const preferences = parsePreferences(alter);
-      setForm({
-        name: alter.name || "", alias: alter.alias || "",
-        pronouns: alter.pronouns || "", role: alter.role || "",
-        description: alter.description || "", color: alter.color || "",
-        avatar_url: alter.avatar_url || "", avatar_rotation_mode: alter.avatar_rotation_mode || "off",
-        birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "", use_emoji_as_alias: !!alter.use_emoji_as_alias,
-        custom_fields: alter.custom_fields || {}, preferences, profile_song: alter.profile_song || null,
-      });
-      setPrefsOpen(preferences.length > 0);
-    } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [], profile_song: null });
-      setPrefsOpen(false);
-    }
+    setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [], profile_song: null });
+    setPrefsOpen(false);
     setShowAvatarUrl(false);
-    // Seed on OPEN or when a different {alter} is being edited — NOT on
-    // every new `alter` object. The alters query is invalidated constantly
-    // (fronting, pins, avatars…), and depending on the object identity
-    // re-ran this effect mid-edit and reset the whole form to the stored
-    // values. Clearing a description then looked impossible: the text came
-    // back on the next background refresh and saved itself again
-    // ("no matter what I do or how I edit it, it doesn't delete").
-  }, [alter?.id, open, isNew]);
+    // Reset only when the sheet opens — never on a background refresh.
+  }, [open]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const cf = form.custom_fields || {};
@@ -197,7 +154,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         set("avatar_url", createLocalImageUrl(imageId));
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "avatar", name: file.name.replace(/\.[^.]+$/, "") });
+        registerAlterUpload({ url: createLocalImageUrl(imageId), role: "avatar", name: file.name.replace(/\.[^.]+$/, "") });
         toast.success(`Avatar saved locally! (${sizeKB}KB)`);
       } else {
         toast.error("Avatar upload requires cloud mode. Paste an image URL instead.");
@@ -224,7 +181,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         setCF(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "header" });
+        registerAlterUpload({ url: createLocalImageUrl(imageId), role: "header" });
       } else {
         setCF(HEADER_IMAGE_KEY, dataUrl);
       }
@@ -243,7 +200,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         setCF(BG_IMAGE_KEY, createLocalImageUrl(imageId));
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "background" });
+        registerAlterUpload({ url: createLocalImageUrl(imageId), role: "background" });
       } else {
         setCF(BG_IMAGE_KEY, dataUrl);
       }
@@ -255,60 +212,16 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
-    const formData = { ...form, origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null };
     try {
-      if (isNew) {
-        // A new record carries only what was filled in — empty form slots
-        // (e.g. profile_song: null) aren't written onto it.
-        const filled = Object.fromEntries(Object.entries(formData).filter(([, v]) => v !== null && v !== undefined && v !== ""));
-        const created = await base44.entities.Alter.create({ ...filled, is_archived: false });
-        if (selectedGroupIds.size > 0 && created?.id) {
-          try { await setAlterGroups({ alterId: created.id, groupIds: [...selectedGroupIds] }); } catch { /* the alter is saved; groups can be set from the profile */ }
-          queryClient.invalidateQueries({ queryKey: ["groups"] });
-        }
-        toast.success(`✅ ${t.Alter} created!`);
-      } else {
-        await base44.entities.Alter.update(alter.id, formData);
-        toast.success("✅ Saved!");
-      }
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
-      queryClient.invalidateQueries({ queryKey: ["alter", alter?.id] });
+      await createAlter(form, { groupIds: [...selectedGroupIds] });
+      if (selectedGroupIds.size) queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`✅ ${t.Alter} created!`);
+      refreshAlter(queryClient);
       onClose();
     } catch (e) {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleArchive = async () => {
-    setSaving(true);
-    try {
-      await base44.entities.Alter.update(alter.id, { is_archived: !alter.is_archived });
-      toast.success(alter.is_archived ? "✅ Unarchived!" : "🗃 Archived!");
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!(await confirm(`Delete ${alter?.name}? ${TRASH_HINT}`))) return;
-    setDeleting(true);
-    try {
-      // The avatar picture is NOT deleted with the record: a deleted alter
-      // can be restored from Recent changes, and the same picture can be
-      // another system's copy of this alter, a library asset or a post
-      // (audit 2026-10-01, H2 — restores came back with broken avatars).
-      await deleteAlterEverywhere(alter);
-      toast.success(`🗑 ${t.Alter} deleted.`);
-      queryClient.invalidateQueries();
-      onClose();
-    } catch (e) {
-      toast.error(e.message || "Failed to delete");
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -343,7 +256,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         {/* Fixed header */}
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
           <DialogHeader>
-            <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
+            <DialogTitle>{`Add New ${t.Alter}`}</DialogTitle>
           </DialogHeader>
         </div>
 
@@ -389,7 +302,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               {/* Wrap to stay within the avatar's width (2 per row). */}
               <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
                 <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
-                <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} allowFolders ownerAlterId={alter?.id || null} ownerAlterName={alter?.name || ""} />
+                <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} allowFolders ownerAlterId={null} ownerAlterName="" />
                 <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
                 <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
               </div>
@@ -406,22 +319,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
           <RotationModeControl
             mode={form.avatar_rotation_mode}
             onChange={(m) => set("avatar_rotation_mode", m)}
-            disabled={isNew}
-            showManage={!isNew}
-            onManagePool={() => setAvatarPoolOpen(true)}
-            hint={isNew
-              ? `Save this ${t.alter} first to set up multiple avatar images to rotate through.`
-              : `When not Off, the avatar shown cycles through a pool of images for this ${t.alter} — randomly, or in order — each time the app reloads.`}
+            disabled
+            showManage={false}
+            hint={`Save this ${t.alter} first to set up multiple avatar images to rotate through.`}
           />
-          {!isNew && alter && (
-            <button
-              type="button"
-              onClick={() => { onClose(); navigate(`/assets?alter=${alter.id}`); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-            >
-              Manage all images in Assets →
-            </button>
-          )}
 
           {/* Pronouns + Color */}
           <div className="grid grid-cols-2 gap-3">
@@ -486,31 +387,6 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               alter is created from within a subsystem, it's still added to
               that group silently via initialGroupIds.) */}
 
-          {!isNew && alter && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Groups
-                </Label>
-                <button type="button" onClick={() => setShowGroupPicker(true)}
-                  className="text-xs text-primary hover:text-primary/80 font-medium">
-                  Edit groups →
-                </button>
-              </div>
-              {alter.groups && alter.groups.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {alter.groups.map((g) => (
-                    <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                      style={{ backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))", borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}>
-                      {g.name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Not in any groups</p>
-              )}
-            </div>
-          )}
 
           {/* Description / Bio */}
           <div className="space-y-1.5">
@@ -525,7 +401,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               customFields={form.custom_fields}
               setField={setCF}
               clearField={clearCF}
-              rotationConfig={!isNew && alter ? { alterId: alter.id, role: "background" } : null}
+              rotationConfig={null}
             />
           </SubSection>
 
@@ -554,28 +430,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         <div className="flex-shrink-0 px-6 py-4 border-t border-border/50 flex flex-col gap-2">
           <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {isNew ? `Add New ${t.Alter}` : "Save Changes"}
+            {`Add New ${t.Alter}`}
           </Button>
-          {!isNew && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-                {alter?.is_archived
-                  ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
-                  : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
-              </Button>
-              <Button variant="outline" onClick={handleDelete} disabled={deleting}
-                className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
-                {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                Delete
-              </Button>
-            </div>
-          )}
         </div>
       </DialogContent>
 
-      {!isNew && alter && (
-        <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
-      )}
 
       {colorPickerFor && (
         <ColorPickerModal
@@ -595,14 +454,6 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         />
       )}
 
-      {!isNew && alter && (
-        <AlterImagePoolManager
-          open={avatarPoolOpen}
-          onClose={() => setAvatarPoolOpen(false)}
-          alterId={alter.id}
-          role="avatar"
-        />
-      )}
     </Dialog>
   );
 }

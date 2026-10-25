@@ -11,6 +11,7 @@ import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
 import { parseDateFieldValue, formatDateField } from "@/lib/importantDates";
+import { patchAlterCustomFields } from "@/lib/alterEntry";
 
 const FIELD_ORDER_KEY = "_field_order";
 
@@ -236,17 +237,13 @@ export default function InfoTab({ alter, systemFields }) {
     if (swapIndex < 0 || swapIndex >= orderedSystemFields.length) return;
     const newOrder = orderedSystemFields.map(f => f.id);
     [newOrder[index], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[index]];
-    await base44.entities.Alter.update(alter.id, {
-      custom_fields: { ...customFieldValues, [FIELD_ORDER_KEY]: newOrder },
-    });
+    await patchAlterCustomFields(alter.id, { [FIELD_ORDER_KEY]: newOrder });
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
   };
 
   const resetFieldOrder = async () => {
-    const cf = { ...customFieldValues };
-    delete cf[FIELD_ORDER_KEY];
-    await base44.entities.Alter.update(alter.id, { custom_fields: cf });
+    await patchAlterCustomFields(alter.id, { [FIELD_ORDER_KEY]: undefined });
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
   };
@@ -258,9 +255,7 @@ export default function InfoTab({ alter, systemFields }) {
 
   const saveSystemField = async (fieldId) => {
     setSaving(true);
-    await base44.entities.Alter.update(alter.id, {
-      custom_fields: { ...customFieldValues, [fieldId]: editValue },
-    });
+    await patchAlterCustomFields(alter.id, { [fieldId]: editValue });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     setEditingFieldId(null);
