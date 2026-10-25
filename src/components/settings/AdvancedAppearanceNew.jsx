@@ -28,6 +28,7 @@ import DashboardLayoutSettings from './DashboardLayoutSettings';
 import NavigationSettings from './NavigationSettings';
 import UpcomingPlansSurfacesSection from './UpcomingPlansSurfacesSection';
 import { isNative } from '@/lib/platform';
+import { markThemeChangedToday } from '@/lib/dailyTaskSystem';
 import { V2SpacingRow, V2AccentRow, V2ShapeRows, V2LayoutControls, V2LanguageSection } from '@/components/settings/V2DisplaySettings';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
@@ -668,6 +669,7 @@ export default function AdvancedAppearance() {
     if (preset?.light || preset?.dark) {
       clearCustomColors();
       setSelectedTheme(name);
+      markThemeChangedToday();
     }
     setPendingColors(null);
     setEditingColor(null);
@@ -769,6 +771,7 @@ export default function AdvancedAppearance() {
     setPendingColors(updated);
     updateCustomColorsFull(updated.light, updated.dark);
     setEditingColor(null);
+    markThemeChangedToday();
   };
 
   // ── Save as named preset (granular) ──────────────────────────

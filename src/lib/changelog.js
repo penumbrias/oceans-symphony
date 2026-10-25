@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "The \"Theme color changed\" daily task ticks again when you pick a colour preset or save a colour." },
+      { type: "hotfix", text: "Hotfix: removed a batch of unused old screens." },
       { type: "fix", text: "Home screen: the clock, current focus, frequently opened pages and a few more widgets now follow their Text size option." },
       { type: "feature", text: "Settings → Terminology can now spell plurals your way (child → children), not only during setup." },
       { type: "feature", text: "Settings → {{Alter}} setup has a screen for showing {{alters}} by name, alias or both." },

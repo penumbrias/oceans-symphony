@@ -142,10 +142,6 @@ const AuthenticatedApp = () => {
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();
-  // (TwaToNativeMigrationModal moved into the onboarding flow —
-  // src/components/onboarding/StorageModeSetup.jsx → FirstRunSetup
-  // — so it shows at the right moment for users coming from a
-  // Play auto-update, not after they've already completed setup.)
   // Native-only fallback for friend-front-change push notifications —
   // the Web Push pipeline doesn't reach a Capacitor WebView, so we
   // poll client-side and fire LocalNotifications on change. No-op

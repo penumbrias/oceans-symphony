@@ -347,9 +347,8 @@ Rules for keeping the targets healthy:
        The Play update does not touch Chrome's storage, so users
        CAN still open the URL in Chrome browser to access their
        old data and export a backup before importing into native.
-       The first-launch
-       `src/components/onboarding/TwaToNativeMigrationModal.jsx`
-       explains this path.
+       (The first-launch explainer modal for this was retired in
+       v0.279.20; it had been switched off since closed testing.)
     3. Signing key must match the TWA's existing key (Play rejects
        uploads under a mismatched cert fingerprint).
 - **PWA / TWA non-regression is non-negotiable.** At every native phase,
@@ -519,7 +518,7 @@ It was built by a DID system for their own day-to-day use and shared with the wi
 
 - **Customizable terminology everywhere.** Use `useTerms()` (from `@/lib/useTerms`) in any component that surfaces the words "system / alter / fronting / fronter / switch / headmate". See the hard rule at the top of this file.
 - **Never silently lose user data.** "Storage Layer Invariants" above is non-negotiable — every storage/refactor change has to pass the seven-scenario boot check, and new entities ship with backup wiring in the same commit.
-- **Customizable everything where possible.** Themes (`ThemeColorSettings`), navigation layout (`NavigationSettings`), accessibility (`AccessibilitySettings`), terms (`TermsSettings`), quick actions, dashboard pinning, report sections, custom emotions/symptoms/fields — the app's job is to fit the user, not the other way round.
+- **Customizable everything where possible.** Themes (`AdvancedAppearanceNew`), navigation layout (`NavigationSettings`), accessibility (`AccessibilitySettings`), terms (`TermsSettings`), quick actions, dashboard pinning, report sections, custom emotions/symptoms/fields — the app's job is to fit the user, not the other way round.
 - **Native + web parity from one codebase.** See "Build Targets" above. All three targets (web PWA, TWA, Capacitor native) share `src/`; branching is runtime via `isNative()` from `src/lib/platform.js`, never build-time.
 - **Local-first.** Data lives in IndexedDB (`src/lib/localDb.js`). Optional at-rest encryption with a user passphrase (`src/lib/storageMode.js`, `src/lib/localEncryption.js`). No mandatory cloud account. The Friends feature and PluralKit / Simply Plural connectors are opt-in network surfaces.
 
@@ -541,7 +540,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 - `src/pages/Dashboard.jsx` — the actual home page.
 - `src/components/layout/AppLayout.jsx` — top header, bottom nav, sticky chrome, safe-area padding, `GroceryListPanel` overlay mount.
 - `src/components/layout/SidebarNav.jsx` / `HeaderWaveBlock.jsx` / `AnnouncementBanner.jsx` / `PullToRefresh.jsx`.
-- `src/components/dashboard/*` — `CurrentFronters`, `DashboardPins`, `UpcomingPlans`, `UnresolvedPlansCard`, `CriticalPinnedPlans`, `FeatureTiles`, `GlobalSearch`, `QuickActionsMenu`, `QuickNavMenu`, `TaskWidget`, `MentionNotifications`, `NotificationPopups`, `NotificationHistoryModal`, `PrivateMessagesIndicator`, `NewFeaturesBar`, `BetaTesterBanner`.
+- `src/components/dashboard/*` — `CurrentFronters`, `DashboardPins`, `UpcomingPlans`, `UnresolvedPlansCard`, `CriticalPinnedPlans`, `FeatureTiles`, `GlobalSearch`, `QuickActionsMenu`, `QuickNavMenu`, `TaskWidget`, `NotificationPopups`, `NotificationHistoryModal`, `PrivateMessagesIndicator`, `NewFeaturesBar`.
 - `src/utils/navigationConfig.js` — `ALL_PAGES` master list; static, can't call `useTerms`, so callers resolve labels via the `resolveLabel` pattern (see `NavigationSettings.jsx:131`).
 
 **Cross-feature interactions.** Pulls fronters from FrontingSession, statuses from StatusNote, plans from Activity (scheduled/done), tasks from Task, bulletins from Bulletin, search from `src/lib/globalSearch.js`. Writes nothing directly — every action delegates to the owning feature's modal.
@@ -571,7 +570,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 - `src/pages/Home.jsx` — alters directory.
 - `src/pages/AlterProfile.jsx` — individual profile page.
 - `src/pages/GroupsManager.jsx`, `src/pages/SystemMap.jsx`, `src/pages/SystemHistory.jsx`.
-- `src/components/alters/*` — `AlterCard`, `AlterGrid`, `AlterGridView`, `AlterEditModal`, `BioEditor`, `FolderGroupsSection`, `FrontersSection`, `RecordSystemChangeModal`, `profile/`.
+- `src/components/alters/*` — `AlterCard`, `AlterGrid`, `AlterGridView`, `AlterEditModal`, `BioEditor`, `FolderGroupsSection`, `RecordSystemChangeModal`, `profile/`.
 - `src/components/system/SystemMap.jsx`.
 - `src/components/settings/{CustomFieldsManager,RelationshipTypesManager,ArchivedAltersManager}.jsx`.
 
@@ -596,7 +595,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Primary surfaces.**
 - `src/pages/FrontHistory.jsx`, `src/pages/CoFrontingAnalytics.jsx`.
-- `src/components/fronting/{FrontingBar,SetFrontModal,TriggerEditModal}.jsx`.
+- `src/components/fronting/{SetFrontModal,TriggerEditModal}.jsx`.
 - `src/components/dashboard/CurrentFronters.jsx`.
 - `src/components/timeline/AlterSessionPopover.jsx`.
 - `src/components/journal/SwitchJournalModal.jsx`.
@@ -724,7 +723,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 - `src/pages/ToDoList.jsx`, `src/pages/DailyTasks.jsx`.
 - `src/components/tasks/*` — `TaskCard`, `TaskItem`, `TaskFormModal`, `TaskTemplateManager`, `TaskQuickActionsSheet`, `LevelBar`, `PeriodReview`.
 - `src/components/dashboard/TaskWidget.jsx`, `QuickActionsMenu.jsx`.
-- `src/lib/dailyTaskSystem.js`, `src/lib/dailyTasks.js`.
+- `src/lib/dailyTaskSystem.js`.
 - `src/components/settings/QuickActionsConfig.jsx`.
 
 **Cross-feature interactions.** `Task → Activity` synthetic linking; `QuickAction` items can be tasks; tasks appear in `buildTasksSummarySection` of reports.
@@ -759,7 +758,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 - `mention_acknowledged` — localStorage marker `symphony_dailytask_mention_acknowledged_v1` set from `NotificationPopups.jsx` (dismiss) and `NotificationHistoryModal.jsx` (handleDismiss)
 - `friend_added` — localStorage marker `symphony_dailytask_friend_added_v1` set from `friendsApi.js`'s `sendFriendRequest` (outgoing) and `respondToRequest` when `action === 'accept'` (incoming)
 - `quick_action_used` — localStorage marker `symphony_dailytask_quick_action_used_v1` set at the top of Dashboard.jsx's `executeQuickAction`
-- `theme_changed` — localStorage marker `symphony_dailytask_theme_changed_v1` set on save in `ThemeColorSettings.jsx`
+- `theme_changed` — localStorage marker `symphony_dailytask_theme_changed_v1` set in `AdvancedAppearanceNew.jsx` when a colour preset is picked or a colour is saved
 - `terms_customized` — localStorage marker `symphony_dailytask_terms_customized_v1` set on save in `TermsSettings.jsx`
 - `tour_completed` — localStorage marker `symphony_dailytask_tour_completed_v1` set when the user clicks "Done 💜" on the final tour step in `FeatureTour.jsx` (not on X / skip — only on completion)
 - `reflection_saved` — any `SupportJournalEntry` with `created_date` today (saved from the Learn module's reflection prompts)
@@ -797,7 +796,7 @@ Labels in `AUTO_TRIGGER_LABELS` use `{{System}}` / `{{Switch}}` / `{{Alter}}` pl
 
 **Primary surfaces.**
 - `src/pages/Timeline.jsx`.
-- `src/components/timeline/*` — `InfiniteTimeline`, `HourlyTimeline`, `DailyTallyPanel`, `SymptomBar`, `SymptomSessionPopup`, `TimelineItem`, `AlterSessionPopover`.
+- `src/components/timeline/*` — `InfiniteTimeline`, `DailyTallyPanel`, `SymptomBar`, `SymptomSessionPopup`, `AlterSessionPopover`.
 
 **Cross-feature interactions.** See "Timeline Column Layout" section above for the exact left-to-right column order. `StatusNoteBadge` sits in the time column gutter (`left: LABEL_WIDTH - 22`).
 
@@ -862,7 +861,7 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **Primary surfaces.**
 - `src/pages/TherapyReport.jsx`.
-- `src/components/report/*` — `ReportBuilder`, `ReportPreview`, `ExportModal`, `NoteworthySettings`.
+- `src/components/report/*` — `ReportBuilder`, `ExportModal`, `NoteworthySettings`.
 - `src/lib/reportSections.js` — all `build*Section` helpers (Overview, Fronting, Emotion, Symptoms, Activities, Journals, Diary, Plans, Status notes, Patterns, Alter appendix, Bulletins, Locations, Sleep, Support journals, System check-ins, Tasks summary).
 - `src/lib/reportGenerator.js`.
 
@@ -929,10 +928,10 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **Primary surfaces.**
 - `src/components/settings/TermsSettings.jsx` — user terminology overrides.
-- `src/components/settings/{ThemeColorSettings,AdvancedAppearance,AdvancedAppearanceNew}.jsx` — colours/fonts.
+- `src/components/settings/AdvancedAppearanceNew.jsx` — the whole Appearance section (colours, fonts, presets).
 - `src/components/settings/NavigationSettings.jsx` — page ordering, bottom-nav contents (uses `resolveLabel` indirection because `ALL_PAGES` can't call `useTerms`).
 - `src/components/settings/AccessibilitySettings.jsx` — bottom-nav height, font size, contrast halo for low-contrast user colours (PRs #89 / #92 / #93).
-- `src/components/settings/{CustomEmotionsManager,CustomFieldsManager,CustomTriggerTypesManager,RelationshipTypesManager,QuickActionsConfig,DiaryCardPresetsManager,DiaryTemplateManager,UpcomingPlansSurfacesSection,RemindersSettings,TimezoneSettings,PreviewModeSection}.jsx`.
+- `src/components/settings/{CustomEmotionsManager,CustomFieldsManager,CustomTriggerTypesManager,RelationshipTypesManager,QuickActionsConfig,DiaryTemplateManager,UpcomingPlansSurfacesSection,RemindersSettings,TimezoneSettings,PreviewModeSection}.jsx`.
 - `src/lib/useTerms.js` — single source of truth for term resolution + auto-conjugation overrides.
 
 **Cross-feature interactions.** `SystemSettings` is read by virtually everything via `useTerms()` / `useAccessibility()` / `useAnalyticsGrouping()`.
@@ -970,7 +969,6 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 **Primary surfaces.**
 - `src/components/settings/{PluralKitConnect,SimplyPluralConnect}.jsx`.
 - `src/lib/pluralKit.js`, `src/lib/simplyPlural.js`.
-- `src/hooks/useSimplyPlural.js`.
 
 **Gotchas.** Neither PK nor SP has a "primary fronter" concept — never mark imported sessions `is_primary: true` (PR #84 MEDIUM-3, MEDIUM-4).
 
@@ -1006,7 +1004,6 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 - `src/components/onboarding/TourModal.jsx`.
 - `src/components/onboarding/TermsSetupModal.jsx` — initial term selection.
 - `src/components/onboarding/StorageModeSetup.jsx` — pick encrypted vs unencrypted storage.
-- `src/components/onboarding/TwaToNativeMigrationModal.jsx` — first-launch migration explainer for users coming from the TWA build (see "Build Targets" section above).
 - `src/components/onboarding/{UnlockScreen,RecoveryScreen}.jsx`.
 
 **Gotchas.** Every new `data-tour="…"` attribute MUST have a matching `buildSteps()` entry. Stale tour steps erode trust faster than missing steps.
