@@ -18,22 +18,13 @@ import { getAdvancedReview, applyAdvancedResolution } from "@/lib/frontConflicts
 import {
   BOTH, planAdvancedResolution, choiceForDay, dayKey, dayStart, shiftDay, sessionSpan, originOf,
 } from "@/lib/frontConflictTimeline";
+import { toLocalDatetimeValue, localDatetimeToISO } from "@/lib/dateTimeInput";
 
 const DAY_MS = 864e5;
 const UNKNOWN = "__unknown";
 
-const pad = (n) => String(n).padStart(2, "0");
-const toInput = (iso) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-const fromInput = (v) => {
-  if (!v) return undefined;
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
-};
+const toInput = (iso) => toLocalDatetimeValue(iso);
+const fromInput = (v) => localDatetimeToISO(v) ?? undefined;
 const dayTitle = (key) => new Date(dayStart(key)).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "");
 

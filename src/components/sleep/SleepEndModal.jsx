@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZapOff, Cloud, AlarmClock, BookOpen, X } from "lucide-react";
 import { endSleep } from "@/lib/sleepEntry";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 // Finalize an in-progress sleep record. Mirrors the fields of
 // SleepLogModal but starts from an existing Sleep entity with
@@ -112,12 +113,6 @@ function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange 
   );
 }
 
-function toLocalDatetime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tz).toISOString().slice(0, 16);
-}
 
 export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
   const terms = useTerms();
@@ -150,7 +145,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
     // the app is broken. Never offer a default the form would reject.
     const bed = sleep?.bedtime ? new Date(sleep.bedtime).getTime() : 0;
     const now = Date.now();
-    setWakeTime(toLocalDatetime(new Date(Math.max(now, bed + 60_000)).toISOString()));
+    setWakeTime(toLocalDatetimeValue(new Date(Math.max(now, bed + 60_000)).toISOString()));
     setQuality(0);
     setNotes("");
     setIsInterrupted(false);

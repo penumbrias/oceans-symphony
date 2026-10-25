@@ -8,10 +8,11 @@ import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { Slider } from "@/components/ui/slider";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZapOff, Cloud, AlarmClock, X, BookOpen, Loader2 } from "lucide-react";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -83,10 +84,6 @@ function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange 
   );
 }
 
-function toLocalDatetime(iso) {
-  if (!iso) return "";
-  try { return format(parseISO(iso), "yyyy-MM-dd'T'HH:mm"); } catch { return ""; }
-}
 
 export default function SleepEditModal({ sleep, onClose, onSave }) {
   const terms = useTerms();
@@ -107,8 +104,8 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
   useEffect(() => {
     if (!sleep) return;
     setSleepDate(sleep.date || "");
-    setBedtime(toLocalDatetime(sleep.bedtime));
-    setWakeTime(toLocalDatetime(sleep.wake_time));
+    setBedtime(toLocalDatetimeValue(sleep.bedtime));
+    setWakeTime(toLocalDatetimeValue(sleep.wake_time));
     setQuality(sleep.quality || 5);
     setNotes(sleep.notes || "");
     setIsInterrupted(!!sleep.is_interrupted);

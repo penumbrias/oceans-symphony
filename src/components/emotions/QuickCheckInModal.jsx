@@ -45,6 +45,7 @@ import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
 // hold-and-slide level rail as every other {front} surface (the swipe
@@ -244,12 +245,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [gpsLoading, setGpsLoading] = useState(false);
 
   // datetime-local input value — defaults to retroTimestamp or now
-  const toDatetimeLocal = (iso) => {
-    const d = iso ? new Date(iso) : new Date();
-    const pad = n => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  const [entryTime, setEntryTime] = useState(() => toDatetimeLocal(retroTimestamp));
+
+  const [entryTime, setEntryTime] = useState(() => toLocalDatetimeValue(retroTimestamp, { orNow: true }));
 
   const isDistressingEmotion = (label) => {
     const key = label.toLowerCase();
@@ -395,7 +392,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // sections that actually have data so the user can see what
       // they're editing without expanding anything.
       if (editingEntry) {
-        setEntryTime(toDatetimeLocal(editingEntry.timestamp));
+        setEntryTime(toLocalDatetimeValue(editingEntry.timestamp, { orNow: true }));
         setSelectedEmotions(editingEntry.emotions || []);
         setEmotionAlters(editingEntry.emotion_alters && typeof editingEntry.emotion_alters === "object" ? editingEntry.emotion_alters : {});
         // If a long note was saved as a JournalEntry (note >50 words at
@@ -447,7 +444,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         seedSymptomDefaults().then(() => queryClient.invalidateQueries({ queryKey: ["symptoms"] })).catch(() => {});
         return;
       }
-      setEntryTime(toDatetimeLocal(retroTimestamp));
+      setEntryTime(toLocalDatetimeValue(retroTimestamp, { orNow: true }));
       // When opened targeting a specific section (e.g. a quick action for
       // Location), open ONLY that section — don't also pop Feeling open.
       // Respect the user's enabled-sections config: never open a hidden one.

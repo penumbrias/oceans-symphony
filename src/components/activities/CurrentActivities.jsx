@@ -27,11 +27,8 @@ const validDate = (v) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
-function toLocalDatetimeValue(iso) {
-  if (!iso) return "";
-  try { return format(new Date(iso), "yyyy-MM-dd'T'HH:mm"); } catch { return ""; }
-}
 
 // Press-and-hold / tap menu for one running activity — mirrors the active
 // symptom menu: adjust the start time, end & log it, or discard it.

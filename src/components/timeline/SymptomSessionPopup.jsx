@@ -6,38 +6,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { toLocalDatetimeValue, localDatetimeToISO } from "@/lib/dateTimeInput";
 
 export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   const queryClient = useQueryClient();
   const [adjustedStartTime, setAdjustedStartTime] = useState(
-    formatDateTimeValue(new Date(session.start_time))
+    toLocalDatetimeValue(session.start_time)
   );
   const [adjustedEndTime, setAdjustedEndTime] = useState(
-    session.end_time ? formatDateTimeValue(new Date(session.end_time)) : ""
+    toLocalDatetimeValue(session.end_time)
   );
   const [saving, setSaving] = useState(false);
 
-  // Local "YYYY-MM-DDTHH:mm" for a <input type="datetime-local">. We capture
-  // the full DATE as well as the time so a symptom that crosses midnight (or
-  // spans multiple days — a migraine from 8pm to 2am the next day) ends on
-  // the right day. The old time-only input pinned the end to the START date,
-  // so "2am" became 2am the morning the session began — BEFORE the start —
-  // which collapsed the bar to nothing.
-  function formatDateTimeValue(date) {
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  }
-
-  // datetime-local string (interpreted as local time) → ISO, or null if blank/invalid.
-  function dtToISO(value) {
-    if (!value) return null;
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
+  // The time fields carry the full DATE as well as the time so a symptom
+  // that crosses midnight (a migraine from 8pm to 2am) ends on the right
+  // day — the old time-only input pinned the end to the start date.
 
   const handleAdjustStartTime = async () => {
     if (saving) return;
-    const iso = dtToISO(adjustedStartTime);
+    const iso = localDatetimeToISO(adjustedStartTime);
     if (!iso) { toast.error("Pick a valid start time"); return; }
     if (session.end_time && new Date(iso) > new Date(session.end_time)) {
       toast.error("Start can't be after the end time");
@@ -58,7 +45,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
 
   const handleAdjustEndTime = async () => {
     if (saving) return;
-    const iso = dtToISO(adjustedEndTime);
+    const iso = localDatetimeToISO(adjustedEndTime);
     if (!iso) { toast.error("Pick a valid end time"); return; }
     if (new Date(iso) < new Date(session.start_time)) {
       toast.error("End can't be before the start time");
@@ -116,7 +103,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   const handleEndSession = async () => {
     if (saving) return;
     // Default to "now" when no explicit end was picked.
-    const iso = adjustedEndTime ? dtToISO(adjustedEndTime) : new Date().toISOString();
+    const iso = adjustedEndTime ? localDatetimeToISO(adjustedEndTime) : new Date().toISOString();
     if (!iso) { toast.error("Pick a valid end time"); return; }
     if (new Date(iso) < new Date(session.start_time)) {
       toast.error("End can't be before the start time");

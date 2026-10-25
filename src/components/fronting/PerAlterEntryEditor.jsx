@@ -9,6 +9,7 @@ import { Smile, Activity, AlertTriangle, Check, Loader2, X } from "lucide-react"
 import { toast } from "sonner";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 // Edit dialog for per-alter session entries (per-alter notes /
 // emotions / symptoms / triggered-switch flag stored inside a
@@ -16,13 +17,6 @@ import { useTerms } from "@/lib/useTerms";
 // dashboard, but the save REPLACES the underlying values instead
 // of appending — so re-saving a check-in log row updates what's
 // there rather than spawning a new note alongside it.
-// ISO -> value for <input type="datetime-local"> in the user's local time.
-function toLocalInput(iso) {
-  const d = iso ? new Date(iso) : null;
-  if (!d || isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -123,7 +117,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
         } catch { /* note is non-array legacy */ }
         setNote(noteText);
         setNoteEditIndex(noteIdx);
-        try { setNoteWhen(noteIdx != null ? toLocalInput(JSON.parse(s?.note || "[]")[noteIdx]?.timestamp) : ""); } catch { setNoteWhen(""); }
+        try { setNoteWhen(noteIdx != null ? toLocalDatetimeValue(JSON.parse(s?.note || "[]")[noteIdx]?.timestamp) : ""); } catch { setNoteWhen(""); }
 
         // Emotions + trigger: a note carries its OWN stamp. Legacy notes
         // (nothing stamped in the session) fall back to the session values
@@ -232,7 +226,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
             if (legacy || triggerChanged) next.trigger = st.trigger;
             if (noteWhen) {
               const t = new Date(noteWhen);
-              if (!isNaN(t.getTime()) && noteWhen !== toLocalInput(n.timestamp)) next.timestamp = t.toISOString();
+              if (!isNaN(t.getTime()) && noteWhen !== toLocalDatetimeValue(n.timestamp)) next.timestamp = t.toISOString();
             }
             return next;
           });
