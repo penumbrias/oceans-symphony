@@ -1,5 +1,6 @@
 import { journalEntryDate } from "@/lib/journalDate";
 import { meetingTextParts } from "@/lib/systemMeetingText";
+import { redactWhispers } from "@/lib/whisperRedact";
 /**
  * Global search engine — shared between the Dashboard "Search everything"
  * input and any other surface that wants to query across the user's data.
@@ -100,9 +101,10 @@ export function isoDate(ts) {
 
 // ---------- general helpers ----------
 
+// Whisper secrets never reach the index: every builder goes through here.
 export function stripHtml(html) {
   if (!html || typeof html !== "string") return "";
-  return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
+  return redactWhispers(html).replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/\s+/g, " ").trim();
 }
@@ -217,7 +219,8 @@ export function buildAlterRecords({ alters = [], customFieldDefs = [] }) {
 
 export function buildJournalRecords({ items = [] }) {
   return items.map((j) => {
-    const content = stripHtml(j.content);
+    // An encrypted entry's content is ciphertext — only its title is findable.
+    const content = j.is_encrypted ? "" : stripHtml(j.content);
     return {
       type: "journal",
       id: j.id,
@@ -500,12 +503,16 @@ export function buildInnerWorldLocationRecords({ items = [] }) {
   }));
 }
 
-export function buildChatMessageRecords({ items = [], channels = [] }) {
+// A private channel's messages are findable only while one of its members
+// is in front — the same rule the Chat page uses for showing the channel.
+export function buildChatMessageRecords({ items = [], channels = [], frontingIds = [] }) {
   const chanById = Object.fromEntries((channels || []).map((c) => [c.id, c]));
+  const here = new Set(frontingIds || []);
+  const open = (chan) => !chan?.is_private || (chan.member_alter_ids || []).some((id) => here.has(id));
   return items
-    .filter((m) => m && !m.deleted_at && m.content)
+    .filter((m) => m && !m.deleted_at && m.content && open(chanById[m.channel_id]))
     .map((m) => {
-      const text = String(m.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const text = stripHtml(String(m.content || ""));
       const chan = chanById[m.channel_id];
       return {
         type: "chat",
@@ -865,7 +872,7 @@ export function buildSearchIndex(sources = {}) {
     goals, goalSteps, turns,
     reminders,
     groceries,
-    chatMessages, chatChannels,
+    chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,
@@ -904,7 +911,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildTurnRecords({ items: turns || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
-  records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
+  records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [], frontingIds: frontingIds || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   records.push(...buildActivityCategoryRecords({ items: activityCategories || [] }));
@@ -913,6 +920,13 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildSystemRecords({ items: systems || [] }));
   records.push(...buildAssetRecords({ items: assets || [] }));
   records.push(...buildModRecords({ items: mods || [] }));
+  // Plain note fields are indexed as typed, and a whisper in a note is
+  // stored as its span — take any secret out of what the search scans.
+  for (const r of records) {
+    if (r.searchableText && r.searchableText.includes("whisper")) {
+      r.searchableText = redactWhispers(r.searchableText).toLowerCase();
+    }
+  }
   return records;
 }
 

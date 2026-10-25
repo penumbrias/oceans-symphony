@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Privacy: whispers no longer show up in search, therapy reports or notification previews." },
+      { type: "fix", text: "Privacy: messages in a private chat channel only show up in search while one of its {{alters}} is in {{front}}." },
+      { type: "fix", text: "Therapy reports no longer print the scrambled text of locked journal entries." },
       { type: "fix", text: "Co-signers of a {{switch}} journal now show on the entry and in journal filters." },
       { type: "fix", text: "{{Switch}} journals are no longer counted twice in authorship analytics." },
       { type: "fix", text: "Back-dated and imported journals now show on their own day in the timeline and analytics." },

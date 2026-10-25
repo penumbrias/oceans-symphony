@@ -21,12 +21,14 @@ import { normalizeSessions, sessionsInRange, effectiveDurationMs } from "./sessi
 import { buildClinicianParagraphs } from "./analytics/clinicianSummary";
 import { journalEntryDate } from "@/lib/journalDate";
 import { meetingTextParts } from "@/lib/systemMeetingText";
+import { redactWhispers } from "@/lib/whisperRedact";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+// Whisper secrets never reach a report: every section goes through here.
 function stripHtml(html) {
   if (!html) return "";
-  return html
+  return redactWhispers(String(html))
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -184,7 +186,7 @@ export function buildFrontingSection({ dateFrom, dateTo, frontingSessions, alter
       who: alterName(id, alters, includeAlterInfo),
       coFronters: coFronters.length > 0 ? coFronters.join(", ") : null,
       duration: ms ? msToHm(ms) : "ongoing",
-      note: s.note || "",
+      note: redactWhispers(s.note || ""),
       isPrimary: s.is_primary,
     };
   });
@@ -214,7 +216,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
     .map(c => ({
       date: fmtDateTime(c.timestamp || c.created_date),
       emotions: (c.emotions || []).join(", "),
-      note: c.note || "",
+      note: redactWhispers(c.note || ""),
       who: checkInWho(c, alters, includeAlterInfo),
       label: "Crisis check-in",
     }));
@@ -222,7 +224,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
   const checkInList = checkins.map(c => ({
     date: fmtDateTime(c.timestamp || c.created_date),
     emotions: (c.emotions || []).join(", "),
-    note: c.note || "",
+    note: redactWhispers(c.note || ""),
     who: includeAlterInfo ? checkInWho(c, alters, includeAlterInfo) : null,
   }));
 
@@ -354,6 +356,13 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
 
   return entries.map(j => {
     const base = { id: j.id, date: fmtDate(journalEntryDate(j)), title: j.title || "Untitled" };
+    // A locked entry's content is ciphertext; the report never prints it.
+    if (j.is_encrypted) {
+      const note = "(Locked entry. Its text is not included.)";
+      if (journalDetail === "full") return { ...base, content: note };
+      if (journalDetail === "excerpts") return { ...base, excerpt: note };
+      return base;
+    }
     const clean = stripHtml(j.content || "");
     if (journalDetail === "full") return { ...base, content: clean };
     if (journalDetail === "excerpts") return { ...base, excerpt: clean.slice(0, 400) };
@@ -497,7 +506,7 @@ export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) 
     .map(n => ({
       id: n.id,
       date: fmtDateTime(n.timestamp),
-      note: n.note.trim(),
+      note: redactWhispers(n.note.trim()),
     }));
 }
 
@@ -512,7 +521,7 @@ export function buildTherapyNotesSection({ dateFrom, dateTo, therapyNotes = [], 
     .map(n => ({
       id: n.id,
       date: fmtDateTime(n.timestamp),
-      note: String(n.note).trim(),
+      note: redactWhispers(String(n.note).trim()),
       source: n.source || null,
       who: includeAlterInfo
         ? (n.fronting_alter_ids || []).map(id => alterName(id, alters, true)).filter(x => x && x !== "unknown").join(", ") || null
@@ -643,7 +652,7 @@ export function buildLocationsSection({ dateFrom, dateTo, locations = [] }) {
     name: l.name || "Unnamed location",
     category: l.category || null,
     source: l.source || "manual",
-    notes: l.notes || null,
+    notes: l.notes ? redactWhispers(l.notes) : null,
     lat: l.latitude || null,
     lng: l.longitude || null,
   }));
@@ -682,7 +691,7 @@ export function buildSleepSection({ dateFrom, dateTo, sleepLogs = [] }) {
       quality: s.quality != null ? s.quality : null,
       isInterrupted: !!s.is_interrupted,
       hadNightmare: !!s.had_nightmare,
-      notes: s.notes || null,
+      notes: s.notes ? redactWhispers(s.notes) : null,
     };
   });
 
@@ -736,7 +745,7 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
   return items.map(c => {
     const summaryParts = meetingTextParts(c)
       .slice(0, 5)
-      .map((part) => `${part.label}: ${part.text}`);
+      .map((part) => `${part.label}: ${redactWhispers(part.text)}`);
     return {
       id: c.id,
       date: fmtDateTime(c.created_date),

@@ -13,6 +13,7 @@ import ChatSurface from "@/components/chat/ChatSurface";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
+import { WHISPER_PREVIEW } from "@/lib/whisperRedact";
 import { purgeChatMessage, purgeDeletedChatMessages } from "@/lib/chatCleanup";
 
 export default function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused }) {
@@ -66,7 +67,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
           sourceId: created.id,
           sourceLabel: label,
           navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
-          previewText: cleanText,
+          previewText: isWhisper ? WHISPER_PREVIEW : cleanText,
         });
       }
       if (isWhisper) {
@@ -79,7 +80,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
             source_id: created.id,
             source_label: label,
             source_date: new Date().toISOString(),
-            preview_text: cleanText.slice(0, 120),
+            preview_text: WHISPER_PREVIEW,
             navigate_path: `/chat?channel=${channel.id}&message=${created.id}`,
           });
         }

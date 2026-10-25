@@ -6,6 +6,7 @@ import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import { Bell, EyeOff, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { mentionPreviewText } from "@/lib/whisperRedact";
 
 const PAGE_SIZE = 20;
 
@@ -132,7 +133,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
             const isDismissed = m.is_read === true || dismissedBy.includes(recipientId);
             const isForCurrentFronter = frontingAlterIds.includes(recipientId);
             const displayLabel = m.source_label || (m.content ? "Message" : "Notification");
-            const displayPreview = m.preview_text || m.content || null;
+            const displayPreview = mentionPreviewText({ ...m, preview_text: m.preview_text || m.content }) || null;
             const displayDate = m.source_date || m.created_date || null;
 
             return (

@@ -284,6 +284,15 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.SystemChatChannel),
     staleTime: stale, enabled,
   });
+  // Who's in front decides which private channels' messages are findable.
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => localEntities.FrontingSession.filter({ is_active: true }),
+  });
+  const frontingIds = useMemo(
+    () => activeFront.flatMap((s) => [s.alter_id || s.primary_alter_id, ...(s.co_fronter_ids || [])]).filter(Boolean),
+    [activeFront],
+  );
   const { data: groundingTechniques = [] } = useQuery({
     queryKey: ["searchGrounding"],
     queryFn: () => safeList(localEntities.GroundingTechnique),
@@ -340,7 +349,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     goals, goalSteps, turns,
     reminders,
     groceries,
-    chatMessages, chatChannels,
+    chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,
@@ -367,7 +376,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     goals, goalSteps, turns,
     reminders,
     groceries,
-    chatMessages, chatChannels,
+    chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,

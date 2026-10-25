@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { mentionPreviewText } from "@/lib/whisperRedact";
 
 export default function MentionNotifications({ frontingAlterIds = [], alters = [] }) {
   const [expanded, setExpanded] = useState(false);
@@ -59,7 +60,7 @@ export default function MentionNotifications({ frontingAlterIds = [], alters = [
                   </span>
                 </div>
                 {m.preview_text && (
-                  <p className="text-xs text-muted-foreground italic line-clamp-2">"{m.preview_text}"</p>
+                  <p className="text-xs text-muted-foreground italic line-clamp-2">"{mentionPreviewText(m)}"</p>
                 )}
               </button>
             );

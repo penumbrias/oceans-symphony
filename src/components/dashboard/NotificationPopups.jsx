@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
+import { mentionPreviewText } from "@/lib/whisperRedact";
 
 export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
   const queryClient = useQueryClient();
@@ -67,7 +68,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
                   {m.source_date ? format(new Date(m.source_date), "MM/dd") : ""}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">{m.preview_text}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{mentionPreviewText(m)}</p>
               <span className="text-[0.625rem] text-primary mt-1 block">in {m.source_label} · tap to view</span>
             </button>
             <button
