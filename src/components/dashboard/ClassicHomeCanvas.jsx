@@ -23,6 +23,7 @@ import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { writeBoard } from "@/lib/boardWriter";
 import V2Notices from "@/v2/notices";
+import { foldWidget } from "@/lib/widgetFold";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
 
@@ -32,10 +33,25 @@ export const CLASSIC_HOME_FIELD = "classic_home";
 // pinned_alters keeps the classic gallery; bulletin_board deliberately
 // takes the REFINED v2 board widget (owner call) — the classic surface
 // bundled Upcoming Plans, which is its own widget here.
+// "Active now" and the single-kind running cards fold into the board's
+// one Active widget (v0.280.0): each keeps its spot and shows the same
+// kinds it did, and still hides itself while nothing is running.
+const ONE_PER_PAGE = { supportsMultiInstance: false };
+const runningOnly = (kinds) => () => ({
+  showActivities: kinds.includes("activities"),
+  showSymptoms: kinds.includes("symptoms"),
+  showContacts: kinds.includes("contacts"),
+  showSleep: false,
+  hideWhenIdle: true,
+});
 export const CLASSIC_HOME_REGISTRY = {
   ...V2_WIDGETS,
   ...WIDGET_REGISTRY,
   bulletin_board: V2_WIDGETS.bulletin_board,
+  active_now: foldWidget(V2_WIDGETS.running, runningOnly(["activities", "symptoms", "contacts"]), ONE_PER_PAGE),
+  current_symptoms: foldWidget(V2_WIDGETS.running, runningOnly(["symptoms"]), ONE_PER_PAGE),
+  current_activities: foldWidget(V2_WIDGETS.running, runningOnly(["activities"]), ONE_PER_PAGE),
+  current_contacts: foldWidget(V2_WIDGETS.running, runningOnly(["contacts"]), ONE_PER_PAGE),
 };
 
 // The running trio folds into ONE "Active now" card (owner ask); its

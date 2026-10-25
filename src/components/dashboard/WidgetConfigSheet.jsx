@@ -95,6 +95,7 @@ import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetAutoLabel } from "@/lib/widgetRegistry";
+import { foldedSettings } from "@/lib/widgetFold";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
@@ -728,7 +729,8 @@ export default function WidgetConfigSheet({
     setDock(next);
     try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
   };
-  const settings = widget?.settings || {};
+  // A folded widget's options show what it renders with (widgetFold.js).
+  const settings = foldedSettings(def, widget?.settings);
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const [iconPickerOpen, setIconPickerOpen] = React.useState(false);
   const fontOptions = useFontOptions();

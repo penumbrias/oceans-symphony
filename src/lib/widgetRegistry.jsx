@@ -59,6 +59,7 @@ import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckinButtons, { resolveQuickButtons } from "@/components/dashboard/QuickCheckinButtons";
 import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
+import { foldWidget } from "@/lib/widgetFold";
 
 // Generic minimal-mode shell — gives every widget a "minimal" rendering
 // for free: icon + label (+ the widget can still be tapped via settings
@@ -344,6 +345,67 @@ function simple(label, icon, Component, extraProps = {}) {
     mode === "minimal" ? <MinimalShell icon={icon} label={label} /> : <Component {...extraProps} />;
 }
 
+// The home screen's corner buttons (board / guide / notifications) as
+// one placeable row. Which buttons show, and in what order, is the
+// widget's "buttons" option; a single button also shows its name (the old
+// "Setup & tour" and "Notifications" tiles fold into this, v0.280.0).
+const PAGE_BUTTON_IDS = ["board", "guide", "notifications"];
+const PAGE_BUTTON_LABELS = { board: "Widget board", guide: "Setup & tour", notifications: "Notifications" };
+function PageButtons({ api, settings }) {
+  const picked = Array.isArray(settings?.buttons) ? settings.buttons.filter((b) => PAGE_BUTTON_IDS.includes(b)) : PAGE_BUTTON_IDS;
+  const ids = picked.filter((b) => b !== "board" || api?.openWidgetBoard);
+  const single = ids.length === 1;
+  const btn = "relative min-w-[32px] min-h-[32px] flex items-center justify-center gap-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors";
+  const name = (id) => (single ? <span className="text-sm">{PAGE_BUTTON_LABELS[id]}</span> : null);
+  const parts = {
+    board: (
+      <button key="board" type="button" onClick={() => api.openWidgetBoard()}
+        aria-label="Open the widget board" title="Open the widget board (or swipe left)" className={`${btn} ${single ? "px-3" : ""}`}>
+        <LayoutGrid className="w-4 h-4" />{name("board")}
+      </button>
+    ),
+    guide: (
+      <DropdownMenu key="guide">
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="Guide & tour" title="Guide & tour" className={`${btn} ${single ? "px-3" : ""}`}>
+            <HelpCircle className="w-4 h-4" />{name("guide")}
+            {api?.checklistIncomplete && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onClick={() => api?.openTour?.()} className="gap-2 cursor-pointer">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="flex-1">Setup guide</span>
+            {api?.checklistIncomplete && (
+              <span className="text-[0.6875em] text-primary font-medium">In progress</span>
+            )}
+          </DropdownMenuItem>
+          {api?.openFeatureTour && (
+            <DropdownMenuItem onClick={() => api.openFeatureTour()} className="gap-2 cursor-pointer">
+              <Compass className="w-4 h-4 text-muted-foreground" />
+              <span className="flex-1">Feature tour</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+    notifications: (
+      <button key="notifications" type="button" onClick={() => api?.openNotifHistory?.()}
+        aria-label="Notification history" title="Notification history" className={`${btn} ${single ? "px-3" : ""}`}>
+        <Inbox className="w-4 h-4" />{name("notifications")}
+        {api?.hasUnreadMentions && <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
+      </button>
+    ),
+  };
+  return (
+    // Compact and wrap-capable so the row lives happily beside the
+    // header in a single grid column (v0.231.0 same-line default).
+    <div className={`flex items-center ${single ? "justify-center" : "justify-end"} gap-0.5 h-full flex-wrap`}>
+      {ids.map((id) => parts[id])}
+    </div>
+  );
+}
+
 export const WIDGET_REGISTRY = {
   // ── Chrome (formerly fixed header) ─────────────────────────────
   system_header: {
@@ -372,95 +434,25 @@ export const WIDGET_REGISTRY = {
     supportsMultiInstance: true,
     defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
   },
-  help_button: {
-    label: "Setup & tour", description: "The guide/tour button, as a placeable tile.",
-    icon: HelpCircle, category: "chrome",
-    render: ({ api }) => (
-      <button
-        type="button"
-        onClick={() => api?.openTour?.()}
-        className="w-full h-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-border/40 bg-card/50 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <HelpCircle className="w-4 h-4" /> Setup & tour
-        {api?.checklistIncomplete && <span className="w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
-      </button>
-    ),
-    supportsModes: ["normal"],
-    supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 1 },
-  },
   // The home screen's corner buttons (board / guide / notifications) as
   // one placeable tile — the static header row they lived in is gone,
   // so the page chrome is a widget like everything else (owner ask).
   page_buttons: {
-    label: "Page buttons", description: "Widget board, guide & tour, and notifications buttons in one row.",
+    label: "Page buttons", description: "Widget board, guide & tour, and notifications buttons in one row — pick which in this widget's options.",
     icon: LayoutGrid, category: "chrome",
-    render: ({ api }) => (
-      // Compact and wrap-capable so the row lives happily beside the
-      // header in a single grid column (v0.231.0 same-line default).
-      <div className="flex items-center justify-end gap-0.5 h-full flex-wrap">
-        {api?.openWidgetBoard && (
-          <button type="button" onClick={() => api.openWidgetBoard()}
-            aria-label="Open the widget board" title="Open the widget board (or swipe left)"
-            className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button"
-              aria-label="Guide & tour" title="Guide & tour"
-              className="relative min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-              <HelpCircle className="w-4 h-4" />
-              {api?.checklistIncomplete && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => api?.openTour?.()} className="gap-2 cursor-pointer">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="flex-1">Setup guide</span>
-              {api?.checklistIncomplete && (
-                <span className="text-[0.6875em] text-primary font-medium">In progress</span>
-              )}
-            </DropdownMenuItem>
-            {api?.openFeatureTour && (
-              <DropdownMenuItem onClick={() => api.openFeatureTour()} className="gap-2 cursor-pointer">
-                <Compass className="w-4 h-4 text-muted-foreground" />
-                <span className="flex-1">Feature tour</span>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <button type="button" onClick={() => api?.openNotifHistory?.()}
-          aria-label="Notification history" title="Notification history"
-          className="relative min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-          <Inbox className="w-4 h-4" />
-          {api?.hasUnreadMentions && <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
-        </button>
-      </div>
-    ),
+    render: ({ api, settings }) => <PageButtons api={api} settings={settings} />,
     supportsModes: ["normal"],
-    supportsMultiInstance: false,
+    supportsMultiInstance: true,
+    configFields: [
+      { key: "buttons", type: "orderToggle", label: "Buttons", default: PAGE_BUTTON_IDS,
+        options: [
+          { value: "board", label: "Widget board" },
+          { value: "guide", label: "Guide & tour" },
+          { value: "notifications", label: "Notifications" },
+        ] },
+    ],
     defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 1 },
   },
-  notification_inbox: {
-    label: "Notifications", description: "The notification-history button, as a placeable tile.",
-    icon: Inbox, category: "chrome",
-    render: ({ api }) => (
-      <button
-        type="button"
-        onClick={() => api?.openNotifHistory?.()}
-        className="relative w-full h-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-border/40 bg-card/50 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Inbox className="w-4 h-4" /> Notifications
-        {api?.hasUnreadMentions && <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
-      </button>
-    ),
-    supportsModes: ["normal"],
-    supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 1 },
-  },
-
   // ── Quick actions ──────────────────────────────────────────────
   quick_checkin: {
     label: "Quick action buttons", description: "Quick Check-In and the start/quick buttons — pick, reorder and restyle them in this widget's options.",
@@ -695,6 +687,11 @@ export const WIDGET_REGISTRY = {
 for (const def of Object.values(WIDGET_REGISTRY)) {
   if (def.paintBox === undefined) def.paintBox = true;
 }
+
+// Folded duplicates (v0.280.0): the single-button tiles are page buttons
+// showing just that button. Placed copies keep their spot and settings.
+WIDGET_REGISTRY.help_button = foldWidget(WIDGET_REGISTRY.page_buttons, () => ({ buttons: ["guide"] }), { supportsMultiInstance: false });
+WIDGET_REGISTRY.notification_inbox = foldWidget(WIDGET_REGISTRY.page_buttons, () => ({ buttons: ["notifications"] }), { supportsMultiInstance: false });
 
 // Classic dashboard_layout element id → widget id (identity for everything
 // that exists in both worlds; the sub-toggle button ids intentionally have
