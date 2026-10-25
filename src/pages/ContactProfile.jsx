@@ -22,6 +22,7 @@ import {
   contactMethodHref, getContactMethodMeta,
 } from "@/lib/contacts";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 const TABS = [
   { id: "about", label: "About" },
@@ -330,22 +331,15 @@ export default function ContactProfile() {
   );
 }
 
-// ISO string -> value for <input type="datetime-local"> (local time).
-function toLocalInput(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  if (isNaN(d.getTime())) return "";
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
 
 // One contact note: view, or edit text + date/time in place.
 function NoteRow({ note, alters, onDelete, onSave }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note.content || "");
-  const [when, setWhen] = useState(toLocalInput(note.timestamp));
+  const [when, setWhen] = useState(toLocalDatetimeValue(note.timestamp, { orNow: true }));
   const [saving, setSaving] = useState(false);
 
-  const startEdit = () => { setText(note.content || ""); setWhen(toLocalInput(note.timestamp)); setEditing(true); };
+  const startEdit = () => { setText(note.content || ""); setWhen(toLocalDatetimeValue(note.timestamp, { orNow: true })); setEditing(true); };
   const save = async () => {
     const content = text.trim();
     const d = new Date(when);

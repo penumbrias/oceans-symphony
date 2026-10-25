@@ -18,12 +18,8 @@ import { logLocation } from "@/lib/checkinEntry";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
-function toDatetimeLocal(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  const pad = n => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function groupByDay(locations) {
   const groups = {};
@@ -50,7 +46,7 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
   const [lat, setLat] = useState(location?.latitude ?? null);
   const [lng, setLng] = useState(location?.longitude ?? null);
   const [notes, setNotes] = useState(location?.notes || "");
-  const [timestamp, setTimestamp] = useState(() => toDatetimeLocal(location?.timestamp));
+  const [timestamp, setTimestamp] = useState(() => toLocalDatetimeValue(location?.timestamp, { orNow: true }));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 

@@ -69,6 +69,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 // User-controllable filter for what shows in the Check-In Log. Stored in
 // localStorage so the choice persists across sessions. All toggles default
@@ -1143,12 +1144,6 @@ function LocationEntry({ loc }) {
   );
 }
 
-// ISO -> value for <input type="datetime-local"> in the user's local time.
-function toLocalInput(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  if (isNaN(d.getTime())) return "";
-  return format(d, "yyyy-MM-dd'T'HH:mm");
-}
 
 // Add a standalone note with a chosen date & time (a StatusNote), shown in the
 // log on that day. Optionally signed by an alter.
@@ -1159,7 +1154,7 @@ function CustomNoteDialog({ open, onClose, alters }) {
   const [when, setWhen] = useState("");
   const [authorId, setAuthorId] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setText(""); setAuthorId(""); setWhen(toLocalInput()); } }, [open]);
+  useEffect(() => { if (open) { setText(""); setAuthorId(""); setWhen(toLocalDatetimeValue(null, { orNow: true })); } }, [open]);
 
   const handleSave = async () => {
     const t = new Date(when);
@@ -1219,7 +1214,7 @@ function StatusNoteEntry({ sn, alters = [] }) {
   const terms = useTerms();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sn.note || "");
-  const [whenDraft, setWhenDraft] = useState(() => toLocalInput(sn.timestamp));
+  const [whenDraft, setWhenDraft] = useState(() => toLocalDatetimeValue(sn.timestamp, { orNow: true }));
   const [saving, setSaving] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const disarmRef = useRef(null);
@@ -1230,7 +1225,7 @@ function StatusNoteEntry({ sn, alters = [] }) {
     if (!next) { toast.error("Status can't be empty"); return; }
     const t = new Date(whenDraft);
     if (isNaN(t.getTime())) { toast.error("Pick a valid date & time"); return; }
-    const timestamp = whenDraft !== toLocalInput(sn.timestamp) ? t.toISOString() : undefined;
+    const timestamp = whenDraft !== toLocalDatetimeValue(sn.timestamp, { orNow: true }) ? t.toISOString() : undefined;
     setSaving(true);
     try {
       // Same grammar as a new status: ~commands, signposts, @mentions.
@@ -1269,7 +1264,7 @@ function StatusNoteEntry({ sn, alters = [] }) {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") { e.preventDefault(); handleSave(); }
-              if (e.key === "Escape") { setDraft(sn.note || ""); setWhenDraft(toLocalInput(sn.timestamp)); setEditing(false); }
+              if (e.key === "Escape") { setDraft(sn.note || ""); setWhenDraft(toLocalDatetimeValue(sn.timestamp, { orNow: true })); setEditing(false); }
             }}
             className="w-full bg-background border border-border/60 rounded-md px-2 py-1 text-sm"
             placeholder="Edit status…"
@@ -1291,7 +1286,7 @@ function StatusNoteEntry({ sn, alters = [] }) {
             </button>
             <button
               type="button"
-              onClick={() => { setDraft(sn.note || ""); setWhenDraft(toLocalInput(sn.timestamp)); setEditing(false); }}
+              onClick={() => { setDraft(sn.note || ""); setWhenDraft(toLocalDatetimeValue(sn.timestamp, { orNow: true })); setEditing(false); }}
               className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground"
             >
               Cancel
