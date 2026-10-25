@@ -18,13 +18,9 @@ import {
 } from "@/lib/unblendQuestions";
 import { applyGetToKnowMeAnswer } from "@/lib/getToKnowMeWriteback";
 import FronterPicker from "@/components/fronting/FronterPicker";
-import { formatInTimeZone } from "date-fns-tz";
 import { normalizeHexInput } from "@/lib/colorUtils";
+import { changeFront } from "@/lib/setFront";
 
-function nowLocalIso() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return formatInTimeZone(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-}
 
 // "Get to know me" — the inverse of Help me unblend. The user
 // proactively answers questions so the data builds up over time.
@@ -269,58 +265,23 @@ export default function GetToKnowMe() {
       .filter(Boolean);
   }, [currentQuestion, selectedAlterIds, alters]);
 
-  // Sync-to-front variants: mutate FrontingSession on every toggle.
-  // Mirrors SetFrontModal's save semantics — end existing sessions
-  // that no longer match desired state, create new ones for added
-  // alters or changed primary status. Refetch active sessions every
-  // time so we never operate on stale state.
+  // Sync-to-front variants: every toggle writes the front through the one
+  // set-front path (setFront.js). It reads the front fresh, keeps each
+  // still-present alter's session — a primary change no longer resets
+  // their "fronting since" — keeps their level, and tells friends.
   const applyFrontMutation = useCallback(
     async (nextPrimary, nextCoIds) => {
-      const now = nowLocalIso();
-      const desiredMap = {};
-      const all = [nextPrimary, ...nextCoIds].filter(Boolean);
-      for (const id of all) desiredMap[id] = id === nextPrimary;
-
-      const active = await base44.entities.FrontingSession.filter({ is_active: true });
-      const sessionsByAlter = {};
-      for (const s of active.filter((s) => s.alter_id)) {
-        (sessionsByAlter[s.alter_id] ||= []).push(s);
-      }
-      // End legacy sessions (no alter_id)
-      for (const s of active.filter((s) => !s.alter_id && s.primary_alter_id)) {
-        await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-      }
-      for (const [alterId, sessions] of Object.entries(sessionsByAlter)) {
-        const desiredPrimary = desiredMap[alterId];
-        const isPresent = alterId in desiredMap;
-        const hasDuplicates = sessions.length > 1;
-        if (!isPresent) {
-          for (const s of sessions) await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-        } else if (hasDuplicates) {
-          for (const s of sessions) await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-        } else if (sessions[0].is_primary !== desiredPrimary) {
-          await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
-        }
-      }
-      for (const id of all) {
-        const sessions = sessionsByAlter[id] || [];
-        const hasDuplicates = sessions.length > 1;
-        const single = sessions.length === 1 ? sessions[0] : null;
-        const statusUnchanged = single && single.is_primary === desiredMap[id];
-        if (hasDuplicates || !statusUnchanged) {
-          await base44.entities.FrontingSession.create({
-            alter_id: id,
-            is_primary: desiredMap[id],
-            start_time: now,
-            is_active: true,
-          });
-        }
-      }
+      const all = [...new Set([nextPrimary, ...nextCoIds].filter(Boolean))];
+      await changeFront((cur) => all.map((id) => ({
+        alterId: id,
+        isPrimary: id === nextPrimary,
+        level: cur.find((x) => x.alterId === id)?.level,
+      })), { queryClient, terms, alters });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontingSessions"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     },
-    [queryClient]
+    [queryClient, terms, alters]
   );
 
   const handleToggle = useCallback(

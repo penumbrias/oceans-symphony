@@ -23,7 +23,7 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import { changeFront } from "@/lib/setFront";
 import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
 import { beginHoldGesture } from "@/lib/holdGesture";
 
@@ -54,36 +54,34 @@ const reachable = (want, room) => Math.max(SOLO_MIN_PX, Math.min(want, room * 0.
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
 // Pass cfg so the derived primary follows the spectrum (star retired).
+// Writes through the one set-front path (setFront.js): fresh read, and the
+// derived lead follows the spectrum. Returns false when the alter isn't in
+// front (callers add them first).
 export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null, solo = false }) {
   try {
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const session = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
-    if (!session) return false;
-    if (session.front_level !== levelId) {
-      await base44.entities.FrontingSession.update(session.id, { front_level: levelId });
-    }
-    // "Sole" (the rail's sideways slide): clear the picked level — or the
-    // whole front — of everyone else. Scope comes from the level config.
-    if (solo && cfg) {
-      const now = new Date().toISOString();
-      const scope = cfg.solo_swipe?.scope || "level";
-      const idx = cfg.levels.findIndex((l) => l.id === levelId);
-      const lower = cfg.levels[idx + 1] || null;
-      for (const s of fresh) {
-        const aid = s.alter_id || s.primary_alter_id;
-        if (aid === alterId) continue;
+    const { changed } = await changeFront((cur) => {
+      if (!cur.some((s) => s.alterId === alterId)) return null;
+      let next = cur.map((s) => (s.alterId === alterId ? { ...s, level: levelId } : s));
+      // "Sole" (the rail's sideways slide): clear the picked level — or the
+      // whole front — of everyone else. Scope comes from the level config.
+      if (solo && cfg) {
+        const scope = cfg.solo_swipe?.scope || "level";
+        const idx = cfg.levels.findIndex((l) => l.id === levelId);
+        const lower = cfg.levels[idx + 1] || null;
         if (scope === "all") {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-          continue;
-        }
-        const sLevelId = s.front_level || (s.is_primary ? cfg.levels[0]?.id : cfg.levels[1]?.id || cfg.levels[0]?.id);
-        if (sLevelId === levelId) {
-          if (lower) await base44.entities.FrontingSession.update(s.id, { front_level: lower.id });
-          else await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+          next = next.filter((s) => s.alterId === alterId);
+        } else {
+          next = next.flatMap((s) => {
+            if (s.alterId === alterId) return [s];
+            const sLevelId = s.level || (s.isPrimary ? cfg.levels[0]?.id : cfg.levels[1]?.id || cfg.levels[0]?.id);
+            if (sLevelId !== levelId) return [s];
+            return lower ? [{ ...s, level: lower.id }] : [];
+          });
         }
       }
-    }
-    if (cfg?.enabled) await recomputePrimaryFromLevels({ cfg, queryClient: null });
+      return next;
+    }, { queryClient, levelCfg: cfg?.enabled ? cfg : null });
+    if (!changed) return false;
     queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
     try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });

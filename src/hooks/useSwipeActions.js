@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { changeFront } from "@/lib/setFront";
 
 const SWIPE_THRESHOLD = 40;
 const TAP_THRESHOLD = 10;
@@ -260,35 +261,30 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
 }
 
 /** Centralised primary/front action handlers for any swipe-driven alter UI.
- *  These match AlterGridView so behaviour is identical across views. */
-export async function toggleFrontFor(alter, _staleSessions, base44, queryClient, toast, terms = {}) {
+ *  These match AlterGridView so behaviour is identical across views. All of
+ *  them write through changeFront (setFront.js), which reads the front fresh
+ *  at write time — never the closure-captured snapshot — so a rapid second
+ *  tap or a 500ms long-press can't act on stale sessions. The `base44` and
+ *  stale-sessions arguments are kept for the existing call sites. */
+const frontChanged = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+  try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
+  queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+};
+
+export async function toggleFrontFor(alter, _staleSessions, _base44, queryClient, toast, terms = {}) {
   const FR = terms.front || "front";
   try {
-    // Always refetch — never trust the closure-captured snapshot. A rapid
-    // second tap can fire after a previous tap's invalidation queued a
-    // refetch but before it landed, so the cached array may not yet show
-    // the primary that was just created. Match togglePrimaryFor below.
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const mySession = fresh.find(s => s.alter_id === alter.id);
-    if (mySession) {
-      await base44.entities.FrontingSession.update(mySession.id, {
-        is_active: false,
-        end_time: new Date().toISOString(),
-      });
-      toast.success(`${alter.name} removed from ${FR}`);
-    } else {
-      const hasPrimary = fresh.some(s => s.is_primary);
-      await base44.entities.FrontingSession.create({
-        alter_id: alter.id,
-        is_primary: !hasPrimary,
-        start_time: new Date().toISOString(),
-        is_active: true,
-      });
-      toast.success(`${alter.name} added to ${FR}`);
-    }
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    let removed = false;
+    await changeFront((cur) => {
+      if (cur.some((s) => s.alterId === alter.id)) {
+        removed = true;
+        return cur.filter((s) => s.alterId !== alter.id);
+      }
+      return [...cur, { alterId: alter.id, isPrimary: !cur.some((s) => s.isPrimary) }];
+    }, { queryClient, terms });
+    toast.success(removed ? `${alter.name} removed from ${FR}` : `${alter.name} added to ${FR}`);
+    frontChanged(queryClient);
   } catch (err) {
     toast.error(err.message || "Failed to update front");
   }
@@ -298,86 +294,56 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
 // one, and does NOTHING when they aren't fronting. The level rail's
 // "Remove from {front}" stop must use THIS, not toggleFrontFor — a toggle
 // ADDS a non-fronter, which is the opposite of what the gesture says.
-export async function removeFrontFor(alter, base44, queryClient, toast, terms = {}) {
+export async function removeFrontFor(alter, _base44, queryClient, toast, terms = {}) {
   const FR = terms.front || "front";
   try {
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const mySession = fresh.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-    if (!mySession) return; // already out — keep them out
-    await base44.entities.FrontingSession.update(mySession.id, {
-      is_active: false,
-      end_time: new Date().toISOString(),
-    });
+    const { changed } = await changeFront((cur) => (
+      cur.some((s) => s.alterId === alter.id) ? cur.filter((s) => s.alterId !== alter.id) : null
+    ), { queryClient, terms });
+    if (!changed) return; // already out — keep them out
     toast.success(`${alter.name} removed from ${FR}`);
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    frontChanged(queryClient);
   } catch (err) {
     toast.error(err.message || "Failed to update front");
   }
 }
 
 // "Left then up" corner gesture: clear the entire current front and make
-// `alter` the sole primary fronter. End every active session (including
-// the tapped alter's, if any) then create one fresh primary session.
-export async function replaceFrontWith(alter, base44, queryClient, toast, terms = {}) {
+// `alter` the sole primary fronter. Their own session is kept (and its
+// "fronting since") when they were already in front.
+export async function replaceFrontWith(alter, _base44, queryClient, toast, terms = {}) {
   const FR = terms.front || "front";
   try {
-    const now = new Date().toISOString();
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    for (const s of fresh) {
-      await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-    }
-    await base44.entities.FrontingSession.create({
-      alter_id: alter.id,
-      is_primary: true,
-      start_time: now,
-      is_active: true,
-    });
+    await changeFront((cur) => {
+      const mine = cur.find((s) => s.alterId === alter.id);
+      return [{ alterId: alter.id, isPrimary: true, level: mine?.level }];
+    }, { queryClient, terms });
     toast.success(`${alter.name} is now the sole ${FR}`);
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    frontChanged(queryClient);
   } catch (err) {
     toast.error(err.message || "Failed to update front");
   }
 }
 
-export async function togglePrimaryFor(alter, _staleSessions, base44, queryClient, toast, terms = {}) {
+export async function togglePrimaryFor(alter, _staleSessions, _base44, queryClient, toast, terms = {}) {
   const FER = terms.fronter || "fronter";
   try {
-    // Always refetch — never trust the closure-captured snapshot. A long-press
-    // can fire 500–600ms after the gesture started, by which time the cached
-    // sessions may be stale.
-    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-    const mySession = fresh.find(s => s.alter_id === alter.id);
-
-    if (mySession?.is_primary) {
-      await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
-      toast.success(`${alter.name} demoted to co-${FER}`);
-    } else {
-      // Demote every existing primary (not just the first one) so we never
-      // leave two primaries in the DB after a partial failure or after stale
-      // duplicates have leaked in.
-      for (const s of fresh.filter(s => s.is_primary && s.alter_id !== alter.id)) {
-        try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
+    let message = "";
+    await changeFront((cur) => {
+      const mine = cur.find((s) => s.alterId === alter.id);
+      if (mine?.isPrimary) {
+        message = `${alter.name} demoted to co-${FER}`;
+        return cur.map((s) => (s.alterId === alter.id ? { ...s, isPrimary: false } : s));
       }
-      if (mySession) {
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-        toast.success(`${alter.name} promoted to primary`);
-      } else {
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          is_primary: true,
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-        toast.success(`${alter.name} is now primary ${FER}`);
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      // Every other primary is demoted, so two can never be left behind.
+      message = mine ? `${alter.name} promoted to primary` : `${alter.name} is now primary ${FER}`;
+      const rest = cur.map((s) => ({ ...s, isPrimary: false }));
+      return mine
+        ? rest.map((s) => (s.alterId === alter.id ? { ...s, isPrimary: true } : s))
+        : [...rest, { alterId: alter.id, isPrimary: true }];
+    }, { queryClient, terms });
+    toast.success(message);
+    frontChanged(queryClient);
   } catch (err) {
     toast.error(err.message || "Failed to update primary");
   }
