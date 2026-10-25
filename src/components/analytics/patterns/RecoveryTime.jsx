@@ -1,16 +1,15 @@
 import React, { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { computeRecoveryTime } from "@/lib/analyticsEngine";
-
-const TRIGGER_LABELS = {
-  sensory: "👂 Sensory", emotional: "💙 Emotional", interpersonal: "👥 Interpersonal",
-  trauma_reminder: "⚡ Trauma reminder", physical: "🫀 Physical",
-  internal: "🧠 Internal", unknown: "❓ Unknown",
-};
+import { triggerCategoryLabel } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
+import { useTerms } from "@/lib/useTerms";
 
 const COLORS = ["#8b5cf6", "#f43f5e", "#f97316", "#3b82f6", "#14b8a6", "#a855f7", "#64748b"];
 
 export default function RecoveryTime({ frontingSessions, symptomCheckIns, baseline }) {
+  const terms = useTerms();
+  const triggerCategories = useTriggerCategories();
   const { averageHours, byCategory } = useMemo(
     () => computeRecoveryTime(frontingSessions, symptomCheckIns, baseline),
     [frontingSessions, symptomCheckIns, baseline]
@@ -21,18 +20,18 @@ export default function RecoveryTime({ frontingSessions, symptomCheckIns, baseli
       .sort((a, b) => b[1] - a[1])
       .map(([cat, hours], i) => ({
         cat,
-        label: TRIGGER_LABELS[cat] || cat,
+        label: triggerCategoryLabel(cat, triggerCategories),
         hours,
         color: COLORS[i % COLORS.length],
       }));
-  }, [byCategory]);
+  }, [byCategory, triggerCategories]);
 
   if (averageHours === null && !categoryData.length) {
     return (
       <div className="py-10 text-center space-y-1">
         <p className="text-sm text-muted-foreground">Not enough data yet to estimate recovery time.</p>
         <p className="text-xs text-muted-foreground">
-          This analysis needs triggered switches plus symptom check-ins logged in the hours after them.
+          This analysis needs triggered {terms.switches} plus symptom check-ins logged in the hours after them.
         </p>
       </div>
     );
@@ -41,7 +40,7 @@ export default function RecoveryTime({ frontingSessions, symptomCheckIns, baseli
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground leading-relaxed">
-        How long it typically takes for symptoms to return within your personal baseline range after a triggered switch.
+        How long it typically takes for symptoms to return within your personal baseline range after a triggered {terms.switch}.
         Shorter times indicate better resilience or more effective coping.
       </p>
 
@@ -108,7 +107,7 @@ export default function RecoveryTime({ frontingSessions, symptomCheckIns, baseli
 
       <p className="text-xs text-muted-foreground">
         Recovery is defined as all tracked symptoms returning within one standard deviation of your personal baseline.
-        Based on all triggered switches with follow-up symptom data.
+        Based on all triggered {terms.switches} with follow-up symptom data.
       </p>
     </div>
   );

@@ -18,6 +18,7 @@
 //
 // Callers own their UI: validation, toasts, journal prompts, closing.
 
+import { triggerPatch } from "@/lib/triggerCategories";
 import { formatInTimeZone } from "date-fns-tz";
 import { base44 } from "@/api/base44Client";
 import { withBatch } from "@/lib/localDb";
@@ -255,15 +256,10 @@ async function applyFrontSelectionInner({
     }
   }
 
-  if (triggered?.category) {
+  if (triggered) {
+    const patch = triggerPatch({ on: true, category: triggered.category, label: triggered.label });
     const nowActive = await base44.entities.FrontingSession.filter({ is_active: true });
-    await Promise.all(nowActive.map((s) =>
-      base44.entities.FrontingSession.update(s.id, {
-        is_triggered_switch: true,
-        trigger_category: triggered.category,
-        trigger_label: triggered.label || "",
-      })
-    ));
+    await Promise.all(nowActive.map((s) => base44.entities.FrontingSession.update(s.id, patch)));
   }
 
   // Levels on → the star is retired; the spectrum decides who leads.

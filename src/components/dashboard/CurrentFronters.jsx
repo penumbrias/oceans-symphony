@@ -30,16 +30,8 @@ import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/ho
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { saveStatusNote } from "@/lib/checkinEntry";
 import { changeFront } from "@/lib/setFront";
-
-const TRIGGER_CATEGORIES = [
-  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
-  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
-  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
-  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
-  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
-  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
-  { id: "unknown",         label: "Unknown",        emoji: "❓" },
-];
+import { triggerPatch } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -288,14 +280,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
     queryKey: ["customEmotions"],
     queryFn: () => base44.entities.CustomEmotion.list(),
   });
-  const { data: customTriggerTypes = [] } = useQuery({
-    queryKey: ["customTriggerTypes"],
-    queryFn: () => base44.entities.TriggerType.list(),
-  });
-  const allTriggerCategories = [
-    ...TRIGGER_CATEGORIES,
-    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
-  ];
+  const allTriggerCategories = useTriggerCategories();
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
   const levelCfg = useFrontLevels();
@@ -393,9 +378,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
       if (symptomArr.length > 0) updates.session_symptoms = JSON.stringify(symptomArr);
 
       if (showTrigger) {
-        updates.is_triggered_switch = true;
-        updates.trigger_category = triggerCategory || "unknown";
-        updates.trigger_label = triggerLabel;
+        Object.assign(updates, triggerPatch({ on: true, category: triggerCategory, label: triggerLabel }));
       }
 
       await base44.entities.FrontingSession.update(session.id, updates);

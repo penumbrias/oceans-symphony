@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { triggerCategoryOf } from "@/lib/triggerCategories";
 
 // ─── Baseline ────────────────────────────────────────────────────────────────
 
@@ -73,13 +74,13 @@ export function computeTriggerSymptomChains(
   frontingSessions, symptomCheckIns, baseline, windowHoursAfter = 24
 ) {
   const triggered = frontingSessions.filter(
-    s => s.is_triggered_switch && s.trigger_category && s.start_time
+    s => triggerCategoryOf(s) && s.start_time
   );
   if (!triggered.length) return {};
 
   const chains = {};
   triggered.forEach(session => {
-    const cat = session.trigger_category;
+    const cat = triggerCategoryOf(session);
     const sessionStart = new Date(session.start_time).getTime();
     const windowEnd = sessionStart + windowHoursAfter * 3_600_000;
 

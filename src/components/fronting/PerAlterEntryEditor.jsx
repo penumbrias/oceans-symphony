@@ -9,6 +9,8 @@ import { Smile, Activity, AlertTriangle, Check, Loader2, X } from "lucide-react"
 import { toast } from "sonner";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
+import { triggerPatch } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 // Edit dialog for per-alter session entries (per-alter notes /
@@ -17,16 +19,6 @@ import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 // dashboard, but the save REPLACES the underlying values instead
 // of appending — so re-saving a check-in log row updates what's
 // there rather than spawning a new note alongside it.
-
-const TRIGGER_CATEGORIES = [
-  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
-  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
-  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
-  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
-  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
-  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
-  { id: "unknown",         label: "Unknown",        emoji: "❓" },
-];
 
 export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, focusKind }) {
   const terms = useTerms();
@@ -58,14 +50,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
     queryKey: ["customEmotions"],
     queryFn: () => base44.entities.CustomEmotion.list(),
   });
-  const { data: customTriggerTypes = [] } = useQuery({
-    queryKey: ["customTriggerTypes"],
-    queryFn: () => base44.entities.TriggerType.list(),
-  });
-  const allTriggerCategories = useMemo(() => [
-    ...TRIGGER_CATEGORIES,
-    ...customTriggerTypes.map((t) => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
-  ], [customTriggerTypes]);
+  const allTriggerCategories = useTriggerCategories();
 
   const activeSymptoms = useMemo(() => symptoms.filter((s) => !s.is_archived), [symptoms]);
 
@@ -256,15 +241,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
 
       // Trigger metadata — toggled off clears, on writes the picked
       // category + label.
-      if (showTrigger) {
-        updates.is_triggered_switch = true;
-        updates.trigger_category = triggerCategory || "unknown";
-        updates.trigger_label = triggerLabel;
-      } else {
-        updates.is_triggered_switch = false;
-        updates.trigger_category = "";
-        updates.trigger_label = "";
-      }
+      Object.assign(updates, triggerPatch({ on: showTrigger, category: triggerCategory, label: triggerLabel }));
 
       await base44.entities.FrontingSession.update(session.id, updates);
       if (cleanText) {

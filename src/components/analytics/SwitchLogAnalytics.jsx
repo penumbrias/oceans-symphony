@@ -1,4 +1,7 @@
 import React, { useMemo } from "react";
+import { triggerCategoryOf, triggerCategoryLabel } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
+import { useTerms } from "@/lib/useTerms";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, Cell,
@@ -13,17 +16,9 @@ const SWITCH_SYMPTOMS = [
   { key: "tension",      label: "Tension",      color: "#14b8a6" },
 ];
 
-const TRIGGER_CATEGORY_LABELS = {
-  sensory: "👂 Sensory",
-  emotional: "💙 Emotional",
-  interpersonal: "👥 Interpersonal",
-  trauma_reminder: "⚡ Trauma reminder",
-  physical: "🫀 Physical",
-  internal: "🧠 Internal",
-  unknown: "❓ Unknown",
-};
-
 export default function SwitchLogAnalytics({ journals = [], sessions = [], from, to }) {
+  const terms = useTerms();
+  const triggerCategories = useTriggerCategories();
   const fromMs = startOfDay(from).getTime();
   const toMs = endOfDay(to).getTime();
 
@@ -86,7 +81,7 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
   // Triggered switches from FrontingSession (structured trigger_category data)
   const triggeredSessions = useMemo(() => {
     return sessions.filter(s => {
-      if (!s.is_triggered_switch || !s.trigger_category) return false;
+      if (!triggerCategoryOf(s)) return false;
       const ts = new Date(s.start_time).getTime();
       return ts >= fromMs && ts <= toMs;
     });
@@ -95,17 +90,18 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
   const triggerCategoryFreq = useMemo(() => {
     const freq = {};
     triggeredSessions.forEach(s => {
-      freq[s.trigger_category] = (freq[s.trigger_category] || 0) + 1;
+      const cat = triggerCategoryOf(s);
+      freq[cat] = (freq[cat] || 0) + 1;
     });
     return Object.entries(freq)
       .sort((a, b) => b[1] - a[1])
-      .map(([cat, count]) => ({ cat, label: TRIGGER_CATEGORY_LABELS[cat] || cat, count }));
-  }, [triggeredSessions]);
+      .map(([cat, count]) => ({ cat, label: triggerCategoryLabel(cat, triggerCategories), count }));
+  }, [triggeredSessions, triggerCategories]);
 
   if (!switchLogs.length) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground text-sm">No switch logs in this date range.</p>
+        <p className="text-muted-foreground text-sm">No {terms.switch} logs in this date range.</p>
       </div>
     );
   }
@@ -115,7 +111,7 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-card border border-border/50 rounded-lg p-3">
-          <p className="text-xs text-muted-foreground mb-1">Switch logs</p>
+          <p className="text-xs text-muted-foreground mb-1">{terms.Switch} logs</p>
           <p className="text-lg font-semibold">{switchLogs.length}</p>
         </div>
         <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -133,7 +129,7 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
       {/* Average symptom levels */}
       {avgSymptoms.length > 0 && logsWithData.length > 0 && (
         <div className="bg-card border border-border/50 rounded-lg p-4">
-          <h3 className="text-sm font-semibold mb-3">Average symptom levels at switch</h3>
+          <h3 className="text-sm font-semibold mb-3">Average symptom levels at {terms.switch}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={avgSymptoms} layout="vertical" margin={{ left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -192,7 +188,7 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
       {triggerCategoryFreq.length > 0 && (
         <div className="bg-card border border-border/50 rounded-lg p-4">
           <h3 className="text-sm font-semibold mb-1">Trigger categories</h3>
-          <p className="text-xs text-muted-foreground mb-3">From triggered {sessions.length > 0 ? "switches" : "check-ins"} logged in Quick Check-In</p>
+          <p className="text-xs text-muted-foreground mb-3">From triggered {sessions.length > 0 ? terms.switches : "check-ins"} logged in Quick Check-In</p>
           <div className="space-y-2">
             {triggerCategoryFreq.map(({ cat, label, count }) => (
               <div key={cat} className="flex items-center gap-2">
@@ -225,7 +221,7 @@ export default function SwitchLogAnalytics({ journals = [], sessions = [], from,
       {logsWithData.length === 0 && triggerCategoryFreq.length === 0 && (
         <div className="bg-muted/30 rounded-lg p-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Symptom data appears when switch logs are filled out via the switch journal form. Trigger categories appear when a triggered switch is marked in Quick Check-In.
+            Symptom data appears when {terms.switch} logs are filled out via the {terms.switch} journal form. Trigger categories appear when a triggered {terms.switch} is marked in Quick Check-In.
           </p>
         </div>
       )}

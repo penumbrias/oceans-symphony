@@ -1,25 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
+import { triggerPatch } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { toast } from "sonner";
-
-// Same default set as SetFrontModal — kept in sync manually. If we ever
-// change the canonical list, update both. (A future cleanup could lift
-// both to lib/triggerCategories.js.)
-const TRIGGER_CATEGORIES = [
-  { id: "sensory",         label: "Sensory",         emoji: "👂", hint: "loud noise, smell, touch" },
-  { id: "emotional",       label: "Emotional",       emoji: "💙", hint: "grief, fear, loneliness" },
-  { id: "interpersonal",   label: "Interpersonal",   emoji: "👥", hint: "conflict, rejection" },
-  { id: "trauma_reminder", label: "Trauma reminder", emoji: "⚡", hint: "anniversary, place, memory" },
-  { id: "physical",        label: "Physical",        emoji: "🫀", hint: "pain, fatigue, illness" },
-  { id: "internal",        label: "Internal",        emoji: "🧠", hint: "intrusive thought, body memory" },
-  { id: "unknown",         label: "Unknown",         emoji: "❓" },
-];
 
 // Tiny modal that lets the user mark / un-mark the current active
 // fronting session(s) as a triggered switch and pick a category /
@@ -46,14 +35,7 @@ export default function TriggerEditModal({ open, onClose, sessions = [] }) {
     setLabel(primarySession?.trigger_label || "");
   }, [open, primarySession?.id]);
 
-  const { data: customTriggerTypes = [] } = useQuery({
-    queryKey: ["customTriggerTypes"],
-    queryFn: () => base44.entities.TriggerType.list(),
-  });
-  const allCategories = useMemo(() => [
-    ...TRIGGER_CATEGORIES,
-    ...customTriggerTypes.map((t) => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
-  ], [customTriggerTypes]);
+  const allCategories = useTriggerCategories();
 
   const handleSave = async () => {
     if (sessions.length === 0) {
@@ -62,9 +44,7 @@ export default function TriggerEditModal({ open, onClose, sessions = [] }) {
     }
     setSaving(true);
     try {
-      const updates = triggered
-        ? { is_triggered_switch: true, trigger_category: category || null, trigger_label: label.trim() || null }
-        : { is_triggered_switch: false, trigger_category: null, trigger_label: null };
+      const updates = triggerPatch({ on: triggered, category, label });
       for (const s of sessions) {
         await base44.entities.FrontingSession.update(s.id, updates);
       }

@@ -1,15 +1,8 @@
 import React, { useMemo } from "react";
 import { computeTriggerSymptomChains } from "@/lib/analyticsEngine";
-
-const TRIGGER_LABELS = {
-  sensory:         "👂 Sensory",
-  emotional:       "💙 Emotional",
-  interpersonal:   "👥 Interpersonal",
-  trauma_reminder: "⚡ Trauma reminder",
-  physical:        "🫀 Physical",
-  internal:        "🧠 Internal",
-  unknown:         "❓ Unknown",
-};
+import { triggerCategoryOf, triggerCategoryLabel } from "@/lib/triggerCategories";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
+import { useTerms } from "@/lib/useTerms";
 
 function deltaColor(delta) {
   if (delta === null) return "bg-muted/30 text-muted-foreground";
@@ -22,6 +15,8 @@ function deltaColor(delta) {
 }
 
 export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns, symptoms, baseline }) {
+  const terms = useTerms();
+  const triggerCategories = useTriggerCategories();
   const chains = useMemo(
     () => computeTriggerSymptomChains(frontingSessions, symptomCheckIns, baseline),
     [frontingSessions, symptomCheckIns, baseline]
@@ -37,8 +32,8 @@ export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns
   if (!categories.length) {
     return (
       <div className="py-10 text-center">
-        <p className="text-sm text-muted-foreground">No triggered switches with categories recorded yet.</p>
-        <p className="text-xs text-muted-foreground mt-1">Mark triggered switches in Quick Check-In to see this analysis.</p>
+        <p className="text-sm text-muted-foreground">No triggered {terms.switches} with categories recorded yet.</p>
+        <p className="text-xs text-muted-foreground mt-1">Mark triggered {terms.switches} in Quick Check-In to see this analysis.</p>
       </div>
     );
   }
@@ -51,8 +46,8 @@ export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns
   if (!relevantSymptoms.length) {
     return (
       <div className="py-10 text-center">
-        <p className="text-sm text-muted-foreground">No symptom check-ins found near triggered switches.</p>
-        <p className="text-xs text-muted-foreground mt-1">Log symptoms via Quick Check-In close to when switches happen.</p>
+        <p className="text-sm text-muted-foreground">No symptom check-ins found near triggered {terms.switches}.</p>
+        <p className="text-xs text-muted-foreground mt-1">Log symptoms via Quick Check-In close to when {terms.switches} happen.</p>
       </div>
     );
   }
@@ -61,7 +56,7 @@ export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns
     <div className="space-y-4">
       <div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Average symptom levels in the 24 hours following a triggered switch, compared to your personal baseline.
+          Average symptom levels in the 24 hours following a triggered {terms.switch}, compared to your personal baseline.
           Cells show the difference: <span className="text-red-500 font-medium">red = elevated</span>,{" "}
           <span className="text-green-600 font-medium">green = lower than usual</span>.
         </p>
@@ -89,12 +84,12 @@ export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns
             {categories.map((cat, idx) => {
               const catData = chains[cat];
               const eventCount = frontingSessions.filter(
-                s => s.is_triggered_switch && s.trigger_category === cat
+                s => triggerCategoryOf(s) === cat
               ).length;
               return (
                 <tr key={cat} className={idx % 2 === 0 ? "bg-card/50" : "bg-muted/20"}>
                   <td className="sticky left-0 bg-inherit px-3 py-2 font-medium text-foreground border-b border-border/50 z-10 whitespace-nowrap">
-                    {TRIGGER_LABELS[cat] || cat}
+                    {triggerCategoryLabel(cat, triggerCategories)}
                   </td>
                   {relevantSymptoms.map(s => {
                     const d = catData[s.id];
@@ -123,7 +118,7 @@ export default function TriggerSymptomChains({ frontingSessions, symptomCheckIns
 
       <div className="bg-muted/20 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
         <p>Numbers show how much higher (+) or lower (−) symptom levels are after that trigger type compared to your personal average.</p>
-        <p>Based on all {frontingSessions.filter(s => s.is_triggered_switch).length} triggered switches in your history.</p>
+        <p>Based on all {frontingSessions.filter(s => s.is_triggered_switch).length} triggered {terms.switches} in your history.</p>
       </div>
     </div>
   );

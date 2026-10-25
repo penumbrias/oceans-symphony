@@ -20,17 +20,8 @@ import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useAlterSorter } from "@/lib/alterSort";
+import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
-
-export const TRIGGER_CATEGORIES = [
-  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
-  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
-  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
-  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
-  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
-  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
-  { id: "unknown",         label: "Unknown",        emoji: "❓" },
-];
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -355,15 +346,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     staleTime: 60000,
   });
 
-  const { data: customTriggerTypes = [] } = useQuery({
-    queryKey: ["customTriggerTypes"],
-    queryFn: () => base44.entities.TriggerType.list(),
-    enabled: open,
-  });
-  const allTriggerCategories = useMemo(() => [
-    ...TRIGGER_CATEGORIES,
-    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
-  ], [customTriggerTypes]);
+  const allTriggerCategories = useTriggerCategories({ enabled: open });
 
   const triggerDefaultText = useMemo(() => {
     if (!triggeredSwitch) return "";
@@ -554,7 +537,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 ?? levelCfg.levels[0]?.id)
             : undefined,
         })),
-        triggered: triggeredSwitch && triggerCategory
+        triggered: triggeredSwitch
           ? { category: triggerCategory, label: triggerLabel }
           : null,
         levelsEnabled: levelCfg.enabled,
