@@ -19,14 +19,18 @@
 //     can't drop one) and saves the point check-in beside it, attributed.
 //
 // "Who" when the caller doesn't say: everyone currently in front, at
-// every level (owner decision, 2026-10-24). An explicit list, even an
-// empty one, always wins.
+// every level (owner decision, 2026-10-24), unless the person narrowed it
+// in Manage Check-In ("Entries belong to": leave out some levels, or
+// nobody). An explicit list, even an empty one, always wins.
 
 import { base44 } from "@/api/base44Client";
 import { emotionsAreDistressing } from "@/lib/emotionDistress";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { hasDiaryData, diaryDataToPatch } from "@/lib/diaryData";
 import { format } from "date-fns";
+import { attributionPolicy, applyAttributionPolicy } from "@/lib/emotionAttribution";
+import { resolveFrontLevels, getSessionLevel } from "@/lib/frontLevels";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Alter ids in front from a list of active sessions. Handles the current
 // per-alter rows and the legacy grouped rows (primary_alter_id +
@@ -51,8 +55,47 @@ export async function currentFronterIds() {
   }
 }
 
+// Everyone in front with their level id (fresh read).
+function frontersWithLevels(sessions, cfg) {
+  const out = new Map();
+  for (const s of sessions || []) {
+    if (!s || s.is_active === false) continue;
+    if (s.alter_id) {
+      if (!out.has(s.alter_id)) out.set(s.alter_id, getSessionLevel(s, cfg)?.id || null);
+    } else if (s.primary_alter_id) {
+      // Legacy grouped row: the lead sits at the top level, the rest one out.
+      if (!out.has(s.primary_alter_id)) out.set(s.primary_alter_id, cfg.levels[0]?.id || null);
+      for (const id of s.co_fronter_ids || []) {
+        if (id && !out.has(id)) out.set(id, (cfg.levels[1] || cfg.levels[0])?.id || null);
+      }
+    }
+  }
+  return out;
+}
+
+// Who an entry belongs to when the caller doesn't say: everyone in front,
+// filtered by the person's "Entries belong to" setting (attributionPolicy).
+export async function defaultAttributionIds() {
+  try {
+    const [sessions, settingsList] = await Promise.all([
+      base44.entities.FrontingSession.filter({ is_active: true }),
+      base44.entities.SystemSettings.list().catch(() => []),
+    ]);
+    const settings = pickPrimarySystemSettings(settingsList) || settingsList?.[0] || null;
+    const cfg = resolveFrontLevels(settings);
+    const levels = frontersWithLevels(sessions, cfg);
+    return applyAttributionPolicy({
+      fronterIds: [...levels.keys()],
+      policy: attributionPolicy(settings, cfg),
+      levelOf: (id) => levels.get(id),
+    });
+  } catch {
+    return currentFronterIds();
+  }
+}
+
 async function whoFor(frontingAlterIds) {
-  return Array.isArray(frontingAlterIds) ? frontingAlterIds : currentFronterIds();
+  return Array.isArray(frontingAlterIds) ? frontingAlterIds : defaultAttributionIds();
 }
 
 export async function logEmotionCheckIn({ emotions = [], frontingAlterIds, timestamp, customEmotions, ...rest } = {}) {

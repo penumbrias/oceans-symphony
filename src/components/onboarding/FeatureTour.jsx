@@ -1072,7 +1072,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "settings", sectionLabel: "Settings",
       emoji: "💗",
       title: "Feelings in Quick Check-In",
-      body: `The Feelings tab of the Check-in manager holds your emotions list and chooses who an emotion belongs to by default: all current ${t.fronters}, or only those at one ${t.fronting} level. In Quick Check-In, press and hold any emotion to pick exactly which ${t.alters} feel it — small coloured dots mark emotions that belong to someone other than the default. The side rating beside Feeling can be turned off here too.`,
+      body: `The Feelings tab of the Check-in manager holds your emotions list and chooses who entries belong to when you don't pick: everyone in ${t.front}, everyone except some ${t.fronting} levels, or nobody. That covers widgets, quick actions, reminders and ~commands, and who an emotion starts with in Quick Check-In. In Quick Check-In, press and hold any emotion to pick exactly which ${t.alters} feel it — small coloured dots mark emotions that belong to someone other than the default. The side rating beside Feeling can be turned off here too.`,
       route: "/manage-checkin", target: "checkin-feelings-tab",
       look: `the highlighted Feelings tab`, action: null,
     },

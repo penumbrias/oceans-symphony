@@ -20,7 +20,7 @@ import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { EMOTION_ATTRIBUTION_ALL, emotionAttributionDefault } from "@/lib/emotionAttribution";
+import { EMOTION_ATTRIBUTION_ALL, emotionAttributionDefault, ATTRIBUTION_ALL, ATTRIBUTION_NONE, attributionPolicy, policyExcludedLevels } from "@/lib/emotionAttribution";
 import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
 
 // Toggle which section pills appear in the Quick Check-In modal.
@@ -76,49 +76,86 @@ function FeelingsTab() {
   const levelCfg = useFrontLevels();
   const { data: list = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settings = pickPrimarySystemSettings(list) || list?.[0] || null;
-  const current = emotionAttributionDefault(settings, levelCfg);
+  // What the control shows. Before the person sets "Entries belong to",
+  // an older emotions-only "Only <level>" choice reads as leaving every
+  // other level out, which is what it did for emotions.
+  const stored = settings?.attribution_default && typeof settings.attribution_default === "object" ? settings.attribution_default : null;
+  const legacy = emotionAttributionDefault(settings, levelCfg);
+  const policy = stored ? attributionPolicy(settings, levelCfg) : ATTRIBUTION_ALL;
+  const mode = stored
+    ? (policy === ATTRIBUTION_NONE ? "none" : policy === ATTRIBUTION_ALL ? "all" : "exclude")
+    : (legacy === EMOTION_ATTRIBUTION_ALL ? "all" : "exclude");
+  const excluded = stored
+    ? policyExcludedLevels(policy)
+    : new Set(legacy === EMOTION_ATTRIBUTION_ALL ? [] : levelCfg.levels.filter((l) => l.id !== legacy).map((l) => l.id));
   const [saving, setSaving] = useState(false);
   const [sliderOn, setSliderOn] = useState(() => readQuickCheckinSliderEnabled());
 
-  const choose = async (value) => {
-    if (saving || value === current) return;
+  const save = async (next) => {
+    if (saving) return;
     setSaving(true);
     try {
-      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { emotion_attribution_default: value });
-      else await base44.entities.SystemSettings.create({ emotion_attribution_default: value });
+      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { attribution_default: next });
+      else await base44.entities.SystemSettings.create({ attribution_default: next });
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } finally {
       setSaving(false);
     }
   };
+  const chooseMode = (m) => {
+    if (m === mode && stored) return;
+    if (m === "exclude") {
+      // Start from what's shown, or leave out the outermost level.
+      const start = excluded.size ? [...excluded] : [levelCfg.levels[levelCfg.levels.length - 1]?.id].filter(Boolean);
+      save({ mode: "exclude", exclude_levels: start });
+    } else {
+      save({ mode: m });
+    }
+  };
+  const toggleLevel = (id) => {
+    const next = new Set(excluded);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    save({ mode: "exclude", exclude_levels: [...next] });
+  };
 
   const options = [
-    { id: EMOTION_ATTRIBUTION_ALL, label: `All ${t.fronters}` },
-    ...levelCfg.levels.map((l) => {
-      const name = frontLevelLabel(l, t);
-      return { id: l.id, label: `Only ${name.charAt(0).toLowerCase()}${name.slice(1)}` };
-    }),
+    { id: "all", label: `Everyone in ${t.front}`, hint: "At every level." },
+    { id: "exclude", label: "Leave some levels out", hint: `Pick the levels below. If everyone in ${t.front} is at a level you left out, the entry is saved without anyone.` },
+    { id: "none", label: "Nobody", hint: "Entries are saved without anyone unless you pick who." },
   ];
 
   return (
     <div className="space-y-5">
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold">Emotions belong to</h2>
+        <h2 className="text-sm font-semibold">Entries belong to</h2>
         <p className="text-xs text-muted-foreground">
-          Hold an emotion in Quick Check-In to choose exactly which {t.alters} feel it.
+          Who a feeling, symptom, location or diary card is saved for when you don't pick. This covers widgets, quick actions, reminders and ~commands, and it's who an emotion starts with in Quick Check-In. Hold an emotion there to choose exactly which {t.alters} feel it.
         </p>
-        <div role="radiogroup" aria-label="Emotions belong to" className="bg-card border border-border/50 rounded-xl divide-y divide-border/40">
+        <div role="radiogroup" aria-label="Entries belong to" className="bg-card border border-border/50 rounded-xl divide-y divide-border/40">
           {options.map((o) => (
-            <button key={o.id} type="button" role="radio" aria-checked={current === o.id} disabled={saving}
-              onClick={() => choose(o.id)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm">
-              <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${current === o.id ? "border-primary" : "border-muted-foreground/40"}`}>
-                {current === o.id && <span className="w-2 h-2 rounded-full bg-primary" />}
+            <button key={o.id} type="button" role="radio" aria-checked={mode === o.id} disabled={saving}
+              onClick={() => chooseMode(o.id)}
+              className="w-full flex items-start gap-3 px-4 py-3 text-left text-sm">
+              <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${mode === o.id ? "border-primary" : "border-muted-foreground/40"}`}>
+                {mode === o.id && <span className="w-2 h-2 rounded-full bg-primary" />}
               </span>
-              <span className="flex-1">{o.label}</span>
+              <span className="flex-1">
+                <span className="block">{o.label}</span>
+                <span className="block text-xs text-muted-foreground">{o.hint}</span>
+              </span>
             </button>
           ))}
         </div>
+        {mode === "exclude" && (
+          <div className="bg-card border border-border/50 rounded-xl divide-y divide-border/40">
+            {levelCfg.levels.map((l) => (
+              <label key={l.id} className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer">
+                <span className="text-sm">Leave out {frontLevelLabel(l, t).charAt(0).toLowerCase()}{frontLevelLabel(l, t).slice(1)}</span>
+                <Switch checked={excluded.has(l.id)} disabled={saving} onCheckedChange={() => toggleLevel(l.id)} />
+              </label>
+            ))}
+          </div>
+        )}
       </section>
 
       <label className="flex items-center justify-between gap-3 bg-card border border-border/50 rounded-xl px-4 py-3 cursor-pointer">
