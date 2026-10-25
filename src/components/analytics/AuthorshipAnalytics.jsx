@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { startOfDay, endOfDay } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { journalEntryDate } from "@/lib/journalDate";
 
 // Cross-content authorship analytics. Answers "which parts have been
 // authoring things, and what kind of things". Pulls from two sources so
@@ -11,8 +12,9 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 //      for chat messages, bulletins, and bulletin comments/replies. A
 //      co-authored chat message logs one "authored" row per speaker, so
 //      each contributor is credited.
-//   2. JournalEntry.author_alter_id — journals don't write authored logs,
-//      so they're counted directly here (no overlap with MentionLog).
+//   2. JournalEntry.author_alter_id — counted directly here, at the entry's
+//      own date. The switch journal also writes an authored log; that one
+//      is skipped so it isn't counted twice.
 const SOURCES = [
   { key: "chat", label: "Chat", color: "#3b82f6" },
   { key: "bulletin", label: "Bulletins", color: "#8b5cf6" },
@@ -39,6 +41,8 @@ export default function AuthorshipAnalytics({ mentionLogs = [], journals = [], a
     const out = [];
     mentionLogs.forEach((l) => {
       if (l.log_type !== "authored" || !l.author_alter_id) return;
+      // A journal's own row counts it below; its authored log would count it twice.
+      if (l.source_type === "journal") return;
       const t = new Date(l.source_date).getTime();
       if (isNaN(t) || t < fromMs || t > toMs) return;
       const type = SOURCES.some((s) => s.key === l.source_type) ? l.source_type : "chat";
@@ -46,7 +50,7 @@ export default function AuthorshipAnalytics({ mentionLogs = [], journals = [], a
     });
     journals.forEach((j) => {
       if (!j.author_alter_id) return;
-      const t = new Date(j.created_date || j.timestamp).getTime();
+      const t = new Date(journalEntryDate(j)).getTime();
       if (isNaN(t) || t < fromMs || t > toMs) return;
       out.push({ alterId: j.author_alter_id, type: "journal" });
     });

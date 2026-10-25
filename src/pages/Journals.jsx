@@ -17,6 +17,7 @@ import JournalImportDialog from "@/components/journal/JournalImportDialog";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
+import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -155,7 +156,7 @@ export default function Journals() {
     entries.forEach(e => {
       const author = e.author_alter_id || e.alter_id;
       if (author) ids.add(author);
-      (e.co_author_alter_ids || []).forEach(id => ids.add(id));
+      journalCoAuthorIds(e).forEach(id => ids.add(id));
     });
     return [...ids];
   }, [entries]);
@@ -170,7 +171,7 @@ export default function Journals() {
       if ((e.folder || null) !== viewingFolder) return false;
       if (selectedAuthorId) {
         const isAuthor = (e.author_alter_id || e.alter_id) === selectedAuthorId;
-        const isCoAuthor = (e.co_author_alter_ids || []).includes(selectedAuthorId);
+        const isCoAuthor = journalCoAuthorIds(e).includes(selectedAuthorId);
         if (!isAuthor && !isCoAuthor) return false;
       }
       if (fronterOnly) {
@@ -181,7 +182,7 @@ export default function Journals() {
           : currentAlterIds;
         if (activeFilterIds.length === 0) return false;
         const author = e.author_alter_id || e.alter_id;
-        const coAuthors = e.co_author_alter_ids || [];
+        const coAuthors = journalCoAuthorIds(e);
         const matches =
           (author && activeFilterIds.includes(author)) ||
           coAuthors.some((id) => activeFilterIds.includes(id));

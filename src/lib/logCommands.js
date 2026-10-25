@@ -834,11 +834,17 @@ async function executePlan(plan, ctx) {
       return r?.id || null;
     }
     case "journalEntry": {
+      // Signed like every other journal: the first person in front is the
+      // author, the others co-authors (same "who" as the other commands).
+      const who = ctx.fronting_alter_ids || [];
       const r = await base44.entities.JournalEntry.create({
         title: plan.title || null,
         content: plan.body || "",
         folder: plan.folder || null,
         timestamp: now,
+        entry_date: now,
+        author_alter_id: who[0] || null,
+        co_author_alter_ids: who.slice(1),
       });
       return r?.id || null;
     }

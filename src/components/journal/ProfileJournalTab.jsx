@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
+import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
 export default function ProfileJournalTab({ alterIds = [], defaultAuthorId = null }) {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function ProfileJournalTab({ alterIds = [], defaultAuthorId = nul
 
   const idSet = useMemo(() => new Set(alterIds), [alterIds]);
   const mine = useMemo(() => entries
-    .filter((e) => idSet.has(e.author_alter_id) || (e.co_author_alter_ids || []).some((id) => idSet.has(id)))
+    .filter((e) => idSet.has(e.author_alter_id) || journalCoAuthorIds(e).some((id) => idSet.has(id)))
     .sort((a, b) => new Date(b.updated_date || b.created_date || 0) - new Date(a.updated_date || a.created_date || 0)),
   [entries, idSet]);
 

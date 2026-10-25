@@ -30,6 +30,7 @@ import { parseSignpostAuthors, isSystemSignpost } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
 
 export default function JournalEditorModal({
@@ -173,7 +174,7 @@ useEffect(() => {
       setFolder(editingEntryFinal.folder || null);
       // Some importers (Plural Star, Ampersand) put the author in `alter_id`.
       setAuthorAlterId(editingEntryFinal.author_alter_id || editingEntryFinal.alter_id || null);
-      setCoAuthorIds(editingEntryFinal.co_author_alter_ids || []);
+      setCoAuthorIds(journalCoAuthorIds(editingEntryFinal));
       if (editingEntryFinal.is_encrypted) {
         setShowPasswordField(true);
         setContent("");

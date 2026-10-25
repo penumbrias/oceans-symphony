@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { journalDisplayDate, normalizeTag } from "@/lib/journalDate";
+import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
 export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
   const systemIdentity = useSystemIdentity();
@@ -13,7 +14,8 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
   // No specific author + no co-authors → attribute to the system as a
   // whole. Either the user picked "No attribution" / `-system` in the
   // editor, or the entry was saved with no one fronting.
-  const isSystemAttributed = !author && (entry.co_author_alter_ids?.length ?? 0) === 0;
+  const coAuthorIds = journalCoAuthorIds(entry);
+  const isSystemAttributed = !author && coAuthorIds.length === 0;
 
   return (
     <div
@@ -51,9 +53,9 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
         {!author && isSystemAttributed && (
           <span className="ml-1.5">· by {systemIdentity.name}</span>
         )}
-        {entry.co_author_alter_ids?.length > 0 && (
+        {coAuthorIds.length > 0 && (
           <span className="flex items-center gap-0.5 ml-0.5">
-            {entry.co_author_alter_ids.slice(0, 4).map(id => {
+            {coAuthorIds.slice(0, 4).map(id => {
               const a = altersById?.[id];
               if (!a) return null;
               return (
@@ -65,8 +67,8 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
                 />
               );
             })}
-            {entry.co_author_alter_ids.length > 4 && (
-              <span className="text-[0.625rem] text-muted-foreground ml-0.5">+{entry.co_author_alter_ids.length - 4}</span>
+            {coAuthorIds.length > 4 && (
+              <span className="text-[0.625rem] text-muted-foreground ml-0.5">+{coAuthorIds.length - 4}</span>
             )}
           </span>
         )}
