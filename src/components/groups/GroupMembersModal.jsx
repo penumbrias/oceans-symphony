@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Grid3X3, List, Ban } from "lucide-react";
 import { toast } from "sonner";
-import { addGroupMember, removeGroupMember } from "@/lib/groupMembership";
+import { addGroupMember, removeGroupMember, isMemberOf } from "@/lib/groupMembership";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -46,6 +47,7 @@ function MemberThumb({ alter, size = "w-8 h-8", grayscale = false, fallbackIniti
 // via `onToggleSelection(alterId, isAdding)`. The caller persists on save.
 export default function GroupMembersModal({ group, allGroups, isOpen, onClose, selectionMode = false, selectedIds, onToggleSelection }) {
   const terms = useTerms();
+  const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState("all"); // all, not-in, in
@@ -68,25 +70,21 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
     [group.id, includeSubgroups, allGroups]
   );
 
-  // Also include sp_id of all groups (current + subgroups) when matching
-  const groupKeysToMatch = useMemo(() => {
-    const keys = new Set(groupIds);
-    // Add sp_id for all groups in the list
-    groupIds.forEach((gid) => {
-      const g = allGroups.find((grp) => grp.id === gid);
-      if (g?.sp_id) keys.add(g.sp_id);
-    });
-    return keys;
-  }, [groupIds, allGroups]);
+  // Membership reads through groupMembership.isMemberOf (both sides, every
+  // key spelling) — the same rule every other screen uses.
+  const groupsToMatch = useMemo(
+    () => groupIds.map((gid) => allGroups.find((grp) => grp.id === gid) || (gid === group.id ? group : null)).filter(Boolean),
+    [groupIds, allGroups, group]
+  );
 
   const altersInGroup = useMemo(() => {
     if (selectionMode) return selectedIds instanceof Set ? selectedIds : new Set(selectedIds || []);
     return new Set(
       alters
-        .filter((alter) => alter.groups?.some((g) => groupKeysToMatch.has(g.id) || groupKeysToMatch.has(g.sp_id)))
+        .filter((alter) => groupsToMatch.some((g) => isMemberOf(g, alter)))
         .map((a) => a.id)
     );
-  }, [selectionMode, selectedIds, alters, groupKeysToMatch]);
+  }, [selectionMode, selectedIds, alters, groupsToMatch]);
 
   // When this group is a subsystem (alter-owned), adding certain alters
   // would create an ownership loop (they're an ancestor of the owner).
@@ -151,9 +149,9 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
       else await removeGroupMember({ group, alterId, alters });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(isAdding ? "Alter added!" : "Alter removed!");
+      toast.success(isAdding ? `${terms.Alter} added` : `${terms.Alter} removed`);
     } catch (err) {
-      toast.error(err.message || "Failed to update alter");
+      toast.error(err.message || `Couldn't update this ${terms.alter}`);
     }
   };
 
@@ -161,7 +159,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Manage {group.name} Members</DialogTitle>
+          <DialogTitle>{terms.Alters} in {group.name}</DialogTitle>
         </DialogHeader>
         {subsystem && (
           <p className="text-xs text-muted-foreground -mt-1">
@@ -204,7 +202,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
               size="sm"
               onClick={() => setFilterMode("all")}
             >
-              All Alters
+              All {terms.alters}
             </Button>
             <Button
               variant={filterMode === "not-in" ? "default" : "outline"}
@@ -258,7 +256,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
                   >
                     <Ban className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
                     <MemberThumb alter={alter} grayscale />
-                    <span className="text-sm flex-1 line-through">{alter.name}</span>
+                    <span className="text-sm flex-1 line-through">{formatAlter(alter)}</span>
                     <span className="text-[0.625rem] text-muted-foreground italic flex-shrink-0">would loop</span>
                   </div>
                 );
@@ -282,7 +280,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
                   tabIndex={-1}
                 />
                 <MemberThumb alter={alter} />
-                <span className="text-sm flex-1">{alter.name}</span>
+                <span className="text-sm flex-1">{formatAlter(alter)}</span>
               </div>
               );
             })
@@ -299,7 +297,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
                   >
                     <Ban className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-muted-foreground" />
                     <MemberThumb alter={alter} size="w-12 h-12" grayscale fallbackInitial />
-                    <span className="text-xs text-center font-medium w-full truncate leading-tight line-through">{alter.alias || alter.name}</span>
+                    <span className="text-xs text-center font-medium w-full truncate leading-tight line-through">{formatAlter(alter)}</span>
                   </div>
                 );
               }
@@ -320,7 +318,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
                   />
                   <MemberThumb alter={alter} size="w-12 h-12" fallbackInitial />
                   <span className="text-xs text-center font-medium w-full truncate leading-tight">
-                    {alter.alias || alter.name}
+                    {formatAlter(alter)}
                   </span>
                 </div>
               );
