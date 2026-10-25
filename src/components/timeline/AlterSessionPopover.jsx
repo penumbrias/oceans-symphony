@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import { editFrontSession, endFrontSession, removeFrontSession } from "@/lib/frontSessionEdit";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -105,7 +105,7 @@ function localDatetimeToISO(val) {
 // and shows a "Tap again to delete" warning; second press actually
 // removes the FrontingSession record. Used when a row keeps resurfacing
 // as a ghost and the user wants it gone permanently.
-function DeleteSessionButton({ session, queryClient, onDeleted }) {
+function DeleteSessionButton({ session, alterId, queryClient, onDeleted }) {
   const [armed, setArmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
   useEffect(() => {
@@ -123,7 +123,7 @@ function DeleteSessionButton({ session, queryClient, onDeleted }) {
         if (!armed) { setArmed(true); return; }
         setDeleting(true);
         try {
-          await base44.entities.FrontingSession.delete(session.id);
+          await removeFrontSession({ session, alterId });
           toast.success("Session deleted");
           queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
           queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -240,30 +240,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
               onClick={async () => {
                 setEndingNow(true);
                 try {
-                  const now = new Date().toISOString();
-                  await base44.entities.FrontingSession.update(s.id, {
-                    end_time: now,
-                    is_active: false,
-                  });
-                  // Sweep other stale rows for the same alter — anything
-                  // missing end_time AND older than 12h is almost certainly
-                  // a ghost. Use a wide net since the user is explicitly
-                  // resolving stuck state.
-                  try {
-                    const others = await base44.entities.FrontingSession.filter({ alter_id: s.alter_id });
-                    const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
-                    for (const o of others || []) {
-                      if (o.id === s.id) continue;
-                      if (o.end_time) continue;
-                      const started = o.start_time ? new Date(o.start_time).getTime() : 0;
-                      if (started < twelveHoursAgo) {
-                        await base44.entities.FrontingSession.update(o.id, {
-                          end_time: now,
-                          is_active: false,
-                        });
-                      }
-                    }
-                  } catch { /* best-effort sweep */ }
+                  await endFrontSession({ session: s, alterId: alter?.id || s.alter_id || null });
                   toast.success("Session ended");
                   queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
                   queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -285,7 +262,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
           {/* Hard-delete escape hatch — for sessions that won't stay ended
               (e.g. when there's no matching alter currently fronting and
               the row keeps resurfacing). Two-tap confirm to avoid accidents. */}
-          <DeleteSessionButton session={s} queryClient={queryClient} onDeleted={onClose} />
+          <DeleteSessionButton session={s} alterId={alter?.id} queryClient={queryClient} onDeleted={onClose} />
 
           <div className="flex gap-2">
             {alter?.id && (
@@ -327,31 +304,12 @@ export function AlterSessionEdit({ session, alter, onClose }) {
     ? session
     : { ...session, is_primary: session?.primary_alter_id === alter?.id };
   const [editLevel, setEditLevel] = useState(getSessionLevel(seedSession, editLevelCfg)?.id || editLevelCfg.levels[0]?.id);
-  const editLevelIdx = Math.max(0, editLevelCfg.levels.findIndex((l) => l.id === editLevel));
-  const asPrimary = editLevelIdx === 0;
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setDeleting(true);
     try {
-      if (session.alter_id) {
-        // New individual model — just delete the record.
-        await base44.entities.FrontingSession.delete(session.id);
-      } else {
-        // Legacy model — if this alter is the only fronter on the record,
-        // delete it; otherwise remove this alter from the co-fronter list.
-        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-        const otherIds = allIds.filter(id => id !== alter.id);
-        if (otherIds.length === 0) {
-          await base44.entities.FrontingSession.delete(session.id);
-        } else {
-          const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
-          await base44.entities.FrontingSession.update(session.id, {
-            primary_alter_id: otherPrimary,
-            co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
-          });
-        }
-      }
+      await removeFrontSession({ session, alterId: alter.id });
       toast.success("Session deleted");
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -366,67 +324,20 @@ export function AlterSessionEdit({ session, alter, onClose }) {
 const handleSave = async () => {
   setSaving(true);
   try {
-    const newStart = localDatetimeToISO(startVal) || session.start_time;
     const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
-
-    if (session.alter_id) {
-      // New individual model — update this record directly (no note field).
-      //
-      // If the user is promoting this session to primary, demote every other
-      // currently-active primary first. Without this we'd end up with two
-      // `is_primary: true` rows. Refetch instead of trusting any closure-
-      // captured array — the cached snapshot may be stale by the time the
-      // user hits Save (cf. useSwipeActions.togglePrimaryFor).
-      await base44.entities.FrontingSession.update(session.id, {
-        front_level: editLevel,
-        is_primary: asPrimary,
-        start_time: newStart,
-        end_time: newEnd,
-        is_active: !newEnd,
-      });
-      // Still-active sessions settle the lead through the shared recompute
-      // (top occupied level wins; ties keep the current lead).
-      if (!newEnd) {
-        await recomputePrimaryFromLevels({ cfg: editLevelCfg, queryClient: null });
-      }
-    } else {
-      // Legacy model fallback
-      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      if (!allIds.includes(alter.id)) allIds.push(alter.id);
-      const otherIds = allIds.filter(id => id !== alter.id);
-
-      if (otherIds.length === 0) {
-        await base44.entities.FrontingSession.update(session.id, {
-          primary_alter_id: asPrimary ? alter.id : null,
-          co_fronter_ids: asPrimary ? [] : [alter.id],
-          start_time: newStart,
-          end_time: newEnd,
-          is_active: !newEnd,
-        });
-      } else {
-        const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
-        await base44.entities.FrontingSession.update(session.id, {
-          primary_alter_id: otherPrimary,
-          co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
-          start_time: session.start_time,
-          end_time: session.end_time,
-          is_active: session.is_active,
-        });
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          front_level: editLevel,
-          is_primary: asPrimary,
-          start_time: newStart,
-          end_time: newEnd,
-          is_active: !newEnd,
-        });
-      }
-    }
+    await editFrontSession({
+      session,
+      alterId: alter.id,
+      start: localDatetimeToISO(startVal),
+      end: localDatetimeToISO(endVal),
+      levelId: editLevel,
+      levelCfg: editLevelCfg,
+    });
 
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
     queryClient.invalidateQueries({ queryKey: ["session", session.id] });
-    toast.success(newEnd ? "Session ended" : "Session saved");
+    toast.success(newEnd && !session.end_time ? "Session ended" : "Session saved");
     onClose();
   } catch (e) {
     // Surface backend errors instead of silently failing — the previous
