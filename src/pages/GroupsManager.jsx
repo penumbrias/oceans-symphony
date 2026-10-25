@@ -30,7 +30,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ColorPicker from "@/components/shared/ColorPicker";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
-import ManageMembersModal from "@/components/groups/ManageMembersModal";
+import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -614,12 +614,14 @@ export default function GroupsManager() {
         onClose={() => { setCreateOpen(false); refresh(); }}
         parentGroup={current}
       />
-      <ManageMembersModal
-        group={membersFor}
-        allAlters={alters}
-        open={!!membersFor}
-        onClose={() => { setMembersFor(null); refresh(); }}
-      />
+      {membersFor && (
+        <GroupMembersModal
+          group={membersFor}
+          allGroups={groups}
+          isOpen
+          onClose={() => { setMembersFor(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "improve", text: "Choosing a group's {{alters}} from Groups now uses the same picker as everywhere else, with search, sort, grid view and subgroups." },
+      { type: "fix", text: "The group {{alters}} picker now shows everyone already in an imported group, and uses your name/alias choice and your own words." },
       { type: "fix", text: "Imported groups now nest in the right place everywhere, including Groups and the group pickers." },
       { type: "fix", text: "A group whose folder was deleted, or that ended up inside itself, now shows at the top level in every list instead of disappearing." },
       { type: "fix", text: "Deleting an {{alter}} now puts their notes, board messages and relationships in the trash with them, so restoring brings everything back." },
