@@ -129,7 +129,7 @@ function AppShortcutWidget({ mode, settings }) {
         </span>
       )}
       {mode !== "minimal" && (
-        <span className="text-[0.6875rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
+        <span className="text-[0.6875em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
           {label}
         </span>
       )}
@@ -175,7 +175,7 @@ function FrequentlyOpenedWidget({ mode }) {
               <Icon className="w-4.5 h-4.5" />
             </span>
             {mode !== "minimal" && (
-              <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5 w-full">
+              <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5 w-full">
                 {item.label}
               </span>
             )}
@@ -234,13 +234,13 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
   return (
     <div className="rounded-xl border border-border/40 bg-card/50 px-3 py-2">
       <div className="flex items-center justify-between mb-1.5">
-        <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-[0.625em] font-semibold uppercase tracking-wider text-muted-foreground">
           {t.Fronting} leaders
         </p>
         <button
           type="button"
           onClick={() => setWindowSel((w) => (w === "week" ? "month" : "week"))}
-          className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:text-foreground"
+          className="text-[0.625em] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:text-foreground"
         >
           {windowSel === "month" ? "30d" : "7d"}
         </button>
@@ -248,16 +248,16 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
       <div className="space-y-1">
         {(mode === "minimal" ? top.slice(0, 3) : top).map(({ alter, ms }, i) => (
           <div key={alter.id} className="flex items-center gap-2">
-            <span className="text-[0.625rem] text-muted-foreground w-3 text-right tabular-nums">{i + 1}</span>
+            <span className="text-[0.625em] text-muted-foreground w-3 text-right tabular-nums">{i + 1}</span>
             <AlterAvatar alter={alter} size="xs" />
             <span className="text-xs truncate flex-1">{formatAlter(alter)}</span>
-            <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{fmtH(ms)}</span>
+            <span className="text-[0.6875em] text-muted-foreground tabular-nums">{fmtH(ms)}</span>
           </div>
         ))}
       </div>
       {mode !== "minimal" && pairs.length > 0 && (
         <>
-          <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">
+          <p className="text-[0.625em] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">
             Top {t.cofronting || "co-fronting"} pairs
           </p>
           <div className="space-y-1">
@@ -270,7 +270,7 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
                 <span className="text-xs truncate flex-1">
                   {formatAlter(p.a)} + {formatAlter(p.b)}
                 </span>
-                <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{fmtH(p.totalOverlap)}</span>
+                <span className="text-[0.6875em] text-muted-foreground tabular-nums">{fmtH(p.totalOverlap)}</span>
               </div>
             ))}
           </div>
@@ -311,14 +311,14 @@ function CurrentFocusWidget({ mode }) {
         <span className={`w-2 h-2 rounded-full animate-pulse flex-shrink-0 ${FOCUS_DOT[first.type] || "bg-primary"}`} />
         <span className="truncate">{first.label}</span>
         {items.length > 1 && (
-          <span className="ml-auto text-[0.6875rem] text-muted-foreground flex-shrink-0">+{items.length - 1}</span>
+          <span className="ml-auto text-[0.785em] text-muted-foreground flex-shrink-0">+{items.length - 1}</span>
         )}
       </button>
     );
   }
   return (
     <div className="rounded-xl border border-border/40 bg-card/50 px-3 py-2">
-      <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Current focus</p>
+      <p className="text-[0.625em] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Current focus</p>
       <div className="space-y-1">
         {items.slice(0, 6).map((it, i) => (
           <button
@@ -420,7 +420,7 @@ export const WIDGET_REGISTRY = {
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="flex-1">Setup guide</span>
               {api?.checklistIncomplete && (
-                <span className="text-[0.6875rem] text-primary font-medium">In progress</span>
+                <span className="text-[0.6875em] text-primary font-medium">In progress</span>
               )}
             </DropdownMenuItem>
             {api?.openFeatureTour && (
@@ -778,7 +778,7 @@ function ClockWidget({ mode }) {
       <span className="text-xl font-semibold tabular-nums">{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
       <span className="text-xs text-muted-foreground">{now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</span>
       {mode === "expanded" && (
-        <span className="text-[0.6875rem] text-muted-foreground mt-0.5">{now.toLocaleDateString([], { year: "numeric" })}</span>
+        <span className="text-[0.6875em] text-muted-foreground mt-0.5">{now.toLocaleDateString([], { year: "numeric" })}</span>
       )}
     </div>
   );

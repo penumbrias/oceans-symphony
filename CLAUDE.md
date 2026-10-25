@@ -1127,7 +1127,11 @@ to em inside `[data-widget-content]` by index.css. Chrome colors go through
 `var(--v2-accent)`; never read look fields off `settings` directly — they
 arrive as CSS variables via `lookToStyle()` in `src/lib/widgetLook.js`. The
 compliance test: set border width, background, text size, text color, and
-accent in the widget's options — all five must visibly change.
+accent in the widget's options — all five must visibly change. Run
+`node scripts/check-widget-contract.mjs` before shipping a widget change — it
+fails on bracketed rem text, look fields read off `settings`, and grey/white
+text classes in the widget files (mark real content, like initials on a
+member's colour, with a `contract-ok` comment).
 
 ### Nested / hierarchical pickers — never a flat `<select>`
 
