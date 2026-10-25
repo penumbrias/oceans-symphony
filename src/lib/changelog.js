@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Co-signers of a {{switch}} journal now show on the entry and in journal filters." },
+      { type: "fix", text: "{{Switch}} journals are no longer counted twice in authorship analytics." },
+      { type: "fix", text: "Back-dated and imported journals now show on their own day in the timeline and analytics." },
+      { type: "fix", text: "Journals made with ~journal are now signed by whoever is in {{front}}." },
       { type: "fix", text: "Saving an {{alter}}'s profile no longer undoes changes made elsewhere while it was open, like custom field values from the Info tab or Get to know me answers." },
       { type: "improve", text: "Choosing a group's {{alters}} from Groups now uses the same picker as everywhere else, with search, sort, grid view and subgroups." },
       { type: "fix", text: "The group {{alters}} picker now shows everyone already in an imported group, and uses your name/alias choice and your own words." },

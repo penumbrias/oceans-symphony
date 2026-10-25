@@ -133,7 +133,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         entry_type: "switch_log",
         tags: ["switch"],
         author_alter_id: prepared.authorIds[0] || authorAlterId || "",
-        author_alter_ids: prepared.authorIds,
+        co_author_alter_ids: prepared.authorIds.filter((id) => id !== (prepared.authorIds[0] || authorAlterId)),
         fronting_session_id: sessionId || "",
         allowed_alter_ids: [],
         switch_data: { trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms },

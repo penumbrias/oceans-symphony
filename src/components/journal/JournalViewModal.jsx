@@ -12,6 +12,7 @@ import { Edit2, Lock, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
 function processSignposts(html, altersById) {
   if (!html || !altersById) return html;
@@ -153,7 +154,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
                   {author.name}
                 </span>
               )}
-              {entry.co_author_alter_ids?.map(id => {
+              {journalCoAuthorIds(entry).map(id => {
                 const a = altersById?.[id];
                 if (!a) return null;
                 return (

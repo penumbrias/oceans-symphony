@@ -60,12 +60,15 @@ function halfMs() {
 // Flatten authored content into presence moments: { alterId, ts }.
 //   - MentionLog rows with log_type "authored" (chat / bulletins / comments /
 //     replies — written by saveAuthoredLog), via author_alter_id + source_date.
-//   - JournalEntry, via author_alter_id + (created_date | timestamp).
-// Journals aren't in MentionLog, so there's no double counting.
+//   - JournalEntry, via author_alter_id + its entry date.
+// A journal saved through the authored-text pipeline (the switch journal)
+// also leaves an "authored" MentionLog row; those are skipped so the entry
+// counts once, from the journal itself.
 export function buildAuthoredEvents({ mentionLogs = [], journals = [] }) {
   const out = [];
   for (const l of mentionLogs) {
     if (l?.log_type !== "authored" || !l.author_alter_id) continue;
+    if (l.source_type === "journal") continue;
     const ts = new Date(l.source_date).getTime();
     if (Number.isFinite(ts)) out.push({ alterId: l.author_alter_id, ts });
   }

@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { startOfDay, endOfDay } from "date-fns";
 import { base44, localEntities } from "@/api/base44Client";
 import { collectAlterDates, datesForDay } from "@/lib/importantDates";
+import { journalEntryDate } from "@/lib/journalDate";
 
 const parseDate = (v) => (v instanceof Date ? v : new Date(v));
 
@@ -86,7 +87,7 @@ export function sliceTimelineDay(src, day, filters = {}) {
     : [];
 
   const dayEmotions = src.emotions.filter((e) => inDay(e.timestamp));
-  const dayJournals = src.journals.filter((j) => inDay(j.created_date));
+  const dayJournals = src.journals.filter((j) => inDay(journalEntryDate(j)));
   const dayCheckIns = src.checkIns.filter((c) => inDay(c.created_date));
   const dayBulletins = src.bulletins.filter((b) => inDay(b.created_date));
   const dayTasks = src.tasks.filter((t) => {
