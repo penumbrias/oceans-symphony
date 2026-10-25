@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { removeGroupMember } from "@/lib/groupMembership";
 import { toast } from "sonner";
 import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus, ArrowRightLeft, CalendarClock, PencilLine } from "lucide-react";
 import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
@@ -47,13 +48,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
 
   const leaveSubsystem = async (g) => {
     try {
-      const key = alter.sp_id || alter.id;
-      await base44.entities.Alter.update(alter.id, {
-        groups: (alter.groups || []).filter((x) => x.id !== g.id && x.sp_id !== g.id),
-      });
-      await base44.entities.Group.update(g.id, {
-        member_sp_ids: (g.member_sp_ids || []).filter((id) => id !== key),
-      });
+      await removeGroupMember({ group: g, alterId: alter.id });
       qc.invalidateQueries({ queryKey: ["alters"] });
       qc.invalidateQueries({ queryKey: ["alter", alter.id] });
       qc.invalidateQueries({ queryKey: ["groups"] });

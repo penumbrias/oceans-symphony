@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 25, 2026",
     changes: [
+      { type: "fix", text: "Deleting an {{alter}} now puts their notes, board messages and relationships in the trash with them, so restoring brings everything back." },
+      { type: "fix", text: "Group changes from an {{alter}}'s profile, a new {{alter}} or a new presence now stick, including for imported groups." },
+      { type: "fix", text: "Merging duplicate {{alters}} now moves everything recorded for a copy onto the one you keep." },
+      { type: "fix", text: "Custom field edits on a profile now show up across the app straight away." },
       { type: "improve", text: "The {{alters}} page no longer repeats the {{fronters}} panel — who's in {{front}} lives on the Dashboard." },
       { type: "fix", text: "Deleting one {{alter}}'s part of an older shared session no longer deletes everyone else's part too." },
       { type: "fix", text: "Session edits and splits now check the end comes after the start, and adding a past session for someone already in {{front}} no longer doubles them up." },

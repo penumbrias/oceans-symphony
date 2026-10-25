@@ -167,6 +167,39 @@ export function removeGroupMember({ group, alterId }) {
   });
 }
 
+// One alter's groups set to exactly `groupIds` (the alter's own group
+// picker, a new alter's groups, leaving a subsystem). Only groups whose
+// membership actually changes are rewritten, each through the same
+// both-representations write as setGroupMembers. With `onlyGroupIds` only
+// those groups are touched (e.g. leaving one subsystem).
+export function setAlterGroups({ alterId, groupIds, onlyGroupIds = null }) {
+  return enqueueMembershipWrite(async () => {
+    if (!alterId) return { added: 0, removed: 0 };
+    const [groups, alters] = await Promise.all([
+      base44.entities.Group.list(),
+      base44.entities.Alter.list(),
+    ]);
+    const wanted = new Set(groupIds || []);
+    const scope = onlyGroupIds ? new Set(onlyGroupIds) : null;
+    let added = 0;
+    let removed = 0;
+    let current = alters;
+    for (const group of groups || []) {
+      if (scope && !scope.has(group.id)) continue;
+      const alter = current.find((a) => a.id === alterId);
+      if (!alter) break;
+      const isIn = isMemberOf(group, alter);
+      if (isIn === wanted.has(group.id)) continue;
+      const next = new Set(getMemberAlters(group, current).map((a) => a.id));
+      if (wanted.has(group.id)) next.add(alterId); else next.delete(alterId);
+      const r = await doSetGroupMembers({ group, alterIds: [...next] });
+      added += r.added; removed += r.removed;
+      current = await base44.entities.Alter.list();
+    }
+    return { added, removed };
+  });
+}
+
 // A membership entry as stored on the alter — normally { id, name, color },
 // but be liberal in what we read: a bare id string counts as { id }.
 function entryKeys(entry) {

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { mergeAlterInto } from "@/lib/alterMerge";
 import { Copy, Loader2, Check, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -87,8 +88,8 @@ export default function DuplicateAltersManager() {
     if (totalLosers === 0) return;
     if (!(await confirm(
       `Remove ${totalLosers} duplicate ${totalLosers === 1 ? t.alter : t.alters}? ` +
-      `The most complete copy of each is kept and any ${t.fronting} history is moved onto it. ` +
-      `This can't be undone — consider exporting a backup first (Settings → Backup & export).`
+      `The most complete copy of each is kept, and everything recorded for a copy (${t.fronting} history, notes, messages, check-ins, groups) is moved onto it. ` +
+      `The emptied copies go to the trash.`
     ))) return;
 
     setWorking(true);
@@ -99,41 +100,20 @@ export default function DuplicateAltersManager() {
         for (const l of losers) remap[l.id] = keeper.id;
       }
 
-      // Re-point fronting history off the removed copies onto the kept one so
-      // the timeline / front history isn't orphaned. (Group membership is by
-      // sp_id, which the keeper shares, so groups need no change.)
-      let sessionsMoved = 0;
-      try {
-        const sessions = await base44.entities.FrontingSession.list();
-        for (const s of sessions) {
-          const updates = {};
-          if (remap[s.alter_id]) updates.alter_id = remap[s.alter_id];
-          if (remap[s.primary_alter_id]) updates.primary_alter_id = remap[s.primary_alter_id];
-          if (Array.isArray(s.co_fronter_ids) && s.co_fronter_ids.some((id) => remap[id])) {
-            updates.co_fronter_ids = [...new Set(s.co_fronter_ids.map((id) => remap[id] || id))];
-          }
-          if (Object.keys(updates).length) {
-            await base44.entities.FrontingSession.update(s.id, updates);
-            sessionsMoved++;
-          }
-        }
-      } catch (e) {
-        console.warn("[dedupe] fronting-session reassign failed:", e?.message || e);
-      }
-
-      // Remove the duplicate copies.
+      // Each copy is merged into the kept one through the same merge the
+      // profile's Options tab uses: every reference anywhere (fronting,
+      // check-ins, notes, messages, relationships, groups, journals,
+      // lineage) is re-pointed first, empty fields are filled, and only
+      // then is the copy removed (to the trash).
       let removed = 0;
-      for (const loserId of Object.keys(remap)) {
-        try { await base44.entities.Alter.delete(loserId); removed++; }
-        catch (e) { console.error("[dedupe] delete failed", loserId, e); }
+      for (const [loserId, keeperId] of Object.entries(remap)) {
+        try { await mergeAlterInto(loserId, keeperId); removed++; }
+        catch (e) { console.error("[dedupe] merge failed", loserId, e); }
       }
 
-      qc.invalidateQueries({ queryKey: ["alters"] });
-      qc.invalidateQueries({ queryKey: ["frontHistory"] });
-      qc.invalidateQueries({ queryKey: ["activeFront"] });
+      qc.invalidateQueries();
       toast.success(
-        `Removed ${removed} duplicate ${removed === 1 ? t.alter : t.alters}` +
-        (sessionsMoved ? ` and moved ${sessionsMoved} ${t.fronting} session${sessionsMoved === 1 ? "" : "s"} to the kept cop${removed === 1 ? "y" : "ies"}.` : ".")
+        `Merged ${removed} duplicate ${removed === 1 ? t.alter : t.alters} into the kept cop${removed === 1 ? "y" : "ies"}.`
       );
     } catch (e) {
       toast.error(e?.message || "Couldn't remove duplicates");

@@ -262,6 +262,7 @@ export default function InfoTab({ alter, systemFields }) {
       custom_fields: { ...customFieldValues, [fieldId]: editValue },
     });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
     setEditingFieldId(null);
     setSaving(false);
   };
@@ -273,6 +274,7 @@ export default function InfoTab({ alter, systemFields }) {
     [updated[index], updated[swapIndex]] = [updated[swapIndex], updated[index]];
     await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
   };
 
   const startEditAlter = (idx) => {
@@ -286,6 +288,7 @@ export default function InfoTab({ alter, systemFields }) {
     updated[idx] = { ...updated[idx], value: editValue };
     await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
     setEditingAlterIdx(null);
     setSaving(false);
   };
@@ -294,6 +297,7 @@ export default function InfoTab({ alter, systemFields }) {
     const updated = alterSpecificFields.filter((_, i) => i !== idx);
     await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
   };
 
   const saveNewAlterField = async () => {
@@ -302,6 +306,7 @@ export default function InfoTab({ alter, systemFields }) {
     const updated = [...alterSpecificFields, { name: newAlterField.name.trim(), value: newAlterField.value || "", field_type: newAlterField.field_type || "text" }];
     await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
     setNewAlterField(null);
     setSaving(false);
   };

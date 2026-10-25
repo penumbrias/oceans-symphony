@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { setAlterGroups, isMemberOf } from "@/lib/groupMembership";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -109,13 +110,13 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     [allGroups, alter?.id]
   );
 
-  // Initialize selection from group.member_sp_ids (source of truth)
+  // Open showing what's really stored: either representation, either key
+  // (the same union every reader uses).
   useEffect(() => {
     if (!open || !alter || allGroups.length === 0) return;
-    const alterId = alter.sp_id || alter.id;
     const initialSelected = new Set(
       allGroups
-        .filter((g) => (g.member_sp_ids || []).includes(alterId))
+        .filter((g) => isMemberOf(g, alter))
         .map((g) => g.id)
     );
     setSelectedGroupIds(initialSelected);
@@ -134,24 +135,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     if (!alter) return;
     setSaving(true);
     try {
-      const alterId = alter.sp_id || alter.id;
-      for (const group of allGroups) {
-        const currentMembers = new Set(group.member_sp_ids || []);
-        const shouldBeIn = selectedGroupIds.has(group.id);
-        const isIn = currentMembers.has(alterId);
-        if (shouldBeIn && !isIn) {
-          currentMembers.add(alterId);
-          await base44.entities.Group.update(group.id, { member_sp_ids: [...currentMembers] });
-        } else if (!shouldBeIn && isIn) {
-          currentMembers.delete(alterId);
-          await base44.entities.Group.update(group.id, { member_sp_ids: [...currentMembers] });
-        }
-      }
-      // Keep alter.groups in sync for display
-      const newGroups = allGroups
-        .filter((g) => selectedGroupIds.has(g.id))
-        .map((g) => ({ id: g.sp_id || g.id, name: g.name, color: g.color || "" }));
-      await base44.entities.Alter.update(alter.id, { groups: newGroups });
+      await setAlterGroups({ alterId: alter.id, groupIds: [...selectedGroupIds] });
 
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
