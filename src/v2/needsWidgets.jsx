@@ -97,11 +97,12 @@ export function GoalsWidget({ settings }) {
   const progress = useList("dailyProgress", "DailyProgress");
   const ctx = useMemo(() => ({ tasks, activities, templates, progress, now: new Date() }), [tasks, activities, templates, progress]);
   const rows = useMemo(() => goals
-    .filter((g) => isOpenGoal(g) && g.status !== "paused")
+    // Top-level goals only: sections live inside their page.
+    .filter((g) => !g.parent_id && isOpenGoal(g) && g.status !== "paused")
     .sort((a, b) => String(b.created_date || "").localeCompare(String(a.created_date || "")))
     .slice(0, limitOf(settings, 5))
     .map((g) => {
-      const mine = stepsForGoal(steps, g.id);
+      const mine = stepsForGoal(steps, g.id).filter((s) => s.kind !== "text" && s.kind !== "link");
       const { done, total } = goalProgress(mine, ctx);
       const next = mine.find((s) => { const st = stepState(s, ctx); return !st.done && !st.ongoing; });
       return { goal: g, done, total, next };
@@ -114,7 +115,7 @@ export function GoalsWidget({ settings }) {
         <Row key={r.goal.id} left={<Target className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
           primary={r.goal.title} secondary={r.next?.title}
           right={r.total > 0 ? `${r.done}/${r.total}` : tr("widget.goals.ongoing")}
-          onClick={() => navigate(`/goals?highlight=${r.goal.id}`)} />
+          onClick={() => navigate(`/goals?page=${r.goal.id}`)} />
       ))}
     </Section>
   );

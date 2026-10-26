@@ -451,7 +451,7 @@ export default function Needs() {
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: list("ActivityCategory") });
   const { data: turns = [] } = useQuery({ queryKey: TURNS_QUERY_KEY, queryFn: list("TurnAgreement") });
   const { data: goals = [] } = useQuery({ queryKey: ["goals"], queryFn: list("Goal") });
-  const openGoals = goals.filter((g) => !["done", "let_go"].includes(g.status || "active")).length;
+  const openGoals = goals.filter((g) => !g.parent_id && !["done", "let_go"].includes(g.status || "active")).length;
 
   useHighlightScroll([isFetched, tab]);
 

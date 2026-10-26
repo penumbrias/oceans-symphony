@@ -17,10 +17,11 @@
 // the theme preset store (which already applies on fronting via
 // alterThemeLinks).
 
+import TextCard from "@/components/shared/TextCard";
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, Minus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -185,44 +186,6 @@ const TOUCH_STEPS = ["default", "comfortable", "large"];
 
 // − value + stepper — font sizes read as a number you nudge, not a knob
 // hidden behind a button.
-function Stepper({ label, valueLabel, canDown, canUp, onDown, onUp }) {
-  return (
-    <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" onClick={onDown} disabled={!canDown} aria-label={`${label} smaller`}
-        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
-        <Minus className="w-3.5 h-3.5" />
-      </button>
-      <span className="w-12 text-center text-xs tabular-nums" aria-live="polite">{valueLabel}</span>
-      <button type="button" onClick={onUp} disabled={!canUp} aria-label={`${label} larger`}
-        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
-        <Plus className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
-// One kind of text (body or headings): font, size, style — the same three
-// rows in the same order for both, so the two cards read as a pair.
-function TextCard({ title, font, size, style }) {
-  return (
-    <div className="rounded-xl border border-border/50 p-2.5 space-y-2">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{font.select}</div>
-        {font.upload}
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium flex-1">{size.label}</span>
-        <Stepper {...size} />
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium flex-1">{style.label}</span>
-        {style.control}
-      </div>
-    </div>
-  );
-}
-
 function StyleFlagButtons({ def, value = [], onChange }) {
   const toggle = (f) => onChange(value.includes(f) ? value.filter((x) => x !== f) : [...value, f]);
   return (

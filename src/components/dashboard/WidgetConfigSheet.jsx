@@ -57,7 +57,7 @@ function RichTextField({ value, onCommit, placeholder }) {
     </React.Suspense>
   );
 }
-import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Minus, Plus } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
@@ -87,9 +87,10 @@ import { Switch } from "@/components/ui/switch";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import {
   themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
-  LOOK_GROUPS, lookCoverage, lookForGroups, OFF, mergeLook, pickLook, userStyleId,
-  FONT_STYLE_OPTIONS,
+  LOOK_GROUPS, LOOK_SECTIONS, lookCoverage, lookForGroups, OFF, mergeLook, pickLook, userStyleId,
+  FONT_STYLE_OPTIONS, textSplitPatch, inheritedHeaderStyles, sectionResetPatch, sectionHasOwn,
 } from "@/lib/widgetLook";
+import TextCard from "@/components/shared/TextCard";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
@@ -607,13 +608,170 @@ function useHasWidgetLabel(open, instanceId, tick) {
   return has;
 }
 
-// One look part of the sheet, opened from its chip (see lookParts).
-function LookPart({ open, title, children }) {
+// One section of the sheet, opened from its chip (see lookParts). Every
+// section that owns settings ends in its own Reset, so undoing one part
+// never means undoing everything.
+function LookPart({ open, title, children, onReset, resetLabel }) {
   if (!open) return null;
   return (
     <div className="rounded-lg border border-border/40 px-3 py-3 space-y-3">
       <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
       {children}
+      {onReset && (
+        <div className="flex justify-end pt-1 border-t border-border/30">
+          <button type="button" onClick={onReset}
+            className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <RotateCcw className="w-3 h-3" /> {resetLabel || "Reset"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Which parts of a look to carry — the sheet's own sections, used by both
+// "Save this look as a style" and "Apply this look to…".
+function PartTicks({ value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {LOOK_GROUPS.map((g) => {
+        const on = value.includes(g.id);
+        return (
+          <button key={g.id} type="button" aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((x) => x !== g.id) : [...value, g.id])}
+            className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
+              on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+            }`}>{g.id === "layout" ? "Layout (spacing)" : g.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+// A small label above a group of rows inside a section.
+function SubHead({ children }) {
+  return <p className="text-xs font-semibold pt-1">{children}</p>;
+}
+
+// The one-question control: a segmented bar, like the display mode and
+// the planner editor's Done / Now / Plan. For short, few-option choices.
+function Segmented({ label, options, value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex rounded-full border border-border/60 p-0.5 gap-0.5">
+      {options.map((o) => (
+        <button key={String(o.value)} type="button" role="radio"
+          aria-checked={String(value) === String(o.value)}
+          onClick={() => onChange(o.value)}
+          className={`flex-1 min-w-0 truncate text-xs py-1.5 px-1 rounded-full ${
+            String(value) === String(o.value) ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+          }`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A choice shows as a segmented bar when it fits on one line (up to four
+// short options), as wrapping chips otherwise.
+const fitsSegmented = (options = []) =>
+  options.length > 1 && options.length <= 4 && options.reduce((n, o) => n + String(o.label).length, 0) <= 30;
+
+// Counts (how many to show, row height, days ahead): − n +, and the number
+// can be typed. A typed value saves when you leave the box or press Enter;
+// the buttons save at once. Replaces the bare number box that only saved
+// on blur and gave no way to nudge.
+function NumberStepper({ label, value, min = 0, max = 99, step = 1, onCommit }) {
+  const n = Number.isFinite(Number(value)) ? Number(value) : min;
+  const [text, setText] = React.useState(String(n));
+  React.useEffect(() => { setText(String(n)); }, [n]);
+  const clamp = (v) => Math.min(max, Math.max(min, v));
+  const commitText = () => {
+    const v = parseInt(text, 10);
+    if (Number.isNaN(v)) { setText(String(n)); return; }
+    const c = clamp(v);
+    setText(String(c));
+    if (c !== n) onCommit(c);
+  };
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label={label}>
+      <button type="button" aria-label={`${label} less`} disabled={n <= min}
+        onClick={() => onCommit(clamp(n - step))}
+        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <input type="number" inputMode="numeric" value={text} min={min} max={max} aria-label={label}
+        onChange={(e) => setText(e.target.value)} onBlur={commitText}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="w-14 h-8 px-1 text-center rounded-lg border border-input bg-background text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring" />
+      <button type="button" aria-label={`${label} more`} disabled={n >= max}
+        onClick={() => onCommit(clamp(n + step))}
+        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// A colour role as a labelled row: name on the left, swatch on the right
+// (the swatch's popover holds hex, opacity, Clear).
+function ColourRow({ label, children }) {
+  return (
+    <div className="flex items-center gap-2 min-h-[32px]">
+      <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// The look of a set of font-style flags, for previews and chip faces.
+const FLAG_STYLE = {
+  bold: { fontWeight: 700 },
+  light: { fontWeight: 300 },
+  italic: { fontStyle: "italic" },
+  underline: { textDecorationLine: "underline" },
+  strikethrough: { textDecorationLine: "line-through" },
+  smallcaps: { fontVariant: "small-caps" },
+  uppercase: { textTransform: "uppercase" },
+};
+function flagsStyle(flags = []) {
+  const out = {};
+  const deco = [];
+  for (const f of flags) {
+    if (f === "underline") deco.push("underline");
+    else if (f === "strikethrough") deco.push("line-through");
+    else Object.assign(out, FLAG_STYLE[f] || {});
+  }
+  if (deco.length) out.textDecorationLine = deco.join(" ");
+  return out;
+}
+
+// Font-style chips. `regular` adds a first chip meaning "none of these",
+// lit when nothing is picked (headings: no styles of their own).
+function FontStyleChips({ value = [], onChange, regular = false }) {
+  const toggle = (id) => {
+    let next = value.includes(id) ? value.filter((x) => x !== id) : [...value, id];
+    // Bold and Light are opposite weights — picking one drops the other.
+    if (id === "bold" && next.includes("bold")) next = next.filter((x) => x !== "light");
+    if (id === "light" && next.includes("light")) next = next.filter((x) => x !== "bold");
+    onChange(next);
+  };
+  const chip = (on) => `text-[0.6875rem] px-2.5 py-1 rounded-full border ${
+    on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+  }`;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {regular && (
+        <button type="button" aria-pressed={value.length === 0} onClick={() => onChange([])}
+          className={chip(value.length === 0)}>Regular</button>
+      )}
+      {FONT_STYLE_OPTIONS.map(({ id, label }) => (
+        <button key={id} type="button" aria-pressed={value.includes(id)} onClick={() => toggle(id)}
+          className={chip(value.includes(id))}
+          style={{ ...FLAG_STYLE[id], ...(id === "uppercase" ? { fontSize: "0.625rem" } : {}) }}>
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -673,7 +831,7 @@ export default function WidgetConfigSheet({
   onRemove,          // (instanceId) → delete this widget
   onResetWidget,     // (instanceId) → back to registry defaults
   onEditLayout,      // () → turn on home-screen edit mode (move/resize)
-  onApplyLook,       // (scope: "all" | "page" | "pick") → copy this look out
+  onApplyLook,       // (scope: "all" | "page" | "pick", parts?: section ids | null = all) → copy this look out
   resolvedLook = {}, // what this widget actually looks like right now
   userStyles = [],   // the user's own saved styles
   onSaveStyle,       // (label, look) → save the current look as a style
@@ -720,13 +878,17 @@ export default function WidgetConfigSheet({
   };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const drawsLabel = useHasWidgetLabel(open, widget?.instanceId, `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
-  const [styleOpen, setStyleOpen] = React.useState(false);
-  const [builtinOpen, setBuiltinOpen] = React.useState(false);
-  const [themesOpen, setThemesOpen] = React.useState(false);
-  const [cssOpen, setCssOpen] = React.useState(false);
-  const [advOpen, setAdvOpen] = React.useState(false);
+  // Styles: which catalogue is showing (Ready-made / Yours / From themes).
+  const [styleTab, setStyleTab] = React.useState("builtin");
   const [naming, setNaming] = React.useState(false);
   const [applyOpen, setApplyOpen] = React.useState(false);
+  // Which parts "Apply this look to…" copies — all of them by default.
+  const [applyParts, setApplyParts] = React.useState(LOOK_GROUPS.map((g) => g.id));
+  // "Each side" rows under Inner spacing / Outline.
+  const [padSides, setPadSides] = React.useState(false);
+  const [outlineSides, setOutlineSides] = React.useState(false);
+  // The footer's Reset… choice (just the look / everything).
+  const [resetAsk, setResetAsk] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
   // Which parts of the look a saved style should carry. All of them by
   // default — a preset that covers everything needs no caveats.
@@ -761,6 +923,7 @@ export default function WidgetConfigSheet({
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const [iconPickerOpen, setIconPickerOpen] = React.useState(false);
   const fontOptions = useFontOptions();
+  const headFontOptions = useFontOptions({ inheritLabel: "Same as body" });
   // Classic Appearance themes, offered as widget looks.
   const { allPresets = {}, userCustomPresets = {} } = useTheme() || {};
   // Which half of a theme to translate — the live document class is the
@@ -771,7 +934,8 @@ export default function WidgetConfigSheet({
     ...Object.entries(allPresets).map(([name, preset]) => ({ name, preset, mine: false })),
   ].filter(({ preset }) => preset && (preset.light || preset.dark)), [allPresets, userCustomPresets]);
   const t = useTerms();
-  // Which look parts (Size & text / Colours / Styles / Icon) are open.
+  // Which sections (Text / Layout / Box / Colours & fill / Styles / CSS /
+  // Icon) are open.
   const [openParts, setOpenParts] = React.useState([]);
   const toggleOpenPart = (id) => setOpenParts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   if (!open) return null;
@@ -822,25 +986,46 @@ export default function WidgetConfigSheet({
     : effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
-  const hasOwnFields = (def.configFields || []).some((f) => f.section !== "ui");
+  const ownFields = (def.configFields || []).filter((f) => f.section !== "ui");
+  const uiFields = (def.configFields || []).filter((f) => f.section === "ui" && f.type === "range");
+  const uiFieldKeys = uiFields.map((f) => f.key);
+  const hasOwnFields = ownFields.length > 0;
+  const set = (patch) => onSettings(widget.instanceId, patch);
   const setHere = (keys) => keys.some((k) => {
     const v = settings[k];
     return v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
   });
+  // The sections, in the order the chips show. The look sections come from
+  // LOOK_SECTIONS (widgetLook.js) — the same list behind saved styles,
+  // copied looks and each section's Reset.
+  const SECTION_ICONS = { text: Type, layout: Move, box: Square, fill: Palette, css: Code2 };
   const lookParts = [
-    { id: "ui", label: "Size & text", icon: Type, has: setHere([
-      "controlScale", "halign", "valign", "fontScale", "radius", "borderW", "outlineW", "padding",
-      "borderStyle", "shadow", "font", "fontStyles", "headerFont", "headerFontStyles",
-      ...(def.configFields || []).filter((f) => f.section === "ui").map((f) => f.key),
-    ]) },
-    { id: "colors", label: "Colours", icon: Palette, has: setHere([
-      "accent", "bg", "bgImage", "textColor", "borderColor", "gradFrom", "gradTo", "blur", "css",
-    ]) },
+    ...LOOK_SECTIONS.filter((sec) => sec.id !== "css").map((sec) => ({
+      id: sec.id, label: sec.label, icon: SECTION_ICONS[sec.id],
+      has: sectionHasOwn(settings, sec.id, sec.id === "layout" ? uiFieldKeys : []),
+    })),
     { id: "styles", label: "Styles", icon: Star, has: setHere(["style"]) },
+    { id: "css", label: "Your own CSS", icon: Code2, has: !!ownCss },
     ...(widget.widgetId === "app_shortcut"
       ? [{ id: "icon", label: "Icon", icon: ImageIcon, has: setHere(["iconName", "iconUrl"]) }]
       : []),
   ];
+  const resetSection = (id, extra = []) => set(sectionResetPatch(id, extra));
+
+  // ── Text ──
+  // Before a person first edits Text, headings show the body's styles too
+  // (how widgets always worked). The first edit splits them, copying what
+  // the headings showed into their own styles so nothing visibly changes.
+  const split = effective.textSplit === true || effective.textSplit === "true";
+  const bodyStyles = Array.isArray(effective.fontStyles) ? effective.fontStyles : [];
+  const headStyles = split
+    ? (Array.isArray(effective.headerFontStyles) ? effective.headerFontStyles : [])
+    : inheritedHeaderStyles(effective);
+  const setText = (patch) => set({ ...textSplitPatch(effective), ...patch });
+  const fontScale = Number(settings.fontScale) || 100;
+  const headerScale = Number(settings.headerScale) || 100;
+  const bodyFont = effective.font || "";
+  const headFont = effective.headerFont || bodyFont;
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
@@ -900,7 +1085,6 @@ export default function WidgetConfigSheet({
           // bar is up, the sheet's last rows were hidden behind it.
           style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}
         >
-          {/* Rename */}
           {/* First thing in the sheet — moving is the most common intent
               when you hold a widget (the user's call). */}
           {onEditLayout && (
@@ -912,95 +1096,116 @@ export default function WidgetConfigSheet({
               <LayoutGrid className="w-4 h-4" /> Move &amp; resize widgets
             </button>
           )}
-          {/* Display mode — the one question, as a segmented control like
-              the planner editor's Done / Now / Plan. `def.extraModes` lets a
-              HOST add modes of its own — the classic home offers "Classic"
-              (the untouched classic card) ahead of the board modes. */}
-          {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
-            <div role="radiogroup" aria-label="Display mode"
-              className="flex rounded-full border border-border/60 p-0.5 gap-0.5">
-              {[
-                ...(def.extraModes || []).map((x) => x.id),
-                ...HOME_MODES.filter((m) => def.supportsModes.includes(m)),
-              ].map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={m === mode}
-                  onClick={() => onMode(widget.instanceId, m)}
-                  className={`flex-1 min-w-0 truncate text-xs py-1.5 px-1 rounded-full ${
-                    m === mode ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {(def.extraModes || []).find((x) => x.id === m)?.label || MODE_LABEL[m]}
-                </button>
-              ))}
-            </div>
-          )}
 
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Display name
-            </label>
-            <DebouncedText
-              key={widget.instanceId}
-              value={settings.label || ""}
-              placeholder={defLabel}
-              maxLength={60}
-              onCommit={(v) => {
-                const next = v.trim();
-                if (next !== (settings.label || "")) onSettings(widget.instanceId, { label: next });
-              }}
-              className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            {typeof def.autoLabel === "function" && (
-              <p className="text-[0.6875rem] text-muted-foreground mt-1">
-                Leave blank and the name follows the file that's set to play, renaming itself when you pick a different one.
-              </p>
-            )}
-            {/* Off = the widget drops its heading and gives the room to
-                what it shows. Only offered where the widget draws one. */}
-            {(drawsLabel || settings.hideLabel) && (
-              <label className="flex items-center justify-between gap-3 text-sm cursor-pointer mt-2">
-                <span>Show the name on the widget</span>
-                <Switch checked={!settings.hideLabel}
-                  onCheckedChange={(on) => onSettings(widget.instanceId, { hideLabel: on ? "" : true })}
-                  aria-label="Show the name on the widget" />
-              </label>
+          {/* ── Widget: its name and how much it shows ── */}
+          <div className="space-y-2">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Widget</p>
+            <div className="flex items-center gap-2">
+              <DebouncedText
+                key={widget.instanceId}
+                value={settings.label || ""}
+                placeholder={defLabel}
+                maxLength={60}
+                onCommit={(v) => {
+                  const next = v.trim();
+                  if (next !== (settings.label || "")) set({ label: next });
+                }}
+                className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              {/* Off = the widget drops its heading and gives the room to
+                  what it shows. Only offered where the widget draws one. */}
+              {(drawsLabel || settings.hideLabel) && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0 cursor-pointer">
+                  Show
+                  <Switch checked={!settings.hideLabel}
+                    onCheckedChange={(on) => set({ hideLabel: on ? "" : true })}
+                    aria-label="Show the name on the widget" />
+                </label>
+              )}
+            </div>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              {typeof def.autoLabel === "function"
+                ? "Leave blank and the name follows the file that's set to play, renaming itself when you pick a different one."
+                : "A name you type replaces the widget's own heading. Leave it blank to keep the heading it comes with."}
+            </p>
+            {/* Display mode — the one question, as a segmented control like
+                the planner editor's Done / Now / Plan. `def.extraModes` lets a
+                HOST add modes of its own — the classic home offers "Classic"
+                (the untouched classic card) ahead of the board modes. */}
+            {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
+              <Segmented label="Display mode" value={mode}
+                onChange={(m) => onMode(widget.instanceId, m)}
+                options={[
+                  ...(def.extraModes || []).map((x) => ({ value: x.id, label: x.label })),
+                  ...HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => ({ value: m, label: MODE_LABEL[m] })),
+                ]} />
             )}
           </div>
 
-          {/* What the widget shows — its own settings, always open, first. */}
+          {/* ── What it shows: the widget's own options, always open ── */}
           {hasOwnFields && (
           <div className="space-y-3">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">What it shows</p>
-          {/* Widget-specific options, declared by the registry entry. A
-              field with section:"ui" (a size, a shape) renders under UI &
-              text instead — config is WHAT the widget shows. */}
-          {(def.configFields || []).filter((f) => f.section !== "ui").map((f) => {
+          {ownFields.map((f, i) => {
             // showIf: a field only appears when it means something for the
             // current settings — the cure for option-soup config sheets.
             if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
+            // A field may name a `group`; a new group gets a small heading.
+            const prevGroup = i > 0 ? ownFields[i - 1].group : undefined;
+            const groupHead = f.group && f.group !== prevGroup ? <SubHead key={`g_${f.group}`}>{applyTerms(f.group, t)}</SubHead> : null;
+            const field = (() => {
             if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
             if (f.type === "quickButtons") {
               return (
                 <QuickButtonsField key={f.key} settings={settings} terms={t}
-                  onChange={(next) => onSettings(widget.instanceId, { [f.key]: next })} />
+                  onChange={(next) => set({ [f.key]: next })} />
               );
             }
             if (f.type === "quickActionsManager") {
               return <QuickActionsManagerField key={f.key} label={applyTerms(f.label, t)} />;
             }
             const val = settings[f.key] ?? f.default ?? "";
-            const commit = (v) => onSettings(widget.instanceId, { [f.key]: v });
+            const commit = (v) => set({ [f.key]: v });
+            const label = applyTerms(f.label, t);
+            // On/off, counts and sizes sit on one line: name left, control right.
+            if (f.type === "toggle") {
+              return (
+                <div key={f.key}>
+                  <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
+                    <span className="min-w-0">{label}</span>
+                    <Switch checked={val !== false && val !== ""} onCheckedChange={(on) => commit(on)} aria-label={label} />
+                  </label>
+                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
+                </div>
+              );
+            }
+            if (f.type === "number") {
+              return (
+                <div key={f.key}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm min-w-0">{label}</span>
+                    <NumberStepper key={`${widget.instanceId}:${f.key}`} label={label} value={val}
+                      min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} onCommit={commit} />
+                  </div>
+                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
+                </div>
+              );
+            }
+            if (f.type === "range") {
+              // Set-then-slide, like every size in this sheet (house rule):
+              // a bare slider moved when you scrolled past it.
+              return (
+                <div key={f.key}>
+                  <SliderRow label={label} value={settings[f.key]} fallback={f.default ?? 0}
+                    min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
+                    onChange={commit} onReset={() => commit("")} />
+                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
+                </div>
+              );
+            }
             return (
               <div key={f.key}>
-                {f.type !== "toggle" && (
-                  <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                    {applyTerms(f.label, t)}
-                  </label>
-                )}
+                <label className="text-xs font-medium block mb-1">{label}</label>
                 {f.type === "text" && (
                   <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder ? applyTerms(f.placeholder, t) : undefined}
                     maxLength={f.maxLength || 120} onCommit={(v) => { if (v !== val) commit(v); }}
@@ -1023,33 +1228,30 @@ export default function WidgetConfigSheet({
                     onCommit={(v) => { if (v !== val) commit(v); }}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
                 )}
-                {f.type === "toggle" && (
-                  <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
-                    <span>{applyTerms(f.label, t)}</span>
-                    <input type="checkbox" checked={val !== false && val !== ""} onChange={(e) => commit(e.target.checked)}
-                      className="w-4 h-4 rounded accent-primary" />
-                  </label>
-                )}
-                {f.type === "select" && (
+                {f.type === "select" && (fitsSegmented(f.options) ? (
+                  <Segmented label={label} value={val} onChange={commit}
+                    options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
+                ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {(f.options || []).map((o) => (
                       <button key={o.value} type="button" onClick={() => commit(o.value)}
+                        aria-pressed={String(val) === String(o.value)}
                         className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                           String(val) === String(o.value)
                             ? "border-primary/60 bg-primary/10 text-primary"
                             : "border-border/50 text-muted-foreground hover:text-foreground"
                         }`}>
-                        {o.label}
+                        {applyTerms(String(o.label), t)}
                       </button>
                     ))}
                   </div>
-                )}
+                ))}
                 {/* Static multi-pick: same chips as select, but each toggles
                     membership in an array (e.g. which task sets a widget shows). */}
                 {f.type === "multi" && (
                   <div className="flex flex-wrap gap-1.5">
                     {(f.options || []).map((o) => {
-                      const arr = Array.isArray(val) ? val : (val != null ? [val] : []);
+                      const arr = Array.isArray(val) ? val : (val != null && val !== "" ? [val] : []);
                       const on = arr.some((x) => String(x) === String(o.value));
                       return (
                         <button key={o.value} type="button" aria-pressed={on}
@@ -1057,7 +1259,7 @@ export default function WidgetConfigSheet({
                           className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                             on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
                           }`}>
-                          {o.label}
+                          {applyTerms(String(o.label), t)}
                         </button>
                       );
                     })}
@@ -1086,48 +1288,23 @@ export default function WidgetConfigSheet({
                   <AppListField value={Array.isArray(val) ? val : []}
                     onChange={(next) => commit(next)} terms={t} />
                 )}
-                {/* A range reads as "drag me"; a number box reads as "type an
-                    exact value", which is the wrong affordance for a size. */}
                 {f.type === "song" && (
                   <ProfileSongPicker value={val || null} onChange={(v) => commit(v)} subjectLabel="page" />
-                )}
-                {f.type === "range" && (
-                  <div>
-                    <input type="range" value={Number(val) || 0}
-                      min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1}
-                      onChange={(e) => commit(Number(e.target.value))}
-                      aria-label={f.label}
-                      className="w-full accent-primary" />
-                    <span className="text-[0.6875rem] text-muted-foreground">
-                      {f.format ? f.format(Number(val) || 0) : `${Number(val) || 0}${f.unit || "px"}`}
-                    </span>
-                  </div>
-                )}
-                {f.type === "number" && (
-                  <input type="number" key={`${widget.instanceId}:${f.key}`} defaultValue={val}
-                    min={f.min} max={f.max}
-                    onBlur={(e) => {
-                      const n = parseInt(e.target.value, 10);
-                      if (!Number.isNaN(n)) commit(Math.min(f.max ?? 99, Math.max(f.min ?? 0, n)));
-                    }}
-                    className="w-24 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
                 )}
                 {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
               </div>
             );
+            })();
+            return groupHead ? <React.Fragment key={f.key}>{groupHead}{field}</React.Fragment> : field;
           })}
-
           </div>
           )}
-          {/* Appearance overrides, in the unified edit-menu anatomy
-              (docs/v2-edit-menu-spec.md): UI size / Colors / Background /
-              Presets, each a chevron section, sliders behind set buttons.
-              These write CSS variables onto the widget wrapper, so the
-              whole-app settings apply by default and this widget alone
-              departs from them where the user says so. */}
-          {/* Everything about how it looks sits behind add-chips, like the
-              planner editor's optional fields: tap to open, a dot while
-              closed means this widget has its own setting there. */}
+
+          {/* ── How it looks: one chip per section (planner-editor chips).
+              A dot on a closed chip = this widget has its own setting
+              there. Each section holds everything about one part of the
+              widget, and the same sections are what a saved style or a
+              copied look carries (LOOK_SECTIONS). ── */}
           <div className="flex flex-wrap gap-1.5">
             {lookParts.map((part) => (
               <DetailChip key={part.id} open={openParts.includes(part.id)} has={part.has}
@@ -1135,276 +1312,298 @@ export default function WidgetConfigSheet({
                 icon={<part.icon className="w-3 h-3" />} />
             ))}
           </div>
-          <LookPart open={openParts.includes("ui")} title="Size & text">
-          {/* Same set-then-slide row as every other size here — a bare
-              slider moved on a scroll through the sheet (the report). */}
-          <SliderRow label="Content size" value={settings.controlScale} fallback={100}
-            min={60} max={200} step={5} unit="%"
-            onChange={(v) => onSettings(widget.instanceId, { controlScale: v })}
-            onReset={() => onSettings(widget.instanceId, { controlScale: "" })} />
-          {/* Layout (mode / across / down / content size) lives here with type
-              and shape — one standard section, not two (the user's call). */}
 
-          {/* Content alignment within the widget's box. Centered by
-              default; overflowing content still starts at the top. */}
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Alignment</p>
-          <div>
-            <label className="text-xs font-medium block mb-1">Horizontal</label>
-            <div className="flex flex-wrap gap-1.5">
-              {[["stretch", "Fill"], ["left", "Left"], ["center", "Center"], ["right", "Right"]].map(([v, label]) => (
-                <button key={v} type="button"
-                  onClick={() => onSettings(widget.instanceId, { halign: v })}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    (settings.halign || "stretch") === v
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}>
-                  {label}
-                </button>
-              ))}
+          {/* ── Text: body and headings as a matching pair ── */}
+          <LookPart open={openParts.includes("text")} title="Text"
+            onReset={() => resetSection("text")} resetLabel="Reset text">
+            {/* Live preview in this widget's own fonts. */}
+            <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5" aria-hidden>
+              <p className="font-semibold leading-tight"
+                style={{ fontFamily: headFont || undefined, zoom: headerScale / 100, color: settings.headerColor || undefined, ...flagsStyle(headStyles) }}>
+                Heading
+              </p>
+              <p className="text-sm mt-0.5"
+                style={{ fontFamily: bodyFont || undefined, fontSize: `${0.875 * fontScale / 100}rem`, color: settings.textColor || undefined, ...flagsStyle(bodyStyles) }}>
+                Body text in this widget
+              </p>
             </div>
-          </div>
+            <TextCard
+              title="Body"
+              font={{
+                select: (
+                  <SearchableSelect
+                    value={settings.font || ""}
+                    onChange={(v) => setText({ font: v || "" })}
+                    // Includes the user's own uploaded fonts (owner rule).
+                    options={fontOptions}
+                    placeholder="Use the app font"
+                    searchPlaceholder="Search fonts…"
+                    renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
+                  />
+                ),
+                upload: <FontUploadButton onUploaded={(family) => setText({ font: family })} />,
+              }}
+              size={{
+                label: "Size", valueLabel: `${fontScale}%`,
+                canDown: fontScale > 70, canUp: fontScale < 160,
+                onDown: () => setText({ fontScale: Math.max(70, fontScale - 5) }),
+                onUp: () => setText({ fontScale: Math.min(160, fontScale + 5) }),
+              }}
+              style={{
+                label: "Style", stacked: true,
+                control: <FontStyleChips value={bodyStyles} onChange={(next) => setText({ fontStyles: next })} />,
+              }}
+              colour={{
+                label: "Colour",
+                control: (
+                  <ColorPicker compact caption={false} label="Text colour"
+                    value={settings.textColor || live.textColor || "#e5e7eb"}
+                    onChange={(v) => setText({ textColor: v })}
+                    opacity={{ value: settings.textOpacity, onChange: (v) => setAlpha("textColor", "textOpacity", v, live.textColor || "#e5e7eb") }}
+                    onClear={() => set({ textColor: "", textOpacity: "" })} />
+                ),
+              }}
+            />
+            <TextCard
+              title="Headings"
+              font={{
+                select: (
+                  <SearchableSelect
+                    value={settings.headerFont || ""}
+                    onChange={(v) => setText({ headerFont: v || "" })}
+                    options={headFontOptions}
+                    placeholder="Same as body"
+                    searchPlaceholder="Search fonts…"
+                    renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
+                  />
+                ),
+                upload: <FontUploadButton onUploaded={(family) => setText({ headerFont: family })} />,
+              }}
+              size={{
+                label: "Size", valueLabel: `${headerScale}%`,
+                canDown: headerScale > 50, canUp: headerScale < 200,
+                onDown: () => setText({ headerScale: Math.max(50, headerScale - 10) }),
+                onUp: () => setText({ headerScale: Math.min(200, headerScale + 10) }),
+              }}
+              style={{
+                label: "Style", stacked: true,
+                control: <FontStyleChips regular value={headStyles} onChange={(next) => setText({ headerFontStyles: next })} />,
+              }}
+              colour={{
+                label: "Colour",
+                control: (
+                  <ColorPicker compact caption={false} label="Heading colour"
+                    value={settings.headerColor || settings.textColor || live.textColor || "#e5e7eb"}
+                    onChange={(v) => setText({ headerColor: v })}
+                    opacity={{ value: settings.headerOpacity, onChange: (v) => setText({ headerOpacity: v, ...(settings.headerColor ? {} : { headerColor: settings.textColor || live.textColor || "#e5e7eb" }) }) }}
+                    onClear={() => set({ headerColor: "", headerOpacity: "" })} />
+                ),
+              }}
+            />
+            <p className="text-[0.6875rem] text-muted-foreground">
+              Headings are the widget's titles. They follow the body font until you pick one of their own, and body styles don't change them.
+            </p>
+          </LookPart>
 
-          <div>
-            <label className="text-xs font-medium block mb-1">Vertical</label>
-            <div className="flex flex-wrap gap-1.5">
-              {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => onSettings(widget.instanceId, { valign: v })}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    (settings.valign || "center") === v
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+          {/* ── Layout: where things sit inside the box ── */}
+          <LookPart open={openParts.includes("layout")} title="Layout"
+            onReset={() => resetSection("layout", uiFieldKeys)} resetLabel="Reset layout">
+            <SliderRow label="Content size" value={settings.controlScale} fallback={100}
+              min={60} max={200} step={5} unit="%"
+              onChange={(v) => set({ controlScale: v })}
+              onReset={() => set({ controlScale: "" })} />
+            <p className="text-[0.6875rem] text-muted-foreground -mt-2">Scales everything the widget draws: rows, buttons, pictures and spacing.</p>
+            <div className="space-y-1">
+              <span className="text-xs font-medium block">Across</span>
+              {/* Left / Right mirror the layout, not just the text. */}
+              <Segmented label="Across" value={settings.halign || "stretch"} onChange={(v) => set({ halign: v })}
+                options={[{ value: "stretch", label: "Fill" }, { value: "left", label: "Left" }, { value: "center", label: "Center" }, { value: "right", label: "Right" }]} />
             </div>
-          </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium block">Down</span>
+              <Segmented label="Down" value={settings.valign || "center"} onChange={(v) => set({ valign: v })}
+                options={[{ value: "top", label: "Top" }, { value: "center", label: "Center" }, { value: "bottom", label: "Bottom" }]} />
+            </div>
+            <div>
+              <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
+                min={0} max={32} unit="px"
+                onChange={(v) => set({ padding: v })}
+                onReset={() => set({ padding: "" })} />
+              {(() => {
+                const sideKeys = [["padTop", "Top"], ["padRight", "Right"], ["padBottom", "Bottom"], ["padLeft", "Left"]];
+                const anySet = setHere(sideKeys.map(([k]) => k));
+                const shown = padSides || anySet;
+                return (
+                  <>
+                    <button type="button" onClick={() => setPadSides((v) => !v)} aria-expanded={shown}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
+                      <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
+                    </button>
+                    {shown && (
+                      <div className="pl-3 border-l border-border/40">
+                        {sideKeys.map(([key, label]) => (
+                          <SliderRow key={key} label={label} value={settings[key]} fallback={settings.padding ?? 12}
+                            min={0} max={48} unit="px"
+                            onChange={(v) => set({ [key]: v })}
+                            onReset={() => set({ [key]: "" })} />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+            {/* Sizes the widget itself declares (e.g. the week grid's lane
+                strength) — set-then-slide like every size here. */}
+            {uiFields.map((f) => (
+              <SliderRow key={f.key} label={applyTerms(f.label, t)}
+                value={settings[f.key]} fallback={f.default ?? 0}
+                min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
+                onChange={(v) => set({ [f.key]: v })}
+                onReset={() => set({ [f.key]: "" })} />
+            ))}
+          </LookPart>
 
-          {/* Scales everything the widget draws (rows, buttons, avatars,
-              spacing), on top of whatever text size is set. */}
-
-          {/* Size / shape fields a widget declares for this section (e.g.
-              the pinned bar's height and icon size). Ranges only — that's
-              what a size is. */}
-          {/* Set-then-slide, like every other size row (house rule). */}
-          {(def.configFields || []).filter((f) => f.section === "ui" && f.type === "range").map((f) => (
-            <SliderRow key={f.key} label={applyTerms(f.label, t)}
-              value={settings[f.key]} fallback={f.default ?? 0}
-              min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
-              onChange={(v) => onSettings(widget.instanceId, { [f.key]: v })}
-              onReset={() => onSettings(widget.instanceId, { [f.key]: "" })} />
-          ))}
-
-          <div className="space-y-3 pt-2 border-t border-border/30">
-            {/* Body and header type, side by side as two matching rows.
-                The header font reaches the widget's titles/headings (h1–h4
-                and the display face) — the body font never did, which is
-                why the header widget's name wasn't restyleable. Both take
-                uploaded custom fonts, and each carries its own style chips
-                (bold / italic / small caps). Standard on every widget. */}
-            {[
-              { label: "Font", fontKey: "font", stylesKey: "fontStyles" },
-              { label: "Header font", fontKey: "headerFont", stylesKey: "headerFontStyles" },
-            ].map(({ label, fontKey, stylesKey }) => {
-              const styles = Array.isArray(settings[stylesKey]) ? settings[stylesKey] : [];
-              const toggleStyle = (id) => {
-                let next = styles.includes(id) ? styles.filter((x) => x !== id) : [...styles, id];
-                // Bold and Light are opposite weights — picking one drops
-                // the other.
-                if (id === "bold" && next.includes("bold")) next = next.filter((x) => x !== "light");
-                if (id === "light" && next.includes("light")) next = next.filter((x) => x !== "bold");
-                onSettings(widget.instanceId, { [stylesKey]: next });
-              };
-              const chipPreview = {
-                bold: { fontWeight: 700 },
-                light: { fontWeight: 300 },
-                italic: { fontStyle: "italic" },
-                underline: { textDecorationLine: "underline" },
-                strikethrough: { textDecorationLine: "line-through" },
-                smallcaps: { fontVariant: "small-caps" },
-                uppercase: { textTransform: "uppercase", fontSize: "0.625rem" },
-              };
-              return (
-                <div key={fontKey}>
-                  <label className="text-xs font-medium block mb-1">{label}</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <SearchableSelect
-                        value={settings[fontKey] || ""}
-                        onChange={(v) => onSettings(widget.instanceId, { [fontKey]: v || "" })}
-                        // Includes the user's own uploaded fonts, not just
-                        // the built-in catalogue (owner rule).
-                        options={fontOptions}
-                        placeholder="Use the app font"
-                        searchPlaceholder="Search fonts…"
-                        renderOption={(o) => (
-                          <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>
-                        )}
-                      />
-                    </div>
-                    <FontUploadButton onUploaded={(family) => onSettings(widget.instanceId, { [fontKey]: family })} />
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {FONT_STYLE_OPTIONS.map(({ id, label: chip }) => (
-                      <button key={id} type="button" aria-pressed={styles.includes(id)}
-                        onClick={() => toggleStyle(id)}
-                        className={`text-[0.6875rem] px-2.5 py-1 rounded-full border ${
-                          styles.includes(id) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                        }`}
-                        style={chipPreview[id]}>
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
+          {/* ── Box: the widget's shell ── */}
+          <LookPart open={openParts.includes("box")} title="Box"
+            onReset={() => resetSection("box")} resetLabel="Reset box">
             <SliderRow label="Corner radius" value={settings.radius} fallback={12}
               min={0} max={32} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { radius: v })}
-              onReset={() => onSettings(widget.instanceId, { radius: "" })} />
-
-            {/* Split (owner ask): Border width scales the borders INSIDE
-                the widget; Element outline is the widget's own box shell
-                (what Border width used to mean). */}
-            <SliderRow label="Border width" value={settings.borderW} fallback={1}
-              min={0} max={8} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { borderW: v })}
-              onReset={() => onSettings(widget.instanceId, { borderW: "" })} />
-
-            <SliderRow label="Element outline" value={settings.outlineW} fallback={1}
-              min={0} max={8} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { outlineW: v })}
-              onReset={() => onSettings(widget.instanceId, { outlineW: "" })} />
-
-            <SliderRow label="Text size" value={settings.fontScale} fallback={100}
-              min={70} max={160} unit="%"
-              onChange={(v) => onSettings(widget.instanceId, { fontScale: v })}
-              onReset={() => onSettings(widget.instanceId, { fontScale: "" })} />
-
-            <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
-              min={0} max={32} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { padding: v })}
-              onReset={() => onSettings(widget.instanceId, { padding: "" })} />
-
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Border style</label>
-                <div className="flex flex-wrap gap-1">
-                  {BORDER_STYLES.map((v) => (
-                    <button key={v} type="button"
-                      onClick={() => onSettings(widget.instanceId, { borderStyle: settings.borderStyle === v ? "" : v })}
-                      className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
-                        settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                      }`}>{v}</button>
-                  ))}
-                </div>
+              onChange={(v) => set({ radius: v })}
+              onReset={() => set({ radius: "" })} />
+            <SubHead>Outline</SubHead>
+            <div>
+              <SliderRow label="Width" value={settings.outlineW} fallback={1}
+                min={0} max={8} unit="px"
+                onChange={(v) => set({ outlineW: v })}
+                onReset={() => set({ outlineW: "" })} />
+              {(() => {
+                const sideKeys = [["borderTopW", "Top"], ["borderRightW", "Right"], ["borderBottomW", "Bottom"], ["borderLeftW", "Left"]];
+                const anySet = setHere(sideKeys.map(([k]) => k));
+                const shown = outlineSides || anySet;
+                return (
+                  <>
+                    <button type="button" onClick={() => setOutlineSides((v) => !v)} aria-expanded={shown}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
+                      <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
+                    </button>
+                    {shown && (
+                      <div className="pl-3 border-l border-border/40">
+                        {sideKeys.map(([key, label]) => (
+                          <SliderRow key={key} label={label} value={settings[key]} fallback={settings.outlineW ?? 1}
+                            min={0} max={8} unit="px"
+                            onChange={(v) => set({ [key]: v })}
+                            onReset={() => set({ [key]: "" })} />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1">Style</label>
+              <div className="flex flex-wrap gap-1">
+                {BORDER_STYLES.map((v) => (
+                  <button key={v} type="button" aria-pressed={settings.borderStyle === v}
+                    onClick={() => set({ borderStyle: settings.borderStyle === v ? "" : v })}
+                    className={`text-[0.6875rem] px-2.5 py-1 rounded-full border capitalize ${
+                      settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                    }`}>{v}</button>
+                ))}
               </div>
             </div>
-
+            <ColourRow label="Colour">
+              <ColorPicker compact caption={false} label="Outline colour"
+                value={settings.borderColor || live.borderColor || "#3b82f6"}
+                onChange={(v) => set({ borderColor: v })}
+                opacity={{ value: settings.borderOpacity, onChange: (v) => setAlpha("borderColor", "borderOpacity", v, live.borderColor || "#3b82f6") }}
+                onClear={() => set({ borderColor: "", borderOpacity: "" })} />
+            </ColourRow>
+            <SubHead>Inside the box</SubHead>
+            {/* Split (owner ask, v0.239.0): this scales the borders INSIDE
+                the widget; Outline above is the box's own edge. */}
+            <SliderRow label="Lines inside" value={settings.borderW} fallback={1}
+              min={0} max={8} unit="px"
+              onChange={(v) => set({ borderW: v })}
+              onReset={() => set({ borderW: "" })} />
+            <p className="text-[0.6875rem] text-muted-foreground -mt-2">The borders of buttons, cards and dividers in the widget.</p>
             <div>
               <label className="text-xs font-medium block mb-1">Shadow</label>
               <div className="flex flex-wrap gap-1">
                 {Object.keys(SHADOW_PRESETS).map((v) => (
-                  <button key={v} type="button"
-                    onClick={() => onSettings(widget.instanceId, { shadow: settings.shadow === v ? "" : v })}
-                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                  <button key={v} type="button" aria-pressed={settings.shadow === v}
+                    onClick={() => set({ shadow: settings.shadow === v ? "" : v })}
+                    className={`text-[0.6875rem] px-2.5 py-1 rounded-full border capitalize ${
                       settings.shadow === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
                     }`}>{v}</button>
                 ))}
               </div>
             </div>
-          </div>
           </LookPart>
 
-          <LookPart open={openParts.includes("colors")} title="Colours & background">
-          <div className="space-y-3">
-            {/* Four swatches on one line. The name, hex field, opacity,
-                Clear and "use the app colour" all live inside each picker's
-                popover — labelling them in the row squeezed the text into
-                unreadable vertical slivers on a narrow sheet.
-                Opacity sits with its OWN colour rather than applying to the
-                whole widget, so you can ghost the text, see through the
-                border, or fade a gradient out independently. Dragging one
-                anchors to the live colour so there's something to fade. */}
-            <div>
-              <label className="text-xs font-medium block mb-1.5">Colours</label>
-              <div className="flex items-center gap-3">
-                <ColorPicker compact label="Highlight colour"
-                  value={settings.accent || live.accent || "#3b82f6"}
-                  onChange={(v) => onSettings(widget.instanceId, { accent: v })}
-                  opacity={{ value: settings.accentOpacity, onChange: (v) => setAlpha("accent", "accentOpacity", v, live.accent || "#3b82f6") }}
-                  onClear={() => onSettings(widget.instanceId, { accent: "", accentOpacity: "" })}
-                  extraAction={{ label: "Use the app colour", onClick: () => onSettings(widget.instanceId, { accent: "", accentOpacity: "" }) }} />
-                <ColorPicker compact label="Background"
-                  value={settings.bg || live.bg || "#111827"}
-                  onChange={(v) => onSettings(widget.instanceId, { bg: v })}
-                  opacity={{ value: settings.bgOpacity, onChange: (v) => setAlpha("bg", "bgOpacity", v, live.bg || "#111827") }}
-                  onClear={() => onSettings(widget.instanceId, { bg: "", bgOpacity: "" })} />
-                <ColorPicker compact label="Text colour"
-                  value={settings.textColor || live.textColor || "#e5e7eb"}
-                  onChange={(v) => onSettings(widget.instanceId, { textColor: v })}
-                  opacity={{ value: settings.textOpacity, onChange: (v) => setAlpha("textColor", "textOpacity", v, live.textColor || "#e5e7eb") }}
-                  onClear={() => onSettings(widget.instanceId, { textColor: "", textOpacity: "" })} />
-                <ColorPicker compact label="Border colour"
-                  value={settings.borderColor || live.borderColor || "#3b82f6"}
-                  onChange={(v) => onSettings(widget.instanceId, { borderColor: v })}
-                  opacity={{ value: settings.borderOpacity, onChange: (v) => setAlpha("borderColor", "borderOpacity", v, live.borderColor || "#3b82f6") }}
-                  onClear={() => onSettings(widget.instanceId, { borderColor: "", borderOpacity: "" })} />
-              </div>
-            </div>
-            {/* Background gradient — a layer OVER the background colour
-                above. A toggle owns it: swatches only show while it's on
-                (two always-visible pickers read as unrelated colours). */}
+          {/* ── Colours & fill: everything painted ── */}
+          <LookPart open={openParts.includes("fill")} title="Colours & fill"
+            onReset={() => resetSection("fill")} resetLabel="Reset colours & fill">
+            {/* Opacity sits with its OWN colour (inside each swatch's
+                popover), so a gradient can fade or a background can go
+                see-through independently. */}
+            <ColourRow label="Highlight colour">
+              <ColorPicker compact caption={false} label="Highlight colour"
+                value={settings.accent || live.accent || "#3b82f6"}
+                onChange={(v) => set({ accent: v })}
+                opacity={{ value: settings.accentOpacity, onChange: (v) => setAlpha("accent", "accentOpacity", v, live.accent || "#3b82f6") }}
+                onClear={() => set({ accent: "", accentOpacity: "" })}
+                extraAction={{ label: "Use the app colour", onClick: () => set({ accent: "", accentOpacity: "" }) }} />
+            </ColourRow>
+            <ColourRow label="Background colour">
+              <ColorPicker compact caption={false} label="Background"
+                value={settings.bg || live.bg || "#111827"}
+                onChange={(v) => set({ bg: v })}
+                opacity={{ value: settings.bgOpacity, onChange: (v) => setAlpha("bg", "bgOpacity", v, live.bg || "#111827") }}
+                onClear={() => set({ bg: "", bgOpacity: "" })} />
+            </ColourRow>
+            {/* Gradient — a layer OVER the background colour. A switch owns
+                it: its swatches only show while it's on. */}
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <label className="text-xs font-medium">Background gradient</label>
+                <label className="text-xs font-medium flex-1">Gradient</label>
                 <Switch checked={!!gradOn} onCheckedChange={(on) => {
                   if (on) {
-                    onSettings(widget.instanceId, {
+                    set({
                       gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8",
                       gradTo: gradHex(effective.gradTo) || "#6ee7b7",
                     });
                   } else {
-                    onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "", gradAngle: "" });
+                    set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "", gradAngle: "" });
                   }
-                }} aria-label="Background gradient" />
+                }} aria-label="Gradient" />
               </div>
               {gradOn && (
-                <>
-                  <div className="flex items-center gap-3">
-                    <ColorPicker compact label="From"
+                <div className="pl-3 border-l border-border/40 space-y-1">
+                  <ColourRow label="From">
+                    <ColorPicker compact caption={false} label="From"
                       value={gradHex(effective.gradFrom) || live.bg || "#38bdf8"}
-                      onChange={(v) => onSettings(widget.instanceId, { gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
+                      onChange={(v) => set({ gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
                       opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
-                      onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                    <ColorPicker compact label="To"
+                      onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                  </ColourRow>
+                  <ColourRow label="To">
+                    <ColorPicker compact caption={false} label="To"
                       value={gradHex(effective.gradTo) || "#6ee7b7"}
-                      onChange={(v) => onSettings(widget.instanceId, { gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
+                      onChange={(v) => set({ gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
                       opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
-                      onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                  </div>
-                  <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
+                      onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                  </ColourRow>
+                  <SliderRow label="Angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
                     min={0} max={360} step={15} unit="°"
-                    onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
-                    onReset={() => onSettings(widget.instanceId, { gradAngle: "" })} />
-                </>
+                    onChange={(v) => set({ gradAngle: v })}
+                    onReset={() => set({ gradAngle: "" })} />
+                </div>
               )}
             </div>
-
-            <SliderRow label="Frosted blur" value={settings.blur} fallback={0}
-              min={0} max={24} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { blur: v })}
-              onReset={() => onSettings(widget.instanceId, { blur: "" })} />
-
             <div>
-              <label className="text-xs font-medium block mb-1">Background image</label>
+              <label className="text-xs font-medium block mb-1">Picture</label>
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => onPickBackground?.(widget.instanceId)}
                   className="h-9 px-3 rounded-lg border border-border text-xs flex items-center gap-1.5">
@@ -1413,264 +1612,214 @@ export default function WidgetConfigSheet({
                 {settings.bgImage && (
                   <>
                     <div className="flex gap-1">
-                      {["cover", "contain", "repeat"].map((v) => (
-                        <button key={v} type="button" onClick={() => onSettings(widget.instanceId, { bgSize: v })}
+                      {[["cover", "Fill"], ["contain", "Fit"], ["repeat", "Tile"]].map(([v, label]) => (
+                        <button key={v} type="button" aria-pressed={(settings.bgSize || "cover") === v}
+                          onClick={() => set({ bgSize: v })}
                           className={`text-xs px-2 py-1 rounded-full border ${
                             (settings.bgSize || "cover") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                          }`}>{v}</button>
+                          }`}>{label}</button>
                       ))}
                     </div>
-                    <button type="button" onClick={() => onSettings(widget.instanceId, { bgImage: "" })}
+                    <button type="button" onClick={() => set({ bgImage: "" })}
                       className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Remove</button>
                   </>
                 )}
               </div>
             </div>
-
-            {/* Advanced — per-side spacing overrides. Collapsed: these are
-                the escape hatches, not the everyday controls. */}
-            <div>
-              <button type="button" onClick={() => setAdvOpen((v) => !v)}
-                className="w-full flex items-center justify-between text-xs font-medium py-1">
-                <span>Advanced</span>
-                <ChevronDown className="w-3.5 h-3.5" style={{ transform: advOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
-              </button>
-              {advOpen && (
-                <div className="space-y-2 pt-1">
-                  {[["padTop", "Top spacing"], ["padBottom", "Bottom spacing"], ["padLeft", "Left spacing"], ["padRight", "Right spacing"]].map(([key, label]) => (
-                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.padding ?? 12}
-                      min={0} max={48} unit="px"
-                      onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
-                      onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
-                  ))}
-                  {/* Per-side OUTLINE widths — each side of the widget's
-                      box can depart from the uniform Element outline. */}
-                  {[["borderTopW", "Top outline"], ["borderBottomW", "Bottom outline"], ["borderLeftW", "Left outline"], ["borderRightW", "Right outline"]].map(([key, label]) => (
-                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.outlineW ?? 1}
-                      min={0} max={8} unit="px"
-                      onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
-                      onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* The escape hatch: your own CSS, scoped to this widget. */}
-            <div>
-              <button type="button" onClick={() => setCssOpen((v) => !v)}
-                className="w-full flex items-center justify-between text-xs font-medium py-1">
-                <span>Your own CSS{ownCss ? " — in use" : ""}</span>
-                <ChevronDown className="w-3.5 h-3.5" style={{ transform: cssOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
-              </button>
-              {cssOpen && (
-                <>
-                  <DebouncedText multiline rows={5} value={ownCss}
-                    placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
-                    onCommit={(v) => onSettings(widget.instanceId, { css: v })}
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
-                  <p className="text-[0.6875rem] text-muted-foreground mt-1">
-                    Plain CSS declarations, applied to this widget only. Anything CSS can do — border images, gradients, filters.
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
+            <SliderRow label="Frosted blur" value={settings.blur} fallback={0}
+              min={0} max={24} unit="px"
+              onChange={(v) => set({ blur: v })}
+              onReset={() => set({ blur: "" })} />
           </LookPart>
 
+          {/* ── Styles: ready-made and saved looks, saving, copying ── */}
           <LookPart open={openParts.includes("styles")} title="Styles">
-          {/* Style presets — collapsed, because nine full-width cards open by
-              default buried everything else in this sheet. */}
-          <div>
-            <button type="button" onClick={() => setStyleOpen((v) => !v)}
-              className="w-full flex items-center justify-between text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
-              <span>Style preset{styleOverride ? ` — ${HOME_STYLES.find((x) => x.id === styleOverride)?.label}` : " — inherit"}</span>
-              <ChevronDown className="w-3.5 h-3.5" style={{ transform: styleOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+            <button
+              type="button"
+              onClick={() => set({ style: "" })}
+              className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                !settings.style ? "border-primary/60 bg-primary/10" : "border-border/40 hover:border-border"
+              }`}
+            >
+              <span className="font-medium">Inherit page style</span>
+              <span className="text-xs text-muted-foreground block">Currently “{pageStyleLabel}”</span>
             </button>
-            <div className="space-y-1" hidden={!styleOpen}>
+            <Segmented label="Which styles" value={styleTab} onChange={setStyleTab}
+              options={[
+                { value: "builtin", label: "Ready-made" },
+                { value: "mine", label: `Yours${userStyles.length ? ` (${userStyles.length})` : ""}` },
+                ...(themeLookEntries.length ? [{ value: "themes", label: "Themes" }] : []),
+              ]} />
+            {styleTab === "builtin" && (
+              <div className="space-y-1">
+                {HOME_STYLES.map((s) => (
+                  <button key={s.id} type="button" onClick={() => set({ style: s.id })}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                      styleOverride === s.id ? "border-primary/60 bg-primary/10" : "border-border/40 hover:border-border"
+                    }`}>
+                    <span className="font-medium">{s.label}</span>
+                    <span className="text-xs text-muted-foreground block">{s.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {styleTab === "mine" && (
+              <div className="space-y-1">
+                {userStyles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No saved styles yet. Save this widget's look below to reuse it anywhere.</p>
+                )}
+                {userStyles.map((st) => {
+                  const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
+                  const cov = lookCoverage(st.look || {});
+                  return (
+                    <div key={st.id}>
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                      on ? "border-primary/60 bg-primary/10" : "border-border/40"
+                    }`}>
+                      <button type="button" className="flex-1 text-left text-sm font-medium min-w-0"
+                        onClick={() => set({ style: `${USER_STYLE_PREFIX}${st.id}` })}>
+                        <span className="truncate block">{st.label}</span>
+                        <span className="text-xs text-muted-foreground block">{cov.complete ? "Whole look" : `Changes ${cov.covers.map((g) => g.label).join(", ") || "nothing"}`}</span>
+                      </button>
+                      {/* A style that decides everything needs no caveat. One
+                          that leaves parts alone says so, and the star opens
+                          exactly what it does and doesn't touch. */}
+                      {!cov.complete && (
+                        <button type="button"
+                          aria-label={`What "${st.label}" changes`}
+                          title="Partial style — see what it changes"
+                          onClick={() => setExclusionsFor(exclusionsFor === st.id ? null : st.id)}
+                          className={`p-1 flex-shrink-0 ${exclusionsFor === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                          <Star className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button type="button" aria-label={`Delete ${st.label}`}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `Delete "${st.label}"?`,
+                            body: "Widgets using it go back to inheriting the page style. Their own tweaks stay.",
+                            confirmLabel: "Delete", destructive: true,
+                          });
+                          if (ok) onDeleteStyle?.(st.id);
+                        }}
+                        className="p-1 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {exclusionsFor === st.id && (
+                      <div className="mt-1 mb-1 px-3 py-2 rounded-lg border border-border/40 bg-muted/30 space-y-1.5">
+                        <div>
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Changes</p>
+                          <p className="text-xs">{cov.covers.map((g) => g.label).join(", ") || "nothing"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Leaves alone</p>
+                          <p className="text-xs">{cov.leaves.map((g) => g.label).join(", ")}</p>
+                        </div>
+                      </div>
+                    )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {styleTab === "themes" && (
+              <div className="space-y-1">
+                <p className="text-[0.6875rem] text-muted-foreground">Copies a theme's colours and font onto this widget, so you can still tweak them after.</p>
+                {themeLookEntries.map(({ name, preset, mine }) => (
+                  <button key={`theme_${name}`} type="button"
+                    onClick={() => set({ ...themeToLook(preset, isDarkMode), style: "" })}
+                    className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
+                      style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
+                    <span className="min-w-0">
+                      <span className="font-medium capitalize block truncate">{name}</span>
+                      <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Save: the ticks are the sheet's own sections. Untick some
+                and it's a partial style you can lay over anything. */}
+            <div className="pt-2 border-t border-border/30 space-y-2">
               {naming ? (
-                <div className="space-y-2 pb-1">
+                <>
                   <div className="flex gap-1.5">
                     <input autoFocus value={styleName} onChange={(e) => setStyleName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") saveStyle(); if (e.key === "Escape") setNaming(false); }}
                       placeholder="Name this style" maxLength={40}
-                      className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                      className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
                     <button type="button" onClick={saveStyle} disabled={!styleName.trim() || saveGroups.length === 0}
                       className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
                     <button type="button" onClick={() => setNaming(false)}
                       className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
                   </div>
-                  {/* What the style carries. Leave them all on and it's a
-                      whole look; untick some and it becomes a partial style
-                      you can lay over anything — which is why saved styles
-                      show what they touch. */}
-                  <div className="flex flex-wrap gap-1">
-                    {LOOK_GROUPS.map((g) => {
-                      const on = saveGroups.includes(g.id);
-                      return (
-                        <button key={g.id} type="button"
-                          onClick={() => setSaveGroups((prev) => (on ? prev.filter((x) => x !== g.id) : [...prev, g.id]))}
-                          aria-pressed={on}
-                          className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
-                            on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                          }`}>{g.label}</button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  <p className="text-[0.6875rem] text-muted-foreground">What it carries:</p>
+                  <PartTicks value={saveGroups} onChange={setSaveGroups} />
+                </>
               ) : (
-                <div className="flex gap-1.5 pb-1">
-                  <button type="button" onClick={() => { setStyleName(""); setNaming(true); }}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary">
-                    Save this look as a style
-                  </button>
-                </div>
-              )}
-              {userStyles.map((st) => {
-                const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
-                const cov = lookCoverage(st.look || {});
-                return (
-                  <div key={st.id}>
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                    on ? "border-primary/60 bg-primary/10" : "border-border/40"
-                  }`}>
-                    <button type="button" className="flex-1 text-left text-sm font-medium min-w-0"
-                      onClick={() => onSettings(widget.instanceId, { style: `${USER_STYLE_PREFIX}${st.id}` })}>
-                      <span className="truncate block">{st.label}</span>
-                      <span className="text-xs text-muted-foreground block">Yours</span>
-                    </button>
-                    {/* A style that decides everything needs no caveat. One
-                        that leaves parts alone says so, and the star opens
-                        exactly what it does and doesn't touch. */}
-                    {!cov.complete && (
-                      <button type="button"
-                        aria-label={`What "${st.label}" changes`}
-                        title="Partial style — see what it changes"
-                        onClick={() => setExclusionsFor(exclusionsFor === st.id ? null : st.id)}
-                        className={`p-1 flex-shrink-0 ${exclusionsFor === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                        <Star className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button type="button" aria-label={`Delete ${st.label}`}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: `Delete "${st.label}"?`,
-                          body: "Widgets using it go back to inheriting the page style. Their own tweaks stay.",
-                          confirmLabel: "Delete", destructive: true,
-                        });
-                        if (ok) onDeleteStyle?.(st.id);
-                      }}
-                      className="p-1 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {exclusionsFor === st.id && (
-                    <div className="mt-1 mb-1 px-3 py-2 rounded-lg border border-border/40 bg-muted/30 space-y-1.5">
-                      <div>
-                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Changes</p>
-                        <p className="text-xs">{cov.covers.map((g) => g.label).join(", ") || "nothing"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Leaves alone</p>
-                        <p className="text-xs">{cov.leaves.map((g) => g.label).join(", ")}</p>
-                      </div>
-                    </div>
-                  )}
-                  </div>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => onSettings(widget.instanceId, { style: "" })}
-                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                  !styleOverride
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border/40 hover:border-border"
-                }`}
-              >
-                <span className="font-medium">Inherit page style</span>
-                <span className="text-xs text-muted-foreground block">Currently “{pageStyleLabel}”</span>
-              </button>
-              {/* The two catalogues fold away behind labelled groups —
-                  the flat run of ~30 full-width cards buried the sheet
-                  (owner report), and nothing said how the two differ. */}
-              <div className="rounded-lg border border-border/40 overflow-hidden mt-1">
-                <button type="button" onClick={() => setBuiltinOpen((v) => !v)} aria-expanded={builtinOpen}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
-                  <span className="flex-1 min-w-0">
-                    <span className="text-sm font-medium block">Widget styles{styleOverride ? ` — ${HOME_STYLES.find((x) => x.id === styleOverride)?.label}` : ""}</span>
-                    <span className="text-[0.6875rem] text-muted-foreground block">Ready-made looks for the widget's box</span>
-                  </span>
-                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums flex-shrink-0">{HOME_STYLES.length}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${builtinOpen ? "rotate-180" : ""}`} />
+                <button type="button" onClick={() => { setStyleName(""); setNaming(true); }}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary">
+                  Save this look as a style
                 </button>
-                {builtinOpen && (
-                  <div className="px-2 py-2 space-y-1 border-t border-border/30">
-                    {HOME_STYLES.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => onSettings(widget.instanceId, { style: s.id })}
-                        className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                          styleOverride === s.id
-                            ? "border-primary/60 bg-primary/10"
-                            : "border-border/40 hover:border-border"
-                        }`}
-                      >
-                        <span className="font-medium">{s.label}</span>
-                        <span className="text-xs text-muted-foreground block">{s.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* The user's app themes, translated into widget looks
-                  (owner request). Applying one writes the look onto this
-                  widget, so it stays tweakable afterwards. */}
-              {themeLookEntries.length > 0 && (
-                <div className="rounded-lg border border-border/40 overflow-hidden">
-                  <button type="button" onClick={() => setThemesOpen((v) => !v)} aria-expanded={themesOpen}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
-                    <span className="flex-1 min-w-0">
-                      <span className="text-sm font-medium block">From your app themes</span>
-                      <span className="text-[0.6875rem] text-muted-foreground block">Copies a theme's colours &amp; font onto this widget</span>
-                    </span>
-                    <span className="text-[0.6875rem] text-muted-foreground tabular-nums flex-shrink-0">{themeLookEntries.length}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${themesOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {themesOpen && (
-                    <div className="px-2 py-2 space-y-1 border-t border-border/30">
-                      {themeLookEntries.map(({ name, preset, mine }) => (
-                        <button
-                          key={`theme_${name}`}
-                          type="button"
-                          onClick={() => onSettings(widget.instanceId, { ...themeToLook(preset, isDarkMode), style: "" })}
-                          className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
-                            style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
-                          <span className="min-w-0">
-                            <span className="font-medium capitalize block truncate">{name}</span>
-                            <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
-                          </span>
+              )}
+            </div>
+
+            {/* Copy this widget's look onto others — all of it, or just the
+                parts ticked. */}
+            {onApplyLook && (
+              <div className="pt-2 border-t border-border/30 space-y-2">
+                <button type="button" onClick={() => setApplyOpen((v) => !v)} aria-expanded={applyOpen}
+                  className="w-full flex items-center gap-2 text-left">
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 text-xs font-medium">Apply this look to…</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${applyOpen ? "rotate-180" : ""}`} />
+                </button>
+                {applyOpen && (
+                  <div className="space-y-2">
+                    <p className="text-[0.6875rem] text-muted-foreground">Which parts:</p>
+                    <PartTicks value={applyParts} onChange={setApplyParts} />
+                    <div className="space-y-1.5">
+                      {[
+                        ["page", "All widgets on this page"],
+                        ["all", "All widgets, every page"],
+                        ["pick", "Pick widgets…"],
+                      ].map(([scope, label]) => (
+                        <button key={scope} type="button" disabled={applyParts.length === 0}
+                          onClick={() => {
+                            setApplyOpen(false);
+                            const all = applyParts.length === LOOK_GROUPS.length;
+                            onApplyLook(scope, all ? null : applyParts);
+                          }}
+                          className="w-full text-left text-sm px-3 h-9 rounded-lg border border-border/50 hover:bg-muted/40 disabled:opacity-40">
+                          {label}
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
+                  </div>
+                )}
+              </div>
+            )}
           </LookPart>
 
-          {/* Icon override — app shortcuts only */}
+          {/* ── Your own CSS: the escape hatch, scoped to this widget ── */}
+          <LookPart open={openParts.includes("css")} title="Your own CSS">
+            <DebouncedText multiline rows={5} value={ownCss}
+              placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
+              onCommit={(v) => set({ css: v })}
+              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+            <p className="text-[0.6875rem] text-muted-foreground">
+              Plain CSS declarations, applied to this widget only. Anything CSS can do — border images, gradients, filters.
+            </p>
+          </LookPart>
+
+          {/* ── Icon — app shortcuts only ── */}
           {widget.widgetId === "app_shortcut" && (
-            <LookPart open={openParts.includes("icon")} title="Icon">
-            <div>
-              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                Icon
-              </label>
-              <div className="flex items-center gap-2">
+            <LookPart open={openParts.includes("icon")} title="Icon"
+              onReset={setHere(["iconName", "iconUrl"]) ? () => set({ iconUrl: "", iconName: "" }) : null} resetLabel="Remove custom icon">
+              <div className="flex items-center gap-2 flex-wrap">
                 {iconPreview ? (
                   <img src={iconPreview} alt="" className="w-11 h-11 rounded-2xl object-cover border border-border/40" />
                 ) : (
@@ -1678,85 +1827,54 @@ export default function WidgetConfigSheet({
                     <ImageIcon className="w-4 h-4" />
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setIconPickerOpen(true)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
-                >
+                <button type="button" onClick={() => setIconPickerOpen(true)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
                   {settings.iconName ? `Icon: ${settings.iconName}` : "Choose icon…"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onPickIcon(widget.instanceId)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
-                >
+                <button type="button" onClick={() => onPickIcon(widget.instanceId)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
                   Choose image…
                 </button>
                 <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} allowImage={false}
                   current={settings.iconName || ""}
-                  onPick={(o) => onSettings(widget.instanceId, { iconName: o.iconName || "" })} />
-                {(settings.iconUrl || settings.iconName) && (
-                  <button
-                    type="button"
-                    onClick={() => onSettings(widget.instanceId, { iconUrl: "", iconName: "" })}
-                    aria-label="Remove custom icon"
-                    className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                  onPick={(o) => set({ iconName: o.iconName || "" })} />
               </div>
-            </div>
             </LookPart>
           )}
-          <div className="pt-2 border-t border-border/50 space-y-2">
-            {/* Copy this widget's look onto others — the alternative is
-                re-setting eight fields per widget by hand. */}
-            {onApplyLook && (
-              <div className="rounded-lg border border-border/40 overflow-hidden">
-                <button type="button" onClick={() => setApplyOpen((v) => !v)}
-                  aria-expanded={applyOpen}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
-                  <Copy className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="flex-1 text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Apply this look to…
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${applyOpen ? "rotate-180" : ""}`} />
-                </button>
-                {applyOpen && (
-                  <div className="px-3 py-3 space-y-1.5 border-t border-border/30">
-                    {[
-                      ["page", "All widgets on this page"],
-                      ["all", "All widgets, every page"],
-                      ["pick", "Pick widgets…"],
-                    ].map(([scope, label]) => (
-                      <button key={scope} type="button"
-                        onClick={() => { setApplyOpen(false); onApplyLook(scope); }}
-                        className="w-full text-left text-sm px-3 h-9 rounded-lg border border-border/50 hover:bg-muted/40">
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* Undo every tweak at once — size, mode, name, look, alignment,
-                content size and this widget's own options. */}
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await confirm({
-                  title: `Reset ${settings.label || defLabel} to default?`,
-                  body: "Its size, display mode, name, look and options all go back to how the widget ships. It stays on the page, and none of your data changes.",
-                  confirmLabel: "Reset",
-                });
-                if (ok) onResetWidget?.(widget.instanceId);
-              }}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50"
-            >
-              <RotateCcw className="w-4 h-4" /> Reset all
-            </button>
+          <div className="pt-2 border-t border-border/50 space-y-2">
+            {/* Reset asks how much: just the look (every section and the
+                style), or everything the widget ships with. */}
+            {resetAsk ? (
+              <div className="rounded-lg border border-border/60 p-3 space-y-2">
+                <p className="text-sm font-medium">Reset {settings.label || defLabel}?</p>
+                <p className="text-xs text-muted-foreground">It stays on the page, and none of your data changes.</p>
+                <button type="button"
+                  onClick={() => {
+                    const patch = { style: "" };
+                    for (const sec of LOOK_SECTIONS) Object.assign(patch, sectionResetPatch(sec.id, sec.id === "layout" ? uiFieldKeys : []));
+                    set(patch);
+                    setResetAsk(false);
+                  }}
+                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                  Just how it looks
+                </button>
+                <button type="button"
+                  onClick={() => { setResetAsk(false); onResetWidget?.(widget.instanceId); }}
+                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                  Everything: size, display mode, name, look and options
+                </button>
+                <button type="button" onClick={() => setResetAsk(false)}
+                  className="w-full h-9 rounded-lg text-sm text-muted-foreground hover:bg-muted/50">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setResetAsk(true)}
+                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                <RotateCcw className="w-4 h-4" /> Reset…
+              </button>
+            )}
             <button
               type="button"
               onClick={async () => {

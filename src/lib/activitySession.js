@@ -322,6 +322,8 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       ...(extra.location ? { location: extra.location } : {}),
       ...(extra.tag_color ? { tag_color: extra.tag_color } : {}),
       ...(extra.task_id ? { task_id: extra.task_id } : {}),
+      // Started from a Goals page: the page totals this time.
+      ...(extra.goal_id ? { goal_id: extra.goal_id } : {}),
       ...(active.color ? { color: active.color } : {}),
       duration_minutes: minutes,
       fronting_alter_ids: alterIds,
