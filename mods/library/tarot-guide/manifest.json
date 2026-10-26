@@ -1,0 +1,11 @@
+{
+  "id": "tarot-guide",
+  "name": "Tarot guide",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "All 78 tarot cards' meanings, upright and reversed, to look up while you read with your own deck. Draw a card or a spread here too, and keep a journal of your readings.",
+  "permissions": ["alters:read", "fronting:read"],
+  "pages": [
+    { "id": "tarot", "title": "Tarot guide" }
+  ]
+}
