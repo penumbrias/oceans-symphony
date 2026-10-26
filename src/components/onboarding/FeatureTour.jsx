@@ -100,7 +100,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "newui", sectionLabel: "New UI",
         emoji: "🎨",
         title: "Every widget's look is yours",
-        body: `The gear on any widget (in edit mode) opens its options: its display mode on top, then its name and what it shows. How it looks sits behind + chips — Size & text, Colours, Styles — and a dot on a chip means that widget has its own setting there: font, corners, border, background colour or image, shadow, or your own CSS for just that widget. "Save this look as a style" turns your design into a reusable style you can apply to other widgets. App-wide looks live in Display options (cog menu), and Peek lets you watch the real app change while you adjust.`,
+        body: `The gear on any widget (in edit mode) opens its options: its name (type one to replace its heading, or switch the heading off), its display mode, then what it shows. How it looks sits behind + chips, one per part: Text (body and headings, each with font, size, style and colour), Layout, Box, Colours & fill, Styles and Your own CSS. A dot on a chip means that widget has its own setting there, and each part has its own Reset. In Styles, "Save this look as a style" turns your design into a reusable style, and "Apply this look to…" copies all of it, or just the parts you tick, to other widgets. App-wide looks live in Display options (cog menu), and Peek lets you watch the real app change while you adjust.`,
         route: "/", target: null,
         look: `the small gear that appears on each widget while editing`, action: null,
       },

@@ -14,10 +14,13 @@ export const WidgetModeContext = React.createContext("normal");
 export const useWidgetMode = () => React.useContext(WidgetModeContext);
 
 // Per-widget chrome the board decides, not the widget: whether the
-// widget's name (its Section heading) shows. Set from the widget options
-// sheet ("Show the name on the widget" → settings.hideLabel).
-export const WidgetChromeContext = React.createContext({ hideLabel: false });
+// widget's name (its Section heading) shows, and the name the person gave
+// it, which replaces the widget's own heading (owner decision, v0.283.0).
+// Blank keeps the widget's heading, including ones that change, like a
+// date. Set from the widget options sheet (settings.hideLabel / .label).
+export const WidgetChromeContext = React.createContext({ hideLabel: false, label: "" });
 export const useWidgetLabelHidden = () => !!React.useContext(WidgetChromeContext)?.hideLabel;
+export const useWidgetChrome = () => React.useContext(WidgetChromeContext) || {};
 
 // "How many rows at this size" — one rule instead of each widget guessing:
 // minimal keeps it short, expanded shows about twice as much.
@@ -79,8 +82,12 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
 }
 
 export function Section({ label, action, center, children }) {
-  const labelHidden = useWidgetLabelHidden();
-  const showLabel = !!label && !labelHidden;
+  const chrome = useWidgetChrome();
+  // Only a widget that draws a heading gets the person's name in it — a
+  // headingless widget doesn't grow one.
+  const ownName = typeof chrome.label === "string" ? chrome.label.trim() : "";
+  if (label && ownName) label = ownName;
+  const showLabel = !!label && !chrome.hideLabel;
   return (
     // Fills whatever box it's given — a widget resized taller should LOOK
     // taller, not sit content-sized inside a bigger empty cell. min-h-0 so

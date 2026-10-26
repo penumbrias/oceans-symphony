@@ -34,6 +34,12 @@ export const LOOK_KEYS = [
   // a border you can see through. Kept as separate keys so the colour
   // picker stays a plain hex field (the native picker has no alpha).
   "accentOpacity", "textOpacity", "borderOpacity", "gradFromOpacity", "gradToOpacity",
+  // Headings get their own size and colour (v0.283.0), like body text.
+  "headerScale", "headerColor", "headerOpacity",
+  // true = body styles stop at the headings (v0.283.0). Absent on every
+  // look made before, which keeps the old "body styles reach headings"
+  // rendering, so nothing changes until the person edits Text.
+  "textSplit",
 ];
 
 // An explicit "this style turns the effect OFF" value, as distinct from
@@ -195,14 +201,25 @@ export const FONT_STYLE_OPTIONS = [
 // quick-action widget is ALL buttons). Weights go through class lifts
 // because Tailwind's font-* classes beat inheritance.
 const HEADING_SEL = ":is(h1,h2,h3,h4,.font-display)";
+const HEADING_LIST = "h1,h2,h3,h4,.font-display";
 const CONTROL_SEL = ":is(button,input,select,textarea)";
 export function lookExtraCss(look = {}, sel) {
   const rules = [];
   const heads = Array.isArray(look.headerFontStyles) ? look.headerFontStyles : [];
   const body = Array.isArray(look.fontStyles) ? look.fontStyles : [];
+  const split = look.textSplit === true || look.textSplit === "true";
 
   const headDecls = [];
   if (isSet(look.headerFont)) headDecls.push(`font-family:${look.headerFont}`);
+  // Heading size scales whatever size each heading already has (zoom, the
+  // same mechanism as Content size), so a widget's heading hierarchy holds.
+  const hScale = Number(look.headerScale);
+  if (isSet(look.headerScale) && Number.isFinite(hScale) && hScale > 0 && hScale !== 100) {
+    headDecls.push(`zoom:${Math.min(300, Math.max(40, hScale)) / 100}`);
+  }
+  // !important: headings carry their own text-muted-foreground class, which
+  // the [data-widget-content] remaps colour ahead of a plain rule.
+  if (isSet(look.headerColor)) headDecls.push(`color:${withAlpha(look.headerColor, look.headerOpacity)} !important`);
   if (heads.includes("bold")) headDecls.push("font-weight:800");
   else if (heads.includes("light")) headDecls.push("font-weight:300");
   if (heads.includes("italic")) headDecls.push("font-style:italic");
@@ -212,6 +229,20 @@ export function lookExtraCss(look = {}, sel) {
     .filter(Boolean).join(" ");
   if (headDeco) headDecls.push(`text-decoration-line:${headDeco}`);
   if (headDecls.length) rules.push(`${sel} ${HEADING_SEL}{${headDecls.join(";")}}`);
+
+  // Split text: body styles stop at the headings. Each style the body sets
+  // and the headings don't is put back to normal on the headings, at zero
+  // specificity (:where) so a heading's own classes (uppercase labels, a
+  // semibold title) still win; it only stops inheritance from the body.
+  if (split) {
+    const resets = [];
+    if (body.includes("italic") && !heads.includes("italic")) resets.push("font-style:normal");
+    if (body.includes("smallcaps") && !heads.includes("smallcaps")) resets.push("font-variant:normal");
+    if (body.includes("uppercase") && !heads.includes("uppercase")) resets.push("text-transform:none");
+    if ((body.includes("underline") || body.includes("strikethrough")) && !headDeco) resets.push("text-decoration-line:none");
+    if ((body.includes("bold") || body.includes("light")) && !heads.includes("bold") && !heads.includes("light")) resets.push("font-weight:600");
+    if (resets.length) rules.push(`:where(${sel}) :where(${HEADING_LIST}){${resets.join(";")}}`);
+  }
 
   const bodyDecls = [];
   if (body.includes("italic")) bodyDecls.push("font-style:italic");
@@ -224,15 +255,104 @@ export function lookExtraCss(look = {}, sel) {
   // Weight lifts everything a step so hierarchy survives: bold makes
   // normal/medium text bold and semibold text bolder; light mirrors it
   // downward.
+  // Split text leaves the headings out of the lift.
+  const notHead = split ? `:not(${HEADING_LIST})` : "";
   if (body.includes("bold")) {
-    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium){font-weight:700}`);
-    rules.push(`${sel} :is(.font-semibold,.font-bold,b,strong,h1,h2,h3,h4){font-weight:800}`);
+    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium)${notHead}{font-weight:700}`);
+    rules.push(split
+      ? `${sel} :is(.font-semibold,.font-bold,b,strong)${notHead}{font-weight:800}`
+      : `${sel} :is(.font-semibold,.font-bold,b,strong,h1,h2,h3,h4){font-weight:800}`);
   } else if (body.includes("light")) {
-    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium,.font-semibold){font-weight:300}`);
-    rules.push(`${sel} :is(.font-bold,b,strong,h1,h2,h3,h4){font-weight:500}`);
+    rules.push(`${sel}, ${sel} :is(.font-normal,.font-medium,.font-semibold)${notHead}{font-weight:300}`);
+    rules.push(split
+      ? `${sel} :is(.font-bold,b,strong)${notHead}{font-weight:500}`
+      : `${sel} :is(.font-bold,b,strong,h1,h2,h3,h4){font-weight:500}`);
   }
   return rules.join("\n");
 }
+
+// What the headings LOOK like before text is split: their own styles plus
+// everything the body styles pushed onto them. Copied into the heading
+// styles the moment a person edits Text, so splitting changes nothing
+// visible (owner decision, 2026-10-26).
+export function inheritedHeaderStyles(look = {}) {
+  const heads = Array.isArray(look.headerFontStyles) ? look.headerFontStyles : [];
+  const body = Array.isArray(look.fontStyles) ? look.fontStyles : [];
+  const out = [...heads];
+  const headWeight = heads.includes("bold") || heads.includes("light");
+  for (const id of body) {
+    if ((id === "bold" || id === "light") && headWeight) continue;
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+// The patch that turns a look's text split on, once. Already split = {}.
+export function textSplitPatch(look = {}) {
+  if (look.textSplit === true || look.textSplit === "true") return {};
+  return { textSplit: true, headerFontStyles: inheritedHeaderStyles(look) };
+}
+
+// ── The look's sections ────────────────────────────────────────────
+// ONE list behind the options sheet: its chips, the "has its own setting"
+// dots, each section's Reset, the parts a saved style or a copied look can
+// carry, and the star on partial styles. Add a look setting here and it
+// shows up in all of them.
+//
+// `keys` = everything the section owns in a widget's settings (resets and
+// dots). `lookKeys` = the subset that travels in a style / copied look
+// (alignment and content size are the widget's placement, not its look —
+// layout exports keep them separate). `required` = what a style must set
+// to genuinely cover the section.
+export const LOOK_SECTIONS = [
+  {
+    id: "text", label: "Text",
+    keys: ["font", "fontScale", "fontStyles", "textColor", "textOpacity",
+      "headerFont", "headerScale", "headerFontStyles", "headerColor", "headerOpacity", "textSplit"],
+    required: ["font", "fontScale"],
+  },
+  {
+    id: "layout", label: "Layout",
+    keys: ["controlScale", "halign", "valign", "padding", "padTop", "padRight", "padBottom", "padLeft"],
+    lookKeys: ["padding", "padTop", "padRight", "padBottom", "padLeft"],
+    required: ["padding"],
+  },
+  {
+    id: "box", label: "Box",
+    keys: ["radius", "outlineW", "borderTopW", "borderRightW", "borderBottomW", "borderLeftW",
+      "borderStyle", "borderColor", "borderOpacity", "borderW", "shadow"],
+    required: ["radius", "outlineW", "shadow"],
+  },
+  {
+    id: "fill", label: "Colours & fill",
+    keys: ["accent", "accentOpacity", "bg", "bgOpacity", "gradFrom", "gradTo", "gradAngle",
+      "gradFromOpacity", "gradToOpacity", "blur", "bgImage", "bgSize"],
+    required: ["accent", "bg", "gradFrom", "gradTo", "blur"],
+  },
+  {
+    id: "css", label: "Your own CSS",
+    keys: ["css"],
+    required: ["css"],
+  },
+];
+export const sectionLookKeys = (sec) => sec.lookKeys || sec.keys;
+// The "back to normal" patch for a section: every key it owns, emptied.
+export function sectionResetPatch(sectionId, extraKeys = []) {
+  const sec = LOOK_SECTIONS.find((x) => x.id === sectionId);
+  const out = {};
+  for (const k of [...(sec ? sec.keys : []), ...extraKeys]) out[k] = "";
+  return out;
+}
+export function sectionHasOwn(settings = {}, sectionId, extraKeys = []) {
+  const sec = LOOK_SECTIONS.find((x) => x.id === sectionId);
+  return [...(sec ? sec.keys : []), ...extraKeys].some((k) => {
+    const v = settings[k];
+    if (k === "textSplit") return false; // bookkeeping, not a setting
+    return v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
+  });
+}
+
+
 
 // ── What a style covers ────────────────────────────────────────────
 // A saved style doesn't have to be a whole look. You can save just the
@@ -242,36 +362,11 @@ export function lookExtraCss(look = {}, sel) {
 // `required` is what a group must set to genuinely COVER that dimension.
 // Anything outside `required` is a modifier (an opacity, an angle) that
 // only means something alongside its colour, so it doesn't gate coverage.
-export const LOOK_GROUPS = [
-  {
-    id: "shape", label: "Shape & spacing",
-    keys: ["radius", "borderW", "outlineW", "borderStyle", "padding", "shadow",
-      "borderTopW", "borderRightW", "borderBottomW", "borderLeftW"],
-    required: ["radius", "outlineW", "padding", "shadow"],
-  },
-  {
-    id: "type", label: "Font & text size",
-    keys: ["font", "fontScale", "headerFont", "fontStyles", "headerFontStyles"],
-    required: ["font", "fontScale"],
-  },
-  {
-    id: "colour", label: "Colours",
-    keys: ["accent", "accentOpacity", "bg", "bgOpacity", "textColor", "textOpacity", "borderColor", "borderOpacity"],
-    required: ["accent", "bg", "textColor", "borderColor"],
-  },
-  {
-    id: "effects", label: "Gradient & blur",
-    keys: ["gradFrom", "gradTo", "gradAngle", "gradFromOpacity", "gradToOpacity", "blur", "bgImage", "bgSize"],
-    // A style that says "no gradient" (the OFF sentinel) covers this just
-    // as much as one that sets a gradient — both decide what you get.
-    required: ["gradFrom", "gradTo", "blur"],
-  },
-  {
-    id: "css", label: "Custom CSS",
-    keys: ["css"],
-    required: ["css"],
-  },
-];
+// The parts a saved style can carry = the sheet's sections (one list, see
+// LOOK_SECTIONS), each with only its look keys.
+export const LOOK_GROUPS = LOOK_SECTIONS.map((sec) => ({
+  id: sec.id, label: sec.label, keys: sectionLookKeys(sec), required: sec.required,
+}));
 
 export function groupCovered(look = {}, group) {
   return group.required.every((k) => isSet(look[k]));
@@ -306,7 +401,7 @@ export function lookForGroups(resolved = {}, own = {}, groupIds = [], live = {})
     // record them explicitly so the style genuinely decides that dimension
     // (and so a style the user marked as covering everything reads as
     // covering everything, rather than wearing a star for a blank field).
-    if (g.id === "effects") {
+    if (g.id === "fill") {
       if (!isSet(out.gradFrom) || !isSet(out.gradTo)) { out.gradFrom = OFF; out.gradTo = OFF; }
       if (!isSet(out.blur)) out.blur = 0;
     }

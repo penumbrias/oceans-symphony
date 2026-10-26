@@ -1,4 +1,4 @@
-// Goals: a workspace that works like a notebook (v0.284.0). Every goal is
+// Goals: a workspace that works like a notebook (v0.285.0). Every goal is
 // a page; pages hold sections (smaller pages, nested as deep as you like),
 // notes, to-dos, checkboxes, links and trackers. See src/lib/goalTree.js.
 //

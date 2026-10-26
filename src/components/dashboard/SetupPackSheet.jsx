@@ -53,7 +53,7 @@ function TypeCheck({ label, desc, checked, onChange, disabled = false }) {
 // not the code behind them. The raw JSON stays available below it.
 const KEY_LABELS = {
   font: "Font", fontScale: "Text size", radius: "Corner radius",
-  borderW: "Border width", borderColor: "Border colour", borderStyle: "Border style",
+  borderW: "Lines inside", outlineW: "Outline width", borderColor: "Outline colour", borderStyle: "Outline style",
   accent: "Accent colour", bg: "Background", bgOpacity: "Background opacity",
   bgImage: "Background image", bgSize: "Background image fit",
   textColor: "Text colour", padding: "Padding", shadow: "Shadow", css: "Custom CSS",
@@ -63,6 +63,9 @@ const KEY_LABELS = {
   gradFromOpacity: "Gradient-from opacity", gradToOpacity: "Gradient-to opacity",
   alignX: "Horizontal alignment", actionsMode: "Quick actions mode", actionsEdge: "Quick actions edge",
   actionsAttach: "Quick actions attach", handleSides: "Handle halves",
+  headerFont: "Heading font", headerScale: "Heading size", headerColor: "Heading colour",
+  headerOpacity: "Heading opacity", fontStyles: "Text style", headerFontStyles: "Heading style",
+  textSplit: "Headings separate from body",
 };
 const TOP_LABELS = {
   tokens: "Size & layout", bars: "Bars shown", barLooks: "Per-bar looks",

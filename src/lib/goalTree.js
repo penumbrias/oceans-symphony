@@ -1,4 +1,4 @@
-// The Goals workspace (v0.284.0): goals work like a notebook.
+// The Goals workspace (v0.285.0): goals work like a notebook.
 //
 // Every page is a Goal record. A top-level goal has no parent_id; a
 // section is a Goal with parent_id set to the page it sits inside, nested
