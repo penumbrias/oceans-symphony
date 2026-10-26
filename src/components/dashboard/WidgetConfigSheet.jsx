@@ -591,6 +591,22 @@ function useLiveColors(open, instanceId, revision = "") {
   }, [open, instanceId, tick]);
 }
 
+// Does the live widget draw a name the board can hide (a Section heading,
+// a command key's label)? Read off the DOM, like the live colours, so the
+// "Show the name" switch only appears where it does something.
+function useHasWidgetLabel(open, instanceId, tick) {
+  const [has, setHas] = React.useState(false);
+  React.useEffect(() => {
+    if (!open || !instanceId) return undefined;
+    const raf = requestAnimationFrame(() => {
+      const node = document.querySelector(`[data-widget-id="${instanceId}"]`);
+      setHas(!!node?.querySelector("[data-widget-label]"));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, instanceId, tick]);
+  return has;
+}
+
 // One look part of the sheet, opened from its chip (see lookParts).
 function LookPart({ open, title, children }) {
   if (!open) return null;
@@ -703,6 +719,7 @@ export default function WidgetConfigSheet({
     onClose();
   };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
+  const drawsLabel = useHasWidgetLabel(open, widget?.instanceId, `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [themesOpen, setThemesOpen] = React.useState(false);
@@ -941,6 +958,16 @@ export default function WidgetConfigSheet({
               <p className="text-[0.6875rem] text-muted-foreground mt-1">
                 Leave blank and the name follows the file that's set to play, renaming itself when you pick a different one.
               </p>
+            )}
+            {/* Off = the widget drops its heading and gives the room to
+                what it shows. Only offered where the widget draws one. */}
+            {(drawsLabel || settings.hideLabel) && (
+              <label className="flex items-center justify-between gap-3 text-sm cursor-pointer mt-2">
+                <span>Show the name on the widget</span>
+                <Switch checked={!settings.hideLabel}
+                  onCheckedChange={(on) => onSettings(widget.instanceId, { hideLabel: on ? "" : true })}
+                  aria-label="Show the name on the widget" />
+              </label>
             )}
           </div>
 

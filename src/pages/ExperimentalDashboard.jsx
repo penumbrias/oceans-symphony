@@ -68,7 +68,7 @@ import { readPinnedBar, pinnedBarPatch, pinnedBarLook, openBarsEditor } from "@/
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { boxStyle } from "@/v2/primitives";
+import { boxStyle, WidgetChromeContext } from "@/v2/primitives";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import PageBackground, { resolveBackground } from "@/components/v2/PageBackground";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
@@ -77,6 +77,10 @@ import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings } from "@/lib/widgetFold";
+
+// Stable context values, so a re-render doesn't re-render every Section.
+const SHOW_LABEL = { hideLabel: false };
+const HIDE_LABEL = { hideLabel: true };
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -536,6 +540,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
               <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
             </div>
           )}>
+          <WidgetChromeContext.Provider value={widget.settings?.hideLabel ? HIDE_LABEL : SHOW_LABEL}>
           {def.render({
             mode,
             settings: foldedSettings(def, widget.settings),
@@ -543,6 +548,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             api,
             updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
           })}
+          </WidgetChromeContext.Provider>
         </ErrorBoundary>
         </div>
       </div>

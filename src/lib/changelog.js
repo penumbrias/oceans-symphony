@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 26, 2026",
     changes: [
+      { type: "improve", text: "Widgets: turn off a widget's name in its options to give the room to what it shows." },
       { type: "hotfix", text: "Hotfix: updated build tools and libraries to clear all known security warnings." },
     ],
   },
