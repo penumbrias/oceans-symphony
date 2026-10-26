@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 26, 2026",
     changes: [
+      { type: "feature", text: "A running activity now shows as a small bubble above the bottom bar on every screen, with a stop button, so it's harder to forget to end it." },
       { type: "hotfix", text: "Hotfix: updated build tools and libraries to clear all known security warnings." },
     ],
   },
