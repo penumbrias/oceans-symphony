@@ -52,7 +52,7 @@ import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
   pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
-  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS,
+  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -1030,7 +1030,7 @@ export default function ExperimentalDashboard({
   // "how it looks".
   const [pickLookFrom, setPickLookFrom] = useState(null);   // instanceId
   const [pickLookIds, setPickLookIds] = useState([]);       // chosen targets
-  const applyLookTo = (sourceId, targetIds) => {
+  const applyLookTo = (sourceId, targetIds, parts = null) => {
     const home = boardRef.current.board; // newest board, never the render copy
     const source = home.pages.flatMap((p) => p.widgets).find((w) => w.instanceId === sourceId);
     if (!source) return;
@@ -1038,7 +1038,12 @@ export default function ExperimentalDashboard({
     // widget's colour usually comes from the style it points at, so copying
     // only its own keys moved the shape and spacing across and left the
     // colours behind — which is exactly what it looked like.
-    const look = { style: source.settings?.style || "", ...pickLook(source.settings || {}) };
+    // Only some parts (the options sheet's ticks): copy those parts as they
+    // LOOK on the source — resolved through its style — and leave the
+    // target's style and every other part alone.
+    const look = parts && parts.length
+      ? lookForGroups(widgetLookFor(source.settings || {}, userStyles, home.styleMode), source.settings || {}, parts, {})
+      : { style: source.settings?.style || "", ...pickLook(source.settings || {}) };
     const ids = new Set(targetIds);
     persist({
       ...home,
@@ -1051,8 +1056,10 @@ export default function ExperimentalDashboard({
     });
     toast.success(`Look applied to ${ids.size} widget${ids.size === 1 ? "" : "s"}`);
   };
-  const handleApplyLook = (scope) => {
+  const [pickLookParts, setPickLookParts] = useState(null);  // null = whole look
+  const handleApplyLook = (scope, parts = null) => {
     if (scope === "pick") {
+      setPickLookParts(parts);
       setPickLookFrom(configId);
       setPickLookIds([]);
       setConfigId(null);
@@ -1062,7 +1069,7 @@ export default function ExperimentalDashboard({
       .flatMap((p) => p.widgets)
       .map((w) => w.instanceId)
       .filter((id) => id !== configId);
-    applyLookTo(configId, targets);
+    applyLookTo(configId, targets, parts);
     setConfigId(null);
   };
 
@@ -2223,10 +2230,10 @@ export default function ExperimentalDashboard({
             <span className="text-xs flex-1 min-w-0 truncate">
               {pickLookIds.length ? `${pickLookIds.length} selected` : "Tap widgets to apply the look to"}
             </span>
-            <button type="button" onClick={() => { setPickLookFrom(null); setPickLookIds([]); }}
+            <button type="button" onClick={() => { setPickLookFrom(null); setPickLookIds([]); setPickLookParts(null); }}
               className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
             <button type="button" disabled={!pickLookIds.length}
-              onClick={() => { applyLookTo(pickLookFrom, pickLookIds); setPickLookFrom(null); setPickLookIds([]); }}
+              onClick={() => { applyLookTo(pickLookFrom, pickLookIds, pickLookParts); setPickLookFrom(null); setPickLookIds([]); setPickLookParts(null); }}
               className="text-xs px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40">Apply</button>
           </div>
         </div>
