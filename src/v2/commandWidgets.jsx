@@ -79,7 +79,7 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
         style={{ ...boxStyle({ borderFallback: false }), color: "var(--v2-accent, hsl(var(--primary)))" }}
       >
         <Icon className="flex-shrink-0" style={{ width: "1.25em", height: "1.25em" }} />
-        {mode !== "minimal" && <span className="truncate text-[0.875em] font-medium">{label}</span>}
+        {mode !== "minimal" && !settings?.hideLabel && <span data-widget-label="" className="truncate text-[0.875em] font-medium">{label}</span>}
       </button>
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </>

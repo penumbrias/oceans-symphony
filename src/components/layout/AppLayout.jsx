@@ -39,6 +39,7 @@ import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remind
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
 import SoundscapeGlobalBar from "@/components/grounding/soundscape/SoundscapeGlobalBar";
+import ActiveActivityBubble from "@/components/activities/ActiveActivityBubble";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
@@ -1250,6 +1251,11 @@ const handleNotifClick = (mentionLog) => {
       <QuickActionsHost />
       {!v2HomeNotices && <ReminderToast />}
       <SoundscapeGlobalBar />
+      {/* Running activity timers stay in sight. Steps aside when the v2
+          Active-now bubble is switched on, which already shows them. */}
+      <QuietBoundary name="ActiveActivityBubble">
+        <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
+      </QuietBoundary>
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       {pageScopedTourRoute && !showFeatureTour && (
         <FeatureTour

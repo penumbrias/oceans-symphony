@@ -44,7 +44,7 @@ export default function FrontLevelsSettings() {
 
   // Every field of front_levels must ride along here or a save of one
   // control silently resets the others back to defaults.
-  const save = (patch) => persist({ levels: cfg.levels, solo_swipe: cfg.solo_swipe, tap_action: cfg.tap_action, ...patch });
+  const save = (patch) => persist({ levels: cfg.levels, solo_swipe: cfg.solo_swipe, tap_action: cfg.tap_action, swipe_distance: cfg.swipe_distance, ...patch });
   const saveSolo = (patch) => save({ solo_swipe: { ...cfg.solo_swipe, ...patch } });
 
   const updateLevel = (id, change) =>
@@ -177,6 +177,26 @@ export default function FrontLevelsSettings() {
             )}
           </div>
 
+          {/* How far the rail's sideways slides travel before they count —
+              the options bubble and "sole". */}
+          <div className="rounded-xl border border-border/50 p-2.5 space-y-2">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="font-medium">Sideways slide distance</span>
+              <div className="flex gap-1">
+                {[["short", "Short"], ["normal", "Normal"], ["long", "Long"]].map(([v, label]) => (
+                  <button key={v} type="button" disabled={busy} aria-pressed={cfg.swipe_distance === v}
+                    onClick={() => save({ swipe_distance: v })}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${cfg.swipe_distance === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              How far you slide on the level rail before the options bubble lights up (or "sole" arms). Longer means fewer accidental slides.
+            </p>
+          </div>
+
           {/* The shared tap grammar for fronting controls (the status
               pill in the {alter} menu, and surfaces that adopt it):
               hold is always the rail; TAP is the user's choice. */}
@@ -197,7 +217,7 @@ export default function FrontLevelsSettings() {
               ))}
             </div>
             <p className="text-[0.6875rem] text-muted-foreground">
-              Holding always opens the level rail; sliding sideways on the rail sets sole {terms.front}. Dragging right on a control opens that {terms.alter}'s menu.
+              Holding always opens the level rail; sliding sideways on the rail sets sole {terms.front}. Sliding the other way lights up the options bubble; let go on it to open that {terms.alter}'s menu.
             </p>
           </div>
         </>

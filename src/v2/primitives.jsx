@@ -13,6 +13,12 @@ import React from "react";
 export const WidgetModeContext = React.createContext("normal");
 export const useWidgetMode = () => React.useContext(WidgetModeContext);
 
+// Per-widget chrome the board decides, not the widget: whether the
+// widget's name (its Section heading) shows. Set from the widget options
+// sheet ("Show the name on the widget" → settings.hideLabel).
+export const WidgetChromeContext = React.createContext({ hideLabel: false });
+export const useWidgetLabelHidden = () => !!React.useContext(WidgetChromeContext)?.hideLabel;
+
 // "How many rows at this size" — one rule instead of each widget guessing:
 // minimal keeps it short, expanded shows about twice as much.
 export function rowsForMode(mode, base) {
@@ -73,14 +79,18 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
 }
 
 export function Section({ label, action, center, children }) {
+  const labelHidden = useWidgetLabelHidden();
+  const showLabel = !!label && !labelHidden;
   return (
     // Fills whatever box it's given — a widget resized taller should LOOK
     // taller, not sit content-sized inside a bigger empty cell. min-h-0 so
     // the list below can scroll instead of forcing the box open.
     <section className="h-full flex flex-col min-h-0" data-widget-box="1" style={boxStyle()}>
-      {(label || action) && (
-        <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
-          <h2 className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>
+      {(showLabel || action) && (
+        <div className={`flex items-baseline ${showLabel ? "justify-between" : "justify-end"} mb-1 flex-shrink-0`}>
+          {/* data-widget-label: the options sheet looks for it to know this
+              widget has a name it can hide. */}
+          {showLabel && <h2 data-widget-label="" className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>}
           {action}
         </div>
       )}
