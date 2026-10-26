@@ -1,0 +1,11 @@
+{
+  "id": "sun-dial",
+  "name": "Sun dial",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "A 24-hour dial of today's daylight where you are: sunrise, sunset, golden hour and how much light is left. Handy for noticing time when it slips away.",
+  "permissions": [],
+  "pages": [
+    { "id": "dial", "title": "Sun dial" }
+  ]
+}

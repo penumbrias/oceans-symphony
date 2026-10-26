@@ -10,7 +10,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Puzzle } from "lucide-react";
 import { ALL_PAGES } from "@/utils/navigationConfig";
-import { useMods } from "@/lib/mods/modStore";
+import { useMods, syncBuiltinMods } from "@/lib/mods/modStore";
 import { useExperimentalOn, subscribeExperimental } from "@/lib/experimentalFeatures";
 
 export const modPageId = (modId, pageId) => `mod:${modId}:${pageId}`;
@@ -65,10 +65,15 @@ export function useModPagesVersion() {
 
 // Mounted once in AppLayout: keeps ALL_PAGES in step with installed mods.
 export function ModNavSync() {
-  const { mods } = useMods();
+  const { mods, refresh } = useMods();
   // Mods are experimental: with the switch off their pages leave the nav
   // (installed mods and their data stay put).
   const expOn = useExperimentalOn();
   useEffect(() => { syncModPages(expOn ? mods : []); }, [mods, expOn]);
+  // Built-in mods pick up the copy this app version ships.
+  useEffect(() => {
+    if (!expOn || !mods.length) return;
+    syncBuiltinMods(mods).then((n) => { if (n) refresh(); }).catch(() => {});
+  }, [mods, expOn, refresh]);
   return null;
 }

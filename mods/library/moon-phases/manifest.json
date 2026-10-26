@@ -1,0 +1,11 @@
+{
+  "id": "moon-phases",
+  "name": "Moon phases",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "Tonight's moon, the month's phases on a calendar, and the next full and new moon. Keep a little moon journal if you like noticing how the cycle feels.",
+  "permissions": ["alters:read", "fronting:read"],
+  "pages": [
+    { "id": "moon", "title": "Moon phases" }
+  ]
+}

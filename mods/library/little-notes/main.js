@@ -42,7 +42,12 @@ symphony.registerPage("notes", async (root) => {
     notes.sort((a, b) => (a.created_date < b.created_date ? 1 : -1));
     list.replaceChildren(...(notes.length ? notes.map((n) => {
       const del = el("button", { className: "os-button secondary", textContent: "Remove" });
-      del.onclick = async () => { await symphony.data.remove("note", n.id); };
+      del.onclick = async () => {
+        // Ask first: removing is the person's choice (docs/mods.md, rule 1).
+        if (await symphony.ui.confirm("Remove this note?", "You can bring it back from Recent changes.", { confirmLabel: "Remove", destructive: true })) {
+          await symphony.data.remove("note", n.id);
+        }
+      };
       const who = n.alter_id ? nameOf(n.alter_id) : "";
       return el("div", { className: "os-card" },
         el("div", { textContent: n.text }),

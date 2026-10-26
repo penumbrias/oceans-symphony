@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 26, 2026",
     changes: [
+      { type: "feature", text: "Mods: the Mods page now has a library of mods that come with the app: sun dial, moon phases, cycle tracker, astrology, tarot guide, comfort box and letters to later." },
       { type: "feature", text: "Goals is now a notebook: each goal is a page with sections inside sections, notes, to-dos, checkboxes, [[links]] between pages, and Board and Map views." },
       { type: "feature", text: "Goals: start a page's activities, or Planning, from a strip under its title without leaving it; the time adds up on the page, and its to-dos show where they came from on the To-Do list." },
       { type: "feature", text: "Widget options are reorganised into Text, Layout, Box, Colours & fill, Styles and Your own CSS, and each part has its own Reset. Nothing was removed." },

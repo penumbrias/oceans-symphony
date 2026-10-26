@@ -50,6 +50,18 @@
     color: var(--color-text-primary, #1E293B);
   }
   .os-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  select.os-input { appearance: auto; }
+  .os-button:disabled { opacity: 0.5; cursor: default; }
+  .os-button.small { padding: 5px 10px; font-size: 0.875em; }
+  .os-h { font-size: 1.05em; font-weight: 600; margin: 0 0 6px; }
+  .os-chip {
+    font: inherit; font-size: 0.85em; cursor: pointer; border-radius: 999px; padding: 5px 11px;
+    border: 1px solid var(--color-muted, #B6D4E3); background: transparent; color: var(--color-text-primary, #1E293B);
+  }
+  .os-chip[aria-pressed="true"] { background: var(--color-primary, #3B82F6); border-color: var(--color-primary, #3B82F6); color: #fff; }
+  .os-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+  .os-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  label.os-label { display: block; font-size: 0.85em; margin: 8px 0 4px; color: var(--color-text-secondary, #64748B); }
 </style>
 </head>
 <body>

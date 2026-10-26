@@ -3,7 +3,7 @@
   "formatVersion": 1,
   "id": "little-notes",
   "name": "Little notes",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Oceans Symphony example",
   "description": "Leave short notes for each other. An example mod to learn from: it keeps its own data and, if you allow it, signs notes with whoever is fronting.",
   "permissions": ["alters:read", "fronting:read"],
