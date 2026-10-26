@@ -275,7 +275,7 @@ It's reviewed like any other change to the app, against this checklist:
 - [ ] Follows every rule above (data first, terms, missing permissions, no
       medical claims, gentle, accessible, honest).
 - [ ] Folder name is the mod's `id`; the manifest parses
-      (`node scripts/pack-mod.mjs mods/library/<id>` succeeds).
+      (`node scripts/test-mod-library.mjs` passes).
 - [ ] Plain JavaScript in one `main.js`, readable (not minified), with a
       short comment at the top saying what it does.
 - [ ] Works with every permission refused, and on a phone-sized screen in
