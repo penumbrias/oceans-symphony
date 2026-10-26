@@ -1,0 +1,11 @@
+{
+  "id": "comfort-box",
+  "name": "Comfort box",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "A box of affirmations, reminders and kind notes, yours or written for each other, to pull one out when things are hard. Comes with a gentle starter set you can switch off.",
+  "permissions": ["alters:read", "fronting:read"],
+  "pages": [
+    { "id": "box", "title": "Comfort box" }
+  ]
+}
