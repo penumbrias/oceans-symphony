@@ -1,10 +1,11 @@
 // Mods: install, switch on/off, set permissions, open and remove mods that
-// other people made and shared as .osmod files. See docs/mods.md.
+// other people made and shared as .osmod files, plus the mod library (mods
+// that come with the app, src/lib/mods/builtinMods.js). See docs/mods.md.
 import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Puzzle, Upload, ShieldCheck, Trash2, Download, ExternalLink } from "lucide-react";
+import { Puzzle, Upload, ShieldCheck, Trash2, Download, ExternalLink, Library, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   exportModData, deleteModData, MODS_QUERY_KEY,
 } from "@/lib/mods/modStore";
 import { modPagePath } from "@/lib/mods/registry";
+import { BUILTIN_MODS, loadBuiltinMod } from "@/lib/mods/builtinMods";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 
 function PermissionRow({ perm, checked, onChange, terms }) {
@@ -44,7 +46,7 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
     setBusy(true);
     try {
       await installMod(pending, [...granted]);
-      toast.success(existing ? `${pending.name} updated` : `${pending.name} installed`);
+      toast.success(existing ? `${pending.name} updated` : `${pending.name} added`);
       onInstalled();
     } catch (e) {
       toast.error(e?.message || "Couldn't install the mod");
@@ -54,14 +56,14 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Puzzle className="w-5 h-5 text-primary" /> {existing ? "Update" : "Install"} {pending.name}?</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Puzzle className="w-5 h-5 text-primary" /> {existing ? "Update" : pending.source === "builtin" ? "Add" : "Install"} {pending.name}?</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <p className="text-muted-foreground">
             Version {pending.version}{pending.author ? ` · by ${pending.author}` : ""}
             {existing ? ` · you have ${existing.version}` : ""}
           </p>
-          {pending.description && <p>{pending.description}</p>}
+          {pending.description && <p>{applyModTerms(pending.description, terms)}</p>}
           <div>
             <p className="font-medium">Adds {pending.pages.length === 1 ? "a page" : "pages"}:</p>
             <p className="text-muted-foreground">{pending.pages.map((p) => p.title).join(", ")}</p>
@@ -77,12 +79,14 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Mods are made by other people, not by Oceans Symphony. Each one runs walled off from the rest of the app with no internet access, and can't change or delete anything outside its own data. Only install mods from people you trust.
+            {pending.source === "builtin"
+              ? "This mod comes with the app. Like every mod, it runs walled off from the rest of the app with no internet access, and can't change or delete anything outside its own data."
+              : "Mods are made by other people, not by Oceans Symphony. Each one runs walled off from the rest of the app with no internet access, and can't change or delete anything outside its own data. Only install mods from people you trust."}
           </p>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={doInstall} disabled={busy}>{existing ? "Update" : "Install"}</Button>
+          <Button onClick={doInstall} disabled={busy}>{existing ? "Update" : pending.source === "builtin" ? "Add" : "Install"}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -128,7 +132,7 @@ function ModCard({ mod, dataCount, terms, refresh }) {
         <div className="min-w-0">
           <p className="font-semibold truncate">{mod.name}</p>
           <p className="text-xs text-muted-foreground">
-            Version {mod.version}{mod.author ? ` · by ${mod.author}` : ""} · {dataCount} saved {dataCount === 1 ? "item" : "items"}
+            Version {mod.version}{mod.source === "builtin" ? " · comes with the app" : mod.author ? ` · by ${mod.author}` : ""} · {dataCount} saved {dataCount === 1 ? "item" : "items"}
           </p>
         </div>
         <Switch
@@ -137,7 +141,7 @@ function ModCard({ mod, dataCount, terms, refresh }) {
           aria-label={mod.enabled ? `Turn ${mod.name} off` : `Turn ${mod.name} on`}
         />
       </div>
-      {mod.description && <p className="text-sm text-muted-foreground">{mod.description}</p>}
+      {mod.description && <p className="text-sm text-muted-foreground">{applyModTerms(mod.description, terms)}</p>}
       {mod.enabled && (
         <div className="flex flex-wrap gap-2">
           {(mod.pages || []).map((p) => (
@@ -214,6 +218,11 @@ export default function Mods() {
   };
 
   const existing = pending ? mods.find((m) => m.mod_id === pending.mod_id) : null;
+  const library = BUILTIN_MODS.filter((m) => !installedIds.has(m.mod_id));
+  const addFromLibrary = async (modId) => {
+    try { setPending(await loadBuiltinMod(modId)); }
+    catch (e) { toast.error(e?.message || "Couldn't open that mod."); }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 os-page-shell" data-tour="mods-page">
@@ -243,12 +252,37 @@ export default function Mods() {
         <div className="text-center py-14 px-4 rounded-2xl border border-dashed border-border/60">
           <Puzzle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            No mods yet. When someone shares a mod file (it ends in <strong>.osmod</strong>), save it to your device and tap <strong>Install</strong>.
+            No mods yet. Add one from the library below, or when someone shares a mod file (it ends in <strong>.osmod</strong>), save it to your device and tap <strong>Install</strong>.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {mods.map((m) => <ModCard key={m.id} mod={m} dataCount={counts[m.mod_id] || 0} terms={terms} refresh={refresh} />)}
+        </div>
+      )}
+
+      {library.length > 0 && (
+        <div className="space-y-2">
+          <div>
+            <h2 className="font-semibold flex items-center gap-1.5"><Library className="w-4 h-4 text-primary" /> Mod library</h2>
+            <p className="text-xs text-muted-foreground">Mods that come with the app. Add the ones you want; they update along with the app.</p>
+          </div>
+          {library.map((m) => (
+            <div key={m.mod_id} className="rounded-2xl border border-border/60 bg-card p-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold">{m.name}</p>
+                {m.description && <p className="text-sm text-muted-foreground mt-0.5">{applyModTerms(m.description, terms)}</p>}
+                {m.permissions.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Asks: {m.permissions.map((p) => applyModTerms(MOD_PERMISSIONS[p]?.label || p, terms)).join(" · ")}
+                  </p>
+                )}
+              </div>
+              <Button size="sm" className="gap-1 flex-shrink-0" onClick={() => addFromLibrary(m.mod_id)}>
+                <Plus className="w-3.5 h-3.5" /> Add
+              </Button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -278,7 +312,7 @@ export default function Mods() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Want to make a mod? The guide is in the app's source, in docs/mods.md.
+        Want to make a mod? The modder guide is in the app's source, in docs/mods.md, and every mod in the library is there to copy from.
       </p>
 
       {pending && (

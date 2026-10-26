@@ -5,7 +5,7 @@ You write it, pack it into one `.osmod` file, and share that file. Anyone
 can install it from **Mods → Install**, keep using the normal app with its
 updates, and switch the mod off or remove it whenever they like.
 
-The example in [`mods/examples/little-notes`](../mods/examples/little-notes)
+The example in [`mods/library/little-notes`](../mods/library/little-notes)
 is a complete mod in about 60 lines. Start by copying it.
 
 ## What a mod is

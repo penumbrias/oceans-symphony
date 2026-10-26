@@ -12,6 +12,7 @@
 import { localEntities } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { builtinUpdateFor, loadBuiltinMod } from "@/lib/mods/builtinMods";
 
 export const MODS_QUERY_KEY = ["mods"];
 
@@ -41,10 +42,37 @@ export async function installMod(parsed, grantedPermissions) {
     granted_permissions: granted,
     pages: parsed.pages,
     code: parsed.code,
+    // "builtin" = from the app's mod library (updates arrive with the app);
+    // "file" = installed from a shared .osmod file.
+    source: parsed.source === "builtin" ? "builtin" : "file",
   };
   const existing = await findMod(parsed.mod_id);
   if (existing) return localEntities.ModPackage.update(existing.id, fields);
   return localEntities.ModPackage.create({ ...fields, enabled: true, installed_at: new Date().toISOString() });
+}
+
+// Built-in mods update with the app: when this version ships a different
+// copy than the one installed, swap the code in place. Its data, on/off state
+// and granted permissions stay; a permission the new version newly asks for
+// is NOT granted — the person ticks it on the Mods page.
+let builtinSyncRunning = false;
+export async function syncBuiltinMods(mods) {
+  if (builtinSyncRunning) return 0;
+  builtinSyncRunning = true;
+  let updated = 0;
+  try {
+    for (const mod of mods || []) {
+      if (!builtinUpdateFor(mod)) continue;
+      try {
+        const parsed = await loadBuiltinMod(mod.mod_id);
+        await installMod(parsed, mod.granted_permissions || []);
+        updated++;
+      } catch { /* keep the installed copy; try again next launch */ }
+    }
+  } finally {
+    builtinSyncRunning = false;
+  }
+  return updated;
 }
 
 export function setModEnabled(mod, enabled) {
