@@ -78,9 +78,6 @@ import { holdGestureLive } from "@/lib/holdGesture";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings } from "@/lib/widgetFold";
 
-// Stable context values, so a re-render doesn't re-render every Section.
-const SHOW_LABEL = { hideLabel: false };
-const HIDE_LABEL = { hideLabel: true };
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -248,6 +245,10 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.dragging]);
 
   const look = widgetLookFor(widget.settings, userStyles, styleMode);
+  // Name + show/hide for the widget's heading (Section reads it).
+  const chromeHide = !!widget.settings?.hideLabel;
+  const chromeLabel = typeof widget.settings?.label === "string" ? widget.settings.label : "";
+  const chrome = React.useMemo(() => ({ hideLabel: chromeHide, label: chromeLabel }), [chromeHide, chromeLabel]);
   // Content alignment within the widget's box (owner request 2026-08-06):
   // centered by default so a short widget never leaves all its blank space
   // at the bottom; "safe" falls back to top when the content overflows so
@@ -540,7 +541,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
               <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
             </div>
           )}>
-          <WidgetChromeContext.Provider value={widget.settings?.hideLabel ? HIDE_LABEL : SHOW_LABEL}>
+          <WidgetChromeContext.Provider value={chrome}>
           {def.render({
             mode,
             settings: foldedSettings(def, widget.settings),
