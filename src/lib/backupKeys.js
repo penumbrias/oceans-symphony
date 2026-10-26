@@ -50,6 +50,10 @@ export const BACKUP_LS_KEYS = [
   // The user-set word for the ~therapy inline command (v0.252.0).
   "symphony_therapy_command_v1",
   "symphony_checkin_log_display",
+  // Which systems the "No alters here. Expected your data to be?" row is
+  // hidden for (v0.282.2). A dismissal, but one that must survive a
+  // localStorage-only wipe — and a real wipe takes the mirror with it.
+  "symphony_empty_rescue_hidden_v1",
   // "Keep original images" upload toggle (v0.253.1).
   "symphony_keep_original_images_v1",
   "symphony_backup_part_mb_v1",

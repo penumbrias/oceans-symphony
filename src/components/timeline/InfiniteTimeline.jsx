@@ -10,6 +10,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useFrontLook } from "@/lib/frontLook";
+import { levelChangesOf, levelSpans } from "@/lib/frontLevelSpans";
 import { toast } from "sonner";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate, activityDate } from "@/lib/dateUtils";
@@ -888,11 +889,42 @@ export default function InfiniteTimeline({
         const isPrimary = session.alter_id
           ? (session.is_primary ?? false)
           : session.primary_alter_id === alterId;
+        // A session whose level changed while it ran is drawn in parts,
+        // each at the level it was at then (frontLevelSpans.js). Rows
+        // without recorded changes stay one bar, exactly as before.
+        // Spans are worked out on the real times (a change made a moment
+        // ago still counts), then drawn in minutes like everything else.
+        const dayMs = dayStart.getTime();
+        const spans = session.alter_id && levelChangesOf(session).length
+          ? levelSpans(
+            session,
+            Math.max(parseDate(session.start_time).getTime(), dayMs),
+            Math.min(endTime.getTime(), dayMs + 24 * 60 * 60000),
+          )
+          : null;
+        // With recorded changes, who leads in each part follows its level.
+        const topId = levelCfgTimeline?.levels?.[0]?.id;
+        if (spans && spans.length > 1) {
+          spans.forEach((sp, i) => {
+            const a = Math.max(0, Math.round((sp.startMs - dayMs) / 60000));
+            const b = Math.min(24 * 60, Math.round((sp.endMs - dayMs) / 60000));
+            const last = i === spans.length - 1;
+            byAlter[alterId].push({
+              startMins: a,
+              endMins: last ? Math.max(b, a + 8) : Math.max(b, a + 1),
+              sessionId: session.id,
+              isPrimary: !!topId && sp.level === topId,
+              level: sp.level,
+            });
+          });
+          return;
+        }
         byAlter[alterId].push({
           startMins,
           endMins: Math.max(endMins, startMins + 8),
           sessionId: session.id,
-          isPrimary,
+          isPrimary: spans ? !!topId && spans[0].level === topId : isPrimary,
+          level: spans ? spans[0].level : undefined,
         });
       });
     });
@@ -925,7 +957,8 @@ export default function InfiniteTimeline({
       resolved.forEach((seg) => {
         if (merged.length === 0) { merged.push({ ...seg }); return; }
         const last = merged[merged.length - 1];
-        if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
+        if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary
+          && (seg.sessionId === last.sessionId ? seg.level === last.level : (seg.level === undefined && last.level === undefined))) {
           last.endMins = Math.max(last.endMins, seg.endMins);
           last.sessionId = seg.sessionId;
         } else {
@@ -939,11 +972,12 @@ export default function InfiniteTimeline({
         endMins: seg.endMins,
         sessionId: seg.sessionId,
         isPrimary: seg.isPrimary,
+        level: seg.level,
         key: `alter-${alterId}-${seg.sessionId}-${i}`,
       }));
     });
     return result;
-  }, [sessions, dayStart, isToday]);
+  }, [sessions, dayStart, isToday, levelCfgTimeline]);
 
   const statusNoteEntries = useMemo(() => {
     // New: proper timestamped StatusNote records (one entry per save, never overwritten)
@@ -1775,8 +1809,13 @@ export default function InfiniteTimeline({
                         const topPx = getTopPx(entry.startMins);
                         const heightPx = getRangePx(entry.startMins, entry.endMins);
                         const entrySession = sessions.find(s => s.id === entry.sessionId);
-                        const levelStyle = entrySession ? frontLook.styleFor(entrySession) : null;
-                        const color = entrySession ? frontLook.activeColor(alter, entrySession) : (alter?.color || "#9333ea");
+                        // This part's level (a session whose level changed
+                        // is drawn in parts) — else the session's own.
+                        const lookSession = entrySession && entry.level !== undefined
+                          ? { ...entrySession, front_level: entry.level, is_primary: entry.isPrimary }
+                          : entrySession;
+                        const levelStyle = lookSession ? frontLook.styleFor(lookSession) : null;
+                        const color = lookSession ? frontLook.activeColor(alter, lookSession) : (alter?.color || "#9333ea");
                         const isFocused = !!focusSessionId && entrySession?.id === focusSessionId;
                         return (
                           <AlterBar
