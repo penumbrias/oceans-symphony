@@ -104,6 +104,8 @@
       ui: {
         toast: function (text) { return call("ui.toast", [String(text)]); },
         openPage: function (pageId) { return call("ui.openPage", [String(pageId)]); },
+        // Resolves true/false. symphony.ui.confirm("Remove this?", "It goes to…", { confirmLabel: "Remove", destructive: true })
+        confirm: function (title, body, opts) { return call("ui.confirm", [String(title || ""), String(body || ""), opts || {}]); },
       },
       // Called after this mod's data changes from anywhere (another page of
       // the same mod, a sync from another device, an undo).

@@ -12,6 +12,7 @@ import { localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { handleModCall } from "@/lib/mods/broker";
 import { modPagePath } from "@/lib/mods/registry";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 const THEME_VARS = [
   "--font-sans", "--font-display", "--radius",
@@ -91,6 +92,7 @@ export default function ModFrame({ mod, pageId }) {
           try {
             const value = await handleModCall(modRef.current, String(method), args, {
               toast: (text) => toast(text),
+              confirm: (opts) => confirm(opts),
               openPage: (id) => navigate(modPagePath(modRef.current.mod_id, id)),
             });
             remember(value);

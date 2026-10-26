@@ -137,6 +137,16 @@ export async function handleModCall(mod, method, args, ui) {
   if (!mod || !mod.enabled) throw new ModCallError("This mod is turned off.");
   const a = Array.isArray(args) ? args : [];
   if (method === "ui.toast") { ui?.toast?.(String(a[0] || "").slice(0, 200)); return true; }
+  if (method === "ui.confirm") {
+    // The app's own dialog: sandboxed frames can't open confirm() themselves.
+    const opts = a[2] && typeof a[2] === "object" ? a[2] : {};
+    return !!(await ui?.confirm?.({
+      title: String(a[0] || "Are you sure?").slice(0, 120),
+      body: String(a[1] || "").slice(0, 600),
+      confirmLabel: String(opts.confirmLabel || "OK").slice(0, 40),
+      destructive: !!opts.destructive,
+    }));
+  }
   if (method === "ui.openPage") {
     const page = (mod.pages || []).find((p) => p.id === a[0]);
     if (!page) throw new ModCallError("This mod has no such page.");
