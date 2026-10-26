@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 26, 2026",
+    changes: [
+      { type: "hotfix", text: "Hotfix: updated build tools and libraries to clear all known security warnings." },
+    ],
+  },
+  {
     date: "October 25, 2026",
+    version: "0.282.0",
     changes: [
       { type: "feature", text: "Activity sheet: the Who group view now shows groups and subsystems nested as you arranged them, lets you add a whole group with one tap, filter to groups or subsystems, and search group names." },
       { type: "feature", text: "Activity sheet: \"Line up with…\" opens the planner's day (or week) so you can start right after, end right before, or start with another activity." },
