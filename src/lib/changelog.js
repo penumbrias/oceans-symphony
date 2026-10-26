@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 26, 2026",
     changes: [
+      { type: "feature", text: "Goals is now a notebook: each goal is a page with sections inside sections, notes, to-dos, checkboxes, [[links]] between pages, and Board and Map views." },
+      { type: "feature", text: "Goals: start a page's activities, or Planning, from a strip under its title without leaving it; the time adds up on the page, and its to-dos show where they came from on the To-Do list." },
       { type: "feature", text: "Widget options are reorganised into Text, Layout, Box, Colours & fill, Styles and Your own CSS, and each part has its own Reset. Nothing was removed." },
       { type: "improve", text: "Widget text: headings now have their own size, colour and style, and body text styles no longer change them." },
       { type: "improve", text: "A name you give a widget now shows as its heading." },
