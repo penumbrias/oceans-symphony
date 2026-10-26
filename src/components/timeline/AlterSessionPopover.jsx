@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { levelChangesOf, levelSpans } from "@/lib/frontLevelSpans";
 import { editFrontSession, endFrontSession, removeFrontSession } from "@/lib/frontSessionEdit";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { useTerms } from "@/lib/useTerms";
@@ -176,6 +177,14 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   // ended-with-no-recorded-time rather than misleadingly Active.
   const isLive = !end && s.is_active === true;
   const durationMins = end ? differenceInMinutes(end, start) : differenceInMinutes(new Date(), start);
+  // A level that changed while the session ran: each part, from when.
+  const popSpans = levelChangesOf(s).length
+    ? levelSpans(s, start.getTime(), (end || new Date()).getTime())
+    : [];
+  const spanLabel = (levelId) => {
+    const lvl = getSessionLevel({ ...s, front_level: levelId }, popLevelCfg);
+    return lvl ? frontLevelLabel(lvl, popTerms) : "—";
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -218,7 +227,18 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
           {popLevel && (
             <div>
               <p className="text-xs text-muted-foreground">{popTerms.Front} level</p>
-              <p className="font-medium">{popLevel}</p>
+              {popSpans.length > 1 ? (
+                <ul className="space-y-0.5">
+                  {popSpans.map((sp, i) => (
+                    <li key={i} className="flex items-baseline gap-2">
+                      <span className="text-xs text-muted-foreground tabular-nums w-16 flex-shrink-0">{format(new Date(sp.startMs), "h:mm a")}</span>
+                      <span className="font-medium">{spanLabel(sp.level)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="font-medium">{popLevel}</p>
+              )}
             </div>
           )}
 
@@ -304,6 +324,7 @@ export function AlterSessionEdit({ session, alter, onClose }) {
     ? session
     : { ...session, is_primary: session?.primary_alter_id === alter?.id };
   const [editLevel, setEditLevel] = useState(getSessionLevel(seedSession, editLevelCfg)?.id || editLevelCfg.levels[0]?.id);
+  const editLastChange = levelChangesOf(session).slice(-1)[0] || null;
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -380,7 +401,11 @@ const handleSave = async () => {
             <p className="text-xs text-muted-foreground italic">Session notes are stored as Emotion Check-Ins.</p>
           </div>
           <div className="py-1 border-t border-border/40">
-            <p className="text-xs text-muted-foreground mb-1">{terms.Fronting} level during this session</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              {editLastChange
+                ? `${terms.Fronting} level since ${format(parseDate(editLastChange.timestamp), "h:mm a")} (earlier parts keep their level)`
+                : `${terms.Fronting} level during this session`}
+            </p>
             <SearchableSelect
               value={editLevel}
               onChange={(v) => { if (v) setEditLevel(v); }}

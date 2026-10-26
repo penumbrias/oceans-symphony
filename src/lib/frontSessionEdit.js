@@ -15,6 +15,7 @@
 import { base44 } from "@/api/base44Client";
 import { getSessionLevel } from "@/lib/frontLevels";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import { levelChangesOf, levelAt, changesAfter } from "@/lib/frontLevelSpans";
 
 const membersOf = (s) => [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
 const ms = (iso) => (iso ? new Date(iso).getTime() : NaN);
@@ -118,13 +119,25 @@ export async function splitFrontSession({ session, alterId, at, action, levelId 
   if (session.end_time && atMs >= ms(session.end_time)) throw new SessionEditError("Pick a time before the end.");
   const own = await ownSessionFor(session, alterId, levelCfg);
   const atIso = new Date(atMs).toISOString();
-  await base44.entities.FrontingSession.update(own.id, { end_time: atIso, is_active: false });
+  // With recorded level changes, the first part ends at the level it was
+  // at when split (its changes after that stay on it, past its end, where
+  // nothing reads them); the second part carries those changes on.
+  const hasChanges = levelChangesOf(own).length > 0;
+  const levelThen = hasChanges ? levelAt(own, atMs) : null;
+  await base44.entities.FrontingSession.update(own.id, {
+    end_time: atIso, is_active: false,
+    ...(levelThen ? { front_level: levelThen } : {}),
+  });
   if (action !== "level") return;
   const stillGoing = !own.end_time && !!own.is_active;
+  const startLevel = levelId || levelThen || own.front_level || null;
+  const carried = hasChanges ? changesAfter(own, atMs, startLevel) : [];
   await base44.entities.FrontingSession.create({
     alter_id: alterId,
     is_primary: levelId ? levelId === levelCfg?.levels?.[0]?.id : !!own.is_primary,
     ...(levelId ? { front_level: levelId } : {}),
+    // The part after the split ends at the level the original ended at.
+    ...(carried.length ? { level_changes: carried, front_level: own.front_level } : {}),
     start_time: atIso,
     end_time: own.end_time || null,
     is_active: stillGoing,

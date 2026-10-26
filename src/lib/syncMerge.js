@@ -329,7 +329,8 @@ function parseJsonArray(raw) {
 // JSON-stringified array (FrontingSession's per-alter payloads).
 export const LOG_FIELDS = {
   Presence: { sightings: "array" },
-  FrontingSession: { note: "json" },
+  // level_changes: when a running session's level moved (frontLevelSpans.js).
+  FrontingSession: { note: "json", level_changes: "array" },
   // Severity ratings during a running symptom episode: both devices' ratings are kept.
   SymptomSession: { severity_snapshots: "array" },
 };
