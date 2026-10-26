@@ -27,7 +27,7 @@ export const BUILTIN_MODS = Object.entries(MANIFESTS)
       // parseModFile insists on code; a placeholder lets it check the rest.
       const parsed = parseModFile(JSON.stringify({ format: MOD_FORMAT, formatVersion: MOD_FORMAT_VERSION, ...manifest, code: "//" }));
       if (parsed.mod_id !== folderOf(path)) return null;
-      const { code, ...rest } = parsed;
+      const { code: _code, ...rest } = parsed;
       return rest;
     } catch {
       return null;
