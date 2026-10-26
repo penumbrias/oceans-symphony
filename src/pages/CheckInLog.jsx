@@ -1147,6 +1147,8 @@ function LocationEntry({ loc }) {
 
 // Add a standalone note with a chosen date & time (a StatusNote), shown in the
 // log on that day. Optionally signed by an alter.
+// `open` is true (now) or { date: "yyyy-MM-dd" } — that day, at the
+// current time of day, so a note added from a day lands on that day.
 function CustomNoteDialog({ open, onClose, alters }) {
   const qc = useQueryClient();
   const terms = useTerms();
@@ -1154,7 +1156,13 @@ function CustomNoteDialog({ open, onClose, alters }) {
   const [when, setWhen] = useState("");
   const [authorId, setAuthorId] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setText(""); setAuthorId(""); setWhen(toLocalDatetimeValue(null, { orNow: true })); } }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    setText(""); setAuthorId("");
+    const now = toLocalDatetimeValue(null, { orNow: true });
+    const day = typeof open === "object" && /^\d{4}-\d{2}-\d{2}$/.test(open.date || "") ? open.date : null;
+    setWhen(day ? `${day}T${now.slice(11)}` : now);
+  }, [open]);
 
   const handleSave = async () => {
     const t = new Date(when);
@@ -1174,7 +1182,7 @@ function CustomNoteDialog({ open, onClose, alters }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog open={!!open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Add note</DialogTitle></DialogHeader>
         <div className="space-y-3">
@@ -1458,7 +1466,7 @@ function PerAlterEntry({ entry, altersById }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, onEditDiary, onDeleteDiary, display = DEFAULT_DISPLAY }) {
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, onEditDiary, onDeleteDiary, onAddNote, display = DEFAULT_DISPLAY }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -1555,9 +1563,10 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
   return (
     <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
+      <div className="flex items-stretch">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full text-left px-4 py-3 hover:bg-muted/20 transition-colors"
+        className="flex-1 min-w-0 text-left pl-4 pr-2 py-3 hover:bg-muted/20 transition-colors"
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
@@ -1577,6 +1586,19 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
           </div>
         </div>
       </button>
+      {/* Add a note on THIS day (the header + adds one for now). */}
+      {onAddNote && (
+        <button
+          type="button"
+          onClick={() => onAddNote(date)}
+          aria-label={`Add note on ${format(dateObj, "MMMM d")}`}
+          title="Add note on this day"
+          className="flex-shrink-0 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      )}
+      </div>
 
       {/* Day Total summary — always visible (even when the day is collapsed)
           so users can scan chips/aggregates without having to expand every
@@ -1931,6 +1953,7 @@ export default function CheckInLog() {
               onEdit={handleEdit}
               onEditDiary={setEditingDiaryCard}
               onDeleteDiary={handleDeleteDiary}
+              onAddNote={(d) => setCustomNoteOpen({ date: d })}
               display={display}
             />
           ))}

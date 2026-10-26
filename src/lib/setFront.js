@@ -23,6 +23,8 @@ import { formatInTimeZone } from "date-fns-tz";
 import { base44 } from "@/api/base44Client";
 import { withBatch } from "@/lib/localDb";
 import { pushFrontStatus } from "@/lib/friendsApi";
+import { getSessionLevel } from "@/lib/frontLevels";
+import { levelChangeEntry, levelChangesOf } from "@/lib/frontLevelSpans";
 
 // ISO string in the user's detected local timezone (not hardcoded).
 export function nowLocalIso() {
@@ -242,6 +244,13 @@ async function applyFrontSelectionInner({
       && Object.keys(levelPatch).length === 0;
 
     if (single && !hasDuplicates && !statusUnchanged) {
+      // A level change on a running session is recorded, so the timeline
+      // can draw the time before it at the old level (frontLevelSpans.js).
+      if (levelPatch.front_level) {
+        const from = single.front_level || getSessionLevel(single, levelCfg)?.id || null;
+        const entry = levelChangeEntry({ from, to: levelPatch.front_level, at: now });
+        if (entry) levelPatch.level_changes = [...levelChangesOf(single), entry];
+      }
       await base44.entities.FrontingSession.update(single.id, { is_primary: want.isPrimary, ...levelPatch });
       if (!firstSessionId) firstSessionId = single.id;
     } else if (hasDuplicates || !single) {

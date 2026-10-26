@@ -96,7 +96,16 @@ export function resolveFrontLevels(settingsRow) {
     tap_action: ["toggle", "level_up", "level_top", "picker"].includes(raw?.tap_action)
       ? raw.tap_action
       : "level_up",
+    // How far the rail's sideways slides (options menu, "sole") have to
+    // travel before they count. "short" | "normal" | "long".
+    swipe_distance: ["short", "long"].includes(raw?.swipe_distance) ? raw.swipe_distance : "normal",
   };
+}
+
+// Multiplier for the sideways-slide distances, from swipe_distance.
+export function swipeDistanceScale(cfg) {
+  const d = cfg?.swipe_distance;
+  return d === "short" ? 0.6 : d === "long" ? 1.6 : 1;
 }
 
 export function frontLevelLabel(level, terms) {
