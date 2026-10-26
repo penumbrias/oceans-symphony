@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "October 26, 2026",
     changes: [
       { type: "improve", text: "Widgets: turn off a widget's name in its options to give the room to what it shows." },
+      { type: "improve", text: "Level rail: sliding sideways now lights an options bubble and the menu opens when you let go, so a wobble no longer opens it by accident. The slide distance can be set in Fronting levels." },
+      { type: "fix", text: "Timeline: when someone's fronting level changes during a session, the part before the change keeps its old level, and the session card lists each change." },
+      { type: "improve", text: "Check-In Log: every day has its own + to add a note on that day." },
+      { type: "fix", text: "The \"Expected your data to be here?\" row now stays hidden after you close it, even after reopening the app." },
       { type: "hotfix", text: "Hotfix: updated build tools and libraries to clear all known security warnings." },
     ],
   },

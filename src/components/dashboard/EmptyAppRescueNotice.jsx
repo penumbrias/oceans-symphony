@@ -11,6 +11,14 @@
 // holds while this device has never seen data here: the moment any
 // appear, it's cleared, so a later wipe always brings the row back.
 //
+// The hide is kept PER SYSTEM (v0.282.2): one key holding the ids of the
+// systems it's hidden for. A single on/off flag was cleared the moment
+// ANY system with alters (or the preview examples) opened, so an empty
+// system's row came back on every launch. Preview data never clears it.
+// The key rides the local-settings mirror (BACKUP_LS_KEYS), so an
+// Android cleaner wiping localStorage alone doesn't bring it back either;
+// a real data wipe takes the mirror with it, so the row returns then.
+//
 // Renders on the classic dashboard AND the v2 notice stack from this one
 // component (same pattern as BackupHealthNotice).
 
@@ -19,11 +27,32 @@ import { useQuery } from "@tanstack/react-query";
 import { HeartHandshake, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
+import { getActiveSystemId } from "@/lib/systems";
+import { isPreviewDbActive } from "@/lib/localDb";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
 
-const HIDE_KEY = "symphony_empty_rescue_hidden_v1";
-const readHidden = () => { try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; } };
+export const EMPTY_RESCUE_HIDE_KEY = "symphony_empty_rescue_hidden_v1";
 const HIDE_EVENT = "symphony-empty-rescue-hidden";
+const systemKey = () => getActiveSystemId() || "default";
+
+// Ids of the systems the row is hidden for. The old value "1" (one flag
+// for the whole device) reads as hidden for the system open now.
+function readHiddenIds() {
+  try {
+    const raw = localStorage.getItem(EMPTY_RESCUE_HIDE_KEY);
+    if (!raw) return [];
+    if (raw === "1") return [systemKey()];
+    const ids = JSON.parse(raw);
+    return Array.isArray(ids) ? ids.filter((x) => typeof x === "string") : [];
+  } catch { return []; }
+}
+function writeHiddenIds(ids) {
+  try {
+    if (ids.length) localStorage.setItem(EMPTY_RESCUE_HIDE_KEY, JSON.stringify(ids));
+    else localStorage.removeItem(EMPTY_RESCUE_HIDE_KEY);
+  } catch { /* fine */ }
+}
+const readHidden = () => readHiddenIds().includes(systemKey());
 
 // True once the alters list has loaded and is empty (and the row wasn't
 // hidden). Shared with V2Notices so it can reserve a slot in its stack.
@@ -36,8 +65,12 @@ export function useEmptyApp() {
   const [hidden, setHidden] = useState(readHidden);
   const hasData = isFetched && (alters || []).length > 0;
   useEffect(() => {
-    if (hasData && readHidden()) {
-      try { localStorage.removeItem(HIDE_KEY); } catch { /* fine */ }
+    // Preview examples aren't this system's data — they never clear it.
+    if (!hasData || isPreviewDbActive()) return;
+    const ids = readHiddenIds();
+    const me = systemKey();
+    if (ids.includes(me)) {
+      writeHiddenIds(ids.filter((x) => x !== me));
       setHidden(false);
     }
   }, [hasData]);
@@ -46,11 +79,13 @@ export function useEmptyApp() {
     window.addEventListener(HIDE_EVENT, on);
     return () => window.removeEventListener(HIDE_EVENT, on);
   }, []);
-  return isFetched && (alters || []).length === 0 && !hidden;
+  return isFetched && (alters || []).length === 0 && !hidden && !isPreviewDbActive();
 }
 
 function hideRescue() {
-  try { localStorage.setItem(HIDE_KEY, "1"); } catch { /* fine */ }
+  const ids = readHiddenIds();
+  const me = systemKey();
+  if (!ids.includes(me)) writeHiddenIds([...ids, me]);
   window.dispatchEvent(new Event(HIDE_EVENT));
 }
 

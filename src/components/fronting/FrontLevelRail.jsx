@@ -17,11 +17,12 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { List } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
+import { frontLevelLabel, useFrontLevels, swipeDistanceScale } from "@/lib/frontLevels";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { changeFront } from "@/lib/setFront";
 import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
@@ -39,8 +40,14 @@ const HOLD_MS = 350;
 // instead"). Touch gets a wide slop and lets the browser's own scroll
 // detection (pointercancel) be the real judge of "this was a scroll".
 const SLOP_PX = 8;
-// Sideways distance (px) on an open rail that leaves it for the options menu.
+// Sideways distance (px) on an open rail that lights the options bubble
+// (release on it opens the menu — it never opens mid-slide any more).
 const MENU_SWIPE_PX = 80;
+// Drag-right distance before a hold arms that goes straight to the rail
+// with the options bubble lit.
+const PRE_ARM_MENU_PX = 40;
+// The options bubble's size.
+export const MENU_BUBBLE = 44;
 const TOUCH_SLOP_PX = 24;
 // Sideways distance (px) that arms "sole". Near a screen edge there isn't
 // that much room toward the edge, so the distance shrinks to what the
@@ -137,7 +144,10 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
   // pointer from there. The hold timer calls this; so can another gesture
   // that already has the finger down (AlterHoldRail's slide onto its front
   // button hands off to the level rail — owner, 2026-10-01).
-  const beginRail = (alterId, currentLevelId, x, y) => {
+  // `fromX`: where the press started, when the finger has already slid
+  // sideways (a drag-right before the hold armed) — the slide is measured
+  // from there, so the options bubble opens lit.
+  const beginRail = (alterId, currentLevelId, x, y, { fromX = x } = {}) => {
     try { navigator.vibrate?.(10); } catch { /* no haptics */ }
     // While the rail is live, dragging must not paint a text selection
     // across the page (the reported bug) — kill selection globally and
@@ -157,44 +167,52 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
     const top = Math.min(Math.max(8, anchoredTop), window.innerHeight - railH - 8);
     const pickAt = (clientY) =>
       Math.min(maxIndex, Math.max(0, Math.round((clientY - top - LEVEL_ROW_H / 2) / LEVEL_ROW_H)));
-    const state = {
-      alterId, x, y, top,
-      pickedIndex: pickAt(y), startIndex, solo: false,
-    };
-    setRail(state);
     // Sideways slide (direction configurable) arms "sole" — commit
     // makes this alter the only one at the level (or outright).
     const soloDir = cfg.solo_swipe?.direction === "right" ? 1 : -1;
     const soloOn = cfg.solo_swipe?.enabled !== false;
     // The OTHER sideways direction (right, unless "sole" was set to the
-    // right) leaves the rail for the alter's options menu — wherever the
-    // rail opens, the menu is one swipe away (owner, 2026-10-01).
+    // right) lights the options bubble beside the rail — the same list
+    // button as the alters grid's hold rail. Letting go while it's lit
+    // opens the alter's menu; sliding back un-lights it (owner,
+    // 2026-10-26: the menu used to open the instant the slide crossed
+    // the line, so a wobble while picking a level lost the pick).
     const menuDir = -soloDir;
     // Both sideways slides scale to the room the finger has: a rail
     // opened by an avatar at the screen edge used to need 64px of travel
     // into the bezel, so "sole" (or options) simply couldn't be reached.
-    const soloPx = reachable(SOLO_SWIPE_PX, sideRoom(x, soloDir));
-    const menuPx = reachable(MENU_SWIPE_PX, sideRoom(x, menuDir));
+    // The person's "slide distance" setting scales both.
+    const scale = swipeDistanceScale(cfg);
+    const soloPx = reachable(SOLO_SWIPE_PX * scale, sideRoom(fromX, soloDir));
+    const menuPx = reachable(MENU_SWIPE_PX * scale, sideRoom(fromX, menuDir));
+    const menuHotAt = (clientX) => !!onOptions && (clientX - fromX) * menuDir > menuPx;
+    const state = {
+      alterId, x: fromX, y, top,
+      pickedIndex: pickAt(y), startIndex, solo: false,
+      menuDir: onOptions ? menuDir : 0, menuPx,
+      menuHot: menuHotAt(x),
+      towardMenu: menuHotAt(x),
+    };
+    setRail(state);
     const pick = (ev) => {
       const dx = ev.clientX - state.x;
-      if (onOptions && dx * menuDir > menuPx) {
-        teardown();
-        try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-        onOptions(alterId);
-        return;
-      }
+      const menuHot = menuHotAt(ev.clientX);
       const idx = pickAt(ev.clientY);
-      const solo = soloOn && dx * soloDir > soloPx;
+      const solo = !menuHot && soloOn && dx * soloDir > soloPx;
       const towardMenu = !!onOptions && dx * menuDir > menuPx / 3;
-      setRail((r) => (r ? { ...r, pickedIndex: idx, solo, towardMenu } : r));
+      if (menuHot && !state.menuHot) { try { navigator.vibrate?.(8); } catch { /* no haptics */ } }
+      setRail((r) => (r ? { ...r, pickedIndex: idx, solo, towardMenu, menuHot } : r));
       state.pickedIndex = idx;
       state.solo = solo;
+      state.menuHot = menuHot;
     };
     const move = (ev) => pick(ev);
     const up = () => {
       const idx = state.pickedIndex;
       const solo = state.solo;
+      const menuHot = state.menuHot;
       teardown();
+      if (menuHot && onOptions) { onOptions(alterId); return; }
       if (onRemove && idx === cfg.levels.length) onRemove(alterId);
       else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id, { solo });
     };
@@ -231,8 +249,10 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
       onPointerMove: (e) => {
         // Before arming: movement decides the gesture. A rightward,
         // sideways-dominant start is the "more options" drag (unified
-        // grammar — drag right on any front control opens the alter's
-        // menu); anything else is a scroll and cancels the hold.
+        // grammar — drag right on any front control reaches the alter's
+        // menu): it opens the rail with the options bubble lit, and the
+        // menu opens on release; anything else is a scroll and cancels
+        // the hold.
         const o = origin.current;
         if (!o) return;
         const dx = e.clientX - o.x;
@@ -247,10 +267,17 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove, onOptions = null }) 
         }
         // Same-event fall-through: a fast flick can cross the slop AND the
         // fire distance in one move.
-        if (o.watch === "right" && dx > 40 && dx > Math.abs(dy) * 1.2 && onOptions) {
+        if (o.watch === "right" && dx > PRE_ARM_MENU_PX * swipeDistanceScale(cfg) && dx > Math.abs(dy) * 1.2 && onOptions) {
           o.watch = "fired";
-          try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-          onOptions(o.alterId);
+          // The bubble sits to the right unless "sole" took that side;
+          // then there's no bubble under the finger, so the drag opens
+          // the menu straight away as it always did.
+          if (cfg.solo_swipe?.direction === "right") {
+            try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+            onOptions(o.alterId);
+          } else {
+            beginRail(o.alterId, currentLevelId, e.clientX, o.y, { fromX: o.x });
+          }
         }
       },
       onPointerUp: () => {
@@ -637,6 +664,7 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
   // labels on the right (a press near the right edge — pinned bar, grids),
   // they flip to the left instead of shoving the whole rail sideways.
   const flip = rail.x + 200 > window.innerWidth;
+  const rows = [...levels, ...(withRemove ? [{ id: "__remove", label: `Remove from {{front}}`, _remove: true }] : [])];
   const left = Math.min(Math.max(12, rail.x - 10), window.innerWidth - 32);
   return createPortal(
     <div className="fixed inset-0 z-[80] select-none" style={{ touchAction: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }} aria-hidden="true">
@@ -645,8 +673,8 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
         <div className="absolute px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium whitespace-nowrap"
           style={{ ...(flip ? { right: window.innerWidth - left - 20 } : { left }), top: Math.max(2, top - 26) }}>
           {alterName}
-          {rail.towardMenu && !rail.solo && (
-            <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>options ›</span>
+          {rail.menuHot && (
+            <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>let go for options</span>
           )}
           {rail.solo && (
             <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>
@@ -657,11 +685,34 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
           )}
         </div>
       )}
+      {rail.menuDir ? (() => {
+        // The options bubble — the alters grid hold rail's list button.
+        // It sits level with where the finger went down, past the labels
+        // when they're on its side, so it never covers a level's name.
+        const labelsSide = flip ? -1 : 1;
+        const longest = Math.max(...rows.map((l) => frontLevelLabel(l, terms).length));
+        const labelW = 30 + longest * 8 + 20;
+        const want = rail.menuDir === labelsSide
+          ? Math.max(rail.menuPx, labelW + MENU_BUBBLE / 2 + 8)
+          : rail.menuPx;
+        const cx = Math.min(Math.max(MENU_BUBBLE / 2 + 6, rail.x + rail.menuDir * want), window.innerWidth - MENU_BUBBLE / 2 - 6);
+        const cy = Math.min(Math.max(MENU_BUBBLE / 2 + 6, rail.y), window.innerHeight - MENU_BUBBLE / 2 - 6);
+        return (
+          <div
+            className={`absolute rounded-full flex items-center justify-center border-2 bg-card shadow-lg transition-all ${
+              rail.menuHot ? "scale-125 border-primary text-primary" : "border-border/60 text-foreground"
+            } ${rail.towardMenu || rail.menuHot ? "opacity-100" : "opacity-70"}`}
+            style={{ left: cx - MENU_BUBBLE / 2, top: cy - MENU_BUBBLE / 2, width: MENU_BUBBLE, height: MENU_BUBBLE }}
+          >
+            <List className="w-5 h-5" />
+          </div>
+        );
+      })() : null}
       <div className="absolute" style={{ left, top }}>
         {/* the spectrum line */}
         <div className="absolute left-[9px] top-[10px] bottom-[10px] w-0.5 rounded bg-border" />
-        {[...levels, ...(withRemove ? [{ id: "__remove", label: `Remove from {{front}}`, _remove: true }] : [])].map((level, i) => {
-          const picked = i === rail.pickedIndex;
+        {rows.map((level, i) => {
+          const picked = i === rail.pickedIndex && !rail.menuHot;
           const accent = level._remove ? "hsl(var(--destructive))" : "var(--color-primary)";
           return (
             <div key={level.id} className="relative flex items-center" style={{ height: LEVEL_ROW_H, width: 20 }}>
