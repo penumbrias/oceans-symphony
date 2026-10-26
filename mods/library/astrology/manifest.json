@@ -1,0 +1,11 @@
+{
+  "id": "astrology",
+  "name": "Astrology",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "Today's sky (where the sun, moon and planets are, and what's retrograde), birth charts you can save for anyone, including your {{alters}}, and a guide to the signs, planets and houses.",
+  "permissions": ["alters:read"],
+  "pages": [
+    { "id": "sky", "title": "Astrology" }
+  ]
+}
