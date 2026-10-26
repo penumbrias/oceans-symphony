@@ -651,17 +651,22 @@ export function buildGoalRecords({ items = [], steps = [], alters = [] }) {
   for (const s of steps || []) {
     if (!s || s.removed_at || !s.goal_id) continue;
     if (!stepTitles.has(s.goal_id)) stepTitles.set(s.goal_id, []);
-    stepTitles.get(s.goal_id).push(s.title);
+    stepTitles.get(s.goal_id).push(s.title, s.kind === "text" ? stripHtml(s.body) : null, s.label);
   }
+  // Sections are pages too: their subtitle names the page they sit in.
+  const goalById = new Map(items.filter(Boolean).map((g) => [g.id, g]));
   return items.filter(Boolean).map((g) => {
     const ownerNames = (g.owner_alter_ids || []).map((id) => alterById.get(id)).filter(Boolean).map((a) => a.name || a.alias).filter(Boolean);
     const status = { paused: "paused", done: "reached", let_go: "let go" }[g.status];
+    const parent = g.parent_id ? goalById.get(g.parent_id) : null;
     return {
       type: "goal",
       id: `goal-${g.id}`,
       title: g.title || "Goal",
-      subtitle: [g.for_everyone ? "Everyone" : ownerNames.join(", "), status].filter(Boolean).join(" · "),
-      path: `/goals?highlight=${g.id}`,
+      subtitle: parent
+        ? `In ${parent.title || "a goal"}`
+        : [g.for_everyone ? "Everyone" : ownerNames.join(", "), status].filter(Boolean).join(" · "),
+      path: `/goals?page=${g.id}`,
       searchableText: joinNonEmpty([
         g.title, stripHtml(g.why), stripHtml(g.impact), ...ownerNames, ...(stepTitles.get(g.id) || []), dateSearchBlob(g.created_date),
       ]).toLowerCase(),

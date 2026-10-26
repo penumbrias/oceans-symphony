@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import TaskQuickActionsSheet from "./TaskQuickActionsSheet";
 import RichText from "@/components/shared/RichText";
 import { taskNote } from "@/lib/taskCreate";
+import { useNavigate } from "react-router-dom";
+import { indexPages, ancestorsOf } from "@/lib/goalTree";
 
 export default function TaskItem({
   task,
@@ -32,6 +34,21 @@ export default function TaskItem({
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
   const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
+
+  // A to-do made on a Goals page says where it came from ("Refine the app › iOS").
+  const navigate = useNavigate();
+  const { data: goals = [] } = useQuery({
+    queryKey: ["goals"],
+    queryFn: () => base44.entities.Goal.list().catch(() => []),
+    enabled: !!task.goal_id,
+  });
+  const goalPath = (() => {
+    if (!task.goal_id) return null;
+    const index = indexPages(goals);
+    const page = index.byId.get(task.goal_id);
+    if (!page) return null;
+    return [...ancestorsOf(index, page.id).reverse(), page].map((p) => p.title || "Untitled").join(" › ");
+  })();
 
   const priorityColors = {
     low: "text-blue-500",
@@ -128,6 +145,13 @@ export default function TaskItem({
               <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground/80">
                 {task.category}
               </span>
+            )}
+            {goalPath && (
+              <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/goals?page=${task.goal_id}`); }}
+                className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary max-w-[14rem] truncate"
+                title={`From the goal: ${goalPath}`}>
+                {goalPath}
+              </button>
             )}
             {task.is_urgent && (
               <span className="text-[0.625rem] uppercase tracking-wider font-semibold text-amber-500 flex items-center gap-0.5">

@@ -712,7 +712,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "activities", sectionLabel: "Activities",
       emoji: "🎯",
       title: "Goals",
-      body: `The Goals page works like notes. Write a goal at the top, then add checklist points to it: a tick box, one or more to-dos (pick existing ones or write new ones), or an activity done a number of times, in total or each week. To-dos and activities tick themselves off as they get done. The pencil edits the title and a note. A tick box that sits untouched for a week offers to split into something smaller. If you set weekly goals in the planner, one tap keeps them here.`,
+      body: `Goals works like a notebook. Start a goal (or a project, or a story), then fill its page with sections, and sections inside those, as deep as you like. A page holds notes, to-dos (round, and they're on your To-Do list too, so ticking one counts everywhere), checkboxes (square, they stay on the page), links to other pages and activity trackers. Type [[a page's title]] in a note to link it, and every page lists what links to it. Tap a section's name to open it as its own page, or use its ⋯ menu to indent, move or delete it. The strip under the title starts the page's activities, or Planning, without leaving the page, and the time adds up there. Switch a page to Board to see its sections as columns, or Map to see how everything connects. Pages menu (or the sidebar on a wide screen) shows the whole tree.`,
       route: "/goals", target: "goals-page", experimental: true,
       look: `the Goals page`, action: null,
     },

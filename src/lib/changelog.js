@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 26, 2026",
     changes: [
+      { type: "feature", text: "Goals is now a notebook: each goal is a page with sections inside sections, notes, to-dos, checkboxes, [[links]] between pages, and Board and Map views." },
+      { type: "feature", text: "Goals: start a page's activities, or Planning, from a strip under its title without leaving it; the time adds up on the page, and its to-dos show where they came from on the To-Do list." },
       { type: "feature", text: "A running activity now shows as a small bubble above the bottom bar on every screen, with a stop button, so it's harder to forget to end it." },
       { type: "improve", text: "Widgets: turn off a widget's name in its options to give the room to what it shows." },
       { type: "improve", text: "Level rail: sliding sideways now lights an options bubble and the menu opens when you let go, so a wobble no longer opens it by accident. The slide distance can be set in Fronting levels." },
