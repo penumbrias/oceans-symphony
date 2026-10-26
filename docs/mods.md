@@ -8,6 +8,20 @@ updates, and switch the mod off or remove it whenever they like.
 The example in [`mods/library/little-notes`](../mods/library/little-notes)
 is a complete mod in about 60 lines. Start by copying it.
 
+Every mod in the app's mod library is in that same folder, written to be
+read and copied:
+
+| Mod | Shows you how to… |
+|---|---|
+| `little-notes` | the basics: save, list and remove your own records |
+| `sun-dial` | draw with SVG, update on a timer, keep one settings record |
+| `moon-phases` | build a month calendar, sign entries with who's in front |
+| `cycle-tracker` | keep one record per day, work things out from history |
+| `astrology` | tabs, list → detail → edit flows, link a record to an alter |
+| `tarot-guide` | ship a large built-in reference, search and filter it |
+| `comfort-box` | built-in starter content the person can switch off |
+| `letters-to-later` | hide content until a date, confirm before big steps |
+
 ## What a mod is
 
 A folder with two files:
@@ -108,8 +122,14 @@ Always use `symphony.terms` instead of writing "alter", "system", "front" or
 The app's colours arrive as CSS variables (`--color-bg`, `--color-surface`,
 `--color-primary`, `--color-text-primary`, `--color-text-secondary`,
 `--color-muted`, `--radius`, `--font-sans`). A few ready-made classes use
-them: `os-card`, `os-button` (add `secondary` for an outline button),
-`os-input`, `os-row`, `os-muted`.
+them: `os-card`, `os-button` (add `secondary` for an outline button,
+`small` for a compact one), `os-input` (inputs, textareas and selects),
+`os-row`, `os-muted`, `os-h` (a small heading), `os-label` (a field label),
+`os-chip` (a pill button; set `aria-pressed="true"` to show it selected),
+`os-tabs` (a wrapping row of chips) and `os-grid`.
+
+`alert()`, `confirm()` and `prompt()` don't work inside the sandbox; use
+`symphony.ui.toast` and `symphony.ui.confirm` instead.
 
 ### Reading the person's data (needs permission)
 
@@ -129,6 +149,8 @@ time. Ask for what you need in the Oceans Symphony repo.
 ```js
 symphony.ui.toast("Saved");         // the app's own toast
 symphony.ui.openPage("settings");   // go to another page of your mod
+const ok = await symphony.ui.confirm("Remove this?", "You can bring it back from Recent changes.",
+  { confirmLabel: "Remove", destructive: true });   // the app's own dialog → true / false
 symphony.mod                        // { id, name, version }
 symphony.page                       // the page id being shown
 ```

@@ -1,0 +1,11 @@
+{
+  "id": "letters-to-later",
+  "name": "Letters to later",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "Write a letter to your future self, or from one of your {{alters}} to another, and seal it until a date you choose. Sealed letters stay hidden until then.",
+  "permissions": ["alters:read", "fronting:read"],
+  "pages": [
+    { "id": "letters", "title": "Letters to later" }
+  ]
+}
