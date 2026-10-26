@@ -1,0 +1,11 @@
+{
+  "id": "cycle-tracker",
+  "name": "Cycle tracker",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "Track bleeding days and how your body feels, see your cycle on a calendar, and get a rough idea of when the next one may start. Gender-neutral, and you choose the words.",
+  "permissions": [],
+  "pages": [
+    { "id": "cycle", "title": "Cycle tracker" }
+  ]
+}
