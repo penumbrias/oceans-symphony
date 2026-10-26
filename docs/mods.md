@@ -151,6 +151,78 @@ People keep their whole system's history in this app, so mods are walled off:
 - No `localStorage`/`indexedDB` (use `symphony.data`), no popups, no
   navigating away (a mod frame that tries is stopped).
 
+## Rules for every mod
+
+These aren't enforced by code (the sandbox enforces the hard limits above).
+They're what makes a mod feel like part of Oceans Symphony instead of
+something bolted on, and every mod in the built-in library follows them.
+
+### 1. The person's data comes first
+
+- **Never lose anything.** Prefer adding records to overwriting them. If your
+  mod is a log (moods, counts, notes), each entry is a new record.
+- **Removing is a choice the person makes.** Ask before `symphony.data.remove`,
+  and say what will go. Never clear a collection as a "reset" without asking.
+- **Keep old data readable.** When you change a record's shape in a new
+  version, keep reading the old shape. Don't rewrite every record on start-up.
+- **Don't keep copies of core data.** Read alters or the front when you need
+  them; don't save names or ids into your own records except as a reference
+  (an `alter_id`), so a rename or a deletion in the app isn't contradicted by
+  your mod.
+
+### 2. Use the person's words
+
+People rename "alter", "system", "front" and "switch", and it matters to
+them. Every word your mod shows that has a term goes through
+`symphony.terms` — headings, buttons, placeholders, empty states, error
+messages, all of it. "Headmate" counts too: use `symphony.terms.alter`.
+Manifest text (`description`) can use `{{alters}}`-style placeholders; the
+app fills them in.
+
+### 3. Work with less than you asked for
+
+Every permission can be refused, at install or later. Check
+`symphony.permissions` before each call that needs one, and when it's
+missing, keep working with what you have and say kindly what turning it on
+would add. A page that just errors is a broken mod.
+
+### 4. No medical claims
+
+Oceans Symphony is a journaling and organising tool, not a medical product.
+A mod must not diagnose, promise to treat anything, or present itself as a
+replacement for care. If your mod touches crisis, safety or symptoms, say
+plainly that it isn't medical advice, and never make a crisis feature depend
+on your mod working.
+
+### 5. Gentle by default
+
+People open this app on hard days. No guilt-tripping streaks, no red alarm
+text for missed days, no sudden sounds or flashing. Make anything
+intense (timers, alarms, content warnings) opt-in.
+
+### 6. Easy to use for everyone
+
+- Use the `os-*` classes or the theme variables, so your mod follows the
+  person's colours, dark mode and text size.
+- Real `<button>`, `<input>` and `<label>` elements, with text (or an
+  `aria-label`) on every control.
+- Tap targets at least 40px; everything reachable without hover.
+- It has to work on a phone first: one column, no horizontal scrolling.
+
+### 7. Be honest
+
+Your description says what the mod does and what it asks to see, and why.
+Ask only for permissions you use. Don't hide features behind the mod's name.
+
+## Versions and updates
+
+- `version` is yours to choose; use `major.minor.patch` and raise it on every
+  release. Installing a file with the same `id` updates the mod in place.
+- An update keeps the mod's data and whether it's on. Permissions the person
+  already granted stay granted; **a permission your new version adds is not
+  granted** until the person ticks it, so check for it (rule 3).
+- Never change your `id`. It's what ties people's data to your mod.
+
 ## Testing your mod
 
 1. `node scripts/pack-mod.mjs my-mod`
@@ -168,6 +240,32 @@ Share the `.osmod` file however you like. Tell people what it does and what
 it asks to see. Oceans Symphony doesn't review mods, so people are told to
 install only mods from people they trust. Be that person.
 
+## Getting into the mod library
+
+The mod library is the list of mods that come with the app (Mods page →
+Mod library). Each one is a folder in [`mods/library`](../mods/library), the
+same `manifest.json` + `main.js` you'd pack into a file. The app finds every
+folder there by itself; there is no list to edit.
+
+To propose a mod for the library, open a pull request that adds its folder.
+It's reviewed like any other change to the app, against this checklist:
+
+- [ ] Follows every rule above (data first, terms, missing permissions, no
+      medical claims, gentle, accessible, honest).
+- [ ] Folder name is the mod's `id`; the manifest parses
+      (`node scripts/pack-mod.mjs mods/library/<id>` succeeds).
+- [ ] Plain JavaScript in one `main.js`, readable (not minified), with a
+      short comment at the top saying what it does.
+- [ ] Works with every permission refused, and on a phone-sized screen in
+      light and dark mode.
+- [ ] Has an empty state that tells a first-time user what to do.
+- [ ] A changelog entry in `src/lib/changelog.js` naming the new mod.
+
+Library mods update along with the app: when a new app version ships a
+different `version` of a library mod, the installed copy is swapped for it
+on the next launch (data, on/off state and granted permissions kept). A mod
+someone installed from a file with the same `id` is never touched.
+
 ---
 
 ## How it works (for app contributors)
@@ -183,7 +281,11 @@ install only mods from people they trust. Be that person.
 - `src/lib/mods/modStore.js`: `ModPackage` / `ModData` entities, install,
   remove, data export and delete (always saves a copy first).
 - `src/lib/mods/registry.js`: puts mod pages into `ALL_PAGES`, the sidebar
-  and the nav catalogue.
+  and the nav catalogue, and keeps library mods up to date.
+- `src/lib/mods/builtinMods.js`: the mod library. Finds `mods/library/*`
+  with `import.meta.glob`; manifests are bundled, each mod's code is a lazy
+  chunk loaded only when it's added or updated. Installed rows carry
+  `source: "builtin"` or `"file"`.
 - `src/components/mods/ModFrame.jsx`, `src/pages/Mods.jsx`,
   `src/pages/ModPage.jsx`: the screens.
 - The parent page's CSP `frame-src 'self' blob:` also blocks a mod frame from
