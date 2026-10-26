@@ -11,7 +11,7 @@ import { DropdownLayer } from '@/components/shared/SearchableSelect';
 // `opacity` (optional) makes translucency a property of THIS colour rather
 // than of the whole element — so a gradient stop can fade to nothing while
 // the rest of the widget stays solid. Shape: { value, onChange }.
-export default function ColorPicker({ value, onChange, label, compact = false, onClear, extraAction, opacity, swatchBadge = null }) {
+export default function ColorPicker({ value, onChange, label, compact = false, caption = true, onClear, extraAction, opacity, swatchBadge = null }) {
   const [open, setOpen] = useState(false);
   const [hex, setHex] = useState(value || '#6366f1');
   const containerRef = useRef(null);
@@ -109,7 +109,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   return (
     <div className='relative' ref={containerRef}>
       {label && !compact && <p className='text-xs text-muted-foreground mb-1'>{label}</p>}
-      <div className={compact && label ? 'flex flex-col items-center gap-0.5' : 'flex items-center gap-2'}>
+      <div className={compact && label && caption ? 'flex flex-col items-center gap-0.5' : 'flex items-center gap-2'}>
         <span className='relative flex-shrink-0'>
         <button
           type='button'
@@ -137,8 +137,9 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
         {swatchBadge}
         </span>
         {/* Compact swatches carry a caption — a bare square forced opening
-            the picker just to learn which colour it was (owner report). */}
-        {compact && label && (
+            the picker just to learn which colour it was (owner report).
+            caption={false} when the row beside it already names it. */}
+        {compact && label && caption && (
           <span className='text-[0.5625rem] leading-tight text-muted-foreground text-center max-w-[64px] line-clamp-2 break-words'>{label}</span>
         )}
         {!compact && (
