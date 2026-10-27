@@ -76,7 +76,7 @@ export default function HistoryArchive() {
     return "Changed";
   };
   const subjectLabel = (e) => {
-    if (e.action === "layout") return FIELD_LABELS[e.field] || e.field || "Layout";
+    if (e.action === "layout") return e.entity === "ProfileBoard" ? `Profile page layout (${e.label || "profile"})` : (FIELD_LABELS[e.field] || e.field || "Layout");
     const entity = e.entity === "Alter" ? t.Alter : e.entity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
     return `${entity}${e.label ? ` — "${e.label}"` : ""}`;
   };
@@ -96,7 +96,8 @@ export default function HistoryArchive() {
       } else if (e.action === "layout") {
         // Goes through the normal update path, so the CURRENT layout gets
         // its own restore point before being replaced.
-        await base44.entities.SystemSettings.update(e.record_id, { [e.field]: e.snapshot });
+        if (e.entity === "ProfileBoard") await base44.entities.ProfileBoard.update(e.record_id, { board: e.snapshot });
+        else await base44.entities.SystemSettings.update(e.record_id, { [e.field]: e.snapshot });
       } else {
         const existing = await base44.entities[e.entity].get?.(e.record_id);
         // A snapshot is the WHOLE earlier record, so restoring it also

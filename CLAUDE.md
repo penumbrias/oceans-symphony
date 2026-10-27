@@ -454,6 +454,21 @@ Rules for keeping the targets healthy:
   Deleting a contact (`deleteContact`) or a location (`innerWorldModel.deleteLocation`,
   `deleteMap`, `deleteLayer`) trashes its `ProfileBoard` rows in the same
   batch (`trashProfileBoards`).
+  **Shared widgets and bulk layouts (v0.292.0).** A home widget joins the
+  profile library by listing owner types in `subjects`; one that holds
+  per-alter records adds `SCOPE_FIELD` to its `configFields` and reads
+  `useScopeAlterIds(settings)` (`src/v2/subjectScope.js`: alter → itself,
+  group → members, location → alters placed there, null on the home screen
+  or "Whose: everyone") — never filter by the subject by hand. A default
+  layout per type is a `ProfileBoard` row owned by `DEFAULT_OWNER_ID`
+  (`"__default__"`); `ProfileBoardCanvas` renders own row → default →
+  seed, and only a person's edit creates the own row. "Use this layout for
+  all", "Use as the default" and "Reset this layout" live in the editor's
+  Save menu and are the ONLY bulk layout writers (`src/lib/profileBoardBulk.js`):
+  they confirm first, copy through `layoutForCopy` (no `_` bookkeeping) and
+  the store (stamped), and the entity layer snapshots every replaced board
+  into Recent changes (`category: "layout"`, restorable). Settings → Alter
+  setup → Profile layouts (`ProfileLayoutSettings.jsx`) clears a default.
 - **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
   through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
   (fresh row, stamped, never blanks a board). Editing sheets learn which

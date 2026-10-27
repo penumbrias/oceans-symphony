@@ -76,6 +76,8 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { settingsBoardStore } from "@/lib/boardStore";
+import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings } from "@/lib/widgetFold";
 
@@ -1006,6 +1008,56 @@ export default function ExperimentalDashboard({
   // live, so closing them IS saving them; leaving them open after "Save &
   // close" looked like the save hadn't happened (owner report).
   const exitSave = () => { editSnapshot.current = null; closeEditSurfaces(); setEditMode(false); };
+  // Profile boards only (v0.292.0): the bulk layout writes. Each one
+  // confirms first; the boards they replace are kept in Recent changes by
+  // the entity layer (profileBoardBulk.js).
+  const ownerNoun = () => ({ alter: t.alters, group: "groups", contact: "contacts", location: "locations" }[boardStore?.ownerType] || "profiles");
+  const ownerNounOne = () => ({ alter: t.alter, group: "group", contact: "contact", location: "location" }[boardStore?.ownerType] || "profile");
+  const runBulk = async (fn, done) => {
+    setSaveMenuOpen(false);
+    try {
+      const out = await fn();
+      editSnapshot.current = null;
+      closeEditSurfaces();
+      setEditMode(false);
+      boardStore?.invalidate?.();
+      toast.success(typeof done === "function" ? done(out) : done);
+    } catch (e) {
+      toast.error(e?.message || "That didn't save.");
+    }
+  };
+  const useLayoutForAll = async () => {
+    const noun = ownerNoun();
+    const ok = await confirm({
+      title: `Use this layout for all ${noun}?`,
+      body: `Every ${ownerNounOne()}'s page layout is replaced with this one. Their records don't change, and the layouts this replaces can be brought back from Recent changes.`,
+      confirmLabel: "Use for all",
+    });
+    if (!ok) return;
+    await runBulk(
+      () => applyLayoutToAll(boardStore.ownerType, boardRef.current.board, { qc, exceptId: boardStore.ownerId }),
+      (n) => `Layout applied to ${n} ${n === 1 ? ownerNounOne() : noun}.`,
+    );
+  };
+  const useAsDefaultLayout = async () => {
+    const ok = await confirm({
+      title: `Use as the default for ${ownerNoun()}?`,
+      body: `Every ${ownerNounOne()} whose layout hasn't been edited shows this one from now on. Edited layouts stay as they are. Clear it any time in Settings → ${t.Alter} setup → Profile layouts.`,
+      confirmLabel: "Use as default",
+    });
+    if (!ok) return;
+    await runBulk(() => setDefaultLayout(boardStore.ownerType, boardRef.current.board, { qc }), "Saved as the default layout.");
+  };
+  const resetThisLayout = async () => {
+    const ok = await confirm({
+      title: "Reset this layout?",
+      body: `This ${ownerNounOne()}'s page goes back to the default layout (or the standard one when there is no default). The layout it replaces goes to the trash, where Recent changes can bring it back.`,
+      confirmLabel: "Reset layout",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runBulk(() => resetLayout(boardStore.ownerType, boardStore.ownerId, { qc }), "Layout reset.");
+  };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
     editSnapshot.current = null;
@@ -2539,6 +2591,14 @@ export default function ExperimentalDashboard({
                 <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
                   <button type="button" onClick={exitSave}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
+                  {profileBoard && (<>
+                  <button type="button" onClick={useLayoutForAll}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use this layout for all {ownerNoun()}…</button>
+                  <button type="button" onClick={useAsDefaultLayout}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use as the default layout…</button>
+                  <button type="button" onClick={resetThisLayout}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Reset this layout…</button>
+                  </>)}
                   {!profileBoard && (<>
                   <button type="button" onClick={() => openPackSheet("export")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>

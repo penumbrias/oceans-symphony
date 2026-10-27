@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "feature", text: "Profile layouts: the layout editor's Save menu can use this layout for all your {{alters}} (or groups, contacts, locations), save it as the default for unedited profiles, or reset this one. Each asks first, and Recent changes keeps every layout it replaces." },
+      { type: "feature", text: "Home-screen widgets on profile pages: journal, wishes, bulletin board, inner-world locations, timeline days and the {{fronting}} panel can be added to a profile and show only that {{alter}}'s (or group's) things, with a \"Whose\" option to show everyone's." },
+      { type: "improve", text: "Settings → {{Alter}} setup → Profile layouts shows which profile types have a default layout and lets you clear it." },
       { type: "feature", text: "Group, contact and inner-world location profiles are widget boards too: the same grid button lets you move, resize, restyle and add widgets, page by page. Deleting one takes its layout along, and a restore brings both back." },
       { type: "improve", text: "Group and location profiles say \"{{alters}}\" in your own words where they said \"members\"." },
       { type: "feature", text: "{{Alter}} profiles are widget boards now: every tab is a page and every section a widget. Tap the new grid button next to Edit to move, resize, restyle or add widgets, exactly like the home screen. Profiles look the same until you change them." },

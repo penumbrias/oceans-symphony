@@ -11,6 +11,7 @@ import { Target } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useScopeAlterIds } from "@/v2/subjectScope";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { buildBalance, sharedWishes, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
@@ -65,9 +66,13 @@ export function WishesWidget({ settings }) {
   const wishes = useList(WISHES_QUERY_KEY, "Wish");
   const alters = useList("alters", "Alter");
   const alterById = useMemo(() => new Map(alters.map((a) => [a.id, a])), [alters]);
+  // On a profile board: wishes owned by that alter (or the group's members).
+  const scopeIds = useScopeAlterIds(settings);
   const open = useMemo(
-    () => sortWishes(sharedWishes(wishes).filter(isOpenWish)).slice(0, limitOf(settings, 6)),
-    [wishes, settings],
+    () => sortWishes(sharedWishes(wishes).filter(isOpenWish)
+      .filter((w) => !scopeIds || (w.owner_alter_ids || []).some((id) => scopeIds.includes(id))))
+      .slice(0, limitOf(settings, 6)),
+    [wishes, settings, scopeIds],
   );
   return (
     <Section label={tr("widget.wishes.label")}
