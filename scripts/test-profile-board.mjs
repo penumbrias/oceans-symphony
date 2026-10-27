@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict";
 import {
-  seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId,
+  seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId, layoutForCopy, DEFAULT_OWNER_ID, isDefaultOwnerId,
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES,
 } from "../src/lib/profileBoard.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -129,6 +129,30 @@ test("a person's first edit drops the seeded marker when stamped", () => {
   const stamped = stampBoardChanges(null, edited, T(1));
   assert.equal(stamped._seeded, undefined);
   assert.equal(stamped.pages[0]._ut, T(1));
+});
+
+test("layoutForCopy keeps the pages and the look, drops the bookkeeping", () => {
+  const seed = seedProfileBoard({ id: "a1" }, "alter");
+  const src = { ...seed, _lt: "2026-01-01T00:00:00.000Z", _removedPages: ["tab:notes"], _heals: ["x"],
+    pages: seed.pages.map((p, i) => ({ ...p, _ut: "2026-01-01T00:00:00.000Z", ...(i === 0 ? { label: "Me" } : {}) })) };
+  const copy = layoutForCopy(src);
+  assert.equal(copy._seeded, undefined);
+  assert.equal(copy._lt, undefined);
+  assert.equal(copy._removedPages, undefined);
+  assert.equal(copy._heals, undefined);
+  assert.equal(copy.pages.length, seed.pages.length);
+  assert.equal(copy.pages[0].label, "Me");
+  assert.equal(copy.pages[0]._ut, undefined);
+  assert.deepEqual(copy.pages[0].widgets, seed.pages[0].widgets);
+  assert.equal(copy.grid.rowPx, seed.grid.rowPx);
+  assert.equal(layoutForCopy(null), null);
+  assert.equal(layoutForCopy("x"), null);
+  assert.deepEqual(layoutForCopy({ a: 1 }).pages, []);
+});
+
+test("the default layout owner id is reserved", () => {
+  assert.equal(isDefaultOwnerId(DEFAULT_OWNER_ID), true);
+  assert.equal(isDefaultOwnerId("a1"), false);
 });
 
 console.log(`\n${passed} checks passed`);

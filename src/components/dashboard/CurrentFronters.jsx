@@ -597,7 +597,9 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
   );
 }
 
-export default function CurrentFronters({ alters, hideStatusNote = false }) {
+// onlyAlterIds (v0.292.0): on a profile board the panel shows only those
+// alters' slots; everything else (set front, notes) still covers everyone.
+export default function CurrentFronters({ alters, hideStatusNote = false, onlyAlterIds = null }) {
   const [showModal, setShowModal] = useState(false);
   // Post-hoc switch metadata: open the same Trigger picker and Switch
   // journal flows that the SetFront modal offers, even when the user
@@ -685,7 +687,8 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
         start_time: new Date(Date.now() - (i + 1) * 20 * 60 * 1000).toISOString(),
       }))
     : [];
-  const activeSessions = isDemo ? demoSessions : realActiveSessions;
+  const activeSessions = (isDemo ? demoSessions : realActiveSessions)
+    .filter((s) => !onlyAlterIds || onlyAlterIds.includes(s.alter_id || s.primary_alter_id));
   const demoAltersById = Object.fromEntries(demoAlterSource.map(a => [a.id, a]));
   const altersById = isDemo
     ? { ...Object.fromEntries(alters.map((a) => [a.id, a])), ...demoAltersById }

@@ -15,6 +15,7 @@ import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import ProfileSongsSettings from "@/components/settings/ProfileSongsSettings";
 import AlterOrderSettings from "@/components/settings/AlterOrderSettings";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
+import ProfileLayoutSettings from "@/components/settings/ProfileLayoutSettings";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
@@ -696,6 +697,7 @@ export default function Settings() {
           <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
           <SubSection title={`Order your ${terms.alters}`} defaultOpen={false}><AlterOrderSettings /></SubSection>
           <SubSection title={`${terms.Alter} labels in lists`} defaultOpen={false}><AlterLabelSettings embedded /></SubSection>
+          <SubSection title="Profile layouts" defaultOpen={false}><ProfileLayoutSettings /></SubSection>
           <SubSection title="Profile songs" defaultOpen={false}><ProfileSongsSettings /></SubSection>
         </Section>
 

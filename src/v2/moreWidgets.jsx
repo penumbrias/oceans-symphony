@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
+import { useWidgetScope, recordMentionsAlters } from "@/lib/boardSubject";
+import { useScopeAlterIds } from "@/v2/subjectScope";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
   hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
@@ -66,9 +68,32 @@ function DayNav({ date, setDate }) {
 // ── Timeline ───────────────────────────────────────────────────────
 // The page's own day renderer, a few days at a time, scrolling inside the
 // widget. Expanded keeps loading older days as you reach the bottom.
+// A day's slice narrowed to some alters: every list whose rows name an
+// alter keeps only the rows naming one of them; the rest (status notes,
+// important dates, locations) is the system's and stays.
+const SCOPED_DAY_LISTS = [
+  "sessions", "activities", "emotions", "journals", "checkIns", "bulletins", "tasks",
+  "symptomSessions", "symptomCheckIns", "sleeps", "lineageEvents", "diaryCards", "polls",
+  "reminderInstances", "reflections", "alterNotes",
+];
+function scopeTimelineDay(d, ids) {
+  if (!ids) return d;
+  const out = { ...d };
+  let any = false;
+  for (const k of SCOPED_DAY_LISTS) {
+    if (!Array.isArray(d[k])) continue;
+    out[k] = d[k].filter((r) => recordMentionsAlters(r, ids));
+    if (out[k].length) any = true;
+  }
+  out.hasData = any;
+  return out;
+}
+
 export function TimelineWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const src = useTimelineSources();
+  // On a profile board: only that profile's alters' entries.
+  const scopeIds = useScopeAlterIds(settings);
   const startDays = Math.max(1, Math.min(30, parseInt(settings?.days, 10) || (mode === "expanded" ? 7 : 3)));
   const [shown, setShown] = useState(startDays);
   const days = useMemo(
@@ -77,7 +102,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
   );
 
   if (mode === "minimal") {
-    const d = sliceTimelineDay(src, new Date());
+    const d = scopeTimelineDay(sliceTimelineDay(src, new Date()), scopeIds);
     const bits = [
       d.sessions.length ? `${d.sessions.length} sessions` : null,
       d.activities.length ? `${d.activities.length} activities` : null,
@@ -103,7 +128,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
       <ErrorBoundary fallback={<Muted>The timeline couldn't be drawn here. Open the Timeline page.</Muted>} resetKeys={[shown]}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" onScroll={onScroll}>
           {days.map((day) => {
-            const d = sliceTimelineDay(src, day);
+            const d = scopeTimelineDay(sliceTimelineDay(src, day), scopeIds);
             return (
               <InfiniteTimeline
                 key={d.dateStr}
@@ -644,10 +669,21 @@ export function InnerLocationsWidget({ settings }) {
   const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => localEntities.InnerWorldLayer.list() });
   const { data: locations = [] } = useQuery({ queryKey: ["innerWorldLocations"], queryFn: () => localEntities.InnerWorldLocation.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const mapId = settings?.mapId || "";
-  const fMaps = mapId ? maps.filter((m) => m.id === mapId) : maps.filter((m) => !m.is_archived);
-  const fLayers = mapId ? layers.filter((l) => l.map_id === mapId) : layers;
-  const fLocations = mapId ? locations.filter((l) => l.map_id === mapId) : locations;
+  // On a location's profile the widget opens on that location's map; on an
+  // alter's (or a group's) it lists the places those alters are in.
+  const scope = useWidgetScope(settings);
+  const scopeIds = useScopeAlterIds(settings);
+  const here = scope?.type === "location" ? locations.find((l) => l.id === scope.id) : null;
+  const mapId = settings?.mapId || here?.map_id || "";
+  let fLocations = mapId ? locations.filter((l) => l.map_id === mapId) : locations;
+  if (scopeIds && scope?.type !== "location") {
+    const placed = new Set(alters.filter((a) => scopeIds.includes(a.id)).map((a) => a.inner_world_location_id).filter(Boolean));
+    fLocations = fLocations.filter((l) => placed.has(l.id));
+  }
+  const mapIds = new Set(fLocations.map((l) => l.map_id));
+  const fMaps = mapId ? maps.filter((m) => m.id === mapId)
+    : maps.filter((m) => !m.is_archived && (!scopeIds || mapIds.has(m.id)));
+  const fLayers = mapId ? layers.filter((l) => l.map_id === mapId) : layers.filter((l) => !scopeIds || mapIds.has(l.map_id));
   return (
     <Section label={mapId ? (maps.find((m) => m.id === mapId)?.name || "Locations") : "Inner world"}
       action={<TextAction onClick={() => navigate("/system-map?view=inner")}>Open</TextAction>}>

@@ -66,6 +66,7 @@ function RichTextField({ value, onCommit, placeholder }) {
 import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, Palette, Copy, Star, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Plus, MoreHorizontal, ListChecks } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
+import { useBoardSubject } from "@/lib/boardSubject";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import FontUploadButton from "@/components/shared/FontUploadButton";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
@@ -857,6 +858,8 @@ export default function WidgetConfigSheet({
     ...Object.entries(allPresets).map(([name, preset]) => ({ name, preset, mine: false })),
   ].filter(({ preset }) => preset && (preset.light || preset.dark)), [allPresets, userCustomPresets]);
   const t = useTerms();
+  const boardSubject = useBoardSubject();
+  const showIfCtx = React.useMemo(() => ({ subject: boardSubject }), [boardSubject]);
   if (!open) return null;
 
   const defLabel = widgetAutoLabel(def, settings, t);
@@ -1251,7 +1254,7 @@ export default function WidgetConfigSheet({
                   {ownFields.map((f, i) => {
                     // showIf: a field only appears when it means something
                     // for the current settings — the cure for option-soup.
-                    if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
+                    if (typeof f.showIf === "function" && !f.showIf(settings, showIfCtx)) return null;
                     // A field may name a `group`; a new group gets a small heading.
                     const prevGroup = i > 0 ? ownFields[i - 1].group : undefined;
                     const head = f.group && f.group !== prevGroup

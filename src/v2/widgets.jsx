@@ -70,6 +70,9 @@ import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
+import { SCOPE_FIELD, useWidgetScope } from "@/lib/boardSubject";
+import { useScopeAlterIds } from "@/v2/subjectScope";
+import { journalAuthorIds } from "@/lib/journalAuthors";
 import { endSymptomSessions } from "@/lib/symptomSessions";
 import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
@@ -1212,7 +1215,10 @@ function JournalWidget({ settings }) {
   const navigate = useNavigate();
   const entries = useList("journalEntries", "JournalEntry");
   const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
-  const list = sortJournalsNewestFirst(entries).slice(0, limit);
+  // On a profile board: that alter's (or the group's members') entries.
+  const scopeIds = useScopeAlterIds(settings);
+  const scoped = scopeIds ? entries.filter((e) => journalAuthorIds(e).some((id) => scopeIds.includes(id))) : entries;
+  const list = sortJournalsNewestFirst(scoped).slice(0, limit);
   return (
     <Section label={tr("widget.journal.label")}
       action={<span className="flex items-center gap-3">
@@ -1270,6 +1276,16 @@ function SleepWidget() {
           right={fmtTime(last.wake_time)} onClick={() => navigate("/sleep")} />
       )}
       {!active && !last && <Muted>{tr("widget.sleep.empty")}</Muted>}
+    </Section>
+  );
+}
+
+// The classic panel; on a profile board only that profile's alters' slots.
+function FrontingPanelWidget({ api, settings }) {
+  const scopeIds = useScopeAlterIds(settings);
+  return (
+    <Section>
+      <CurrentFronters alters={api?.alters || []} hideStatusNote onlyAlterIds={scopeIds} />
     </Section>
   );
 }
@@ -1676,7 +1692,10 @@ function BulletinBoardWidget({ api, settings, updateSettings }) {
   const [idx, setIdx] = React.useState(0);
   const [picking, setPicking] = React.useState(false);
 
-  const chosen = Array.isArray(settings?.boards) && settings.boards.length > 0 ? settings.boards : ["system"];
+  // On a group's profile the widget opens on that group's board.
+  const scope = useWidgetScope(settings);
+  const chosen = Array.isArray(settings?.boards) && settings.boards.length > 0 ? settings.boards
+    : scope?.type === "group" ? [scope.id] : ["system"];
   const boards = chosen
     .map((id) => id === "system"
       ? { id: "system", label: applyTerms(tr("widget.bboard.system"), t), groupId: null }
@@ -2798,10 +2817,11 @@ export const V2_WIDGETS = {
   },
   timeline_days: {
     label: "Timeline", description: "Your timeline days, scrolling inside the widget. Expanded keeps loading older days as you reach the bottom.",
-    icon: CalendarClock, category: "timeline",
+    icon: CalendarClock, category: "timeline", subjects: ["home", "alter", "group", "location"],
     render: ({ mode, settings }) => <TimelineWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
+      SCOPE_FIELD,
       { key: "days", type: "number", label: "Days to start with", min: 1, max: 30, default: 3 },
     ],
     defaultSpan: { cols: 12, rows: 6 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
@@ -3021,11 +3041,11 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   journal: {
-    label: "Journal", description: "Your most recent entries, and a button to start a new one.",
-    icon: BookOpen, category: "journals",
+    label: "Journal", description: "Your most recent entries, and a button to start a new one. On a profile, that {{alter}}'s entries.",
+    icon: BookOpen, category: "journals", subjects: ["home", "alter", "group", "location"],
     render: ({ settings }) => <JournalWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    configFields: [SCOPE_FIELD, { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   journal_book: {
@@ -3067,17 +3087,18 @@ export const V2_WIDGETS = {
   },
   inner_locations: {
     label: "Inner world places", description: "Every location across your maps and layers as a list — tap one to jump to it. Can be pinned to a single map.",
-    icon: MapPin, category: "system",
+    icon: MapPin, category: "system", subjects: ["home", "alter", "group", "location"],
     render: ({ settings }) => <InnerLocationsWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
+      SCOPE_FIELD,
       { key: "mapId", type: "dynamicSelect", source: "innerMaps", label: "Map", emptyLabel: "All maps" },
     ],
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   bulletin_board: {
     label: "Bulletin board", description: "The board itself — post and read, with group boards too — or just the latest posts.",
-    icon: Megaphone, category: "bulletins",
+    icon: Megaphone, category: "bulletins", subjects: ["home", "group"],
     render: ({ api, settings, updateSettings }) => (settings?.show === "latest"
       ? <BulletinsWidget settings={settings} />
       : <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />),
@@ -3106,10 +3127,10 @@ export const V2_WIDGETS = {
   },
   wishes: {
     label: "Wishes", description: "Everyone's open wishes, longest waiting first. Private wishes stay on their own profile.",
-    icon: Heart, category: "needs",
+    icon: Heart, category: "needs", subjects: ["home", "alter", "group", "location"],
     render: sized(({ settings }) => <WishesWidget settings={settings} />),
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 }],
+    configFields: [SCOPE_FIELD, { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   goals: {
@@ -3203,18 +3224,15 @@ export const V2_WIDGETS = {
   },
   fronting_panel: {
     label: "{{Fronting}} panel", description: "The classic currently-{{fronting}} panel — per-{{alter}} feelings, symptoms and notes.",
-    icon: Users, category: "alters",
+    icon: Users, category: "alters", subjects: ["home", "alter", "group", "location"],
+    configFields: [SCOPE_FIELD],
     // hideStatusNote ALWAYS: the classic panel bundles the status bar for
     // dashboard convenience, but widgets are building blocks — status entry
     // is its own widget, so the panel carries only the fronting feature.
     // Wrapped in Section so it has the ONE visible box every widget owes
     // the contract — without it the panel had no border and ignored the
     // user's look settings.
-    render: sized(({ api }) => (
-      <Section>
-        <CurrentFronters alters={api?.alters || []} hideStatusNote />
-      </Section>
-    )),
+    render: sized(({ api, settings }) => <FrontingPanelWidget api={api} settings={settings} />),
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },

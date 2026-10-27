@@ -600,6 +600,21 @@ function recordHistoryUpdate(entityName, prev, patch) {
     });
     return;
   }
+  // A profile page's layout (v0.292.0): every rewrite keeps the board it
+  // replaced, so "use this layout for all" and a wrong edit can be undone
+  // from Recent changes like a home-screen layout.
+  if (entityName === "ProfileBoard" && patch && "board" in patch && prev.board !== undefined) {
+    recordHistoryEvent({
+      category: "layout",
+      action: "layout",
+      entity: "ProfileBoard",
+      record_id: prev.id,
+      field: "board",
+      label: `${prev.owner_type || "profile"} layout`,
+      snapshot: prev.board,
+    });
+    return;
+  }
   if (entityName === "SystemSettings") {
     for (const field of HISTORY_LAYOUT_FIELDS) {
       if (!(field in (patch || {}))) continue;

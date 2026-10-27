@@ -24,6 +24,32 @@ export const PROFILE_OWNER_TYPES = ["alter", "group", "contact", "location"];
 
 export const isProfileOwnerType = (t) => PROFILE_OWNER_TYPES.includes(t);
 
+// A default layout for a profile type (v0.292.0) is a ProfileBoard row
+// whose owner is this id. A profile with no row of its own renders the
+// default when one exists, else the seed; its own row is created on the
+// person's first edit, from whatever it was showing.
+export const DEFAULT_OWNER_ID = "__default__";
+export const isDefaultOwnerId = (id) => id === DEFAULT_OWNER_ID;
+
+// A board as it travels to another profile ("use this layout for all",
+// "use as default"): the pages and the look, none of the bookkeeping that
+// belongs to the board it came from (change times, removed pages, heals,
+// the seeded marker). Pure; the store stamps the copy on write.
+export function layoutForCopy(board) {
+  if (!board || typeof board !== "object") return null;
+  const out = {};
+  for (const [k, v] of Object.entries(board)) {
+    if (k.startsWith("_")) continue;
+    out[k] = v;
+  }
+  out.pages = (Array.isArray(board.pages) ? board.pages : []).map((p) => {
+    const page = {};
+    for (const [k, v] of Object.entries(p || {})) { if (!k.startsWith("_")) page[k] = v; }
+    return page;
+  });
+  return out;
+}
+
 // A page per tab. The id keeps the tab name so every `?tab=` deep link
 // (notifications, the tour, search, the Needs page…) lands on its page.
 export const profilePageId = (tab) => `tab:${tab}`;

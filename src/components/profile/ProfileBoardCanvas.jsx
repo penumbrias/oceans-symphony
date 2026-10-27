@@ -26,7 +26,7 @@ import { V2_WIDGETS } from "@/v2/widgets";
 import { profileRegistryFor } from "@/v2/profileWidgets";
 import { BoardSubjectContext } from "@/lib/boardSubject";
 import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
-import { seedProfileBoard, profilePageId, tabOfPageId } from "@/lib/profileBoard";
+import { seedProfileBoard, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickProfileBoardRows, layoutForCopy } from "@/lib/profileBoard";
 
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
@@ -79,25 +79,32 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
     queryFn: () => listProfileBoardRows(ownerType, ownerId),
     enabled: !!ownerId,
   });
+  // The type's default layout (v0.292.0), shown when the profile has no
+  // row of its own; its first edit copies it into the profile's own row.
+  const { data: defaultRows = [], isFetched: defaultRowsFetched } = useQuery({
+    queryKey: profileBoardQueryKey(ownerType, DEFAULT_OWNER_ID),
+    queryFn: () => listProfileBoardRows(ownerType, DEFAULT_OWNER_ID),
+  });
+  const defaultBoard = useMemo(() => layoutForCopy(pickProfileBoardRows(defaultRows).board), [defaultRows]);
   const [fittedSeed, setFittedSeed] = useState(null);
-  useEffect(() => { setFittedSeed(null); }, [ownerId]);
+  useEffect(() => { setFittedSeed(null); }, [ownerId, defaultBoard]);
   const boardStore = useMemo(() => {
     if (!record) return null;
     const base = profileBoardStore({ ownerType, ownerId: record.id, rows: boardRows, qc: queryClient });
     return {
       ...base,
-      board: base.board || fittedSeed || seedProfileBoard(record, ownerType),
+      board: base.board || fittedSeed || defaultBoard || seedProfileBoard(record, ownerType),
       write: async (next, opts) => {
         const row = await base.write(next, opts);
         if (!row) setFittedSeed(next);
         return row;
       },
     };
-  }, [record, ownerType, boardRows, fittedSeed, queryClient]);
+  }, [record, ownerType, boardRows, fittedSeed, defaultBoard, queryClient]);
   const registry = useMemo(() => profileRegistryFor(ownerType, V2_WIDGETS), [ownerType]);
   const subject = useMemo(() => (ownerId ? { type: ownerType, id: ownerId } : null), [ownerType, ownerId]);
   const boardApi = useMemo(() => api || {}, [api]);
-  if (!boardStore || !boardRowsFetched) return null;
+  if (!boardStore || !boardRowsFetched || !defaultRowsFetched) return null;
   return (
     <BoardSubjectContext.Provider value={subject}>
       <ExperimentalDashboard
