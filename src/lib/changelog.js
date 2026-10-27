@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "October 27, 2026",
+    changes: [
+      { type: "feature", text: "Widget options are rebuilt as five tabs: Content, Text, Shape, Colour and Styles. One tab on screen at a time, so no more long scroll." },
+      { type: "improve", text: "Widget options: every size is a slider with its number beside it (tap the number to type), and inherited values show their real number greyed instead of \"app default\"." },
+      { type: "improve", text: "Widget options: a × next to a setting clears just that one; each tab has its own Reset; Reset and Remove moved under ⋯ in the header." },
+      { type: "improve", text: "Widget options open at half height so you can watch the widget change while you adjust it." },
+    ],
+  },
+  {
     date: "October 26, 2026",
+    version: "0.286.0",
     changes: [
       { type: "feature", text: "Mods: the Mods page now has a library of mods that come with the app: sun dial, moon phases, cycle tracker, astrology, tarot guide, comfort box and letters to later." },
       { type: "feature", text: "Goals is now a notebook: each goal is a page with sections inside sections, notes, to-dos, checkboxes, [[links]] between pages, and Board and Map views." },

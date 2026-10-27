@@ -4,6 +4,12 @@
 // widget from home state each render, so persisted changes flow straight
 // back into the open sheet.
 //
+// The inspector (v0.287.0): five fixed tabs — Content · Text · Shape ·
+// Colour · Styles — one on screen at a time, every setting one row
+// (SettingRows.jsx), the real current value always visible, a × to clear
+// one value and a Reset per tab. INSPECTOR_TABS in widgetLook.js is the
+// one table behind the strip, the dots and each tab's Reset.
+//
 // Config: display name (settings.label), display mode (widget.mode), style
 // override (settings.style — "inherit" clears it), and for app shortcuts a
 // custom icon image (settings.iconUrl, picked via the shared asset picker).
@@ -57,7 +63,7 @@ function RichTextField({ value, onCommit, placeholder }) {
     </React.Suspense>
   );
 }
-import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Minus, Plus } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, Palette, Copy, Star, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Plus, MoreHorizontal, ListChecks } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
@@ -65,8 +71,6 @@ import FontUploadButton from "@/components/shared/FontUploadButton";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import { useFontOptions } from "@/lib/useFontOptions";
-// The planner editor's add-chip, so the two editors read as one system.
-import DetailChip from "@/components/shared/DetailChip";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -82,15 +86,17 @@ import { buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import ColorPicker from "@/components/shared/ColorPicker";
-import { Switch } from "@/components/ui/switch";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import {
   themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
   LOOK_GROUPS, LOOK_SECTIONS, lookCoverage, lookForGroups, OFF, mergeLook, pickLook, userStyleId,
-  FONT_STYLE_OPTIONS, textSplitPatch, inheritedHeaderStyles, sectionResetPatch, sectionHasOwn,
+  FONT_STYLE_OPTIONS, textSplitPatch, inheritedHeaderStyles, sectionResetPatch,
+  INSPECTOR_TABS, tabResetPatch, tabHasOwn,
 } from "@/lib/widgetLook";
-import TextCard from "@/components/shared/TextCard";
+// The one row grammar every edit menu shares (v0.287.0).
+import {
+  Row, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, StepRow, ColourRow, TabBar,
+} from "@/components/shared/SettingRows";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
@@ -608,29 +614,8 @@ function useHasWidgetLabel(open, instanceId, tick) {
   return has;
 }
 
-// One section of the sheet, opened from its chip (see lookParts). Every
-// section that owns settings ends in its own Reset, so undoing one part
-// never means undoing everything.
-function LookPart({ open, title, children, onReset, resetLabel }) {
-  if (!open) return null;
-  return (
-    <div className="rounded-lg border border-border/40 px-3 py-3 space-y-3">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-      {children}
-      {onReset && (
-        <div className="flex justify-end pt-1 border-t border-border/30">
-          <button type="button" onClick={onReset}
-            className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <RotateCcw className="w-3 h-3" /> {resetLabel || "Reset"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Which parts of a look to carry — the sheet's own sections, used by both
-// "Save this look as a style" and "Apply this look to…".
+// Which parts of a look to carry — the look sections, used by both "Save
+// this look as a style" and "Apply this look to…".
 function PartTicks({ value, onChange }) {
   return (
     <div className="flex flex-wrap gap-1">
@@ -648,83 +633,7 @@ function PartTicks({ value, onChange }) {
   );
 }
 
-// A small label above a group of rows inside a section.
-function SubHead({ children }) {
-  return <p className="text-xs font-semibold pt-1">{children}</p>;
-}
-
-// The one-question control: a segmented bar, like the display mode and
-// the planner editor's Done / Now / Plan. For short, few-option choices.
-function Segmented({ label, options, value, onChange }) {
-  return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-full border border-border/60 p-0.5 gap-0.5">
-      {options.map((o) => (
-        <button key={String(o.value)} type="button" role="radio"
-          aria-checked={String(value) === String(o.value)}
-          onClick={() => onChange(o.value)}
-          className={`flex-1 min-w-0 truncate text-xs py-1.5 px-1 rounded-full ${
-            String(value) === String(o.value) ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-          }`}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// A choice shows as a segmented bar when it fits on one line (up to four
-// short options), as wrapping chips otherwise.
-const fitsSegmented = (options = []) =>
-  options.length > 1 && options.length <= 4 && options.reduce((n, o) => n + String(o.label).length, 0) <= 30;
-
-// Counts (how many to show, row height, days ahead): − n +, and the number
-// can be typed. A typed value saves when you leave the box or press Enter;
-// the buttons save at once. Replaces the bare number box that only saved
-// on blur and gave no way to nudge.
-function NumberStepper({ label, value, min = 0, max = 99, step = 1, onCommit }) {
-  const n = Number.isFinite(Number(value)) ? Number(value) : min;
-  const [text, setText] = React.useState(String(n));
-  React.useEffect(() => { setText(String(n)); }, [n]);
-  const clamp = (v) => Math.min(max, Math.max(min, v));
-  const commitText = () => {
-    const v = parseInt(text, 10);
-    if (Number.isNaN(v)) { setText(String(n)); return; }
-    const c = clamp(v);
-    setText(String(c));
-    if (c !== n) onCommit(c);
-  };
-  return (
-    <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" aria-label={`${label} less`} disabled={n <= min}
-        onClick={() => onCommit(clamp(n - step))}
-        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
-        <Minus className="w-3.5 h-3.5" />
-      </button>
-      <input type="number" inputMode="numeric" value={text} min={min} max={max} aria-label={label}
-        onChange={(e) => setText(e.target.value)} onBlur={commitText}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        className="w-14 h-8 px-1 text-center rounded-lg border border-input bg-background text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring" />
-      <button type="button" aria-label={`${label} more`} disabled={n >= max}
-        onClick={() => onCommit(clamp(n + step))}
-        className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
-        <Plus className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
-// A colour role as a labelled row: name on the left, swatch on the right
-// (the swatch's popover holds hex, opacity, Clear).
-function ColourRow({ label, children }) {
-  return (
-    <div className="flex items-center gap-2 min-h-[32px]">
-      <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-// The look of a set of font-style flags, for previews and chip faces.
+// The look of a set of font-style flags, for the preview and the toggles.
 const FLAG_STYLE = {
   bold: { fontWeight: 700 },
   light: { fontWeight: 300 },
@@ -746,79 +655,79 @@ function flagsStyle(flags = []) {
   return out;
 }
 
-// Font-style chips. `regular` adds a first chip meaning "none of these",
-// lit when nothing is picked (headings: no styles of their own).
-function FontStyleChips({ value = [], onChange, regular = false }) {
+// Font styles as one row of toggles (B · L · I · U · S · small caps · caps).
+// Bold and Light are opposite weights — picking one drops the other.
+const STYLE_FACE = {
+  bold: <b>B</b>, light: <span style={{ fontWeight: 300 }}>L</span>, italic: <i>I</i>,
+  underline: <u>U</u>, strikethrough: <s>S</s>,
+  smallcaps: <span style={{ fontVariant: "small-caps" }}>Aa</span>, uppercase: <span className="text-[0.625rem]">AA</span>,
+};
+function FontStyleToggles({ value = [], onChange }) {
   const toggle = (id) => {
     let next = value.includes(id) ? value.filter((x) => x !== id) : [...value, id];
-    // Bold and Light are opposite weights — picking one drops the other.
     if (id === "bold" && next.includes("bold")) next = next.filter((x) => x !== "light");
     if (id === "light" && next.includes("light")) next = next.filter((x) => x !== "bold");
     onChange(next);
   };
-  const chip = (on) => `text-[0.6875rem] px-2.5 py-1 rounded-full border ${
-    on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-  }`;
   return (
-    <div className="flex flex-wrap gap-1">
-      {regular && (
-        <button type="button" aria-pressed={value.length === 0} onClick={() => onChange([])}
-          className={chip(value.length === 0)}>Regular</button>
-      )}
-      {FONT_STYLE_OPTIONS.map(({ id, label }) => (
-        <button key={id} type="button" aria-pressed={value.includes(id)} onClick={() => toggle(id)}
-          className={chip(value.includes(id))}
-          style={{ ...FLAG_STYLE[id], ...(id === "uppercase" ? { fontSize: "0.625rem" } : {}) }}>
-          {label}
-        </button>
-      ))}
+    <div className="flex gap-1" role="group" aria-label="Style">
+      {FONT_STYLE_OPTIONS.map(({ id, label }) => {
+        const on = value.includes(id);
+        return (
+          <button key={id} type="button" aria-pressed={on} aria-label={label} title={label} onClick={() => toggle(id)}
+            className={`w-8 h-8 rounded-lg border text-sm flex items-center justify-center ${
+              on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+            }`}>{STYLE_FACE[id] || label}</button>
+        );
+      })}
     </div>
   );
 }
 
-// Mirrors the TokenRow slider in Display options (− / range / + / readout)
-// so both editors handle a size the same way, plus this sheet's own Reset
-// (a widget value can be unset = follow the app).
-function SliderRow({ label, value, fallback, min, max, step = 1, unit = "px", onChange, onReset }) {
-  // Edit-menu anatomy (docs/v2-edit-menu-spec.md): the row shows its name,
-  // current value and a visible "set" button; the slider only exists after
-  // that explicit tap, so a scroll through the sheet can't move a setting.
+// The four per-side rows under Inner spacing / Outline, opened from a
+// small link under the uniform row and kept open while any side is set.
+function SideRows({ sides, settings, fallback, min, max, set, setHere }) {
+  const anySet = setHere(sides.map(([k]) => k));
   const [open, setOpen] = React.useState(false);
-  const unset = value === undefined || value === "";
-  const shown = unset ? "app default" : `${value}${unit}`;
-  const current = unset ? fallback : Number(value);
-  const bump = (dir) => onChange(Math.min(max, Math.max(min, current + dir * step)));
+  const shown = open || anySet;
   return (
-    <div className="py-1">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
-        <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{shown}</span>
-        <button type="button" aria-label={`${label} — set`} aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className={`w-8 h-8 flex items-center justify-center rounded-lg border flex-shrink-0 ${
-            open ? "border-primary/60 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-          }`}>
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-        </button>
-      </div>
-      {open && (
-        <div className="flex items-center gap-2 pt-1.5">
-          <button type="button" aria-label={`${label} −`} onClick={() => bump(-1)}
-            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">−</button>
-          <input type="range" min={min} max={max} step={step} value={current}
-            onChange={(e) => onChange(parseInt(e.target.value, 10))}
-            className="flex-1" aria-label={label} />
-          <button type="button" aria-label={`${label} +`} onClick={() => bump(1)}
-            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">+</button>
-          {onReset && (
-            <button type="button" onClick={onReset}
-              className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-          )}
+    <>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={shown}
+        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
+        <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
+      </button>
+      {shown && (
+        <div className="pl-3 border-l border-border/40">
+          {sides.map(([key, label]) => (
+            <SliderRow key={key} label={label} value={settings[key]} fallback={fallback}
+              min={min} max={max} unit="px"
+              onChange={(v) => set({ [key]: v })} onClear={() => set({ [key]: "" })} />
+          ))}
         </div>
       )}
+    </>
+  );
+}
+
+// A row that opens into a panel below it (Save as a style, Apply to…).
+function Disclosure({ label, hint, icon: Icon, open, onToggle, children }) {
+  return (
+    <div className="border-b border-border/30 last:border-b-0">
+      <button type="button" onClick={onToggle} aria-expanded={open}
+        className="w-full flex items-center gap-2 min-h-[44px] py-1.5 text-left">
+        <span className="flex-1 min-w-0">
+          <span className="text-sm block leading-tight">{label}</span>
+          {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
+        </span>
+        {Icon && !open && <Icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+        <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="pb-3 space-y-2">{children}</div>}
     </div>
   );
 }
+
+const TAB_ICONS = { content: ListChecks, text: Type, shape: Square, colour: Palette, styles: Star };
 
 export default function WidgetConfigSheet({
   widget,            // live widget object or null (sheet closed)
@@ -878,26 +787,36 @@ export default function WidgetConfigSheet({
   };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const drawsLabel = useHasWidgetLabel(open, widget?.instanceId, `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
-  // Styles: which catalogue is showing (Ready-made / Yours / From themes).
+  // Which tab is showing. Remembered while the sheet stays open on one
+  // widget; a new widget opens on Content.
+  const [tab, setTab] = React.useState("content");
+  React.useEffect(() => { setTab("content"); }, [widget?.instanceId]);
+  // Each tab starts at its top — the one scroller is shared.
+  const panelRef = React.useRef(null);
+  React.useEffect(() => { if (panelRef.current) panelRef.current.scrollTop = 0; }, [tab]);
+  // Text: which kind of text the rows edit — body or headings. One set of
+  // controls on screen at a time, so a heading edit can't land on the body.
+  const [textKind, setTextKind] = React.useState("body");
+  // Styles: which catalogue is showing (Page style / Ready-made / Yours / Themes).
   const [styleTab, setStyleTab] = React.useState("builtin");
   const [naming, setNaming] = React.useState(false);
   const [applyOpen, setApplyOpen] = React.useState(false);
+  const [cssOpen, setCssOpen] = React.useState(false);
   // Which parts "Apply this look to…" copies — all of them by default.
   const [applyParts, setApplyParts] = React.useState(LOOK_GROUPS.map((g) => g.id));
-  // "Each side" rows under Inner spacing / Outline.
-  const [padSides, setPadSides] = React.useState(false);
-  const [outlineSides, setOutlineSides] = React.useState(false);
-  // The footer's Reset… choice (just the look / everything).
+  // The ⋯ menu and its Reset… choice (just the look / everything).
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const [resetAsk, setResetAsk] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
   // Which parts of the look a saved style should carry. All of them by
   // default — a preset that covers everything needs no caveats.
   const [saveGroups, setSaveGroups] = React.useState(LOOK_GROUPS.map((g) => g.id));
   const [exclusionsFor, setExclusionsFor] = React.useState(null); // style id
-  // Always drag-resizable (the grab bar is the size control — no separate
-  // Peek mode); height shared with Display options. The page never dims
-  // under it: settings apply live and watching the widget is the point.
-  const peekResize = usePeekHeight("symphony_options_peek_h", 85);
+  // Always drag-resizable (the grab bar is the size control); height shared
+  // with Display options. Opens at about half height so the widget being
+  // styled stays in view (Apple's medium detent) — the first drag is
+  // remembered, as before.
+  const peekResize = usePeekHeight("symphony_options_peek_h", 55);
   const peekH = peekResize.peekH;
   React.useEffect(() => {
     if (!open) return undefined;
@@ -922,7 +841,7 @@ export default function WidgetConfigSheet({
   const settings = foldedSettings(def, widget?.settings);
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const [iconPickerOpen, setIconPickerOpen] = React.useState(false);
-  const fontOptions = useFontOptions();
+  const fontOptions = useFontOptions({ inheritLabel: "App font" });
   const headFontOptions = useFontOptions({ inheritLabel: "Same as body" });
   // Classic Appearance themes, offered as widget looks.
   const { allPresets = {}, userCustomPresets = {} } = useTheme() || {};
@@ -934,10 +853,6 @@ export default function WidgetConfigSheet({
     ...Object.entries(allPresets).map(([name, preset]) => ({ name, preset, mine: false })),
   ].filter(({ preset }) => preset && (preset.light || preset.dark)), [allPresets, userCustomPresets]);
   const t = useTerms();
-  // Which sections (Text / Layout / Box / Colours & fill / Styles / CSS /
-  // Icon) are open.
-  const [openParts, setOpenParts] = React.useState([]);
-  const toggleOpenPart = (id) => setOpenParts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   if (!open) return null;
 
   const defLabel = widgetAutoLabel(def, settings, t);
@@ -951,11 +866,9 @@ export default function WidgetConfigSheet({
     });
   // OFF is a real stored value ("this style has no gradient"), not a colour.
   const gradHex = (v) => (v && v !== OFF ? v : "");
-  // The gradient the widget is ACTUALLY drawing = the built-in / saved
-  // style underneath, the widget's own fields on top (the same merge
-  // widgetLookFor does). The pickers used to show only the widget's own
-  // fields, so with a style applied they sat on default colours while the
-  // widget showed the style's gradient (the user's report).
+  // The look the widget is ACTUALLY drawing = the built-in / saved style
+  // underneath, the widget's own fields on top (the same merge
+  // widgetLookFor does), so every row shows the real current value.
   const effective = (() => {
     const st = settings.style;
     const savedId = userStyleId(st);
@@ -967,6 +880,10 @@ export default function WidgetConfigSheet({
   // A style can carry "no custom CSS" as an explicit value; that's an
   // empty editor, not the literal word.
   const ownCss = settings.css && settings.css !== OFF ? settings.css : "";
+  // What a size row falls back to while inherited: the style underneath,
+  // then what is measured on screen, then the app's default.
+  const num = (v, alt) => { const n = Number(v); return Number.isFinite(n) && v !== "" && v != null ? n : alt; };
+  const fb = (key, liveKey, dflt) => num(effective[key], num(live[liveKey], dflt));
 
   const saveStyle = () => {
     const label = styleName.trim();
@@ -989,28 +906,26 @@ export default function WidgetConfigSheet({
   const ownFields = (def.configFields || []).filter((f) => f.section !== "ui");
   const uiFields = (def.configFields || []).filter((f) => f.section === "ui" && f.type === "range");
   const uiFieldKeys = uiFields.map((f) => f.key);
+  const extraKeys = { layout: uiFieldKeys };
   const hasOwnFields = ownFields.length > 0;
   const set = (patch) => onSettings(widget.instanceId, patch);
   const setHere = (keys) => keys.some((k) => {
     const v = settings[k];
     return v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
   });
-  // The sections, in the order the chips show. The look sections come from
-  // LOOK_SECTIONS (widgetLook.js) — the same list behind saved styles,
-  // copied looks and each section's Reset.
-  const SECTION_ICONS = { text: Type, layout: Move, box: Square, fill: Palette, css: Code2 };
-  const lookParts = [
-    ...LOOK_SECTIONS.filter((sec) => sec.id !== "css").map((sec) => ({
-      id: sec.id, label: sec.label, icon: SECTION_ICONS[sec.id],
-      has: sectionHasOwn(settings, sec.id, sec.id === "layout" ? uiFieldKeys : []),
-    })),
-    { id: "styles", label: "Styles", icon: Star, has: setHere(["style"]) },
-    { id: "css", label: "Your own CSS", icon: Code2, has: !!ownCss },
-    ...(widget.widgetId === "app_shortcut"
-      ? [{ id: "icon", label: "Icon", icon: ImageIcon, has: setHere(["iconName", "iconUrl"]) }]
-      : []),
-  ];
-  const resetSection = (id, extra = []) => set(sectionResetPatch(id, extra));
+  const own = (k) => setHere([k]);
+  const isAppShortcut = widget.widgetId === "app_shortcut";
+  // The tabs: one table (INSPECTOR_TABS) drives the strip, the dots and
+  // each tab's Reset.
+  const tabs = INSPECTOR_TABS.map((tb) => ({
+    id: tb.id, label: tb.label, icon: TAB_ICONS[tb.id],
+    dot: tb.id === "styles"
+      ? setHere(["style"]) || !!ownCss
+      : tb.id === "content"
+        ? setHere(["label", "hideLabel", ...(isAppShortcut ? ["iconName", "iconUrl"] : [])])
+        : tabHasOwn(settings, tb.id, extraKeys),
+  }));
+  const resetTab = (id) => set(tabResetPatch(id, extraKeys));
 
   // ── Text ──
   // Before a person first edits Text, headings show the body's styles too
@@ -1022,10 +937,116 @@ export default function WidgetConfigSheet({
     ? (Array.isArray(effective.headerFontStyles) ? effective.headerFontStyles : [])
     : inheritedHeaderStyles(effective);
   const setText = (patch) => set({ ...textSplitPatch(effective), ...patch });
-  const fontScale = Number(settings.fontScale) || 100;
-  const headerScale = Number(settings.headerScale) || 100;
+  const fontScale = num(effective.fontScale, 100);
+  const headerScale = num(effective.headerScale, 100);
   const bodyFont = effective.font || "";
   const headFont = effective.headerFont || bodyFont;
+  const bodyColour = settings.textColor || live.textColor || "#e5e7eb";
+  const headColour = settings.headerColor || bodyColour;
+
+  const resetFooter = (id, label) => (
+    <div className="flex justify-end pt-3">
+      <button type="button" onClick={() => resetTab(id)}
+        className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+        <RotateCcw className="w-3 h-3" /> {label}
+      </button>
+    </div>
+  );
+
+  // One of the widget's own fields (configFields), as a row.
+  const renderOwnField = (f) => {
+    if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
+    if (f.type === "quickButtons") {
+      return (
+        <StackedRow key={f.key} label={applyTerms(f.label, t)} hint={f.help}>
+          <QuickButtonsField settings={settings} terms={t} onChange={(next) => set({ [f.key]: next })} />
+        </StackedRow>
+      );
+    }
+    if (f.type === "quickActionsManager") {
+      return <div key={f.key} className="py-1.5"><QuickActionsManagerField label={applyTerms(f.label, t)} /></div>;
+    }
+    const val = settings[f.key] ?? f.default ?? "";
+    const commit = (v) => set({ [f.key]: v });
+    const label = applyTerms(f.label, t);
+    if (f.type === "toggle") {
+      return <SwitchRow key={f.key} label={label} hint={f.help} checked={val !== false && val !== ""} onChange={commit} />;
+    }
+    if (f.type === "number") {
+      return (
+        <StepRow key={`${widget.instanceId}:${f.key}`} label={label} hint={f.help} value={val}
+          min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} onChange={commit} />
+      );
+    }
+    if (f.type === "range") {
+      return (
+        <SliderRow key={f.key} label={label} hint={f.help} value={settings[f.key]} fallback={f.default ?? 0}
+          min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
+          onChange={commit} onClear={() => commit("")} />
+      );
+    }
+    if (f.type === "select") {
+      return (
+        <ChoiceRow key={f.key} label={label} hint={f.help} value={val} onChange={commit}
+          options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
+      );
+    }
+    if (f.type === "multi") {
+      return (
+        <StackedRow key={f.key} label={label} hint={f.help}>
+          <Chips multiple label={label} value={val} onChange={commit}
+            options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
+        </StackedRow>
+      );
+    }
+    if (f.type === "text") {
+      return (
+        <Row key={f.key} label={label} hint={f.help}>
+          <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder ? applyTerms(f.placeholder, t) : undefined}
+            maxLength={f.maxLength || 120} onCommit={(v) => { if (v !== val) commit(v); }}
+            className="w-[11rem] max-w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        </Row>
+      );
+    }
+    return (
+      <StackedRow key={f.key} label={label} hint={f.help}>
+        {f.type === "orderToggle" && <OrderToggleField field={f} value={val} onChange={commit} />}
+        {f.type === "richtext" && (
+          /* THE full editor — same WysiwygEditor + MiniToolbar the journals
+             and bios use, so text widgets can carry colours, fonts, images
+             and in-app link buttons. */
+          <RichTextField key={`${widget.instanceId}:${f.key}`} value={val}
+            onCommit={(v) => { if (v !== val) commit(v); }} placeholder={f.placeholder} />
+        )}
+        {f.type === "textarea" && (
+          <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder}
+            multiline rows={f.rows || 3} maxLength={f.maxLength || 2000}
+            onCommit={(v) => { if (v !== val) commit(v); }}
+            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+        )}
+        {f.type === "dynamicSelect" && <DynamicSelectField field={f} value={val} onChange={commit} />}
+        {f.type === "arrangement" && <AlterArrangementEditor value={Array.isArray(val) ? val : []} onChange={commit} />}
+        {f.type === "symptoms" && (
+          <DynamicMultiField field={{ ...f, source: "symptoms" }} value={Array.isArray(val) ? val : []} onChange={commit} terms={t} />
+        )}
+        {f.type === "dynamicMulti" && <DynamicMultiField field={f} value={Array.isArray(val) ? val : []} onChange={commit} terms={t} />}
+        {f.type === "links" && <LinksField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} />}
+        {f.type === "group" && <GroupField value={val || ""} onChange={(v) => commit(v || "")} />}
+        {f.type === "apps" && <AppListField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} terms={t} />}
+        {f.type === "song" && <ProfileSongPicker value={val || null} onChange={(v) => commit(v)} subjectLabel="page" />}
+      </StackedRow>
+    );
+  };
+
+  const styleButton = (on, onClick, title, sub, extra = null) => (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${on ? "border-primary/60 bg-primary/10" : "border-border/40"}`}>
+      <button type="button" onClick={onClick} className="flex-1 text-left text-sm min-w-0">
+        <span className="font-medium block truncate">{title}</span>
+        {sub && <span className="text-xs text-muted-foreground block">{sub}</span>}
+      </button>
+      {extra}
+    </div>
+  );
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
@@ -1058,9 +1079,38 @@ export default function WidgetConfigSheet({
             </div>
           </div>
         )}
-        <DrawerHeader className="pb-1">
-          <div className="flex items-start justify-between gap-2">
-            <span className="flex items-center gap-2 min-w-0">
+        {/* Reset…: how much — just the look (every tab's look and the
+            style), or everything the widget ships with. */}
+        {resetAsk && (
+          <div className="absolute inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="w-full max-w-xs rounded-2xl border border-border/60 bg-card p-4 space-y-2 shadow-xl">
+              <p className="text-sm font-semibold">Reset {settings.label || defLabel}?</p>
+              <p className="text-xs text-muted-foreground">It stays on the page, and none of your data changes.</p>
+              <button type="button"
+                onClick={() => {
+                  const patch = { style: "" };
+                  for (const sec of LOOK_SECTIONS) Object.assign(patch, sectionResetPatch(sec.id, sec.id === "layout" ? uiFieldKeys : []));
+                  set(patch);
+                  setResetAsk(false);
+                }}
+                className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                Just how it looks
+              </button>
+              <button type="button"
+                onClick={() => { setResetAsk(false); onResetWidget?.(widget.instanceId); }}
+                className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
+                Everything: size, display mode, name, look and options
+              </button>
+              <button type="button" onClick={() => setResetAsk(false)}
+                className="w-full h-9 rounded-lg text-sm text-muted-foreground hover:bg-muted/50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        <DrawerHeader className="pb-1.5 pt-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 min-w-0 flex-1">
               {/* The standard close chevron — points the way the sheet leaves. */}
               <button type="button" onClick={requestClose} aria-label="Close"
                 className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
@@ -1070,715 +1120,457 @@ export default function WidgetConfigSheet({
               <DrawerDescription className="sr-only">Widget options</DrawerDescription>
             </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
-            <UndoRedoButtons />
-            <button type="button" onClick={flipDock}
-              aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
-              {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
-            </button>
+              <UndoRedoButtons />
+              {/* Moving is the most common intent when you hold a widget
+                  (the owner's call), so it keeps its own button. */}
+              {onEditLayout && (
+                <button type="button" onClick={onEditLayout} aria-label="Move and resize widgets" title="Move & resize widgets"
+                  className="h-8 px-2.5 rounded-lg border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+                  <Move className="w-3.5 h-3.5" /> Move
+                </button>
+              )}
+              <span className="relative">
+                <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-haspopup="menu" aria-expanded={menuOpen}
+                  aria-label="More" title="More"
+                  className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+                    <div role="menu" className="absolute right-0 top-9 z-50 w-56 rounded-xl border border-border/60 bg-card shadow-xl p-1"
+                      onKeyDown={(e) => { if (e.key === "Escape") setMenuOpen(false); }}>
+                      <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); flipDock(); }}
+                        className="w-full flex items-center gap-2 px-2.5 h-9 rounded-lg text-sm hover:bg-muted/50 text-left">
+                        {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5 text-muted-foreground" /> : <ArrowUpToLine className="w-3.5 h-3.5 text-muted-foreground" />}
+                        Move this panel to the {dock === "top" ? "bottom" : "top"}
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setResetAsk(true); }}
+                        className="w-full flex items-center gap-2 px-2.5 h-9 rounded-lg text-sm hover:bg-muted/50 text-left">
+                        <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" /> Reset this widget…
+                      </button>
+                      <button type="button" role="menuitem"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          const ok = await confirm({
+                            title: `Remove ${settings.label || defLabel}?`,
+                            body: "It comes off this page. Nothing it shows is deleted, and you can add it back any time.",
+                            confirmLabel: "Remove",
+                            destructive: true,
+                          });
+                          if (ok) onRemove?.(widget.instanceId);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 h-9 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left">
+                        <Trash2 className="w-3.5 h-3.5" /> Remove widget
+                      </button>
+                    </div>
+                  </>
+                )}
+              </span>
             </span>
           </div>
         </DrawerHeader>
+
+        <TabBar tabs={tabs} value={tab} onChange={(id) => { setMenuOpen(false); setTab(id); }} />
+
         <div
-          className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
+          ref={panelRef} role="tabpanel" aria-labelledby={`inspector-tab-${tab}`}
+          className="px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
           // Bottom-nav height included: on pages where the classic bottom
           // bar is up, the sheet's last rows were hidden behind it.
           style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}
         >
-          {/* First thing in the sheet — moving is the most common intent
-              when you hold a widget (the user's call). */}
-          {onEditLayout && (
-            <button
-              type="button"
-              onClick={onEditLayout}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50"
-            >
-              <LayoutGrid className="w-4 h-4" /> Move &amp; resize widgets
-            </button>
-          )}
-
-          {/* ── Widget: its name and how much it shows ── */}
-          <div className="space-y-2">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Widget</p>
-            <div className="flex items-center gap-2">
-              <DebouncedText
-                key={widget.instanceId}
-                value={settings.label || ""}
-                placeholder={defLabel}
-                maxLength={60}
-                onCommit={(v) => {
-                  const next = v.trim();
-                  if (next !== (settings.label || "")) set({ label: next });
-                }}
-                className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+          {/* ── Content: name, how much it shows, and its own options ── */}
+          {tab === "content" && (
+            <div>
+              <Row label="Name" hint={typeof def.autoLabel === "function"
+                ? "Blank: follows the file that's set to play"
+                : `Blank keeps “${defLabel}”`}>
+                <DebouncedText
+                  key={widget.instanceId}
+                  value={settings.label || ""}
+                  placeholder={defLabel}
+                  maxLength={60}
+                  onCommit={(v) => {
+                    const next = v.trim();
+                    if (next !== (settings.label || "")) set({ label: next });
+                  }}
+                  className="w-[11rem] max-w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </Row>
               {/* Off = the widget drops its heading and gives the room to
                   what it shows. Only offered where the widget draws one. */}
               {(drawsLabel || settings.hideLabel) && (
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0 cursor-pointer">
-                  Show
-                  <Switch checked={!settings.hideLabel}
-                    onCheckedChange={(on) => set({ hideLabel: on ? "" : true })}
-                    aria-label="Show the name on the widget" />
-                </label>
+                <SwitchRow label="Show the name on the widget" checked={!settings.hideLabel}
+                  onChange={(on) => set({ hideLabel: on ? "" : true })} />
+              )}
+              {/* Display mode — the one question. `def.extraModes` lets a
+                  HOST add modes of its own — the classic home offers
+                  "Classic" (the untouched classic card) ahead of the board modes. */}
+              {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
+                <ChoiceRow label="Display" value={mode} onChange={(m) => onMode(widget.instanceId, m)}
+                  options={[
+                    ...(def.extraModes || []).map((x) => ({ value: x.id, label: x.label })),
+                    ...HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => ({ value: m, label: MODE_LABEL[m] })),
+                  ]} />
+              )}
+              {isAppShortcut && (
+                <Row label="Icon" own={setHere(["iconName", "iconUrl"])} onClear={() => set({ iconUrl: "", iconName: "" })}>
+                  {iconPreview ? (
+                    <img src={iconPreview} alt="" className="w-9 h-9 rounded-xl object-cover border border-border/40" />
+                  ) : (
+                    <button type="button" onClick={() => setIconPickerOpen(true)} aria-label="Choose icon"
+                      className="w-9 h-9 rounded-xl border border-dashed border-border/50 flex items-center justify-center text-muted-foreground">
+                      <LucideByName name={settings.iconName || ""} className="w-4 h-4" fallback={<ImageIcon className="w-4 h-4" />} />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setIconPickerOpen(true)}
+                    className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">Icon…</button>
+                  <button type="button" onClick={() => onPickIcon(widget.instanceId)}
+                    className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">Image…</button>
+                  <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} allowImage={false}
+                    current={settings.iconName || ""}
+                    onPick={(o) => set({ iconName: o.iconName || "" })} />
+                </Row>
+              )}
+              {hasOwnFields && (
+                <Group title="What it shows">
+                  {ownFields.map((f, i) => {
+                    // showIf: a field only appears when it means something
+                    // for the current settings — the cure for option-soup.
+                    if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
+                    // A field may name a `group`; a new group gets a small heading.
+                    const prevGroup = i > 0 ? ownFields[i - 1].group : undefined;
+                    const head = f.group && f.group !== prevGroup
+                      ? <p key={`g_${f.group}`} className="text-xs font-semibold pt-3 pb-0.5">{applyTerms(f.group, t)}</p>
+                      : null;
+                    const field = renderOwnField(f);
+                    return head ? <React.Fragment key={f.key}>{head}{field}</React.Fragment> : field;
+                  })}
+                </Group>
               )}
             </div>
-            <p className="text-[0.6875rem] text-muted-foreground">
-              {typeof def.autoLabel === "function"
-                ? "Leave blank and the name follows the file that's set to play, renaming itself when you pick a different one."
-                : "A name you type replaces the widget's own heading. Leave it blank to keep the heading it comes with."}
-            </p>
-            {/* Display mode — the one question, as a segmented control like
-                the planner editor's Done / Now / Plan. `def.extraModes` lets a
-                HOST add modes of its own — the classic home offers "Classic"
-                (the untouched classic card) ahead of the board modes. */}
-            {(def.supportsModes.length > 1 || (def.extraModes || []).length > 0) && (
-              <Segmented label="Display mode" value={mode}
-                onChange={(m) => onMode(widget.instanceId, m)}
-                options={[
-                  ...(def.extraModes || []).map((x) => ({ value: x.id, label: x.label })),
-                  ...HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => ({ value: m, label: MODE_LABEL[m] })),
-                ]} />
-            )}
-          </div>
-
-          {/* ── What it shows: the widget's own options, always open ── */}
-          {hasOwnFields && (
-          <div className="space-y-3">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">What it shows</p>
-          {ownFields.map((f, i) => {
-            // showIf: a field only appears when it means something for the
-            // current settings — the cure for option-soup config sheets.
-            if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
-            // A field may name a `group`; a new group gets a small heading.
-            const prevGroup = i > 0 ? ownFields[i - 1].group : undefined;
-            const groupHead = f.group && f.group !== prevGroup ? <SubHead key={`g_${f.group}`}>{applyTerms(f.group, t)}</SubHead> : null;
-            const field = (() => {
-            if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
-            if (f.type === "quickButtons") {
-              return (
-                <QuickButtonsField key={f.key} settings={settings} terms={t}
-                  onChange={(next) => set({ [f.key]: next })} />
-              );
-            }
-            if (f.type === "quickActionsManager") {
-              return <QuickActionsManagerField key={f.key} label={applyTerms(f.label, t)} />;
-            }
-            const val = settings[f.key] ?? f.default ?? "";
-            const commit = (v) => set({ [f.key]: v });
-            const label = applyTerms(f.label, t);
-            // On/off, counts and sizes sit on one line: name left, control right.
-            if (f.type === "toggle") {
-              return (
-                <div key={f.key}>
-                  <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
-                    <span className="min-w-0">{label}</span>
-                    <Switch checked={val !== false && val !== ""} onCheckedChange={(on) => commit(on)} aria-label={label} />
-                  </label>
-                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
-                </div>
-              );
-            }
-            if (f.type === "number") {
-              return (
-                <div key={f.key}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm min-w-0">{label}</span>
-                    <NumberStepper key={`${widget.instanceId}:${f.key}`} label={label} value={val}
-                      min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} onCommit={commit} />
-                  </div>
-                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
-                </div>
-              );
-            }
-            if (f.type === "range") {
-              // Set-then-slide, like every size in this sheet (house rule):
-              // a bare slider moved when you scrolled past it.
-              return (
-                <div key={f.key}>
-                  <SliderRow label={label} value={settings[f.key]} fallback={f.default ?? 0}
-                    min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
-                    onChange={commit} onReset={() => commit("")} />
-                  {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
-                </div>
-              );
-            }
-            return (
-              <div key={f.key}>
-                <label className="text-xs font-medium block mb-1">{label}</label>
-                {f.type === "text" && (
-                  <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder ? applyTerms(f.placeholder, t) : undefined}
-                    maxLength={f.maxLength || 120} onCommit={(v) => { if (v !== val) commit(v); }}
-                    className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-                )}
-                {f.type === "orderToggle" && (
-                  <OrderToggleField field={f} value={val} onChange={commit} />
-                )}
-                {f.type === "richtext" && (
-                  /* THE full editor — same WysiwygEditor + MiniToolbar the
-                     journals and bios use, so text widgets can carry colours,
-                     fonts, images and in-app link buttons (owner spec:
-                     "utilize all full formatting functionality"). */
-                  <RichTextField key={`${widget.instanceId}:${f.key}`} value={val}
-                    onCommit={(v) => { if (v !== val) commit(v); }} placeholder={f.placeholder} />
-                )}
-                {f.type === "textarea" && (
-                  <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder}
-                    multiline rows={f.rows || 3} maxLength={f.maxLength || 2000}
-                    onCommit={(v) => { if (v !== val) commit(v); }}
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
-                )}
-                {f.type === "select" && (fitsSegmented(f.options) ? (
-                  <Segmented label={label} value={val} onChange={commit}
-                    options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(f.options || []).map((o) => (
-                      <button key={o.value} type="button" onClick={() => commit(o.value)}
-                        aria-pressed={String(val) === String(o.value)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                          String(val) === String(o.value)
-                            ? "border-primary/60 bg-primary/10 text-primary"
-                            : "border-border/50 text-muted-foreground hover:text-foreground"
-                        }`}>
-                        {applyTerms(String(o.label), t)}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-                {/* Static multi-pick: same chips as select, but each toggles
-                    membership in an array (e.g. which task sets a widget shows). */}
-                {f.type === "multi" && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(f.options || []).map((o) => {
-                      const arr = Array.isArray(val) ? val : (val != null && val !== "" ? [val] : []);
-                      const on = arr.some((x) => String(x) === String(o.value));
-                      return (
-                        <button key={o.value} type="button" aria-pressed={on}
-                          onClick={() => commit(on ? arr.filter((x) => String(x) !== String(o.value)) : [...arr, o.value])}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                            on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
-                          }`}>
-                          {applyTerms(String(o.label), t)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {f.type === "dynamicSelect" && (
-                  <DynamicSelectField field={f} value={val} onChange={commit} />
-                )}
-                {f.type === "arrangement" && (
-                  <AlterArrangementEditor value={Array.isArray(val) ? val : []} onChange={commit} />
-                )}
-                {f.type === "symptoms" && (
-                  <DynamicMultiField field={{ ...f, source: "symptoms" }} value={Array.isArray(val) ? val : []}
-                    onChange={commit} terms={t} />
-                )}
-                {f.type === "dynamicMulti" && (
-                  <DynamicMultiField field={f} value={Array.isArray(val) ? val : []} onChange={commit} terms={t} />
-                )}
-                {f.type === "links" && (
-                  <LinksField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} />
-                )}
-                {f.type === "group" && (
-                  <GroupField value={val || ""} onChange={(v) => commit(v || "")} />
-                )}
-                {f.type === "apps" && (
-                  <AppListField value={Array.isArray(val) ? val : []}
-                    onChange={(next) => commit(next)} terms={t} />
-                )}
-                {f.type === "song" && (
-                  <ProfileSongPicker value={val || null} onChange={(v) => commit(v)} subjectLabel="page" />
-                )}
-                {f.help && <p className="text-[0.6875rem] text-muted-foreground mt-1">{f.help}</p>}
-              </div>
-            );
-            })();
-            return groupHead ? <React.Fragment key={f.key}>{groupHead}{field}</React.Fragment> : field;
-          })}
-          </div>
           )}
 
-          {/* ── How it looks: one chip per section (planner-editor chips).
-              A dot on a closed chip = this widget has its own setting
-              there. Each section holds everything about one part of the
-              widget, and the same sections are what a saved style or a
-              copied look carries (LOOK_SECTIONS). ── */}
-          <div className="flex flex-wrap gap-1.5">
-            {lookParts.map((part) => (
-              <DetailChip key={part.id} open={openParts.includes(part.id)} has={part.has}
-                onToggle={() => toggleOpenPart(part.id)} label={part.label}
-                icon={<part.icon className="w-3 h-3" />} />
-            ))}
-          </div>
-
-          {/* ── Text: body and headings as a matching pair ── */}
-          <LookPart open={openParts.includes("text")} title="Text"
-            onReset={() => resetSection("text")} resetLabel="Reset text">
-            {/* Live preview in this widget's own fonts. */}
-            <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5" aria-hidden>
-              <p className="font-semibold leading-tight"
-                style={{ fontFamily: headFont || undefined, zoom: headerScale / 100, color: settings.headerColor || undefined, ...flagsStyle(headStyles) }}>
-                Heading
-              </p>
-              <p className="text-sm mt-0.5"
-                style={{ fontFamily: bodyFont || undefined, fontSize: `${0.875 * fontScale / 100}rem`, color: settings.textColor || undefined, ...flagsStyle(bodyStyles) }}>
-                Body text in this widget
-              </p>
-            </div>
-            <TextCard
-              title="Body"
-              font={{
-                select: (
-                  <SearchableSelect
-                    value={settings.font || ""}
-                    onChange={(v) => setText({ font: v || "" })}
-                    // Includes the user's own uploaded fonts (owner rule).
-                    options={fontOptions}
-                    placeholder="Use the app font"
-                    searchPlaceholder="Search fonts…"
-                    renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
-                  />
-                ),
-                upload: <FontUploadButton onUploaded={(family) => setText({ font: family })} />,
-              }}
-              size={{
-                label: "Size", valueLabel: `${fontScale}%`,
-                canDown: fontScale > 70, canUp: fontScale < 160,
-                onDown: () => setText({ fontScale: Math.max(70, fontScale - 5) }),
-                onUp: () => setText({ fontScale: Math.min(160, fontScale + 5) }),
-              }}
-              style={{
-                label: "Style", stacked: true,
-                control: <FontStyleChips value={bodyStyles} onChange={(next) => setText({ fontStyles: next })} />,
-              }}
-              colour={{
-                label: "Colour",
-                control: (
-                  <ColorPicker compact caption={false} label="Text colour"
-                    value={settings.textColor || live.textColor || "#e5e7eb"}
+          {/* ── Text: body or headings, one at a time ── */}
+          {tab === "text" && (
+            <div>
+              {/* Live preview in this widget's own fonts. */}
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5 mt-1" aria-hidden>
+                <p className="font-semibold leading-tight"
+                  style={{ fontFamily: headFont || undefined, zoom: headerScale / 100, color: settings.headerColor || undefined, ...flagsStyle(headStyles) }}>
+                  Heading
+                </p>
+                <p className="text-sm mt-0.5"
+                  style={{ fontFamily: bodyFont || undefined, fontSize: `${0.875 * fontScale / 100}rem`, color: settings.textColor || undefined, ...flagsStyle(bodyStyles) }}>
+                  Body text in this widget
+                </p>
+              </div>
+              <div className="py-2">
+                <Segmented label="Which text" value={textKind} onChange={setTextKind}
+                  options={[{ value: "body", label: "Body" }, { value: "headings", label: "Headings" }]} />
+              </div>
+              {textKind === "body" ? (
+                <div>
+                  <Row label="Font" own={own("font")} onClear={() => setText({ font: "" })}>
+                    <span className="w-[10rem] max-w-full">
+                      <SearchableSelect
+                        value={settings.font || ""}
+                        onChange={(v) => setText({ font: v || "" })}
+                        // Includes the user's own uploaded fonts (owner rule).
+                        options={fontOptions}
+                        placeholder="App font"
+                        searchPlaceholder="Search fonts…"
+                        renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
+                      />
+                    </span>
+                    <FontUploadButton onUploaded={(family) => setText({ font: family })} />
+                  </Row>
+                  <SliderRow label="Size" value={settings.fontScale} fallback={fontScale}
+                    min={70} max={160} step={5} unit="%"
+                    onChange={(v) => setText({ fontScale: v })} onClear={() => set({ fontScale: "" })} />
+                  <Row label="Style" own={own("fontStyles")} onClear={() => setText({ fontStyles: [] })}>
+                    <FontStyleToggles value={bodyStyles} onChange={(next) => setText({ fontStyles: next })} />
+                  </Row>
+                  <ColourRow label="Colour" value={settings.textColor} live={live.textColor} fallback="#e5e7eb"
                     onChange={(v) => setText({ textColor: v })}
                     opacity={{ value: settings.textOpacity, onChange: (v) => setAlpha("textColor", "textOpacity", v, live.textColor || "#e5e7eb") }}
                     onClear={() => set({ textColor: "", textOpacity: "" })} />
-                ),
-              }}
-            />
-            <TextCard
-              title="Headings"
-              font={{
-                select: (
-                  <SearchableSelect
-                    value={settings.headerFont || ""}
-                    onChange={(v) => setText({ headerFont: v || "" })}
-                    options={headFontOptions}
-                    placeholder="Same as body"
-                    searchPlaceholder="Search fonts…"
-                    renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
-                  />
-                ),
-                upload: <FontUploadButton onUploaded={(family) => setText({ headerFont: family })} />,
-              }}
-              size={{
-                label: "Size", valueLabel: `${headerScale}%`,
-                canDown: headerScale > 50, canUp: headerScale < 200,
-                onDown: () => setText({ headerScale: Math.max(50, headerScale - 10) }),
-                onUp: () => setText({ headerScale: Math.min(200, headerScale + 10) }),
-              }}
-              style={{
-                label: "Style", stacked: true,
-                control: <FontStyleChips regular value={headStyles} onChange={(next) => setText({ headerFontStyles: next })} />,
-              }}
-              colour={{
-                label: "Colour",
-                control: (
-                  <ColorPicker compact caption={false} label="Heading colour"
-                    value={settings.headerColor || settings.textColor || live.textColor || "#e5e7eb"}
+                </div>
+              ) : (
+                <div>
+                  <Row label="Font" own={own("headerFont")} onClear={() => setText({ headerFont: "" })}>
+                    <span className="w-[10rem] max-w-full">
+                      <SearchableSelect
+                        value={settings.headerFont || ""}
+                        onChange={(v) => setText({ headerFont: v || "" })}
+                        options={headFontOptions}
+                        placeholder="Same as body"
+                        searchPlaceholder="Search fonts…"
+                        renderOption={(o) => <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>}
+                      />
+                    </span>
+                    <FontUploadButton onUploaded={(family) => setText({ headerFont: family })} />
+                  </Row>
+                  <SliderRow label="Size" value={settings.headerScale} fallback={headerScale}
+                    min={50} max={200} step={10} unit="%"
+                    onChange={(v) => setText({ headerScale: v })} onClear={() => set({ headerScale: "" })} />
+                  <Row label="Style" own={own("headerFontStyles")} onClear={() => setText({ headerFontStyles: [] })}>
+                    <FontStyleToggles value={headStyles} onChange={(next) => setText({ headerFontStyles: next })} />
+                  </Row>
+                  <ColourRow label="Colour" value={settings.headerColor} live={headColour} fallback="#e5e7eb"
                     onChange={(v) => setText({ headerColor: v })}
-                    opacity={{ value: settings.headerOpacity, onChange: (v) => setText({ headerOpacity: v, ...(settings.headerColor ? {} : { headerColor: settings.textColor || live.textColor || "#e5e7eb" }) }) }}
+                    opacity={{ value: settings.headerOpacity, onChange: (v) => setText({ headerOpacity: v, ...(settings.headerColor ? {} : { headerColor: headColour }) }) }}
                     onClear={() => set({ headerColor: "", headerOpacity: "" })} />
-                ),
-              }}
-            />
-            <p className="text-[0.6875rem] text-muted-foreground">
-              Headings are the widget's titles. They follow the body font until you pick one of their own, and body styles don't change them.
-            </p>
-          </LookPart>
+                  <p className="text-[0.6875rem] text-muted-foreground pt-2">
+                    Headings are the widget's titles. They follow the body font until you pick one of their own, and body styles don't change them.
+                  </p>
+                </div>
+              )}
+              {resetFooter("text", "Reset text")}
+            </div>
+          )}
 
-          {/* ── Layout: where things sit inside the box ── */}
-          <LookPart open={openParts.includes("layout")} title="Layout"
-            onReset={() => resetSection("layout", uiFieldKeys)} resetLabel="Reset layout">
-            <SliderRow label="Content size" value={settings.controlScale} fallback={100}
-              min={60} max={200} step={5} unit="%"
-              onChange={(v) => set({ controlScale: v })}
-              onReset={() => set({ controlScale: "" })} />
-            <p className="text-[0.6875rem] text-muted-foreground -mt-2">Scales everything the widget draws: rows, buttons, pictures and spacing.</p>
-            <div className="space-y-1">
-              <span className="text-xs font-medium block">Across</span>
-              {/* Left / Right mirror the layout, not just the text. */}
-              <Segmented label="Across" value={settings.halign || "stretch"} onChange={(v) => set({ halign: v })}
-                options={[{ value: "stretch", label: "Fill" }, { value: "left", label: "Left" }, { value: "center", label: "Center" }, { value: "right", label: "Right" }]} />
-            </div>
-            <div className="space-y-1">
-              <span className="text-xs font-medium block">Down</span>
-              <Segmented label="Down" value={settings.valign || "center"} onChange={(v) => set({ valign: v })}
-                options={[{ value: "top", label: "Top" }, { value: "center", label: "Center" }, { value: "bottom", label: "Bottom" }]} />
-            </div>
+          {/* ── Shape: size, spacing and edges ── */}
+          {tab === "shape" && (
             <div>
-              <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
-                min={0} max={32} unit="px"
-                onChange={(v) => set({ padding: v })}
-                onReset={() => set({ padding: "" })} />
-              {(() => {
-                const sideKeys = [["padTop", "Top"], ["padRight", "Right"], ["padBottom", "Bottom"], ["padLeft", "Left"]];
-                const anySet = setHere(sideKeys.map(([k]) => k));
-                const shown = padSides || anySet;
-                return (
-                  <>
-                    <button type="button" onClick={() => setPadSides((v) => !v)} aria-expanded={shown}
-                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
-                      <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
-                    </button>
-                    {shown && (
-                      <div className="pl-3 border-l border-border/40">
-                        {sideKeys.map(([key, label]) => (
-                          <SliderRow key={key} label={label} value={settings[key]} fallback={settings.padding ?? 12}
-                            min={0} max={48} unit="px"
-                            onChange={(v) => set({ [key]: v })}
-                            onReset={() => set({ [key]: "" })} />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-            {/* Sizes the widget itself declares (e.g. the week grid's lane
-                strength) — set-then-slide like every size here. */}
-            {uiFields.map((f) => (
-              <SliderRow key={f.key} label={applyTerms(f.label, t)}
-                value={settings[f.key]} fallback={f.default ?? 0}
-                min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
-                onChange={(v) => set({ [f.key]: v })}
-                onReset={() => set({ [f.key]: "" })} />
-            ))}
-          </LookPart>
-
-          {/* ── Box: the widget's shell ── */}
-          <LookPart open={openParts.includes("box")} title="Box"
-            onReset={() => resetSection("box")} resetLabel="Reset box">
-            <SliderRow label="Corner radius" value={settings.radius} fallback={12}
-              min={0} max={32} unit="px"
-              onChange={(v) => set({ radius: v })}
-              onReset={() => set({ radius: "" })} />
-            <SubHead>Outline</SubHead>
-            <div>
-              <SliderRow label="Width" value={settings.outlineW} fallback={1}
-                min={0} max={8} unit="px"
-                onChange={(v) => set({ outlineW: v })}
-                onReset={() => set({ outlineW: "" })} />
-              {(() => {
-                const sideKeys = [["borderTopW", "Top"], ["borderRightW", "Right"], ["borderBottomW", "Bottom"], ["borderLeftW", "Left"]];
-                const anySet = setHere(sideKeys.map(([k]) => k));
-                const shown = outlineSides || anySet;
-                return (
-                  <>
-                    <button type="button" onClick={() => setOutlineSides((v) => !v)} aria-expanded={shown}
-                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
-                      <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
-                    </button>
-                    {shown && (
-                      <div className="pl-3 border-l border-border/40">
-                        {sideKeys.map(([key, label]) => (
-                          <SliderRow key={key} label={label} value={settings[key]} fallback={settings.outlineW ?? 1}
-                            min={0} max={8} unit="px"
-                            onChange={(v) => set({ [key]: v })}
-                            onReset={() => set({ [key]: "" })} />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1">Style</label>
-              <div className="flex flex-wrap gap-1">
-                {BORDER_STYLES.map((v) => (
-                  <button key={v} type="button" aria-pressed={settings.borderStyle === v}
-                    onClick={() => set({ borderStyle: settings.borderStyle === v ? "" : v })}
-                    className={`text-[0.6875rem] px-2.5 py-1 rounded-full border capitalize ${
-                      settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                    }`}>{v}</button>
+              <Group title="Size & spacing" first>
+                <SliderRow label="Content size" hint="Rows, buttons, pictures and spacing"
+                  value={settings.controlScale} fallback={100}
+                  min={60} max={200} step={5} unit="%"
+                  onChange={(v) => set({ controlScale: v })} onClear={() => set({ controlScale: "" })} />
+                <div className="border-b border-border/30">
+                  <SliderRow label="Inner spacing" value={settings.padding} fallback={fb("padding", "padding", 12)}
+                    min={0} max={32} unit="px"
+                    onChange={(v) => set({ padding: v })} onClear={() => set({ padding: "" })} />
+                  <SideRows sides={[["padTop", "Top"], ["padRight", "Right"], ["padBottom", "Bottom"], ["padLeft", "Left"]]}
+                    settings={settings} fallback={num(settings.padding, fb("padding", "padding", 12))} min={0} max={48} set={set} setHere={setHere} />
+                </div>
+                {/* Left / Right mirror the layout, not just the text. */}
+                <ChoiceRow label="Across" value={settings.halign || "stretch"} onChange={(v) => set({ halign: v })}
+                  own={own("halign")} onClear={() => set({ halign: "" })}
+                  options={[{ value: "stretch", label: "Fill" }, { value: "left", label: "Left" }, { value: "center", label: "Centre" }, { value: "right", label: "Right" }]} />
+                <ChoiceRow label="Down" value={settings.valign || "center"} onChange={(v) => set({ valign: v })}
+                  own={own("valign")} onClear={() => set({ valign: "" })}
+                  options={[{ value: "top", label: "Top" }, { value: "center", label: "Centre" }, { value: "bottom", label: "Bottom" }]} />
+                {/* Sizes the widget itself declares (e.g. the week grid's lane strength). */}
+                {uiFields.map((f) => (
+                  <SliderRow key={f.key} label={applyTerms(f.label, t)}
+                    value={settings[f.key]} fallback={f.default ?? 0}
+                    min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
+                    onChange={(v) => set({ [f.key]: v })} onClear={() => set({ [f.key]: "" })} />
                 ))}
-              </div>
+              </Group>
+              <Group title="Edges">
+                <SliderRow label="Corners" value={settings.radius} fallback={fb("radius", "radius", 12)}
+                  min={0} max={32} unit="px"
+                  onChange={(v) => set({ radius: v })} onClear={() => set({ radius: "" })} />
+                <div className="border-b border-border/30">
+                  <SliderRow label="Outline" hint="The box's own edge" value={settings.outlineW} fallback={fb("outlineW", "outlineW", 1)}
+                    min={0} max={8} unit="px"
+                    onChange={(v) => set({ outlineW: v })} onClear={() => set({ outlineW: "" })} />
+                  <SideRows sides={[["borderTopW", "Top"], ["borderRightW", "Right"], ["borderBottomW", "Bottom"], ["borderLeftW", "Left"]]}
+                    settings={settings} fallback={num(settings.outlineW, fb("outlineW", "outlineW", 1))} min={0} max={8} set={set} setHere={setHere} />
+                </div>
+                <ChoiceRow label="Outline style" value={effective.borderStyle || live.borderStyle || "solid"}
+                  onChange={(v) => set({ borderStyle: v })} own={own("borderStyle")} onClear={() => set({ borderStyle: "" })}
+                  options={BORDER_STYLES.map((v) => ({ value: v, label: v === "dashed" ? "Dash" : v === "dotted" ? "Dot" : v === "double" ? "Dbl" : v[0].toUpperCase() + v.slice(1) }))} />
+                <ColourRow label="Outline colour" value={settings.borderColor} live={live.borderColor} fallback="#3b82f6"
+                  onChange={(v) => set({ borderColor: v })}
+                  opacity={{ value: settings.borderOpacity, onChange: (v) => setAlpha("borderColor", "borderOpacity", v, live.borderColor || "#3b82f6") }}
+                  onClear={() => set({ borderColor: "", borderOpacity: "" })} />
+                {/* Split (owner ask, v0.239.0): this scales the borders INSIDE
+                    the widget; Outline above is the box's own edge. */}
+                <SliderRow label="Lines inside" hint="Buttons, cards and dividers" value={settings.borderW} fallback={fb("borderW", "borderW", 1)}
+                  min={0} max={8} unit="px"
+                  onChange={(v) => set({ borderW: v })} onClear={() => set({ borderW: "" })} />
+                <ChoiceRow label="Shadow" value={effective.shadow || "none"} onChange={(v) => set({ shadow: v })}
+                  own={own("shadow")} onClear={() => set({ shadow: "" })}
+                  options={Object.keys(SHADOW_PRESETS).map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))} />
+              </Group>
+              {resetFooter("shape", "Reset shape")}
             </div>
-            <ColourRow label="Colour">
-              <ColorPicker compact caption={false} label="Outline colour"
-                value={settings.borderColor || live.borderColor || "#3b82f6"}
-                onChange={(v) => set({ borderColor: v })}
-                opacity={{ value: settings.borderOpacity, onChange: (v) => setAlpha("borderColor", "borderOpacity", v, live.borderColor || "#3b82f6") }}
-                onClear={() => set({ borderColor: "", borderOpacity: "" })} />
-            </ColourRow>
-            <SubHead>Inside the box</SubHead>
-            {/* Split (owner ask, v0.239.0): this scales the borders INSIDE
-                the widget; Outline above is the box's own edge. */}
-            <SliderRow label="Lines inside" value={settings.borderW} fallback={1}
-              min={0} max={8} unit="px"
-              onChange={(v) => set({ borderW: v })}
-              onReset={() => set({ borderW: "" })} />
-            <p className="text-[0.6875rem] text-muted-foreground -mt-2">The borders of buttons, cards and dividers in the widget.</p>
-            <div>
-              <label className="text-xs font-medium block mb-1">Shadow</label>
-              <div className="flex flex-wrap gap-1">
-                {Object.keys(SHADOW_PRESETS).map((v) => (
-                  <button key={v} type="button" aria-pressed={settings.shadow === v}
-                    onClick={() => set({ shadow: settings.shadow === v ? "" : v })}
-                    className={`text-[0.6875rem] px-2.5 py-1 rounded-full border capitalize ${
-                      settings.shadow === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                    }`}>{v}</button>
-                ))}
-              </div>
-            </div>
-          </LookPart>
+          )}
 
-          {/* ── Colours & fill: everything painted ── */}
-          <LookPart open={openParts.includes("fill")} title="Colours & fill"
-            onReset={() => resetSection("fill")} resetLabel="Reset colours & fill">
-            {/* Opacity sits with its OWN colour (inside each swatch's
-                popover), so a gradient can fade or a background can go
-                see-through independently. */}
-            <ColourRow label="Highlight colour">
-              <ColorPicker compact caption={false} label="Highlight colour"
-                value={settings.accent || live.accent || "#3b82f6"}
+          {/* ── Colour: everything painted ── */}
+          {tab === "colour" && (
+            <div>
+              {/* Opacity sits with its OWN colour (inside each swatch's
+                  popover), so a gradient can fade or a background can go
+                  see-through independently. */}
+              <ColourRow label="Highlight" hint="Buttons and selected things" value={settings.accent} live={live.accent} fallback="#3b82f6"
                 onChange={(v) => set({ accent: v })}
                 opacity={{ value: settings.accentOpacity, onChange: (v) => setAlpha("accent", "accentOpacity", v, live.accent || "#3b82f6") }}
                 onClear={() => set({ accent: "", accentOpacity: "" })}
                 extraAction={{ label: "Use the app colour", onClick: () => set({ accent: "", accentOpacity: "" }) }} />
-            </ColourRow>
-            <ColourRow label="Background colour">
-              <ColorPicker compact caption={false} label="Background"
-                value={settings.bg || live.bg || "#111827"}
+              <ColourRow label="Background" value={settings.bg} live={live.bg} fallback="#111827"
                 onChange={(v) => set({ bg: v })}
                 opacity={{ value: settings.bgOpacity, onChange: (v) => setAlpha("bg", "bgOpacity", v, live.bg || "#111827") }}
                 onClear={() => set({ bg: "", bgOpacity: "" })} />
-            </ColourRow>
-            {/* Gradient — a layer OVER the background colour. A switch owns
-                it: its swatches only show while it's on. */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <label className="text-xs font-medium flex-1">Gradient</label>
-                <Switch checked={!!gradOn} onCheckedChange={(on) => {
-                  if (on) {
-                    set({
-                      gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8",
-                      gradTo: gradHex(effective.gradTo) || "#6ee7b7",
-                    });
-                  } else {
-                    set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "", gradAngle: "" });
-                  }
-                }} aria-label="Gradient" />
-              </div>
+              {/* Gradient — a layer OVER the background colour. A switch owns
+                  it: its rows only show while it's on. */}
+              <SwitchRow label="Gradient" checked={!!gradOn} onChange={(on) => {
+                if (on) {
+                  set({
+                    gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8",
+                    gradTo: gradHex(effective.gradTo) || "#6ee7b7",
+                  });
+                } else {
+                  set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "", gradAngle: "" });
+                }
+              }} />
               {gradOn && (
-                <div className="pl-3 border-l border-border/40 space-y-1">
-                  <ColourRow label="From">
-                    <ColorPicker compact caption={false} label="From"
-                      value={gradHex(effective.gradFrom) || live.bg || "#38bdf8"}
-                      onChange={(v) => set({ gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
-                      opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
-                      onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                  </ColourRow>
-                  <ColourRow label="To">
-                    <ColorPicker compact caption={false} label="To"
-                      value={gradHex(effective.gradTo) || "#6ee7b7"}
-                      onChange={(v) => set({ gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
-                      opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
-                      onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                  </ColourRow>
-                  <SliderRow label="Angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
+                <div className="pl-3 border-l border-border/40 mb-1">
+                  <ColourRow label="From" value={gradHex(settings.gradFrom)} live={gradHex(effective.gradFrom) || live.bg} fallback="#38bdf8"
+                    onChange={(v) => set({ gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
+                    opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
+                    onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                  <ColourRow label="To" value={gradHex(settings.gradTo)} live={gradHex(effective.gradTo)} fallback="#6ee7b7"
+                    onChange={(v) => set({ gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
+                    opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
+                    onClear={() => set({ gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                  <SliderRow label="Angle" value={settings.gradAngle} fallback={num(effective.gradAngle, 135)}
                     min={0} max={360} step={15} unit="°"
-                    onChange={(v) => set({ gradAngle: v })}
-                    onReset={() => set({ gradAngle: "" })} />
+                    onChange={(v) => set({ gradAngle: v })} onClear={() => set({ gradAngle: "" })} />
                 </div>
               )}
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1">Picture</label>
-              <div className="flex items-center gap-2 flex-wrap">
+              <Row label="Picture" own={!!settings.bgImage} onClear={() => set({ bgImage: "" })}>
+                {settings.bgImage && (
+                  <Segmented label="Picture fit" value={settings.bgSize || "cover"} onChange={(v) => set({ bgSize: v })}
+                    options={[{ value: "cover", label: "Fill" }, { value: "contain", label: "Fit" }, { value: "repeat", label: "Tile" }]} />
+                )}
                 <button type="button" onClick={() => onPickBackground?.(widget.instanceId)}
-                  className="h-9 px-3 rounded-lg border border-border text-xs flex items-center gap-1.5">
+                  className="h-8 px-2.5 rounded-lg border border-border/60 text-xs flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
                   <ImageIcon className="w-3.5 h-3.5" /> {settings.bgImage ? "Change" : "Choose"}
                 </button>
-                {settings.bgImage && (
-                  <>
-                    <div className="flex gap-1">
-                      {[["cover", "Fill"], ["contain", "Fit"], ["repeat", "Tile"]].map(([v, label]) => (
-                        <button key={v} type="button" aria-pressed={(settings.bgSize || "cover") === v}
-                          onClick={() => set({ bgSize: v })}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            (settings.bgSize || "cover") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                          }`}>{label}</button>
-                      ))}
-                    </div>
-                    <button type="button" onClick={() => set({ bgImage: "" })}
-                      className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Remove</button>
-                  </>
-                )}
-              </div>
+              </Row>
+              <SliderRow label="Frosted blur" value={settings.blur} fallback={num(effective.blur, 0)}
+                min={0} max={24} unit="px"
+                onChange={(v) => set({ blur: v })} onClear={() => set({ blur: "" })} />
+              {resetFooter("colour", "Reset colour")}
             </div>
-            <SliderRow label="Frosted blur" value={settings.blur} fallback={0}
-              min={0} max={24} unit="px"
-              onChange={(v) => set({ blur: v })}
-              onReset={() => set({ blur: "" })} />
-          </LookPart>
+          )}
 
-          {/* ── Styles: ready-made and saved looks, saving, copying ── */}
-          <LookPart open={openParts.includes("styles")} title="Styles">
-            <button
-              type="button"
-              onClick={() => set({ style: "" })}
-              className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                !settings.style ? "border-primary/60 bg-primary/10" : "border-border/40 hover:border-border"
-              }`}
-            >
-              <span className="font-medium">Inherit page style</span>
-              <span className="text-xs text-muted-foreground block">Currently “{pageStyleLabel}”</span>
-            </button>
-            <Segmented label="Which styles" value={styleTab} onChange={setStyleTab}
-              options={[
-                { value: "builtin", label: "Ready-made" },
-                { value: "mine", label: `Yours${userStyles.length ? ` (${userStyles.length})` : ""}` },
-                ...(themeLookEntries.length ? [{ value: "themes", label: "Themes" }] : []),
-              ]} />
-            {styleTab === "builtin" && (
-              <div className="space-y-1">
-                {HOME_STYLES.map((s) => (
-                  <button key={s.id} type="button" onClick={() => set({ style: s.id })}
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                      styleOverride === s.id ? "border-primary/60 bg-primary/10" : "border-border/40 hover:border-border"
-                    }`}>
-                    <span className="font-medium">{s.label}</span>
-                    <span className="text-xs text-muted-foreground block">{s.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {styleTab === "mine" && (
-              <div className="space-y-1">
-                {userStyles.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No saved styles yet. Save this widget's look below to reuse it anywhere.</p>
-                )}
-                {userStyles.map((st) => {
-                  const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
-                  const cov = lookCoverage(st.look || {});
-                  return (
-                    <div key={st.id}>
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                      on ? "border-primary/60 bg-primary/10" : "border-border/40"
-                    }`}>
-                      <button type="button" className="flex-1 text-left text-sm font-medium min-w-0"
-                        onClick={() => set({ style: `${USER_STYLE_PREFIX}${st.id}` })}>
-                        <span className="truncate block">{st.label}</span>
-                        <span className="text-xs text-muted-foreground block">{cov.complete ? "Whole look" : `Changes ${cov.covers.map((g) => g.label).join(", ") || "nothing"}`}</span>
-                      </button>
-                      {/* A style that decides everything needs no caveat. One
-                          that leaves parts alone says so, and the star opens
-                          exactly what it does and doesn't touch. */}
-                      {!cov.complete && (
-                        <button type="button"
-                          aria-label={`What "${st.label}" changes`}
-                          title="Partial style — see what it changes"
-                          onClick={() => setExclusionsFor(exclusionsFor === st.id ? null : st.id)}
-                          className={`p-1 flex-shrink-0 ${exclusionsFor === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                          <Star className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button type="button" aria-label={`Delete ${st.label}`}
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: `Delete "${st.label}"?`,
-                            body: "Widgets using it go back to inheriting the page style. Their own tweaks stay.",
-                            confirmLabel: "Delete", destructive: true,
-                          });
-                          if (ok) onDeleteStyle?.(st.id);
-                        }}
-                        className="p-1 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    {exclusionsFor === st.id && (
-                      <div className="mt-1 mb-1 px-3 py-2 rounded-lg border border-border/40 bg-muted/30 space-y-1.5">
-                        <div>
-                          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Changes</p>
-                          <p className="text-xs">{cov.covers.map((g) => g.label).join(", ") || "nothing"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Leaves alone</p>
-                          <p className="text-xs">{cov.leaves.map((g) => g.label).join(", ")}</p>
-                        </div>
+          {/* ── Styles: ready-made and saved looks, saving, copying, CSS ── */}
+          {tab === "styles" && (
+            <div className="space-y-2 pt-1">
+              <Segmented label="Which styles" value={!settings.style ? "page" : styleTab}
+                onChange={(v) => { if (v === "page") set({ style: "" }); else setStyleTab(v); }}
+                options={[
+                  { value: "page", label: "Page style" },
+                  { value: "builtin", label: "Ready-made" },
+                  { value: "mine", label: `Yours${userStyles.length ? ` (${userStyles.length})` : ""}` },
+                  ...(themeLookEntries.length ? [{ value: "themes", label: "Themes" }] : []),
+                ]} />
+              {!settings.style ? (
+                <p className="text-xs text-muted-foreground px-1">
+                  This widget follows the page's style, currently “{pageStyleLabel}”. Pick one of the other lists to give it a style of its own; your own tweaks in Text, Shape and Colour sit on top either way.
+                </p>
+              ) : styleTab === "builtin" ? (
+                <div className="space-y-1">
+                  {HOME_STYLES.map((s) => (
+                    <button key={s.id} type="button" onClick={() => set({ style: s.id })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                        styleOverride === s.id ? "border-primary/60 bg-primary/10" : "border-border/40 hover:border-border"
+                      }`}>
+                      <span className="font-medium">{s.label}</span>
+                      <span className="text-xs text-muted-foreground block">{s.description}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : styleTab === "mine" ? (
+                <div className="space-y-1">
+                  {userStyles.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No saved styles yet. Save this widget's look below to reuse it anywhere.</p>
+                  )}
+                  {userStyles.map((st) => {
+                    const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
+                    const cov = lookCoverage(st.look || {});
+                    return (
+                      <div key={st.id}>
+                        {styleButton(on, () => set({ style: `${USER_STYLE_PREFIX}${st.id}` }), st.label,
+                          cov.complete ? "Whole look" : `Changes ${cov.covers.map((g) => g.label).join(", ") || "nothing"}`,
+                          <>
+                            {/* A style that decides everything needs no caveat.
+                                One that leaves parts alone says so, and the star
+                                opens exactly what it does and doesn't touch. */}
+                            {!cov.complete && (
+                              <button type="button"
+                                aria-label={`What "${st.label}" changes`}
+                                title="Partial style — see what it changes"
+                                onClick={() => setExclusionsFor(exclusionsFor === st.id ? null : st.id)}
+                                className={`p-1 flex-shrink-0 ${exclusionsFor === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                                <Star className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button type="button" aria-label={`Delete ${st.label}`}
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Delete "${st.label}"?`,
+                                  body: "Widgets using it go back to inheriting the page style. Their own tweaks stay.",
+                                  confirmLabel: "Delete", destructive: true,
+                                });
+                                if (ok) onDeleteStyle?.(st.id);
+                              }}
+                              className="p-1 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>)}
+                        {exclusionsFor === st.id && (
+                          <div className="mt-1 mb-1 px-3 py-2 rounded-lg border border-border/40 bg-muted/30 space-y-1.5">
+                            <div>
+                              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Changes</p>
+                              <p className="text-xs">{cov.covers.map((g) => g.label).join(", ") || "nothing"}</p>
+                            </div>
+                            <div>
+                              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Leaves alone</p>
+                              <p className="text-xs">{cov.leaves.map((g) => g.label).join(", ")}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {styleTab === "themes" && (
-              <div className="space-y-1">
-                <p className="text-[0.6875rem] text-muted-foreground">Copies a theme's colours and font onto this widget, so you can still tweak them after.</p>
-                {themeLookEntries.map(({ name, preset, mine }) => (
-                  <button key={`theme_${name}`} type="button"
-                    onClick={() => set({ ...themeToLook(preset, isDarkMode), style: "" })}
-                    className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
-                      style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
-                    <span className="min-w-0">
-                      <span className="font-medium capitalize block truncate">{name}</span>
-                      <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[0.6875rem] text-muted-foreground">Copies a theme's colours and font onto this widget, so you can still tweak them after.</p>
+                  {themeLookEntries.map(({ name, preset, mine }) => (
+                    <button key={`theme_${name}`} type="button"
+                      onClick={() => set({ ...themeToLook(preset, isDarkMode), style: "" })}
+                      className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
+                        style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
+                      <span className="min-w-0">
+                        <span className="font-medium capitalize block truncate">{name}</span>
+                        <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            {/* Save: the ticks are the sheet's own sections. Untick some
-                and it's a partial style you can lay over anything. */}
-            <div className="pt-2 border-t border-border/30 space-y-2">
-              {naming ? (
-                <>
+              <Group title="This look">
+                {/* Save: the ticks are the look's parts. Untick some and
+                    it's a partial style you can lay over anything. */}
+                <Disclosure label="Save as a style…" hint="Reuse this look on any widget" icon={Plus}
+                  open={naming} onToggle={() => { setStyleName(""); setNaming((v) => !v); }}>
                   <div className="flex gap-1.5">
                     <input autoFocus value={styleName} onChange={(e) => setStyleName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") saveStyle(); if (e.key === "Escape") setNaming(false); }}
                       placeholder="Name this style" maxLength={40}
-                      className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                      className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
                     <button type="button" onClick={saveStyle} disabled={!styleName.trim() || saveGroups.length === 0}
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
-                    <button type="button" onClick={() => setNaming(false)}
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
+                      className="text-xs px-3 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
                   </div>
                   <p className="text-[0.6875rem] text-muted-foreground">What it carries:</p>
                   <PartTicks value={saveGroups} onChange={setSaveGroups} />
-                </>
-              ) : (
-                <button type="button" onClick={() => { setStyleName(""); setNaming(true); }}
-                  className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary">
-                  Save this look as a style
-                </button>
-              )}
-            </div>
-
-            {/* Copy this widget's look onto others — all of it, or just the
-                parts ticked. */}
-            {onApplyLook && (
-              <div className="pt-2 border-t border-border/30 space-y-2">
-                <button type="button" onClick={() => setApplyOpen((v) => !v)} aria-expanded={applyOpen}
-                  className="w-full flex items-center gap-2 text-left">
-                  <Copy className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="flex-1 text-xs font-medium">Apply this look to…</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${applyOpen ? "rotate-180" : ""}`} />
-                </button>
-                {applyOpen && (
-                  <div className="space-y-2">
+                </Disclosure>
+                {/* Copy this widget's look onto others — all of it, or just
+                    the parts ticked. */}
+                {onApplyLook && (
+                  <Disclosure label="Apply to other widgets…" hint="Copy all of this look, or just some parts" icon={Copy}
+                    open={applyOpen} onToggle={() => setApplyOpen((v) => !v)}>
                     <p className="text-[0.6875rem] text-muted-foreground">Which parts:</p>
                     <PartTicks value={applyParts} onChange={setApplyParts} />
                     <div className="space-y-1.5">
@@ -1798,99 +1590,24 @@ export default function WidgetConfigSheet({
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </Disclosure>
                 )}
-              </div>
-            )}
-          </LookPart>
-
-          {/* ── Your own CSS: the escape hatch, scoped to this widget ── */}
-          <LookPart open={openParts.includes("css")} title="Your own CSS">
-            <DebouncedText multiline rows={5} value={ownCss}
-              placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
-              onCommit={(v) => set({ css: v })}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
-            <p className="text-[0.6875rem] text-muted-foreground">
-              Plain CSS declarations, applied to this widget only. Anything CSS can do — border images, gradients, filters.
-            </p>
-          </LookPart>
-
-          {/* ── Icon — app shortcuts only ── */}
-          {widget.widgetId === "app_shortcut" && (
-            <LookPart open={openParts.includes("icon")} title="Icon"
-              onReset={setHere(["iconName", "iconUrl"]) ? () => set({ iconUrl: "", iconName: "" }) : null} resetLabel="Remove custom icon">
-              <div className="flex items-center gap-2 flex-wrap">
-                {iconPreview ? (
-                  <img src={iconPreview} alt="" className="w-11 h-11 rounded-2xl object-cover border border-border/40" />
-                ) : (
-                  <span className="w-11 h-11 rounded-2xl border border-dashed border-border/50 flex items-center justify-center text-muted-foreground">
-                    <ImageIcon className="w-4 h-4" />
-                  </span>
-                )}
-                <button type="button" onClick={() => setIconPickerOpen(true)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
-                  {settings.iconName ? `Icon: ${settings.iconName}` : "Choose icon…"}
-                </button>
-                <button type="button" onClick={() => onPickIcon(widget.instanceId)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
-                  Choose image…
-                </button>
-                <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} allowImage={false}
-                  current={settings.iconName || ""}
-                  onPick={(o) => set({ iconName: o.iconName || "" })} />
-              </div>
-            </LookPart>
+              </Group>
+              <Group title="Advanced">
+                {/* The escape hatch, scoped to this widget. */}
+                <Disclosure label="Your own CSS" hint={ownCss ? "Set on this widget" : "Plain CSS, applied to this widget only"} icon={Code2}
+                  open={cssOpen || !!ownCss} onToggle={() => setCssOpen((v) => !v)}>
+                  <DebouncedText multiline rows={5} value={ownCss}
+                    placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
+                    onCommit={(v) => set({ css: v })}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <p className="text-[0.6875rem] text-muted-foreground">
+                    Anything CSS can do — border images, gradients, filters. Clear the box to remove it.
+                  </p>
+                </Disclosure>
+              </Group>
+            </div>
           )}
-
-          <div className="pt-2 border-t border-border/50 space-y-2">
-            {/* Reset asks how much: just the look (every section and the
-                style), or everything the widget ships with. */}
-            {resetAsk ? (
-              <div className="rounded-lg border border-border/60 p-3 space-y-2">
-                <p className="text-sm font-medium">Reset {settings.label || defLabel}?</p>
-                <p className="text-xs text-muted-foreground">It stays on the page, and none of your data changes.</p>
-                <button type="button"
-                  onClick={() => {
-                    const patch = { style: "" };
-                    for (const sec of LOOK_SECTIONS) Object.assign(patch, sectionResetPatch(sec.id, sec.id === "layout" ? uiFieldKeys : []));
-                    set(patch);
-                    setResetAsk(false);
-                  }}
-                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
-                  Just how it looks
-                </button>
-                <button type="button"
-                  onClick={() => { setResetAsk(false); onResetWidget?.(widget.instanceId); }}
-                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
-                  Everything: size, display mode, name, look and options
-                </button>
-                <button type="button" onClick={() => setResetAsk(false)}
-                  className="w-full h-9 rounded-lg text-sm text-muted-foreground hover:bg-muted/50">
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setResetAsk(true)}
-                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
-                <RotateCcw className="w-4 h-4" /> Reset…
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await confirm({
-                  title: `Remove ${settings.label || defLabel}?`,
-                  body: "It comes off this page. Nothing it shows is deleted, and you can add it back any time.",
-                  confirmLabel: "Remove",
-                  destructive: true,
-                });
-                if (ok) onRemove?.(widget.instanceId);
-              }}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4" /> Remove widget
-            </button>
-          </div>
         </div>
       </DrawerContent>
     </Drawer>
