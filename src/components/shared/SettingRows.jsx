@@ -91,7 +91,10 @@ export function SwitchRow({ label, hint, checked, onChange }) {
 }
 
 // Segmented bar: the one-question control.
-export function Segmented({ label, options, value, onChange, className = "" }) {
+// `equal`: every segment the same width (a bar on its own line). Beside a
+// name the segments size to their words instead — equal shares truncated
+// the bold (wider) active one to "24-h…".
+export function Segmented({ label, options, value, onChange, className = "", equal = true }) {
   return (
     <div role="radiogroup" aria-label={label} className={`flex rounded-full border border-border/60 p-0.5 gap-0.5 ${className}`}>
       {options.map((o) => {
@@ -99,7 +102,7 @@ export function Segmented({ label, options, value, onChange, className = "" }) {
         return (
           <button key={String(o.value)} type="button" role="radio" aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={`flex-1 min-w-0 truncate text-xs py-1.5 px-2 rounded-full ${
+            className={`${equal ? "flex-1 min-w-0 truncate" : "whitespace-nowrap"} text-xs py-1.5 px-2.5 rounded-full ${
               on ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
             }`}>
             {o.label}
@@ -113,7 +116,10 @@ export function Segmented({ label, options, value, onChange, className = "" }) {
 // Fits beside a name on a phone: up to three short options. Up to five
 // still fit a segmented bar on its own line; more than that wrap as chips.
 const labelChars = (options = []) => options.reduce((n, o) => n + String(o.label).length, 0);
-export const fitsBeside = (options = []) => options.length > 1 && options.length <= 3 && labelChars(options) <= 16;
+// The row's name counts too: "Content alignment" + Left/Center/Right is a
+// line and a half on a phone, so that one stacks.
+export const fitsBeside = (options = [], label = "") =>
+  options.length > 1 && options.length <= 3 && labelChars(options) <= 16 && labelChars(options) + String(label).length <= 30;
 export const fitsSegmented = (options = []) => options.length > 1 && options.length <= 5 && labelChars(options) <= 34;
 
 export function Chips({ label, options, value, onChange, multiple = false, style }) {
@@ -141,10 +147,10 @@ export function Chips({ label, options, value, onChange, multiple = false, style
 // One of a few options: segmented beside the name when it fits, chips under
 // it otherwise. `own`/`onClear` behave as on Row.
 export function ChoiceRow({ label, hint, options, value, onChange, own, onClear }) {
-  if (fitsBeside(options)) {
+  if (fitsBeside(options, label)) {
     return (
       <Row label={label} hint={hint} own={own} onClear={onClear}>
-        <Segmented label={label} options={options} value={value} onChange={onChange} className="max-w-full" />
+        <Segmented label={label} options={options} value={value} onChange={onChange} className="max-w-full" equal={false} />
       </Row>
     );
   }

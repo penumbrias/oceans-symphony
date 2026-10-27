@@ -487,9 +487,8 @@ function BarsTab({ v2, alignX }) {
           <BarLookRows v2={v2} barId="top" alignX={alignX} />
           {v2Chrome && <BarShowSwitch barId="wave" label={tr("editSheet.wave")} />}
           {v2Chrome && v2.uiV2.bars.wave && (
-            <div className="flex items-center gap-2.5 py-1">
-              <span className="text-xs font-medium flex-1 min-w-0 truncate">{tr("editSheet.waveColor")}</span>
-              <div className="flex gap-1.5 flex-wrap justify-end items-center">
+            <StackedRow label={tr("editSheet.waveColor")}>
+              <div className="flex gap-1.5 flex-wrap items-center">
                 {/* Swatches, not word-pills: the choice IS a colour. The
                     "background" key means Off and stays a word. */}
                 {WAVE_COLOR_KEYS.map((k) => {
@@ -509,12 +508,12 @@ function BarsTab({ v2, alignX }) {
                       style={{ background: `var(${cssVar})` }} />
                   );
                 })}
-                <ColorPicker compact label={tr("editSheet.waveColor")}
+                <ColorPicker compact caption={false} label={tr("editSheet.waveColor")}
                   value={waveCustom || "#7dd3fc"}
                   onChange={(hex) => writeSettings({ wave_color_custom: hex })}
                   onClear={() => writeSettings({ wave_color_custom: null })} />
               </div>
-            </div>
+            </StackedRow>
           )}
         </BarPart>
         <BarPart label={tr("editSheet.partContent")}>

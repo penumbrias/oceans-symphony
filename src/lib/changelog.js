@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "feature", text: "Display options is now the same five-tab inspector as widget options: Text, Shape, Bars, Colour and Styles, with a slider for every size and one bar at a time under Bars." },
+      { type: "improve", text: "Add-widget library: search and the group strip stay at the top, every widget has a labelled Add button, and the preview page uses the same rows as the inspector." },
+      { type: "improve", text: "Widget options: Row height and \"how many\" counts are sliders now, and the ⋯ menu can duplicate a widget." },
+      { type: "fix", text: "Widgets no longer grow a name tag while editing, so they look the same in and out of edit mode." },
+      { type: "fix", text: "Android: dragging a slider near the edge of the screen no longer triggers the back gesture." },
       { type: "feature", text: "Widget options are rebuilt as five tabs: Content, Text, Shape, Colour and Styles. One tab on screen at a time, so no more long scroll." },
       { type: "improve", text: "Widget options: every size is a slider with its number beside it (tap the number to type), and inherited values show their real number greyed instead of \"app default\"." },
       { type: "improve", text: "Widget options: a × next to a setting clears just that one; each tab has its own Reset; Reset and Remove moved under ⋯ in the header." },
