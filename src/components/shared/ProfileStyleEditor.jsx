@@ -27,30 +27,17 @@ import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 // Header subsection is open by default; Body is collapsed — matching the
 // wireframe ("header on + expanded; body off").
 
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const BG_ROTATION_KEY = "_bg_rotation_mode";
+// The style keys are PS.* (src/lib/profileStyle.js). What they mean:
 // _bg_opacity = opacity of the BODY background layer. With an image set it's
 // the image's opacity (default 0.5); with only a colour it's that colour's
 // opacity (default 0.15).
-const BG_OPACITY_KEY = "_bg_opacity";
 // _section_bg_opacity = "Readability". When a background image is set, this is
 // the opacity of the _bg_color tint laid over the image so text stays legible
 // (default 0.1 / 10%).
-const SECTION_BG_KEY = "_section_bg_opacity";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_TEXT_KEY = "_header_text_color";
-const HEADER_FONT_KEY = "_header_font";
 // _header_opacity = opacity of the header background image (default 0.45).
-const HEADER_OPACITY_KEY = "_header_opacity";
 // _header_bg_opacity = opacity of the header background COLOUR fill (default 1
 // / fully opaque). Mirrors the Body's bg-colour opacity slider so the header
 // colour can be made translucent.
-const HEADER_BG_OPACITY_KEY = "_header_bg_opacity";
-const HIDE_HEADER_KEY = "_hide_header";
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
 
 // Per-profile theme palette keys (mirror PS.* in profileStyle.js). Eight theme
 // colours + a wave colour. When set they override the app theme for this
@@ -65,7 +52,6 @@ const THEME_KEYS = [
   { key: "_theme_text", label: "Text" },
   { key: "_theme_text2", label: "Text 2nd" },
 ];
-const THEME_WAVE_KEY = "_theme_wave";
 
 // BODY palette — the full custom-colour set (same as Settings → Appearance),
 // INCLUDING the wave. "Text" uses _theme_text (→ --color-text-primary) so it
@@ -76,7 +62,7 @@ const THEME_WAVE_KEY = "_theme_wave";
 // Wave is body-only. (Setting "Text" also shadows _page_text_color — see SHADOW
 // — so inherited/currentColor text changes too.)
 const BODY_PALETTE = [
-  { key: BG_COLOR_KEY, label: "Background" },
+  { key: PS.BG_COLOR, label: "Background" },
   { key: "_theme_surface", label: "Surface" },
   { key: "_theme_primary", label: "Primary" },
   { key: "_theme_secondary", label: "Secondary" },
@@ -87,22 +73,22 @@ const BODY_PALETTE = [
 ];
 // Wave is body-only and shown as a tall swatch on the right (matching the
 // Settings → Appearance layout).
-const WAVE_ENTRY = { key: THEME_WAVE_KEY, label: "Wave" };
+const WAVE_ENTRY = { key: PS.THEME_WAVE, label: "Wave" };
 
 // Body ↔ header pairs for the Sync feature (and the live "lock" link). Each
 // pair is [bodyKey, headerKey]; the palette colours + font + bg-opacity.
 // Images are deliberately NOT synced (banner vs page usually differ).
 const SYNC_PAIRS = [
-  [BG_COLOR_KEY, HEADER_BG_KEY],                      // background
+  [PS.BG_COLOR, PS.HEADER_BG],                      // background
   ["_theme_surface", "_header_theme_surface"],        // surface
   ["_theme_primary", "_header_theme_primary"],        // primary
   ["_theme_secondary", "_header_theme_secondary"],    // secondary
   ["_theme_accent", "_header_theme_accent"],          // accent
   ["_theme_muted", "_header_theme_muted"],            // muted
-  ["_theme_text", HEADER_TEXT_KEY],                   // text
+  ["_theme_text", PS.HEADER_TEXT],                   // text
   ["_theme_text2", "_header_theme_text2"],            // text 2nd
-  [PAGE_FONT_KEY, HEADER_FONT_KEY],                   // font
-  [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],            // background opacity
+  [PS.PAGE_FONT, PS.HEADER_FONT],                   // font
+  [PS.BG_OPACITY, PS.HEADER_BG_OPACITY],            // background opacity
 ];
 // key → its paired key, both directions (for the live lock).
 const SYNC_MAP = {};
@@ -112,7 +98,7 @@ for (const [bodyKey, headerKey] of SYNC_PAIRS) { SYNC_MAP[bodyKey] = headerKey; 
 // the body "Text" theme var only styles Tailwind text-foreground utilities;
 // _page_text_color is the inline page colour that also catches any
 // inherited / currentColor text. Setting/clearing one does both.
-const SHADOW = { "_theme_text": PAGE_TEXT_KEY };
+const SHADOW = { "_theme_text": PS.PAGE_TEXT };
 
 // Wave colour options — mirrors Settings → Appearance's wave picker: choose one
 // of the profile's palette colours (stored as a `var(--color-…)` reference so
@@ -136,7 +122,7 @@ const WAVE_OPTIONS = [
 // user edits (the editor injects the in-progress theme), so siblings reflect
 // changes immediately too.
 const LIVE_VAR = {
-  [BG_COLOR_KEY]: "--color-bg",
+  [PS.BG_COLOR]: "--color-bg",
   "_theme_surface": "--color-surface",
   "_theme_primary": "--color-primary",
   "_theme_secondary": "--color-secondary",
@@ -144,14 +130,14 @@ const LIVE_VAR = {
   "_theme_muted": "--color-muted",
   "_theme_text": "--color-text-primary",
   "_theme_text2": "--color-text-secondary",
-  [THEME_WAVE_KEY]: "--color-wave",
-  [HEADER_BG_KEY]: "--color-bg",
+  [PS.THEME_WAVE]: "--color-wave",
+  [PS.HEADER_BG]: "--color-bg",
   "_header_theme_surface": "--color-surface",
   "_header_theme_primary": "--color-primary",
   "_header_theme_secondary": "--color-secondary",
   "_header_theme_accent": "--color-accent",
   "_header_theme_muted": "--color-muted",
-  [HEADER_TEXT_KEY]: "--color-text-primary",
+  [PS.HEADER_TEXT]: "--color-text-primary",
   "_header_theme_text2": "--color-text-secondary",
 };
 // HEADER palette — the same set MINUS the wave (the wave doesn't render in the
@@ -159,13 +145,13 @@ const LIVE_VAR = {
 // exactly as before); the deeper colours use header-scoped keys applied only to
 // the header via headerThemeStyleVars(). Independent of the body palette.
 const HEADER_PALETTE = [
-  { key: HEADER_BG_KEY, label: "Background" },
+  { key: PS.HEADER_BG, label: "Background" },
   { key: "_header_theme_surface", label: "Surface" },
   { key: "_header_theme_primary", label: "Primary" },
   { key: "_header_theme_secondary", label: "Secondary" },
   { key: "_header_theme_accent", label: "Accent" },
   { key: "_header_theme_muted", label: "Muted" },
-  { key: HEADER_TEXT_KEY, label: "Text" },
+  { key: PS.HEADER_TEXT, label: "Text" },
   { key: "_header_theme_text2", label: "Text 2nd" },
 ];
 
@@ -256,8 +242,8 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
     if (syncLocked && SYNC_MAP[key]) clearField(SYNC_MAP[key]);
   };
 
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
+  const bgImage = cf[PS.BG_IMAGE] || "";
   const [resolvedHeaderImg, setResolvedHeaderImg] = useState("");
   const [resolvedBgImg, setResolvedBgImg] = useState("");
   useEffect(() => {
@@ -276,7 +262,7 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
       const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, maxDim, quality);
       if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
-        const imageId = `${key === HEADER_IMAGE_KEY ? "header" : "bg"}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const imageId = `${key === PS.HEADER_IMAGE ? "header" : "bg"}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         setField(key, createLocalImageUrl(imageId));
       } else {
@@ -368,9 +354,9 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
     </div>
   );
 
-  const hideHeader = !!cf[HIDE_HEADER_KEY];
-  const headerImageSet = !!cf[HEADER_IMAGE_KEY];
-  const bgImageSet = !!cf[BG_IMAGE_KEY];
+  const hideHeader = !!cf[PS.HIDE_HEADER];
+  const headerImageSet = !!cf[PS.HEADER_IMAGE];
+  const bgImageSet = !!cf[PS.BG_IMAGE];
 
   // One-tap copy of the palette colours + font + opacity between header and
   // body (uses the module-level SYNC_PAIRS). Reuses setField / clearField so it
@@ -409,11 +395,11 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
       <SubSection title="UI size" defaultOpen={false}>
         <div className="space-y-1.5">
           <Label className="text-xs">Font — body</Label>
-          <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
+          <FontSelect value={cf[PS.PAGE_FONT] || ""} onChange={(v) => setField(PS.PAGE_FONT, v)} ariaLabel="Body font style" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Font — header</Label>
-          <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
+          <FontSelect value={cf[PS.HEADER_FONT] || ""} onChange={(v) => setField(PS.HEADER_FONT, v)} ariaLabel="Header font style" />
         </div>
       </SubSection>
 
@@ -429,12 +415,12 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
             <div className="flex flex-wrap gap-2">
               {WAVE_OPTIONS.map(({ label, cssVar }) => {
                 const val = `var(${cssVar})`;
-                const active = cf[THEME_WAVE_KEY] === val;
+                const active = cf[PS.THEME_WAVE] === val;
                 return (
                   <button
                     key={cssVar}
                     type="button"
-                    onClick={() => { setField(THEME_WAVE_KEY, val); setWaveMenuOpen(false); }}
+                    onClick={() => { setField(PS.THEME_WAVE, val); setWaveMenuOpen(false); }}
                     title={label}
                     className={`w-8 h-8 rounded-lg border-2 shadow-sm transition-colors ${active ? "border-primary" : "border-border/50 hover:border-primary/60"}`}
                     style={{ backgroundColor: val }}
@@ -446,15 +432,15 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
             <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => { setWaveMenuOpen(false); setColorPickerFor(THEME_WAVE_KEY); }}
+                onClick={() => { setWaveMenuOpen(false); setColorPickerFor(PS.THEME_WAVE); }}
                 className="text-xs px-2.5 py-1 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
               >
                 Custom…
               </button>
-              {cf[THEME_WAVE_KEY] && (
+              {cf[PS.THEME_WAVE] && (
                 <button
                   type="button"
-                  onClick={() => { clearField(THEME_WAVE_KEY); setWaveMenuOpen(false); }}
+                  onClick={() => { clearField(PS.THEME_WAVE); setWaveMenuOpen(false); }}
                   className="text-xs px-2.5 py-1 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
                 >
                   None
@@ -506,17 +492,17 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
 
       <SubSection title="Background" defaultOpen={false}>
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Page</p>
-        {bgImageSet && cf[BG_COLOR_KEY] && (
+        {bgImageSet && cf[PS.BG_COLOR] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
             With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
           </p>
         )}
-        {imageRow("Image", BG_IMAGE_KEY, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], BG_IMAGE_KEY, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
+        {imageRow("Image", PS.BG_IMAGE, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], PS.BG_IMAGE, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
         {rotationConfig && (
           <RotationModeControl
             label="Background rotation"
-            mode={cf[BG_ROTATION_KEY]}
-            onChange={(m) => setField(BG_ROTATION_KEY, m)}
+            mode={cf[PS.BG_ROTATION]}
+            onChange={(m) => setField(PS.BG_ROTATION, m)}
             disabled={false}
             showManage
             onManagePool={() => setBgPoolOpen(true)}
@@ -525,14 +511,14 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
         )}
         {bgImageSet ? (
           <>
-            <RevealSlider label="Image opacity" value={cf[BG_OPACITY_KEY]} fallback={0.5}
-              onChange={(v) => setField(BG_OPACITY_KEY, v)} ariaLabel="Background image opacity" />
-            <RevealSlider label="Surface opacity" value={cf[SECTION_BG_KEY]} fallback={0.9}
-              onChange={(v) => setField(SECTION_BG_KEY, v)} ariaLabel="Surface (card/input) fill opacity" />
+            <RevealSlider label="Image opacity" value={cf[PS.BG_OPACITY]} fallback={0.5}
+              onChange={(v) => setField(PS.BG_OPACITY, v)} ariaLabel="Background image opacity" />
+            <RevealSlider label="Surface opacity" value={cf[PS.READABILITY]} fallback={0.9}
+              onChange={(v) => setField(PS.READABILITY, v)} ariaLabel="Surface (card/input) fill opacity" />
           </>
-        ) : cf[BG_COLOR_KEY] ? (
-          <RevealSlider label="Background opacity" value={cf[BG_OPACITY_KEY]} fallback={0.15}
-            onChange={(v) => setField(BG_OPACITY_KEY, v)} ariaLabel="Background colour opacity" />
+        ) : cf[PS.BG_COLOR] ? (
+          <RevealSlider label="Background opacity" value={cf[PS.BG_OPACITY]} fallback={0.15}
+            onChange={(v) => setField(PS.BG_OPACITY, v)} ariaLabel="Background colour opacity" />
         ) : null}
 
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-1">Header banner</p>
@@ -543,17 +529,17 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
           <Switch
             id="ps-header-visible"
             checked={!hideHeader}
-            onCheckedChange={(v) => (v ? clearField(HIDE_HEADER_KEY) : setField(HIDE_HEADER_KEY, true))}
+            onCheckedChange={(v) => (v ? clearField(PS.HIDE_HEADER) : setField(PS.HIDE_HEADER, true))}
           />
         </div>
-        {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
+        {imageRow("Image", PS.HEADER_IMAGE, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], PS.HEADER_IMAGE, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
         {headerImageSet && (
-          <RevealSlider label="Image opacity" value={cf[HEADER_OPACITY_KEY]} fallback={0.45}
-            onChange={(v) => setField(HEADER_OPACITY_KEY, v)} ariaLabel="Header image opacity" />
+          <RevealSlider label="Image opacity" value={cf[PS.HEADER_OPACITY]} fallback={0.45}
+            onChange={(v) => setField(PS.HEADER_OPACITY, v)} ariaLabel="Header image opacity" />
         )}
-        {cf[HEADER_BG_KEY] && (
-          <RevealSlider label="Background opacity" value={cf[HEADER_BG_OPACITY_KEY]} fallback={1}
-            onChange={(v) => setField(HEADER_BG_OPACITY_KEY, v)} ariaLabel="Header background colour opacity" />
+        {cf[PS.HEADER_BG] && (
+          <RevealSlider label="Background opacity" value={cf[PS.HEADER_BG_OPACITY]} fallback={1}
+            onChange={(v) => setField(PS.HEADER_BG_OPACITY, v)} ariaLabel="Header background colour opacity" />
         )}
       </SubSection>
 

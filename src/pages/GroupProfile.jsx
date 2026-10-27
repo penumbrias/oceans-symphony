@@ -47,15 +47,8 @@ import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
 
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const BG_OPACITY_KEY = "_bg_opacity";
-const HEADER_IMAGE_KEY = "_header_image";
 // Same keys the alter profile uses, so contrast helpers + rendering treat
 // group and alter text colours identically.
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
-const HEADER_TEXT_KEY = "_header_text_color";
 
 // The icon each page shows in the page strip (by page id).
 const PAGE_ICONS = {
@@ -155,8 +148,8 @@ function GroupProfileInner() {
           stored = createLocalImageUrl(imageId);
         }
         if (kind === "avatar") setForm((f) => ({ ...f, avatar_url: stored }));
-        else if (kind === "header") setCf(HEADER_IMAGE_KEY, stored);
-        else setCf(BG_IMAGE_KEY, stored);
+        else if (kind === "header") setCf(PS.HEADER_IMAGE, stored);
+        else setCf(PS.BG_IMAGE, stored);
         toast.success(isGif ? "GIF saved!" : "Image saved!");
       } catch { toast.error("Failed to process image"); }
       finally { setBusy(false); }
@@ -223,8 +216,8 @@ function GroupProfileInner() {
   const bgOpacity = ps.bgOpacity;
   const surfaceCss = profileSurfaceCss("os-pf", cf);
   const themeCss = profileThemeCss("os-pf", cf);
-  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
-  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  const pageTextColor = cf[PS.PAGE_TEXT] || "";
+  const pageFont = fontStackFor(cf[PS.PAGE_FONT]);
 
   // ---------- VIEW MODE: the board ----------
   if (!editMode) {
@@ -431,9 +424,9 @@ function GroupProfileInner() {
       </div>
 
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Group Color" onSave={(hex) => setForm((f) => ({ ...f, color: hex }))} onClose={() => setShowColorPicker(false)} />}
-      {showBgColorPicker && <ColorPickerModal color={form.custom_fields[BG_COLOR_KEY] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
-      {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PAGE_TEXT_KEY] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
-      {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[HEADER_TEXT_KEY] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
+      {showBgColorPicker && <ColorPickerModal color={form.custom_fields[PS.BG_COLOR] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(PS.BG_COLOR, hex)} onClose={() => setShowBgColorPicker(false)} />}
+      {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PS.PAGE_TEXT] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PS.PAGE_TEXT, hex)} onClose={() => setShowPageTextPicker(false)} />}
+      {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[PS.HEADER_TEXT] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(PS.HEADER_TEXT, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
 
       </div>

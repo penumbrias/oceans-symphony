@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "improve", text: "The example walkthrough (Settings → Preview mode → Wiki) has a new \"Profile layouts\" page and its profile pages describe the widget boards." },
+      { type: "hotfix", text: "Hotfix: the classic stacked profile view is retired now that profiles are boards; the pencil form is unchanged." },
       { type: "feature", text: "Profile layouts: the layout editor's Save menu can use this layout for all your {{alters}} (or groups, contacts, locations), save it as the default for unedited profiles, or reset this one. Each asks first, and Recent changes keeps every layout it replaces." },
       { type: "feature", text: "Home-screen widgets on profile pages: journal, wishes, bulletin board, inner-world locations, timeline days and the {{fronting}} panel can be added to a profile and show only that {{alter}}'s (or group's) things, with a \"Whose\" option to show everyone's." },
       { type: "improve", text: "Settings → {{Alter}} setup → Profile layouts shows which profile types have a default layout and lets you clear it." },
