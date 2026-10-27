@@ -368,6 +368,31 @@ export const LOOK_GROUPS = LOOK_SECTIONS.map((sec) => ({
   id: sec.id, label: sec.label, keys: sectionLookKeys(sec), required: sec.required,
 }));
 
+// The inspector's tabs (v0.287.0): what the widget options sheet shows,
+// one tab on screen at a time. Each look tab lists the LOOK_SECTIONS it
+// holds, so "has its own setting" dots, per-tab reset, saved styles and
+// Apply look all read the same table. Layout + Box fold into Shape; the
+// custom CSS lives under Styles as its advanced item.
+export const INSPECTOR_TABS = [
+  { id: "content", label: "Content", sections: [] },
+  { id: "text", label: "Text", sections: ["text"] },
+  { id: "shape", label: "Shape", sections: ["layout", "box"] },
+  { id: "colour", label: "Colour", sections: ["fill"] },
+  { id: "styles", label: "Styles", sections: ["css"] },
+];
+
+export function tabResetPatch(tabId, extraKeysBySection = {}) {
+  const tab = INSPECTOR_TABS.find((t) => t.id === tabId);
+  const patch = {};
+  for (const sec of tab?.sections || []) Object.assign(patch, sectionResetPatch(sec, extraKeysBySection[sec] || []));
+  return patch;
+}
+
+export function tabHasOwn(settings = {}, tabId, extraKeysBySection = {}) {
+  const tab = INSPECTOR_TABS.find((t) => t.id === tabId);
+  return (tab?.sections || []).some((sec) => sectionHasOwn(settings, sec, extraKeysBySection[sec] || []));
+}
+
 export function groupCovered(look = {}, group) {
   return group.required.every((k) => isSet(look[k]));
 }
