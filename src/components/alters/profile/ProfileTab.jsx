@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { PS } from "@/lib/profileStyle";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { deleteAlter as deleteAlterEverywhere, extractYear, firstAppearanceOf, saveAlterEdits, refreshAlter } from "@/lib/alterEntry";
@@ -25,36 +26,15 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
-import { fontStackFor } from "@/lib/profileFonts";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
-import { PROFILE_SECTIONS } from "@/components/alters/profile/ProfileSections";
 
-// Pull a 4-digit year out of a free-form birthday string so we can keep
-// the integer origin_year (used by Alter History / lineage) linked
-// to whatever the user typed in Birthday.
-
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const BG_OPACITY_KEY = "_bg_opacity";
-const HEADER_TEXT_KEY = "_header_text_color";
-const HIDE_HEADER_KEY = "_hide_header";
-const HEADER_IMAGE_KEY = "_header_image";
-// Optional header extras — surface groups / subsystems / custom fields in the
-// profile header. Group/subsystem chips render as icon / name / both and link
-// to their pages.
-const HEADER_SHOW_GROUPS_KEY = "_header_show_groups";
-const HEADER_SHOW_SUBSYSTEMS_KEY = "_header_show_subsystems";
-const HEADER_SHOW_FIELDS_KEY = "_header_show_fields";
-const HEADER_CHIP_MODE_KEY = "_header_chip_mode"; // "icon" | "name" | "both"
-const HEADER_SHOW_ALTER_FIELDS_KEY = "_header_show_alter_fields"; // ad-hoc per-alter fields
-const HEADER_SHOW_PRONOUNS_KEY = "_header_show_pronouns"; // force-show pronouns even if name contains them
-const SECTION_BG_KEY = "_section_bg_opacity";
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
+// The pencil form for an alter's own record (v0.293.0: edit only — viewing
+// a profile is its widget board, see AlterProfile / ProfileBoardCanvas).
+// Style keys are PS.* from profileStyle.js.
 
 function AvatarModal({ src, onSave, onClose, ownerAlterId = null }) {
   const [url, setUrl] = useState(src || "");
@@ -126,7 +106,7 @@ function getContrastColor(hex) {
 }
 
 
-export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
+export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
   const queryClient = useQueryClient();
   const t = useTerms();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -239,14 +219,14 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     // "no matter what I do or how I edit it, it doesn't delete").
   }, [alter?.id]);  
 
-  const bgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
-  const bgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";
-  const bgOpacity = form.custom_fields?.[BG_OPACITY_KEY] !== undefined ? form.custom_fields[BG_OPACITY_KEY] : 0.15;
-  const headerTextColor = form.custom_fields?.[HEADER_TEXT_KEY] || "";
-  const hideHeader = form.custom_fields?.[HIDE_HEADER_KEY] || false;
-  const headerImage = form.custom_fields?.[HEADER_IMAGE_KEY] || "";
-  const sectionBgOpacity = form.custom_fields?.[SECTION_BG_KEY] !== undefined ? form.custom_fields[SECTION_BG_KEY] : 0;
-  const pageTextColor = form.custom_fields?.[PAGE_TEXT_KEY] || "";
+  const bgColor = form.custom_fields?.[PS.BG_COLOR] || "";
+  const bgImage = form.custom_fields?.[PS.BG_IMAGE] || "";
+  const bgOpacity = form.custom_fields?.[PS.BG_OPACITY] !== undefined ? form.custom_fields[PS.BG_OPACITY] : 0.15;
+  const headerTextColor = form.custom_fields?.[PS.HEADER_TEXT] || "";
+  const hideHeader = form.custom_fields?.[PS.HIDE_HEADER] || false;
+  const headerImage = form.custom_fields?.[PS.HEADER_IMAGE] || "";
+  const sectionBgOpacity = form.custom_fields?.[PS.READABILITY] !== undefined ? form.custom_fields[PS.READABILITY] : 0;
+  const pageTextColor = form.custom_fields?.[PS.PAGE_TEXT] || "";
 
   const setBgField = (key, val) => setForm(f => ({
     ...f, custom_fields: { ...f.custom_fields, [key]: val },
@@ -254,8 +234,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
 
   const clearBg = () => setForm(f => {
     const cf = { ...f.custom_fields };
-    delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY];
-    delete cf[HEADER_TEXT_KEY]; delete cf[HEADER_IMAGE_KEY]; delete cf[SECTION_BG_KEY]; delete cf[PAGE_TEXT_KEY];
+    delete cf[PS.BG_COLOR]; delete cf[PS.BG_IMAGE]; delete cf[PS.BG_OPACITY];
+    delete cf[PS.HEADER_TEXT]; delete cf[PS.HEADER_IMAGE]; delete cf[PS.READABILITY]; delete cf[PS.PAGE_TEXT];
     return { ...f, custom_fields: cf };
   });
 
@@ -308,9 +288,9 @@ useEffect(() => {
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "background" });
-        setBgField(BG_IMAGE_KEY, createLocalImageUrl(imageId));
+        setBgField(PS.BG_IMAGE, createLocalImageUrl(imageId));
       } else {
-        setBgField(BG_IMAGE_KEY, dataUrl);
+        setBgField(PS.BG_IMAGE, dataUrl);
       }
       toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
     } catch (err) {
@@ -329,9 +309,9 @@ useEffect(() => {
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "header" });
-        setBgField(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
+        setBgField(PS.HEADER_IMAGE, createLocalImageUrl(imageId));
       } else {
-        setBgField(HEADER_IMAGE_KEY, dataUrl);
+        setBgField(PS.HEADER_IMAGE, dataUrl);
       }
       toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
     } catch { toast.error("Failed to process header image"); }
@@ -444,24 +424,6 @@ useEffect(() => {
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
 
-  const viewPageFont = fontStackFor(alter.custom_fields?.[PAGE_FONT_KEY]);
-
-  // ── VIEW MODE ── the same sections the profile board shows as widgets
-  // (ProfileSections.jsx), stacked in the same order.
-  if (!editMode) {
-    return (
-      <div className="relative">
-        {/* NB: the page-wide background (colour + image) is rendered ONCE by
-            AlterProfile as a `fixed inset-0` layer that doesn't scroll. */}
-        <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
-          {PROFILE_SECTIONS.map(([id, SectionView]) => (
-            <SectionView key={id} alter={alter} systemFields={systemFields} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   // ── EDIT MODE ──
   return (
     <div className="space-y-4">
@@ -482,7 +444,7 @@ useEffect(() => {
             type="button"
             onClick={() => setForm((f) => {
               const cf = { ...f.custom_fields };
-              delete cf[HIDE_HEADER_KEY];
+              delete cf[PS.HIDE_HEADER];
               return { ...f, custom_fields: cf };
             })}
             className="text-xs font-medium px-2 py-1 rounded-lg border border-border/60 hover:bg-muted flex-shrink-0"
@@ -710,11 +672,11 @@ useEffect(() => {
       <SubSection title="Header extras" icon={Users} defaultOpen={false}>
         <p className="text-xs text-muted-foreground mb-1.5">Show extra info in this profile's header — it moves up there instead of showing in the body below. Group &amp; {subsystemTerm} chips link to their pages.</p>
         {[
-          { key: HEADER_SHOW_GROUPS_KEY, label: "Show groups" },
-          { key: HEADER_SHOW_SUBSYSTEMS_KEY, label: `Show ${subsystemTerm}s` },
-          { key: HEADER_SHOW_FIELDS_KEY, label: "Show custom fields" },
-          { key: HEADER_SHOW_ALTER_FIELDS_KEY, label: `Show ${t.alter}-specific custom fields` },
-          { key: HEADER_SHOW_PRONOUNS_KEY, label: "Always show pronouns" },
+          { key: PS.HEADER_SHOW_GROUPS, label: "Show groups" },
+          { key: PS.HEADER_SHOW_SUBSYSTEMS, label: `Show ${subsystemTerm}s` },
+          { key: PS.HEADER_SHOW_FIELDS, label: "Show custom fields" },
+          { key: PS.HEADER_SHOW_ALTER_FIELDS, label: `Show ${t.alter}-specific custom fields` },
+          { key: PS.HEADER_SHOW_PRONOUNS, label: "Always show pronouns" },
         ].map(({ key, label }) => {
           const on = !!form.custom_fields?.[key];
           return (
@@ -730,9 +692,9 @@ useEffect(() => {
           <p className="text-xs text-muted-foreground mb-1">Group / {subsystemTerm} chip style</p>
           <div className="flex gap-1.5">
             {["icon", "name", "both"].map((m) => {
-              const active = (form.custom_fields?.[HEADER_CHIP_MODE_KEY] || "both") === m;
+              const active = (form.custom_fields?.[PS.HEADER_CHIP_MODE] || "both") === m;
               return (
-                <button key={m} type="button" onClick={() => setBgField(HEADER_CHIP_MODE_KEY, m)}
+                <button key={m} type="button" onClick={() => setBgField(PS.HEADER_CHIP_MODE, m)}
                   className={`flex-1 h-8 rounded-lg border text-xs font-medium capitalize transition-colors ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}>
                   {m}
                 </button>
@@ -843,9 +805,9 @@ useEffect(() => {
       )}
       {showAvatarModal && <AvatarModal ownerAlterId={alter?.id} src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
-      {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
-      {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
-      {showPageTextPicker && <ColorPickerModal color={pageTextColor || "#ffffff"} label="Page Text Color" onSave={(hex) => setBgField(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
+      {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(PS.BG_COLOR, hex)} onClose={() => setShowBgColorPicker(false)} />}
+      {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(PS.HEADER_TEXT, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
+      {showPageTextPicker && <ColorPickerModal color={pageTextColor || "#ffffff"} label="Page Text Color" onSave={(hex) => setBgField(PS.PAGE_TEXT, hex)} onClose={() => setShowPageTextPicker(false)} />}
       <AlterImagePoolManager open={avatarPoolOpen} onClose={() => setAvatarPoolOpen(false)} alterId={alter.id} role="avatar" />
     </div>
   );

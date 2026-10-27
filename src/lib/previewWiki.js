@@ -158,7 +158,7 @@ const stats = (items, accent = "hsl(var(--primary))") => `
 const bioWelcome = `
   ${hero({ eyebrow: "Preview Mode · Start here", title: "Welcome to the guided example", blurb: "Every profile in this example system is a walkthrough of one feature — and the whole app is filled with example data so you can actually try things. Read a page, then follow the <strong>Next →</strong> link at the bottom to walk the whole guide.", c1: "#0ea5e9", c2: "#6366f1", emoji: "🌊" })}
   ${grid([
-    { emoji: "👆", title: "It's a real profile", body: "Each page is an actual alter profile — the same tabs and edit modes work here." },
+    { emoji: "👆", title: "It's a real profile", body: "Each page is an actual alter profile — a widget board you can rearrange with the grid button, with the same pages and edit form." },
     { emoji: "🎨", title: "Designed to inspire", body: "Many pages flex the profile editor's range; a few stay minimal to show the span." },
     { emoji: "🔗", title: "Walk it in order", body: "Prev / Next links at the foot of every page thread the whole walkthrough." },
     { emoji: "🛟", title: "Your data is safe", body: "Real data is hidden, never touched. Exit any time from the top banner." },
@@ -301,7 +301,7 @@ const bioEditModes = `
   ${section("Import template",
     `"Import Template" button accepts OS or Simply Plural templates as text or pasted HTML. Lands in Blocks mode; switch to Plain or Simple to fill in the fields without breaking the code.`)}
   ${section("Profile style — per alter",
-    `Beyond the bio: each alter can override <strong>background colour</strong>, <strong>background image</strong>, <strong>page text colour</strong>, <strong>header text colour</strong>, and a <strong>page-specific font</strong>. The header can be hidden entirely if you'd rather code the top section yourself. Settings live in the Profile Style section at the bottom of the Profile tab.`)}
+    `Beyond the bio: each alter can override <strong>background colour</strong>, <strong>background image</strong>, <strong>page text colour</strong>, <strong>header text colour</strong>, and a <strong>page-specific font</strong>. The header can be hidden entirely if you'd rather code the top section yourself. Settings live in the Profile style section of the pencil (Edit) form. The <em>layout</em> of the page — which sections show, where, and how big — is the grid button next to Edit (see the Profile layouts page).`)}
   ${tip(`Linking an alter to a theme preset (Settings → Appearance → Fronter-linked themes) makes the whole app's theme switch when that alter becomes primary fronter. Pair that with a per-alter profile-style for a fully recoloured experience while they're up.`)}
 `;
 
@@ -339,13 +339,15 @@ const bioMiniToolbar = `
 
 // ── 7. Alter profile: fields & tabs ────────────────────────────────────
 const bioProfileFields = `
-  ${intro("Wiki · Alter profile · Fields & tabs", `Every field and every tab on an alter profile, in order.`)}
+  ${intro("Wiki · Alter profile · Fields & tabs", `Every field and every page on an alter profile, in order. Since v0.290 each profile is a widget board: every tab is a page and every section a widget, and the grid button next to Edit rearranges them (see Profile layouts).`)}
   ${section("Profile tab — identity",
     `<strong>Name</strong> — official display name (used everywhere). <strong>Alias</strong> — short tag for @mentions and -signposts. If Alex's alias is "A", typing <code>@a</code> in a bulletin auto-completes to Alex; signing <code>-a</code> in a comment attributes it to them. <strong>Pronouns</strong>, <strong>Role</strong>, <strong>Color</strong> (drives chips, badges, timeline bars), <strong>Birthday</strong>.`)}
   ${section("Profile tab — bio",
     `Big rich-text bio with Plain / Simple / Blocks / Raw modes (see Edit modes wiki). The mini-toolbar applies in every mode (see Mini Toolbar wiki).`)}
   ${section("Profile tab — profile style",
     `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off. Each setting is per-alter and overrides the system theme while you're on their page.`)}
+  ${section("Profile tab — layout",
+    `The Profile page starts as the header, preferences, bio, groups, subsystems, answers, tags and fields stacked top to bottom — the same as before boards. Tap the grid button to move, resize, restyle, remove or add any of them, or add headings, text, dividers and a song.`)}
   ${section("Info tab",
     `Custom Fields and their values. Define the schema in Settings → Alters & Fields → Custom Fields (text / number / boolean). Each alter then fills in their values.`)}
   ${section("Board tab",
@@ -360,6 +362,20 @@ const bioProfileFields = `
     `<strong>Connections map</strong> — predecessors → this alter → successors, from recorded fusion / split events. <strong>Relationships</strong> — explicit per-pair labels (twin, protector of, trauma holder for, split from). <strong>Event log</strong> — fusion, split, dormancy, return entries with cause + notes. "Record Event" button at the top.`)}
   ${section("Options tab",
     `Archive (move out of active list, keeps history), Friends visibility toggle (hide from <em>all</em> friends at once), delete (with confirmation).`)}
+`;
+
+// ── 7b. Profile layouts (widget boards) ───────────────────────────────
+const bioProfileLayouts = `
+  ${intro("Wiki · Profile layouts", `Every profile page — alters, groups and subsystems, contacts, inner-world locations — is a widget board on the same canvas as the home screen. Nothing changes until you edit it.`)}
+  ${section("The grid button",
+    `Next to Edit at the top of a profile. It puts the page into layout editing: hold a widget to move it, drag its edges to resize it, tap its ⚙ for its options (Content, Text, Shape, Colour, Styles — the same five-tab inspector as home-screen widgets), and use <strong>Widgets</strong> in the bottom bar to add anything. <strong>Add page</strong> makes a page of your own; the pages are the tabs.`)}
+  ${section("Widgets you can add",
+    `Every section of this kind of profile (header, bio, groups, fields, board, notes…), page pieces (heading, text, divider, spacer, song), and home-screen widgets that make sense here: journal, wishes, inner-world locations, timeline days and the fronting panel (bulletin board on groups). Those show only this profile's things by default; their <strong>Whose</strong> option switches to everyone's.`)}
+  ${section("Save menu",
+    `<strong>Save &amp; close</strong> keeps the layout; <strong>Discard changes</strong> puts everything back. <strong>Use this layout for all</strong> copies it onto every profile of this kind. <strong>Use as the default layout</strong> makes it what every <em>unedited</em> profile of this kind shows. <strong>Reset this layout</strong> sends this one back to the default (or the standard layout). Each asks first, and Recent changes keeps every layout they replace.`)}
+  ${section("Where layouts live",
+    `A layout is saved only once you edit it — a fresh profile, a restored backup and an older device all show the same page from the record alone. Layouts travel in backups (Alters &amp; Profiles) and sync page by page between devices. Defaults are listed under Settings → Alter setup → Profile layouts, where they can be cleared.`)}
+  ${tip(`The record itself — name, pronouns, bio, style — is still edited on the pencil form. The grid button changes how the page is laid out, never what it says.`)}
 `;
 
 // ── 8. Currently Fronting & Switching ─────────────────────────────────
@@ -906,6 +922,7 @@ export function buildPages() {
         { id: uid("acf"), label: "Reads",  value: "Long-form essays, recipe books." },
         { id: uid("acf"), label: "Avoids", value: "Loud rooms, surprise phone calls." },
       ] }),
+    layouts:    wikiAlter({ name: "Profile layouts",        alias: "grid",  role: "Widget boards",    color: "#e11d48", order_index: 5.5, description: bioProfileLayouts }),
     rawShowcase:   wikiAlter({ name: "Raw HTML showcase",   alias: "raw",   role: "Design range",     color: "#06b6d4", order_index: 6,  description: bioRawShowcase,
       custom_fields: { "wcf-sensory": "Gradients, monospace, a single pulsing dot." } }),
     themeShowcase: wikiAlter({ name: "Theme presets showcase", alias: "theme", role: "Design range",  color: "#f59e0b", order_index: 7,  description: bioThemeShowcase }),
@@ -969,7 +986,7 @@ export function buildPages() {
   // Groups own their members via `member_alter_ids` + `parent` + `order`.
   const groups = [
     { id: uid("wiki-group"), name: "1 · Start here",        color: "#38bdf8", description: "Welcome + the gestures cheatsheet. Read these first.",                       member_alter_ids: [A.welcome.id, A.gestures.id], parent: "root", order: 0 },
-    { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, the four edit modes, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
+    { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, the four edit modes, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.layouts.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
     { id: uid("wiki-group"), name: "3 · Fronting & system", color: "#a855f7", description: "Who's out, lineage over time, the inner-world map, and presences.",           member_alter_ids: [A.fronting.id, A.systemHistory.id, A.systemMap.id, A.presences.id], parent: "root", order: 2 },
     { id: uid("wiki-group"), name: "4 · Tracking",          color: "#10b981", description: "Dashboard, timeline, activities, check-ins, symptoms, sleep, locations, tasks, diary.", member_alter_ids: [A.dashboard.id, A.timeline.id, A.activities.id, A.checkIn.id, A.symptoms.id, A.sleep.id, A.locations.id, A.todo.id, A.pinnedDailyTasks.id, A.diary.id], parent: "root", order: 3 },
     { id: uid("wiki-group"), name: "5 · Reflection & support", color: "#22c55e", description: "Journaling, grounding & learn, unblend, safety plan, reminders.",           member_alter_ids: [A.journaling.id, A.grounding.id, A.unblend.id, A.safetyPlan.id, A.reminders.id], parent: "root", order: 4 },

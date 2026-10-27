@@ -20,13 +20,8 @@ import SimplePreview from "@/components/shared/SimplePreview";
 import AlterCard from "@/components/alters/AlterCard";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
+import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_FONT_KEY = "_header_font";
-const HIDE_HEADER_KEY = "_hide_header";
-const HEADER_TEXT_KEY = "_header_text_color";
 
 function getContrastColor(hex) {
   if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
@@ -108,10 +103,10 @@ export function LocationHeaderSection({ location }) {
   const { parentLoc, subLocs, altersHere, scope } = useLocationContext(location);
   const cf = location.custom_fields || {};
   const ps = readProfileBg(cf);
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const headerTextColor = cf[HEADER_TEXT_KEY] || "";
-  const headerBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
-  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
+  const headerTextColor = cf[PS.HEADER_TEXT] || "";
+  const headerBgColor = ps.headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
+  const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
   const headerOpacity = ps.headerOpacity;
   const [resolvedHeader, setResolvedHeader] = useState(null);
   useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
@@ -124,7 +119,7 @@ export function LocationHeaderSection({ location }) {
       <Lock className="w-3.5 h-3.5" /> Position locked on the map
     </div>
   ) : null;
-  if (cf[HIDE_HEADER_KEY]) return locked;
+  if (cf[PS.HIDE_HEADER]) return locked;
   return (
     <div className="space-y-6">
       <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(cf), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>

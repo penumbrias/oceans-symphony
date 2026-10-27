@@ -469,6 +469,12 @@ Rules for keeping the targets healthy:
   the store (stamped), and the entity layer snapshots every replaced board
   into Recent changes (`category: "layout"`, restorable). Settings → Alter
   setup → Profile layouts (`ProfileLayoutSettings.jsx`) clears a default.
+  **The classic profile view is gone (v0.293.0).** `ProfileTab.jsx` is the
+  pencil form only; viewing is always the board. Every `_`-prefixed profile
+  style key is a `PS.*` constant in `src/lib/profileStyle.js` — never
+  redeclare one in a component. The wiki's "Profile layouts" page
+  (`bioProfileLayouts`, `WIKI_CONTENT_VERSION` 0.83.0) describes the boards;
+  refresh it when the layout editor changes.
 - **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
   through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
   (fresh row, stamped, never blanks a board). Editing sheets learn which

@@ -21,7 +21,7 @@ import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { parsePreferences } from "@/lib/alterPreferences";
 import { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
-import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
+import { colorWithAlpha, readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -35,22 +35,6 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const HEADER_TEXT_KEY = "_header_text_color";
-const HEADER_BG_KEY = "_header_bg_color";
-const HIDE_HEADER_KEY = "_hide_header";
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_FONT_KEY = "_header_font";
-const HEADER_OPACITY_KEY = "_header_opacity";
-const HEADER_SHOW_GROUPS_KEY = "_header_show_groups";
-const HEADER_SHOW_SUBSYSTEMS_KEY = "_header_show_subsystems";
-const HEADER_SHOW_FIELDS_KEY = "_header_show_fields";
-const HEADER_CHIP_MODE_KEY = "_header_chip_mode"; // "icon" | "name" | "both"
-const HEADER_SHOW_ALTER_FIELDS_KEY = "_header_show_alter_fields";
-const HEADER_SHOW_PRONOUNS_KEY = "_header_show_pronouns";
-const SECTION_BG_KEY = "_section_bg_opacity";
-const FIELD_ORDER_KEY = "_field_order";
 
 export function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -88,12 +72,12 @@ function contrastRatio(a, b) {
 export function headerExtras(alter) {
   const cf = alter?.custom_fields || {};
   return {
-    groups: !!cf[HEADER_SHOW_GROUPS_KEY],
-    subsystems: !!cf[HEADER_SHOW_SUBSYSTEMS_KEY],
-    fields: !!cf[HEADER_SHOW_FIELDS_KEY],
-    alterFields: !!cf[HEADER_SHOW_ALTER_FIELDS_KEY],
-    pronouns: !!cf[HEADER_SHOW_PRONOUNS_KEY],
-    chipMode: cf[HEADER_CHIP_MODE_KEY] || "both",
+    groups: !!cf[PS.HEADER_SHOW_GROUPS],
+    subsystems: !!cf[PS.HEADER_SHOW_SUBSYSTEMS],
+    fields: !!cf[PS.HEADER_SHOW_FIELDS],
+    alterFields: !!cf[PS.HEADER_SHOW_ALTER_FIELDS],
+    pronouns: !!cf[PS.HEADER_SHOW_PRONOUNS],
+    chipMode: cf[PS.HEADER_CHIP_MODE] || "both",
   };
 }
 
@@ -102,10 +86,10 @@ export function headerExtras(alter) {
 // other surfaces; otherwise the readability tint uses the theme surface.
 export function profileSectionCardStyle(alter) {
   const cf = alter?.custom_fields || {};
-  const bgColor = cf[BG_COLOR_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const opacity = parseFloat(cf[SECTION_BG_KEY] ?? 0.9);
+  const bgColor = cf[PS.BG_COLOR] || "";
+  const bgImage = cf[PS.BG_IMAGE] || "";
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
+  const opacity = parseFloat(cf[PS.READABILITY] ?? 0.9);
   const hasSectionBg = opacity > 0 && (bgColor || bgImage || headerImage);
   if (bgImage && bgColor) return { backgroundColor: colorWithAlpha(bgColor, opacity) };
   if (hasSectionBg) return { backgroundColor: `rgba(var(--color-surface-rgb), ${opacity})` };
@@ -142,14 +126,14 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
   const [saving, setSaving] = useState(false);
   const { resolvedGroups, ownedSubsystems } = useAlterGroups(alter);
   const cf = alter.custom_fields || {};
-  const headerText = cf[HEADER_TEXT_KEY] || null;
-  const headerBgColor = readProfileBg(cf).headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
-  const hideHeader = !!cf[HIDE_HEADER_KEY];
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
-  const headerOpacity = cf[HEADER_OPACITY_KEY] !== undefined ? parseFloat(cf[HEADER_OPACITY_KEY]) : 0.45;
-  const bgColor = cf[BG_COLOR_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
+  const headerText = cf[PS.HEADER_TEXT] || null;
+  const headerBgColor = readProfileBg(cf).headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
+  const hideHeader = !!cf[PS.HIDE_HEADER];
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
+  const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
+  const headerOpacity = cf[PS.HEADER_OPACITY] !== undefined ? parseFloat(cf[PS.HEADER_OPACITY]) : 0.45;
+  const bgColor = cf[PS.BG_COLOR] || "";
+  const bgImage = cf[PS.BG_IMAGE] || "";
   const hasBg = bgColor || bgImage;
   const extras = headerExtras(alter);
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
@@ -266,7 +250,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
             quality={0.8}
             label="⚠️ Fix background"
             onFixed={async (url) => {
-              await base44.entities.Alter.update(alter.id, { custom_fields: { ...alter.custom_fields, [BG_IMAGE_KEY]: url } });
+              await base44.entities.Alter.update(alter.id, { custom_fields: { ...alter.custom_fields, [PS.BG_IMAGE]: url } });
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }}
           />
@@ -541,7 +525,7 @@ export function ProfileFieldsSection({ alter, systemFields = [] }) {
   const fieldLayoutCls = fieldLayoutClasses(fieldLayout);
   const values = alter.custom_fields || {};
   const extras = headerExtras(alter);
-  const perAlterOrder = values[FIELD_ORDER_KEY] || null;
+  const perAlterOrder = values[PS.FIELD_ORDER] || null;
   const orderedFields = perAlterOrder
     ? [...systemFields].sort((a, b) => {
         const ai = perAlterOrder.indexOf(a.id);

@@ -42,6 +42,17 @@ export const PS = {
   HIDE_HEADER: "_hide_header",
   PAGE_TEXT: "_page_text_color",
   PAGE_FONT: "_page_font",
+  // Rotating background image pool mode (RotationModeControl).
+  BG_ROTATION: "_bg_rotation_mode",
+  // Header extras (alter profiles): chips for groups / subsystems / fields.
+  HEADER_SHOW_GROUPS: "_header_show_groups",
+  HEADER_SHOW_SUBSYSTEMS: "_header_show_subsystems",
+  HEADER_SHOW_FIELDS: "_header_show_fields",
+  HEADER_SHOW_ALTER_FIELDS: "_header_show_alter_fields",
+  HEADER_SHOW_PRONOUNS: "_header_show_pronouns",
+  HEADER_CHIP_MODE: "_header_chip_mode", // "icon" | "name" | "both"
+  // Order of the fields on the Fields section.
+  FIELD_ORDER: "_field_order",
   // Profile song ({ ref, title, loop }). Alters ALSO have a top-level
   // profile_song from before this was shared; readers check both.
   SONG: "_profile_song",

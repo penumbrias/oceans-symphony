@@ -40,8 +40,6 @@ import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
 
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
 
 const PAGE_ICONS = { [profilePageId("profile")]: MapPin };
 
@@ -197,8 +195,8 @@ function LocationProfileInner() {
     const ps = readProfileBg(cf);
     const themeCss = profileThemeCss("os-pf", cf);
     const surfaceCss = profileSurfaceCss("os-pf", cf);
-    const pageTextColor = cf[PAGE_TEXT_KEY] || "";
-    const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+    const pageTextColor = cf[PS.PAGE_TEXT] || "";
+    const pageFont = fontStackFor(cf[PS.PAGE_FONT]);
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={ps.bgColor} bgImage={ps.bgImage} bgOpacity={ps.bgOpacity} />

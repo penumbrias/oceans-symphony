@@ -26,15 +26,10 @@ import AlterCard from "@/components/alters/AlterCard";
 import { getMemberAlters, getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
+import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_FONT_KEY = "_header_font";
-const HIDE_HEADER_KEY = "_hide_header";
-const HEADER_TEXT_KEY = "_header_text_color";
 
 export function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -92,16 +87,16 @@ export function GroupHeaderSection({ group }) {
   const { ownerAlter, parentGroup, members } = useGroupContext(group);
   const cf = group.custom_fields || {};
   const ps = readProfileBg(cf);
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
   // Header bg colour with its own opacity baked in (rgba) — so the header
   // colour can be made translucent independently of the body bg.
-  const headerBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
-  const headerTextColor = cf[HEADER_TEXT_KEY] || "";
-  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const headerBgColor = ps.headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
+  const headerTextColor = cf[PS.HEADER_TEXT] || "";
+  const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
   const headerOpacity = ps.headerOpacity;
   const [resolvedHeader, setResolvedHeader] = useState(null);
   React.useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
-  if (cf[HIDE_HEADER_KEY]) return null;
+  if (cf[PS.HIDE_HEADER]) return null;
   const hasHeader = !!(headerImage && resolvedHeader);
   // Header text colour: the user's override wins; otherwise white over a
   // header image (for contrast), else the group's name colour.

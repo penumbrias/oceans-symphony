@@ -44,16 +44,6 @@ const PAGE_ICONS = {
   [profilePageId("activities")]: Zap,
   [profilePageId("options")]: SlidersHorizontal,
 };
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const BG_ROTATION_KEY = "_bg_rotation_mode";
-const BG_OPACITY_KEY = "_bg_opacity";
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_FONT_KEY = "_header_font";
-const SECTION_BG_KEY = "_section_bg_opacity";
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -172,7 +162,7 @@ function AlterProfileInner() {
   // through useRotatingImageUrl first, which is a no-op passthrough of the
   // fixed value when rotation isn't turned on.
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
-  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[BG_ROTATION_KEY], fallbackUrl: alter?.custom_fields?.[BG_IMAGE_KEY], alter });
+  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[PS.BG_ROTATION], fallbackUrl: alter?.custom_fields?.[PS.BG_IMAGE], alter });
 
   // Resolve avatar URL (local or external)
   useEffect(() => {
@@ -185,10 +175,10 @@ function AlterProfileInner() {
 
   // Resolve header image URL
   useEffect(() => {
-    const img = alter?.custom_fields?.[HEADER_IMAGE_KEY];
+    const img = alter?.custom_fields?.[PS.HEADER_IMAGE];
     if (img) resolveImageUrl(img).then(setResolvedHeaderImage).catch(() => setResolvedHeaderImage(null));
     else setResolvedHeaderImage(null);
-  }, [alter?.custom_fields?.[HEADER_IMAGE_KEY]]);
+  }, [alter?.custom_fields?.[PS.HEADER_IMAGE]]);
 
   // Resolve page background image URL. Like the header above, this MUST go
   // through resolveImageUrl — a raw local-image:// (legacy) value can't be
@@ -238,13 +228,13 @@ function AlterProfileInner() {
   const pageBgOpacity = ps.bgOpacity;       // image:0.5 / colour:0.15 default
   const readability = ps.readability;        // _bg_color tint over image (0.1 default)
   const headerOpacity = ps.headerOpacity;    // header image opacity (0.45 default)
-  const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
-  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
-  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  const pageHeaderImage = cf[PS.HEADER_IMAGE] || "";
+  const pageTextColor = cf[PS.PAGE_TEXT] || "";
+  const pageFont = fontStackFor(cf[PS.PAGE_FONT]);
   // Header bg colour with its own opacity baked in (rgba) — so the header
   // colour can be made translucent independently of the body.
-  const pageHeaderBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
-  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const pageHeaderBgColor = ps.headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
+  const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
   // A rotation-only setup (pool populated but no fixed _bg_image ever set)
   // still counts as "has a background" — readProfileBg doesn't know about
   // rotation, so OR in the rotated pick's presence locally.
@@ -470,13 +460,12 @@ function AlterProfileInner() {
         )}
 
         {editMode ? (
-          // The record's own fields are still edited on the classic form
-          // (the board's inspectors take this over in a later step).
+          // The record's own fields are edited on the pencil form (the
+          // board's inspectors take this over in a later step). Viewing is
+          // the board (ProfileBoardCanvas) — the classic stacked view is gone.
           <ProfileTab
             alter={alter}
-            editMode={editMode}
             onEditModeChange={setEditMode}
-            systemFields={systemFields}
             saveRef={saveRef}
           />
         ) : (

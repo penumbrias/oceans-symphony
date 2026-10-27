@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { PS } from "@/lib/profileStyle";
 import { base44 } from "@/api/base44Client";
 import { createAlter, refreshAlter, extractYear } from "@/lib/alterEntry";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,15 +30,6 @@ import RotationModeControl from "@/components/shared/RotationModeControl";
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
 // add/edit modal style the profile up-front instead of forcing a second
 // trip into the in-profile editor.
-const BG_COLOR_KEY = "_bg_color";
-const BG_IMAGE_KEY = "_bg_image";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_TEXT_KEY = "_header_text_color";
-const HEADER_FONT_KEY = "_header_font";
-const HIDE_HEADER_KEY = "_hide_header";
-const PAGE_TEXT_KEY = "_page_text_color";
-const PAGE_FONT_KEY = "_page_font";
 
 
 // Small system-safe font picker reused for the header and the body.
@@ -130,8 +122,8 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
 
   // ── Image resolution for previews (header / background may be local-image://) ──
   const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
-  const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
+  const headerImage = cf[PS.HEADER_IMAGE] || "";
+  const bgImage = cf[PS.BG_IMAGE] || "";
   const [resolvedHeaderImg, setResolvedHeaderImg] = useState("");
   const [resolvedBgImg, setResolvedBgImg] = useState("");
   useEffect(() => {
@@ -180,10 +172,10 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
       if (isLocalMode()) {
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
-        setCF(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
+        setCF(PS.HEADER_IMAGE, createLocalImageUrl(imageId));
         registerAlterUpload({ url: createLocalImageUrl(imageId), role: "header" });
       } else {
-        setCF(HEADER_IMAGE_KEY, dataUrl);
+        setCF(PS.HEADER_IMAGE, dataUrl);
       }
       toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
     } catch { toast.error("Failed to process header image"); }
@@ -199,10 +191,10 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
       if (isLocalMode()) {
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
-        setCF(BG_IMAGE_KEY, createLocalImageUrl(imageId));
+        setCF(PS.BG_IMAGE, createLocalImageUrl(imageId));
         registerAlterUpload({ url: createLocalImageUrl(imageId), role: "background" });
       } else {
-        setCF(BG_IMAGE_KEY, dataUrl);
+        setCF(PS.BG_IMAGE, dataUrl);
       }
       toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
     } catch { toast.error("Failed to process background image"); }
@@ -225,7 +217,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
     }
   };
 
-  const hideHeader = !!cf[HIDE_HEADER_KEY];
+  const hideHeader = !!cf[PS.HIDE_HEADER];
 
   // A colour field that opens the fixed-position picker modal (clip-safe
   // inside the overflow-hidden Profile-style subsections).
