@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "improve", text: "Display options: the defunct \"Back to classic\" button is gone." },
       { type: "feature", text: "Display options is now the same five-tab inspector as widget options: Text, Shape, Bars, Colour and Styles, with a slider for every size and one bar at a time under Bars." },
       { type: "improve", text: "Add-widget library: search and the group strip stay at the top, every widget has a labelled Add button, and the preview page uses the same rows as the inspector." },
       { type: "improve", text: "Widget options: Row height and \"how many\" counts are sliders now, and the ⋯ menu can duplicate a widget." },
