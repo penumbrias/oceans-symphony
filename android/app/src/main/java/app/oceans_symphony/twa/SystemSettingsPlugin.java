@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
 
+import android.graphics.Rect;
 import android.view.View;
 import android.webkit.WebView;
 
@@ -21,11 +22,17 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * What stands between a reminder and the person, and one-tap ways to fix
@@ -224,6 +231,38 @@ public class SystemSettingsPlugin extends Plugin {
     // Reported as OVERLAP with the web view rather than the raw bar size, so
     // it is right whether or not the web view reaches the screen edge (it
     // stops above the keyboard while one is open: overlap 0).
+    // Keep the system back gesture off the sliders on screen (v0.288.0,
+    // src/lib/gestureExclusion.js): `rects` are CSS-pixel rectangles in the
+    // web view's viewport; Android 10+ then treats a drag that starts in
+    // them as the page's, not the edge's. An empty list clears them.
+    @PluginMethod
+    public void setGestureExclusion(PluginCall call) {
+        JSArray arr = call.getArray("rects");
+        getActivity().runOnUiThread(() -> {
+            try {
+                WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+                if (wv == null || Build.VERSION.SDK_INT < 29) { call.resolve(); return; }
+                float density = wv.getResources().getDisplayMetrics().density;
+                if (density <= 0) density = 1;
+                List<Rect> rects = new ArrayList<>();
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject o = arr.getJSONObject(i);
+                        int l = (int) Math.floor(o.optDouble("left", 0) * density);
+                        int t = (int) Math.floor(o.optDouble("top", 0) * density);
+                        int r = (int) Math.ceil(o.optDouble("right", 0) * density);
+                        int b = (int) Math.ceil(o.optDouble("bottom", 0) * density);
+                        if (r > l && b > t) rects.add(new Rect(l, t, r, b));
+                    }
+                }
+                ViewCompat.setSystemGestureExclusionRects(wv, rects);
+            } catch (Exception e) {
+                // Nothing to do: the inset track alone stands.
+            }
+            call.resolve();
+        });
+    }
+
     @PluginMethod
     public void systemBarInsets(PluginCall call) {
         getActivity().runOnUiThread(() -> {
