@@ -1,15 +1,19 @@
-// The unified UI edit popup — built to docs/v2-edit-menu-spec.md (the
-// user's wireframe). One anatomy for every UI edit menu; this file is the
-// popup BODY, mounted first on the v2 Display Options sheet.
+// Display options — the app-wide inspector (v0.288.0), built to
+// docs/inspector-design-guide.md: the same five-tab anatomy as the widget
+// inspector. This file is the popup BODY; V2Frame's OptionsSheet and the
+// home board's "Home screen" drawer mount it.
 //
-// Anatomy rules implemented here:
-//  • Chevron-expandable sections (SubSection), in the wireframe's order.
-//  • Every slider hides behind a VISIBLE "set" button on the edge opposite
-//    the content alignment — a slider only exists after an explicit tap,
-//    so a scroll can never adjust a setting.
-//  • Color boxes open the shared picker with per-color opacity.
-//  • Image slots offer upload or asset library; font pickers include the
-//    user's custom fonts; audio background doubles as the page song.
+//  • A fixed tab strip — Text · Shape · Bars · Colour · Styles — one tab on
+//    screen at a time (no accordion, no 4000px scroll).
+//  • One row grammar (src/components/shared/SettingRows.jsx): name left,
+//    control right; every size is an always-visible slider with the number
+//    beside it; a value a bar inherits shows greyed and dashed, with a ×
+//    to clear it.
+//  • Bars: one bar at a time, chosen on a segmented row, each laid out the
+//    same way — Show · Position · Size · Look · What's on it.
+//  • Colour boxes open the shared picker with per-colour opacity; image
+//    slots offer upload or the asset library; font pickers include the
+//    user's custom fonts; the audio background doubles as the page song.
 //
 // Storage: nothing new. ui_v2 tokens via useV2Display (the one write
 // path), the eight color roles via ThemeContext's customColors, the page
@@ -17,12 +21,12 @@
 // the theme preset store (which already applies on fronting via
 // alterThemeLinks).
 
-import TextCard from "@/components/shared/TextCard";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload } from "lucide-react";
-import { SubSection } from "@/components/settings/SettingsUI";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload, Type, Square, PanelTop, Palette, Star as StarIcon } from "lucide-react";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar } from "@/components/shared/SettingRows";
+import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
@@ -45,7 +49,6 @@ import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeT
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { writeBoard, writeSettingsWithBoards, useBoardField } from "@/lib/boardWriter";
-import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
 import {
@@ -79,43 +82,15 @@ export function joinHexAlpha(hex, alpha) {
   return hex + Math.round((a / 100) * 255).toString(16).padStart(2, "0");
 }
 
-// ── The "set" row — name + visible set icon; slider only after a tap ──
-function SetRow({ label, valueLabel, alignX = "center", children }) {
-  const [open, setOpen] = useState(false);
-  const btn = (
-    <button type="button" aria-label={`${label} — set`} aria-expanded={open}
-      onClick={() => setOpen((v) => !v)}
-      className={`w-8 h-8 flex items-center justify-center rounded-lg border flex-shrink-0 ${
-        open ? "border-primary/60 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-      }`}>
-      <SlidersHorizontal className="w-3.5 h-3.5" />
-    </button>
-  );
+// A ui_v2 token as a slider row — the value is always on screen with the
+// number beside it (the old "set" button hid the slider until tapped).
+function TokenSliderRow({ v2, id, label, hint }) {
+  const def = tokenById[id];
+  const value = v2.uiV2.tokens[id] ?? def.default;
   return (
-    <div className="py-0.5">
-      <div className="flex items-center gap-2.5">
-        {alignX === "right" && btn}
-        <span className={`text-xs font-medium flex-1 min-w-0 truncate ${alignX === "right" ? "text-right" : ""}`}>
-          {label}
-        </span>
-        {valueLabel != null && (
-          <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{valueLabel}</span>
-        )}
-        {alignX !== "right" && btn}
-      </div>
-      {open && <div className="pt-1.5 pb-1">{children}</div>}
-    </div>
-  );
-}
-
-function TokenSlider({ def, value, onChange }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <input type="range" min={def.min} max={def.max} step={def.step} value={value}
-        onChange={(e) => onChange(parseInt(e.target.value, 10))}
-        className="flex-1" aria-label={def.label} />
-      <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">{value}{def.unit || ""}</span>
-    </div>
+    <SliderRow label={label || def.label} hint={hint} value={value} fallback={def.default}
+      min={def.min} max={def.max} step={def.step} unit={def.unit || ""}
+      onChange={(val) => v2.setToken(id, val)} />
   );
 }
 
@@ -143,28 +118,13 @@ function ArrangeRow({ label, checked, onCheck, onUp, onDown, leading = null }) {
   );
 }
 
-function PillRow({ label, options, value, onChange, alignX, stacked = false }) {
-  const pills = options.map((o) => (
-    <button key={o.v} type="button" onClick={() => onChange(o.v)} aria-pressed={value === o.v}
-      className={`text-xs px-2.5 py-1 rounded-full border ${
-        value === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-      }`}>{o.label}</button>
-  ));
-  // Stacked: label on its own line, pills wrapping below — for option
-  // sets too wide to share a line without squashing the label to "P…".
-  if (stacked) {
-    return (
-      <div className="py-1 space-y-1">
-        <span className={`text-xs font-medium block ${alignX === "right" ? "text-right" : ""}`}>{label}</span>
-        <div className={`flex gap-1.5 flex-wrap ${alignX === "right" ? "justify-end" : ""}`}>{pills}</div>
-      </div>
-    );
-  }
+// A choice among a few options — the inspector's ChoiceRow (segmented when
+// it fits beside the name, chips otherwise). Kept under its old name so the
+// bar sections read as before.
+function PillRow({ label, options, value, onChange }) {
   return (
-    <div className={`flex items-center gap-2.5 py-1 ${alignX === "right" ? "flex-row-reverse" : ""}`}>
-      <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
-      <div className="flex gap-1.5 flex-wrap justify-end">{pills}</div>
-    </div>
+    <ChoiceRow label={label} value={value} onChange={onChange}
+      options={options.map((o) => ({ value: o.v, label: o.label }))} />
   );
 }
 
@@ -204,122 +164,106 @@ function StyleFlagButtons({ def, value = [], onChange }) {
   );
 }
 
-// ── TEXT & LAYOUT section ──────────────────────────────────────────────
-// Two groups: TEXT (a live preview, then a Body card and a Headings card
-// with identical rows) and LAYOUT (width, alignment, touch spacing,
-// borders, corners). The old single list interleaved the two and split
-// each font from its own size and style.
-function SizeSection({ v2, alignX }) {
+// ── TEXT tab ───────────────────────────────────────────────────────────
+// Body | Headings on one segmented row; the font, size and style of the
+// chosen kind sit together under it, so a change can't bleed into the
+// other kind. The preview at the top shows both.
+function TextTab({ v2 }) {
   const tr = useT();
   const fontOptions = useFontOptions({ includeInherit: false });
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
   const refresh = () => setA11y(getAccessibilitySettings());
-
-  const tokenRow = (id) => {
-    const def = tokenById[id];
-    const value = v2.uiV2.tokens[id] ?? def.default;
-    const shown = def.id === "contentW" && !value ? tr("options.valueFull") : `${value}${def.unit || ""}`;
-    return (
-      <SetRow key={id} label={def.label} valueLabel={shown} alignX={alignX}>
-        <TokenSlider def={def} value={value} onChange={(val) => v2.setToken(id, val)} />
-      </SetRow>
-    );
-  };
+  const [kind, setKind] = useState("body");
 
   const sizeIdx = Math.max(0, SIZE_STEPS.indexOf(a11y.fontSize || "default"));
-  const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
-  const setBodySize = (i) => { setAccessibilityFontSize(SIZE_STEPS[i]); refresh(); };
-
+  const setBodySize = (i) => { setAccessibilityFontSize(SIZE_STEPS[Math.round(i)]); refresh(); };
   const hDef = tokenById.headerScale;
   const hScale = v2.uiV2.tokens.headerScale ?? hDef.default;
-  const setHeaderScale = (next) => v2.setToken("headerScale", Math.min(hDef.max, Math.max(hDef.min, next)));
-
-  const groupTitle = (text) => (
-    <p className="text-xs font-semibold pt-1">{text}</p>
-  );
 
   return (
-    <SubSection title={tr("editSheet.size")} defaultOpen storageKey="edit-size">
-      <div className="space-y-3">
-        <div className="space-y-2">
-          {groupTitle(tr("editSheet.groupText"))}
-          {/* Live preview — rendered with the app's own heading and body
-              styles, so every change below shows here at once. */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5" aria-hidden>
-            <h3 className="font-display font-semibold leading-tight" style={{ fontSize: `${1.125 * hScale / 100}em` }}>
-              {tr("editSheet.previewHeading")}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-0.5">{tr("editSheet.previewBody")}</p>
-          </div>
-          <TextCard
-            title={tr("editSheet.textBody")}
-            font={{
-              select: (
+    <div>
+      <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5 mb-2" aria-hidden>
+        <h3 className="font-display font-semibold leading-tight" style={{ fontSize: `${1.125 * hScale / 100}em` }}>
+          {tr("editSheet.previewHeading")}
+        </h3>
+        <p className="text-sm text-muted-foreground mt-0.5">{tr("editSheet.previewBody")}</p>
+      </div>
+      <Segmented label={tr("editSheet.groupText")} value={kind} onChange={setKind}
+        options={[{ value: "body", label: tr("editSheet.textBody") }, { value: "headings", label: tr("editSheet.textHeadings") }]} />
+      {kind === "body" ? (
+        <div className="pt-1">
+          <Row label={tr("editSheet.font")} align="start">
+            <span className="flex items-center gap-1.5 w-[11.5rem] max-w-full">
+              <span className="flex-1 min-w-0">
                 <SearchableSelect
                   value={a11y.fontFamily || "inter"}
                   onChange={(id) => { setAccessibilityFontFamily(id); refresh(); }}
                   options={fontOptions}
                   placeholder={tr("editSheet.fontBody")}
                 />
-              ),
-              upload: <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />,
-            }}
-            size={{
-              label: tr("editSheet.textSize"),
-              valueLabel: `${SIZE_PCT[SIZE_STEPS[sizeIdx]]}%`,
-              canDown: sizeIdx > 0, canUp: sizeIdx < SIZE_STEPS.length - 1,
-              onDown: () => setBodySize(sizeIdx - 1), onUp: () => setBodySize(sizeIdx + 1),
-            }}
-            style={{
-              label: tr("editSheet.textStyle"),
-              control: <StyleFlagButtons def={tokenById.bodyStyle} value={v2.uiV2.tokens.bodyStyle ?? []}
-                onChange={(val) => v2.setToken("bodyStyle", val)} />,
-            }}
-          />
-          <TextCard
-            title={tr("editSheet.textHeadings")}
-            font={{
-              select: (
+              </span>
+              <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />
+            </span>
+          </Row>
+          <SliderRow label={tr("editSheet.textSize")} value={sizeIdx} fallback={sizeIdx}
+            min={0} max={SIZE_STEPS.length - 1} step={1}
+            labels={SIZE_STEPS.map((k) => `${SIZE_PCT[k]}%`)} onChange={setBodySize} />
+          <Row label={tr("editSheet.textStyle")}>
+            <StyleFlagButtons def={tokenById.bodyStyle} value={v2.uiV2.tokens.bodyStyle ?? []}
+              onChange={(val) => v2.setToken("bodyStyle", val)} />
+          </Row>
+        </div>
+      ) : (
+        <div className="pt-1">
+          <Row label={tr("editSheet.font")} align="start">
+            <span className="flex items-center gap-1.5 w-[11.5rem] max-w-full">
+              <span className="flex-1 min-w-0">
                 <SearchableSelect
                   value={a11y.headingFont || "default"}
                   onChange={(id) => { setAccessibilityHeadingFont(id); refresh(); }}
                   options={[{ id: "default", label: tr("editSheet.fontSameAsBody") }, ...fontOptions]}
                   placeholder={tr("editSheet.fontHeader")}
                 />
-              ),
-              upload: <FontUploadButton onUploaded={(family) => { setAccessibilityHeadingFont(family); refresh(); }} />,
-            }}
-            size={{
-              label: tr("editSheet.textSizeRelative"),
-              valueLabel: `${hScale}%`,
-              canDown: hScale > hDef.min, canUp: hScale < hDef.max,
-              onDown: () => setHeaderScale(hScale - hDef.step), onUp: () => setHeaderScale(hScale + hDef.step),
-            }}
-            style={{
-              label: tr("editSheet.textStyle"),
-              control: <StyleFlagButtons def={tokenById.headerStyle} value={v2.uiV2.tokens.headerStyle ?? []}
-                onChange={(val) => v2.setToken("headerStyle", val)} />,
-            }}
-          />
+              </span>
+              <FontUploadButton onUploaded={(family) => { setAccessibilityHeadingFont(family); refresh(); }} />
+            </span>
+          </Row>
+          <TokenSliderRow v2={v2} id="headerScale" label={tr("editSheet.textSizeRelative")} />
+          <Row label={tr("editSheet.textStyle")}>
+            <StyleFlagButtons def={tokenById.headerStyle} value={v2.uiV2.tokens.headerStyle ?? []}
+              onChange={(val) => v2.setToken("headerStyle", val)} />
+          </Row>
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div className="space-y-1">
-          {groupTitle(tr("editSheet.groupLayout"))}
-          {tokenRow("contentW")}
-          <PillRow label={tokenById.alignX.label} options={tokenById.alignX.options}
-            value={v2.uiV2.tokens.alignX ?? "center"} onChange={(val) => v2.setToken("alignX", val)} alignX={alignX} />
-          {/* Touch target spacing — the engine today is one all-sides scale;
-              per-side values arrive with the engine work (spec notes this). */}
-          <SetRow label={tr("editSheet.touchSpacing")} valueLabel={TOUCH_STEPS[touchIdx]} alignX={alignX}>
-            <input type="range" min={0} max={TOUCH_STEPS.length - 1} step={1} value={touchIdx}
-              onChange={(e) => { setAccessibilityLargeTouch(TOUCH_STEPS[parseInt(e.target.value, 10)]); refresh(); }}
-              className="w-full" aria-label={tr("editSheet.touchSpacing")} />
-          </SetRow>
-          {tokenRow("borderW")}
-          {tokenRow("radius")}
-        </div>
-      </div>
-    </SubSection>
+// ── SHAPE tab — width, alignment, spacing, edges ───────────────────────
+function ShapeTab({ v2 }) {
+  const tr = useT();
+  const [a11y, setA11y] = useState(() => getAccessibilitySettings());
+  const refresh = () => setA11y(getAccessibilitySettings());
+  const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
+  const alignDef = tokenById.alignX;
+  return (
+    <div>
+      <Group title={tr("editSheet.groupLayout")} first>
+        <TokenSliderRow v2={v2} id="contentW" hint={tr("editSheet.contentWidthHint")} />
+        <ChoiceRow label={alignDef.label} value={v2.uiV2.tokens.alignX ?? "center"}
+          onChange={(val) => v2.setToken("alignX", val)}
+          options={alignDef.options.map((o) => ({ value: o.v, label: o.label }))} />
+        {/* Touch target spacing — the engine today is one all-sides scale;
+            per-side values arrive with the engine work (spec notes this). */}
+        <SliderRow label={tr("editSheet.touchSpacing")} value={touchIdx} fallback={touchIdx}
+          min={0} max={TOUCH_STEPS.length - 1} step={1} labels={TOUCH_STEPS.map((k) => tr(`editSheet.touch.${k}`))}
+          onChange={(i) => { setAccessibilityLargeTouch(TOUCH_STEPS[Math.round(i)]); refresh(); }} />
+      </Group>
+      <Group title={tr("editSheet.groupEdges")}>
+        <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
+        <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
+      </Group>
+    </div>
   );
 }
 
@@ -330,7 +274,7 @@ function SizeSection({ v2, alignX }) {
 // The wireframe's [SET 5] on each bar: per-bar border width, corner
 // radius, font and text size, shadowing the global tokens on that bar
 // only. Unset = inherit the app-wide value.
-function BarLookRows({ v2, barId, alignX, look: lookIn = null, write: writeIn = null, onReset = null }) {
+function BarLookRows({ v2, barId, look: lookIn = null, write: writeIn = null, onReset = null }) {
   const tr = useT();
   const fontOptions = useFontOptions({ includeInherit: true, inheritLabel: tr("editSheet.inherit") });
   // The pinned bar passes its own look/write (lib/barsModel.js owns where
@@ -343,46 +287,25 @@ function BarLookRows({ v2, barId, alignX, look: lookIn = null, write: writeIn = 
     v2.write({ barLooks: rest });
   });
   const hasLook = Object.values(look).some((v) => v !== undefined && v !== null && v !== "");
+  // Inherited (unset) values show the app-wide number greyed and dashed;
+  // the × puts a value back to inherited.
   const slider = (key, labelKey, min, max, fallback, unit) => (
-    <SetRow label={tr(labelKey)}
-      valueLabel={look[key] !== undefined ? `${look[key]}${unit}` : tr("editSheet.inherit")}
-      alignX={alignX}>
-      <div className="flex items-center gap-2">
-        <input type="range" min={min} max={max} step={key === "fontScale" ? 5 : 1}
-          value={look[key] ?? fallback}
-          onChange={(e) => write({ [key]: parseInt(e.target.value, 10) })}
-          className="flex-1" aria-label={tr(labelKey)} />
-        {look[key] !== undefined && (
-          <button type="button" onClick={() => write({ [key]: undefined })}
-            className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0">
-            {tr("editSheet.inherit")}
-          </button>
-        )}
-      </div>
-    </SetRow>
+    <SliderRow label={tr(labelKey)} value={look[key]} fallback={fallback}
+      min={min} max={max} step={key === "fontScale" ? 5 : 1} unit={unit}
+      onChange={(v) => write({ [key]: Math.round(v) })}
+      onClear={() => write({ [key]: undefined })} />
   );
-  // Colour rows share the widget sheet's grammar: compact swatch, opacity
-  // inside the popover, Clear = back to inherit.
   const colorRow = (key, opKey, labelKey, fallback) => (
-    <ColorPicker compact label={tr(labelKey)}
-      value={look[key] || fallback}
+    <ColourRow label={tr(labelKey)} value={look[key]} fallback={fallback}
       onChange={(v) => write({ [key]: v })}
       opacity={{ value: look[opKey], onChange: (v) => write({ [opKey]: v, ...(look[key] ? {} : { [key]: fallback }) }) }}
       onClear={() => write({ [key]: undefined, [opKey]: undefined })} />
   );
-  const chips = (key, labelKey, values) => (
-    <div className="py-1">
-      <p className="text-xs font-medium mb-1">{tr(labelKey)}</p>
-      <div className="flex flex-wrap gap-1">
-        {values.map((v) => (
-          <button key={v} type="button"
-            onClick={() => write({ [key]: look[key] === v ? undefined : v })}
-            className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
-              look[key] === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-            }`}>{v}</button>
-        ))}
-      </div>
-    </div>
+  const choice = (key, labelKey, values) => (
+    <ChoiceRow label={tr(labelKey)} value={look[key] ?? ""} own={look[key] !== undefined}
+      onClear={() => write({ [key]: undefined })}
+      onChange={(v) => write({ [key]: v === "" ? undefined : v })}
+      options={values.map((v) => ({ value: v, label: v }))} />
   );
   return (
     <>
@@ -390,59 +313,44 @@ function BarLookRows({ v2, barId, alignX, look: lookIn = null, write: writeIn = 
       {slider("radius", "editSheet.radius", 0, 24, 12, "px")}
       {slider("fontScale", "editSheet.textSize", 70, 160, 100, "%")}
       {slider("padding", "editSheet.innerSpacing", 0, 32, 8, "px")}
-      <div className="py-1">
-        <p className="text-xs font-medium mb-1">{tr("editSheet.font")}</p>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
+      <Row label={tr("editSheet.font")} align="start" own={!!look.font} onClear={() => write({ font: undefined })}>
+        <span className="flex items-center gap-1.5 w-[11.5rem] max-w-full">
+          <span className="flex-1 min-w-0">
             <SearchableSelect
               value={look.font || ""}
               onChange={(id) => write({ font: id || undefined })}
               options={fontOptions}
               placeholder={tr("editSheet.inherit")}
             />
-          </div>
+          </span>
           <FontUploadButton onUploaded={(family) => write({ font: family })} />
-        </div>
-      </div>
+        </span>
+      </Row>
       {/* The same colour set every widget gets — highlight / background /
           text / border, each with its own opacity — plus gradient, shadow
           and border style. Unset = inherit the app look. */}
-      <div className="py-1">
-        <p className="text-xs font-medium mb-1.5">{tr("editSheet.barColors")}</p>
-        <div className="flex items-center gap-3">
-          {colorRow("accent", "accentOpacity", "editSheet.highlight", "#8b5cf6")}
-          {colorRow("bg", "bgOpacity", "editSheet.background", "#111827")}
-          {colorRow("textColor", "textOpacity", "editSheet.textColor", "#e5e7eb")}
-          {colorRow("borderColor", "borderOpacity", "editSheet.borderColor", "#8b5cf6")}
+      {colorRow("accent", "accentOpacity", "editSheet.highlight", "#8b5cf6")}
+      {colorRow("bg", "bgOpacity", "editSheet.background", "#111827")}
+      {colorRow("textColor", "textOpacity", "editSheet.textColor", "#e5e7eb")}
+      {colorRow("borderColor", "borderOpacity", "editSheet.borderColor", "#8b5cf6")}
+      {/* Toggle-owned: gradient swatches only exist while it's on —
+          always-visible pickers read as unrelated colours. */}
+      <SwitchRow label={tr("editSheet.gradient")} checked={!!(look.gradFrom && look.gradTo)}
+        onChange={(on) => on
+          ? write({ gradFrom: look.gradFrom || "#312e81", gradTo: look.gradTo || "#831843" })
+          : write({ gradFrom: undefined, gradTo: undefined, gradAngle: undefined, gradFromOpacity: undefined, gradToOpacity: undefined })} />
+      {look.gradFrom && look.gradTo && (
+        <div className="pl-3 border-l border-border/40">
+          {colorRow("gradFrom", "gradFromOpacity", "editSheet.gradFrom", "#312e81")}
+          {colorRow("gradTo", "gradToOpacity", "editSheet.gradTo", "#831843")}
+          {slider("gradAngle", "editSheet.gradAngle", 0, 360, 135, "\u00b0")}
         </div>
-      </div>
-      <div className="py-1">
-        {/* Toggle-owned: gradient swatches only exist while it's on —
-            always-visible pickers read as unrelated colours. */}
-        <label className="flex items-center gap-2 mb-1.5 text-xs font-medium cursor-pointer">
-          {tr("editSheet.gradient")}
-          <input type="checkbox" className="w-4 h-4 rounded accent-primary"
-            checked={!!(look.gradFrom && look.gradTo)}
-            onChange={(e) => e.target.checked
-              ? write({ gradFrom: look.gradFrom || "#312e81", gradTo: look.gradTo || "#831843" })
-              : write({ gradFrom: undefined, gradTo: undefined, gradAngle: undefined, gradFromOpacity: undefined, gradToOpacity: undefined })}
-            aria-label={tr("editSheet.gradient")} />
-        </label>
-        {look.gradFrom && look.gradTo && (
-          <>
-            <div className="flex items-center gap-3">
-              {colorRow("gradFrom", "gradFromOpacity", "editSheet.gradFrom", "#312e81")}
-              {colorRow("gradTo", "gradToOpacity", "editSheet.gradTo", "#831843")}
-            </div>
-            {slider("gradAngle", "editSheet.gradAngle", 0, 360, 135, "\u00b0")}
-          </>
-        )}
-      </div>
-      {chips("shadow", "editSheet.shadow", Object.keys(SHADOW_PRESETS))}
-      {chips("borderStyle", "editSheet.borderStyle", BORDER_STYLES)}
+      )}
+      {choice("shadow", "editSheet.shadow", Object.keys(SHADOW_PRESETS))}
+      {choice("borderStyle", "editSheet.borderStyle", BORDER_STYLES)}
       {hasLook && (
         <button type="button" onClick={reset}
-          className="mt-1 text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+          className="mt-2 text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
           {tr("editSheet.resetLook")}
         </button>
       )}
@@ -450,32 +358,21 @@ function BarLookRows({ v2, barId, alignX, look: lookIn = null, write: writeIn = 
   );
 }
 
-// A bar section's parts, in the same order on every bar: Show · Position ·
-// Size · Look · What's on it. A part with nothing to offer is left out.
-function BarPart({ label, children }) {
-  return (
-    <div className="pt-2 first:pt-0">
-      <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 pb-0.5">{label}</p>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
+// A bar's parts, in the same order on every bar: Show · Position · Size ·
+// Look · What's on it. A part with nothing to offer is left out.
+function BarPart({ label, children, first = false }) {
+  return <Group title={label} first={first}>{children}</Group>;
 }
 
 function BarToggle({ label, on, onChange }) {
-  return (
-    <label className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
-      <span>{label}</span>
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 rounded accent-primary" aria-label={label} />
-    </label>
-  );
+  return <SwitchRow label={label} checked={on} onChange={onChange} />;
 }
 
 // Default glyphs for the quick-action keys (mirrors V2Frame's KEY_ICONS) —
 // shown on the change-icon button until the user picks another.
 const KEY_ICON_DEFAULTS = { quick_checkin: Heart, quick_note: PenLine, start_activity: Zap, start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users, active_now: Timer };
 
-function BarsSection({ v2, alignX }) {
+function BarsTab({ v2, alignX }) {
   const tr = useT();
   const terms = useTerms();
   const qc = useQueryClient();
@@ -490,15 +387,7 @@ function BarsSection({ v2, alignX }) {
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
 
-  const tokenRow = (id, labelKey) => {
-    const def = tokenById[id];
-    const value = v2.uiV2.tokens[id] ?? def.default;
-    return (
-      <SetRow label={tr(labelKey)} valueLabel={`${value}${def.unit || ""}`} alignX={alignX}>
-        <TokenSlider def={def} value={value} onChange={(val) => v2.setToken(id, val)} />
-      </SetRow>
-    );
-  };
+  const tokenRow = (id, labelKey) => <TokenSliderRow v2={v2} id={id} label={tr(labelKey)} />;
 
   // Bottom bar arrangement — the REAL list the bar renders is
   // navigation_config.bottomBar (the same one Settings → Navigation
@@ -547,17 +436,13 @@ function BarsSection({ v2, alignX }) {
   });
   const classicBars = v2.uiV2.classicBars;
 
-  // Opened for one bar (openBarsEditor): bring its section into view.
-  useEffect(() => {
+  // One bar on screen at a time. Opened for one bar (openBarsEditor), that
+  // bar is the one shown.
+  const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    if (!id) return undefined;
-    // A few tries, instant: the sheet's open animation cancels a smooth
-    // scroll and can land after the first attempt.
-    const go = () => document.querySelector(`[data-bar-section="${id}"]`)?.scrollIntoView({ block: "start" });
-    const timers = [120, 420, 900].map((ms) => setTimeout(go, ms));
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    return ["top", "tabs", "actions", "alters", "rail"].includes(id) ? id : "top";
+  });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
   // "arrangement / icon images, labels ... toggle display"). No on/off
@@ -575,8 +460,16 @@ function BarsSection({ v2, alignX }) {
   const actionsMode = v2.uiV2.tokens.actionsMode ?? "bar";
   const pinnedPlace = pinnedBar.mode === "bubble" ? "bubble" : pinnedBar.position;
 
+  const barOptions = [
+    { value: "top", label: labels.top }, { value: "tabs", label: labels.tabs },
+    { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
+    ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : []),
+  ];
+  const shownBar = bar === "rail" && !v2Chrome ? "top" : bar;
+
   return (
-    <SubSection title={tr("editSheet.bars")} storageKey="edit-bars">
+    <div>
+      <ChoiceRow label={tr("editSheet.whichBar")} value={shownBar} onChange={setBar} options={barOptions} />
       {/* Classic chrome on a wide screen: whether the phone's bars come
           along beside the sidebar at all. */}
       {!v2Chrome && wide && (
@@ -585,9 +478,8 @@ function BarsSection({ v2, alignX }) {
       )}
 
       {/* ── Top bar ── */}
-      <div data-bar-section="top">
-      <SubSection title={labels.top} storageKey="edit-bar-top">
-        {!v2Chrome && <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="top" /></BarPart>}
+      {shownBar === "top" && (<div data-bar-section="top">
+        {!v2Chrome && <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="top" /></BarPart>}
         <BarPart label={tr("editSheet.partSize")}>
           {tokenRow("statusH", "editSheet.barHeight")}
         </BarPart>
@@ -639,13 +531,11 @@ function BarsSection({ v2, alignX }) {
             );
           })}
         </BarPart>
-      </SubSection>
-      </div>
+      </div>)}
 
       {/* ── Bottom tabs ── */}
-      <div data-bar-section="tabs">
-      <SubSection title={labels.tabs} storageKey="edit-bar-bottom">
-        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="tabs" /></BarPart>
+      {shownBar === "tabs" && (<div data-bar-section="tabs">
+        <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="tabs" /></BarPart>
         <BarPart label={tr("editSheet.partSize")}>
           {tokenRow("stripH", "editSheet.barHeight")}
         </BarPart>
@@ -685,13 +575,11 @@ function BarsSection({ v2, alignX }) {
             />
           )}
         </BarPart>
-      </SubSection>
-      </div>
+      </div>)}
 
       {/* ── Quick actions bar ── */}
-      <div data-bar-section="actions">
-      <SubSection title={labels.actions} storageKey="edit-bar-actions">
-        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="actions" /></BarPart>
+      {shownBar === "actions" && (<div data-bar-section="actions">
+        <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="actions" /></BarPart>
         <BarPart label={tr("editSheet.partPosition")}>
           <PillRow label={tr("editSheet.placement")} value={actionsMode}
             onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
@@ -782,13 +670,11 @@ function BarsSection({ v2, alignX }) {
             </div>
           )}
         </BarPart>
-      </SubSection>
-      </div>
+      </div>)}
 
       {/* ── Pinned alters bar ── */}
-      <div data-bar-section="alters">
-      <SubSection title={labels.alters} storageKey="edit-bar-alters">
-        <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="alters" /></BarPart>
+      {shownBar === "alters" && (<div data-bar-section="alters">
+        <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="alters" /></BarPart>
         <BarPart label={tr("editSheet.partPosition")}>
           <PillRow label={tr("editSheet.placement")} value={pinnedPlace} stacked
             onChange={(val) => writePinnedBar(val === "bubble"
@@ -837,14 +723,12 @@ function BarsSection({ v2, alignX }) {
         <BarPart label={tr("editSheet.partContent")}>
           <PinnedAltersConfigPanel />
         </BarPart>
-      </SubSection>
-      </div>
+      </div>)}
 
       {/* ── Side rail (new UI, wide screens) ── */}
-      {v2Chrome && (
+      {v2Chrome && shownBar === "rail" && (
         <div data-bar-section="rail">
-        <SubSection title={labels.rail} storageKey="edit-bar-side">
-          <BarPart label={tr("editSheet.show")}><BarShowSwitch barId="rail" /></BarPart>
+          <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="rail" /></BarPart>
           <BarPart label={tr("editSheet.partPosition")}>
             <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
               onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
@@ -861,14 +745,13 @@ function BarsSection({ v2, alignX }) {
               onChange={(val) => v2.setToken("railActions", val)} alignX={alignX}
               options={[{ v: "labels", label: tr("editSheet.labels") }, { v: "icons", label: tr("editSheet.icons") }]} />
           </BarPart>
-        </SubSection>
         </div>
       )}
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
         current={iconFor ? (v2.uiV2.icons?.[iconFor.kind]?.[iconFor.id]?.iconName || "") : ""}
         onPick={(o) => { if (iconFor) v2.setIcon(iconFor.kind, iconFor.id, o); }} />
-    </SubSection>
+    </div>
   );
 }
 
@@ -880,7 +763,7 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
-function ColorsSection({ children, v2 }) {
+function ColourTab({ children, v2 }) {
   const tr = useT();
   const {
     themeMode, selectedTheme, customColors, updateCustomColorsFull,
@@ -930,19 +813,14 @@ function ColorsSection({ children, v2 }) {
   };
 
   return (
-    <SubSection title={tr("editSheet.colors")} storageKey="edit-colors">
-      <div className="grid grid-cols-4 gap-2">
+    <div>
+      <Group title={tr("editSheet.groupAppColours")} first>
         {COLOR_ROLES.map(([key, labelKey]) => {
           const { hex, alpha } = splitHexAlpha(current(key));
           return (
-            <div key={key} className="flex flex-col items-center gap-1">
-              <ColorPicker compact
-                label={tr(labelKey)}
-                value={hex || "#888888"}
-                onChange={(h) => write(key, joinHexAlpha(h, alpha))}
-                opacity={{ value: alpha, onChange: (a) => write(key, joinHexAlpha(hex || readCss(key), a)) }}
-              />
-            </div>
+            <ColourRow key={key} label={tr(labelKey)} value={hex || "#888888"}
+              onChange={(h) => write(key, joinHexAlpha(h, alpha))}
+              opacity={{ value: alpha, onChange: (a) => write(key, joinHexAlpha(hex || readCss(key), a)) }} />
           );
         })}
         {/* HIGHLIGHT — the new UI's own accent (--v2-accent): page dots,
@@ -956,25 +834,18 @@ function ColorsSection({ children, v2 }) {
           const shown = stored || readCss("primary");
           const { hex, alpha } = splitHexAlpha(shown);
           return (
-            <div key="v2-highlight" className="flex flex-col items-center gap-1">
-              <ColorPicker compact
-                label={tr("editSheet.colorHighlight")}
-                value={hex || "#888888"}
-                onChange={(h) => v2.setToken("accent", joinHexAlpha(h, alpha))}
-                opacity={{ value: alpha, onChange: (a) => v2.setToken("accent", joinHexAlpha(hex || readCss("primary"), a)) }}
-                extraAction={following ? null : { label: tr("editSheet.followPrimary"), onClick: () => v2.setToken("accent", "") }}
-                swatchBadge={following ? (
-                  <span aria-hidden="true" title={tr("editSheet.followsPrimary")}
-                    className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-background flex items-center justify-center text-[0.5rem] leading-none"
-                    style={{ background: "var(--color-primary)", color: "hsl(var(--primary-foreground))" }}>=</span>
-                ) : null}
-              />
-            </div>
+            <ColourRow key="v2-highlight" label={tr("editSheet.colorHighlight")}
+              hint={following ? tr("editSheet.followsPrimary") : null}
+              value={following ? "" : hex} live={hex || "#888888"}
+              onChange={(h) => v2.setToken("accent", joinHexAlpha(h, alpha))}
+              opacity={{ value: alpha, onChange: (a) => v2.setToken("accent", joinHexAlpha(hex || readCss("primary"), a)) }}
+              onClear={() => v2.setToken("accent", "")}
+              extraAction={following ? null : { label: tr("editSheet.followPrimary"), onClick: () => v2.setToken("accent", "") }} />
           );
         })()}
-      </div>
+      </Group>
       {children}
-    </SubSection>
+    </div>
   );
 }
 
@@ -1066,10 +937,7 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
   const singleImage = !isGradient && !!layers[0].image;
 
   return (
-    <div className="pt-2 mt-1 border-t border-border/30 space-y-1">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-        {tr("editSheet.background")}
-      </p>
+    <Group title={tr("editSheet.background")}>
       <div className="space-y-1.5 py-1">
         {layers.map((s, i) => {
           const { hex, alpha } = splitHexAlpha(s.color);
@@ -1115,17 +983,11 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
             onChange={(v) => patchGrad({ shape: v })}
             options={[{ v: "linear", label: tr("editSheet.gradLinear") }, { v: "radial", label: tr("editSheet.gradRadial") }]} />
           {bg.gradient.shape === "linear" && (
-            <SetRow label={tr("editSheet.gradAngle")} valueLabel={`${bg.gradient.angle}°`}>
-              <input type="range" min={0} max={360} step={15} value={bg.gradient.angle}
-                onChange={(e) => patchGrad({ angle: parseInt(e.target.value, 10) })}
-                className="w-full" aria-label={tr("editSheet.gradAngle")} />
-            </SetRow>
+            <SliderRow label={tr("editSheet.gradAngle")} value={bg.gradient.angle} fallback={135} min={0} max={360} step={15} unit="°"
+              onChange={(v) => patchGrad({ angle: Math.round(v) })} />
           )}
-          <SetRow label={tr("editSheet.gradStrength")} valueLabel={`${bg.gradient.strength}%`}>
-            <input type="range" min={0} max={100} step={5} value={bg.gradient.strength}
-              onChange={(e) => patchGrad({ strength: parseInt(e.target.value, 10) })}
-              className="w-full" aria-label={tr("editSheet.gradStrength")} />
-          </SetRow>
+          <SliderRow label={tr("editSheet.gradStrength")} value={bg.gradient.strength} fallback={100} min={0} max={100} step={5} unit="%"
+            onChange={(v) => patchGrad({ strength: Math.round(v) })} />
         </div>
       )}
 
@@ -1135,9 +997,8 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
             onChange={(v) => patch({ type: "image", image: { ...imageCfg, position: v } })}
             options={POSITIONS.map((p) => ({ v: p, label: tr(`editSheet.pos.${p}`) }))} />
           {assetFolders.length > 0 && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-medium flex-1">{tr("editSheet.wallFolder")}</span>
-              <div className="min-w-[9rem]">
+            <Row label={tr("editSheet.wallFolder")} align="start">
+              <span className="block w-[11.5rem] max-w-full">
                 <SearchableSelect
                   value={imageCfg.folder || null}
                   onChange={(folder) => patch({ type: "image", image: { ...imageCfg, folder: folder || "" } })}
@@ -1146,8 +1007,8 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
                   searchPlaceholder={tr("editSheet.wallFolderNone")}
                   allowClear
                 />
-              </div>
-            </div>
+              </span>
+            </Row>
           )}
           {imageCfg.folder && (
             <PillRow label={tr("editSheet.wallMode")} value={imageCfg.mode === "sequential" ? "sequential" : "random"}
@@ -1161,11 +1022,10 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
       )}
 
       {/* Audio background = the page song (same controls as profile music). */}
-      <div className="pt-2 border-t border-border/30">
-        <p className="text-xs font-medium mb-1.5">{tr("editSheet.pageSong")}</p>
+      <StackedRow label={tr("editSheet.pageSong")}>
         <ProfileSongPicker value={bg.audio} onChange={(song) => patch({ audio: song })} subjectLabel="page" />
-      </div>
-    </div>
+      </StackedRow>
+    </Group>
   );
 }
 
@@ -1174,7 +1034,7 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
 // preset when an alter starts fronting.
 const SIZE_TOKEN_IDS = ["contentW", "radius", "borderW", "density", "stripH", "cmdSize", "railW", "statusH", "alignX", "alignY", "headerScale", "bodyStyle", "headerStyle"];
 
-function PresetsSection({ v2 }) {
+function StylesTab({ v2 }) {
   const tr = useT();
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -1515,8 +1375,8 @@ function PresetsSection({ v2 }) {
   ];
 
   return (
-    <SubSection title={tr("editSheet.presets")} storageKey="edit-presets">
-      {/* Tabs + search — one list underneath. */}
+    <div className="space-y-2">
+      {/* Style | Layout + search — one list underneath. */}
       <div className="flex items-center gap-2">
         <div className="flex rounded-lg border border-border/50 overflow-hidden flex-shrink-0" role="tablist">
           {[["style", tr("editSheet.tabStyle")], ["layout", tr("editSheet.tabLayout")]].map(([id, label]) => (
@@ -1715,7 +1575,7 @@ function PresetsSection({ v2 }) {
           </div>
         )}
       </div>
-    </SubSection>
+    </div>
   );
 }
 
@@ -1737,17 +1597,51 @@ export default function UiEditSheet() {
   const wallpaper = settingsRow?.[homeField]?.wallpaper || {};
 
   const alignX = (v2.uiV2.tokens.alignX ?? "center") === "right" ? "right" : "left";
+  const tr = useT();
+
+  // Opened for one bar (openBarsEditor) → land on Bars.
+  const [tab, setTab] = useState(() => {
+    try { return sessionStorage.getItem("os_bars_focus") ? "bars" : "text"; } catch { return "text"; }
+  });
+  const tabs = [
+    { id: "text", label: tr("editSheet.tabText"), icon: Type },
+    { id: "shape", label: tr("editSheet.tabShape"), icon: Square },
+    { id: "bars", label: tr("editSheet.bars"), icon: PanelTop },
+    { id: "colour", label: tr("editSheet.tabColour"), icon: Palette },
+    { id: "styles", label: tr("editSheet.tabStyles"), icon: StarIcon },
+  ];
+  // A tab change starts at the top of the panel — the host scrolls, so
+  // this scrolls the nearest scrolling ancestor.
+  const panelRef = useRef(null);
+  const pickTab = (id) => {
+    setTab(id);
+    let el = panelRef.current?.parentElement;
+    while (el && el !== document.body) {
+      const ov = getComputedStyle(el).overflowY;
+      if (ov === "auto" || ov === "scroll") { el.scrollTop = 0; break; }
+      el = el.parentElement;
+    }
+  };
+  useEdgeSafeSliders(true, [tab]);
 
   return (
-    <div className="space-y-2">
-      <SizeSection v2={v2} alignX={alignX} />
-      {/* Wireframe order: bars sit between SIZE and COLORS. Page-level
-          only — the widget sheet mounts the other sections without it. */}
-      <BarsSection v2={v2} alignX={alignX} />
-      <ColorsSection v2={v2}>
-        <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
-      </ColorsSection>
-      <PresetsSection v2={v2} />
+    <div ref={panelRef}>
+      {/* The tab strip stays put while the panel scrolls (the hosts give it
+          a scrolling container with 16px side padding, hence the -mx-4). */}
+      <div className="sticky -top-1 z-10 -mx-4 bg-background">
+        <TabBar tabs={tabs} value={tab} onChange={pickTab} />
+      </div>
+      <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
+        {tab === "text" && <TextTab v2={v2} />}
+        {tab === "shape" && <ShapeTab v2={v2} />}
+        {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
+        {tab === "colour" && (
+          <ColourTab v2={v2}>
+            <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
+          </ColourTab>
+        )}
+        {tab === "styles" && <StylesTab v2={v2} />}
+      </div>
     </div>
   );
 }
