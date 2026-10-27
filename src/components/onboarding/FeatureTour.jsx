@@ -116,7 +116,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "newui", sectionLabel: "New UI",
         emoji: "🎚️",
         title: "Every bar in one place",
-        body: `Display options → Bars holds all of them — Top bar, Bottom tabs, Quick actions bar, Pinned ${t.alters} bar and Side rail — each laid out the same way: Show, Position, Size, Look, What's on it. Any bar's ⚙ gear opens it right at that bar, and the undo button walks bar changes back too. Bars belong to this device, so your phone and computer can each have their own.`,
+        body: `Display options → Bars holds all of them — pick Top bar, Bottom tabs, Quick actions bar, Pinned ${t.alters} bar or Side rail at the top of the tab, and each is laid out the same way: Show, Position, Size, Look, What's on it, with a slider for every size. Any bar's ⚙ gear opens it right at that bar, and the undo button walks bar changes back too. Bars belong to this device, so your phone and computer can each have their own.`,
         route: "/", target: null,
         look: `Display options (the sliders button in the top bar's menu) → Bars`, action: null,
       },

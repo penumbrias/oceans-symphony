@@ -1,3 +1,9 @@
+> **Superseded (v0.288.0).** The anatomy below — chevron-expandable
+> sections and sliders hidden behind a "set" button — was replaced by the
+> tabbed inspector with always-visible sliders. The current contract is
+> `docs/inspector-design-guide.md`. This file stays as the record of the
+> 2026-08 wireframe and the section contents it asked for.
+
 # The unified UI edit popup — spec
 
 Source: the user's wireframe (Aug 13, 2026) plus their written clarifications.

@@ -1096,6 +1096,20 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
 - **Bars have ONE editor — Display options → Bars (v0.250.0).** Never add a bar setting, toggle or gear anywhere else. Read/write every bar's show/hide, placement and look through `src/lib/barsModel.js` (`barShown`/`barShownPatch` know which flag the chrome on screen obeys; `readPinnedBar`/`pinnedBarPatch`/`pinnedBarLook`/`pinnedBarLookPatch` own the pinned bar), and open the editor with `openBarsEditor(barId)`. Bars are device chrome and live in `ui_v2` (never synced); the pinned bar's old `ui_v2_home.altersBar` is read until the first change copies it across and is never deleted. Show/hide switches are `BarShowSwitch` — the setup guide renders the same component. Tests: `node scripts/test-bars-model.mjs`.
 
+### Option menus — follow the inspector guide
+
+**Every menu that edits how something looks or behaves — widget options,
+Display options, the home screen drawer, the add-widget library's detail
+page, profile style editors — is built to `docs/inspector-design-guide.md`
+(v0.288.0).** Fixed `TabBar` (Content · Text · Shape · Bars · Colour ·
+Styles, dropping what doesn't apply), one row grammar from
+`src/components/shared/SettingRows.jsx` (every size is a `SliderRow` with
+the number beside it; inherited values greyed + dashed with a ×; each tab
+ends in Reset; destructive actions in the header's ⋯ menu), half-height
+non-modal sheet, `useEdgeSafeSliders` for Android's back gesture. Never
+hand-roll a row, slider or tab strip; migrate old accordions when touched.
+`docs/v2-edit-menu-spec.md` is superseded.
+
 ### UI v2 — follow the standards doc
 
 **`docs/v2-ui-standards.md` is the contract for every v2 surface.** Read it

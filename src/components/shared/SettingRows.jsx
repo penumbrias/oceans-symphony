@@ -13,11 +13,14 @@
 //               it; tap the number to type an exact value (Baymard / Apple:
 //               a slider needs a field). The thumb only moves on a sideways
 //               drag, so scrolling past it can't nudge it.
-//   StepRow     a count (how many to show) — − n +, number typeable
+//   StepRow     − n + for a count with no useful range (rare: a size or a
+//               "how many" with a min and max is a SliderRow — owner's call,
+//               v0.288.0: "font size, row size things should be sliders")
 //   ColourRow   a swatch that opens the shared colour picker
+//   TabBar      the fixed tab strip across the top of an inspector
 //
-// Shared by the widget inspector first; Display options and the profile
-// style editors are meant to adopt the same rows.
+// Shared by the widget inspector, Display options and the add-widget
+// library. docs/inspector-design-guide.md is the contract.
 import React from "react";
 import { Minus, Plus, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -88,7 +91,10 @@ export function SwitchRow({ label, hint, checked, onChange }) {
 }
 
 // Segmented bar: the one-question control.
-export function Segmented({ label, options, value, onChange, className = "" }) {
+// `equal`: every segment the same width (a bar on its own line). Beside a
+// name the segments size to their words instead — equal shares truncated
+// the bold (wider) active one to "24-h…".
+export function Segmented({ label, options, value, onChange, className = "", equal = true }) {
   return (
     <div role="radiogroup" aria-label={label} className={`flex rounded-full border border-border/60 p-0.5 gap-0.5 ${className}`}>
       {options.map((o) => {
@@ -96,7 +102,7 @@ export function Segmented({ label, options, value, onChange, className = "" }) {
         return (
           <button key={String(o.value)} type="button" role="radio" aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={`flex-1 min-w-0 truncate text-xs py-1.5 px-2 rounded-full ${
+            className={`${equal ? "flex-1 min-w-0 truncate" : "whitespace-nowrap"} text-xs py-1.5 px-2.5 rounded-full ${
               on ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
             }`}>
             {o.label}
@@ -110,7 +116,10 @@ export function Segmented({ label, options, value, onChange, className = "" }) {
 // Fits beside a name on a phone: up to three short options. Up to five
 // still fit a segmented bar on its own line; more than that wrap as chips.
 const labelChars = (options = []) => options.reduce((n, o) => n + String(o.label).length, 0);
-export const fitsBeside = (options = []) => options.length > 1 && options.length <= 3 && labelChars(options) <= 16;
+// The row's name counts too: "Content alignment" + Left/Center/Right is a
+// line and a half on a phone, so that one stacks.
+export const fitsBeside = (options = [], label = "") =>
+  options.length > 1 && options.length <= 3 && labelChars(options) <= 16 && labelChars(options) + String(label).length <= 30;
 export const fitsSegmented = (options = []) => options.length > 1 && options.length <= 5 && labelChars(options) <= 34;
 
 export function Chips({ label, options, value, onChange, multiple = false, style }) {
@@ -138,10 +147,10 @@ export function Chips({ label, options, value, onChange, multiple = false, style
 // One of a few options: segmented beside the name when it fits, chips under
 // it otherwise. `own`/`onClear` behave as on Row.
 export function ChoiceRow({ label, hint, options, value, onChange, own, onClear }) {
-  if (fitsBeside(options)) {
+  if (fitsBeside(options, label)) {
     return (
       <Row label={label} hint={hint} own={own} onClear={onClear}>
-        <Segmented label={label} options={options} value={value} onChange={onChange} className="max-w-full" />
+        <Segmented label={label} options={options} value={value} onChange={onChange} className="max-w-full" equal={false} />
       </Row>
     );
   }
@@ -184,10 +193,13 @@ function ValueField({ label, value, inherited, min, max, unit, onCommit, width =
 
 // A size. The slider is always on screen with the number beside it.
 // `value` unset means inherited: the slider sits at `fallback`, greyed.
-export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100, step = 1, unit = "px", onChange, onClear }) {
+export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100, step = 1, unit = "px", onChange, onClear, labels = null }) {
   const inherited = !isSet(value);
   const current = inherited ? Number(fallback) : Number(value);
   const shown = Number.isFinite(current) ? current : min;
+  // `labels`: the slider walks a list of named steps (Small … Large) — the
+  // name shows where the number box would, and there is nothing to type.
+  const stepLabel = Array.isArray(labels) ? labels[Math.round(shown)] : null;
   return (
     <div className="py-1.5 border-b border-border/30 last:border-b-0">
       <div className="flex items-center gap-2 min-h-[32px]">
@@ -195,8 +207,14 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
           <span className="text-sm block leading-tight">{label}</span>
           {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
         </div>
-        <ValueField label={label} value={shown} inherited={inherited} min={min} max={max} unit={unit}
-          onCommit={(v) => onChange(v)} />
+        {stepLabel != null ? (
+          <span className={`inline-flex items-center justify-center h-8 px-2 rounded-lg border bg-background text-xs min-w-[4.25rem] ${
+            inherited ? "border-dashed border-border/70 text-muted-foreground" : "border-input"
+          }`}>{stepLabel}</span>
+        ) : (
+          <ValueField label={label} value={shown} inherited={inherited} min={min} max={max} unit={unit}
+            onCommit={(v) => onChange(v)} />
+        )}
         {onClear && (
           <button type="button" onClick={onClear} disabled={inherited} aria-label={`Clear ${label}`} title="Back to inherited"
             className={`w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 ${inherited ? "invisible" : ""}`}>
@@ -205,11 +223,17 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
         )}
       </div>
       {/* touch-action: pan-y lets a vertical swipe that starts on the track
-          scroll the sheet; only a sideways drag moves the thumb. */}
-      <input type="range" min={min} max={max} step={step} value={shown} aria-label={label}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ touchAction: "pan-y" }}
-        className={`w-full h-7 mt-0.5 accent-primary ${inherited ? "opacity-50" : ""}`} />
+          scroll the sheet; only a sideways drag moves the thumb. The track is
+          inset from the screen edges (px-3 on top of the panel's padding) and
+          tagged data-edge-safe, so a drag that starts on its end can't be
+          taken for the phone's back gesture (gestureExclusion.js keeps
+          Android's edge zones off it). */}
+      <div className="px-3">
+        <input type="range" min={min} max={max} step={step} value={shown} aria-label={label} data-edge-safe=""
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          style={{ touchAction: "pan-y" }}
+          className={`w-full h-7 mt-0.5 accent-primary ${inherited ? "opacity-50" : ""}`} />
+      </div>
     </div>
   );
 }

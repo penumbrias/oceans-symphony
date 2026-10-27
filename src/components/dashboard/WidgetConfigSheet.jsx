@@ -95,7 +95,7 @@ import {
 } from "@/lib/widgetLook";
 // The one row grammar every edit menu shares (v0.287.0).
 import {
-  Row, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, StepRow, ColourRow, TabBar,
+  Row, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, ColourRow, TabBar,
 } from "@/components/shared/SettingRows";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -103,6 +103,7 @@ import { SearchableMultiList } from "@/v2/widgets";
 import { widgetAutoLabel } from "@/lib/widgetRegistry";
 import { foldedSettings } from "@/lib/widgetFold";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
+import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
 import LucideByName from "@/components/shared/LucideByName";
@@ -738,6 +739,7 @@ export default function WidgetConfigSheet({
   onSettings,        // (instanceId, patch)
   onPickIcon,        // (instanceId) → opens the shared AssetPickerModal
   onRemove,          // (instanceId) → delete this widget
+  onDuplicate,       // (instanceId) → add a copy of this widget beside it
   onResetWidget,     // (instanceId) → back to registry defaults
   onEditLayout,      // () → turn on home-screen edit mode (move/resize)
   onApplyLook,       // (scope: "all" | "page" | "pick", parts?: section ids | null = all) → copy this look out
@@ -790,6 +792,8 @@ export default function WidgetConfigSheet({
   // Which tab is showing. Remembered while the sheet stays open on one
   // widget; a new widget opens on Content.
   const [tab, setTab] = React.useState("content");
+  // Android: the sliders on screen are kept out of the back-gesture zone.
+  useEdgeSafeSliders(open, [tab]);
   React.useEffect(() => { setTab("content"); }, [widget?.instanceId]);
   // Each tab starts at its top — the one scroller is shared.
   const panelRef = React.useRef(null);
@@ -973,9 +977,12 @@ export default function WidgetConfigSheet({
       return <SwitchRow key={f.key} label={label} hint={f.help} checked={val !== false && val !== ""} onChange={commit} />;
     }
     if (f.type === "number") {
+      // A number with a range is a slider (owner, v0.288.0: "row height
+      // should be a slider, the stepper is unintuitive"); the box beside it
+      // still takes a typed value.
       return (
-        <StepRow key={`${widget.instanceId}:${f.key}`} label={label} hint={f.help} value={val}
-          min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} onChange={commit} />
+        <SliderRow key={f.key} label={label} hint={f.help} value={val} fallback={f.default ?? f.min ?? 0}
+          min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} unit={f.unit || ""} onChange={commit} />
       );
     }
     if (f.type === "range") {
@@ -1145,6 +1152,12 @@ export default function WidgetConfigSheet({
                         {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5 text-muted-foreground" /> : <ArrowUpToLine className="w-3.5 h-3.5 text-muted-foreground" />}
                         Move this panel to the {dock === "top" ? "bottom" : "top"}
                       </button>
+                      {onDuplicate && (
+                        <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onDuplicate(widget.instanceId); }}
+                          className="w-full flex items-center gap-2 px-2.5 h-9 rounded-lg text-sm hover:bg-muted/50 text-left">
+                          <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Duplicate this widget
+                        </button>
+                      )}
                       <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setResetAsk(true); }}
                         className="w-full flex items-center gap-2 px-2.5 h-9 rounded-lg text-sm hover:bg-muted/50 text-left">
                         <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" /> Reset this widget…

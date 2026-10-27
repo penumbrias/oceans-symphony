@@ -498,16 +498,13 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             WebkitTouchCallout: "none",
             WebkitUserSelect: "none",
             userSelect: "none",
+            // No name tag and no extra padding while editing (v0.288.0,
+            // owner): the widget looks the same in and out of edit mode, so
+            // what you adjust is what you get.
             minHeight: 56,
-            paddingTop: 18,
           } : null),
         }}
       >
-        {editMode && (
-          <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none truncate max-w-[70%]">
-            {(widget.settings?.label || defLabel).slice(0, 60)}
-          </span>
-        )}
         {/* While editing, the widget's own controls are inert — a hold to
             move should never also start an activity or save a status. */}
         <div {...optionsHold}
@@ -1103,6 +1100,26 @@ export default function ExperimentalDashboard({
       if (i === -1 || j < 0 || j >= ws.length) return ws;
       return arrayMove(ws, i, j);
     });
+  // A copy of a placed widget — same size, display mode and every option —
+  // lands right after the original (a free page: the next empty spot), and
+  // the options sheet moves on to the copy so it can be tweaked at once.
+  const handleDuplicate = (instanceId) => {
+    const src = widgets.find((w) => w.instanceId === instanceId);
+    if (!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.instanceId = newInstanceId();
+    delete copy.pos;
+    updatePageWidgets((ws) => {
+      const i = ws.findIndex((w) => w.instanceId === instanceId);
+      if (pageIsFree) {
+        copy.pos = findFreeCell(ws, gridCols, copy.span || { cols: 4, rows: 1 });
+        return [...ws, copy];
+      }
+      return i === -1 ? [...ws, copy] : [...ws.slice(0, i + 1), copy, ...ws.slice(i + 1)];
+    });
+    toast.success(`${widgetLabel(registry[src.widgetId], t)} duplicated`);
+    setConfigId(copy.instanceId);
+  };
   const handleAddWidget = (widgetId, settings = {}, { edit = true, mode = "normal" } = {}) => {
     const def = registry[widgetId];
     if (!def) return;
@@ -2266,6 +2283,7 @@ export default function ExperimentalDashboard({
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
         onRemove={(id) => { handleRemove(id); setConfigId(null); }}
+        onDuplicate={handleDuplicate}
         userStyles={userStyles}
         resolvedLook={widgetLookFor(
           widgets.find((w) => w.instanceId === configId)?.settings || {},

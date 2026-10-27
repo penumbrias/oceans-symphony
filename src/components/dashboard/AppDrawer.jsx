@@ -27,6 +27,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
+import { ChoiceRow, Chips, StackedRow } from "@/components/shared/SettingRows";
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
@@ -67,18 +68,22 @@ function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [
   );
 }
 
-// Tapping a widget in the gallery opens this: flip through its display
-// modes, try a style, then add it configured that way — instead of adding
-// blind and fixing it afterwards.
-function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t }) {
+// Tapping a widget in the library opens this: the same row grammar as the
+// widget inspector (docs/inspector-design-guide.md) — Display and Style as
+// rows, a live preview between them, one primary "Add to page" button —
+// so a widget is added configured rather than fixed afterwards.
+function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t, placedCount = 0 }) {
   const modes = HOME_MODES.filter((m) => (def.supportsModes || ["normal"]).includes(m));
   const [mode, setMode] = useState(effectiveMode("normal", def.supportsModes));
   const [styleId, setStyleId] = useState("");
+  const styleOptions = [
+    { value: "", label: "Page style" },
+    ...userStyles.map((st) => ({ value: `${USER_STYLE_PREFIX}${st.id}`, label: `${st.label} · yours` })),
+    ...HOME_STYLES.filter((st) => st.id !== "current").map((st) => ({ value: st.id, label: st.label })),
+  ];
   return (
-    <div className="space-y-3">
-      {/* Same header as the planner's editor: back, name, then the one
-          question (which display mode) as a segmented control. */}
-      <div className="flex items-start gap-2">
+    <div className="flex flex-col min-h-full">
+      <div className="flex items-start gap-2 pb-2">
         <button type="button" onClick={onBack} aria-label="All widgets" title="All widgets"
           className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
           <ChevronLeft className="w-4 h-4" />
@@ -86,59 +91,31 @@ function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{widgetLabel(def, t)}</p>
           <p className="text-xs text-muted-foreground">{widgetDescription(def, t)}</p>
+          {placedCount > 0 && (
+            <p className="text-[0.6875rem] text-muted-foreground flex items-center gap-1 mt-0.5">
+              <Check className="w-3 h-3" /> {placedCount === 1 ? "Already on this page" : `On this page ${placedCount} times`}
+            </p>
+          )}
         </div>
       </div>
 
       {modes.length > 1 && (
-        <div role="radiogroup" aria-label="Display mode"
-          className="flex rounded-full border border-border/60 p-0.5 gap-0.5">
-          {modes.map((m) => (
-            <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
-              className={`flex-1 text-xs py-1.5 rounded-full ${
-                mode === m ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground"
-              }`}>
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
+        <ChoiceRow label="Display" value={mode} onChange={setMode}
+          options={modes.map((m) => ({ value: m, label: MODE_LABEL[m] }))} />
       )}
 
-      <div className="rounded-xl border border-border/50 p-2 bg-background/40">
+      <div className="my-2 rounded-xl border border-border/50 p-2 bg-background/40">
         <WidgetPreview def={def} mode={mode} api={api} styleId={styleId} userStyles={userStyles} maxHeight={260} />
       </div>
 
-      <div>
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Style</p>
-        <div className="flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setStyleId("")}
-            className={`text-xs px-3 py-1.5 rounded-full border ${
-              !styleId ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-            }`}>
-            Inherit page style
-          </button>
-          {userStyles.map((st) => (
-            <button key={st.id} type="button" onClick={() => setStyleId(`${USER_STYLE_PREFIX}${st.id}`)}
-              className={`text-xs px-3 py-1.5 rounded-full border ${
-                styleId === `${USER_STYLE_PREFIX}${st.id}` ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-              }`}>
-              {st.label} · yours
-            </button>
-          ))}
-          {HOME_STYLES.filter((st) => st.id !== "current").map((st) => (
-            <button key={st.id} type="button" onClick={() => setStyleId(st.id)}
-              className={`text-xs px-3 py-1.5 rounded-full border ${
-                styleId === st.id ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-              }`}>
-              {st.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <StackedRow label="Style" hint="How the box is drawn; the page style is the default">
+        <Chips label="Style" options={styleOptions} value={styleId} onChange={(v) => setStyleId(v || "")} />
+      </StackedRow>
 
       <button type="button"
         onClick={() => onAdd(id, styleId ? { style: styleId } : {}, mode)}
-        className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-medium">
-        Add to page
+        className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5">
+        <Plus className="w-4 h-4" /> Add to page
       </button>
     </div>
   );
@@ -276,7 +253,13 @@ export default function AppDrawer({
   const gridApps = searching ? orderedApps : orderedApps.filter((a) => !inFolder.has(a.id));
   const openFolder = folders.find((f) => f.id === openFolderId) || null;
 
-  const placed = useMemo(() => new Set(placedWidgetIds), [placedWidgetIds]);
+  // How many copies of each widget this page already holds (informational —
+  // duplicates with different options are a real use case).
+  const placedCount = useMemo(() => {
+    const m = new Map();
+    for (const id of placedWidgetIds) m.set(id, (m.get(id) || 0) + 1);
+    return m;
+  }, [placedWidgetIds]);
 
   // The add-widget list, grouped by what each widget is for
   // (widgetMenuGroups.js). Needs & goals widgets are experimental — left
@@ -588,68 +571,79 @@ export default function AppDrawer({
                 api={api}
                 userStyles={userStyles}
                 t={t}
+                placedCount={placedCount.get(detailId) || 0}
                 onBack={() => setDetailId(null)}
                 onAdd={(id, settings, mode) => { onAddWidget?.(id, settings, { mode }); setDetailId(null); }}
               />
             ) : (
-            <div className="space-y-3">
-              <input
-                value={widgetSearch}
-                onChange={(e) => setWidgetSearch(e.target.value)}
-                placeholder="Search widgets…"
-                aria-label="Search widgets"
-                className="w-full h-10 px-3 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              {/* One chip per group: what the widget is FOR, not which page
-                  it came from. A search looks across every group. */}
-              {!widgetQuery && (
-                <div role="radiogroup" aria-label="Widget groups" className="flex flex-wrap gap-1.5">
-                  {[{ id: "all", label: "All" }, ...widgetGroups.map((g) => g.group)].map((g) => (
-                    <button key={g.id} type="button" role="radio" aria-checked={widgetGroup === g.id}
-                      onClick={() => setWidgetGroup(g.id)}
-                      className={`text-xs px-2.5 py-1 rounded-full border ${
-                        widgetGroup === g.id
-                          ? "text-primary border-primary bg-primary/10 font-medium"
-                          : "border-border/50 text-muted-foreground hover:text-foreground"
-                      }`}>
-                      {applyTerms(g.label, t)}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div>
+              {/* Search and the group strip stay put while the list scrolls
+                  (the inspector's fixed tab strip, in library form). One
+                  line, scrolling sideways — nine groups wrapped to three
+                  lines before. */}
+              <div className="sticky -top-4 z-10 -mx-4 px-4 pt-0 pb-2 bg-background space-y-2">
+                <input
+                  value={widgetSearch}
+                  onChange={(e) => setWidgetSearch(e.target.value)}
+                  placeholder="Search widgets…"
+                  aria-label="Search widgets"
+                  className="w-full h-10 px-3 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                {!widgetQuery && (
+                  <div role="tablist" aria-label="Widget groups"
+                    className="flex gap-1.5 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-0.5 [scrollbar-width:none]"
+                    style={{ WebkitOverflowScrolling: "touch" }}>
+                    {[{ id: "all", label: "All" }, ...widgetGroups.map((g) => g.group)].map((g) => (
+                      <button key={g.id} type="button" role="tab" aria-selected={widgetGroup === g.id}
+                        ref={(el) => { if (el && widgetGroup === g.id) el.scrollIntoView?.({ inline: "nearest", block: "nearest" }); }}
+                        onClick={() => setWidgetGroup(g.id)}
+                        className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap flex-shrink-0 ${
+                          widgetGroup === g.id
+                            ? "text-primary border-primary bg-primary/10 font-medium"
+                            : "border-border/50 text-muted-foreground hover:text-foreground"
+                        }`}>
+                        {applyTerms(g.label, t)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {shownWidgetGroups.length === 0 && (
                 <p className="text-xs text-muted-foreground py-6 text-center">No widgets match “{widgetSearch.trim()}”.</p>
               )}
               {shownWidgetGroups.map(({ group, items }) => (
-                <div key={group.id} className="space-y-1">
-                  {(widgetGroup === "all" || widgetQuery) && (
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-1">
+                <div key={group.id} className="pb-2">
+                  {(widgetGroup === "all" || widgetQuery) ? (
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-2 pb-1">
                       {applyTerms(group.label, t)}
                     </p>
-                  )}
-                  {widgetGroup !== "all" && !widgetQuery && group.hint && (
-                    <p className="text-xs text-muted-foreground pb-1">{applyTerms(group.hint, t)}</p>
-                  )}
-                  <div className="rounded-xl border border-border/50 divide-y divide-border/40 overflow-hidden">
+                  ) : group.hint ? (
+                    <p className="text-xs text-muted-foreground pt-1 pb-1">{applyTerms(group.hint, t)}</p>
+                  ) : null}
+                  {/* One row per widget, no box around the list: icon, name
+                      and what it does on the left, a labelled Add on the
+                      right (full words, never a bare +). */}
+                  <div className="divide-y divide-border/30">
                     {items.map(([id, def]) => {
                       const label = widgetLabel(def, t);
                       const Icon = def.icon || PlusSquare;
+                      const n = placedCount.get(id) || 0;
                       return (
                         <div key={id}
                           onPointerDown={(e) => startWidgetHold(e, id, label)}
-                          className="flex items-center gap-2.5 pl-2.5 pr-1.5 py-2 hover:bg-muted/40">
+                          className="flex items-center gap-2.5 py-2">
                           <button type="button" onClick={() => setDetailId(id)}
                             aria-label={`${label}: preview and options`}
                             className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
-                            <span className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0">
+                            <span className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0">
                               <Icon className="w-4 h-4 text-muted-foreground" />
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="flex items-center gap-1.5">
                                 <span className="text-sm font-medium truncate">{label}</span>
-                                {placed.has(id) && (
-                                  <span className="text-[0.625rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
-                                    <Check className="w-3 h-3" /> on page
+                                {n > 0 && (
+                                  <span className="text-[0.625rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0 tabular-nums">
+                                    <Check className="w-3 h-3" /> {n > 1 ? `×${n}` : "on page"}
                                   </span>
                                 )}
                               </span>
@@ -658,8 +652,8 @@ export default function AppDrawer({
                           </button>
                           <button type="button" onClick={() => onAddWidget?.(id)}
                             aria-label={`Add ${label}`} title={`Add ${label}`}
-                            className="w-8 h-8 rounded-full border border-primary/60 text-primary flex items-center justify-center flex-shrink-0">
-                            <Plus className="w-4 h-4" />
+                            className="h-8 px-3 rounded-full border border-primary/60 text-primary text-xs font-medium flex items-center gap-1 flex-shrink-0">
+                            <Plus className="w-3.5 h-3.5" /> Add
                           </button>
                         </div>
                       );
