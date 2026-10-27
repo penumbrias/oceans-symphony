@@ -601,7 +601,6 @@ export default function ExperimentalDashboard({
   settingsField = "experimental_home",
   // v2 injects this: leaving "back to classic" must flip ui_v2.enabled,
   // not this layout blob's own enabled flag (which nothing reads in v2).
-  onExitToClassic = null,
   // v2 injects this too: under v2 THE quick-action bar is the frame's
   // command bar (ui_v2.commandKeys), so the edit toolbar's Bar row edits
   // that — and this page stops drawing its own duplicate strip. Without
@@ -1258,7 +1257,6 @@ export default function ExperimentalDashboard({
     });
     toast.success("Gaps closed up");
   };
-  const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...boardRef.current.board, enabled: false }));
   // Hold-still-to-lift (owner spec): 0.3s stationary hold starts a move;
   // tolerance cancels activation if the pointer moves during the delay, so
   // a scroll gesture can never lift a widget. MouseSensor + TouchSensor
@@ -1832,15 +1830,7 @@ export default function ExperimentalDashboard({
               >
                 <Undo2 className="w-3 h-3" /> Reset to default…
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleBackToClassic}
-                className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1"
-              >
-                <Undo2 className="w-3 h-3" /> Back to classic
-              </button>
-            )}
+            ) : null}
             {pageIsFree && (
               <button
                 type="button"
