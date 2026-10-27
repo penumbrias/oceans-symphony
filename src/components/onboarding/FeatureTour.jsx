@@ -279,7 +279,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "🧩",
       title: "Edit the Profile Layout",
-      body: `The highlighted grid button puts the profile into layout editing, the same as the home screen: hold a widget to move it, drag its edges to resize it, tap its ⚙ for its options (text, shape, colour, styles), and use Widgets in the bottom bar to add headings, text, dividers, a song, or any part of the profile that isn't on this page. Add page makes a page of your own. Save & close keeps it; Discard puts everything back. Each ${t.alter}'s layout is their own, and nothing changes until you edit it.`,
+      body: `The highlighted grid button puts the profile into layout editing, the same as the home screen: hold a widget to move it, drag its edges to resize it, tap its ⚙ for its options (text, shape, colour, styles), and use Widgets in the bottom bar to add headings, text, dividers, a song, or any part of the profile that isn't on this page. Add page makes a page of your own. Save & close keeps it; Discard puts everything back. Each ${t.alter}'s layout is their own, and nothing changes until you edit it. Group, ${t.subsystem || "subsystem"}, contact and inner-world location profiles have the same grid button and work the same way.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-layout-btn" : null,
       look: ai ? `the highlighted grid button next to Edit, at the top-right of the profile` : `open a profile and look for the grid button next to Edit`, action: null,

@@ -1,16 +1,17 @@
-// Full profile page for one inner-world location — recycles the SAME
-// structure as the alter (/alter/:id) and group (/group/:id) profiles:
-// PageBackground + os-pf theming, a styled ViewHeader banner, a rich BioEditor
-// description, the shared ProfileStyleEditor (header/body colours, images,
-// fonts, opacity), view/edit toolbar with undo/redo, and AlterCard rows for
-// the members inside it. Profile styling is stored in location.custom_fields
-// using the exact same keys the other profiles use, so the shared helpers and
-// editor work unchanged.
-//
-// "Alters here"   — alters whose inner_world_location_id === this location.
-// "Sub-locations" — locations on the SAME map whose box sits inside this one
-//                   (the existing coordinate-overlap nesting; cycle-safe).
+// Full profile page for one inner-world location — the SAME structure as
+// the alter (/alter/:id) and group (/group/:id) profiles: PageBackground +
+// os-pf theming, and since v0.291.0 the page itself is a widget board
+// (LocationSections.jsx + src/v2/profileWidgets.jsx on the home-screen
+// canvas). The record's own fields — name, colour, rich description, the
+// shared ProfileStyleEditor, the on-map box — are edited on the form below
+// (the pencil), with undo/redo. Profile styling is stored in
+// location.custom_fields using the exact same keys the other profiles use.
 import React, { useState, useEffect, useMemo } from "react";
+import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
+import PageBackground from "@/components/profile/PageBackground";
+import { LOCATION_PROFILE_PAGES, profilePageId } from "@/lib/profileBoard";
+import { withTrashBatch } from "@/lib/localDb";
+import { trashProfileBoards } from "@/lib/boardStore";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,17 +19,13 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Pencil, Eye, Save, Loader2, X, MapPin, Map as MapIcon, Trash2,
-  Lock, Unlock, Image as ImageIcon, CornerDownRight, ExternalLink, Upload, Undo2, Redo2,
+  Lock, Unlock, Image as ImageIcon, ExternalLink, Upload, Undo2, Redo2, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
-import { isValidHexColor } from "@/lib/colorUtils";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { isLocalMode } from "@/lib/storageMode";
-import { htmlToBlocks } from "@/components/shared/BlockEditor";
-import SimplePreview from "@/components/shared/SimplePreview";
 import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -36,100 +33,17 @@ import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import SearchableSelect from "@/components/shared/SearchableSelect";
-import AlterCard from "@/components/alters/AlterCard";
-import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars, PS } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss, profileThemeCss, PS } from "@/lib/profileStyle";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
 
-const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_BG_KEY = "_header_bg_color";
-const HEADER_FONT_KEY = "_header_font";
-const HIDE_HEADER_KEY = "_hide_header";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
-const HEADER_TEXT_KEY = "_header_text_color";
 
-function getContrastColor(hex) {
-  if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
-  const c = hex.replace("#", "");
-  const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? "#1a1a2e" : "#ffffff";
-}
-
-// Same full-screen themed background the alter/group profiles use.
-function PageBackground({ bgColor, bgImage, bgOpacity }) {
-  const [resolvedBg, setResolvedBg] = useState(null);
-  useEffect(() => {
-    if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
-    else setResolvedBg(null);
-  }, [bgImage]);
-  if (!bgColor && !bgImage) return null;
-  const hasImage = !!(bgImage && resolvedBg);
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
-      {hasImage ? (
-        <>
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />}
-          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
-        </>
-      ) : (
-        bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />
-      )}
-    </div>
-  );
-}
-
-// Location "avatar" — the colour swatch with a map-pin, or its on-map
-// background image. Mirrors GroupAvatar's role in the header.
-function LocationAvatar({ color, image }) {
-  const [resolved, setResolved] = useState(null);
-  useEffect(() => { if (image) resolveImageUrl(image).then(setResolved).catch(() => setResolved(null)); else setResolved(null); }, [image]);
-  const textColor = isValidHexColor(color) ? getContrastColor(color) : "#ffffff";
-  return (
-    <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
-      style={{ backgroundColor: isValidHexColor(color) ? color : "hsl(var(--muted))" }}>
-      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" />
-        : <MapPin className="w-9 h-9" style={{ color: textColor }} />}
-    </div>
-  );
-}
-
-// The banner — recycled from the group ViewHeader (header image / bg colour /
-// font / text colour), with location meta (scope, parent, counts).
-function LocationHeader({ location, color, headerImage, headerTextColor, headerBgColor, headerFont, headerOpacity = 0.45, scope, parentLoc, memberCount, subCount, navigate }) {
-  const [resolvedHeader, setResolvedHeader] = useState(null);
-  useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
-  const hasHeader = !!(headerImage && resolvedHeader);
-  const nameColor = headerTextColor || (hasHeader ? "#ffffff" : groupNameColor(color));
-  return (
-    <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(location.custom_fields || {}), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
-      {hasHeader && (
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
-      )}
-      <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
-        <LocationAvatar color={color} image={location.background_image_url} />
-        <div className="flex-1 min-w-0 space-y-1">
-          <h2 className="font-display text-2xl font-semibold flex items-center gap-2" style={{ color: nameColor }}>
-            <MapPin className="w-5 h-5 flex-shrink-0" /> {location.name}
-          </h2>
-          {scope && <p className="text-xs text-muted-foreground">{scope}</p>}
-          {parentLoc && (
-            <button type="button" onClick={() => navigate(`/location/${parentLoc.id}`)} className="block text-xs text-muted-foreground hover:text-foreground">
-              <CornerDownRight className="w-3 h-3 inline mr-1" /> inside {parentLoc.name}
-            </button>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {memberCount} {memberCount === 1 ? "member" : "members"}{subCount ? ` · ${subCount} sub-location${subCount === 1 ? "" : "s"}` : ""}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+const PAGE_ICONS = { [profilePageId("profile")]: MapPin };
 
 function LocationProfileInner() {
   const { id } = useParams();
@@ -141,6 +55,7 @@ function LocationProfileInner() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingMapBg, setUploadingMapBg] = useState(false);
+  const page = useProfilePageState(LOCATION_PROFILE_PAGES);
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ["innerWorldLocations"],
@@ -149,7 +64,6 @@ function LocationProfileInner() {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: maps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => base44.entities.InnerWorldMap.list() });
   const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => base44.entities.InnerWorldLayer.list() });
-  const { data: activeSessions = [] } = useQuery({ queryKey: ["activeFront"], queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }) });
 
   const location = locations.find((l) => String(l.id) === String(id)) || null;
 
@@ -205,22 +119,6 @@ function LocationProfileInner() {
     </>
   );
 
-  // Sub-location / parent detection by coordinate containment on the same map.
-  const sameMap = useMemo(() => locations.filter((l) => l.map_id === (location?.map_id)), [locations, location?.map_id]);
-  const getParent = (loc) => {
-    if (!loc) return null;
-    const sorted = [...sameMap].sort((a, b) => (b.order || 0) - (a.order || 0));
-    for (const p of sorted) {
-      if (p.id === loc.id) continue;
-      if (loc.x >= p.x && loc.x + (loc.width || 200) <= p.x + (p.width || 200) &&
-          loc.y >= p.y && loc.y + (loc.height || 150) <= p.y + (p.height || 150)) return p;
-    }
-    return null;
-  };
-  const parentLoc = location ? getParent(location) : null;
-  const subLocs = location ? sameMap.filter((l) => l.id !== location.id && getParent(l)?.id === location.id) : [];
-  const altersHere = location ? alters.filter((a) => !a.is_archived && a.inner_world_location_id === location.id) : [];
-
   const handleMapBgUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) { return; }
@@ -269,7 +167,11 @@ function LocationProfileInner() {
     if (!(await confirm(`Delete the location "${location.name}"? ${t.Alters} placed here are not deleted. ${TRASH_HINT}`))) return;
     setDeleting(true);
     try {
-      await base44.entities.InnerWorldLocation.delete(location.id);
+      // The location and the layout of its profile page go together.
+      await withTrashBatch(async () => {
+        await trashProfileBoards("location", location.id);
+        await base44.entities.InnerWorldLocation.delete(location.id);
+      });
       queryClient.invalidateQueries({ queryKey: ["innerWorldLocations"] });
       toast.success("Location deleted.");
       navigate("/system-map");
@@ -289,26 +191,7 @@ function LocationProfileInner() {
     );
   }
 
-  const scope = [mapName(location.map_id), layerName(location.layer_id)].filter(Boolean).join(" · ");
-  const linkName = location.link_target_type === "map" ? mapName(location.link_target_id)
-    : location.link_target_type === "layer" ? layerName(location.link_target_id) : null;
-
-  // Open the inner-world map on the right tab + map, optionally soloing a layer.
-  const openInnerWorld = (mapId, layerId) => {
-    let url = "/system-map?view=inner";
-    if (mapId) url += `&map=${encodeURIComponent(mapId)}`;
-    if (layerId) url += `&layer=${encodeURIComponent(layerId)}&solo=1`;
-    navigate(url);
-  };
-  const followLink = () => {
-    if (location.link_target_type === "map") openInnerWorld(location.link_target_id);
-    else if (location.link_target_type === "layer") {
-      const tl = layers.find((l) => l.id === location.link_target_id);
-      openInnerWorld(tl?.map_id, location.link_target_id);
-    }
-  };
-
-  // ---------- VIEW MODE ----------
+  // ---------- VIEW MODE: the board ----------
   if (!editMode) {
     const cf = location.custom_fields || {};
     const ps = readProfileBg(cf);
@@ -316,92 +199,43 @@ function LocationProfileInner() {
     const surfaceCss = profileSurfaceCss("os-pf", cf);
     const pageTextColor = cf[PAGE_TEXT_KEY] || "";
     const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
-    const hideHeader = !!cf[HIDE_HEADER_KEY];
-    const headerBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={ps.bgColor} bgImage={ps.bgImage} bgOpacity={ps.bgOpacity} />
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
-        {/* The song belongs to VIEWING the page — it was only ever mounted in
-            the edit branch, so a profile's music played while you were
-            editing it and went silent the moment you saved. */}
+        {/* The song belongs to VIEWING the page. */}
         {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
-        <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
-          <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5">
+        <div className="relative z-10 os-pf" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
+          <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5 mb-4">
             <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)} aria-label="Back" title="Back">
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} aria-label="Edit" title="Edit">
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-
-          {!hideHeader && (
-            <LocationHeader location={location} color={location.color} headerImage={cf[HEADER_IMAGE_KEY] || ""}
-              headerTextColor={cf[HEADER_TEXT_KEY] || ""} headerBgColor={headerBgColor} headerFont={fontStackFor(cf[HEADER_FONT_KEY])}
-              headerOpacity={ps.headerOpacity} scope={scope} parentLoc={parentLoc} memberCount={altersHere.length} subCount={subLocs.length} navigate={navigate} />
-          )}
-
-          {location.is_locked && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-              <Lock className="w-3.5 h-3.5" /> Position locked on the map
-            </div>
-          )}
-
-          {location.description ? (
-            <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-              <SimplePreview blocks={htmlToBlocks(location.description)} onBlockChange={() => {}} readOnly scopeId={location?.id} />
-            </div>
-          ) : (
-            <div className="text-center py-6 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
-              No description yet. Tap <strong>Edit</strong> to add one.
-            </div>
-          )}
-
-          {linkName && (
-            <button type="button" onClick={followLink}
-              className="w-full flex items-center gap-2.5 p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left">
-              <ExternalLink className="w-4 h-4 text-primary flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">Tapping this on the map jumps to</p>
-                <p className="text-sm text-primary font-medium truncate">{linkName} {location.link_target_type === "layer" ? "(layer)" : "(map)"}</p>
-              </div>
-            </button>
-          )}
-
-          {subLocs.length > 0 && (
-            <div>
-              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Sub-locations ({subLocs.length})</p>
-              <div className="space-y-1.5">
-                {subLocs.map((s) => (
-                  <button key={s.id} type="button" onClick={() => navigate(`/location/${s.id}`)}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
-                    style={{ borderLeftColor: s.color || "transparent", borderLeftWidth: s.color ? 3 : 1 }}>
-                    <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: s.color || "#6366f1" }} />
-                    <span className="text-sm flex-1 truncate">{s.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              {t.Alters} here{altersHere.length ? ` (${altersHere.length})` : ""}
-            </p>
-            {altersHere.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No {t.alters} are placed in this location yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {altersHere.map((a, i) => <AlterCard key={a.id} alter={a} index={i} activeSessions={activeSessions} hideFront />)}
+            {!page.layoutEditing && (
+              <div className="flex items-center gap-2">
+                <Button
+                  data-tour="location-profile-layout-btn"
+                  variant="outline" size="sm"
+                  onClick={openProfileLayoutEditor}
+                  aria-label="Edit layout" title="Edit layout — move, resize and add widgets on this page"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditMode(true)} aria-label="Edit" title="Edit">
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
               </div>
             )}
           </div>
-
-          <Button variant="outline" className="w-full gap-1.5" onClick={() => openInnerWorld(location.map_id)}>
-            <MapIcon className="w-4 h-4" /> Open inner-world map
-          </Button>
+          {!page.onFirstPage && (
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-lg border border-border/40 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: location.color || "#6366f1" }}>
+                <MapPin className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-display text-lg font-semibold truncate">{location.name}</span>
+            </div>
+          )}
+          <ProfileBoardCanvas ownerType="location" record={location} pageIcons={PAGE_ICONS} page={page} tourId="location-profile-tabs" api={{ alters }} />
         </div>
       </motion.div>
     );

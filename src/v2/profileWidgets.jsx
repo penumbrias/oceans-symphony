@@ -1,11 +1,18 @@
-// Profile widgets (v0.290.0) — an alter's profile page as widgets on the
-// home-screen canvas (ExperimentalDashboard), one per section or tab.
+// Profile widgets (v0.290.0 alters; v0.291.0 groups, contacts and
+// locations) — a profile page as widgets on the home-screen canvas
+// (ExperimentalDashboard), one per section or tab.
 //
 // Each widget reads WHOSE page it is on from the board subject
 // (useBoardSubject, boardSubject.js) and fetches that record itself, so a
 // widget can be placed anywhere on the profile board. The pieces inside
-// are the same components the classic page uses (ProfileSections.jsx and
-// the profile tab components) — one copy of each, never forked here.
+// are the same components the pages use (ProfileSections.jsx,
+// GroupSections.jsx, ContactSections.jsx, LocationSections.jsx and the
+// alter profile's tab components) — one copy of each, never forked here.
+//
+// PROFILE_WIDGETS is keyed by owner type. The same widget id (profile_header,
+// profile_bio, profile_notes…) means "that section of THIS kind of profile",
+// so a seeded board (profileBoard.js) names sections the same way for every
+// type and profileRegistryFor(type) resolves them to the type's own widgets.
 //
 // The box: a profile widget's one visible box (widget contract) is a
 // ProfileBox — borderless and flush until the person sets a border,
@@ -18,12 +25,24 @@ import { useQuery } from "@tanstack/react-query";
 import {
   User, IdCard, MessageSquare, Mail, TrendingUp, FileText, Heart, BookOpen,
   GitMerge, Link2, MapPin, Zap, SlidersHorizontal, Tag, Users, Folder,
-  ListChecks, HeartHandshake, AlignLeft, Sparkles,
+  ListChecks, HeartHandshake, AlignLeft, Sparkles, UserCheck, Info, Shield, Map as MapIcon,
+  Landmark,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { boxStyle, useWidgetChrome } from "@/v2/primitives";
 import { useBoardSubject, widgetFitsSubject } from "@/lib/boardSubject";
+import {
+  GroupHeaderSection, GroupBioSection, GroupNestedSection, GroupMembersSection,
+  GroupBoardSection, GroupNotesSection, GroupJournalSection,
+} from "@/components/groups/GroupSections";
+import {
+  ContactHeaderSection, ContactEncounterSection, ContactAboutSection, ContactRelationshipsSection,
+  ContactBoundariesSection, ContactNotesSection, ContactOptionsSection,
+} from "@/components/contacts/ContactSections";
+import {
+  LocationHeaderSection, LocationBioSection, LocationSubLocationsSection, LocationMembersSection, LocationOnMapSection,
+} from "@/components/systemmap/LocationSections";
 import { PROFILE_OWNER_TYPES } from "@/lib/profileBoard";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -44,22 +63,46 @@ import LocationsTab from "@/components/alters/profile/LocationsTab";
 import ActivitiesTab from "@/components/alters/profile/ActivitiesTab";
 import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 
-// The record whose page this is. Same query key the page itself uses
-// (["alter", id]), so the widget and the page chrome never disagree.
-export function useSubjectAlter() {
+// The record whose page this is, by owner type. Same query keys the pages
+// themselves use, so a widget and the page chrome never disagree.
+const RECORD_QUERY = {
+  alter: {
+    key: (id) => ["alter", id],
+    fn: async (id) => (await base44.entities.Alter.list()).find((a) => String(a.id) === String(id)) || null,
+  },
+  // Resolve a group by entity id OR sp_id — alter.groups stores `sp_id || id`.
+  group: {
+    key: () => ["groups"],
+    fn: () => base44.entities.Group.list(),
+    pick: (rows, id) => (rows || []).find((g) => String(g.id) === String(id) || (g.sp_id && String(g.sp_id) === String(id))) || null,
+  },
+  contact: {
+    key: () => ["contacts"],
+    fn: () => base44.entities.Contact.list(),
+    pick: (rows, id) => (rows || []).find((c) => String(c.id) === String(id)) || null,
+  },
+  location: {
+    key: () => ["innerWorldLocations"],
+    fn: () => base44.entities.InnerWorldLocation.list(),
+    pick: (rows, id) => (rows || []).find((l) => String(l.id) === String(id)) || null,
+  },
+};
+
+export function useSubjectRecord(type) {
   const subject = useBoardSubject();
-  const id = subject?.type === "alter" ? subject.id : null;
-  const { data: alter = null } = useQuery({
-    queryKey: ["alter", id],
-    queryFn: async () => {
-      const all = await base44.entities.Alter.list();
-      return all.find((a) => String(a.id) === String(id)) || null;
-    },
+  const id = subject?.type === type ? subject.id : null;
+  const q = RECORD_QUERY[type] || RECORD_QUERY.alter;
+  const { data = null } = useQuery({
+    queryKey: q.key(id),
+    queryFn: () => q.fn(id),
     enabled: !!id,
-    staleTime: 0,
+    ...(q.pick ? {} : { staleTime: 0 }),
   });
-  return alter;
+  if (!id) return null;
+  return q.pick ? q.pick(data, id) : data;
 }
+
+export const useSubjectAlter = () => useSubjectRecord("alter");
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
 const useSystemFields = () => useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") }).data || [];
@@ -95,14 +138,17 @@ export function ProfileBox({ children, name = "" }) {
   );
 }
 
-// A widget for one Profile-page section.
-const section = (SectionView, { needsFields = false, name = "" } = {}) => function ProfileSectionWidget() {
-  const alter = useSubjectAlter();
+// A widget for one section of a `type` profile. The section gets the
+// record under the type's own prop name (`alter`, `group`, `contact`,
+// `location`).
+const sectionOf = (type) => (SectionView, { needsFields = false, name = "" } = {}) => function ProfileSectionWidget() {
+  const record = useSubjectRecord(type);
   const systemFields = useSystemFields();
   const t = useTerms();
-  if (!alter) return null;
-  return <ProfileBox name={applyTerms(name, t)}><SectionView alter={alter} {...(needsFields ? { systemFields } : {})} /></ProfileBox>;
+  if (!record) return null;
+  return <ProfileBox name={applyTerms(name, t)}><SectionView {...{ [type]: record }} {...(needsFields ? { systemFields } : {})} /></ProfileBox>;
 };
+const section = sectionOf("alter");
 
 // A widget for a whole tab's component.
 const tab = (render) => function ProfileTabWidget() {
@@ -114,13 +160,14 @@ const tab = (render) => function ProfileTabWidget() {
   return <ProfileBox>{render({ alter, alters, systemFields, searchParams })}</ProfileBox>;
 };
 
-const W = (label, description, icon, Component, spans = {}) => ({
-  label, description, icon, category: "profile", subjects: ["alter"],
+const widgetOf = (type) => (label, description, icon, Component, spans = {}) => ({
+  label, description, icon, category: "profile", subjects: [type],
   render: () => <Component />,
   supportsModes: ["normal"], supportsMultiInstance: false,
   defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   ...spans,
 });
+const W = widgetOf("alter");
 
 export const ALTER_PROFILE_WIDGETS = {
   profile_header: W("Header", "Avatar, name, pronouns, birthday and role — the top of the {{alter}}'s page.", User,
@@ -164,17 +211,59 @@ export const ALTER_PROFILE_WIDGETS = {
     tab(({ alter }) => <OptionsTab alter={alter} />), { defaultSpan: { cols: 4, rows: 4 } }),
 };
 
-export const PROFILE_WIDGETS = { ...ALTER_PROFILE_WIDGETS };
+const TAB = { defaultSpan: { cols: 4, rows: 4 } };
+
+const GW = widgetOf("group");
+const gsection = sectionOf("group");
+export const GROUP_PROFILE_WIDGETS = {
+  profile_header: GW("Header", "Avatar, name, root and parent — the top of the group's page.", Folder, gsection(GroupHeaderSection, { name: "Header" })),
+  profile_bio: GW("Description", "The group's description.", AlignLeft, gsection(GroupBioSection, { name: "Description" })),
+  profile_nested_groups: GW("Nested groups", "The groups inside this one.", Folder, gsection(GroupNestedSection, { name: "Nested groups" })),
+  profile_members: GW("{{Alters}}", "Who is in this group, with Manage.", Users, gsection(GroupMembersSection, { name: "{{Alters}}" })),
+  profile_board: GW("Board", "This group's bulletin board — the Board tab.", MessageSquare, gsection(GroupBoardSection, { name: "Board" }), TAB),
+  profile_notes: GW("Notes", "A private notebook for this group — the Notes tab.", FileText, gsection(GroupNotesSection, { name: "Notes" }), TAB),
+  profile_journal: GW("Journal", "Journal entries by any of its {{alters}} — the Journal tab.", BookOpen, gsection(GroupJournalSection, { name: "Journal" }), TAB),
+};
+
+const CW = widgetOf("contact");
+const csection = sectionOf("contact");
+export const CONTACT_PROFILE_WIDGETS = {
+  profile_header: CW("Header", "Avatar, name, safety, categories and ways to reach them.", User, csection(ContactHeaderSection, { name: "Header" })),
+  profile_encounter: CW("I'm with them", "Start or end time together with this person.", UserCheck, csection(ContactEncounterSection, { name: "I'm with them" }), { supportsMultiInstance: true }),
+  profile_about: CW("About", "About, what's safe to share and the custom fields — the About tab.", Info, csection(ContactAboutSection, { name: "About" })),
+  profile_relationships: CW("Relationships", "How this person relates to each {{alter}} — the Relationships tab.", Link2, csection(ContactRelationshipsSection, { name: "Relationships" }), TAB),
+  profile_boundaries: CW("Boundaries & rules", "Boundaries and {{system}} rules — the Boundaries tab.", Shield, csection(ContactBoundariesSection, { name: "Boundaries & rules" })),
+  profile_notes: CW("Notes", "Notes about this person — the Notes tab.", FileText, csection(ContactNotesSection, { name: "Notes" }), TAB),
+  profile_options: CW("Options", "Pin, archive and delete — the Options tab.", SlidersHorizontal, csection(ContactOptionsSection, { name: "Options" })),
+};
+
+const LW = widgetOf("location");
+const lsection = sectionOf("location");
+export const LOCATION_PROFILE_WIDGETS = {
+  profile_header: LW("Header", "Name, map and layer, parent and counts — the top of the location's page.", Landmark, lsection(LocationHeaderSection, { name: "Header" })),
+  profile_bio: LW("Description", "The location's description.", AlignLeft, lsection(LocationBioSection, { name: "Description" })),
+  profile_sub_locations: LW("Sub-locations", "The locations inside this one on the map.", MapPin, lsection(LocationSubLocationsSection, { name: "Sub-locations" })),
+  profile_members: LW("{{Alters}} here", "Who is placed in this location.", Users, lsection(LocationMembersSection, { name: "{{Alters}} here" })),
+  profile_on_map: LW("On the map", "Where tapping it leads, and the way to the map.", MapIcon, lsection(LocationOnMapSection, { name: "On the map" })),
+};
+
+export const PROFILE_WIDGETS = {
+  alter: ALTER_PROFILE_WIDGETS,
+  group: GROUP_PROFILE_WIDGETS,
+  contact: CONTACT_PROFILE_WIDGETS,
+  location: LOCATION_PROFILE_WIDGETS,
+};
 
 // The registry a profile board of `ownerType` gets: the widgets made for
 // that type, plus every shared widget that says it fits (`subjects`).
 export function profileRegistryFor(ownerType, sharedRegistry = {}) {
-  if (!PROFILE_OWNER_TYPES.includes(ownerType)) return { ...PROFILE_WIDGETS };
+  const own = PROFILE_WIDGETS[ownerType] || ALTER_PROFILE_WIDGETS;
+  if (!PROFILE_OWNER_TYPES.includes(ownerType)) return { ...own };
   const out = {};
   for (const [id, def] of Object.entries(sharedRegistry)) {
     if (def && widgetFitsSubject(def, ownerType)) out[id] = def;
   }
-  for (const [id, def] of Object.entries(PROFILE_WIDGETS)) {
+  for (const [id, def] of Object.entries(own)) {
     if (widgetFitsSubject(def, ownerType)) out[id] = def;
   }
   return out;

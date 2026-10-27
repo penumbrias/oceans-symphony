@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "feature", text: "Group, contact and inner-world location profiles are widget boards too: the same grid button lets you move, resize, restyle and add widgets, page by page. Deleting one takes its layout along, and a restore brings both back." },
+      { type: "improve", text: "Group and location profiles say \"{{alters}}\" in your own words where they said \"members\"." },
       { type: "feature", text: "{{Alter}} profiles are widget boards now: every tab is a page and every section a widget. Tap the new grid button next to Edit to move, resize, restyle or add widgets, exactly like the home screen. Profiles look the same until you change them." },
       { type: "fix", text: "Analytics: the \"Board\" link on a {{fronting}} row opens the {{alter}}'s Board page again." },
       { type: "hotfix", text: "Hotfix: groundwork for profile pages as widget boards. Backups now include profile page layouts (under Alters & Profiles); nothing changes on screen yet." },

@@ -440,6 +440,20 @@ Rules for keeping the targets healthy:
   `subjects`; `profileRegistryFor(type, V2_WIDGETS)` builds a board's
   registry. The record's own fields are still edited on the pencil form
   (`ProfileTab` edit mode) until the inspectors take that over.
+  **Group, contact and location profiles are boards too (v0.291.0).** Every
+  profile page mounts the one host `src/components/profile/ProfileBoardCanvas.jsx`
+  (`useProfilePageState(PAGES)` keeps `?tab=` and the page in step and reports
+  `layoutEditing`; `openProfileLayoutEditor()` is the grid button). The
+  sections live in `GroupSections.jsx`, `ContactSections.jsx` and
+  `LocationSections.jsx` (one copy each, every section fetches its own
+  context from the record); `PROFILE_WIDGETS` in `profileWidgets.jsx` is
+  keyed by owner type, so the same widget id (`profile_header`,
+  `profile_notes`…) means that section of THIS kind of profile and
+  `useSubjectRecord(type)` reads the record off the board subject. Group and
+  location record fields keep their edit forms; a contact's its edit modal.
+  Deleting a contact (`deleteContact`) or a location (`innerWorldModel.deleteLocation`,
+  `deleteMap`, `deleteLayer`) trashes its `ProfileBoard` rows in the same
+  batch (`trashProfileBoards`).
 - **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
   through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
   (fresh row, stamped, never blanks a board). Editing sheets learn which
