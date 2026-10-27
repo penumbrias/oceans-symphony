@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "feature", text: "{{Alter}} profiles are widget boards now: every tab is a page and every section a widget. Tap the new grid button next to Edit to move, resize, restyle or add widgets, exactly like the home screen. Profiles look the same until you change them." },
+      { type: "fix", text: "Analytics: the \"Board\" link on a {{fronting}} row opens the {{alter}}'s Board page again." },
       { type: "hotfix", text: "Hotfix: groundwork for profile pages as widget boards. Backups now include profile page layouts (under Alters & Profiles); nothing changes on screen yet." },
       { type: "improve", text: "Display options: the defunct \"Back to classic\" button is gone." },
       { type: "feature", text: "Display options is now the same five-tab inspector as widget options: Text, Shape, Bars, Colour and Styles, with a slider for every size and one bar at a time under Bars." },

@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,34 +20,38 @@ import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { PS } from "@/lib/profileStyle";
-import InfoTab from "@/components/alters/profile/InfoTab";
-import HistoryTab from "@/components/alters/profile/HistoryTab";
-import NotesTab from "@/components/alters/profile/NotesTab";
-import WishlistTab from "@/components/alters/profile/WishlistTab";
-import MessagesTab from "@/components/alters/profile/MessagesTab";
-import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
-import OptionsTab from "@/components/alters/profile/OptionsTab";
-import LineageTab from "@/components/alters/profile/LineageTab";
-import RelationshipsTab from "@/components/alters/profile/RelationshipsTab";
-import LocationsTab from "@/components/alters/profile/LocationsTab";
-import ActivitiesTab from "@/components/alters/profile/ActivitiesTab";
-import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
+// The profile is a widget board (v0.290.0): the same canvas as the home
+// screen, one page per tab, every section a widget (src/v2/profileWidgets).
+// The layout lives in a ProfileBoard row once the person edits it; until
+// then the page renders the seeded board, which is today's page.
+import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
+import { V2_WIDGETS } from "@/v2/widgets";
+import { profileRegistryFor } from "@/v2/profileWidgets";
+import { BoardSubjectContext } from "@/lib/boardSubject";
+import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
+import { seedProfileBoard, profilePageId, tabOfPageId, ALTER_PROFILE_PAGES } from "@/lib/profileBoard";
 
-const TABS = [
-  { id: "profile", label: "Profile", icon: User },
-  { id: "info", label: "Info", icon: IdCard },
-  { id: "messages", label: "Board", icon: MessageSquare },
-  { id: "private-messages", label: "Messages", icon: Mail },
-  { id: "history", label: "History", icon: TrendingUp },
-  { id: "notes", label: "Notes", icon: FileText },
-  { id: "wishlist", label: "Wishlist", icon: Heart },
-  { id: "journal", label: "Journal", icon: BookOpen },
-  { id: "lineage", label: "Lineage", icon: GitMerge },
-  { id: "relationships", label: "Relationships", icon: Link2 },
-  { id: "locations", label: "Locations", icon: MapPin },
-  { id: "activities", label: "Activities", icon: Zap },
-  { id: "options", label: "Options", icon: SlidersHorizontal },
-];
+// The icon each tab's page shows in the page strip (by page id).
+const PAGE_ICONS = {
+  [profilePageId("profile")]: User,
+  [profilePageId("info")]: IdCard,
+  [profilePageId("messages")]: MessageSquare,
+  [profilePageId("private-messages")]: Mail,
+  [profilePageId("history")]: TrendingUp,
+  [profilePageId("notes")]: FileText,
+  [profilePageId("wishlist")]: Heart,
+  [profilePageId("journal")]: BookOpen,
+  [profilePageId("lineage")]: GitMerge,
+  [profilePageId("relationships")]: Link2,
+  [profilePageId("locations")]: MapPin,
+  [profilePageId("activities")]: Zap,
+  [profilePageId("options")]: SlidersHorizontal,
+};
+const TAB_NAMES = ALTER_PROFILE_PAGES.map((p) => p.tab);
+// ?tab= names a tab (today's links) or, for a page the person added, its id.
+const pageIdOfTabParam = (t) => (!t ? null : TAB_NAMES.includes(t) ? profilePageId(t) : t);
+const tabParamOfPageId = (id) => tabOfPageId(id) || id;
+const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -100,21 +104,33 @@ function AlterProfileFallback({ error, reset }) {
 function AlterProfileInner() {
   const { id: alterId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState(() => {
-    const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "wishlist", "journal", "lineage", "relationships", "locations", "activities", "options"];
-    return valid.includes(t) ? t : "profile";
-  });
-  const highlightMessageId = searchParams.get("messageId") || null;
+  // The page showing on the board. ?tab= opens a page (today's deep links,
+  // the tour, notifications); the board reports the page it is on so the
+  // URL stays in step and the header knows whether this is the Profile page.
+  const tabParam = searchParams.get("tab");
+  const initialPageId = pageIdOfTabParam(tabParam);
+  const [currentPageId, setCurrentPageId] = useState(initialPageId || profilePageId("profile"));
+  const onPageChange = useCallback((pageId) => {
+    setCurrentPageId(pageId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (pageIdOfTabParam(next.get("tab")) === pageId) return prev;
+      if (pageId === profilePageId("profile")) next.delete("tab"); else next.set("tab", tabParamOfPageId(pageId));
+      // A ?compose= / ?messageId= belongs to the page it opened.
+      next.delete("compose"); next.delete("messageId");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const onProfilePage = currentPageId === profilePageId("profile");
   const [editMode, setEditMode] = useState(false);
-
-  // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
+  // Whether the board itself is in layout-edit mode (its own edit bar is
+  // up); the header's Edit / Edit layout buttons step aside meanwhile.
+  const [layoutEditing, setLayoutEditing] = useState(false);
   useEffect(() => {
-    const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "wishlist", "journal", "lineage", "relationships", "locations", "activities", "options"];
-    if (t && valid.includes(t)) setTab(t);
-  }, [searchParams]);
-  const [showComposeMessage, setShowComposeMessage] = useState(false);
+    const onState = (e) => { if (e?.detail?.scope === "os-profile") setLayoutEditing(!!e.detail.editing); };
+    window.addEventListener("os-home-edit-state", onState);
+    return () => window.removeEventListener("os-home-edit-state", onState);
+  }, []);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const [resolvedBgImage, setResolvedBgImage] = useState(null);
@@ -223,6 +239,39 @@ function AlterProfileInner() {
     queryKey: ["customFields"],
     queryFn: () => base44.entities.CustomField.list("order"),
   });
+
+  // The settings row carries the device look and the saved widget styles
+  // the canvas reads; the profile's own layout is its ProfileBoard row.
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const settingsRow = settingsRows[0] || null;
+  const { data: boardRows = [], isFetched: boardRowsFetched } = useQuery({
+    queryKey: profileBoardQueryKey("alter", alterId),
+    queryFn: () => listProfileBoardRows("alter", alterId),
+    enabled: !!alterId,
+  });
+  // The canvas's auto-fit on a still-seeded board is kept here, never
+  // written: no row exists until the person's first layout edit.
+  const [fittedSeed, setFittedSeed] = useState(null);
+  useEffect(() => { setFittedSeed(null); }, [alterId]);
+  const boardStore = React.useMemo(() => {
+    if (!alter) return null;
+    const base = profileBoardStore({ ownerType: "alter", ownerId: alter.id, rows: boardRows, qc: queryClient });
+    return {
+      ...base,
+      board: base.board || fittedSeed || seedProfileBoard(alter, "alter"),
+      write: async (next, opts) => {
+        const row = await base.write(next, opts);
+        if (!row) setFittedSeed(next);
+        return row;
+      },
+    };
+  }, [alter, boardRows, fittedSeed, queryClient]);
+  const registry = React.useMemo(() => profileRegistryFor("alter", V2_WIDGETS), []);
+  const boardSubject = React.useMemo(() => (alter ? { type: "alter", id: alter.id } : null), [alter?.id]);
+  const boardApi = React.useMemo(() => ({ alters }), [alters]);
 
   if (isLoading) {
     return (
@@ -377,14 +426,13 @@ function AlterProfileInner() {
             >
               <User className="w-3.5 h-3.5" />
             </Button>
-            {tab !== "profile" && (
+            {!onProfilePage && !layoutEditing && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // Switch to the private-messages tab and signal it to
-                  // open the compose form via a URL param. Replaces the
-                  // old setShowComposeMessage state that had no listener.
+                  // Open the Messages page with its compose form (the page
+                  // reads ?compose=1).
                   const params = new URLSearchParams(searchParams);
                   params.set("tab", "private-messages");
                   params.set("compose", "1");
@@ -396,7 +444,19 @@ function AlterProfileInner() {
                 <Mail className="w-3.5 h-3.5" />
               </Button>
             )}
-            {tab === "profile" && (
+            {!editMode && !layoutEditing && (
+              <Button
+                data-tour="alter-profile-layout-btn"
+                variant="outline"
+                size="sm"
+                onClick={() => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT))}
+                aria-label="Edit layout"
+                title="Edit layout — move, resize and add widgets on this page"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            {onProfilePage && !layoutEditing && (
               <div className="flex items-center gap-2">
                 {editMode && (
                   <Button
@@ -425,7 +485,7 @@ function AlterProfileInner() {
           </div>
         </div>
 
-          {tab !== "profile" && (
+          {!onProfilePage && (
           <div
             className="rounded-2xl p-4 mb-5 flex items-center gap-4 relative overflow-hidden"
             style={{
@@ -471,50 +531,34 @@ function AlterProfileInner() {
           </div>
         )}
 
-        <div data-tour="alter-profile-tabs" data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none px-1.5 py-1">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                onClick={() => { setTab(t.id); if (t.id !== "profile") setEditMode(false); }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
-                  tab === t.id
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div>
-          {tab === "profile" && (
-            <ProfileTab
-              alter={alter}
-              editMode={editMode}
-              onEditModeChange={setEditMode}
-              systemFields={systemFields}
-              saveRef={saveRef}
+        {editMode ? (
+          // The record's own fields are still edited on the classic form
+          // (the board's inspectors take this over in a later step).
+          <ProfileTab
+            alter={alter}
+            editMode={editMode}
+            onEditModeChange={setEditMode}
+            systemFields={systemFields}
+            saveRef={saveRef}
+          />
+        ) : boardStore && boardRowsFetched ? (
+          <BoardSubjectContext.Provider value={boardSubject}>
+            <ExperimentalDashboard
+              settingsRow={settingsRow}
+              api={boardApi}
+              registry={registry}
+              boardStore={boardStore}
+              eventPrefix="os-profile"
+              viewFlow
+              notices={null}
+              initialPageId={initialPageId}
+              onPageChange={onPageChange}
+              pageStrip="tabs"
+              pageIcons={PAGE_ICONS}
+              pageStripProps={{ "data-tour": "alter-profile-tabs" }}
             />
-          )}
-          {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
-          {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} autoOpenCompose={searchParams.get("compose") === "1"} />}
-          {tab === "history" && <HistoryTab alterId={alter.id} />}
-          {tab === "notes" && <NotesTab alterId={alter.id} />}
-          {tab === "wishlist" && <WishlistTab alter={alter} alters={alters} />}
-          {tab === "journal" && <ProfileJournalTab alterIds={[alter.id]} defaultAuthorId={alter.id} />}
-          {tab === "lineage" && <LineageTab alterId={alter.id} />}
-          {tab === "relationships" && <RelationshipsTab alter={alter} alters={alters} />}
-          {tab === "locations" && <LocationsTab alter={alter} />}
-          {tab === "activities" && <ActivitiesTab alter={alter} />}
-          {tab === "options" && <OptionsTab alter={alter} />}
-        </div>
+          </BoardSubjectContext.Provider>
+        ) : null}
       </div>
     </motion.div>
   );

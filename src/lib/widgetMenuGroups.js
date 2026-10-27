@@ -9,6 +9,8 @@
 // "more" — so a widget nobody mapped (a mod's, a new one) still shows.
 
 export const WIDGET_MENU_GROUPS = [
+  // Only on a profile board: the parts of that profile (v0.290.0).
+  { id: "profile", label: "This profile", hint: "The parts of this page — header, bio, tabs" },
   { id: "now", label: "Right now", hint: "Who's here, what's running, today at a glance" },
   { id: "log", label: "Log", hint: "One-tap buttons and check-ins" },
   { id: "plan", label: "Plan & track", hint: "Planner views, to-dos, reminders, timeline" },
@@ -54,6 +56,7 @@ const BY_CATEGORY = {
   support: "calm",
   analytics: "lookback",
   nav: "pieces", layout: "pieces", chrome: "pieces", meta: "pieces",
+  profile: "profile",
 };
 
 const GROUP_OF_ID = new Map();

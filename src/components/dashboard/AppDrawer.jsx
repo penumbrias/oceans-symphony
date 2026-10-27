@@ -212,10 +212,12 @@ export default function AppDrawer({
   api = null, userStyles = [],
   initialTab = null,
   onDropWidget = null,   // (widgetId, {x, y}) — hold a widget card, drag, drop it on a spot
+  // A profile board (v0.290.0) has no app shortcuts: only the widget tab.
+  widgetsOnly = false,
 }) {
   const t = useTerms();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("apps");
+  const [tab, setTab] = useState(widgetsOnly ? "widgets" : "apps");
   // Callers can steer which tab a given open lands on (the empty-page
   // "tap to add widgets" placeholder wants the Add-widget tab, not Apps).
   useEffect(() => {
@@ -390,7 +392,11 @@ export default function AppDrawer({
       >
         <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/40">
           {/* Outside edit mode this is a plain app drawer — no widget tab. */}
-          {pinOnTap ? (
+          {pinOnTap && widgetsOnly ? (
+            <div className="flex-1 py-1.5 text-sm font-medium flex items-center gap-1.5">
+              <PlusSquare className="w-4 h-4" /> Add widget
+            </div>
+          ) : pinOnTap ? (
             <div className="flex gap-1 p-0.5 bg-muted/30 rounded-lg flex-1">
               <button type="button" onClick={() => setTab("apps")}
                 className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${tab === "apps" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
@@ -418,7 +424,7 @@ export default function AppDrawer({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4" style={{ WebkitOverflowScrolling: "touch" }}>
-          {tab === "apps" || !pinOnTap ? (
+          {(tab === "apps" || !pinOnTap) && !widgetsOnly ? (
             <>
               <input
                 value={search}

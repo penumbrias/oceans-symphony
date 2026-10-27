@@ -14,9 +14,13 @@
 //   board       the raw stored board for rendering (null when none)
 //   setCached(written)   optimistic cache update so the screen follows at
 //                        once (the canvas awaits cancelQueries first)
-//   write(next)          persist exactly this board (fresh row lookup
+//   write(next, { machine })  persist exactly this board (fresh row lookup
 //                        inside; creates the row when there is none).
-//                        The canvas stamps before calling this.
+//                        The canvas stamps before calling this. A profile
+//                        store creates NO row for a machine write (the
+//                        canvas's auto-fit): a seeded profile board stays
+//                        unsaved until the person's first edit, and the
+//                        page keeps the fitted copy in memory (returns null).
 //   update(change, { machine })  the boardWriter contract: fresh read,
 //                        change(current), stamp unless machine, write.
 //   invalidate()         refetch the truth
@@ -98,8 +102,9 @@ export function profileBoardStore({ ownerType, ownerId, rows, qc }) {
   if (!isProfileOwnerType(ownerType)) throw new Error(`Not a profile type: ${ownerType}`);
   const queryKey = profileBoardQueryKey(ownerType, ownerId);
   const picked = pickProfileBoardRows(rows);
-  const writeRaw = async (next) => {
+  const writeRaw = async (next, { machine = false } = {}) => {
     const fresh = pickProfileBoardRows(await listProfileBoardRows(ownerType, ownerId));
+    if (!fresh.keeper?.id && (machine || next?._seeded)) return null;
     if (fresh.keeper?.id) {
       await localEntities.ProfileBoard.update(fresh.keeper.id, { board: next });
       // Duplicates from two devices' first edits: their pages were folded
@@ -128,14 +133,14 @@ export function profileBoardStore({ ownerType, ownerId, rows, qc }) {
         return [...list, { id: null, owner_type: ownerType, owner_id: ownerId, board: written }];
       });
     },
-    write: (next) => writeRaw(next),
+    write: (next, opts) => writeRaw(next, opts),
     async update(change, { machine = false } = {}) {
       const fresh = pickProfileBoardRows(await listProfileBoardRows(ownerType, ownerId));
       const current = fresh.board;
       const next = typeof change === "function" ? change(current) : change;
       if (!next || typeof next !== "object") return current;
       const stamped = stampUnlessMachine(current, next, machine);
-      await writeRaw(stamped);
+      await writeRaw(stamped, { machine });
       return stamped;
     },
     invalidate() { if (qc) qc.invalidateQueries({ queryKey }); },

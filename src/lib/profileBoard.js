@@ -31,15 +31,16 @@ export const tabOfPageId = (pageId) =>
   typeof pageId === "string" && pageId.startsWith("tab:") ? pageId.slice(4) : null;
 
 // The alter profile's tabs, in today's order, with the widgets each page
-// starts with (top to bottom). Widget ids are registered in PR 2; until
-// then a seeded board resolves with these in `unknownWidgets`, which the
-// canvas keeps and never drops.
+// starts with (top to bottom). The alter widgets are registered in
+// src/v2/profileWidgets.jsx (v0.290.0); the other types' ids follow in
+// their own PRs — until then a seeded board resolves with those in
+// `unknownWidgets`, which the canvas keeps and never drops.
 export const ALTER_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [
     "profile_header", "profile_preferences", "profile_bio", "profile_groups",
     "profile_subsystems", "profile_answers", "profile_tags", "profile_fields",
   ] },
-  { tab: "info", label: "Info", widgets: ["profile_fields", "profile_own_fields", "profile_answers"] },
+  { tab: "info", label: "Info", widgets: ["profile_info"] },
   { tab: "messages", label: "Board", widgets: ["profile_board"] },
   { tab: "private-messages", label: "Messages", widgets: ["profile_inbox"] },
   { tab: "history", label: "History", widgets: ["profile_front_history"] },

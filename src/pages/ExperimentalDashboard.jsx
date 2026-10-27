@@ -640,8 +640,22 @@ export default function ExperimentalDashboard({
   // arranging works exactly like the board. Display-only: stored
   // positions and spans are untouched.
   viewFlow = false,
+  // A profile board (v0.290.0): its pages are the profile's tabs, so the
+  // page can open on one (`initialPageId`, from a ?tab= link) and tell
+  // the page which one is showing (`onPageChange`, which keeps the URL in
+  // step). `pageStrip: "tabs"` draws the strip as the tab bar it replaces
+  // (icon + label per page, `pageIcons` by page id) instead of dots;
+  // `pageStripProps` lands on the strip element (the tour anchor).
+  initialPageId = null,
+  onPageChange = null,
+  pageStrip = "dots",
+  pageIcons = null,
+  pageStripProps = null,
 }) {
   const qc = useQueryClient();
+  // A profile board has no bars, wallpaper or packs of its own — those are
+  // the home screen's; its Display options are the profile's style editor.
+  const profileBoard = !!boardStore;
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
@@ -759,7 +773,9 @@ export default function ExperimentalDashboard({
   }, [settingsRow?.id, qc]);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
   // on the default page); the pages themselves live in experimental_home.
-  const [activePageId, setActivePageId] = useState(null);
+  const [activePageId, setActivePageId] = useState(initialPageId);
+  // A new ?tab= (a notification, the tour) lands on that page.
+  useEffect(() => { if (initialPageId) setActivePageId(initialPageId); }, [initialPageId]);
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [homeSettingsOpen, setHomeSettingsOpen] = useState(false);
   // Peek + dock for the home settings drawer — shared preference with
@@ -833,6 +849,9 @@ export default function ExperimentalDashboard({
     visiblePages.find((p) => p.id === home.defaultPageId) ||
     visiblePages[0];
   const pageIdx = visiblePages.findIndex((p) => p.id === page.id);
+  const onPageChangeRef = useRef(onPageChange);
+  onPageChangeRef.current = onPageChange;
+  useEffect(() => { onPageChangeRef.current?.(page.id); }, [page.id]);
   // Free pages lock to the columns they were arranged on (see useGridCols).
   const gridCols = useGridCols(home.grid?.phoneCols || 4, page.layoutMode === "free");
   const rowPx = [80, 60, 40].includes(home.grid?.rowPx) ? home.grid.rowPx : 80;
@@ -884,7 +903,9 @@ export default function ExperimentalDashboard({
     const previous = boardRef.current.board;
     // First real edit claims the board — the _seeded marker only belongs
     // to an untouched starter layout (see seedV2Home).
-    if (nextHome && nextHome._seeded) { nextHome = { ...nextHome }; delete nextHome._seeded; }
+    // (A machine write keeps the marker: a seeded profile board that the
+    // auto-fit grew is still untouched by the person — see boardStore.js.)
+    if (nextHome && nextHome._seeded && !opts.machine) { nextHome = { ...nextHome }; delete nextHome._seeded; }
     // Boards sync between devices and merge page by page: a person's edit
     // stamps the pages it changed and records deleted pages. The board's
     // own auto-fit (opts.machine) doesn't — re-fitting on a different
@@ -904,7 +925,7 @@ export default function ExperimentalDashboard({
       // The store looks the row up fresh (and creates it when there is
       // none yet, looking again first so a slow first load can't leave a
       // second record behind).
-      await store.write(nextHome);
+      await store.write(nextHome, { machine: !!opts.machine });
       if (opts.undoLabel) {
         undoRef.current = previous;
         toast(opts.undoLabel, {
@@ -1908,7 +1929,41 @@ export default function ExperimentalDashboard({
           was a swipe: unusable with a mouse on desktop, and unusable for
           anyone who can't perform a drag gesture. That also means the
           strip has to render even with a single board page. */}
-      {(visiblePages.length > 1 || editMode || onExitLeft) && (
+      {pageStrip === "tabs" ? (
+        // The profile's tab bar, page by page — same shape the tabs had, so
+        // nothing moves for the person; edit mode adds "+" for a new page.
+        <div {...(pageStripProps || {})} data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none px-1.5 py-1" role="tablist" aria-label="Profile pages">
+          {visiblePages.map((p, i) => {
+            const Icon = pageIcons?.[p.id] || null;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={p.id === page.id}
+                onClick={() => goToPage(i)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                  p.id === page.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                {Icon && <Icon className="w-4 h-4" />}
+                <span>{p.label || `Page ${i + 1}`}</span>
+              </button>
+            );
+          })}
+          {editMode && (
+            <button
+              type="button"
+              onClick={handleAddPage}
+              aria-label="Add page"
+              title="Add page"
+              className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary flex-shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (
             <button
@@ -2256,6 +2311,7 @@ export default function ExperimentalDashboard({
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setDrawerTabRequest(null); }}
         initialTab={drawerTabRequest}
+        widgetsOnly={profileBoard}
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         registry={registry}
         onAddWidget={handleAddWidget}
@@ -2422,6 +2478,7 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "var(--os-sab)",
           }}>
+          {!profileBoard && (
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/30">
             <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground">Bars</span>
             <button type="button" aria-pressed={barsPreview}
@@ -2442,6 +2499,7 @@ export default function ExperimentalDashboard({
               <Settings2 className="w-3.5 h-3.5" /> Pinned bar
             </button>
           </div>
+          )}
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>
             <button type="button" aria-label="Add widgets" title="Add widgets"
               onClick={() => openWidgetDrawer("widgets")}
@@ -2462,12 +2520,14 @@ export default function ExperimentalDashboard({
               <ArrowUpToLine className="w-4 h-4" />
               <span className="text-[0.5625rem]">Close gaps</span>
             </button>
+            {!profileBoard && (
             <button type="button" aria-label="Display options" title="Display options"
               onClick={() => openHomeSettings()}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
               <Settings2 className="w-4 h-4" />
               <span className="text-[0.5625rem]">Display</span>
             </button>
+            )}
             <div className="flex-1 relative">
               <button type="button" aria-label="Save" title="Save" aria-expanded={saveMenuOpen}
                 onClick={() => { setSaveMenuOpen((v) => !v); setExitMenuOpen(false); }}
@@ -2479,10 +2539,12 @@ export default function ExperimentalDashboard({
                 <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
                   <button type="button" onClick={exitSave}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
+                  {!profileBoard && (<>
                   <button type="button" onClick={() => openPackSheet("export")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
                   <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
+                  </>)}
                 </div>
               )}
             </div>
