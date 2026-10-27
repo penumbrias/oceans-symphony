@@ -17,6 +17,7 @@
 import React from "react";
 import { localEntities } from "@/api/base44Client";
 import { stampBoardChanges } from "@/lib/boardStamp";
+import { isBoardStore } from "@/lib/boardStore";
 
 // The two boards: the home screen (built from widgets) and the open widget
 // board one swipe away. The code still calls the home screen "classic".
@@ -26,11 +27,15 @@ export const BOARD_SETTINGS_FIELDS = [HOME_SCREEN_FIELD, WIDGET_BOARD_FIELD];
 
 // Which board an editing sheet is working on. The canvas provides it;
 // anything opened outside a canvas (the v2 frame's Display options) edits
-// the widget board, which is the home page in that layout.
+// the widget board, which is the home page in that layout. The value is
+// the settings field name for the two home boards, or a board store
+// (boardStore.js, v0.289.0) for a board that lives elsewhere — a profile's
+// layout. writeBoard takes either.
 export const BoardFieldContext = React.createContext(WIDGET_BOARD_FIELD);
 export const useBoardField = () => React.useContext(BoardFieldContext);
 
 export async function writeBoard(rowOrId, field, change, { machine = false, extra = null } = {}) {
+  if (isBoardStore(field)) return field.update(change, { machine, extra });
   const id = rowOrId && typeof rowOrId === "object" ? rowOrId.id : rowOrId;
   if (!id) throw new Error("There's no settings record to save the home screen to yet");
   if (!BOARD_SETTINGS_FIELDS.includes(field)) throw new Error(`Not a board field: ${field}`);

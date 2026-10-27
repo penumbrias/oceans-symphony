@@ -26,6 +26,7 @@
 // which already unions the two.
 
 import { base44 } from "@/api/base44Client";
+import { withTrashBatch } from "@/lib/localDb";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 
 // Every key a membership entry for this group could legitimately carry.
@@ -232,7 +233,16 @@ export function deleteGroupCascade(group) {
         try { await base44.entities.Alter.update(alter.id, { groups: kept }); } catch { /* prune catches leftovers */ }
       }
     }
-    await base44.entities.Group.delete(group.id);
+    // The group and the layout of its profile page (ProfileBoard,
+    // v0.289.0) go to the trash as one batch, so a restore brings both.
+    await withTrashBatch(async () => {
+      await base44.entities.Group.delete(group.id);
+      let layouts = [];
+      try { layouts = await base44.entities.ProfileBoard.filter({ owner_type: "group", owner_id: group.id }); } catch { layouts = []; }
+      for (const r of layouts || []) {
+        try { await base44.entities.ProfileBoard.delete(r.id); } catch { /* folded on next read */ }
+      }
+    });
   });
 }
 

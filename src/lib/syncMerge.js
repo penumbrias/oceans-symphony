@@ -147,7 +147,8 @@ export function mergeRecordFields(local, incoming, { newerWins = true, legacyUnt
 //   • board-wide settings (grid, wallpaper, bars…) and page order come
 //     from the newer board; pages only the older board has follow
 // Whatever a merge replaced is kept in Recent changes ("Changed by sync").
-export const BOARD_FIELDS = { SystemSettings: ["ui_v2_home", "classic_home"] };
+// Profile page layouts (profileBoard.js, v0.289.0) merge the same way.
+export const BOARD_FIELDS = { SystemSettings: ["ui_v2_home", "classic_home"], ProfileBoard: ["board"] };
 
 export function mergeBoards(a, b, aTime = "", bTime = "") {
   const isBoard = (x) => x && typeof x === "object" && Array.isArray(x.pages);

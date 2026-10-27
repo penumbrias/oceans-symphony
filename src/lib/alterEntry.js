@@ -22,6 +22,7 @@
 //   • AlterMessage   — their board (alter_id) and their private inbox
 //                      (to_alter_id); messages they wrote elsewhere stay
 //   • AlterRelationship — every relationship with them on either end
+//   • ProfileBoard   — the layout of their profile page (v0.289.0)
 //
 // Group memberships are left as they are: readers only list alters that
 // exist, so a trashed alter drops out of every group, and comes back in on
@@ -125,7 +126,7 @@ export async function deleteAlter(alter) {
   if (!alter?.id) return;
   const id = alter.id;
   await withTrashBatch(async () => {
-    const [notes, board, inbox, relA, relB, relSrc, relTgt] = await Promise.all([
+    const [notes, board, inbox, relA, relB, relSrc, relTgt, layouts] = await Promise.all([
       safeFilter("AlterNote", { alter_id: id }),
       safeFilter("AlterMessage", { alter_id: id }),
       safeFilter("AlterMessage", { to_alter_id: id }),
@@ -134,12 +135,14 @@ export async function deleteAlter(alter) {
       // Imported relationships use the other pair of names.
       safeFilter("AlterRelationship", { source_alter_id: id }),
       safeFilter("AlterRelationship", { target_alter_id: id }),
+      safeFilter("ProfileBoard", { owner_type: "alter", owner_id: id }),
     ]);
     const seen = new Set();
     const dependents = [
       ...notes.map((r) => ["AlterNote", r]),
       ...[...board, ...inbox].map((r) => ["AlterMessage", r]),
       ...[...relA, ...relB, ...relSrc, ...relTgt].map((r) => ["AlterRelationship", r]),
+      ...layouts.map((r) => ["ProfileBoard", r]),
     ].filter(([entity, r]) => {
       const key = `${entity}:${r.id}`;
       if (seen.has(key)) return false;
