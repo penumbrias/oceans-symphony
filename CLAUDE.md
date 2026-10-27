@@ -425,6 +425,21 @@ Rules for keeping the targets healthy:
   on a profile reads `useBoardSubject()` (`src/lib/boardSubject.js`) for its
   default scope and declares `subjects` on its registry entry. Tests:
   `node scripts/test-profile-board.mjs`.
+  **The alter profile IS the board (v0.290.0).** `AlterProfile.jsx` renders
+  `ExperimentalDashboard` with `boardStore` (+ `pageStrip="tabs"`,
+  `initialPageId`/`onPageChange` for `?tab=`), inside
+  `BoardSubjectContext`. The widgets are in `src/v2/profileWidgets.jsx`:
+  the Profile page's sections come from
+  `src/components/alters/profile/ProfileSections.jsx` (ONE copy — the
+  classic `ProfileTab` view composes the same `PROFILE_SECTIONS`), the other
+  pages wrap today's tab components. A profile widget's box is `ProfileBox`
+  (borderless and flush until the person sets a look). A machine write
+  (the canvas auto-fit) NEVER creates the ProfileBoard row — the page keeps
+  the fitted seed in memory (`fittedSeed`) until a person's first edit. A
+  page piece (heading/text/divider/spacer/song) lists every owner type in
+  `subjects`; `profileRegistryFor(type, V2_WIDGETS)` builds a board's
+  registry. The record's own fields are still edited on the pencil form
+  (`ProfileTab` edit mode) until the inspectors take that over.
 - **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
   through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
   (fresh row, stamped, never blanks a board). Editing sheets learn which

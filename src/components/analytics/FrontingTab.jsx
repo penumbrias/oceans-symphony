@@ -485,12 +485,12 @@ function ReconnectionCard({ sessions, alters, altersById, terms, formatAlter, pr
               return (
                 <div key={r.alterId} className="flex items-center gap-2">
                   <AlterDot alter={alter} size={4} />
-                  <button type="button" onClick={() => navigate(`/alter/${r.alterId}?tab=board`)}
+                  <button type="button" onClick={() => navigate(`/alter/${r.alterId}?tab=messages`)}
                     className="text-xs font-medium text-foreground truncate flex-1 text-left hover:underline">
                     {formatAlter(alter)}
                   </button>
                   <span className="text-[0.625rem] text-muted-foreground tabular-nums">~{r.daysSince}d</span>
-                  <button type="button" onClick={() => navigate(`/alter/${r.alterId}?tab=board`)}
+                  <button type="button" onClick={() => navigate(`/alter/${r.alterId}?tab=messages`)}
                     className="text-[0.625rem] text-primary hover:underline flex-shrink-0">say hi →</button>
                   <button type="button" aria-label={`Stop showing ${formatAlter(alter)} here`} title="Don't show here"
                     onClick={() => onSavePrefs({ analytics_reconnect_muted: [...muted, r.alterId] })}

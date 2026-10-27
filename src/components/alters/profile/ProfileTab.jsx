@@ -16,29 +16,22 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import { parsePreferences } from "@/lib/alterPreferences";
-import AlterPreferencesEditor, { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
+import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
-import SimplePreview from "@/components/shared/SimplePreview";
-import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { useRotatingImageUrl } from "@/lib/imageRotation";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
-import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { useCustomFieldsLayout, fieldLayoutClasses, FIELD_LAYOUTS } from "@/lib/customFieldsLayout";
 import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
-import MarkdownText from "@/components/shared/MarkdownText";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
+import { PROFILE_SECTIONS } from "@/components/alters/profile/ProfileSections";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -48,11 +41,8 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_TEXT_KEY = "_header_text_color";
-const HEADER_BG_KEY = "_header_bg_color";
 const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
-const HEADER_FONT_KEY = "_header_font";
-const HEADER_OPACITY_KEY = "_header_opacity";
 // Optional header extras — surface groups / subsystems / custom fields in the
 // profile header. Group/subsystem chips render as icon / name / both and link
 // to their pages.
@@ -135,31 +125,8 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function relativeLuminance(hex) {
-  if (!hex) return 1;
-  const clean = hex.replace("#", "");
-  if (clean.length < 6) return 1;
-  const toLin = (n) => {
-    const c = n / 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  const r = toLin(parseInt(clean.substring(0, 2), 16));
-  const g = toLin(parseInt(clean.substring(2, 4), 16));
-  const b = toLin(parseInt(clean.substring(4, 6), 16));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrastRatio(a, b) {
-  const l1 = relativeLuminance(a);
-  const l2 = relativeLuminance(b);
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-}
 
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
-  // Custom-field layout (Settings → {Alter} setup → Custom fields):
-  // stacked rows, side-by-side wrapping, or one sideways-scrolling line.
-  const fieldLayout = useCustomFieldsLayout(alter);
-  const fieldLayoutCls = fieldLayoutClasses(fieldLayout);
   const queryClient = useQueryClient();
   const t = useTerms();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -379,14 +346,6 @@ useEffect(() => {
   // Resolved subsystems-chip icon — user-picked asset can be a local-image://
   // URI, so it must go through the hook before hitting an <img src>.
   const subsystemsIconPreview = useResolvedAvatarUrl(form.subsystems_icon);
-  // Resolved avatar for the VIEW-mode header — must go through the hook too,
-  // since a raw <img src="local-image://…"> can't be loaded by the browser
-  // and renders as a broken-image icon (the same gotcha the group member
-  // avatars and AlterCard already guard against). Resolve the saved
-  // alter.avatar_url directly so the header is correct regardless of how the
-  // profile was reached (Alters page or a group's member list).
-  const rotatingViewAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
-  const viewAvatar = useResolvedAvatarUrl(rotatingViewAvatarUrl);
 
   // First-appearance is one field feeding both the free-form birthday text
   // (display) and the integer origin_year (lineage/timeline) — same as the
@@ -485,488 +444,19 @@ useEffect(() => {
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
 
-  const viewBgColor = alter.custom_fields?.[BG_COLOR_KEY] || "";
-  const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
-  const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
-  const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
-  const viewHeaderBgColorRaw = alter.custom_fields?.[HEADER_BG_KEY] || "";
-  // Header bg colour with its own opacity baked in (rgba), so the header
-  // colour can be translucent independently of the body bg.
-  const viewHeaderBgColor = readProfileBg(alter.custom_fields || {}).headerBgColorWithAlpha || viewHeaderBgColorRaw;
-  const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
-  const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
-  const viewHeaderFont = fontStackFor(alter.custom_fields?.[HEADER_FONT_KEY]);
-  // Header-extras flags — when on, that info renders in the header and is
-  // MOVED out of the body (not duplicated).
-  const headerShowGroups = !!alter.custom_fields?.[HEADER_SHOW_GROUPS_KEY];
-  const headerShowSubsystems = !!alter.custom_fields?.[HEADER_SHOW_SUBSYSTEMS_KEY];
-  const headerShowFields = !!alter.custom_fields?.[HEADER_SHOW_FIELDS_KEY];
-  const headerShowAlterFields = !!alter.custom_fields?.[HEADER_SHOW_ALTER_FIELDS_KEY];
-  const headerShowPronouns = !!alter.custom_fields?.[HEADER_SHOW_PRONOUNS_KEY];
   const viewPageFont = fontStackFor(alter.custom_fields?.[PAGE_FONT_KEY]);
-  const hasBg = viewBgColor || viewBgImage;
-  const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
-  // Resolve background image URLs (may be local-image:// in local mode)
-  const [resolvedViewBgImage, setResolvedViewBgImage] = useState(viewBgImage);
-  const [resolvedEditBgImage, setResolvedEditBgImage] = useState(bgImage);
-  const [resolvedViewHeaderImage, setResolvedViewHeaderImage] = useState("");
-
-  useEffect(() => {
-    if (!viewBgImage) { setResolvedViewBgImage(""); return; }
-    resolveImageUrl(viewBgImage).then(r => setResolvedViewBgImage(r || "")).catch(() => setResolvedViewBgImage(""));
-  }, [viewBgImage]);
-
-  useEffect(() => {
-    if (!bgImage) { setResolvedEditBgImage(""); return; }
-    resolveImageUrl(bgImage).then(r => setResolvedEditBgImage(r || "")).catch(() => setResolvedEditBgImage(""));
-  }, [bgImage]);
-
-  useEffect(() => {
-    if (!viewHeaderImage) { setResolvedViewHeaderImage(""); return; }
-    resolveImageUrl(viewHeaderImage).then(r => setResolvedViewHeaderImage(r || "")).catch(() => setResolvedViewHeaderImage(""));
-  }, [viewHeaderImage]);
-
-  // ── VIEW MODE ──
-  const viewHeaderOpacity = alter.custom_fields?.[HEADER_OPACITY_KEY] !== undefined
-    ? parseFloat(alter.custom_fields[HEADER_OPACITY_KEY]) : 0.45;
-  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0.9);
-  const hasSectionBg = viewSectionBgOpacity > 0 && (viewBgColor || viewBgImage || viewHeaderImage);
-  // With a background image + background colour, the section cards use that
-  // colour at the surface ("readability") opacity — matching the page's other
-  // surfaces. Otherwise the readability tint uses the theme surface colour.
-  const sectionCardStyle = (viewBgImage && viewBgColor)
-    ? { backgroundColor: colorWithAlpha(viewBgColor, viewSectionBgOpacity) }
-    : hasSectionBg
-      ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
-      : {};
-
+  // ── VIEW MODE ── the same sections the profile board shows as widgets
+  // (ProfileSections.jsx), stacked in the same order.
   if (!editMode) {
     return (
       <div className="relative">
         {/* NB: the page-wide background (colour + image) is rendered ONCE by
-            AlterProfile as a `fixed inset-0` layer that doesn't scroll. We
-            deliberately do NOT render it again here — doing so produced a
-            second, content-height copy that scrolled with the page. The
-            header image below stays scoped to the header banner. */}
+            AlterProfile as a `fixed inset-0` layer that doesn't scroll. */}
         <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
-        {!viewHideHeader && (
-          <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(alter.custom_fields || {}), ...(viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : {}) }}>
-            {viewHeaderImage && resolvedViewHeaderImage && (
-              <div className="absolute inset-0 pointer-events-none" style={{
-                backgroundImage: `url("${resolvedViewHeaderImage}")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                opacity: viewHeaderOpacity,
-              }} />
-            )}
-            {viewBgImage?.startsWith("data:") && (
-              <div className="absolute top-2 right-2 z-10">
-                <LocalImageFixer
-                  value={viewBgImage}
-                  maxWidth={1200}
-                  quality={0.8}
-                  label="⚠️ Fix background"
-                  onFixed={async (url) => {
-                    await base44.entities.Alter.update(alter.id, {
-                      custom_fields: { ...alter.custom_fields, [BG_IMAGE_KEY]: url }
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["alters"] });
-                  }}
-                />
-              </div>
-            )}
-            <div className={`relative z-10 flex gap-4 items-start ${hasBg || viewHeaderImage ? "p-4" : ""}`}>
-              <div className="relative">
-                <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-                  {viewAvatar
-                    ? <img src={viewAvatar} alt={alter.name} className="w-full h-full object-cover" />
-                    : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
-                </div>
-                <div className="absolute -bottom-2 left-0 right-0 flex justify-center">
-                  <LocalImageFixer
-                    value={alter.avatar_url}
-                    maxWidth={400}
-                    quality={0.85}
-                    onFixed={async (url) => {
-                      await base44.entities.Alter.update(alter.id, { avatar_url: url });
-                      queryClient.invalidateQueries({ queryKey: ["alters"] });
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 space-y-1" style={viewHeaderFont ? { fontFamily: viewHeaderFont } : undefined}>
-                <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
-                  {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
-                </h2>
-                {/* Archived tag — archived alters are hidden from most lists, so
-                    without this it wasn't possible to tell you were looking at an
-                    archived (often duplicate-import) profile. handleArchive
-                    toggles is_archived, so it doubles as one-tap Restore. */}
-                {alter.is_archived && (
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <span className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                      <Archive className="w-3 h-3" /> Archived
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleArchive}
-                      disabled={saving}
-                      className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-primary hover:text-primary/80 disabled:opacity-50"
-                    >
-                      <ArchiveRestore className="w-3 h-3" /> Restore
-                    </button>
-                  </div>
-                )}
-                {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
-                  <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
-                )}
-                {alter.pronouns && (headerShowPronouns || !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase())) && (
-                  <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>
-                )}
-                {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
-                {alter.role && (() => {
-                  // Soft tint pill is the default look. When the alter's color is
-                  // too close to the rendered header backdrop (viewBgColor), the
-                  // tint + text collapse into the same wash — fall back to a
-                  // solid pill so the role stays readable. WCAG AA-large = 3:1.
-                  const pillColor = viewHeaderText || alter.color;
-                  const backdrop = viewBgColor;
-                  const lowContrast =
-                    !viewHeaderText &&
-                    pillColor &&
-                    backdrop &&
-                    contrastRatio(pillColor, backdrop) < 3;
-                  // When the header has a user-uploaded image behind it,
-                  // the role text sits directly on top of arbitrary pixels —
-                  // a dark-on-dark or light-on-light collision can hide it.
-                  // A soft outline is always worth it here regardless of
-                  // contrast maths, since we can't analyse the image.
-                  const textShadow = viewHeaderImage
-                    ? "0 0 4px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85)"
-                    : undefined;
-                  if (lowContrast) {
-                    return (
-                      <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                        style={{
-                          backgroundColor: pillColor,
-                          color: getContrastColor(pillColor),
-                          textShadow,
-                        }}>
-                        {alter.role}
-                      </span>
-                    );
-                  }
-                  return (
-                    <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                      style={{
-                        backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
-                        color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
-                        textShadow,
-                      }}>
-                      {alter.role}
-                    </span>
-                  );
-                })()}
-                {/* Optional header extras — groups / subsystems / custom fields,
-                    toggled per-alter on the edit page. Group & subsystem chips
-                    link to their pages; chip mode = icon / name / both. */}
-                {(() => {
-                  const cf = alter.custom_fields || {};
-                  if (!headerShowGroups && !headerShowSubsystems && !headerShowFields && !headerShowAlterFields) return null;
-                  const chipMode = cf[HEADER_CHIP_MODE_KEY] || "both";
-                  const hgroups = headerShowGroups ? resolvedGroups : [];
-                  const hsubs = headerShowSubsystems ? ownedSubsystems : [];
-                  const fieldChips = [];
-                  if (headerShowFields) {
-                    for (const f of systemFields) {
-                      const v = cf[f.id];
-                      if (f.is_visible !== false && v && v !== "false") {
-                        fieldChips.push({ label: f.name, value: f.field_type === "boolean" ? "Yes" : String(v) });
-                      }
-                    }
-                  }
-                  if (headerShowAlterFields && Array.isArray(alter.alter_custom_fields)) {
-                    for (const f of alter.alter_custom_fields) if (f?.value) fieldChips.push({ label: f.name, value: String(f.value) });
-                  }
-                  if (!hgroups.length && !hsubs.length && !fieldChips.length) return null;
-                  const chipStyle = (c) => ({
-                    backgroundColor: viewHeaderText ? `${viewHeaderText}18` : (c ? `${c}20` : "hsl(var(--muted))"),
-                    borderColor: viewHeaderText ? `${viewHeaderText}40` : (c ? `${c}55` : "hsl(var(--border))"),
-                    color: viewHeaderText || c || "hsl(var(--foreground))",
-                  });
-                  const linkChip = (g, key) => (
-                    <button key={key} type="button" onClick={() => navigate(`/group/${g.id}`)} title={`Open ${g.name}`}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border hover:brightness-110 transition max-w-full"
-                      style={chipStyle(g.color)}>
-                      {chipMode !== "name" && <GroupIcon group={g} className="w-3.5 h-3.5 flex-shrink-0" />}
-                      {chipMode !== "icon" && <span className="truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>}
-                    </button>
-                  );
-                  return (
-                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                      {hgroups.map((g) => linkChip(g, `hg-${g.id}`))}
-                      {hsubs.map((g) => linkChip(g, `hs-${g.id}`))}
-                      {fieldChips.map((f, i) => (
-                        <span key={`hf-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border max-w-full" style={chipStyle(null)}>
-                          <span className="opacity-70">{f.label}:</span><span className="truncate font-medium">{f.value}</span>
-                        </span>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Preferences & boundaries — pronouns.cc-style comfort chips.
-            Renders only when the alter has entries (edit them in the
-            Edit modal, under Pronouns → Advanced). */}
-        {(() => {
-          const prefs = parsePreferences(alter);
-          if (prefs.length === 0) return null;
-          return (
-            <div className="bg-muted/20 rounded-xl p-4 border border-border/40" style={sectionCardStyle}>
-              <PreferencesDisplay preferences={prefs} />
-            </div>
-          );
-        })()}
-
-        {alter.description ? (() => {
-          const blocks = htmlToBlocks(alter.description);
-          // If all blocks are raw/text type whose content looks like encoded data, the bio is corrupted
-          const looksCorrupted = blocks.length > 0 && blocks.every(b =>
-            (b.type === "raw" || b.type === "text") &&
-            (b.content?.includes("data-blocks=") || b.content?.match(/^%5B|^blocks=/))
-          );
-          if (looksCorrupted) {
-            return (
-              <div className="bg-muted/20 rounded-xl p-4 border border-border/40 text-center">
-                <p className="text-sm text-muted-foreground italic">Bio display issue — open Edit to re-save the bio and it will display correctly.</p>
-              </div>
-            );
-          }
-          return (
-            <div className="bg-muted/20 rounded-xl p-4 border border-border/40" style={sectionCardStyle}>
-              <SimplePreview blocks={blocks} onBlockChange={() => {}} readOnly={true} scopeId={alter?.id} />
-            </div>
-          );
-        })() : (
-          <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
-            No bio yet. Tap <strong>Edit</strong> to add one.
-          </div>
-        )}
-
-        {resolvedGroups.length > 0 && !headerShowGroups && (() => {
-          // Group chips render against the page background here (bio area).
-          // When the group's user-picked colour is very close to the page
-          // bg (e.g. a dark group colour in dark mode), the tinted fill
-          // and border collapse into the surrounding wash and the chip
-          // becomes effectively invisible. Add a subtle contrast ring in
-          // that case — the colour itself is preserved untouched.
-          const pageBg = getPageBackground();
-          return (
-          <div>
-            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
-            <div className="flex flex-wrap gap-1.5">
-              {resolvedGroups.map((g) => {
-                const halo = g.color && needsHalo(g.color, pageBg);
-                const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
-                return (
-                <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
-                  title={`Open ${g.name}`}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium border hover:brightness-110 transition"
-                  style={{
-                    backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
-                    borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
-                    color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
-                  }}>
-                  {g.name}
-                </button>
-                );
-              })}
-            </div>
-          </div>
-          );
-        })()}
-
-        {ownedSubsystems.length > 0 && !headerShowSubsystems && (
-          <div>
-            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
-            </p>
-            <div className="space-y-1.5">
-              {ownedSubsystems.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => navigate(`/group/${g.id}`)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
-                  style={{ borderLeftColor: g.color || "transparent", borderLeftWidth: g.color ? 3 : 1 }}
-                >
-                  <Folder className="w-4 h-4 flex-shrink-0" style={{ color: g.color || "hsl(var(--muted-foreground))" }} />
-                  <span className="text-sm flex-1 truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {presetAnswerRows.length > 0 && (
-          <div>
-            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              From Get to know me
-            </p>
-            <div className="space-y-2">
-              {presetAnswerRows.map((row) => (
-                <div key={row.key} className="rounded-xl border border-border/40 bg-card px-3 py-2">
-                  <p className="text-xs text-muted-foreground mb-1.5">{row.label}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {row.values.map((v) => (
-                      <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-foreground border border-border/40">
-                        {v}
-                        <button
-                          type="button"
-                          onClick={() => removePresetValue(row.key, v)}
-                          aria-label={`Remove ${v}`}
-                          className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {alter.tags && alter.tags.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Tags
-                <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
-                  legacy — Get to know me no longer writes here
-                </span>
-              </p>
-              <button
-                type="button"
-                onClick={clearAllTags}
-                className="text-[10px] font-medium text-muted-foreground/70 hover:text-red-500 hover:underline"
-              >
-                Clear all
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {alter.tags.map((tag) => (
-                <span key={tag} className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    aria-label={`Remove tag ${tag}`}
-                    className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {(() => {
-          const customFieldValues = alter.custom_fields || {};
-const FIELD_ORDER_KEY = "_field_order";
-const perAlterOrder = customFieldValues[FIELD_ORDER_KEY] || null;
-const orderedFields = perAlterOrder
-  ? [...systemFields].sort((a, b) => {
-      const ai = perAlterOrder.indexOf(a.id);
-      const bi = perAlterOrder.indexOf(b.id);
-      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-    })
-  : systemFields;
-const visibleFilled = orderedFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);
-          // alter_custom_fields can be either an array of ad-hoc
-          // { name, value } records (this tab's UI) or an object
-          // map keyed by CustomField id (Get to know me / Help me
-          // unblend writeback). Guard against the object shape so
-          // .filter() doesn't blow up when the user has used the
-          // unblend writeback path.
-          const alterSpecific = Array.isArray(alter.alter_custom_fields)
-            ? alter.alter_custom_fields.filter(f => f.value)
-            : [];
-          // Fields shown in the header are MOVED there, not duplicated here.
-          const bodyFilled = headerShowFields ? [] : visibleFilled;
-          const bodyAdhoc = headerShowAlterFields ? [] : alterSpecific;
-          if (bodyFilled.length === 0 && bodyAdhoc.length === 0) return null;
-          return (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">Info</p>
-                {/* Per-PROFILE layout (moved here from Settings → Custom
-                    fields): each {alter} keeps their own arrangement. One
-                    tap cycles stacked → side by side → one line. */}
-                <button type="button"
-                  onClick={async () => {
-                    const ids = FIELD_LAYOUTS.map((l) => l.id);
-                    const next = ids[(ids.indexOf(fieldLayout) + 1) % ids.length];
-                    try {
-                      await base44.entities.Alter.update(alter.id, { custom_fields_layout: next });
-                      // The profile page reads THIS alter from its own
-                      // ["alter", id] query — refresh both.
-                      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-                      queryClient.invalidateQueries({ queryKey: ["alters"] });
-                    } catch { /* non-fatal */ }
-                  }}
-                  className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
-                  title="How this profile lays out its fields — tap to change">
-                  {FIELD_LAYOUTS.find((l) => l.id === fieldLayout)?.label || "Stacked"}
-                </button>
-              </div>
-              <div className={`rounded-xl border border-border/40 bg-muted/10 ${fieldLayout === "stacked" ? "overflow-hidden" : `${fieldLayoutCls.container} p-2`}`} style={sectionCardStyle}>
-                {bodyFilled.map((field, i) => (
-                  <div key={field.id} className={fieldLayout === "stacked"
-                    ? `flex gap-3 px-3 py-2.5 ${i < bodyFilled.length + bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`
-                    : `${fieldLayoutCls.item} rounded-lg border border-border/30 bg-background/40 px-2.5 py-2`}>
-                    <span className={`text-xs text-muted-foreground leading-relaxed ${fieldLayout === "stacked" ? "w-32 flex-shrink-0 pt-0.5" : "block mb-0.5 truncate"}`}>{field.name}</span>
-                    {/* div (not span) so text-type fields can host the
-                        block-level MarkdownText without invalid nesting. */}
-                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
-                      {field.field_type === "boolean"
-                        ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
-                        : field.field_type === "list" && typeof customFieldValues[field.id] === "string"
-                          ? (
-                            <span className="inline-flex flex-wrap gap-1">
-                              {customFieldValues[field.id].split(/[,;|]/).map((s) => s.trim()).filter(Boolean).map((item, i) => (
-                                <span key={`${item}-${i}`} className="text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{item}</span>
-                              ))}
-                            </span>
-                          )
-                          : (field.field_type === "text" || field.field_type === "richtext")
-                            ? <MarkdownText>{String(customFieldValues[field.id])}</MarkdownText>
-                            : <span className="whitespace-pre-wrap break-words">{customFieldValues[field.id]}</span>}
-                    </div>
-                  </div>
-                ))}
-                {bodyAdhoc.map((field, idx) => (
-                  <div key={idx} className={fieldLayout === "stacked"
-                    ? `flex gap-3 px-3 py-2.5 ${idx < bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`
-                    : `${fieldLayoutCls.item} rounded-lg border border-border/30 bg-background/40 px-2.5 py-2`}>
-                    <span className={`text-xs text-muted-foreground leading-relaxed ${fieldLayout === "stacked" ? "w-32 flex-shrink-0 pt-0.5" : "block mb-0.5 truncate"}`}>{field.name}</span>
-                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
-                      <MarkdownText>{String(field.value)}</MarkdownText>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+          {PROFILE_SECTIONS.map(([id, SectionView]) => (
+            <SectionView key={id} alter={alter} systemFields={systemFields} />
+          ))}
         </div>
       </div>
     );

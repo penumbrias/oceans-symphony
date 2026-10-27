@@ -1069,6 +1069,13 @@ html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
   padding-bottom: calc(var(--os-sab) + var(--home-edit-bar-h, 0px)) !important;
 }
 
+/* Profile boards (v0.290.0): a section widget with nothing to show is
+   invisible on the page, and shows its name only while the layout is
+   being edited, so an empty box reads as "Groups — nothing to show yet"
+   rather than a gap. */
+.pf-widget-empty { display: none; }
+html[data-home-edit] .pf-widget-empty { display: flex; min-height: 48px; }
+
 /* Status-banner widget ticker — two copies of the text scroll by half the
    track width for a seamless loop; duration is set inline per note length. */
 @keyframes os-marquee {

@@ -3150,6 +3150,8 @@ export const V2_WIDGETS = {
   heading: {
     label: "Heading", description: "A line of your own text, for labelling a part of the page.",
     icon: Type, category: "layout",
+    // A page piece: fits every board, profiles included (v0.290.0).
+    subjects: ["home", "alter", "group", "contact", "location"],
     render: ({ settings }) => <HeadingWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
@@ -3164,6 +3166,8 @@ export const V2_WIDGETS = {
   text: {
     label: "Text", description: "A paragraph of your own — notes, reminders to yourself, anything.",
     icon: AlignLeft, category: "layout",
+    // A page piece: fits every board, profiles included (v0.290.0).
+    subjects: ["home", "alter", "group", "contact", "location"],
     render: ({ settings }) => <TextWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
@@ -3178,6 +3182,8 @@ export const V2_WIDGETS = {
   divider: {
     label: "Divider", description: "A line to separate parts of a page.",
     icon: Minus, category: "layout",
+    // A page piece: fits every board, profiles included (v0.290.0).
+    subjects: ["home", "alter", "group", "contact", "location"],
     render: ({ settings }) => <DividerWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
@@ -3189,6 +3195,8 @@ export const V2_WIDGETS = {
   spacer: {
     label: "Spacer", description: "Empty space, for pushing things apart.",
     icon: MoveVertical, category: "layout",
+    // A page piece: fits every board, profiles included (v0.290.0).
+    subjects: ["home", "alter", "group", "contact", "location"],
     render: () => <SpacerWidget />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
@@ -3225,6 +3233,8 @@ export const V2_WIDGETS = {
   song: {
     label: "Song", description: "A song that plays while this page is open.",
     icon: Music, category: "support",
+    // A page piece: fits every board, profiles included (v0.290.0).
+    subjects: ["home", "alter", "group", "contact", "location"],
     render: sized(({ settings }) => <SongWidget settings={settings} />),
     // With no display name of its own, the widget goes by "Song: <title>" —
     // following whichever song is set — or the generic name until one is
