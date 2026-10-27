@@ -97,6 +97,14 @@ export async function listProfileBoardRows(ownerType, ownerId) {
   } catch { return []; }
 }
 
+// Trash a profile's layout rows with the profile (call inside the owner's
+// trash batch, so a restore brings the layout back with the record).
+export async function trashProfileBoards(ownerType, ownerId) {
+  for (const r of await listProfileBoardRows(ownerType, ownerId)) {
+    try { await localEntities.ProfileBoard.delete(r.id); } catch { /* best-effort */ }
+  }
+}
+
 // `rows` is what the query holds now (may be empty: no layout saved yet).
 export function profileBoardStore({ ownerType, ownerId, rows, qc }) {
   if (!isProfileOwnerType(ownerType)) throw new Error(`Not a profile type: ${ownerType}`);

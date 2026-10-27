@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
@@ -23,13 +23,10 @@ import { PS } from "@/lib/profileStyle";
 // The profile is a widget board (v0.290.0): the same canvas as the home
 // screen, one page per tab, every section a widget (src/v2/profileWidgets).
 // The layout lives in a ProfileBoard row once the person edits it; until
-// then the page renders the seeded board, which is today's page.
-import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
-import { V2_WIDGETS } from "@/v2/widgets";
-import { profileRegistryFor } from "@/v2/profileWidgets";
-import { BoardSubjectContext } from "@/lib/boardSubject";
-import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
-import { seedProfileBoard, profilePageId, tabOfPageId, ALTER_PROFILE_PAGES } from "@/lib/profileBoard";
+// then the page renders the seeded board, which is today's page. The host
+// (ProfileBoardCanvas) is shared with the group, contact and location pages.
+import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
+import { profilePageId, ALTER_PROFILE_PAGES } from "@/lib/profileBoard";
 
 // The icon each tab's page shows in the page strip (by page id).
 const PAGE_ICONS = {
@@ -47,12 +44,6 @@ const PAGE_ICONS = {
   [profilePageId("activities")]: Zap,
   [profilePageId("options")]: SlidersHorizontal,
 };
-const TAB_NAMES = ALTER_PROFILE_PAGES.map((p) => p.tab);
-// ?tab= names a tab (today's links) or, for a page the person added, its id.
-const pageIdOfTabParam = (t) => (!t ? null : TAB_NAMES.includes(t) ? profilePageId(t) : t);
-const tabParamOfPageId = (id) => tabOfPageId(id) || id;
-const PROFILE_EDIT_EVENT = "os-profile-edit-home";
-
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_ROTATION_KEY = "_bg_rotation_mode";
@@ -103,34 +94,12 @@ function AlterProfileFallback({ error, reset }) {
 
 function AlterProfileInner() {
   const { id: alterId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
   // The page showing on the board. ?tab= opens a page (today's deep links,
   // the tour, notifications); the board reports the page it is on so the
   // URL stays in step and the header knows whether this is the Profile page.
-  const tabParam = searchParams.get("tab");
-  const initialPageId = pageIdOfTabParam(tabParam);
-  const [currentPageId, setCurrentPageId] = useState(initialPageId || profilePageId("profile"));
-  const onPageChange = useCallback((pageId) => {
-    setCurrentPageId(pageId);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (pageIdOfTabParam(next.get("tab")) === pageId) return prev;
-      if (pageId === profilePageId("profile")) next.delete("tab"); else next.set("tab", tabParamOfPageId(pageId));
-      // A ?compose= / ?messageId= belongs to the page it opened.
-      next.delete("compose"); next.delete("messageId");
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
-  const onProfilePage = currentPageId === profilePageId("profile");
+  const page = useProfilePageState(ALTER_PROFILE_PAGES);
+  const { searchParams, setSearchParams, layoutEditing, onFirstPage: onProfilePage } = page;
   const [editMode, setEditMode] = useState(false);
-  // Whether the board itself is in layout-edit mode (its own edit bar is
-  // up); the header's Edit / Edit layout buttons step aside meanwhile.
-  const [layoutEditing, setLayoutEditing] = useState(false);
-  useEffect(() => {
-    const onState = (e) => { if (e?.detail?.scope === "os-profile") setLayoutEditing(!!e.detail.editing); };
-    window.addEventListener("os-home-edit-state", onState);
-    return () => window.removeEventListener("os-home-edit-state", onState);
-  }, []);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const [resolvedBgImage, setResolvedBgImage] = useState(null);
@@ -240,37 +209,6 @@ function AlterProfileInner() {
     queryFn: () => base44.entities.CustomField.list("order"),
   });
 
-  // The settings row carries the device look and the saved widget styles
-  // the canvas reads; the profile's own layout is its ProfileBoard row.
-  const { data: settingsRows = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
-  });
-  const settingsRow = settingsRows[0] || null;
-  const { data: boardRows = [], isFetched: boardRowsFetched } = useQuery({
-    queryKey: profileBoardQueryKey("alter", alterId),
-    queryFn: () => listProfileBoardRows("alter", alterId),
-    enabled: !!alterId,
-  });
-  // The canvas's auto-fit on a still-seeded board is kept here, never
-  // written: no row exists until the person's first layout edit.
-  const [fittedSeed, setFittedSeed] = useState(null);
-  useEffect(() => { setFittedSeed(null); }, [alterId]);
-  const boardStore = React.useMemo(() => {
-    if (!alter) return null;
-    const base = profileBoardStore({ ownerType: "alter", ownerId: alter.id, rows: boardRows, qc: queryClient });
-    return {
-      ...base,
-      board: base.board || fittedSeed || seedProfileBoard(alter, "alter"),
-      write: async (next, opts) => {
-        const row = await base.write(next, opts);
-        if (!row) setFittedSeed(next);
-        return row;
-      },
-    };
-  }, [alter, boardRows, fittedSeed, queryClient]);
-  const registry = React.useMemo(() => profileRegistryFor("alter", V2_WIDGETS), []);
-  const boardSubject = React.useMemo(() => (alter ? { type: "alter", id: alter.id } : null), [alter?.id]);
   const boardApi = React.useMemo(() => ({ alters }), [alters]);
 
   if (isLoading) {
@@ -449,7 +387,7 @@ function AlterProfileInner() {
                 data-tour="alter-profile-layout-btn"
                 variant="outline"
                 size="sm"
-                onClick={() => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT))}
+                onClick={openProfileLayoutEditor}
                 aria-label="Edit layout"
                 title="Edit layout — move, resize and add widgets on this page"
               >
@@ -541,24 +479,9 @@ function AlterProfileInner() {
             systemFields={systemFields}
             saveRef={saveRef}
           />
-        ) : boardStore && boardRowsFetched ? (
-          <BoardSubjectContext.Provider value={boardSubject}>
-            <ExperimentalDashboard
-              settingsRow={settingsRow}
-              api={boardApi}
-              registry={registry}
-              boardStore={boardStore}
-              eventPrefix="os-profile"
-              viewFlow
-              notices={null}
-              initialPageId={initialPageId}
-              onPageChange={onPageChange}
-              pageStrip="tabs"
-              pageIcons={PAGE_ICONS}
-              pageStripProps={{ "data-tour": "alter-profile-tabs" }}
-            />
-          </BoardSubjectContext.Provider>
-        ) : null}
+        ) : (
+          <ProfileBoardCanvas ownerType="alter" record={alter} pageIcons={PAGE_ICONS} page={page} tourId="alter-profile-tabs" api={boardApi} />
+        )}
       </div>
     </motion.div>
   );

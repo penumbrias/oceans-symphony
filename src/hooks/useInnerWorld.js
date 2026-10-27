@@ -98,7 +98,7 @@ export function useInnerWorld(mapId) {
     // Locations (+ links)
     createLocation: async (layerId, fields) => { const loc = await IW.createLocation(mapId, layerId, fields); inv(IW.IW_KEYS.locations); return loc; },
     updateLocation: async (id, fields) => { await localEntities.InnerWorldLocation.update(id, fields); inv(IW.IW_KEYS.locations); },
-    deleteLocation: async (id) => { await localEntities.InnerWorldLocation.delete(id); inv(IW.IW_KEYS.locations); },
+    deleteLocation: async (id) => { await IW.deleteLocation(id); inv(IW.IW_KEYS.locations); },
     setLocationLink: async (id, type, targetId) => { await IW.setLocationLink(id, type, targetId); inv(IW.IW_KEYS.locations); },
     clearLocationLink: async (id) => { await IW.clearLocationLink(id); inv(IW.IW_KEYS.locations); },
     resolveLocationLink: IW.resolveLocationLink,

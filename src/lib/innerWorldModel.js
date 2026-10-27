@@ -24,6 +24,8 @@
 // intact as a fallback (per the never-lose-data rule).
 
 import { localEntities } from "@/api/base44Client";
+import { withTrashBatch } from "@/lib/localDb";
+import { trashProfileBoards } from "@/lib/boardStore";
 
 export const IW_KEYS = {
   maps: ["innerWorldMaps"],
@@ -124,7 +126,18 @@ export const archiveMap = (id, archived = true) => localEntities.InnerWorldMap.u
 export async function reorderMaps(orderedIds) {
   await Promise.all(orderedIds.map((id, i) => localEntities.InnerWorldMap.update(id, { order: i })));
 }
+// A location's profile page has a layout row (ProfileBoard, v0.291.0); it
+// goes to the trash with the location so a restore brings both back.
+async function trashLocationWithBoard(loc) {
+  await trashProfileBoards("location", loc.id);
+  await localEntities.InnerWorldLocation.delete(loc.id);
+}
+export const deleteLocation = (id) => withTrashBatch(() => trashLocationWithBoard({ id }));
+
 export async function deleteMap(id) {
+  await withTrashBatch(() => deleteMapInBatch(id));
+}
+async function deleteMapInBatch(id) {
   const [layers, locations, images, placements] = await Promise.all([
     listScoped("InnerWorldLayer", "map_id", id),
     listScoped("InnerWorldLocation", "map_id", id),
@@ -133,7 +146,7 @@ export async function deleteMap(id) {
   ]);
   await Promise.all([
     ...layers.map((l) => localEntities.InnerWorldLayer.delete(l.id)),
-    ...locations.map((l) => localEntities.InnerWorldLocation.delete(l.id)),
+    ...locations.map((l) => trashLocationWithBoard(l)),
     ...images.map((im) => localEntities.InnerWorldImage.delete(im.id)),
     ...placements.map((p) => localEntities.InnerWorldPlacement.delete(p.id)),
   ]);
@@ -153,13 +166,16 @@ export async function reorderLayers(orderedIds) {
   await Promise.all(orderedIds.map((id, i) => localEntities.InnerWorldLayer.update(id, { order: i })));
 }
 export async function deleteLayer(id) {
+  await withTrashBatch(() => deleteLayerInBatch(id));
+}
+async function deleteLayerInBatch(id) {
   const [locations, images, placements] = await Promise.all([
     listScoped("InnerWorldLocation", "layer_id", id),
     listScoped("InnerWorldImage", "layer_id", id),
     listScoped("InnerWorldPlacement", "layer_id", id),
   ]);
   await Promise.all([
-    ...locations.map((l) => localEntities.InnerWorldLocation.delete(l.id)),
+    ...locations.map((l) => trashLocationWithBoard(l)),
     ...images.map((im) => localEntities.InnerWorldImage.delete(im.id)),
     ...placements.map((p) => localEntities.InnerWorldPlacement.delete(p.id)),
   ]);

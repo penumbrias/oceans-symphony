@@ -63,17 +63,19 @@ export const GROUP_PROFILE_PAGES = [
   { tab: "journal", label: "Journal", widgets: ["profile_journal"] },
 ];
 
+// The "I'm with them" button sat above the tabs, on every tab — so every
+// page starts with it.
 export const CONTACT_PROFILE_PAGES = [
-  { tab: "about", label: "About", widgets: ["profile_header", "profile_about"] },
-  { tab: "relationships", label: "Relationships", widgets: ["profile_relationships"] },
-  { tab: "boundaries", label: "Boundaries & Rules", widgets: ["profile_boundaries"] },
-  { tab: "notes", label: "Notes", widgets: ["profile_notes"] },
-  { tab: "options", label: "Options", widgets: ["profile_options"] },
+  { tab: "about", label: "About", widgets: ["profile_header", "profile_encounter", "profile_about"] },
+  { tab: "relationships", label: "Relationships", widgets: ["profile_encounter", "profile_relationships"] },
+  { tab: "boundaries", label: "Boundaries & Rules", widgets: ["profile_encounter", "profile_boundaries"] },
+  { tab: "notes", label: "Notes", widgets: ["profile_encounter", "profile_notes"] },
+  { tab: "options", label: "Options", widgets: ["profile_encounter", "profile_options"] },
 ];
 
 export const LOCATION_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [
-    "profile_header", "profile_bio", "profile_on_map", "profile_members", "profile_sub_locations",
+    "profile_header", "profile_bio", "profile_sub_locations", "profile_members", "profile_on_map",
   ] },
 ];
 
