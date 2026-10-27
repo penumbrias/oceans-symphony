@@ -75,6 +75,7 @@ import { DOCK_KEY } from "@/components/v2/V2Frame";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
+import { settingsBoardStore } from "@/lib/boardStore";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings } from "@/lib/widgetFold";
 
@@ -599,6 +600,13 @@ export default function ExperimentalDashboard({
   api,
   registry = WIDGET_REGISTRY,
   settingsField = "experimental_home",
+  // Where the board is read from and written to (boardStore.js, v0.289.0).
+  // Left null, the board is the `settingsField` field on `settingsRow`, as
+  // it always was for the home screen and the widget board. A profile page
+  // passes its own store so the same canvas lays out an alter's or a
+  // group's page; `settingsRow` is still read for the device look and the
+  // saved styles, which stay on the settings row.
+  boardStore = null,
   // v2 injects this: leaving "back to classic" must flip ui_v2.enabled,
   // not this layout blob's own enabled flag (which nothing reads in v2).
   // v2 injects this too: under v2 THE quick-action bar is the frame's
@@ -727,9 +735,18 @@ export default function ExperimentalDashboard({
      
   }, [eventPrefix]);
 
+  // The store the canvas writes through. The settings-backed one is built
+  // here so the two home boards keep their exact write path; it is keyed on
+  // the row id, not the row, so a refetch doesn't remake persist.
+  const store = useMemo(
+    () => boardStore || settingsBoardStore({ settingsRow, field: settingsField, qc }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [boardStore, settingsRow?.id, settingsField, qc]
+  );
+  const rawBoard = boardStore ? boardStore.board : settingsRow?.[settingsField];
   const home = useMemo(
-    () => resolveExperimentalHome(settingsRow?.[settingsField], registry),
-    [settingsRow, settingsField, registry]
+    () => resolveExperimentalHome(rawBoard, registry),
+    [rawBoard, registry]
   );
   // The user's own saved styles live beside the layout, on the settings row,
   // so they travel with backups and device sync for free.
@@ -876,25 +893,18 @@ export default function ExperimentalDashboard({
     const written = nextHome;
     boardRef.current.board = written;
     boardRef.current.pending += 1;
-    if (settingsRow?.id) {
+    if (store.id) {
       // A refetch still in flight would land the pre-write row on top.
       // Awaited: a cancel reverts the query's state when it settles, which
       // would wipe an optimistic value set before it.
-      await qc.cancelQueries({ queryKey: ["systemSettings"] });
-      qc.setQueryData(["systemSettings"], (rows) => (Array.isArray(rows)
-        ? rows.map((r) => (r?.id === settingsRow.id ? { ...r, [settingsField]: written } : r))
-        : rows));
+      await qc.cancelQueries({ queryKey: store.queryKey });
+      store.setCached(written);
     }
     try {
-      if (settingsRow?.id) {
-        await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
-      } else {
-        // No row in hand yet: look again before creating, so a slow first
-        // load can't leave a second settings record behind.
-        const existing = (await base44.entities.SystemSettings.list())[0];
-        if (existing?.id) await base44.entities.SystemSettings.update(existing.id, { [settingsField]: nextHome });
-        else await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
-      }
+      // The store looks the row up fresh (and creates it when there is
+      // none yet, looking again first so a slow first load can't leave a
+      // second record behind).
+      await store.write(nextHome);
       if (opts.undoLabel) {
         undoRef.current = previous;
         toast(opts.undoLabel, {
@@ -909,12 +919,8 @@ export default function ExperimentalDashboard({
               // beats the other device's record of deleting it.
               const snapshot = stampBoardChanges(nextHome, raw);
               try {
-                if (settingsRow?.id) {
-                  await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: snapshot });
-                } else {
-                  await base44.entities.SystemSettings.create({ [settingsField]: snapshot });
-                }
-                qc.invalidateQueries({ queryKey: ["systemSettings"] });
+                await store.write(snapshot);
+                store.invalidate();
                 if (opts.restorePageId) setActivePageId(opts.restorePageId);
                 toast.success("Restored");
               } catch (e) { toast.error(e?.message || "Couldn't undo"); }
@@ -928,9 +934,9 @@ export default function ExperimentalDashboard({
       boardRef.current.pending = Math.max(0, boardRef.current.pending - 1);
       // Re-read the truth once the last queued write has landed (or failed
       // — a failed write must not leave the optimistic board on screen).
-      if (boardRef.current.pending === 0) qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      if (boardRef.current.pending === 0) store.invalidate();
     }
-  }, [settingsRow?.id, qc, settingsField]);
+  }, [store, qc]);
 
   // Built on the newest board (see boardRef), never the render's copy.
   const updatePageWidgets = useCallback((mutate, opts = {}) => {
@@ -1863,7 +1869,7 @@ export default function ExperimentalDashboard({
             <div className="mt-4 pt-3 border-t border-border/40">
               {homeSettingsOpen && (
                 <React.Suspense key={homeSettingsNonce} fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
-                  <BoardFieldContext.Provider value={settingsField}>
+                  <BoardFieldContext.Provider value={boardStore || settingsField}>
                     <UiEditSheetBody />
                   </BoardFieldContext.Provider>
                 </React.Suspense>

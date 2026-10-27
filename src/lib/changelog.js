@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 27, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: groundwork for profile pages as widget boards. Backups now include profile page layouts (under Alters & Profiles); nothing changes on screen yet." },
       { type: "improve", text: "Display options: the defunct \"Back to classic\" button is gone." },
       { type: "feature", text: "Display options is now the same five-tab inspector as widget options: Text, Shape, Bars, Colour and Styles, with a slider for every size and one bar at a time under Bars." },
       { type: "improve", text: "Add-widget library: search and the group strip stay at the top, every widget has a labelled Add button, and the preview page uses the same rows as the inspector." },

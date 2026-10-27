@@ -408,6 +408,23 @@ Rules for keeping the targets healthy:
   does; its auto-fit passes `{ machine: true }` and must not stamp). Each
   page has `showAs` (auto/phone/tablet/desktop) — shape only, every page
   shows on every device.
+- **Boards live behind a store (v0.289.0) — `src/lib/boardStore.js`.** The
+  canvas (`ExperimentalDashboard`) reads and writes through a board store:
+  `settingsBoardStore` for the two home boards (a field on SystemSettings,
+  unchanged write path) and `profileBoardStore` for a profile page's layout,
+  which is its own `ProfileBoard` row `{ owner_type, owner_id, board }`
+  (`src/lib/profileBoard.js`). A profile with no row renders
+  `seedProfileBoard(record, type)` every open — one page per tab
+  (`tab:<name>`, so `?tab=` deep links keep working), today's sections as
+  widgets — and the row is created on the person's FIRST layout edit, never
+  before. Duplicate rows (two devices' first edits) fold through
+  `pickProfileBoardRows`; `ProfileBoard` is in `BOARD_FIELDS` (page-by-page
+  sync), in the `alters` backup category, and travels in the trash batch of
+  its owner (`deleteAlter`, `deleteGroupCascade`). `BoardFieldContext` holds
+  the settings field name OR a store; `writeBoard` takes either. A widget
+  on a profile reads `useBoardSubject()` (`src/lib/boardSubject.js`) for its
+  default scope and declares `subjects` on its registry entry. Tests:
+  `node scripts/test-profile-board.mjs`.
 - **One board writer (v0.277.0).** Outside the canvas, write a board ONLY
   through `writeBoard` / `writeSettingsWithBoards` in `src/lib/boardWriter.js`
   (fresh row, stamped, never blanks a board). Editing sheets learn which

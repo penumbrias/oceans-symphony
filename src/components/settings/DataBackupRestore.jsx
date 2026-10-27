@@ -139,6 +139,10 @@ const ENTITY_NAMES = [
   "GoalStep",
   "TurnAgreement",
   "ModPackage", "ModData",
+  // Profile page layouts (v0.289.0): one row per alter / group / contact /
+  // location that has had its page arranged. Holds layout only, never the
+  // record's own fields.
+  "ProfileBoard",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -152,14 +156,14 @@ export function resolveCatLabel(cat, terms) {
   return cat.label;
 }
 export function resolveCatDesc(cat, terms) {
-  if (cat.id === "alters")   return `Bios, avatars, custom fields, relationships, relationship types, inner world`;
+  if (cat.id === "alters")   return `Bios, avatars, custom fields, relationships, relationship types, inner world, profile page layouts`;
   if (cat.id === "fronting") return `${terms.Switch} history`;
   if (cat.id === "groups")   return `${terms.Alter} groups`;
   return cat.desc;
 }
 
 export const EXPORT_CATEGORIES = [
-  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement", "Presence"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers, placements & new presences" },
+  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement", "Presence", "ProfileBoard"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers, placements, new presences & profile page layouts" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
   { id: "checkins",      label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                                  desc: "Emotion & system check-ins" },
