@@ -9,8 +9,8 @@ import { FileDown, LayoutTemplate, Code2, PenSquare } from "lucide-react";
 import { Segmented } from "@/components/shared/SettingRows";
 import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
 import SimplePreview from "@/components/shared/SimplePreview";
-import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
-import { ImportSPModal } from "@/components/alters/BioEditor";
+import { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
+import BioEditor, { ImportSPModal } from "@/components/alters/BioEditor";
 import BioTemplatePicker from "@/components/alters/BioTemplatePicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DateFieldInput } from "@/components/alters/profile/fieldControls";
@@ -61,10 +61,10 @@ export function EntryInput({ k, type, value, onCommit, label }) {
 // ── The bio: one long-text entry ─────────────────────────────────────
 // A bio written with the block editor (pictures beside text, galleries,
 // templates with fill-in fields) keeps working: its fill-in fields edit
-// here and "Edit blocks" opens the block editor. The old Plain / Simple /
-// Blocks / Raw switch is gone (v0.298.0): plain text and "View code" cover
-// a written bio, and "Turn the bio into widgets" (Page look) lays a block
-// bio out as widgets that move freely.
+// here. "Full editor" opens the bio editor with its Plain / Simple / Blocks
+// / Raw modes for any bio (kept by the owner's choice, v0.298.1), and
+// "Turn the bio into widgets" (Page look) lays a block bio out as widgets
+// that move freely.
 export function BioEntry({ k, value, onChange, blocksHint = null }) {
   // Bumped when the bio is replaced from outside the text box (a template,
   // a paste, the blocks editor) so the box shows the new bio.
@@ -96,9 +96,8 @@ export function BioEntry({ k, value, onChange, blocksHint = null }) {
         <RichTextField key={`rich:${k}:${seed}`} value={value || ""} onCommit={onChange} placeholder="Write a bio…" />
       )}
       <div className="flex flex-wrap gap-1.5">
-        {isBlocks ? (
-          <button type="button" className={smallBtn} onClick={() => setBlocksOpen(true)}><PenSquare className="w-3.5 h-3.5" /> Edit blocks</button>
-        ) : (
+        <button type="button" className={smallBtn} onClick={() => setBlocksOpen(true)}><PenSquare className="w-3.5 h-3.5" /> Full editor</button>
+        {!isBlocks && (
           <button type="button" className={smallBtn} onClick={() => setCode((c) => !c)} aria-pressed={code}>
             <Code2 className="w-3.5 h-3.5" /> {code ? "Back to text" : "View code"}
           </button>
@@ -117,8 +116,8 @@ export function BioEntry({ k, value, onChange, blocksHint = null }) {
       )}
       <Dialog open={blocksOpen} onOpenChange={(open) => { setBlocksOpen(open); if (!open) setSeed((n) => n + 1); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Edit blocks</DialogTitle>
-          <BlockEditor value={value || ""} onChange={onChange} />
+          <DialogTitle>Bio</DialogTitle>
+          <BioEditor value={value || ""} onChange={onChange} />
         </DialogContent>
       </Dialog>
     </div>

@@ -19,7 +19,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { registerAlterUpload } from "@/lib/assetFolders";
-import { BioEntry } from "@/components/alters/info/entryEditors";
+import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
@@ -383,7 +383,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           {/* Description / Bio */}
           <div className="space-y-1.5">
             <Label>Description / Bio</Label>
-            <BioEntry k="new" value={form.description} onChange={(val) => set("description", val)} />
+            <BioEditor value={form.description} onChange={(val) => set("description", val)} />
           </div>
 
           {/* Profile style — shared editor: Header is a collapsible
