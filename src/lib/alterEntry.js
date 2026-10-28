@@ -112,6 +112,19 @@ export async function patchAlterCustomFields(alterId, changes) {
   return base44.entities.Alter.update(alterId, { custom_fields: cf });
 }
 
+// A new sub-system this alter owns: a group with them as its owner
+// (subsystemUtils). The pencil form and the Alter info list both use it.
+export async function createOwnedSubsystem(alter, name) {
+  if (!alter?.id) throw new Error("No alter");
+  return base44.entities.Group.create({
+    name,
+    color: alter.color || "#8b5cf6",
+    parent: "",
+    member_sp_ids: [],
+    owner_alter_id: alter.id,
+  });
+}
+
 // Every screen that shows this alter (the list, the profile, pickers).
 export function refreshAlter(queryClient, alterId) {
   queryClient?.invalidateQueries({ queryKey: ["alters"] });

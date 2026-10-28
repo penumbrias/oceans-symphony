@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { PS } from "@/lib/profileStyle";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
-import { deleteAlter as deleteAlterEverywhere, extractYear, firstAppearanceOf, saveAlterEdits, refreshAlter } from "@/lib/alterEntry";
+import { deleteAlter as deleteAlterEverywhere, extractYear, firstAppearanceOf, saveAlterEdits, refreshAlter, createOwnedSubsystem } from "@/lib/alterEntry";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { uploadAlterImage, largeGifWarning } from "@/lib/alterImageUpload";
 import { registerAlterUpload } from "@/lib/assetFolders";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
@@ -166,13 +167,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
     setCreatingSubsystem(true);
     try {
       const name = `${alter.name}'s ${subsystemTerm}`;
-      await base44.entities.Group.create({
-        name,
-        color: alter.color || "#8b5cf6",
-        parent: "",
-        member_sp_ids: [],
-        owner_alter_id: alter.id,
-      });
+      await createOwnedSubsystem(alter, name);
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       toast.success(`Created ${name}`);
     } catch (e) {
@@ -282,16 +277,10 @@ useEffect(() => {
       const sizeMB = file.size / (1024 * 1024);
       if (sizeMB > 1 && file.type !== "image/gif") toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
       // GIF-aware: GIF backgrounds stay raw (animated); stills compressed.
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.8);
-      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
-      if (isLocalMode()) {
-        const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(imageId, dataUrl);
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "background" });
-        setBgField(PS.BG_IMAGE, createLocalImageUrl(imageId));
-      } else {
-        setBgField(PS.BG_IMAGE, dataUrl);
-      }
+      const { url, isGif, sizeKB } = await uploadAlterImage(file, { alterId: alter?.id, role: "background", prefix: "bg", maxDim: 1200, quality: 0.8 });
+      const warn = largeGifWarning({ isGif, sizeKB });
+      if (warn) toast.warning(warn);
+      setBgField(PS.BG_IMAGE, url);
       toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
     } catch (err) {
       toast.error("Failed to process background image");
@@ -303,16 +292,10 @@ useEffect(() => {
     setUploadingHeader(true);
     try {
       // GIF-aware: GIF banners stay raw (animated); stills compressed.
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.85);
-      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
-      if (isLocalMode()) {
-        const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(imageId, dataUrl);
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "header" });
-        setBgField(PS.HEADER_IMAGE, createLocalImageUrl(imageId));
-      } else {
-        setBgField(PS.HEADER_IMAGE, dataUrl);
-      }
+      const { url, isGif, sizeKB } = await uploadAlterImage(file, { alterId: alter?.id, role: "header", maxDim: 1200, quality: 0.85 });
+      const warn = largeGifWarning({ isGif, sizeKB });
+      if (warn) toast.warning(warn);
+      setBgField(PS.HEADER_IMAGE, url);
       toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
     } catch { toast.error("Failed to process header image"); }
     finally { setUploadingHeader(false); e.target.value = ""; }
@@ -336,16 +319,10 @@ useEffect(() => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploadingAvatar(true);
     try {
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 512, 0.82);
-      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
-      if (isLocalMode()) {
-        const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(imageId, dataUrl);
-        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "avatar" });
-        set("avatar_url", createLocalImageUrl(imageId));
-      } else {
-        set("avatar_url", dataUrl);
-      }
+      const { url, isGif, sizeKB } = await uploadAlterImage(file, { alterId: alter?.id, role: "avatar" });
+      const warn = largeGifWarning({ isGif, sizeKB });
+      if (warn) toast.warning(warn);
+      set("avatar_url", url);
       toast.success("Avatar saved!");
     } catch { toast.error("Failed to process avatar"); }
     finally { setUploadingAvatar(false); e.target.value = ""; }
