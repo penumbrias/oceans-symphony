@@ -18,6 +18,7 @@ import { useTerms } from "@/lib/useTerms";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
+import AlterInfo from "@/components/alters/info/AlterInfo";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { PS } from "@/lib/profileStyle";
 // The profile is a widget board (v0.290.0): the same canvas as the home
@@ -89,6 +90,9 @@ function AlterProfileInner() {
   // URL stays in step and the header knows whether this is the Profile page.
   const page = useProfilePageState(ALTER_PROFILE_PAGES);
   const { searchParams, setSearchParams, layoutEditing, onFirstPage: onProfilePage } = page;
+  // false = the board · "info" = the Alter info list (the pencil, v0.294.0)
+  // · "classic" = the old pencil form, kept for page style and header
+  // options until those move onto the board.
   const [editMode, setEditMode] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
@@ -386,7 +390,7 @@ function AlterProfileInner() {
             )}
             {onProfilePage && !layoutEditing && (
               <div className="flex items-center gap-2">
-                {editMode && (
+                {editMode === "classic" && (
                   <Button
                     variant="default"
                     size="icon"
@@ -402,9 +406,9 @@ function AlterProfileInner() {
                   data-tour="alter-profile-edit-btn"
                   variant="outline"
                   size="sm"
-                  onClick={() => setEditMode(e => !e)}
-                  aria-label={editMode ? "View" : "Edit"}
-                  title={editMode ? "View" : "Edit"}
+                  onClick={() => setEditMode(e => (e ? false : "info"))}
+                  aria-label={editMode ? "Done" : "Edit info"}
+                  title={editMode ? "Done" : `Edit ${terms.alter} info`}
                 >
                   {editMode ? <Eye className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
                 </Button>
@@ -459,10 +463,13 @@ function AlterProfileInner() {
           </div>
         )}
 
-        {editMode ? (
-          // The record's own fields are edited on the pencil form (the
-          // board's inspectors take this over in a later step). Viewing is
-          // the board (ProfileBoardCanvas) — the classic stacked view is gone.
+        {editMode === "info" ? (
+          // The one list where the alter's information is entered (the
+          // garden model, v0.294.0); widgets on the board show it.
+          <AlterInfo alter={alter} onOpenClassic={() => setEditMode("classic")} />
+        ) : editMode === "classic" ? (
+          // The old pencil form — page style and header options still live
+          // here. Its Save writes only what changed (saveAlterEdits).
           <ProfileTab
             alter={alter}
             onEditModeChange={setEditMode}

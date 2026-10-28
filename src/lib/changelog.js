@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "{{Alter}} info: the pencil on a profile opens one simple list of everything about the {{alter}}: basics, bio, your own entries, pictures, groups, preferences and tags. It saves as you type, with undo, so there's no Save button to miss." },
+      { type: "improve", text: "The bio's \"Paste from another app\" takes PluralKit, Simply Plural, Octocon, Plural Star, PluralSpace or HTML and adds it to the end, never over what's there." },
       { type: "fix", text: "Closing a widget's options always keeps your changes now, with an Undo (and Redo) on the toast, so one mis-tap can no longer throw away a customisation." },
     ],
   },
