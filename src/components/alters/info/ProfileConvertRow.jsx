@@ -15,9 +15,9 @@ import { smallBtn } from "./entryEditors";
 
 const PART = {
   text: { icon: Type, label: (name) => `Text → ${name}` },
-  side: { icon: Columns2, label: (name) => `Picture beside text → a Media widget beside ${name}` },
-  media: { icon: ImageIcon, label: () => "Picture → a Media widget" },
-  gallery: { icon: Images, label: () => "Gallery → a Media widget in a grid" },
+  side: { icon: Columns2, label: (name) => `Picture beside text → an Image widget beside ${name}` },
+  media: { icon: ImageIcon, label: () => "Picture → an Image widget" },
+  gallery: { icon: Images, label: () => "Gallery → an Image widget in a grid" },
   divider: { icon: Minus, label: () => "Divider" },
 };
 

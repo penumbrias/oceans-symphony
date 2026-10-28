@@ -102,6 +102,19 @@ export async function saveAlterEdits({ alterId, baseline, form }) {
   return base44.entities.Alter.update(alterId, patch);
 }
 
+// Change a few of the alter's own top-level fields (the avatar, its
+// rotation…) and nothing else. custom_fields go through
+// patchAlterCustomFields; the name can't be blanked here.
+export async function setAlterFields(alterId, patch) {
+  if (!alterId || !patch || typeof patch !== "object") return null;
+  const clean = { ...patch };
+  delete clean.custom_fields;
+  delete clean.id;
+  if ("name" in clean && !String(clean.name || "").trim()) throw new Error("A name can't be empty");
+  if (!Object.keys(clean).length) return null;
+  return base44.entities.Alter.update(alterId, clean);
+}
+
 // Change some custom_fields keys (undefined removes one) on a fresh read,
 // leaving every other key exactly as stored.
 export async function patchAlterCustomFields(alterId, changes) {

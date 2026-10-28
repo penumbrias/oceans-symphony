@@ -112,12 +112,26 @@ export async function addOwnEntry(alterId, { name, kind = "text", value = "" }) 
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
   if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) {
     // Older Get to know me rows keep an id-keyed map here; never write over it.
-    throw new Error("This profile has fields from an older version. Add the entry for everyone from the info list instead, so nothing is written over.");
+    throw new Error("This profile has fields from an older version. Add the entry for everyone instead, so nothing is written over.");
   }
   const list = [...ownListOf(fresh)];
-  if (!list.some((f) => f?.name === clean)) {
-    list.push({ name: clean, value, field_type: kind });
-    await base44.entities.Alter.update(alterId, { alter_custom_fields: list });
-  }
+  const same = list.find((f) => sameName(f?.name, clean));
+  if (same) return `own:${same.name}`;
+  list.push({ name: clean, value, field_type: kind });
+  await base44.entities.Alter.update(alterId, { alter_custom_fields: list });
   return `own:${clean}`;
+}
+
+const sameName = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+
+// A new entry every alter has (a custom field), made from a widget. Returns
+// its id. A field with the same name is reused, never duplicated.
+export async function addSharedEntry({ name, kind = "text" }) {
+  const clean = String(name || "").trim();
+  if (!clean) throw new Error("The entry needs a name");
+  const fields = (await base44.entities.CustomField.list("order")) || [];
+  const same = fields.find((f) => sameName(f?.name, clean));
+  if (same) return `field:${same.id}`;
+  const created = await base44.entities.CustomField.create({ name: clean, field_type: kind, order: fields.length });
+  return `field:${created.id}`;
 }

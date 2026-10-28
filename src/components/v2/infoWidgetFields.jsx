@@ -11,29 +11,32 @@ import { toast } from "sonner";
 import { ChevronUp, ChevronDown, X, Plus, ImagePlus, Loader2, Film } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { StackedRow, Row, Chips } from "@/components/shared/SettingRows";
+import { StackedRow, Row } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import { ENTRY_KINDS, EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
+import { EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
 import { useInfoAlter, useSystemFields, DEFAULT_INFO_ENTRIES } from "@/v2/infoWidgets";
-import { infoEntriesFor, entryValue, writeEntry, addOwnEntry } from "@/lib/alterInfoEntries";
+import { infoEntriesFor, entryValue, writeEntry, addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
 import { refreshAlter } from "@/lib/alterEntry";
 import { mediaItemsOf, parseVideoLink } from "@/lib/mediaItems";
 import { uploadAlterImage, largeGifWarning, addAlterPicture } from "@/lib/alterImageUpload";
-import { PicturesSection } from "@/components/alters/info/infoSections";
+import { PicturesSection, NewEntryForm, AvatarRows } from "@/components/alters/info/infoSections";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { setAlterFields } from "@/lib/alterEntry";
+import { barPictureOverride, setBarPicture } from "@/lib/barPicture";
 
 function MoveRemove({ index, count, onMove, onRemove, label }) {
   return (
     <span className="flex items-center gap-0.5 flex-shrink-0">
       <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} aria-label={`Move ${label} up`}
-        className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground disabled:opacity-25"><ChevronUp className="w-4 h-4" /></button>
+        className="w-9 h-11 flex items-center justify-center rounded text-muted-foreground disabled:opacity-25"><ChevronUp className="w-4 h-4" /></button>
       <button type="button" onClick={() => onMove(index, 1)} disabled={index === count - 1} aria-label={`Move ${label} down`}
-        className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground disabled:opacity-25"><ChevronDown className="w-4 h-4" /></button>
+        className="w-9 h-11 flex items-center justify-center rounded text-muted-foreground disabled:opacity-25"><ChevronDown className="w-4 h-4" /></button>
       <button type="button" onClick={() => onRemove(index)} aria-label={`Stop showing ${label}`} title="Stop showing (the info is kept)"
-        className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive"><X className="w-4 h-4" /></button>
+        className="w-11 h-11 flex items-center justify-center rounded text-muted-foreground hover:text-destructive"><X className="w-4 h-4" /></button>
     </span>
   );
 }
@@ -63,6 +66,7 @@ function WhoseRow({ settings, set }) {
 
 export function InfoEntriesField({ settings, set }) {
   const t = useTerms();
+  const formatAlter = useAlterLabel();
   const qc = useQueryClient();
   const { alter, alterId } = useInfoAlter(settings);
   const systemFields = useSystemFields();
@@ -78,14 +82,21 @@ export function InfoEntriesField({ settings, set }) {
       refreshAlter(qc, alterId);
     } catch (e) { toast.error(e?.message || "Couldn't save that"); }
   };
+  // "New field…": makes the entry in the alter's info (theirs alone, or a
+  // custom field every alter has) and shows it here.
   const addNew = async () => {
+    if (!adding?.name?.trim()) return;
     try {
-      const id = await addOwnEntry(alterId, { name: adding.name, kind: adding.kind });
+      const id = adding.scope === "everyone"
+        ? await addSharedEntry({ name: adding.name, kind: adding.kind })
+        : await addOwnEntry(alterId, { name: adding.name, kind: adding.kind });
+      if (adding.scope === "everyone") qc.invalidateQueries({ queryKey: ["customFields"] });
       refreshAlter(qc, alterId);
       setIds([...ids.filter((x) => x !== id), id]);
       setAdding(null);
     } catch (e) { toast.error(e?.message || "Couldn't add that entry"); }
   };
+  const blockedOwn = !!alter?.alter_custom_fields && !Array.isArray(alter.alter_custom_fields);
 
   return (
     <div className="space-y-1">
@@ -93,7 +104,7 @@ export function InfoEntriesField({ settings, set }) {
       {alter && (
         <>
           <p className="text-[0.6875rem] text-muted-foreground pt-1">
-            What you write here is saved in {alter.name}'s info, so it's kept even if this widget is removed.
+            Saved in {formatAlter(alter)}'s info, so it's kept even if this widget is removed.
           </p>
           {shown.map((entry, i) => (
             <div key={entry.id} className="py-2 border-b border-border/30">
@@ -109,26 +120,17 @@ export function InfoEntriesField({ settings, set }) {
                     value={entryValue(alter, entry.id)} onCommit={(v) => commit(entry.id, v)} />}
             </div>
           ))}
-          <StackedRow label="Show more from their info">
+          <StackedRow label={shown.length ? "Show another field" : "Show a field"}>
             <SearchableSelect value={null} placeholder="Pick an entry…" searchPlaceholder="Search entries…"
               options={all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label }))}
               onChange={(id) => { if (id) setIds([...ids, id]); }} />
           </StackedRow>
           {adding ? (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 my-2 space-y-2">
-              <input value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} autoFocus
-                placeholder="Entry name, like Likes" aria-label="New entry name" className={inputCls}
-                onKeyDown={(e) => { if (e.key === "Enter" && adding.name.trim()) addNew(); }} />
-              <Chips label="Kind" options={ENTRY_KINDS} value={adding.kind} onChange={(v) => setAdding({ ...adding, kind: v })} />
-              <div className="flex justify-end gap-2">
-                <button type="button" className={smallBtn} onClick={() => setAdding(null)}>Cancel</button>
-                <button type="button" onClick={addNew} disabled={!adding.name.trim()}
-                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40">Add entry</button>
-              </div>
-            </div>
+            <NewEntryForm draft={adding} onDraft={setAdding} onAdd={addNew} onCancel={() => setAdding(null)}
+              alterName={formatAlter(alter)} blockedOwn={blockedOwn} addLabel="Add and show it" />
           ) : (
-            <button type="button" className={`${smallBtn} mt-2`} onClick={() => setAdding({ name: "", kind: "text" })}>
-              <Plus className="w-3.5 h-3.5" /> New entry for {alter.name}
+            <button type="button" className={`${smallBtn} h-11 mt-2`} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
+              <Plus className="w-3.5 h-3.5" /> New field…
             </button>
           )}
         </>
@@ -224,11 +226,8 @@ export function MediaItemsField({ settings, set }) {
         <button type="button" className={smallBtn} onClick={() => fileRef.current?.click()} disabled={busy}>
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Upload
         </button>
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <AssetButton onPick={addImage} title="Add from your asset library" className={smallBtn}
-            ownerAlterId={owner} ownerAlterName={alter?.name || ""} />
-          From your library
-        </span>
+        <AssetButton onPick={addImage} title="From your library" label="From your library" className={smallBtn}
+          ownerAlterId={owner} ownerAlterName={alter?.name || ""} />
         <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={upload} />
       </div>
       <Row label="Link" hint="A picture, GIF or video (YouTube, Vimeo, .mp4)">
@@ -250,18 +249,65 @@ export function MediaItemsField({ settings, set }) {
 // "Their Pictures" mode (v0.297.0): the widget shows the alter's Pictures,
 // so its Content tab IS their Pictures — the same section as the Alter
 // info list.
-export function PicturesSourceField({ settings }) {
+export function PicturesSourceField({ settings, set }) {
   const qc = useQueryClient();
+  const formatAlter = useAlterLabel();
   const { alter, alterId } = useInfoAlter(settings);
-  if (!alter) return null;
   const useAsAvatar = async (url) => {
-    await base44.entities.Alter.update(alterId, { avatar_url: url });
-    refreshAlter(qc, alterId);
+    try {
+      await setAlterFields(alterId, { avatar_url: url });
+      refreshAlter(qc, alterId);
+    } catch (e) { toast.error(e?.message || "Couldn't save that picture"); }
   };
   return (
     <div>
-      <p className="text-xs text-muted-foreground pt-1">This shows {alter.name}'s Pictures. Pictures added here are saved to their info.</p>
-      <PicturesSection alter={alter} avatarUrl={alter.avatar_url} onUseAsAvatar={useAsAvatar} />
+      <WhoseRow settings={settings} set={set} />
+      {alter && (
+        <>
+          <p className="text-xs text-muted-foreground pt-1">This shows {formatAlter(alter)}'s Pictures. Pictures added here are saved to their info.</p>
+          <PicturesSection alter={alter} avatarUrl={alter.avatar_url} onUseAsAvatar={useAsAvatar} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// "Profile picture" and "Pinned bar picture" (v0.300.0): the widget shows
+// that one picture, so its Content tab sets it. The profile picture is the
+// alter's avatar (with its rotation); the bar picture is the pinned bar's
+// own picture for them, which falls back to the avatar.
+export function AlterPictureField({ settings, set }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const formatAlter = useAlterLabel();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const bar = settings?.source === "bar";
+  const write = (fn) => async (v) => {
+    try { await fn(v); } catch (e) { toast.error(e?.message || "Couldn't save that picture"); }
+  };
+  const setAvatar = write(async (patch) => {
+    await setAlterFields(alterId, patch);
+    refreshAlter(qc, alterId);
+  });
+  const setBar = write(async (url) => {
+    await setBarPicture(alterId, url);
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  });
+  return (
+    <div className="space-y-1">
+      <WhoseRow settings={settings} set={set} />
+      {alter && (bar ? (
+        <AvatarRows alter={alter} value={barPictureOverride(settingsRows[0], alter.id)} k={`bar:${alter.id}`} onChange={setBar}
+          label="Pinned bar picture" hint={`What the pinned ${t.alters} bar shows for ${formatAlter(alter)}. Without one, it shows the profile picture.`} />
+      ) : (
+        <AvatarRows alter={alter} value={alter.avatar_url} k={`avatar:${alter.id}`} onChange={(url) => setAvatar({ avatar_url: url })}
+          label="Profile picture" rotation={alter.avatar_rotation_mode} onRotation={(m) => setAvatar({ avatar_rotation_mode: m })} />
+      ))}
+      {!alter && alterId && <p className="text-xs text-muted-foreground">That {t.alter} isn't here any more.</p>}
     </div>
   );
 }

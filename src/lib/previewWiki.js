@@ -297,7 +297,7 @@ const bioEditModes = `
   ${section("The bio",
     `A plain write-and-format box with the mini-toolbar. <strong>Full editor</strong> opens the bio editor with its Plain, Simple (fill in a template's marked fields), Blocks and Raw HTML modes. <strong>View code</strong> shows the HTML, <strong>Templates</strong> opens the template library, and <strong>Paste from another app</strong> takes a bio from PluralKit, Simply Plural, Octocon, Plural Star, PluralSpace — or an HTML template, imported as is.`)}
   ${section("Bios made of blocks",
-    `A bio built from blocks (pictures beside text, galleries, templates with fill-in fields) still works: tap the fill-in fields to edit them, or open the <strong>Full editor</strong> to rearrange the blocks. <strong>Turn the bio into widgets</strong> (on the Look tab) lays each part out as its own widget — text as Alter info widgets, pictures as Media widgets — with a preview first, the original bio kept, and an Undo. New alters start on widgets.`)}
+    `A bio built from blocks (pictures beside text, galleries, templates with fill-in fields) still works: tap the fill-in fields to edit them, or open the <strong>Full editor</strong> to rearrange the blocks. <strong>Turn the bio into widgets</strong> (on the Look tab) lays each part out as its own widget — text as Field widgets, pictures as Image widgets — with a preview first, the original bio kept, and an Undo. New alters start on widgets.`)}
   ${section("Look",
     `<strong>Page look</strong> holds this alter's background colour and picture, text colours, fonts, palette and song — they override the app theme on their page. <strong>Header</strong> picks what else the header shows (groups, subsystems, fields, pronouns) and the chip style. The header widget's Content tab has the same switches.`)}
   ${section("The ⋯ menu",
@@ -343,7 +343,7 @@ const bioProfileFields = `
   ${section("Profile tab — identity",
     `<strong>Name</strong> — official display name (used everywhere). <strong>Alias</strong> — short tag for @mentions and -signposts. If Alex's alias is "A", typing <code>@a</code> in a bulletin auto-completes to Alex; signing <code>-a</code> in a comment attributes it to them. <strong>Pronouns</strong>, <strong>Role</strong>, <strong>Color</strong> (drives chips, badges, timeline bars), <strong>Birthday</strong>.`)}
   ${section("Profile tab — bio",
-    `The bio is one entry of Alter info, written in a plain formatting box (see the Alter info and Mini Toolbar wiki pages). On the profile, an Alter info widget shows it — and can show any other entry too.`)}
+    `The bio is one entry of Alter info, written in a plain formatting box (see the Alter info and Mini Toolbar wiki pages). On the profile, a Field widget shows it — and can show any other entry too.`)}
   ${section("Profile tab — page look",
     `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off — on the Look tab of Alter info. Each setting is per-alter and overrides the system theme while you're on their page.`)}
   ${section("Profile tab — layout",
@@ -375,8 +375,8 @@ const bioProfileLayouts = `
     `<strong>Save &amp; close</strong> keeps the layout; <strong>Discard changes</strong> puts everything back. <strong>Use this layout for all</strong> copies it onto every profile of this kind. <strong>Use as the default layout</strong> makes it what every <em>unedited</em> profile of this kind shows. <strong>Reset this layout</strong> sends this one back to the default (or the standard layout). Each asks first, and Recent changes keeps every layout they replace.`)}
   ${section("Where layouts live",
     `A layout is saved only once you edit it — a fresh profile, a restored backup and an older device all show the same page from the record alone. Layouts travel in backups (Alters &amp; Profiles) and sync page by page between devices. Defaults are listed under Settings → Alter setup → Profile layouts, where they can be cleared.`)}
-  ${section("Media and Alter info widgets",
-    `<strong>Media</strong> shows pictures, GIFs and video links (YouTube, Vimeo — they play only when tapped), as a slideshow or a grid, and can rotate, flip and fill or fit the box. Set to <em>Their Pictures</em> it shows the alter's own Pictures. <strong>Alter info</strong> shows any entries from the list, labelled, plain or inline.`)}
+  ${section("Image and Field widgets",
+    `<strong>Image</strong> shows pictures, GIFs and video links (YouTube, Vimeo — they play only when tapped), as a slideshow or a grid, and can rotate, flip, fill or fit the box, or be a circle. Its <em>Shows</em> option picks the source: what you choose (upload, your library or a link), the alter's <em>Profile picture</em> (with its rotation), <em>Their Pictures</em>, or their <em>Pinned bar picture</em> — and for those, its Content tab sets that picture. <strong>Field</strong> shows one or more entries from Alter info, labelled, plain or inline. Tap its text to edit it in place (long text opens the full editor); Minimal shows just the text, Expanded adds the kind and who has it. <em>New field…</em> in its options makes a field for this alter or every alter and shows it.`)}
   ${tip(`What a page says lives in Alter info (the pencil); the grid button changes how it's laid out. Each widget's Content tab edits the info it shows, and that edit is saved to the alter.`)}
 `;
 

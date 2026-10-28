@@ -18,6 +18,7 @@ import { PinPickerRow } from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
+import { setBarPicture } from "@/lib/barPicture";
 
 function Pills({ value, options, onChange }) {
   return (
@@ -109,6 +110,13 @@ export default function PinnedAltersConfigPanel() {
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch { toast.error("Couldn't save pinned settings"); }
   };
+  // One alter's bar picture, on a fresh read (an Image widget can set it too).
+  const pickBarPicture = async (alterId, url) => {
+    try {
+      await setBarPicture(alterId, url);
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch { toast.error("Couldn't save pinned settings"); }
+  };
   const setPinned = async (id, val) => {
     try {
       await base44.entities.Alter.update(id, { is_pinned: val });
@@ -179,7 +187,7 @@ export default function PinnedAltersConfigPanel() {
                 first={i === 0} last={i === pinned.length - 1}
                 onUp={() => move(i, -1)} onDown={() => move(i, 1)}
                 onPickAvatar={() => setAvatarFor(a.id)}
-                onClearAvatar={() => { const next = { ...pinnedAvatars }; delete next[a.id]; persist({ pinnedAvatars: next }); }} />
+                onClearAvatar={() => pickBarPicture(a.id, "")} />
             ))}
           </div>
         )}
@@ -248,7 +256,7 @@ export default function PinnedAltersConfigPanel() {
 
       <AssetPickerModal open={!!avatarFor} onClose={() => setAvatarFor(null)}
         ownerAlterId={avatarAlter?.id || null} ownerAlterName={avatarAlter?.name || ""} allowFolders
-        onSelect={(url) => { if (avatarFor) persist({ pinnedAvatars: { ...pinnedAvatars, [avatarFor]: url } }); setAvatarFor(null); }} />
+        onSelect={(url) => { if (avatarFor) pickBarPicture(avatarFor, url); setAvatarFor(null); }} />
     </div>
   );
 }
