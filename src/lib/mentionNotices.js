@@ -18,6 +18,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
+import { WHISPER_PREVIEW, redactWhispers } from "@/lib/whisperRedact";
 
 export const MENTION_LOGS_KEY = ["mentionLogs"];
 const NOTICE_LIMIT = 300;
@@ -59,4 +60,22 @@ export async function dismissMention(m, { queryClient } = {}) {
   await base44.entities.MentionLog.update(m.id, patch);
   markMentionAcknowledgedToday();
   queryClient?.invalidateQueries({ queryKey: MENTION_LOGS_KEY });
+}
+
+// Leave one notice for one alter (v0.303.0) — a message left on their board
+// or in their inbox. A whisper never puts its secret in the preview, and
+// any whisper spans inside the text are taken out.
+export async function notifyAlter({ recipientId, authorId = null, sourceType, sourceId, sourceLabel, text = "", isWhisper = false, navigatePath = "/" }) {
+  if (!recipientId) return null;
+  return base44.entities.MentionLog.create({
+    mentioned_alter_id: recipientId,
+    author_alter_id: authorId,
+    log_type: "mention",
+    source_type: sourceType,
+    source_id: sourceId || "",
+    source_label: sourceLabel || sourceType,
+    source_date: new Date().toISOString(),
+    preview_text: isWhisper ? WHISPER_PREVIEW : redactWhispers(String(text || "")).slice(0, 120),
+    navigate_path: navigatePath,
+  });
 }
