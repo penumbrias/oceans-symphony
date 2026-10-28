@@ -10,8 +10,9 @@
 import assert from "node:assert/strict";
 import {
   seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId, layoutForCopy, DEFAULT_OWNER_ID, isDefaultOwnerId,
-  ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES,
+  ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
 } from "../src/lib/profileBoard.js";
+import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
 import { stampBoardChanges } from "../src/lib/boardStamp.js";
 
@@ -27,6 +28,23 @@ test("the alter seed has one page per tab, in today's order, with the tab in the
   assert.equal(tabOfPageId("tab:private-messages"), "private-messages");
   assert.equal(tabOfPageId("p1"), null);
   assert.equal(b._seeded, true);
+});
+
+test("a garden alter seeds the info-widget Profile page, set up, with the classic other pages", () => {
+  const b = seedProfileBoard({ id: "a1", name: "Ash", profile_layout: "garden" }, "alter");
+  assert.equal(b.pages.length, GARDEN_ALTER_PROFILE_PAGES.length);
+  const first = b.pages[0].widgets;
+  assert.deepEqual(first.slice(0, 3).map((w) => w.widgetId), ["profile_header", "media", "info"]);
+  assert.deepEqual(first[1].settings, { source: "pictures", autoFit: false });
+  assert.equal(first[1].span.rows, 3);
+  assert.deepEqual(first[2].settings.entries, ["bio"]);
+  assert.ok(!first.some((w) => w.widgetId === "profile_bio"));
+  // positions stack by each widget's own height
+  assert.equal(first[2].pos.y, first[1].pos.y + 3);
+  assert.deepEqual(b.pages.slice(1).map((p) => p.id), seedProfileBoard({ id: "a1" }, "alter").pages.slice(1).map((p) => p.id));
+  // settings are copies, never the shared constant
+  first[1].settings.source = "items";
+  assert.equal(seedProfileBoard({ id: "a1", profile_layout: "garden" }, "alter").pages[0].widgets[1].settings.source, "pictures");
 });
 
 test("the seed is the same board every time, on every device", () => {
@@ -153,6 +171,64 @@ test("layoutForCopy keeps the pages and the look, drops the bookkeeping", () => 
 test("the default layout owner id is reserved", () => {
   assert.equal(isDefaultOwnerId(DEFAULT_OWNER_ID), true);
   assert.equal(isDefaultOwnerId("a1"), false);
+});
+
+const BLOCKS = [
+  { type: "divider" },
+  { type: "text", content: "<p>Hello</p>" },
+  { type: "img-left", src: "local-image://a", alt: "me", text: "<p>Beside</p>" },
+  { type: "text", content: "<p>  </p>" },
+  { type: "gallery", images: [{ src: "https://x/1.png" }, { src: "local-image://a" }] },
+  { type: "divider" },
+  { type: "raw", content: "<b>Raw</b>" },
+  { type: "img-solo", src: "" },
+];
+
+test("conversion plans every block as a part, in order, dropping only empties", () => {
+  const parts = planFromBlocks(BLOCKS);
+  assert.deepEqual(parts.map((p) => p.kind), ["text", "side", "media", "divider", "text"]);
+  assert.equal(parts[1].imageFirst, true);
+  assert.equal(parts[2].arrange, "grid");
+  assert.deepEqual(picturesOfParts(parts), ["local-image://a", "https://x/1.png"]);
+  assert.deepEqual(entryNamesFor(2, ["Bio 2"]), ["Bio 3", "Bio 4"]);
+});
+
+test("converted widgets stack below each other, side-by-side parts share a row", () => {
+  const parts = planFromBlocks(BLOCKS);
+  const { widgets, height } = widgetsForParts(parts, ["bio", "own:Bio 2", "own:Bio 3"]);
+  assert.deepEqual(widgets.map((w) => w.widgetId), ["info", "media", "info", "media", "divider", "info"]);
+  assert.deepEqual(widgets.map((w) => w.pos.y), [0, 2, 2, 5, 8, 9]);
+  assert.deepEqual(widgets[2].settings.entries, ["own:Bio 2"]);
+  assert.deepEqual(widgets[5].settings.entries, ["own:Bio 3"]);
+  assert.equal(height, 11);
+  assert.equal(new Set(widgets.map((w) => w.instanceId)).size, widgets.length);
+});
+
+test("a converted board replaces the bio widget in place and moves what's below down", () => {
+  const base = seedProfileBoard({ id: "a1" }, "alter");
+  const { widgets } = widgetsForParts(planFromBlocks(BLOCKS), ["bio", "own:Bio 2", "own:Bio 3"]);
+  const out = convertBoard(base, { id: "a1" }, widgets);
+  const page = out.pages[0].widgets;
+  assert.ok(!page.some((w) => w.widgetId === "profile_bio"));
+  const bioAt = base.pages[0].widgets.find((w) => w.widgetId === "profile_bio").pos.y;
+  const tags = page.find((w) => w.widgetId === "profile_tags");
+  const tagsBefore = base.pages[0].widgets.find((w) => w.widgetId === "profile_tags");
+  assert.equal(tags.pos.y, tagsBefore.pos.y + 11 - 2);
+  assert.equal(page.filter((w) => w.pos.y >= bioAt && w.pos.y < bioAt + 11 && ["info", "media", "divider"].includes(w.widgetId)).length, 6);
+  // the base is never changed
+  assert.ok(base.pages[0].widgets.some((w) => w.widgetId === "profile_bio"));
+  assert.equal(out._seeded, undefined);
+  assert.equal(new Set(page.map((w) => w.instanceId)).size, page.length);
+});
+
+test("with no saved layout the conversion starts from the garden page, without a second Pictures widget", () => {
+  const { widgets } = widgetsForParts(planFromBlocks(BLOCKS), ["bio"]);
+  const out = convertBoard(null, { id: "a1" }, widgets);
+  const page = out.pages[0].widgets;
+  assert.ok(!page.some((w) => w.widgetId === "media" && w.settings.source === "pictures"));
+  assert.equal(page[0].widgetId, "profile_header");
+  const textOnly = convertBoard(null, { id: "a1" }, widgetsForParts([{ kind: "text", html: "x" }], ["bio"]).widgets);
+  assert.ok(textOnly.pages[0].widgets.some((w) => w.widgetId === "media" && w.settings.source === "pictures"));
 });
 
 console.log(`\n${passed} checks passed`);

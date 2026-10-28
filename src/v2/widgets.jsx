@@ -37,7 +37,7 @@ import { Square,
   HeartHandshake, Target, Image as ImageIcon,
 } from "lucide-react";
 import { InfoWidget, MediaWidget } from "@/v2/infoWidgets";
-import { InfoEntriesField, MediaItemsField } from "@/components/v2/infoWidgetFields";
+import { InfoEntriesField, MediaItemsField, PicturesSourceField } from "@/components/v2/infoWidgetFields";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -3248,7 +3248,11 @@ export const V2_WIDGETS = {
     render: ({ settings }) => <MediaWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
-      { key: "items", type: "component", label: "Pictures and videos", Component: MediaItemsField },
+      { key: "source", type: "select", label: "Shows", default: "items",
+        showIf: (s, ctx) => ctx?.subject?.type === "alter" || s?.source === "pictures",
+        options: [{ value: "items", label: "What I pick" }, { value: "pictures", label: "Their Pictures" }] },
+      { key: "items", type: "component", label: "Pictures and videos", Component: MediaItemsField, showIf: (s) => s?.source !== "pictures" },
+      { key: "_pictures", type: "component", label: "", Component: PicturesSourceField, showIf: (s) => s?.source === "pictures" },
       { key: "fit", type: "select", label: "Fit", default: "cover",
         options: [{ value: "cover", label: "Fill" }, { value: "contain", label: "Whole" }] },
       { key: "focus", type: "select", label: "Keep in view", default: "center",

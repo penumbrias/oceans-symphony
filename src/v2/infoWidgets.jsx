@@ -22,6 +22,7 @@ import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { FieldValue } from "@/components/alters/profile/fieldControls";
 import { infoEntriesFor, entryValue } from "@/lib/alterInfoEntries";
 import { mediaItemsOf, parseVideoLink, mediaTransform, MEDIA_FOCUS } from "@/lib/mediaItems";
+import { PICTURE_ROLE } from "@/lib/alterImageUpload";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -47,7 +48,9 @@ export const useSystemFields = () => useQuery({
 const isEmpty = (v) => v === undefined || v === null || (typeof v === "string" && !v.replace(/<[^>]*>/g, "").trim());
 
 function EntryShown({ alter, entry, value }) {
-  if (entry.kind === "bio") {
+  // Long text (the bio, and parts of a bio a conversion split out) shows
+  // the same way the bio always has, HTML and all.
+  if (entry.kind === "bio" || entry.kind === "richtext") {
     return <BioShown alter={alter} html={value} />;
   }
   if (entry.id.startsWith("basic:")) return <span className="whitespace-pre-wrap break-words">{value}</span>;
@@ -169,8 +172,24 @@ function MediaItem({ item, settings }) {
   return item.kind === "video" ? <MediaVideo item={item} settings={settings} /> : <MediaImage item={item} settings={settings} />;
 }
 
+// "Their Pictures" (v0.297.0): the alter's own Pictures, so a picture added
+// in the Alter info list shows up without touching the widget.
+function useOwnPictures(settings, enabled) {
+  const { alterId } = useInfoAlter(settings);
+  const { data = [] } = useQuery({
+    queryKey: ["imageAssets", "owned", alterId],
+    queryFn: () => base44.entities.ImageAsset.filter({ owner_alter_id: alterId }, "-created_date"),
+    enabled: enabled && !!alterId,
+  });
+  return useMemo(() => (enabled ? data : [])
+    .filter((a) => a?.image_url && (!a.owner_role || a.owner_role === PICTURE_ROLE))
+    .map((a) => ({ src: a.image_url, kind: "image", caption: "" })), [data, enabled]);
+}
+
 export function MediaWidget({ settings }) {
-  const items = mediaItemsOf(settings);
+  const fromPictures = settings?.source === "pictures";
+  const own = useOwnPictures(settings, fromPictures);
+  const items = fromPictures ? own : mediaItemsOf(settings);
   const arrange = settings?.arrange || "slideshow";
   const seconds = Math.max(2, Number(settings?.interval) || 6);
   const [index, setIndex] = useState(0);
@@ -182,10 +201,13 @@ export function MediaWidget({ settings }) {
   }, [arrange, count, seconds]);
   const showCaption = settings?.showCaption !== false;
   if (!count) {
+    // Nothing to show: blank on the page, a hint while the layout is edited.
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-1 text-[0.8125em] opacity-70 p-2 text-center" style={flush()}>
-        <ImageIcon className="w-6 h-6" />
-        Add a picture, GIF or video link in this widget's options.
+      <div className="h-full flex flex-col" style={flush()}>
+        <div className="pf-widget-empty flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-current opacity-50 text-[0.75em] p-2 text-center" aria-hidden="true">
+          <ImageIcon className="w-6 h-6" />
+          {fromPictures ? "Their Pictures show here — add some in this widget's options or with the pencil" : "Add a picture, GIF or video link in this widget's options"}
+        </div>
       </div>
     );
   }

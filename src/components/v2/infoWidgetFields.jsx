@@ -23,6 +23,7 @@ import { infoEntriesFor, entryValue, writeEntry, addOwnEntry } from "@/lib/alter
 import { refreshAlter } from "@/lib/alterEntry";
 import { mediaItemsOf, parseVideoLink } from "@/lib/mediaItems";
 import { uploadAlterImage, largeGifWarning, addAlterPicture } from "@/lib/alterImageUpload";
+import { PicturesSection } from "@/components/alters/info/infoSections";
 
 function MoveRemove({ index, count, onMove, onRemove, label }) {
   return (
@@ -242,6 +243,25 @@ export function MediaItemsField({ settings, set }) {
           </div>
         </StackedRow>
       )}
+    </div>
+  );
+}
+
+// "Their Pictures" mode (v0.297.0): the widget shows the alter's Pictures,
+// so its Content tab IS their Pictures — the same section as the Alter
+// info list.
+export function PicturesSourceField({ settings }) {
+  const qc = useQueryClient();
+  const { alter, alterId } = useInfoAlter(settings);
+  if (!alter) return null;
+  const useAsAvatar = async (url) => {
+    await base44.entities.Alter.update(alterId, { avatar_url: url });
+    refreshAlter(qc, alterId);
+  };
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground pt-1">This shows {alter.name}'s Pictures. Pictures added here are saved to their info.</p>
+      <PicturesSection alter={alter} avatarUrl={alter.avatar_url} onUseAsAvatar={useAsAvatar} />
     </div>
   );
 }

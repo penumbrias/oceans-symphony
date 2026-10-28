@@ -537,7 +537,9 @@ export function ProfileFieldsSection({ alter, systemFields = [] }) {
   // alter_custom_fields is either an array of ad-hoc { name, value } records
   // or an object map keyed by CustomField id (Get to know me / Help me
   // unblend writeback) — guard the object shape.
-  const alterSpecific = Array.isArray(alter.alter_custom_fields) ? alter.alter_custom_fields.filter((f) => f.value) : [];
+  // Parts of a bio that a profile conversion split out (from_bio) show where
+  // the layout puts them, not here as well.
+  const alterSpecific = Array.isArray(alter.alter_custom_fields) ? alter.alter_custom_fields.filter((f) => f.value && !f.from_bio) : [];
   // Fields shown in the header are MOVED there, not duplicated here.
   const bodyFilled = extras.fields ? [] : visibleFilled;
   const bodyAdhoc = extras.alterFields ? [] : alterSpecific;
