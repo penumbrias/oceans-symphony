@@ -36,8 +36,8 @@ import { Square,
 , Map, MapPin,
   HeartHandshake, Target, Image as ImageIcon,
 } from "lucide-react";
-import { InfoWidget, MediaWidget } from "@/v2/infoWidgets";
-import { InfoEntriesField, MediaItemsField, PicturesSourceField } from "@/components/v2/infoWidgetFields";
+import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
+import { InfoEntriesField, MediaItemsField, PicturesSourceField, AlterPictureField } from "@/components/v2/infoWidgetFields";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -3227,32 +3227,43 @@ export const V2_WIDGETS = {
   // ── The garden (v0.295.0): an alter's info is entered once, in Alter
   // info; these show it. Editing them edits the info itself. ──
   info: {
-    label: "{{Alter}} info", description: "Entries from an {{alter}}'s info \u2014 the bio, pronouns, role, any field. Edit them right in its options; new ones are saved to their info.",
+    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any custom field. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
     icon: IdCard, category: "alters",
     subjects: ["home", "alter"],
-    render: ({ settings }) => <InfoWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: ({ settings, mode }) => <InfoWidget settings={settings} mode={mode} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "entries", type: "component", label: "Shows", Component: InfoEntriesField },
       { key: "layout", type: "select", label: "Layout", default: "labelled",
         options: [{ value: "labelled", label: "Labels above" }, { value: "inline", label: "Label: value" }, { value: "plain", label: "Just the values" }] },
-      { key: "showEmpty", type: "toggle", label: "Show entries that aren't filled in", default: false },
+      { key: "showEmpty", type: "toggle", label: "Show fields that aren't filled in", default: false },
+      { key: "editInPlace", type: "toggle", label: "Tap the text to edit it", default: true },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   },
   media: {
-    label: "Media", description: "A picture, GIF or video link \u2014 rotate it, flip it, fill or fit the box, or show several as a slideshow or grid.",
+    label: "Image", description: "A picture, GIF or video \u2014 from your library, a link, or an {{alter}}'s profile picture, Pictures or pinned bar picture. Rotate it, flip it, fill or fit the box, or show several as a slideshow or grid.",
     icon: ImageIcon, category: "layout",
     // A page piece: fits every board, profiles included.
     subjects: ["home", "alter", "group", "contact", "location"],
     render: ({ settings }) => <MediaWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
+      // Pictures that belong to an {{alter}} (v0.300.0): on an alter's
+      // profile, or on the home screen for the {{alter}} chosen here.
       { key: "source", type: "select", label: "Shows", default: "items",
-        showIf: (s, ctx) => ctx?.subject?.type === "alter" || s?.source === "pictures",
-        options: [{ value: "items", label: "What I pick" }, { value: "pictures", label: "Their Pictures" }] },
-      { key: "items", type: "component", label: "Pictures and videos", Component: MediaItemsField, showIf: (s) => s?.source !== "pictures" },
+        showIf: (s, ctx) => !ctx?.subject || ["home", "alter"].includes(ctx.subject.type) || ALTER_PICTURE_SOURCES.includes(s?.source),
+        options: [
+          { value: "items", label: "What I pick" },
+          { value: "avatar", label: "Profile picture" },
+          { value: "pictures", label: "Their Pictures" },
+          { value: "bar", label: "Pinned bar picture" },
+        ] },
+      { key: "items", type: "component", label: "Pictures and videos", Component: MediaItemsField, showIf: (s) => !ALTER_PICTURE_SOURCES.includes(s?.source) },
       { key: "_pictures", type: "component", label: "", Component: PicturesSourceField, showIf: (s) => s?.source === "pictures" },
+      { key: "_picture", type: "component", label: "", Component: AlterPictureField, showIf: (s) => s?.source === "avatar" || s?.source === "bar" },
+      { key: "shape", type: "select", label: "Shape", default: "box",
+        options: [{ value: "box", label: "Fill the box" }, { value: "circle", label: "Circle" }] },
       { key: "fit", type: "select", label: "Fit", default: "cover",
         options: [{ value: "cover", label: "Fill" }, { value: "contain", label: "Whole" }] },
       { key: "focus", type: "select", label: "Keep in view", default: "center",

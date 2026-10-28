@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "The {{Alter}} info widget is now the Field widget: tap its text to edit it in place, pick Minimal, Normal or Expanded, and make a new field (for one {{alter}} or everyone) right from its options." },
+      { type: "feature", text: "The Media widget is now the Image widget, and can show an {{alter}}'s profile picture (with its rotation) or pinned bar picture, and set them. It can also be a circle." },
       { type: "feature", text: "{{Alter}} info is split into pages like a widget's options: Info, Entries, Pictures, Links and Look." },
       { type: "fix", text: "A blank name in {{Alter}} info no longer holds back the other changes; they save, and only the name waits." },
       { type: "improve", text: "{{Alter}} info entries: Yes/No can go back to Not set, two entries can't share a name, short text is one line, and the move buttons are easier to tap." },

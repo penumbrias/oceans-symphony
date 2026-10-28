@@ -22,7 +22,6 @@ import { Row, StackedRow, SwitchRow, Segmented, Chips, ChoiceRow, ColourRow } fr
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import RotationModeControl from "@/components/shared/RotationModeControl";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
@@ -200,26 +199,8 @@ export function InfoBar({ info, title, sticky = false, menu = null }) {
 export function BasicsSection({ alter, info }) {
   const t = useTerms();
   const { form, set, update, revision } = info;
-  const avatarFileRef = useRef(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const [showAvatarUrl, setShowAvatarUrl] = useState(false);
-  const [poolOpen, setPoolOpen] = useState(false);
-  const avatarPreview = useResolvedAvatarUrl(form?.avatar_url || "");
   if (!form) return null;
   const k = (id) => `${revision}:${id}`;
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setAvatarBusy(true);
-    try {
-      const out = await uploadAlterImage(file, { alterId: alter.id, role: "avatar" });
-      const warn = largeGifWarning(out);
-      if (warn) toast.warning(warn);
-      set("avatar_url", out.url);
-    } catch { toast.error("Couldn't use that picture"); }
-    finally { setAvatarBusy(false); }
-  };
   return (
     <>
       <Row label="Name">
@@ -236,31 +217,8 @@ export function BasicsSection({ alter, info }) {
         <DebouncedText key={k("pronouns")} value={form.pronouns} onCommit={(v) => set("pronouns", v)} maxLength={80} ariaLabel="Pronouns" placeholder="they/them" className={`${inputBase} w-[12rem]`} />
       </Row>
       <ColourRow label="Colour" value={form.color} fallback="#8b5cf6" onChange={(hex) => set("color", hex)} onClear={() => set("color", "")} />
-      <Row label="Avatar" align="start">
-        <div className="flex items-center gap-1.5">
-          <span className="w-12 h-12 rounded-full overflow-hidden border border-border/60 bg-muted/40 flex items-center justify-center flex-shrink-0">
-            {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-muted-foreground" />}
-          </span>
-          <button type="button" onClick={() => avatarFileRef.current?.click()} aria-label="Upload avatar" title="Upload"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/60">{avatarBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}</button>
-          <AssetButton onPick={(url) => set("avatar_url", url)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/60"
-            allowFolders ownerAlterId={alter.id} ownerAlterName={alter.name || ""} />
-          <button type="button" onClick={() => setShowAvatarUrl((s) => !s)} aria-label="Avatar link" title="Link"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/60"><Link2 className="w-3.5 h-3.5" /></button>
-          {form.avatar_url && (
-            <button type="button" onClick={() => set("avatar_url", "")} aria-label="Remove avatar" title="Remove"
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/60 text-muted-foreground hover:text-destructive"><X className="w-3.5 h-3.5" /></button>
-          )}
-          <input ref={avatarFileRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
-        </div>
-      </Row>
-      {showAvatarUrl && (
-        <DebouncedText key={k("avatar_url")} value={form.avatar_url} onCommit={(v) => set("avatar_url", v)} maxLength={2000} ariaLabel="Avatar link" placeholder="https://…" className={inputCls} />
-      )}
-      <div className="py-1.5 border-b border-border/30">
-        <RotationModeControl mode={form.avatar_rotation_mode} onChange={(m) => set("avatar_rotation_mode", m)} showManage onManagePool={() => setPoolOpen(true)}
-          label="Avatar rotation" hint={`When on, the avatar cycles through a pool of pictures for this ${t.alter}.`} />
-      </div>
+      <AvatarRows alter={alter} value={form.avatar_url} k={k("avatar_url")} onChange={(url) => set("avatar_url", url)}
+        rotation={form.avatar_rotation_mode} onRotation={(m) => set("avatar_rotation_mode", m)} />
       <Row label="Role">
         <DebouncedText key={k("role")} value={form.role} onCommit={(v) => set("role", v)} maxLength={120} ariaLabel="Role" placeholder="Protector, host…" className={`${inputBase} w-[12rem]`} />
       </Row>
@@ -269,7 +227,82 @@ export function BasicsSection({ alter, info }) {
           onCommit={(v) => update((f) => ({ ...f, birthday: v, origin_year: extractYear(v) }))}
           placeholder={String(new Date().getFullYear() - 5)} className={`${inputBase} w-[9rem]`} />
       </Row>
-      <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alter.id} role="avatar" />
+    </>
+  );
+}
+
+const ROTATION_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "random", label: "Random" },
+  { value: "sequential", label: "In order" },
+];
+
+// A picture with labelled Upload / Library / Link / Remove actions (v0.300.0).
+// The Alter info list uses it for the avatar; an Image widget uses it for
+// the profile picture and the pinned bar's picture. Pass `rotation` to
+// offer the avatar's rotation through a pool of pictures.
+export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", rotation, onRotation, role = "avatar", hint }) {
+  const t = useTerms();
+  const fileRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
+  const [poolOpen, setPoolOpen] = useState(false);
+  const preview = useResolvedAvatarUrl(value || "");
+  if (!alter) return null;
+  const upload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try {
+      const out = await uploadAlterImage(file, { alterId: alter.id, role });
+      const warn = largeGifWarning(out);
+      if (warn) toast.warning(warn);
+      onChange(out.url);
+    } catch { toast.error("Couldn't use that picture"); }
+    finally { setBusy(false); }
+  };
+  const btn = "inline-flex items-center gap-1.5 h-11 px-3 rounded-lg border border-border/60 text-xs font-medium hover:bg-muted/50";
+  return (
+    <>
+      <StackedRow label={label} hint={hint}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="w-14 h-14 rounded-full overflow-hidden border border-border/60 bg-muted/40 flex items-center justify-center flex-shrink-0">
+            {preview ? <img src={preview} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-muted-foreground" />}
+          </span>
+          <button type="button" onClick={() => fileRef.current?.click()} className={btn}>
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
+          </button>
+          <AssetButton onPick={onChange} title="Library" label="Library" className={btn}
+            allowFolders ownerAlterId={alter.id} ownerAlterName={alter.name || ""} />
+          <button type="button" onClick={() => setShowUrl((v) => !v)} aria-expanded={showUrl} className={btn}>
+            <Link2 className="w-4 h-4" /> Link
+          </button>
+          {value && (
+            <button type="button" onClick={() => onChange("")} className={`${btn} text-muted-foreground hover:text-destructive`}>
+              <X className="w-4 h-4" /> Remove
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={upload} />
+        </div>
+        {showUrl && (
+          <div className="pt-2">
+            <DebouncedText key={k} value={value || ""} onCommit={onChange} maxLength={2000} ariaLabel={`${label} link`} placeholder="https://…" className={inputCls} />
+          </div>
+        )}
+      </StackedRow>
+      {onRotation && (
+        <>
+          <ChoiceRow label="Rotate through pictures" options={ROTATION_OPTIONS} value={rotation || "off"} onChange={onRotation}
+            hint={`Shows a different picture from a pool for this ${t.alter} each time the app opens.`} />
+          {(rotation || "off") !== "off" && (
+            <Row label="Pictures in the pool">
+              <button type="button" onClick={() => setPoolOpen(true)} className={btn}><Images className="w-4 h-4" /> Manage</button>
+            </Row>
+          )}
+          <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alter.id} role={role} />
+        </>
+      )}
     </>
   );
 }
@@ -380,31 +413,43 @@ export function EntriesSection({ alter, info, bio = true }) {
         </EntryRow>
       ))}
       {adding ? (
-        <div className="mt-2 pt-1 border-t border-border/50" data-add-entry="">
-          <StackedRow label="New entry's name">
-            <input value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} placeholder="Like Likes or Backstory"
-              aria-label="New entry's name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") addEntry(); }} />
-          </StackedRow>
-          <ChoiceRow label="Kind" options={ENTRY_KINDS} value={adding.kind} onChange={(v) => setAdding({ ...adding, kind: v })} />
-          <ChoiceRow label="Who has it" value={adding.scope} onChange={(v) => setAdding({ ...adding, scope: v })}
-            hint={adding.scope === "this" && blockedOwn ? `This ${t.alter} has fields from an older version; add it for every ${t.alter} so nothing is written over.` : null}
-            options={[
-              { value: "this", label: `Just ${form.name || `this ${t.alter}`}` },
-              { value: "everyone", label: `Every ${t.alter}` },
-            ]} />
-          <div className="flex justify-end gap-2 py-2">
-            <button type="button" className={smallBtn} onClick={() => setAdding(null)}>Cancel</button>
-            <button type="button" onClick={addEntry}
-              disabled={!adding.name.trim() || (adding.scope === "this" && blockedOwn)}
-              className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40">Add entry</button>
-          </div>
-        </div>
+        <NewEntryForm draft={adding} onDraft={setAdding} onAdd={addEntry} onCancel={() => setAdding(null)}
+          alterName={form.name} blockedOwn={blockedOwn} />
       ) : (
         <button type="button" className={`${smallBtn} mt-2`} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
           <Plus className="w-3.5 h-3.5" /> Add an entry
         </button>
       )}
     </>
+  );
+}
+
+// The "new entry" form (v0.300.0): name, kind, and who has it — just this
+// alter (one of their own entries) or every alter (a custom field). The
+// Alter info list and the Field widget's options both use it.
+export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, blockedOwn = false, addLabel = "Add entry" }) {
+  const t = useTerms();
+  const who = alterName || `this ${t.alter}`;
+  return (
+    <div className="mt-2 pt-1 border-t border-border/50" data-add-entry="">
+      <StackedRow label="New entry's name">
+        <input value={draft.name} onChange={(e) => onDraft({ ...draft, name: e.target.value })} placeholder="Like Likes or Backstory"
+          aria-label="New entry's name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }} />
+      </StackedRow>
+      <ChoiceRow label="Kind" options={ENTRY_KINDS} value={draft.kind} onChange={(v) => onDraft({ ...draft, kind: v })} />
+      <ChoiceRow label="Who has it" value={draft.scope} onChange={(v) => onDraft({ ...draft, scope: v })}
+        hint={draft.scope === "this" && blockedOwn ? `This ${t.alter} has fields from an older version; add it for every ${t.alter} so nothing is written over.` : null}
+        options={[
+          { value: "this", label: `Just ${who}` },
+          { value: "everyone", label: `Every ${t.alter}` },
+        ]} />
+      <div className="flex justify-end gap-2 py-2">
+        <button type="button" className={smallBtn} onClick={onCancel}>Cancel</button>
+        <button type="button" onClick={onAdd}
+          disabled={!draft.name.trim() || (draft.scope === "this" && blockedOwn)}
+          className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40">{addLabel}</button>
+      </div>
+    </div>
   );
 }
 

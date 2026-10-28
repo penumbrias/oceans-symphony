@@ -11,7 +11,8 @@
 // until the person sets a border, background or padding, like Text.
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Play, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { boxStyle } from "@/v2/primitives";
@@ -20,9 +21,16 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { FieldValue } from "@/components/alters/profile/fieldControls";
-import { infoEntriesFor, entryValue } from "@/lib/alterInfoEntries";
+import { infoEntriesFor, entryValue, writeEntry } from "@/lib/alterInfoEntries";
+import { refreshAlter } from "@/lib/alterEntry";
+import { useTerms } from "@/lib/useTerms";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { EntryInput, BioEntry, KIND_LABEL } from "@/components/alters/info/entryEditors";
 import { mediaItemsOf, parseVideoLink, mediaTransform, MEDIA_FOCUS } from "@/lib/mediaItems";
 import { PICTURE_ROLE } from "@/lib/alterImageUpload";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
+import { barPictureFor } from "@/lib/barPicture";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -64,12 +72,85 @@ function BioShown({ alter, html }) {
 
 export const DEFAULT_INFO_ENTRIES = ["bio"];
 
-export function InfoWidget({ settings }) {
+const longKind = (entry) => entry.kind === "bio" || entry.kind === "richtext";
+
+// When an entry last changed, where the record keeps one per field.
+function changedAt(alter, entry) {
+  const key = entry.id === "bio" ? "description" : entry.id.startsWith("basic:") ? entry.id.slice(6) : null;
+  const raw = key ? alter?._ft?.[key] : null;
+  const d = raw ? new Date(raw) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+}
+
+// One entry's value, edited where it's shown (v0.300.0). Tapping the value
+// opens its editor in place (long text in a sheet with the full bio
+// editor); what's typed is saved to the alter's info as it's written.
+function EditableValue({ alter, entry, value, editable, children }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const commit = async (v) => {
+    try {
+      await writeEntry(alter.id, entry.id, v);
+      refreshAlter(qc, alter.id);
+    } catch (e) { toast.error(e?.message || "Couldn't save that"); }
+  };
+  if (!editable) return children;
+  const open = (e) => {
+    if (e?.target?.closest?.("a, button, input, textarea, audio, video")) return;
+    setEditing(true);
+  };
+  const shown = (
+    <div role="button" tabIndex={0} aria-label={`Edit ${entry.label}`} onClick={open}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditing(true); } }}
+      className="rounded-md cursor-text min-h-[1.5em] -mx-1 px-1 hover:bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--v2-accent)]">
+      {children}
+    </div>
+  );
+  if (longKind(entry)) {
+    return (
+      <>
+        {shown}
+        <Dialog open={editing} onOpenChange={setEditing}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle>{entry.label}</DialogTitle>
+            {entry.kind === "bio"
+              ? <BioEntry k={`${alter.id}:bio`} value={value} onChange={commit} />
+              : <EntryInput k={`${alter.id}:${entry.id}`} type="richtext" label={entry.label} value={value} onCommit={commit} />}
+            <div className="flex justify-end pt-2">
+              <button type="button" onClick={() => setEditing(false)} className="h-11 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Done</button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+  if (!editing) return shown;
+  return (
+    <div data-own-hold="" className="flex items-start gap-1.5"
+      onKeyDown={(e) => { if (e.key === "Escape") setEditing(false); }}>
+      <div className="flex-1 min-w-0">
+        <EntryInput k={`${alter.id}:${entry.id}`} type={entry.kind} label={entry.label} value={value} onCommit={commit} />
+      </div>
+      <button type="button" onClick={() => setEditing(false)} aria-label={`Done editing ${entry.label}`}
+        className="h-9 px-3 rounded-lg border text-xs font-medium flex-shrink-0" style={{ borderColor: "var(--v2-accent)" }}>Done</button>
+    </div>
+  );
+}
+
+// The Field widget (v0.300.0; the "{{Alter}} info" widget before). Shows
+// one entry from an alter's info, or several: the bio, pronouns, any
+// custom field. Minimal shows only the values, Normal adds the labels,
+// Expanded adds what kind of entry it is and who has it.
+export function InfoWidget({ settings, mode = "normal" }) {
+  const t = useTerms();
+  const formatAlter = useAlterLabel();
   const { alter, alterId } = useInfoAlter(settings);
   const systemFields = useSystemFields();
   const ids = Array.isArray(settings?.entries) && settings.entries.length ? settings.entries : DEFAULT_INFO_ENTRIES;
-  const layout = settings?.layout || "labelled";
+  const layout = mode === "minimal" ? "plain" : (settings?.layout || "labelled");
+  const expanded = mode === "expanded";
   const showEmpty = !!settings?.showEmpty;
+  const editable = settings?.editInPlace !== false;
   const all = useMemo(() => infoEntriesFor(alter, systemFields), [alter, systemFields]);
   if (!alterId) {
     return <div className="text-[0.8125em] opacity-70 p-2" style={flush()}>Choose whose info to show in this widget's options.</div>;
@@ -91,26 +172,42 @@ export function InfoWidget({ settings }) {
     );
   }
   const one = rows.length === 1;
+  const who = (entry) => (entry.own ? `Just ${formatAlter(alter)}` : entry.fieldId ? `Every ${t.alter}` : null);
+  const meta = (entry) => {
+    if (!expanded) return null;
+    const when = changedAt(alter, entry);
+    const bits = [entry.kind === "bio" ? "Long text" : KIND_LABEL[entry.kind] || "Short text", who(entry), when ? `changed ${when.toLocaleDateString()}` : null].filter(Boolean);
+    return <p className="text-[0.6875em] opacity-60 mt-0.5">{bits.join(" · ")}</p>;
+  };
+  const valueOf = ({ entry, value }) => (
+    <EditableValue alter={alter} entry={entry} value={value} editable={editable}>
+      {isEmpty(value) ? <span className="opacity-60">{layout === "inline" ? "—" : "Not filled yet"}</span> : <EntryShown alter={alter} entry={entry} value={value} />}
+    </EditableValue>
+  );
   return (
-    <div className="h-full text-[0.875em] leading-relaxed" style={flush()} data-info-widget="">
+    <div className="h-full text-[0.875em] leading-relaxed" style={flush()} data-info-widget="" data-mode={mode}>
       {layout === "inline" ? (
         <dl className="space-y-0.5">
-          {rows.map(({ entry, value }) => (
-            <div key={entry.id} className="flex gap-1.5 flex-wrap">
-              <dt className="font-semibold">{entry.label}:</dt>
-              <dd className="min-w-0">{isEmpty(value) ? <span className="opacity-60">—</span> : <EntryShown alter={alter} entry={entry} value={value} />}</dd>
+          {rows.map((r) => (
+            <div key={r.entry.id}>
+              <div className="flex gap-1.5 flex-wrap">
+                <dt className="font-semibold">{r.entry.label}:</dt>
+                <dd className="min-w-0 flex-1">{valueOf(r)}</dd>
+              </div>
+              {meta(r.entry)}
             </div>
           ))}
         </dl>
       ) : (
         <div className={one ? "" : "space-y-2.5"}>
-          {rows.map(({ entry, value }) => (
-            <div key={entry.id}>
-              {layout === "labelled" && !(one && entry.kind === "bio") && (
-                <p className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-0.5">{entry.label}</p>
+          {rows.map((r) => (
+            <section key={r.entry.id} aria-label={layout === "plain" ? r.entry.label : undefined}>
+              {layout === "labelled" && !(one && r.entry.kind === "bio" && !expanded) && (
+                <h3 className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-0.5">{r.entry.label}</h3>
               )}
-              {isEmpty(value) ? <span className="opacity-60">Not filled yet</span> : <EntryShown alter={alter} entry={entry} value={value} />}
-            </div>
+              {valueOf(r)}
+              {meta(r.entry)}
+            </section>
           ))}
         </div>
       )}
@@ -186,10 +283,34 @@ function useOwnPictures(settings, enabled) {
     .map((a) => ({ src: a.image_url, kind: "image", caption: "" })), [data, enabled]);
 }
 
+// "Profile picture" and "Pinned bar picture" (v0.300.0): the one picture
+// the profile header (with its rotation) or the pinned bar shows.
+function useAlterPicture(settings, source) {
+  const { alter } = useInfoAlter(settings);
+  const on = source === "avatar" || source === "bar";
+  const rotating = useRotatingImageUrl({
+    alterId: on ? alter?.id : null, role: "avatar",
+    mode: source === "avatar" ? alter?.avatar_rotation_mode : "off",
+    fallbackUrl: alter?.avatar_url, alter,
+  });
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+    enabled: source === "bar",
+  });
+  if (!on || !alter) return [];
+  const src = source === "bar" ? barPictureFor(settingsRows[0], alter) : rotating;
+  return src ? [{ src, kind: "image", caption: "" }] : [];
+}
+
+export const ALTER_PICTURE_SOURCES = ["pictures", "avatar", "bar"];
+
 export function MediaWidget({ settings }) {
-  const fromPictures = settings?.source === "pictures";
+  const source = ALTER_PICTURE_SOURCES.includes(settings?.source) ? settings.source : "items";
+  const fromPictures = source === "pictures";
   const own = useOwnPictures(settings, fromPictures);
-  const items = fromPictures ? own : mediaItemsOf(settings);
+  const picture = useAlterPicture(settings, source);
+  const items = fromPictures ? own : source === "items" ? mediaItemsOf(settings) : picture;
   const arrange = settings?.arrange || "slideshow";
   const seconds = Math.max(2, Number(settings?.interval) || 6);
   const [index, setIndex] = useState(0);
@@ -206,7 +327,9 @@ export function MediaWidget({ settings }) {
       <div className="h-full flex flex-col" style={flush()}>
         <div className="pf-widget-empty flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-current opacity-50 text-[0.75em] p-2 text-center" aria-hidden="true">
           <ImageIcon className="w-6 h-6" />
-          {fromPictures ? "Their Pictures show here — add some in this widget's options or with the pencil" : "Add a picture, GIF or video link in this widget's options"}
+          {source === "items" ? "Add a picture, GIF or video link in this widget's options"
+            : source === "pictures" ? "Their Pictures show here — add some in this widget's options"
+            : "No picture yet — add one in this widget's options"}
         </div>
       </div>
     );
@@ -224,9 +347,12 @@ export function MediaWidget({ settings }) {
     );
   }
   const current = items[Math.min(index, count - 1)];
+  const circle = settings?.shape === "circle";
   return (
     <figure className="h-full flex flex-col min-h-0 m-0" style={flush()} data-media-widget="">
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      {/* A circle is as wide as the box; otherwise the picture fills it. */}
+      <div className={circle ? "relative w-full mx-auto overflow-hidden rounded-full flex-shrink-0" : "relative flex-1 min-h-0 overflow-hidden"}
+        style={circle ? { aspectRatio: "1 / 1" } : undefined}>
         <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />
         {count > 1 && (
           <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
