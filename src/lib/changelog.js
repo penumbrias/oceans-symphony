@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "New profile widgets: Relationships (with a small map), Lineage and Activity links." },
+      { type: "improve", text: "Relationships are edited in one editor everywhere, with a searchable type picker, and deleting a lineage event now asks first." },
       { type: "feature", text: "New profile widgets: Inbox (unread count, messages, leave a message) and Board feed (the {{alter}}'s board, with kinds to show and search)." },
       { type: "improve", text: "Deleting a message or board message now asks first and goes to the trash, and a board message no longer shows up twice on the Board." },
       { type: "feature", text: "New profile widgets: {{Fronting}} stats (with a 30-day chart), {{Fronting}} sessions and Notes, each with Minimal, Normal and Expanded looks." },

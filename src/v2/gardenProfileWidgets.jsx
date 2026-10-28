@@ -53,7 +53,7 @@ const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
 // The one box. With nothing to show it's empty on the page and names
 // itself while the layout is edited (.pf-widget-empty, index.css).
-function GardenBox({ empty, name, children, ...rest }) {
+export function GardenBox({ empty, name, children, ...rest }) {
   return (
     <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={flush()} {...rest}>
       {empty ? (
@@ -65,17 +65,17 @@ function GardenBox({ empty, name, children, ...rest }) {
   );
 }
 
-const Heading = ({ children }) => (
+export const Heading = ({ children }) => (
   <h3 className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-1">{children}</h3>
 );
 
 // A chip in the person's accent, or in a record's own colour.
-function chipStyle(color) {
+export function chipStyle(color) {
   return color
     ? { borderColor: `${color}66`, backgroundColor: `${color}1f` }
     : { borderColor: "color-mix(in srgb, var(--v2-accent) 40%, transparent)", backgroundColor: "color-mix(in srgb, var(--v2-accent) 10%, transparent)" };
 }
-const chipCls = "inline-flex items-center gap-1 px-[0.7em] min-h-[2em] rounded-full text-[0.8125em] border max-w-full";
+export const chipCls = "inline-flex items-center gap-1 px-[0.7em] min-h-[2em] rounded-full text-[0.8125em] border max-w-full";
 
 const basic = (key) => BASIC_ENTRIES.find((b) => b.key === key);
 
@@ -520,8 +520,8 @@ export function NotesWidget({ settings, mode = "normal" }) {
 
 // ── Inbox ────────────────────────────────────────────────────────────
 
-const iconBtnCls = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100 flex-shrink-0";
-const textBtnCls = "h-11 px-3 rounded-lg text-[0.8125em] font-medium";
+export const iconBtnCls = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100 flex-shrink-0";
+export const textBtnCls = "h-11 px-3 rounded-lg text-[0.8125em] font-medium";
 const accentBtn = { background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" };
 const fieldStyle = { borderColor: "color-mix(in srgb, currentColor 20%, transparent)", background: "transparent" };
 const sinceLabel = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
@@ -802,8 +802,8 @@ export function BoardFeedWidget({ settings, mode = "normal" }) {
 
 // ── Registry entries ─────────────────────────────────────────────────
 
-const MODES = ["minimal", "normal", "expanded"];
-const base = { category: "profile", subjects: ["alter"], supportsMultiInstance: true, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 } };
+export const MODES = ["minimal", "normal", "expanded"];
+export const base = { category: "profile", subjects: ["alter"], supportsMultiInstance: true, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 } };
 
 export const GARDEN_ALTER_WIDGETS = {
   alter_identity: {
