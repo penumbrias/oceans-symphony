@@ -290,15 +290,15 @@ const bioAltersGroups = `
 // ── 5. Alter profile: Alter info (the one edit list) ──────────────────
 const bioEditModes = `
   ${intro("Wiki · Alter profile · Alter info", `The pencil on a profile opens <strong>Alter info</strong>: one simple list holding everything about this alter. It saves as you type, with undo and redo at the top — there's no Save button to miss.`)}
-  ${section("What's in the list",
-    `<strong>Basics</strong> (name, alias, pronouns, colour, avatar, role, first appearance) · <strong>Entries</strong> (the bio and anything you add: short or long text, lists, dates, numbers, yes/no — for just this alter or for everyone) · <strong>Pictures</strong> · <strong>Belongs to</strong> (groups and subsystems) · <strong>Preferences &amp; boundaries</strong> · <strong>Tags</strong> · <strong>Get to know me</strong> answers · <strong>Page look</strong> · <strong>Header</strong>.`)}
+  ${section("Five pages",
+    `Like a widget's options, Alter info has a tab bar: <strong>Info</strong> (name, alias, pronouns, colour, avatar, role, first appearance, the bio) · <strong>Entries</strong> (anything you add: short or long text, lists, dates, numbers, yes/no — for just this alter or for everyone) · <strong>Pictures</strong> · <strong>Links</strong> (groups and subsystems, preferences &amp; boundaries, tags, Get to know me answers) · <strong>Look</strong> (page look and header).`)}
   ${section("Info vs. widgets",
     `The list is where things are <em>kept</em>; widgets on the profile choose what to <em>show</em> and how. Anything you type into a widget's Content tab lands in the list too, and nothing here is lost just because no widget shows it.`)}
   ${section("The bio",
     `A plain write-and-format box with the mini-toolbar. <strong>Full editor</strong> opens the bio editor with its Plain, Simple (fill in a template's marked fields), Blocks and Raw HTML modes. <strong>View code</strong> shows the HTML, <strong>Templates</strong> opens the template library, and <strong>Paste from another app</strong> takes a bio from PluralKit, Simply Plural, Octocon, Plural Star, PluralSpace — or an HTML template, imported as is.`)}
   ${section("Bios made of blocks",
-    `A bio built from blocks (pictures beside text, galleries, templates with fill-in fields) still works: tap the fill-in fields to edit them, or open the <strong>Full editor</strong> to rearrange the blocks. <strong>Turn the bio into widgets</strong> (under Page look) lays each part out as its own widget — text as Alter info widgets, pictures as Media widgets — with a preview first, the original bio kept, and an Undo. New alters start on widgets.`)}
-  ${section("Page look and Header",
+    `A bio built from blocks (pictures beside text, galleries, templates with fill-in fields) still works: tap the fill-in fields to edit them, or open the <strong>Full editor</strong> to rearrange the blocks. <strong>Turn the bio into widgets</strong> (on the Look tab) lays each part out as its own widget — text as Alter info widgets, pictures as Media widgets — with a preview first, the original bio kept, and an Undo. New alters start on widgets.`)}
+  ${section("Look",
     `<strong>Page look</strong> holds this alter's background colour and picture, text colours, fonts, palette and song — they override the app theme on their page. <strong>Header</strong> picks what else the header shows (groups, subsystems, fields, pronouns) and the chip style. The header widget's Content tab has the same switches.`)}
   ${section("The ⋯ menu",
     `Archive or unarchive, Delete (it goes to the trash with their notes and messages, restorable from Recent changes), and the older edit form for anyone who still wants it.`)}
@@ -345,7 +345,7 @@ const bioProfileFields = `
   ${section("Profile tab — bio",
     `The bio is one entry of Alter info, written in a plain formatting box (see the Alter info and Mini Toolbar wiki pages). On the profile, an Alter info widget shows it — and can show any other entry too.`)}
   ${section("Profile tab — page look",
-    `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off — under Page look in Alter info. Each setting is per-alter and overrides the system theme while you're on their page.`)}
+    `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off — on the Look tab of Alter info. Each setting is per-alter and overrides the system theme while you're on their page.`)}
   ${section("Profile tab — layout",
     `The Profile page starts as the header, preferences, bio, groups, subsystems, answers, tags and fields stacked top to bottom — the same as before boards. Tap the grid button to move, resize, restyle, remove or add any of them, or add headings, text, dividers and a song.`)}
   ${section("Info tab",

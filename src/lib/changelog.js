@@ -20,9 +20,12 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "{{Alter}} info is split into pages like a widget's options: Info, Entries, Pictures, Links and Look." },
+      { type: "fix", text: "A blank name in {{Alter}} info no longer holds back the other changes; they save, and only the name waits." },
+      { type: "improve", text: "{{Alter}} info entries: Yes/No can go back to Not set, two entries can't share a name, short text is one line, and the move buttons are easier to tap." },
       { type: "improve", text: "{{Alter}} info now holds the page look and header options, with Archive and Delete in its ⋯ menu; the old edit form is tucked away there too." },
       { type: "improve", text: "In {{Alter}} info, the bio is a simple writing box, and its Full editor button brings back Plain / Simple / Blocks / Raw for any bio." },
-      { type: "feature", text: "Turn a classic bio into widgets you can move and style, with a preview and an Undo; nothing is deleted. It's on the pencil → Page look, or Settings → {{Alter}} setup → Profile layouts for everyone." },
+      { type: "feature", text: "Turn a classic bio into widgets you can move and style, with a preview and an Undo; nothing is deleted. It's on the pencil → Look, or Settings → {{Alter}} setup → Profile layouts for everyone." },
       { type: "improve", text: "New {{alters}} start on the widget layout: their header, Pictures, bio and the rest of their info." },
       { type: "feature", text: "Profile widgets now edit what they show: open a widget's options to change the bio, groups, tags, basics and more, saved straight to the {{alter}}'s info." },
       { type: "feature", text: "New {{Alter}} info widget: show any entries from an {{alter}}'s info on their profile, and edit them right in its options. New entries you add there are saved to their info." },

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { Row, StackedRow, SwitchRow, Segmented, Chips, ColourRow } from "@/components/shared/SettingRows";
+import { Row, StackedRow, SwitchRow, Segmented, Chips, ChoiceRow, ColourRow } from "@/components/shared/SettingRows";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -43,14 +43,14 @@ const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s)
 
 function MoveButtons({ index, count, onMove, label }) {
   return (
-    <span className="flex flex-col">
+    <span className="flex -my-1.5">
       <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} aria-label={`Move ${label} up`}
-        className="w-6 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20">
-        <ChevronUp className="w-3.5 h-3.5" />
+        className="w-9 h-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-20">
+        <ChevronUp className="w-4 h-4" />
       </button>
       <button type="button" onClick={() => onMove(index, 1)} disabled={index === count - 1} aria-label={`Move ${label} down`}
-        className="w-6 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20">
-        <ChevronDown className="w-3.5 h-3.5" />
+        className="w-9 h-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-20">
+        <ChevronDown className="w-4 h-4" />
       </button>
     </span>
   );
@@ -66,7 +66,7 @@ export function EntryRow({ name, kind, shared, children, onMove, index, count, o
         <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{KIND_LABEL[kind] || "Text"}{shared ? ` · ${shared}` : ""}</span>
         {onRemove && (
           <button type="button" onClick={onRemove} aria-label={`Remove ${name}`} title="Remove"
-            className="w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive flex-shrink-0">
+            className="w-11 h-11 -my-1.5 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive flex-shrink-0">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
@@ -78,7 +78,7 @@ export function EntryRow({ name, kind, shared, children, onMove, index, count, o
 
 export function StatusChip({ status }) {
   if (status === "saving") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>;
-  if (status === "needs-name") return <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertCircle className="w-3 h-3" /> Needs a name to save</span>;
+  if (status === "needs-name") return <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertCircle className="w-3 h-3" /> Saved, except the name: it needs one</span>;
   if (status === "error") return <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="w-3 h-3" /> Not saved</span>;
   return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Check className="w-3 h-3" /> Saved</span>;
 }
@@ -86,23 +86,23 @@ export function StatusChip({ status }) {
 // ── Pictures: the images this alter owns ─────────────────────────────
 function PictureThumb({ asset, isAvatar, onUseAsAvatar, onRelease }) {
   const src = useResolvedAvatarUrl(asset.image_url);
-  const [open, setOpen] = useState(false);
   const pool = asset.owner_role && asset.owner_role !== PICTURE_ROLE;
+  // The menu is portaled, so a sheet or scrolling list never clips it.
   return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-label={asset.name || "Picture"}
-        className={`block w-full aspect-square rounded-lg overflow-hidden border bg-muted/30 ${isAvatar ? "border-primary ring-1 ring-primary" : "border-border/50"}`}>
-        {src ? <img src={src} alt={asset.name || ""} className="w-full h-full object-cover" loading="lazy" /> : <Images className="w-5 h-5 m-auto text-muted-foreground" />}
-      </button>
-      {open && (
-        <div className="absolute z-10 top-full mt-1 left-0 min-w-[10rem] rounded-lg border border-border bg-popover shadow-lg p-1 text-xs">
-          <button type="button" className="w-full text-left px-2 py-1.5 rounded hover:bg-muted" onClick={() => { setOpen(false); onUseAsAvatar(asset.image_url); }}>Use as avatar</button>
-          {pool
-            ? <p className="px-2 py-1.5 text-muted-foreground">In the {asset.owner_role} pool</p>
-            : <button type="button" className="w-full text-left px-2 py-1.5 rounded hover:bg-muted" onClick={() => { setOpen(false); onRelease(asset); }}>Remove from Pictures</button>}
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`${asset.name || "Picture"}${isAvatar ? " (avatar)" : ""}: options`}
+          className={`block w-full aspect-square rounded-lg overflow-hidden border bg-muted/30 ${isAvatar ? "border-primary ring-1 ring-primary" : "border-border/50"}`}>
+          {src ? <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" /> : <Images className="w-5 h-5 m-auto text-muted-foreground" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onSelect={() => onUseAsAvatar(asset.image_url)}>Use as avatar</DropdownMenuItem>
+        {pool
+          ? <DropdownMenuItem disabled>In the {asset.owner_role} pool</DropdownMenuItem>
+          : <DropdownMenuItem onSelect={() => onRelease(asset)}>Remove from Pictures</DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -280,7 +280,7 @@ export function BioSection({ alter = null, info, withRow = true }) {
   if (!form) return null;
   const editor = (
     <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)}
-      blocksHint={!withRow || isGardenProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" under Page look."} />
+      blocksHint={!alter || isGardenProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" on the Look tab."} />
   );
   return withRow ? <EntryRow name="Bio" kind="richtext">{editor}</EntryRow> : editor;
 }
@@ -344,6 +344,12 @@ export function EntriesSection({ alter, info, bio = true }) {
     const name = (adding?.name || "").trim();
     if (!name) return;
     const kind = adding.kind || "text";
+    // Entries are found by name (own:<name>), so two with one name would
+    // share a value.
+    const taken = adding.scope === "everyone"
+      ? systemFields.some((f) => (f.name || "").trim().toLowerCase() === name.toLowerCase())
+      : (ownFields || []).some((f) => (f?.name || "").trim().toLowerCase() === name.toLowerCase());
+    if (taken) { toast.error(`There's already an entry called “${name}”`); return; }
     if (adding.scope === "everyone") {
       try {
         const created = await base44.entities.CustomField.create({ name, field_type: kind, order: systemFields.length });
@@ -374,19 +380,19 @@ export function EntriesSection({ alter, info, bio = true }) {
         </EntryRow>
       ))}
       {adding ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 my-2 space-y-2">
-          <input value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} placeholder="Entry name, like Likes or Backstory"
-            aria-label="Entry name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") addEntry(); }} />
-          <Chips label="Kind" options={ENTRY_KINDS} value={adding.kind} onChange={(v) => setAdding({ ...adding, kind: v })} />
-          <Segmented label="Who has it" value={adding.scope} onChange={(v) => setAdding({ ...adding, scope: v })}
+        <div className="mt-2 pt-1 border-t border-border/50" data-add-entry="">
+          <StackedRow label="New entry's name">
+            <input value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} placeholder="Like Likes or Backstory"
+              aria-label="New entry's name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") addEntry(); }} />
+          </StackedRow>
+          <ChoiceRow label="Kind" options={ENTRY_KINDS} value={adding.kind} onChange={(v) => setAdding({ ...adding, kind: v })} />
+          <ChoiceRow label="Who has it" value={adding.scope} onChange={(v) => setAdding({ ...adding, scope: v })}
+            hint={adding.scope === "this" && blockedOwn ? `This ${t.alter} has fields from an older version; add it for every ${t.alter} so nothing is written over.` : null}
             options={[
               { value: "this", label: `Just ${form.name || `this ${t.alter}`}` },
               { value: "everyone", label: `Every ${t.alter}` },
             ]} />
-          {adding.scope === "this" && blockedOwn && (
-            <p className="text-[0.6875rem] text-muted-foreground">This {t.alter} has fields from an older version; add it for every {t.alter} instead so nothing is written over.</p>
-          )}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 py-2">
             <button type="button" className={smallBtn} onClick={() => setAdding(null)}>Cancel</button>
             <button type="button" onClick={addEntry}
               disabled={!adding.name.trim() || (adding.scope === "this" && blockedOwn)}
@@ -602,11 +608,9 @@ export function HeaderOptionsSection({ info }) {
       {toggles.map(({ key, label }) => (
         <SwitchRow key={key} label={label} checked={!!cf[key]} onChange={(on) => setCustomField(key, on ? true : undefined)} />
       ))}
-      <Row label={`Group / ${subsystemTerm} chips`}>
-        <Segmented label={`Group / ${subsystemTerm} chips`} equal={false} value={cf[PS.HEADER_CHIP_MODE] || "both"}
-          onChange={(v) => setCustomField(PS.HEADER_CHIP_MODE, v)}
-          options={[{ value: "icon", label: "Icon" }, { value: "name", label: "Name" }, { value: "both", label: "Both" }]} />
-      </Row>
+      <ChoiceRow label={`Group / ${subsystemTerm} chips`} value={cf[PS.HEADER_CHIP_MODE] || "both"}
+        onChange={(v) => setCustomField(PS.HEADER_CHIP_MODE, v)}
+        options={[{ value: "icon", label: "Icon" }, { value: "name", label: "Name" }, { value: "both", label: "Both" }]} />
     </div>
   );
 }

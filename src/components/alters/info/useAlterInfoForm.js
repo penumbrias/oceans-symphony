@@ -12,8 +12,8 @@
 // • Undo / redo step through the whole list's history; the undone value is
 //   saved like any other change. Every write of the alter also keeps the
 //   previous version in Recent changes (localDb's history archive).
-// • A blank name is never written — the list says the name is needed and
-//   keeps everything else waiting.
+// • A blank name is never written — the list says the name is needed —
+//   but every other change still saves.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,10 @@ import { parsePreferences } from "@/lib/alterPreferences";
 
 const SAVE_DELAY_MS = 500;
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+const blankName = (f) => !String(f?.name || "").trim();
+// The draft to write: everything as typed, but a blank name stays as saved.
+const keepName = (f, saved) => (f && blankName(f) ? { ...f, name: saved?.name ?? "" } : f);
 
 const plainObject = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : null);
 
@@ -84,19 +88,22 @@ export function useAlterInfoForm(alter) {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     if (!alterId || !savedRef.current || !formRef.current) return queueRef.current;
     if (same(formRef.current, savedRef.current)) return queueRef.current;
-    if (!String(formRef.current.name || "").trim()) { setStatus("needs-name"); return queueRef.current; }
-    setStatus("saving");
+    setStatus(blankName(formRef.current) ? "needs-name" : "saving");
     queueRef.current = queueRef.current.then(async () => {
       // Read the latest draft at run time — more typing may have arrived
-      // while an earlier save was still going.
-      const target = formRef.current;
+      // while an earlier save was still going. A blank name is never
+      // written, but everything else still is.
       const baseline = savedRef.current;
-      if (!target || same(target, baseline) || !String(target.name || "").trim()) return;
+      const target = keepName(formRef.current, baseline);
+      if (!target || same(target, baseline)) return;
       await saveAlterEdits({ alterId, baseline, form: target });
       savedRef.current = target;
       refreshAlter(queryClient, alterId);
     }).then(
-      () => setStatus(same(formRef.current, savedRef.current) ? "saved" : "saving"),
+      () => {
+        const now = formRef.current;
+        setStatus(blankName(now) ? "needs-name" : same(now, savedRef.current) ? "saved" : "saving");
+      },
       (e) => {
         setStatus("error");
         toast.error(e?.message || "Couldn't save — your changes are still here, try again");
@@ -109,8 +116,7 @@ export function useAlterInfoForm(alter) {
   useEffect(() => {
     if (!form || !savedRef.current) return;
     if (same(form, savedRef.current)) return;
-    if (!String(form.name || "").trim()) { setStatus("needs-name"); return; }
-    setStatus("saving");
+    setStatus(blankName(form) ? "needs-name" : "saving");
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(save, SAVE_DELAY_MS);
   }, [form, save]);

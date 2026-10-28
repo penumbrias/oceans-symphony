@@ -42,7 +42,7 @@ export function EntryInput({ k, type, value, onCommit, label }) {
     const on = v === true || v === "true" ? "true" : v === false || v === "false" ? "false" : "";
     return (
       <Segmented label={label} equal={false} value={on} onChange={onCommit}
-        options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
+        options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }, { value: "", label: "Not set" }]} />
     );
   }
   if (type === "date") return <DateFieldInput key={k} value={String(v)} onChange={onCommit} />;
@@ -51,8 +51,13 @@ export function EntryInput({ k, type, value, onCommit, label }) {
   }
   return (
     <div className="space-y-1">
-      <DebouncedText key={k} value={String(v)} onCommit={onCommit} multiline rows={type === "list" ? 2 : 2}
-        maxLength={5000} ariaLabel={label} placeholder={type === "list" ? "item, item, item" : "Not filled yet"} className={areaCls} />
+      {/* Short text is one line, unless it already holds line breaks (a
+          one-line box would drop them). */}
+      {type === "list" || String(v).includes("\n")
+        ? <DebouncedText key={k} value={String(v)} onCommit={onCommit} multiline rows={2}
+            maxLength={5000} ariaLabel={label} placeholder={type === "list" ? "item, item, item" : "Not filled yet"} className={areaCls} />
+        : <DebouncedText key={k} value={String(v)} onCommit={onCommit}
+            maxLength={5000} ariaLabel={label} placeholder="Not filled yet" className={inputCls} />}
       {type === "list" && <p className="text-[0.6875rem] text-muted-foreground">Separate items with commas.</p>}
     </div>
   );
@@ -63,7 +68,7 @@ export function EntryInput({ k, type, value, onCommit, label }) {
 // templates with fill-in fields) keeps working: its fill-in fields edit
 // here. "Full editor" opens the bio editor with its Plain / Simple / Blocks
 // / Raw modes for any bio (kept by the owner's choice, v0.298.1), and
-// "Turn the bio into widgets" (Page look) lays a block bio out as widgets
+// "Turn the bio into widgets" (the Look tab) lays a block bio out as widgets
 // that move freely.
 export function BioEntry({ k, value, onChange, blocksHint = null }) {
   // Bumped when the bio is replaced from outside the text box (a template,
