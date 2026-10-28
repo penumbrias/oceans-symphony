@@ -31,7 +31,7 @@
 
 import { base44, localEntities } from "@/api/base44Client";
 import { stampBoardChanges } from "@/lib/boardStamp";
-import { pickProfileBoardRows, isProfileOwnerType } from "@/lib/profileBoard";
+import { pickProfileBoardRows, isProfileOwnerType, layoutOwnerIds } from "@/lib/profileBoard";
 
 export const isBoardStore = (x) => !!x && typeof x === "object" && typeof x.write === "function" && typeof x.update === "function";
 
@@ -99,9 +99,13 @@ export async function listProfileBoardRows(ownerType, ownerId) {
 
 // Trash a profile's layout rows with the profile (call inside the owner's
 // trash batch, so a restore brings the layout back with the record).
+// Both layouts a record can have (the plain id and the new profile's
+// `::v2` row, v0.305.0) go together.
 export async function trashProfileBoards(ownerType, ownerId) {
-  for (const r of await listProfileBoardRows(ownerType, ownerId)) {
-    try { await localEntities.ProfileBoard.delete(r.id); } catch { /* best-effort */ }
+  for (const key of layoutOwnerIds(ownerId)) {
+    for (const r of await listProfileBoardRows(ownerType, key)) {
+      try { await localEntities.ProfileBoard.delete(r.id); } catch { /* best-effort */ }
+    }
   }
 }
 

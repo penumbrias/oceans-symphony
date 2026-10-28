@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import {
   seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId, layoutForCopy, DEFAULT_OWNER_ID, isDefaultOwnerId,
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
+  NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, NEW_LAYOUT_SUFFIX, usesNewProfile, layoutSuffixFor, layoutOwnerIds,
 } from "../src/lib/profileBoard.js";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -229,6 +230,32 @@ test("with no saved layout the conversion starts from the garden page, without a
   assert.equal(page[0].widgetId, "profile_header");
   const textOnly = convertBoard(null, { id: "a1" }, widgetsForParts([{ kind: "text", html: "x" }], ["bio"]).widgets);
   assert.ok(textOnly.pages[0].widgets.some((w) => w.widgetId === "media" && w.settings.source === "pictures"));
+});
+
+test("the new profile (v0.305.0) seeds seven pages, with its own layout row id", () => {
+  const rec = { id: "a1", profile_layout: "v2" };
+  assert.ok(usesNewProfile(rec));
+  assert.ok(!usesNewProfile({ id: "a1", profile_layout: "garden" }));
+  const b = seedProfileBoard(rec, "alter");
+  assert.deepEqual(b.pages.map((p) => tabOfPageId(p.id)), ["profile", "fronting", "messages", "notes", "journal", "wishes", "connections"]);
+  assert.equal(b.pages.length, NEW_ALTER_PROFILE_PAGES.length);
+  const notes = b.pages.find((p) => p.id === profilePageId("notes")).widgets[0];
+  assert.equal(notes.mode, "expanded");
+  assert.equal(notes.settings.count, 20);
+  assert.equal(layoutSuffixFor(rec), NEW_LAYOUT_SUFFIX);
+  assert.equal(layoutSuffixFor({ id: "a1" }), "");
+  assert.equal(layoutSuffixFor(rec, "group"), "");
+  assert.deepEqual(layoutOwnerIds("a1"), ["a1", "a1::v2"]);
+  // Classic and garden seeds are unchanged.
+  assert.equal(seedProfileBoard({ id: "a1" }, "alter").pages.length, ALTER_PROFILE_PAGES.length);
+  assert.equal(seedProfileBoard({ id: "a1", profile_layout: "garden" }, "alter").pages[0].widgets[1].widgetId, "media");
+});
+
+test("every old tab name lands on a page of the new profile", () => {
+  const tabs = new Set(NEW_ALTER_PROFILE_PAGES.map((p) => p.tab));
+  for (const p of ALTER_PROFILE_PAGES) {
+    assert.ok(tabs.has(p.tab) || tabs.has(NEW_PROFILE_TAB_ALIASES[p.tab]), `no page for ?tab=${p.tab}`);
+  }
 });
 
 console.log(`\n${passed} checks passed`);

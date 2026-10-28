@@ -23,7 +23,10 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { deleteAlter, refreshAlter } from "@/lib/alterEntry";
+import { deleteAlter, refreshAlter, switchToNewProfile, revertToOldProfile } from "@/lib/alterEntry";
+import { usesNewProfile } from "@/lib/profileBoard";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import OptionsTab from "@/components/alters/profile/OptionsTab";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { Group, TabBar } from "@/components/shared/SettingRows";
 import { useAlterInfoForm } from "./useAlterInfoForm";
@@ -38,6 +41,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
   const info = useAlterInfoForm(alter);
   // Pages, like the widget inspector: one tab on screen at a time.
   const [tab, setTab] = useState("info");
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { form, set } = info;
@@ -61,7 +65,27 @@ export default function AlterInfo({ alter, onOpenClassic }) {
       navigate("/Home");
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
+  // Which profile layout (v0.305.0). Only a flag on the record changes;
+  // both layouts are kept, so either way can be undone.
+  const onNew = usesNewProfile(alter);
+  const switchLayout = async (toNew) => {
+    try {
+      await info.flush();
+      await (toNew ? switchToNewProfile(alter.id) : revertToOldProfile(alter.id));
+      refreshAlter(qc, alter.id);
+      toast.success(toNew ? "Now showing the new profile" : "Back to the old profile", {
+        action: { label: "Undo", onClick: async () => {
+          await (toNew ? revertToOldProfile(alter.id) : switchToNewProfile(alter.id));
+          refreshAlter(qc, alter.id);
+        } },
+      });
+    } catch (e) { toast.error(e?.message || "Couldn't change the layout"); }
+  };
   const menu = [
+    onNew
+      ? { label: "Revert to the old profile", onClick: () => switchLayout(false) }
+      : { label: "Use the new profile", onClick: () => switchLayout(true) },
+    { label: "Export, merge, sharing…", onClick: () => setOptionsOpen(true) },
     { label: alter.is_archived ? "Unarchive" : "Archive", onClick: archive },
     { label: "Delete…", onClick: remove },
     ...(onOpenClassic ? [{ label: "Classic edit form (older)", onClick: onOpenClassic }] : []),
@@ -77,6 +101,14 @@ export default function AlterInfo({ alter, onOpenClassic }) {
 
   return (
     <div data-alter-info="">
+      {/* The rest of the old Options tab: export, analytics, merge,
+          friends sharing, levels. */}
+      <Dialog open={optionsOpen} onOpenChange={setOptionsOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-alter-options-sheet="">
+          <DialogTitle>{form.name || t.Alter} · more options</DialogTitle>
+          <OptionsTab alter={alter} />
+        </DialogContent>
+      </Dialog>
       {/* The bar and the tabs stay put while a tab scrolls (inspector). */}
       <div className="sticky top-0 z-20 -mx-1 px-1 bg-background/95 backdrop-blur">
         <InfoBar info={info} title={`${form.name || t.Alter} · info`} menu={menu} />

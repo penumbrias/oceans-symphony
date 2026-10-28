@@ -28,7 +28,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { isGardenProfile } from "@/lib/profileBoard";
+import { isGardenProfile, usesNewProfile } from "@/lib/profileBoard";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { PS } from "@/lib/profileStyle";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
@@ -313,7 +313,7 @@ export function BioSection({ alter = null, info, withRow = true }) {
   if (!form) return null;
   const editor = (
     <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)}
-      blocksHint={!alter || isGardenProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" on the Look tab."} />
+      blocksHint={!alter || isGardenProfile(alter) || usesNewProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" on the Look tab."} />
   );
   return withRow ? <EntryRow name="Bio" kind="richtext">{editor}</EntryRow> : editor;
 }

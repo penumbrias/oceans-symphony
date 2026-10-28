@@ -18,7 +18,7 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
-import { useInfoAlter, useSystemFields, DEFAULT_INFO_ENTRIES } from "@/v2/infoWidgets";
+import { useInfoAlter, useSystemFields, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL } from "@/v2/infoWidgets";
 import { infoEntriesFor, entryValue, writeEntry, addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
 import { refreshAlter } from "@/lib/alterEntry";
 import { mediaItemsOf, parseVideoLink } from "@/lib/mediaItems";
@@ -73,7 +73,8 @@ export function InfoEntriesField({ settings, set }) {
   const [adding, setAdding] = useState(null);
   const all = useMemo(() => infoEntriesFor(alter, systemFields), [alter, systemFields]);
   const ids = Array.isArray(settings.entries) && settings.entries.length ? settings.entries : DEFAULT_INFO_ENTRIES;
-  const shown = ids.map((id) => all.find((e) => e.id === id)).filter(Boolean);
+  const allFields = { id: ALL_FIELDS_ENTRY, label: ALL_FIELDS_LABEL, kind: "all" };
+  const shown = ids.map((id) => (id === ALL_FIELDS_ENTRY ? allFields : all.find((e) => e.id === id))).filter(Boolean);
   const setIds = (next) => set({ entries: next });
 
   const commit = async (entryId, value) => {
@@ -114,7 +115,9 @@ export function InfoEntriesField({ settings, set }) {
                   onMove={(idx, dir) => setIds(move(shown.map((e) => e.id), idx, dir))}
                   onRemove={(idx) => setIds(shown.filter((_, j) => j !== idx).map((e) => e.id))} />
               </div>
-              {entry.kind === "bio"
+              {entry.kind === "all"
+                ? <p className="text-xs text-muted-foreground">Every custom field that's filled in and not listed on its own, including ones added later.</p>
+                : entry.kind === "bio"
                 ? <BioEntry k={`${alterId}`} value={entryValue(alter, "bio")} onChange={(v) => commit("bio", v)} />
                 : <EntryInput k={`${alterId}:${entry.id}`} type={entry.kind} label={entry.label}
                     value={entryValue(alter, entry.id)} onCommit={(v) => commit(entry.id, v)} />}
@@ -122,7 +125,10 @@ export function InfoEntriesField({ settings, set }) {
           ))}
           <StackedRow label={shown.length ? "Show another field" : "Show a field"}>
             <SearchableSelect value={null} placeholder="Pick an entry…" searchPlaceholder="Search entries…"
-              options={all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label }))}
+              options={[
+                ...(ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (custom fields)` }]),
+                ...all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label })),
+              ]}
               onChange={(id) => { if (id) setIds([...ids, id]); }} />
           </StackedRow>
           {adding ? (

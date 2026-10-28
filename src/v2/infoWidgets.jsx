@@ -72,6 +72,18 @@ function BioShown({ alter, html }) {
 
 export const DEFAULT_INFO_ENTRIES = ["bio"];
 
+// "Every other field" (v0.305.0): stands for every custom field — shared and
+// the alter's own — that isn't listed on its own, so a field added later
+// shows without touching the widget.
+export const ALL_FIELDS_ENTRY = "*fields";
+export const ALL_FIELDS_LABEL = "Every other field";
+export function expandInfoEntryIds(ids, all) {
+  if (!ids.includes(ALL_FIELDS_ENTRY)) return ids;
+  const named = new Set(ids);
+  const rest = all.filter((e) => (e.id.startsWith("field:") || e.id.startsWith("own:")) && !named.has(e.id)).map((e) => e.id);
+  return ids.flatMap((id) => (id === ALL_FIELDS_ENTRY ? rest : [id]));
+}
+
 const longKind = (entry) => entry.kind === "bio" || entry.kind === "richtext";
 
 // When an entry last changed, where the record keeps one per field.
@@ -157,7 +169,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
     return <div className="text-[0.8125em] opacity-70 p-2" style={flush()}>Choose whose info to show in this widget's options.</div>;
   }
   if (!alter) return null;
-  const rows = ids
+  const rows = expandInfoEntryIds(ids, all)
     .map((id) => all.find((e) => e.id === id))
     .filter(Boolean)
     .map((entry) => ({ entry, value: entryValue(alter, entry.id) }))

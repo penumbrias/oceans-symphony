@@ -1036,7 +1036,7 @@ export default function ExperimentalDashboard({
     });
     if (!ok) return;
     await runBulk(
-      () => applyLayoutToAll(boardStore.ownerType, boardRef.current.board, { qc, exceptId: boardStore.ownerId }),
+      () => applyLayoutToAll(boardStore.ownerType, boardRef.current.board, { qc, exceptId: boardStore.recordId ?? boardStore.ownerId, suffix: boardStore.layoutSuffix || "" }),
       (n) => `Layout applied to ${n} ${n === 1 ? ownerNounOne() : noun}.`,
     );
   };
@@ -1047,7 +1047,7 @@ export default function ExperimentalDashboard({
       confirmLabel: "Use as default",
     });
     if (!ok) return;
-    await runBulk(() => setDefaultLayout(boardStore.ownerType, boardRef.current.board, { qc }), "Saved as the default layout.");
+    await runBulk(() => setDefaultLayout(boardStore.ownerType, boardRef.current.board, { qc, suffix: boardStore.layoutSuffix || "" }), "Saved as the default layout.");
   };
   const resetThisLayout = async () => {
     const ok = await confirm({

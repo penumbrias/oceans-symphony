@@ -9,7 +9,7 @@
 // with the person first.
 import { base44, localEntities } from "@/api/base44Client";
 import { profileBoardStore, listProfileBoardRows, profileBoardQueryKey } from "@/lib/boardStore";
-import { DEFAULT_OWNER_ID, layoutForCopy, pickProfileBoardRows, isProfileOwnerType } from "@/lib/profileBoard";
+import { DEFAULT_OWNER_ID, layoutForCopy, pickProfileBoardRows, isProfileOwnerType, NEW_LAYOUT_SUFFIX, usesNewProfile } from "@/lib/profileBoard";
 
 const OWNER_ENTITY = { alter: "Alter", group: "Group", contact: "Contact", location: "InnerWorldLocation" };
 
@@ -19,8 +19,10 @@ export async function listOwners(ownerType) {
   try { return await base44.entities[entity].list(); } catch { return []; }
 }
 
-export async function defaultLayoutFor(ownerType) {
-  const rows = await listProfileBoardRows(ownerType, DEFAULT_OWNER_ID);
+// `suffix` picks which layout (v0.305.0): "" the classic one, "::v2" the
+// new alter profile's. Each has its own rows and its own default.
+export async function defaultLayoutFor(ownerType, { suffix = "" } = {}) {
+  const rows = await listProfileBoardRows(ownerType, DEFAULT_OWNER_ID + suffix);
   return pickProfileBoardRows(rows);
 }
 
@@ -31,31 +33,33 @@ async function writeCopy(ownerType, ownerId, copy, qc) {
   if (qc) qc.invalidateQueries({ queryKey: profileBoardQueryKey(ownerType, ownerId) });
 }
 
-export async function applyLayoutToAll(ownerType, board, { qc = null, exceptId = null } = {}) {
+export async function applyLayoutToAll(ownerType, board, { qc = null, exceptId = null, suffix = "" } = {}) {
   if (!isProfileOwnerType(ownerType)) throw new Error(`Not a profile type: ${ownerType}`);
   const copy = layoutForCopy(board);
   if (!copy) throw new Error("Nothing to copy");
-  const owners = (await listOwners(ownerType)).filter((o) => o?.id && String(o.id) !== String(exceptId));
+  // The new profile's layout goes onto every profile that shows it.
+  const owners = (await listOwners(ownerType)).filter((o) => o?.id && String(o.id) !== String(exceptId)
+    && (suffix !== NEW_LAYOUT_SUFFIX || usesNewProfile(o)));
   let n = 0;
   for (const o of owners) {
-    await writeCopy(ownerType, o.id, copy, qc);
+    await writeCopy(ownerType, o.id + suffix, copy, qc);
     n += 1;
   }
   return n;
 }
 
-export async function setDefaultLayout(ownerType, board, { qc = null } = {}) {
+export async function setDefaultLayout(ownerType, board, { qc = null, suffix = "" } = {}) {
   if (!isProfileOwnerType(ownerType)) throw new Error(`Not a profile type: ${ownerType}`);
   const copy = layoutForCopy(board);
   if (!copy) throw new Error("Nothing to copy");
-  await writeCopy(ownerType, DEFAULT_OWNER_ID, copy, qc);
+  await writeCopy(ownerType, DEFAULT_OWNER_ID + suffix, copy, qc);
 }
 
-export async function clearDefaultLayout(ownerType, { qc = null } = {}) {
-  for (const r of await listProfileBoardRows(ownerType, DEFAULT_OWNER_ID)) {
+export async function clearDefaultLayout(ownerType, { qc = null, suffix = "" } = {}) {
+  for (const r of await listProfileBoardRows(ownerType, DEFAULT_OWNER_ID + suffix)) {
     try { await localEntities.ProfileBoard.delete(r.id); } catch { /* best-effort */ }
   }
-  if (qc) qc.invalidateQueries({ queryKey: profileBoardQueryKey(ownerType, DEFAULT_OWNER_ID) });
+  if (qc) qc.invalidateQueries({ queryKey: profileBoardQueryKey(ownerType, DEFAULT_OWNER_ID + suffix) });
 }
 
 // Back to the default layout (or the seed): the profile's own rows go to
