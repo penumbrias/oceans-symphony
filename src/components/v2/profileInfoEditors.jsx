@@ -19,6 +19,7 @@ const SECTIONS = {
   bio: ({ info }) => <BioSection info={info} withRow={false} />,
   entries: ({ alter, info }) => <EntriesSection alter={alter} info={info} bio={false} />,
   groups: ({ alter }) => <GroupsSection alter={alter} />,
+  belongs: ({ alter, info }) => <><GroupsSection alter={alter} /><SubsystemsSection alter={alter} info={info} /></>,
   subsystems: ({ alter, info }) => <SubsystemsSection alter={alter} info={info} />,
   preferences: ({ info }) => <PreferencesSection info={info} />,
   tags: ({ info }) => <TagsSection info={info} />,

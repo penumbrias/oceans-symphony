@@ -85,7 +85,7 @@ function changedAt(alter, entry) {
 // One entry's value, edited where it's shown (v0.300.0). Tapping the value
 // opens its editor in place (long text in a sheet with the full bio
 // editor); what's typed is saved to the alter's info as it's written.
-function EditableValue({ alter, entry, value, editable, children }) {
+export function EditableValue({ alter, entry, value, editable, children, inline = false }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const commit = async (v) => {
@@ -99,12 +99,13 @@ function EditableValue({ alter, entry, value, editable, children }) {
     if (e?.target?.closest?.("a, button, input, textarea, audio, video")) return;
     setEditing(true);
   };
+  const Tag = inline ? "span" : "div";
   const shown = (
-    <div role="button" tabIndex={0} aria-label={`Edit ${entry.label}`} onClick={open}
+    <Tag role="button" tabIndex={0} aria-label={`Edit ${entry.label}`} onClick={open}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditing(true); } }}
-      className="rounded-md cursor-text min-h-[1.5em] -mx-1 px-1 hover:bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--v2-accent)]">
+      className={`${inline ? "inline-block" : ""} rounded-md cursor-text min-h-[1.5em] -mx-1 px-1 hover:bg-[color-mix(in_srgb,var(--v2-accent)_8%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--v2-accent)]`}>
       {children}
-    </div>
+    </Tag>
   );
   if (longKind(entry)) {
     return (
@@ -126,14 +127,14 @@ function EditableValue({ alter, entry, value, editable, children }) {
   }
   if (!editing) return shown;
   return (
-    <div data-own-hold="" className="flex items-start gap-1.5"
+    <Tag data-own-hold="" className={`${inline ? "inline-flex align-top text-[0.6em] font-normal" : "flex"} items-start gap-1.5`}
       onKeyDown={(e) => { if (e.key === "Escape") setEditing(false); }}>
       <div className="flex-1 min-w-0">
         <EntryInput k={`${alter.id}:${entry.id}`} type={entry.kind} label={entry.label} value={value} onCommit={commit} />
       </div>
       <button type="button" onClick={() => setEditing(false)} aria-label={`Done editing ${entry.label}`}
         className="h-9 px-3 rounded-lg border text-xs font-medium flex-shrink-0" style={{ borderColor: "var(--v2-accent)" }}>Done</button>
-    </div>
+    </Tag>
   );
 }
 
