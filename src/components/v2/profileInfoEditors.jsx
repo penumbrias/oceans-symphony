@@ -10,11 +10,12 @@ import { useInfoAlter } from "@/v2/infoWidgets";
 import { useAlterInfoForm } from "@/components/alters/info/useAlterInfoForm";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, GroupsSection, SubsystemsSection,
-  PreferencesSection, TagsSection, AnswersSection,
+  PreferencesSection, TagsSection, AnswersSection, HeaderOptionsSection,
 } from "@/components/alters/info/infoSections";
 
 const SECTIONS = {
   basics: ({ alter, info }) => <BasicsSection alter={alter} info={info} />,
+  header: ({ alter, info }) => <><BasicsSection alter={alter} info={info} /><HeaderOptionsSection info={info} /></>,
   bio: ({ info }) => <BioSection info={info} withRow={false} />,
   entries: ({ alter, info }) => <EntriesSection alter={alter} info={info} bio={false} />,
   groups: ({ alter }) => <GroupsSection alter={alter} />,

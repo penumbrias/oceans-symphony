@@ -14,7 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Undo2, Redo2, Check, Loader2, AlertCircle, User, Upload, Link2, X, Plus, ChevronUp, ChevronDown,
-  Trash2, Folder, FolderPlus, ImagePlus, Images,
+  Trash2, Folder, FolderPlus, ImagePlus, Images, EyeOff, MoreHorizontal,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -28,6 +28,10 @@ import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { isGardenProfile } from "@/lib/profileBoard";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { PS } from "@/lib/profileStyle";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
@@ -165,7 +169,8 @@ export function PicturesSection({ alter, avatarUrl, onUseAsAvatar }) {
 }
 
 // What's saved, and undo / redo for everything edited through this draft.
-export function InfoBar({ info, title, sticky = false }) {
+// `menu`: rarely needed actions behind ⋯ ([{ label, onClick }]).
+export function InfoBar({ info, title, sticky = false, menu = null }) {
   return (
     <div className={`${sticky ? "sticky top-0 z-20 -mx-1 px-1 bg-background/95 backdrop-blur border-b border-border/40 " : ""}py-2 flex items-center gap-2`}>
       <div className="flex-1 min-w-0">
@@ -176,6 +181,17 @@ export function InfoBar({ info, title, sticky = false }) {
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-border/60 disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
       <button type="button" onClick={info.redo} disabled={!info.canRedo} aria-label="Redo" title="Redo"
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-border/60 disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
+      {menu?.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="More" title="More"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-border/60"><MoreHorizontal className="w-4 h-4" /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {menu.map((m) => <DropdownMenuItem key={m.label} onSelect={m.onClick}>{m.label}</DropdownMenuItem>)}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }
@@ -259,10 +275,13 @@ export function BasicsSection({ alter, info }) {
 }
 
 // ── The bio ──
-export function BioSection({ info, withRow = true }) {
+export function BioSection({ alter = null, info, withRow = true }) {
   const { form, set, revision } = info;
   if (!form) return null;
-  const editor = <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)} />;
+  const editor = (
+    <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)}
+      blocksHint={!withRow || isGardenProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" under Page look."} />
+  );
   return withRow ? <EntryRow name="Bio" kind="richtext">{editor}</EntryRow> : editor;
 }
 
@@ -340,7 +359,7 @@ export function EntriesSection({ alter, info, bio = true }) {
 
   return (
     <>
-      {bio && <BioSection info={info} />}
+      {bio && <BioSection alter={alter} info={info} />}
       {orderedFields.map((field, i) => (
         <EntryRow key={field.id} name={field.name} kind={field.field_type || "text"} shared={`every ${t.alter}`}
           index={i} count={orderedFields.length} onMove={moveField}>
@@ -532,4 +551,62 @@ export function AnswersSection({ info }) {
       </div>
     </StackedRow>
   ));
+}
+
+// ── Page look (v0.298.0): the page's colours, pictures, fonts and song ──
+// Moved here from the classic pencil form. The keys are the PS.* style keys
+// on custom_fields, saved like everything else in the list.
+export function PageStyleSection({ alter, info }) {
+  const { form, setCustomField } = info;
+  if (!form) return null;
+  const cf = form.custom_fields || {};
+  return (
+    <div className="space-y-2" data-info-page-style="">
+      {cf[PS.HIDE_HEADER] && (
+        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <EyeOff className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground flex-1 min-w-0">
+            The header is hidden, so the avatar, name, pronouns and role don't show on this profile. Nothing was deleted.
+          </p>
+          <button type="button" onClick={() => setCustomField(PS.HIDE_HEADER, undefined)}
+            className="text-xs font-medium px-2 py-1 rounded-lg border border-border/60 hover:bg-muted flex-shrink-0">Show it</button>
+        </div>
+      )}
+      <ProfileStyleEditor
+        customFields={cf}
+        setField={(key, val) => setCustomField(key, val)}
+        clearField={(key) => setCustomField(key, undefined)}
+        rotationConfig={{ alterId: alter.id, role: "background" }}
+      />
+    </div>
+  );
+}
+
+// ── Header extras: what else the header shows ────────────────────────
+export function HeaderOptionsSection({ info }) {
+  const t = useTerms();
+  const { form, setCustomField } = info;
+  if (!form) return null;
+  const cf = form.custom_fields || {};
+  const subsystemTerm = `sub${t.system}`;
+  const toggles = [
+    { key: PS.HEADER_SHOW_GROUPS, label: "Show groups" },
+    { key: PS.HEADER_SHOW_SUBSYSTEMS, label: `Show ${subsystemTerm}s` },
+    { key: PS.HEADER_SHOW_FIELDS, label: "Show custom fields" },
+    { key: PS.HEADER_SHOW_ALTER_FIELDS, label: `Show ${t.alter}-specific custom fields` },
+    { key: PS.HEADER_SHOW_PRONOUNS, label: "Always show pronouns" },
+  ];
+  return (
+    <div data-info-header-options="">
+      <p className="text-xs text-muted-foreground py-1">Extra info shown in the header moves up there instead of showing further down. Group and {subsystemTerm} chips link to their pages.</p>
+      {toggles.map(({ key, label }) => (
+        <SwitchRow key={key} label={label} checked={!!cf[key]} onChange={(on) => setCustomField(key, on ? true : undefined)} />
+      ))}
+      <Row label={`Group / ${subsystemTerm} chips`}>
+        <Segmented label={`Group / ${subsystemTerm} chips`} equal={false} value={cf[PS.HEADER_CHIP_MODE] || "both"}
+          onChange={(v) => setCustomField(PS.HEADER_CHIP_MODE, v)}
+          options={[{ value: "icon", label: "Icon" }, { value: "name", label: "Name" }, { value: "both", label: "Both" }]} />
+      </Row>
+    </div>
+  );
 }

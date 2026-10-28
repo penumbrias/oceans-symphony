@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "improve", text: "{{Alter}} info now holds the page look and header options, with Archive and Delete in its ⋯ menu; the old edit form is tucked away there too." },
+      { type: "improve", text: "An {{alter}}'s bio is one simple writing box now, without the Plain / Simple / Blocks / Raw switch; bios made of blocks still edit as before." },
       { type: "feature", text: "Turn a classic bio into widgets you can move and style, with a preview and an Undo; nothing is deleted. It's on the pencil → Page look, or Settings → {{Alter}} setup → Profile layouts for everyone." },
       { type: "improve", text: "New {{alters}} start on the widget layout: their header, Pictures, bio and the rest of their info." },
       { type: "feature", text: "Profile widgets now edit what they show: open a widget's options to change the bio, groups, tags, basics and more, saved straight to the {{alter}}'s info." },
