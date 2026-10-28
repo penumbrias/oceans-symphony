@@ -13,10 +13,10 @@
 //   • renders nothing on the page when there's nothing to show, and names
 //     itself while the layout is being edited.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { User, Archive, Users, Tag, HeartHandshake, Sparkles, IdCard, BarChart3, History, FileText, Pencil, Trash2, Mail, Pin, Check, Newspaper } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
@@ -611,8 +611,9 @@ function InboxEditor({ message, alters, onDone }) {
 export function InboxWidget({ settings, mode = "normal" }) {
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
-  const { alter, alterId } = useInfoAlter(settings);
-  const { data: messages = [] } = useQuery({
+  const { alter, alterId, onProfile } = useInfoAlter(settings);
+  const [searchParams] = useSearchParams();
+  const { data: messages = [], isFetched: messagesFetched } = useQuery({
     queryKey: inboxKey(alterId),
     queryFn: () => base44.entities.AlterMessage.filter({ to_alter_id: alterId }, "-created_date"),
     enabled: !!alterId,
@@ -621,6 +622,38 @@ export function InboxWidget({ settings, mode = "normal" }) {
   const [editing, setEditing] = useState(null);
   const [composing, setComposing] = useState(false);
   const [shown, setShown] = useState(null);
+  const [haloId, setHaloId] = useState(null);
+  const rootRef = useRef(null);
+  // On the profile, the header's Message button (?compose=1) opens the box
+  // to leave one, and a notification (?messageId=) lands on its message.
+  const composeParam = onProfile && searchParams.get("compose") === "1";
+  const messageParam = onProfile ? searchParams.get("messageId") : null;
+  const handled = useRef({ compose: false, message: null });
+  useEffect(() => {
+    if (composeParam && mode !== "minimal" && !handled.current.compose) {
+      handled.current.compose = true;
+      setComposing(true);
+    }
+    if (!composeParam) handled.current.compose = false;
+  }, [composeParam, mode]);
+  useEffect(() => {
+    if (!messageParam || !messagesFetched || handled.current.message === messageParam || mode === "minimal") return;
+    handled.current.message = messageParam;
+    const pool0 = settings?.pinnedOnly ? messages.filter((m) => m.pinned) : messages;
+    const i = pool0.findIndex((m) => String(m.id) === String(messageParam));
+    if (i < 0) return;
+    setShown((cur) => Math.max(cur ?? (Math.max(1, Number(settings?.count) || 5)), i + 1));
+    setHaloId(String(messageParam));
+    setTimeout(() => {
+      const el = rootRef.current?.querySelector(`[data-highlight-id="${CSS.escape(String(messageParam))}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 200);
+  }, [messageParam, messagesFetched, messages, mode, settings?.pinnedOnly, settings?.count]);
+  useEffect(() => {
+    if (!haloId) return;
+    const timer = setTimeout(() => setHaloId(null), 3500);
+    return () => clearTimeout(timer);
+  }, [haloId]);
   if (!alter) return null;
   const byId = Object.fromEntries(alters.map((a) => [a.id, a]));
   const unread = messages.filter((m) => !m.is_read).length;
@@ -648,7 +681,7 @@ export function InboxWidget({ settings, mode = "normal" }) {
     const fromName = from ? formatAlter(from) : "Unknown";
     if (editing === m.id) return <li key={m.id} className="py-[0.4em]"><InboxEditor message={m} alters={alters} onDone={() => setEditing(null)} /></li>;
     return (
-      <li key={m.id} data-highlight-id={m.id} className="pt-[0.4em] border-b border-current/10 last:border-b-0">
+      <li key={m.id} data-highlight-id={m.id} className={`pt-[0.4em] border-b border-current/10 last:border-b-0 rounded-md ${haloId === String(m.id) ? "scroll-highlight-halo" : ""}`}>
         <div className="min-w-0">
           <p className="text-[0.8125em] flex items-center gap-[0.4em] flex-wrap">
             {!m.is_read && <span className="w-[0.55em] h-[0.55em] rounded-full flex-shrink-0" style={{ background: from?.color || "var(--v2-accent)" }} aria-hidden="true" />}
@@ -674,6 +707,7 @@ export function InboxWidget({ settings, mode = "normal" }) {
   };
   return (
     <GardenBox empty={!pool.length && mode !== "expanded"} name="Inbox" data-inbox-widget="">
+      <div ref={rootRef}>
       {unread > 0 && <p className="text-[0.8125em] font-semibold mb-[0.3em]" style={{ color: "var(--v2-accent)" }}>{unreadText}</p>}
       <ul>{list.map(row)}</ul>
       {pool.length > limit && (
@@ -686,6 +720,10 @@ export function InboxWidget({ settings, mode = "normal" }) {
             : <button type="button" onClick={() => setComposing(true)} className={`${textBtnCls} w-full border`} style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" }}>Leave a message</button>}
         </div>
       )}
+      {mode !== "expanded" && composing && (
+        <div className="mt-[0.6em]"><InboxComposer alterId={alterId} alters={alters} onDone={() => setComposing(false)} /></div>
+      )}
+      </div>
     </GardenBox>
   );
 }

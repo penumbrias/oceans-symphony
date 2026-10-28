@@ -18,7 +18,7 @@
 import { base44 } from "@/api/base44Client";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { listProfileBoardRows, profileBoardStore, profileBoardQueryKey } from "@/lib/boardStore";
-import { pickProfileBoardRows, layoutForCopy, DEFAULT_OWNER_ID, isGardenProfile } from "@/lib/profileBoard";
+import { pickProfileBoardRows, layoutForCopy, DEFAULT_OWNER_ID, isGardenProfile, usesNewProfile } from "@/lib/profileBoard";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "@/lib/profileConvert";
 import { addAlterPicture } from "@/lib/alterImageUpload";
 import { refreshAlter } from "@/lib/alterEntry";
@@ -44,6 +44,9 @@ export async function convertAlterProfile(alterId, { qc = null } = {}) {
   const alter = await base44.entities.Alter.get(alterId);
   if (!alter) throw new Error("That profile isn't here any more");
   if (isGardenProfile(alter)) return { already: true };
+  // Converting changes the old layout; on the new profile it would switch
+  // the profile back without asking (v0.305.0).
+  if (usesNewProfile(alter)) throw new Error("This profile uses the new layout. Revert to the old profile first.");
   const original = alter.description || "";
   let parts = planFromBlocks(htmlToBlocks(original));
   const legacy = legacyShape(alter);
@@ -110,6 +113,7 @@ export async function undoAlterConversion(alterId, { qc = null } = {}) {
   const alter = await base44.entities.Alter.get(alterId);
   const conv = alter?.profile_conversion;
   if (!conv || conv.undone_at) throw new Error("There's no conversion to undo");
+  if (usesNewProfile(alter)) throw new Error("This profile uses the new layout. Revert to the old profile first.");
   const patch = {
     profile_layout: conv.prev_layout || null,
     profile_conversion: { ...conv, undone_at: new Date().toISOString() },

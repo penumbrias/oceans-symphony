@@ -12,6 +12,7 @@ import { Row } from "@/components/shared/SettingRows";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { previewConversion, convertAlterProfile, undoAlterConversion } from "@/lib/profileConvertRun";
 import { smallBtn } from "./entryEditors";
+import { usesNewProfile } from "@/lib/profileBoard";
 
 const PART = {
   text: { icon: Type, label: (name) => `Text → ${name}` },
@@ -61,6 +62,11 @@ export default function ProfileConvertRow({ alter, info }) {
     finally { setBusy(false); }
   };
 
+  // The new profile (v0.305.0) is built from widgets already; converting
+  // belongs to the old layout.
+  if (usesNewProfile(alter)) {
+    return <Row label="Profile layout" hint="Uses the new profile. To go back, use ⋯ → Revert to the old profile." />;
+  }
   if (preview.converted) {
     return (
       <Row label="Profile layout" hint={preview.canUndo ? "Converted to widgets. Undo puts the old layout and bio back." : "Uses the widget layout"}>

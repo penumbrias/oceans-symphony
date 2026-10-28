@@ -31,14 +31,29 @@ import { seedProfileBoard, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickPro
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
 
-export function useProfilePageState(pages) {
+// `aliases` maps an older ?tab= name onto the page that holds it now (the
+// new alter profile, v0.305.0). When `pages` changes (the profile switched
+// layouts), the page shown follows the URL again.
+export function useProfilePageState(pages, { aliases = null } = {}) {
   const tabNames = useMemo(() => pages.map((p) => p.tab), [pages]);
   const firstPageId = profilePageId(pages[0].tab);
   const [searchParams, setSearchParams] = useSearchParams();
-  const pageIdOfTabParam = useCallback((t) => (!t ? null : tabNames.includes(t) ? profilePageId(t) : t), [tabNames]);
+  const pageIdOfTabParam = useCallback((t) => {
+    if (!t) return null;
+    if (tabNames.includes(t)) return profilePageId(t);
+    if (aliases?.[t] && tabNames.includes(aliases[t])) return profilePageId(aliases[t]);
+    return t;
+  }, [tabNames, aliases]);
   const tabParam = searchParams.get("tab");
   const initialPageId = pageIdOfTabParam(tabParam);
   const [currentPageId, setCurrentPageId] = useState(initialPageId || firstPageId);
+  const pagesKey = tabNames.join("|");
+  const lastPagesKey = React.useRef(pagesKey);
+  useEffect(() => {
+    if (lastPagesKey.current === pagesKey) return;
+    lastPagesKey.current = pagesKey;
+    setCurrentPageId(initialPageId || firstPageId);
+  }, [pagesKey, initialPageId, firstPageId]);
   const onPageChange = useCallback((pageId) => {
     setCurrentPageId(pageId);
     setSearchParams((prev) => {
@@ -64,7 +79,10 @@ export function useProfilePageState(pages) {
   };
 }
 
-export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null, page, tourId = null, api = null }) {
+// `layoutSuffix` picks which of the record's layouts this is: "" the
+// classic one, "::v2" the new alter profile's (its own row and default,
+// so the classic layout is never touched).
+export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null, page, tourId = null, api = null, layoutSuffix = "" }) {
   const queryClient = useQueryClient();
   // The settings row carries the device look and the saved widget styles
   // the canvas reads; the profile's own layout is its ProfileBoard row.
@@ -73,7 +91,9 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const settingsRow = settingsRows[0] || null;
-  const ownerId = record?.id || null;
+  const recordId = record?.id || null;
+  const ownerId = recordId ? `${recordId}${layoutSuffix}` : null;
+  const defaultOwnerId = DEFAULT_OWNER_ID + layoutSuffix;
   const { data: boardRows = [], isFetched: boardRowsFetched } = useQuery({
     queryKey: profileBoardQueryKey(ownerType, ownerId),
     queryFn: () => listProfileBoardRows(ownerType, ownerId),
@@ -82,17 +102,19 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
   // The type's default layout (v0.292.0), shown when the profile has no
   // row of its own; its first edit copies it into the profile's own row.
   const { data: defaultRows = [], isFetched: defaultRowsFetched } = useQuery({
-    queryKey: profileBoardQueryKey(ownerType, DEFAULT_OWNER_ID),
-    queryFn: () => listProfileBoardRows(ownerType, DEFAULT_OWNER_ID),
+    queryKey: profileBoardQueryKey(ownerType, defaultOwnerId),
+    queryFn: () => listProfileBoardRows(ownerType, defaultOwnerId),
   });
   const defaultBoard = useMemo(() => layoutForCopy(pickProfileBoardRows(defaultRows).board), [defaultRows]);
   const [fittedSeed, setFittedSeed] = useState(null);
   useEffect(() => { setFittedSeed(null); }, [ownerId, defaultBoard]);
   const boardStore = useMemo(() => {
     if (!record) return null;
-    const base = profileBoardStore({ ownerType, ownerId: record.id, rows: boardRows, qc: queryClient });
+    const base = profileBoardStore({ ownerType, ownerId, rows: boardRows, qc: queryClient });
     return {
       ...base,
+      recordId,
+      layoutSuffix,
       board: base.board || fittedSeed || defaultBoard || seedProfileBoard(record, ownerType),
       write: async (next, opts) => {
         const row = await base.write(next, opts);
@@ -100,9 +122,9 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
         return row;
       },
     };
-  }, [record, ownerType, boardRows, fittedSeed, defaultBoard, queryClient]);
+  }, [record, ownerType, ownerId, recordId, layoutSuffix, boardRows, fittedSeed, defaultBoard, queryClient]);
   const registry = useMemo(() => profileRegistryFor(ownerType, V2_WIDGETS), [ownerType]);
-  const subject = useMemo(() => (ownerId ? { type: ownerType, id: ownerId } : null), [ownerType, ownerId]);
+  const subject = useMemo(() => (recordId ? { type: ownerType, id: recordId } : null), [ownerType, recordId]);
   const boardApi = useMemo(() => api || {}, [api]);
   if (!boardStore || !boardRowsFetched || !defaultRowsFetched) return null;
   return (

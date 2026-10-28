@@ -18,6 +18,7 @@ import { Section, Row, Muted, TextAction, Dot, useWidgetMode } from "@/v2/primit
 import { buildBalance, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel, createWish } from "@/lib/wishes";
+import { usesNewProfile } from "@/lib/profileBoard";
 import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress,
 } from "@/lib/goals";
@@ -116,6 +117,10 @@ export function WishesWidget({ settings }) {
   const scopeIds = useScopeAlterIds(settings);
   const ownAlterId = scope?.type === "alter" ? scope.id : null;
   const show = settings?.show || "open";
+  // On a classic profile a wish opens on its Wishlist tab; the new profile
+  // (v0.305.0) has no separate tab, so it opens on the Needs page.
+  const ownOnClassic = ownAlterId && !usesNewProfile(alterById.get(ownAlterId));
+  const wishPath = (id) => (ownOnClassic ? `/alter/${ownAlterId}?tab=wishlist&highlight=${id}` : `/needs?tab=wishes&highlight=${id}`);
   const list = useMemo(() => {
     const pool = (wishes || []).filter((w) => {
       if (!w) return false;
@@ -140,7 +145,7 @@ export function WishesWidget({ settings }) {
         return (
           <Row key={w.id} left={<span aria-hidden="true" className="text-xs">{wishKindMeta(w.kind).emoji}</span>}
             primary={`${w.title}${w.is_private ? " 🔒" : ""}`} secondary={owner} right={status}
-            onClick={() => navigate(ownAlterId ? `/alter/${ownAlterId}?tab=wishlist&highlight=${w.id}` : `/needs?tab=wishes&highlight=${w.id}`)} />
+            onClick={() => navigate(wishPath(w.id))} />
         );
       })}
     </Section>

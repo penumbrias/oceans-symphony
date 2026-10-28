@@ -6,14 +6,15 @@
 // Recent changes / the trash can bring it back.
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, Trash2, Wand2 } from "lucide-react";
+import { LayoutGrid, Trash2, Wand2, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { listProfileBoardRows, profileBoardQueryKey } from "@/lib/boardStore";
-import { DEFAULT_OWNER_ID, pickProfileBoardRows, PROFILE_OWNER_TYPES, isGardenProfile } from "@/lib/profileBoard";
+import { DEFAULT_OWNER_ID, pickProfileBoardRows, PROFILE_OWNER_TYPES, isGardenProfile, usesNewProfile, NEW_LAYOUT_SUFFIX } from "@/lib/profileBoard";
+import { switchToNewProfile, revertToOldProfile } from "@/lib/alterEntry";
 import { convertAlterProfile } from "@/lib/profileConvertRun";
 import { clearDefaultLayout } from "@/lib/profileBoardBulk";
 
@@ -22,12 +23,12 @@ const when = (iso) => {
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null;
 };
 
-function TypeRow({ type, label, labelOne }) {
+function TypeRow({ type, label, labelOne, suffix = "" }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const { data: rows = [], isFetched } = useQuery({
-    queryKey: profileBoardQueryKey(type, DEFAULT_OWNER_ID),
-    queryFn: () => listProfileBoardRows(type, DEFAULT_OWNER_ID),
+    queryKey: profileBoardQueryKey(type, DEFAULT_OWNER_ID + suffix),
+    queryFn: () => listProfileBoardRows(type, DEFAULT_OWNER_ID + suffix),
   });
   const { keeper } = pickProfileBoardRows(rows);
   const pages = Array.isArray(keeper?.board?.pages) ? keeper.board.pages.length : 0;
@@ -41,17 +42,17 @@ function TypeRow({ type, label, labelOne }) {
     if (!ok) return;
     setBusy(true);
     try {
-      await clearDefaultLayout(type, { qc });
+      await clearDefaultLayout(type, { qc, suffix });
       toast.success(`Default ${labelOne} layout cleared.`);
     } catch (e) {
       toast.error(e?.message || "That didn't save.");
     } finally { setBusy(false); }
   };
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-border/30 last:border-b-0" data-profile-layout-type={type}>
+    <div className="flex items-center gap-3 py-2 border-b border-border/30 last:border-b-0" data-profile-layout-type={`${type}${suffix}`}>
       <LayoutGrid className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium capitalize">{label}</div>
+        <div className="text-sm font-medium first-letter:uppercase">{label}</div>
         <div className="text-xs text-muted-foreground">
           {!isFetched ? "…" : keeper
             ? `Default set${when(keeper.updated_date || keeper.created_date) ? ` ${when(keeper.updated_date || keeper.created_date)}` : ""} · ${pages} page${pages === 1 ? "" : "s"}`
@@ -78,7 +79,7 @@ function ConvertAllRow() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
-  const classic = alters.filter((a) => a?.id && !isGardenProfile(a));
+  const classic = alters.filter((a) => a?.id && !isGardenProfile(a) && !usesNewProfile(a));
   const run = async () => {
     const ok = await confirm({
       title: `Turn every ${t.alter}'s bio into widgets?`,
@@ -103,16 +104,89 @@ function ConvertAllRow() {
     <div className="flex items-center gap-3 py-2 border-b border-border/30" data-convert-all="">
       <Wand2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium">Widget layout for {t.alter} profiles</div>
+        <div className="text-sm font-medium">Old profile: bio as widgets</div>
         <div className="text-xs text-muted-foreground">
           {progress ? `Converting ${progress.done} of ${progress.total}…`
-            : classic.length ? `${classic.length} still use${classic.length === 1 ? "s" : ""} the classic bio. New ${t.alters} start on widgets.`
-            : `Every ${t.alter} uses the widget layout.`}
+            : classic.length ? `${classic.length} on the old profile still use${classic.length === 1 ? "s" : ""} the classic bio.`
+            : `No old-profile bios left to convert.`}
         </div>
       </div>
       {classic.length > 0 && (
         <Button type="button" size="sm" variant="outline" disabled={!!progress} onClick={run} className="flex-shrink-0">Convert all</Button>
       )}
+    </div>
+  );
+}
+
+// The new profile for everyone (v0.305.0). Only each record's layout flag
+// changes; every profile keeps the layout it has now, and each one can
+// revert on its own (pencil → ⋯), or everyone at once here.
+function NewProfileAllRow() {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [progress, setProgress] = useState(null);
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const live = alters.filter((a) => a?.id);
+  const older = live.filter((a) => !usesNewProfile(a));
+  const onNew = live.filter((a) => usesNewProfile(a));
+  const runAll = async (list, fn, label) => {
+    let done = 0;
+    let failed = 0;
+    setProgress({ done, total: list.length, label });
+    for (const a of list) {
+      try { await fn(a.id); } catch { failed += 1; }
+      done += 1;
+      setProgress({ done, total: list.length, label });
+    }
+    setProgress(null);
+    qc.invalidateQueries({ queryKey: ["alters"] });
+    qc.invalidateQueries({ queryKey: ["alter"] });
+    return { done, failed };
+  };
+  const useForAll = async () => {
+    const ok = await confirm({
+      title: `Use the new profile for every ${t.alter}?`,
+      body: `${older.length} ${older.length === 1 ? "profile switches" : "profiles switch"} to the new seven-page profile. Nothing is deleted: the layout each one has now is kept, and any profile can go back from its pencil → ⋯ → Revert to the old profile, or all of them from here.`,
+      confirmLabel: "Use for everyone",
+    });
+    if (!ok) return;
+    const { done, failed } = await runAll(older, switchToNewProfile, "Switching");
+    if (failed) toast.error(`${failed} couldn't switch; they keep the layout they had.`);
+    else toast.success(`${done} profile${done === 1 ? "" : "s"} now use the new profile.`);
+  };
+  const revertAll = async () => {
+    const ok = await confirm({
+      title: `Put every ${t.alter} back on the old profile?`,
+      body: `${onNew.length} ${onNew.length === 1 ? "profile goes" : "profiles go"} back to the layout ${onNew.length === 1 ? "it" : "they"} had before. Their new-profile layouts are kept, so switching again brings them back as they were.`,
+      confirmLabel: "Revert everyone",
+    });
+    if (!ok) return;
+    const { done, failed } = await runAll(onNew, revertToOldProfile, "Reverting");
+    if (failed) toast.error(`${failed} couldn't change; they keep the new profile.`);
+    else toast.success(`${done} profile${done === 1 ? "" : "s"} back on the old profile.`);
+  };
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-border/30" data-new-profile-all="">
+      <Sparkles className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium">The new {t.alter} profile</div>
+        <div className="text-xs text-muted-foreground">
+          {progress ? `${progress.label} ${progress.done} of ${progress.total}…`
+            : older.length ? `${onNew.length} of ${live.length} use it. New ${t.alters} start on it.`
+            : `Every ${t.alter} uses it.`}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5 flex-shrink-0">
+        {older.length > 0 && (
+          <Button type="button" size="sm" variant="outline" disabled={!!progress} onClick={useForAll}>Use for everyone</Button>
+        )}
+        {onNew.length > 0 && (
+          <Button type="button" size="sm" variant="ghost" disabled={!!progress} onClick={revertAll}>Revert everyone</Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -131,9 +205,11 @@ export default function ProfileLayoutSettings() {
         To set a default, open any profile, tap its grid button, then Save → "Use as the default layout…". Profiles whose layout you have edited keep their own.
       </p>
       <div>
+        <NewProfileAllRow />
         <ConvertAllRow />
+        <TypeRow type="alter" suffix={NEW_LAYOUT_SUFFIX} label={`${t.alters} (new profile)`} labelOne={`new ${t.alter} profile`} />
         {PROFILE_OWNER_TYPES.map((type) => (
-          <TypeRow key={type} type={type} label={labels[type][0]} labelOne={labels[type][1]} />
+          <TypeRow key={type} type={type} label={type === "alter" ? `${t.alters} (old profile)` : labels[type][0]} labelOne={labels[type][1]} />
         ))}
       </div>
     </div>

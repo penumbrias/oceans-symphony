@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, LayoutGrid } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, LayoutGrid, BarChart3, Network } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,8 @@ import { PS } from "@/lib/profileStyle";
 // then the page renders the seeded board, which is today's page. The host
 // (ProfileBoardCanvas) is shared with the group, contact and location pages.
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
-import { profilePageId, ALTER_PROFILE_PAGES } from "@/lib/profileBoard";
+import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
+import NewProfileOffer from "@/components/alters/NewProfileOffer";
 
 // The icon each tab's page shows in the page strip (by page id).
 const PAGE_ICONS = {
@@ -44,6 +45,17 @@ const PAGE_ICONS = {
   [profilePageId("locations")]: MapPin,
   [profilePageId("activities")]: Zap,
   [profilePageId("options")]: SlidersHorizontal,
+};
+
+// The new profile's seven pages (v0.305.0).
+const NEW_PAGE_ICONS = {
+  [profilePageId("profile")]: User,
+  [profilePageId("fronting")]: BarChart3,
+  [profilePageId("messages")]: Mail,
+  [profilePageId("notes")]: FileText,
+  [profilePageId("journal")]: BookOpen,
+  [profilePageId("wishes")]: Heart,
+  [profilePageId("connections")]: Network,
 };
 
 function getContrastColor(hex) {
@@ -88,7 +100,13 @@ function AlterProfileInner() {
   // The page showing on the board. ?tab= opens a page (today's deep links,
   // the tour, notifications); the board reports the page it is on so the
   // URL stays in step and the header knows whether this is the Profile page.
-  const page = useProfilePageState(ALTER_PROFILE_PAGES);
+  // The page state is set up before the record has loaded, so which pages
+  // (classic or the new profile) follows the record once it's here.
+  const queryClient = useQueryClient();
+  const cachedAlter = queryClient.getQueryData(["alter", alterId]);
+  const [onNewLayout, setOnNewLayout] = useState(() => usesNewProfile(cachedAlter));
+  const page = useProfilePageState(onNewLayout ? NEW_ALTER_PROFILE_PAGES : ALTER_PROFILE_PAGES,
+    { aliases: onNewLayout ? NEW_PROFILE_TAB_ALIASES : null });
   const { searchParams, setSearchParams, layoutEditing, onFirstPage: onProfilePage } = page;
   // false = the board · "info" = the Alter info list (the pencil, v0.294.0)
   // · "classic" = the old pencil form, kept for page style and header
@@ -99,7 +117,6 @@ function AlterProfileInner() {
   const [resolvedBgImage, setResolvedBgImage] = useState(null);
   const saveRef = useRef(null);
 
-  const queryClient = useQueryClient();
   const terms = useTerms();
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
@@ -110,6 +127,8 @@ function AlterProfileInner() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  useEffect(() => { if (alter) setOnNewLayout(usesNewProfile(alter)); }, [alter]);
 
   // Whether this alter is currently fronting, + a one-tap toggle from the
   // profile header. Reuses the canonical refetch-before-write toggleFrontFor
@@ -366,7 +385,7 @@ function AlterProfileInner() {
                   // Open the Messages page with its compose form (the page
                   // reads ?compose=1).
                   const params = new URLSearchParams(searchParams);
-                  params.set("tab", "private-messages");
+                  params.set("tab", onNewLayout ? "messages" : "private-messages");
                   params.set("compose", "1");
                   setSearchParams(params, { replace: true });
                 }}
@@ -477,7 +496,14 @@ function AlterProfileInner() {
             saveRef={saveRef}
           />
         ) : (
-          <ProfileBoardCanvas ownerType="alter" record={alter} pageIcons={PAGE_ICONS} page={page} tourId="alter-profile-tabs" api={boardApi} />
+          <>
+            {onProfilePage && !layoutEditing && <NewProfileOffer alter={alter} />}
+            {onNewLayout === usesNewProfile(alter) && <ProfileBoardCanvas
+              key={onNewLayout ? "new" : "classic"}
+              ownerType="alter" record={alter} page={page} tourId="alter-profile-tabs" api={boardApi}
+              pageIcons={onNewLayout ? NEW_PAGE_ICONS : PAGE_ICONS}
+              layoutSuffix={layoutSuffixFor(alter)} />}
+          </>
         )}
       </div>
     </motion.div>

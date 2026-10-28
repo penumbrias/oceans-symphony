@@ -31,6 +31,7 @@
 import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { setAlterGroups } from "@/lib/groupMembership";
+import { NEW_PROFILE_LAYOUT, NEW_LAYOUT_SUFFIX } from "@/lib/profileBoard";
 
 // A 4-digit year out of a free-form "first appeared" string, so the
 // integer origin_year (lineage, timeline) follows whatever was typed.
@@ -64,9 +65,10 @@ export async function createAlter(form, { groupIds = [] } = {}) {
   const filled = Object.fromEntries(
     Object.entries(toRecord(form)).filter(([, v]) => v !== null && v !== undefined && v !== "")
   );
-  // New alters start on the garden profile layout (v0.297.0) — the info
-  // widgets. Older app versions ignore the flag and show the classic page.
-  const created = await base44.entities.Alter.create({ profile_layout: "garden", ...filled, is_archived: false });
+  // New alters start on the new profile (v0.305.0; the garden layout from
+  // v0.297.0). Older app versions don't know the value and show the
+  // classic page.
+  const created = await base44.entities.Alter.create({ profile_layout: NEW_PROFILE_LAYOUT, ...filled, is_archived: false });
   if (groupIds.length && created?.id) {
     try {
       await setAlterGroups({ alterId: created.id, groupIds });
@@ -141,6 +143,33 @@ export async function createOwnedSubsystem(alter, name) {
 }
 
 // Every screen that shows this alter (the list, the profile, pickers).
+// Which profile layout an alter shows (v0.305.0). Only the record's flag
+// changes: the classic layout and the new one are separate rows, so either
+// way is lossless and can be undone. Reverting puts back the value the
+// alter had before (the classic page, or the v0.297 garden page).
+export async function switchToNewProfile(alterId) {
+  const fresh = await base44.entities.Alter.get(alterId);
+  if (!fresh || fresh.profile_layout === NEW_PROFILE_LAYOUT) return fresh;
+  return base44.entities.Alter.update(alterId, {
+    profile_layout: NEW_PROFILE_LAYOUT,
+    profile_layout_before_v2: fresh.profile_layout ?? null,
+  });
+}
+
+export async function revertToOldProfile(alterId) {
+  const fresh = await base44.entities.Alter.get(alterId);
+  if (!fresh || fresh.profile_layout !== NEW_PROFILE_LAYOUT) return fresh;
+  return base44.entities.Alter.update(alterId, {
+    profile_layout: fresh.profile_layout_before_v2 || "classic",
+    // Reverting is an answer: don't offer the new profile again.
+    new_profile_offer_dismissed: true,
+  });
+}
+
+export function dismissNewProfileOffer(alterId) {
+  return base44.entities.Alter.update(alterId, { new_profile_offer_dismissed: true });
+}
+
 export function refreshAlter(queryClient, alterId) {
   queryClient?.invalidateQueries({ queryKey: ["alters"] });
   if (alterId) queryClient?.invalidateQueries({ queryKey: ["alter", alterId] });
@@ -154,7 +183,7 @@ export async function deleteAlter(alter) {
   if (!alter?.id) return;
   const id = alter.id;
   await withTrashBatch(async () => {
-    const [notes, board, inbox, relA, relB, relSrc, relTgt, layouts] = await Promise.all([
+    const [notes, board, inbox, relA, relB, relSrc, relTgt, layouts, newLayouts] = await Promise.all([
       safeFilter("AlterNote", { alter_id: id }),
       safeFilter("AlterMessage", { alter_id: id }),
       safeFilter("AlterMessage", { to_alter_id: id }),
@@ -164,13 +193,15 @@ export async function deleteAlter(alter) {
       safeFilter("AlterRelationship", { source_alter_id: id }),
       safeFilter("AlterRelationship", { target_alter_id: id }),
       safeFilter("ProfileBoard", { owner_type: "alter", owner_id: id }),
+      // The new profile's layout (v0.305.0) is its own row.
+      safeFilter("ProfileBoard", { owner_type: "alter", owner_id: `${id}${NEW_LAYOUT_SUFFIX}` }),
     ]);
     const seen = new Set();
     const dependents = [
       ...notes.map((r) => ["AlterNote", r]),
       ...[...board, ...inbox].map((r) => ["AlterMessage", r]),
       ...[...relA, ...relB, ...relSrc, ...relTgt].map((r) => ["AlterRelationship", r]),
-      ...layouts.map((r) => ["ProfileBoard", r]),
+      ...[...layouts, ...newLayouts].map((r) => ["ProfileBoard", r]),
     ].filter(([entity, r]) => {
       const key = `${entity}:${r.id}`;
       if (seen.has(key)) return false;

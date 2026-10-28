@@ -98,6 +98,54 @@ export const GARDEN_ALTER_PROFILE_PAGES = [
 ];
 export const isGardenProfile = (record) => record?.profile_layout === "garden";
 
+// The new profile (v0.305.0): seven pages built from the purpose-built
+// profile widgets (src/v2/gardenProfileWidgets.jsx and friends). An alter
+// on it has profile_layout: "v2"; switching back puts the value it had
+// before (profile_layout_before_v2) back.
+//
+// Its layout is a separate ProfileBoard row, owned by `${id}::v2` (and its
+// default by `__default__::v2`), so the classic layout row is never touched:
+// switching between the two is lossless both ways, and an older app version
+// (which reads only the row owned by the plain id) never sees, folds or
+// trashes the new one.
+export const NEW_PROFILE_LAYOUT = "v2";
+export const NEW_LAYOUT_SUFFIX = "::v2";
+export const usesNewProfile = (record) => record?.profile_layout === NEW_PROFILE_LAYOUT;
+export const layoutSuffixFor = (record, ownerType = "alter") =>
+  ownerType === "alter" && usesNewProfile(record) ? NEW_LAYOUT_SUFFIX : "";
+// Every owner id a record's layouts can be stored under (for deletes).
+export const layoutOwnerIds = (id) => (id ? [String(id), `${id}${NEW_LAYOUT_SUFFIX}`] : []);
+
+export const NEW_PROFILE_AVATAR_WIDGET = { widgetId: "media", settings: { source: "avatar", shape: "box", fit: "cover" }, span: { cols: 12, rows: 4 } };
+export const NEW_PROFILE_BIO_WIDGET = { widgetId: "info", settings: { entries: ["bio"], layout: "plain" } };
+export const NEW_PROFILE_FIELDS_WIDGET = { widgetId: "info", settings: { entries: ["*fields"], layout: "labelled" } };
+export const NEW_ALTER_PROFILE_PAGES = [
+  { tab: "profile", label: "Profile", widgets: [
+    { widgetId: "alter_identity", settings: { showAvatar: false } },
+    NEW_PROFILE_AVATAR_WIDGET, NEW_PROFILE_BIO_WIDGET, NEW_PROFILE_FIELDS_WIDGET,
+    "alter_belongs", "alter_preferences", "alter_tags", "alter_answers",
+  ] },
+  { tab: "fronting", label: "Fronting", widgets: ["alter_fronting_stats", "alter_fronting_sessions"] },
+  { tab: "messages", label: "Messages", widgets: [
+    { widgetId: "alter_inbox", mode: "expanded" }, { widgetId: "alter_board_feed", mode: "expanded" },
+  ] },
+  { tab: "notes", label: "Notes", widgets: [{ widgetId: "alter_notes", mode: "expanded", settings: { count: 20 } }] },
+  { tab: "journal", label: "Journal", widgets: ["journal"] },
+  { tab: "wishes", label: "Wishes", widgets: [{ widgetId: "wishes", mode: "expanded" }] },
+  { tab: "connections", label: "Connections", widgets: [
+    "alter_relationships", "alter_lineage", "inner_locations", "alter_activity_links",
+  ] },
+];
+// Old ?tab= names (notifications, search, the tour, saved links) land on
+// the page that holds the same thing now.
+export const NEW_PROFILE_TAB_ALIASES = {
+  info: "profile", options: "profile",
+  history: "fronting",
+  "private-messages": "messages",
+  wishlist: "wishes",
+  lineage: "connections", relationships: "connections", locations: "connections", activities: "connections",
+};
+
 export const GROUP_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [
     "profile_header", "profile_bio", "profile_nested_groups", "profile_members",
@@ -141,9 +189,11 @@ export const PROFILE_SEED_SPAN = { cols: 12, rows: 2 };
 export const seedInstanceId = (pageTab, widgetId, n) => `seed_${pageTab}_${widgetId}${n ? `_${n}` : ""}`;
 
 export function seedProfileBoard(record, ownerType = "alter") {
-  const pages = ownerType === "alter" && isGardenProfile(record)
-    ? GARDEN_ALTER_PROFILE_PAGES
-    : PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;
+  const pages = ownerType === "alter" && usesNewProfile(record)
+    ? NEW_ALTER_PROFILE_PAGES
+    : ownerType === "alter" && isGardenProfile(record)
+      ? GARDEN_ALTER_PROFILE_PAGES
+      : PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;
   let y;
   return {
     version: 2,
@@ -175,7 +225,7 @@ export function seedProfileBoard(record, ownerType = "alter") {
             widgetId,
             span,
             pos: { x: 0, y },
-            mode: "normal",
+            mode: (typeof entry === "object" && entry.mode) || "normal",
             settings: typeof entry === "object" && entry.settings ? { ...entry.settings } : {},
           };
           y += span.rows;
