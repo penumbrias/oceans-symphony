@@ -75,7 +75,7 @@ const CSP_POLICY = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-src 'self' blob:",
+  "frame-src 'self' blob: https://www.youtube-nocookie.com https://player.vimeo.com",
   "worker-src 'self' blob:",
 ].join('; ')
 

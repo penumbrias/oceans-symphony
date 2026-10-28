@@ -882,6 +882,13 @@ export default function WidgetConfigSheet({
   // One of the widget's own fields (configFields), as a row.
   const renderOwnField = (f) => {
     if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
+    // A widget's own editor (v0.295.0) — e.g. the Info widget's entries,
+    // which edit the alter's info itself. Gets the live settings and the
+    // same patch writer every row uses.
+    if (f.type === "component" && f.Component) {
+      const Editor = f.Component;
+      return <div key={f.key} className="py-1"><Editor settings={settings} set={set} widget={widget} /></div>;
+    }
     if (f.type === "quickButtons") {
       return (
         <StackedRow key={f.key} label={applyTerms(f.label, t)} hint={f.help}>
