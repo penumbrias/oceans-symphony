@@ -73,6 +73,7 @@ import { DOCK_KEY } from "@/components/v2/V2Frame";
 import UndoRedoButtons from "@/components/v2/UndoRedoHistory";
 import { useFontOptions } from "@/lib/useFontOptions";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -749,26 +750,28 @@ export default function WidgetConfigSheet({
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
-  onRestoreSnapshot, // (instanceId, { mode, settings }) → put the widget back how it was when the sheet opened
+  onRestoreSnapshot, // (instanceId, { mode, settings }, { keepCurrent }) → put the widget back how it was (Undo / Redo after closing)
 }) {
   const open = !!widget && !!def;
-  // Everything in this sheet applies live, so closing used to just keep
-  // whatever happened — including accidents. Snapshot the widget as the
-  // sheet opens; closing with changes asks Keep / Undo / Keep editing
-  // (the same guard the planner's editor got). One component, so every
-  // surface that hosts this menu — board, home screen, desktop, the
-  // pinned-bar config — gets the guard at once.
+  // Everything in this sheet applies live and is saved as it happens, so
+  // closing it always KEEPS the edits — however it's closed. (v0.293.1:
+  // closing used to ask Keep / Undo / Keep editing, and one mis-tap on
+  // "Undo my changes" threw away a whole fancy customisation with no way
+  // back — owner report.) Instead the sheet snapshots the widget as it
+  // opens, and closing with changes leaves a toast whose Undo puts the
+  // widget back; that undo offers Redo, and the edited version is kept in
+  // Recent changes first, so nothing done here is ever only one tap from
+  // gone. One component, so every surface that hosts this menu — board,
+  // home screen, desktop, profile pages, the pinned-bar config — gets it.
   const openSnap = React.useRef(null);
-  const [closeAsk, setCloseAsk] = React.useState(false);
   React.useEffect(() => {
-    if (!widget?.instanceId) { openSnap.current = null; setCloseAsk(false); return; }
+    if (!widget?.instanceId) { openSnap.current = null; return; }
     if (openSnap.current?.id === widget.instanceId) return;
     openSnap.current = {
       id: widget.instanceId,
       mode: widget.mode,
       settings: JSON.parse(JSON.stringify(widget.settings || {})),
     };
-    setCloseAsk(false);
   }, [widget?.instanceId]);
   const editorDirty = () => {
     const snap = openSnap.current;
@@ -777,16 +780,24 @@ export default function WidgetConfigSheet({
       || JSON.stringify(widget.settings || {}) !== JSON.stringify(snap.settings);
   };
   const requestClose = () => {
-    if (editorDirty() && onRestoreSnapshot) setCloseAsk(true);
-    else onClose();
-  };
-  const undoAndClose = () => {
     const snap = openSnap.current;
-    if (snap && snap.id === widget?.instanceId) {
-      onRestoreSnapshot?.(snap.id, { mode: snap.mode, settings: snap.settings });
-    }
-    setCloseAsk(false);
+    if (!editorDirty() || !onRestoreSnapshot) { onClose(); return; }
+    const before = { mode: snap.mode, settings: snap.settings };
+    const after = { mode: widget.mode, settings: JSON.parse(JSON.stringify(widget.settings || {})) };
+    const id = snap.id;
+    const name = settings.label || defLabel || "this widget";
     onClose();
+    const offerRedo = () => toast("Changes undone", {
+      duration: 15000,
+      action: { label: "Redo", onClick: () => onRestoreSnapshot(id, after) },
+    });
+    toast(`Saved your changes to ${name}`, {
+      duration: 10000,
+      action: {
+        label: "Undo",
+        onClick: () => { onRestoreSnapshot(id, before, { keepCurrent: true }); offerRedo(); },
+      },
+    });
   };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const drawsLabel = useHasWidgetLabel(open, widget?.instanceId, `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
@@ -1065,30 +1076,6 @@ export default function WidgetConfigSheet({
         {/* The grab bar IS the resize handle — every sheet is always
             drag-resizable (no separate Peek mode). */}
         <PeekHandle resize={peekResize} dock={dock} />
-        {/* Close guard: changes here apply live, so leaving with edits
-            asks what to do with them instead of silently keeping them. */}
-        {closeAsk && (
-          <div className="absolute inset-0 z-50 bg-background/85 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="w-full max-w-xs rounded-2xl border border-border/60 bg-card p-4 space-y-3 shadow-xl">
-              <p className="text-sm font-semibold">Keep these changes?</p>
-              <p className="text-xs text-muted-foreground">You changed this widget while the menu was open.</p>
-              <div className="space-y-1.5">
-                <button type="button" onClick={() => { setCloseAsk(false); onClose(); }}
-                  className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
-                  Keep changes
-                </button>
-                <button type="button" onClick={undoAndClose}
-                  className="w-full h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50">
-                  Undo my changes
-                </button>
-                <button type="button" onClick={() => setCloseAsk(false)}
-                  className="w-full h-10 rounded-lg border border-border/60 text-sm text-muted-foreground hover:bg-muted/50">
-                  Keep editing
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Reset…: how much — just the look (every tab's look and the
             style), or everything the widget ships with. */}
         {resetAsk && (
