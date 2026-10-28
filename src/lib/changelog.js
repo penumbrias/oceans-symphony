@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "New profile widgets: {{Fronting}} stats (with a 30-day chart), {{Fronting}} sessions and Notes, each with Minimal, Normal and Expanded looks." },
       { type: "feature", text: "New profile widgets: Identity, Belongs to, Tags, Preferences and Get to know me, each with Minimal, Normal and Expanded looks. Tap Identity's name, pronouns or role to edit them." },
       { type: "feature", text: "The {{Alter}} info widget is now the Field widget: tap its text to edit it in place, pick Minimal, Normal or Expanded, and make a new field (for one {{alter}} or everyone) right from its options." },
       { type: "feature", text: "The Media widget is now the Image widget, and can show an {{alter}}'s profile picture (with its rotation) or pinned bar picture, and set them. It can also be a circle." },

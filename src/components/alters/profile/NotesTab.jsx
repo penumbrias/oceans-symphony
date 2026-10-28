@@ -6,7 +6,9 @@ import { Plus, Trash2, Pencil, X, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { saveAlterNote, deleteAlterNote } from "@/lib/alterNotes";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useTerms } from "@/lib/useTerms";
 import { format } from "date-fns";
 
@@ -29,44 +31,42 @@ export default function NotesTab({ alterId }) {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const navigatePath = `/alter/${alterId}?tab=notes`;
-  const sourceLabel = `${t.Alter} note`;
-
-  const prepare = async (text) => {
+  const save = async (text, noteId = null) => {
     try {
-      return await prepareAuthoredText(text.trim(), { alters, terms: t, surfaceLabel: `${t.alter} note` });
+      return await saveAlterNote({ alterId, noteId, text, alters, terms: t });
     } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+  };
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
   };
 
   const createNote = async () => {
     if (!newContent.trim()) return;
-    const prepared = await prepare(newContent);
-    if (prepared === null) return; // malformed command or user backed out of the whisper warning
     setSaving(true);
-    const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: prepared.content, author_alter_ids: prepared.authorIds });
-    await recordAuthoredText({ ...prepared, alters, sourceType: "note", sourceId: note.id, sourceLabel, navigatePath });
-    queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-    setNewContent("");
-    setComposing(false);
-    setSaving(false);
+    try {
+      const note = await save(newContent);
+      if (note === null) return; // malformed command or user backed out of the whisper warning
+      refresh();
+      setNewContent("");
+      setComposing(false);
+    } finally { setSaving(false); }
   };
 
   const saveEdit = async () => {
     if (!editContent.trim()) return;
-    const prepared = await prepare(editContent);
-    if (prepared === null) return;
     setSaving(true);
-    await base44.entities.AlterNote.update(editingId, { content: prepared.content, author_alter_ids: prepared.authorIds });
-    await recordAuthoredText({ ...prepared, alters, sourceType: "note", sourceId: editingId, sourceLabel, navigatePath });
-    queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-    setEditingId(null);
-    setSaving(false);
+    try {
+      const note = await save(editContent, editingId);
+      if (note === null) return;
+      refresh();
+      setEditingId(null);
+    } finally { setSaving(false); }
   };
 
   const deleteNote = async (id) => {
-    await base44.entities.AlterNote.delete(id);
+    if (!(await confirm("Delete this note? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterNote(id);
     queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
   };
 
@@ -107,10 +107,10 @@ export default function NotesTab({ alterId }) {
                   {note.created_date ? format(new Date(note.created_date), "MMM d, yyyy") : ""}
                 </span>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditingId(note.id); setEditContent(note.content); }} className="text-muted-foreground hover:text-foreground p-1">
+                  <button onClick={() => { setEditingId(note.id); setEditContent(note.content); }} aria-label="Edit note" className="text-muted-foreground hover:text-foreground p-1">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => deleteNote(note.id)} className="text-muted-foreground hover:text-destructive p-1">
+                  <button onClick={() => deleteNote(note.id)} aria-label="Delete note" className="text-muted-foreground hover:text-destructive p-1">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
