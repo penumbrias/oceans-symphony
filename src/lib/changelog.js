@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "New {{Alter}} info widget: show any entries from an {{alter}}'s info on their profile, and edit them right in its options. New entries you add there are saved to their info." },
+      { type: "feature", text: "New Media widget: a picture, GIF or YouTube/Vimeo video, which you can rotate, flip, fill or fit, or show several as a slideshow or grid. Videos only load when you tap play." },
       { type: "feature", text: "{{Alter}} info: the pencil on a profile opens one simple list of everything about the {{alter}}: basics, bio, your own entries, pictures, groups, preferences and tags. It saves as you type, with undo, so there's no Save button to miss." },
       { type: "improve", text: "The bio's \"Paste from another app\" takes PluralKit, Simply Plural, Octocon, Plural Star, PluralSpace or HTML and adds it to the end, never over what's there." },
       { type: "fix", text: "Closing a widget's options always keeps your changes now, with an Undo (and Redo) on the toast, so one mis-tap can no longer throw away a customisation." },

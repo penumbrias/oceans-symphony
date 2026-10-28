@@ -17,12 +17,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Undo2, Redo2, Check, Loader2, AlertCircle, User, Upload, Link2, X, Plus, ChevronUp, ChevronDown,
-  Trash2, FileDown, LayoutTemplate, Code2, Folder, FolderPlus, ImagePlus, Images, PenSquare,
+  Trash2, Folder, FolderPlus, ImagePlus, Images,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { Row, StackedRow, Group, SwitchRow, Segmented, Chips, ColourRow } from "@/components/shared/SettingRows";
-import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
+import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import RotationModeControl from "@/components/shared/RotationModeControl";
@@ -30,64 +30,17 @@ import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
-import SimplePreview from "@/components/shared/SimplePreview";
-import { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
-import BioEditor, { ImportSPModal } from "@/components/alters/BioEditor";
-import BioTemplatePicker from "@/components/alters/BioTemplatePicker";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { DateFieldInput } from "@/components/alters/profile/fieldControls";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
-import { appendImportedText } from "@/lib/bioImport";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
 import { groupNameColor } from "@/lib/contrast";
 import { useAlterInfoForm } from "./useAlterInfoForm";
+import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, smallBtn } from "./entryEditors";
 
 const FIELD_ORDER_KEY = "_field_order";
-const inputBase = "h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring";
-const inputCls = `${inputBase} w-full`;
-const areaCls = "w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring";
-const smallBtn = "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border/60 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-40";
-
-// The kinds an entry can be — the custom-field types, named for people.
-const ENTRY_KINDS = [
-  { value: "text", label: "Short text" },
-  { value: "richtext", label: "Long text" },
-  { value: "list", label: "List" },
-  { value: "date", label: "Date" },
-  { value: "number", label: "Number" },
-  { value: "boolean", label: "Yes / No" },
-];
-const KIND_LABEL = Object.fromEntries(ENTRY_KINDS.map((k) => [k.value, k.label]));
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
-
-// One entry's value, edited in place. `k` re-seeds the draft after undo.
-function EntryInput({ k, type, value, onCommit, label }) {
-  const v = value ?? "";
-  if (type === "richtext") {
-    return <RichTextField key={k} value={String(v)} onCommit={onCommit} placeholder="Write…" />;
-  }
-  if (type === "boolean") {
-    const on = v === true || v === "true" ? "true" : v === false || v === "false" ? "false" : "";
-    return (
-      <Segmented label={label} equal={false} value={on} onChange={onCommit}
-        options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
-    );
-  }
-  if (type === "date") return <DateFieldInput key={k} value={String(v)} onChange={onCommit} />;
-  if (type === "number") {
-    return <DebouncedText key={k} value={String(v)} onCommit={onCommit} type="number" inputMode="decimal" ariaLabel={label} className={`${inputBase} w-28`} />;
-  }
-  return (
-    <div className="space-y-1">
-      <DebouncedText key={k} value={String(v)} onCommit={onCommit} multiline rows={type === "list" ? 2 : 2}
-        maxLength={5000} ariaLabel={label} placeholder={type === "list" ? "item, item, item" : "Not filled yet"} className={areaCls} />
-      {type === "list" && <p className="text-[0.6875rem] text-muted-foreground">Separate items with commas.</p>}
-    </div>
-  );
-}
 
 function MoveButtons({ index, count, onMove, label }) {
   return (
@@ -129,67 +82,6 @@ function StatusChip({ status }) {
   if (status === "needs-name") return <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertCircle className="w-3 h-3" /> Needs a name to save</span>;
   if (status === "error") return <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="w-3 h-3" /> Not saved</span>;
   return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Check className="w-3 h-3" /> Saved</span>;
-}
-
-// ── The bio: one long-text entry ─────────────────────────────────────
-// A bio written with the block editor (pictures beside text, galleries,
-// templates with fill-in fields) keeps working exactly as before: its
-// fill-in fields edit here, and "Edit blocks" opens the full bio editor.
-function BioEntry({ k, value, onChange }) {
-  // Bumped when the bio is replaced from outside the text box (a template,
-  // a paste, the blocks editor) so the box shows the new bio.
-  const [seed, setSeed] = useState(0);
-  const replace = (html) => { onChange(html); setSeed((n) => n + 1); };
-  const [code, setCode] = useState(false);
-  const [blocksOpen, setBlocksOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const isBlocks = (value || "").includes("data-blocks=");
-  const blocks = useMemo(() => (isBlocks ? htmlToBlocks(value) : []), [isBlocks, value]);
-  const onBlockChange = (id, patch) => {
-    const next = patch.__remove ? blocks.filter((b) => b.id !== id) : blocks.map((b) => (b.id === id ? { ...b, ...patch } : b));
-    onChange(blocksToHTML(next));
-  };
-  return (
-    <div className="space-y-2" data-info-bio="">
-      {isBlocks ? (
-        <div className="rounded-xl border border-border/50 p-3">
-          <SimplePreview blocks={blocks} onBlockChange={onBlockChange} scopeId={`alter-info-bio-${k}`} />
-        </div>
-      ) : code ? (
-        <DebouncedText key={`code:${k}:${seed}`} value={value || ""} onCommit={onChange} multiline rows={8} maxLength={500000}
-          ariaLabel="Bio code" placeholder="<p>HTML…</p>" className={`${areaCls} font-mono text-xs`} />
-      ) : (
-        <RichTextField key={`rich:${k}:${seed}`} value={value || ""} onCommit={onChange} placeholder="Write a bio…" />
-      )}
-      <div className="flex flex-wrap gap-1.5">
-        {isBlocks ? (
-          <button type="button" className={smallBtn} onClick={() => setBlocksOpen(true)}><PenSquare className="w-3.5 h-3.5" /> Edit blocks</button>
-        ) : (
-          <button type="button" className={smallBtn} onClick={() => setCode((c) => !c)} aria-pressed={code}>
-            <Code2 className="w-3.5 h-3.5" /> {code ? "Back to text" : "View code"}
-          </button>
-        )}
-        <button type="button" className={smallBtn} onClick={() => setTemplatesOpen(true)}><LayoutTemplate className="w-3.5 h-3.5" /> Templates</button>
-        <button type="button" className={smallBtn} onClick={() => setImportOpen(true)}><FileDown className="w-3.5 h-3.5" /> Paste from another app</button>
-      </div>
-      {templatesOpen && (
-        <BioTemplatePicker current={value || ""}
-          onApply={(html, { close } = {}) => { replace(html); if (close) setTemplatesOpen(false); }}
-          onClose={() => setTemplatesOpen(false)} />
-      )}
-      {importOpen && (
-        <ImportSPModal onClose={() => setImportOpen(false)}
-          onImport={(text) => { replace(appendImportedText(value || "", text)); toast.success("Added to the end of the bio"); }} />
-      )}
-      <Dialog open={blocksOpen} onOpenChange={(open) => { setBlocksOpen(open); if (!open) setSeed((n) => n + 1); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Edit blocks</DialogTitle>
-          <BioEditor value={value || ""} onChange={onChange} />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
 }
 
 // ── Pictures: the images this alter owns ─────────────────────────────

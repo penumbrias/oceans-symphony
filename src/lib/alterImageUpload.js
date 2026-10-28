@@ -40,13 +40,25 @@ const notifyAssets = () => {
   try { window.dispatchEvent(new Event("symphony-assets-changed")); } catch { /* SSR */ }
 };
 
-// Make `url` one of this alter's Pictures. A picture already in the library
+// Make `url` one of this alter's Pictures (or, with no alter, a library
+// picture). A picture already in the library
 // that nobody owns is adopted; one owned by another alter is left with them
 // (returns { taken: true }) — pictures are never moved between alters
 // silently.
 export async function addAlterPicture({ alterId, url, name = "" }) {
-  if (!alterId || !url) return { added: false };
+  if (!url) return { added: false };
   const existing = (await base44.entities.ImageAsset.filter({ image_url: url })) || [];
+  if (!alterId) {
+    // No alter (a widget on the home screen): the picture goes into the
+    // library on its own, so it can be found and reused.
+    if (existing.length) return { added: false, asset: existing[0] };
+    const asset = await base44.entities.ImageAsset.create({
+      name: name || `Picture ${new Date().toLocaleDateString()}`, image_url: url, folder: "",
+      created_date: new Date().toISOString(),
+    });
+    notifyAssets();
+    return { added: true, asset };
+  }
   const mine = existing.find((a) => String(a.owner_alter_id) === String(alterId));
   if (mine) return { added: false, asset: mine };
   const unowned = existing.find((a) => !a.owner_alter_id);

@@ -34,8 +34,10 @@ import { Square,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music
 , Map, MapPin,
-  HeartHandshake, Target,
+  HeartHandshake, Target, Image as ImageIcon,
 } from "lucide-react";
+import { InfoWidget, MediaWidget } from "@/v2/infoWidgets";
+import { InfoEntriesField, MediaItemsField } from "@/components/v2/infoWidgetFields";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -3221,6 +3223,45 @@ export const V2_WIDGETS = {
     render: () => <SpacerWidget />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  // ── The garden (v0.295.0): an alter's info is entered once, in Alter
+  // info; these show it. Editing them edits the info itself. ──
+  info: {
+    label: "{{Alter}} info", description: "Entries from an {{alter}}'s info \u2014 the bio, pronouns, role, any field. Edit them right in its options; new ones are saved to their info.",
+    icon: IdCard, category: "alters",
+    subjects: ["home", "alter"],
+    render: ({ settings }) => <InfoWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "entries", type: "component", label: "Shows", Component: InfoEntriesField },
+      { key: "layout", type: "select", label: "Layout", default: "labelled",
+        options: [{ value: "labelled", label: "Labels above" }, { value: "inline", label: "Label: value" }, { value: "plain", label: "Just the values" }] },
+      { key: "showEmpty", type: "toggle", label: "Show entries that aren't filled in", default: false },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
+  },
+  media: {
+    label: "Media", description: "A picture, GIF or video link \u2014 rotate it, flip it, fill or fit the box, or show several as a slideshow or grid.",
+    icon: ImageIcon, category: "layout",
+    // A page piece: fits every board, profiles included.
+    subjects: ["home", "alter", "group", "contact", "location"],
+    render: ({ settings }) => <MediaWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "items", type: "component", label: "Pictures and videos", Component: MediaItemsField },
+      { key: "fit", type: "select", label: "Fit", default: "cover",
+        options: [{ value: "cover", label: "Fill" }, { value: "contain", label: "Whole" }] },
+      { key: "focus", type: "select", label: "Keep in view", default: "center",
+        options: [{ value: "center", label: "Middle" }, { value: "top", label: "Top" }, { value: "bottom", label: "Bottom" }, { value: "left", label: "Left" }, { value: "right", label: "Right" }] },
+      { key: "rotate", type: "number", label: "Rotate", min: -180, max: 180, default: 0, unit: "\u00b0" },
+      { key: "flipX", type: "toggle", label: "Mirror", default: false },
+      { key: "flipY", type: "toggle", label: "Upside down", default: false },
+      { key: "arrange", type: "select", label: "With several", default: "slideshow",
+        options: [{ value: "slideshow", label: "Slideshow" }, { value: "grid", label: "Grid" }] },
+      { key: "interval", type: "number", label: "Seconds per slide", min: 2, max: 60, default: 6, unit: "s" },
+      { key: "showCaption", type: "toggle", label: "Show captions", default: true },
+    ],
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   },
   fronting_panel: {
     label: "{{Fronting}} panel", description: "The classic currently-{{fronting}} panel — per-{{alter}} feelings, symptoms and notes.",
