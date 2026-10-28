@@ -6,7 +6,9 @@ import { Mail, Pin, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { sendInboxMessage, editInboxMessage, setInboxMessagePinned, setInboxMessageRead, deleteAlterMessage, refreshInbox, inboxKey } from "@/lib/alterMessages";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { formatDistanceToNow } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 
@@ -104,7 +106,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
                 setEditing(true);
               }}
               className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Edit"
+              title="Edit" aria-label="Edit this message"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -119,7 +121,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
                 ? "text-primary hover:bg-primary/10"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
-            title={message.pinned ? "Unpin" : "Pin"}
+            title={message.pinned ? "Unpin" : "Pin"} aria-label={message.pinned ? "Unpin this message" : "Pin this message"}
           >
             <Pin className="w-3.5 h-3.5" />
           </button>
@@ -129,7 +131,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
               onDelete(message.id);
             }}
             className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Delete"
+            title="Delete" aria-label="Delete this message"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -151,7 +153,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
   const [activeHighlightId, setActiveHighlightId] = useState(highlightMessageId || null);
 
   const { data: messages = [] } = useQuery({
-    queryKey: ["privateMessages", alterId],
+    queryKey: inboxKey(alterId),
     queryFn: () => base44.entities.AlterMessage.filter({ to_alter_id: alterId }, "-created_date"),
   });
 
@@ -163,9 +165,9 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
   const altersById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
   const unreadCount = messages.filter((m) => !m.is_read).length;
 
-  // Default from_alter to currently fronting (primary)
-  const primarySession = activeSessions.find((s) => s.alter_id && s.is_primary);
-  const currentFronter = primarySession ? altersById[primarySession.alter_id] : null;
+  // Default "From" to someone in front, preferring anyone but the recipient.
+  const frontSession = activeSessions.find((s) => s.alter_id && s.alter_id !== alterId) || activeSessions.find((s) => s.alter_id);
+  const currentFronter = frontSession ? altersById[frontSession.alter_id] : null;
 
   React.useEffect(() => {
     if (!fromAlterId && currentFronter) {
@@ -194,92 +196,53 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
     return () => clearTimeout(timer);
   }, [highlightMessageId, messages]);
 
-  // Messages render as plain text, so ~commands become "icon label" tokens
-  // rather than HTML chips. The From picker is the default signer; a "-name"
-  // signpost overrides it, "+name" co-signs.
-  const prepare = async (text, baseAuthorIds) => {
-    try {
-      return await prepareAuthoredText(text.trim(), { alters: alters || [], terms, surfaceLabel: "private message", baseAuthorIds, chips: false });
-    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
-  };
-
   const handleSendMessage = async () => {
     if (!content.trim() || !fromAlterId) return;
-    const prepared = await prepare(content, [fromAlterId]);
-    if (prepared === null) return; // malformed command or user backed out of the whisper warning
-    const authorId = prepared.authorIds[0] || fromAlterId;
     setSaving(true);
     try {
-      const msg = await base44.entities.AlterMessage.create({
-        from_alter_id: authorId,
-        to_alter_id: alterId,
-        content: prepared.content,
-        author_alter_ids: prepared.authorIds,
-        is_read: false,
-        pinned: pinToggle,
-      });
-      const navigatePath = `/alter/${alterId}?tab=private-messages&messageId=${msg.id}`;
-
-      // Create MentionLog for notification
-      const fromAlter = altersById[authorId];
-      await base44.entities.MentionLog.create({
-        mentioned_alter_id: alterId,
-        author_alter_id: authorId,
-        log_type: "mention",
-        source_type: "message",
-        source_id: msg.id,
-        source_label: `Message from ${fromAlter?.name || "Unknown"}`,
-        source_date: new Date().toISOString(),
-        preview_text: prepared.isWhisper ? "🔒 private whisper" : prepared.content.slice(0, 120),
-        navigate_path: navigatePath,
-      });
-      await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: msg.id, sourceLabel: "Private message", navigatePath });
-
-      queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
-      queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+      const msg = await sendInboxMessage({ toAlterId: alterId, fromAlterId, text: content, pinned: pinToggle, alters: alters || [], terms });
+      if (msg === null) return; // backed out of the whisper warning
+      refreshInbox(queryClient, alterId);
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       setContent("");
       setComposing(false);
       setPinToggle(false);
+    } catch (e) {
+      if (isLogCommandError(e)) toast.error(e.message); else toast.error("Couldn't send the message");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (messageId) => {
-    await base44.entities.AlterMessage.delete(messageId);
-    queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+    if (!(await confirm("Delete this message? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterMessage(messageId);
+    refreshInbox(queryClient, alterId);
   };
 
-  const handleEdit = async (messageId, content) => {
+  const handleEdit = async (messageId, text) => {
     const existing = messages.find((m) => m.id === messageId);
-    const prepared = await prepare(content, [existing?.from_alter_id]);
-    if (prepared === null) return false;
-    const authorId = prepared.authorIds[0] || existing?.from_alter_id;
-    await base44.entities.AlterMessage.update(messageId, {
-      content: prepared.content,
-      author_alter_ids: prepared.authorIds,
-      ...(authorId ? { from_alter_id: authorId } : {}),
-      edited_date: new Date().toISOString(),
-    });
-    await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: messageId, sourceLabel: "Private message", navigatePath: `/alter/${alterId}?tab=private-messages&messageId=${messageId}` });
-    queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+    if (!existing) return false;
+    try {
+      const out = await editInboxMessage({ message: existing, text, alters: alters || [], terms });
+      if (out === null) return false;
+    } catch (e) {
+      if (isLogCommandError(e)) { toast.error(e.message); return false; }
+      throw e;
+    }
+    refreshInbox(queryClient, alterId);
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     return true;
   };
 
   const handleTogglePinned = async (messageId, pinned) => {
-    await base44.entities.AlterMessage.update(messageId, { pinned });
-    queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+    await setInboxMessagePinned(messageId, pinned);
+    refreshInbox(queryClient, alterId);
   };
 
   const handleMarkRead = async (messageId) => {
-    await base44.entities.AlterMessage.update(messageId, { is_read: true });
-    queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
-    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+    await setInboxMessageRead(messageId, true);
+    refreshInbox(queryClient, alterId);
   };
 
   return (

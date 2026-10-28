@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, Activity, Smile, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { postBoardMessage, deleteAlterMessage, refreshBoard } from "@/lib/alterMessages";
+import { useAlterBoardFeed } from "@/hooks/useAlterBoardFeed";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
-import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { mentionPreview, mentionPreviewText } from "@/lib/whisperRedact";
 
@@ -88,7 +89,7 @@ function LogItem({ item, onDelete, alters = [], terms = null }) {
           )}
         </div>
         {onDelete && (
-          <button onClick={e => { e.stopPropagation(); onDelete(item.id); }} className="text-muted-foreground hover:text-destructive p-0.5 flex-shrink-0">
+          <button onClick={e => { e.stopPropagation(); onDelete(item.id); }} className="text-muted-foreground hover:text-destructive p-0.5 flex-shrink-0" aria-label="Delete this message">
             <Trash2 className="w-3 h-3" />
           </button>
         )}
@@ -106,79 +107,9 @@ export default function MessagesTab({ alterId, alters }) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: messages = [] } = useQuery({
-    queryKey: ["alterMessages", alterId],
-    queryFn: () => base44.entities.AlterMessage.filter({ alter_id: alterId }, "-created_date"),
-  });
-
-  const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs", alterId],
-    queryFn: () => base44.entities.MentionLog.filter({ mentioned_alter_id: alterId }, "-created_date"),
-  });
-
-  // FrontingSession is the source of truth for per-alter notes / emotions /
-  // symptoms (the dashboard fronting-chip dropdown writes here). We pull the
-  // sessions where this alter is the primary fronter, then flatten the JSON
-  // arrays via extractPerAlterEntries.
-  const { data: alterSessions = [] } = useQuery({
-    queryKey: ["frontingSessions", "byAlter", alterId],
-    queryFn: () => base44.entities.FrontingSession.filter({ alter_id: alterId }, "-start_time"),
-  });
-  const sessionEntries = React.useMemo(
-    () => extractPerAlterEntries(alterSessions, { alterId }),
-    [alterSessions, alterId]
-  );
-
-  const altersById = Object.fromEntries((alters || []).map(a => [a.id, a]));
-
-  // Merge messages + logs into unified feed
-  const messageFeedItems = messages.map(m => ({
-    id: `msg-${m.id}`,
-    _raw_id: m.id,
-    source_type: "message",
-    log_type: "message",
-    preview_text: m.content,
-    source_date: m.created_date,
-    source_label: altersById[m.author_alter_id]?.name || "System",
-    navigate_path: null,
-    _is_message: true,
-  }));
-
-  // Session entries surfaced as feed items. Read-only — sourced from the
-  // session record, no separate AlterMessage / MentionLog is created.
-  const sessionFeedItems = sessionEntries.map(e => {
-    const labels = Array.isArray(e.payload?.labels) ? e.payload.labels : (e.payload?.label ? [e.payload.label] : []);
-    const items = Array.isArray(e.payload?.items) && e.payload.items.length > 0
-      ? e.payload.items
-      : (e.payload?.label ? [e.payload] : []);
-    const previews = {
-      note: e.payload?.text,
-      emotion: labels.length > 0 ? `Felt ${labels.join(", ")}` : "",
-      symptom: items
-        .map((sym) => `${sym.label}${sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}`)
-        .join(", "),
-    };
-    return {
-      id: `session-${e.id}`,
-      source_type: `session_${e.kind}`,
-      log_type: "session",
-      preview_text: previews[e.kind] || "",
-      source_date: e.ts,
-      source_label: "Per-alter session",
-      navigate_path: null,
-      _is_session: true,
-    };
-  });
-
-  const allItems = [
-    ...mentionLogs.map(l => ({ ...l, _is_message: false })),
-    ...messageFeedItems,
-    ...sessionFeedItems,
-  ].sort((a, b) => {
-    const da = a.source_date || a.created_date || "";
-    const db = b.source_date || b.created_date || "";
-    return db.localeCompare(da);
-  });
+  const { items: allItems } = useAlterBoardFeed(alterId, { alters, sessionLabel: `${terms.Alter} session`, systemLabel: terms.System });
+  const messages = allItems.filter((i) => i._is_message);
+  const sessionFeedItems = allItems.filter((i) => i._is_session);
 
   const filtered = allItems.filter(item => {
     if (searchQuery) {
@@ -200,45 +131,26 @@ export default function MessagesTab({ alterId, alters }) {
     return allItems.filter(i => i.source_type === key).length;
   };
 
-const postMessage = async () => {
-  if (!newContent.trim()) return;
-  let prepared;
-  try {
-    prepared = await prepareAuthoredText(newContent.trim(), { alters: alters || [], terms, surfaceLabel: "board message" });
-  } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-  if (prepared === null) return; // user backed out of the whisper warning
-  setSaving(true);
-  const authorId = prepared.authorIds[0] || null;
-  const navigatePath = `/alter/${alterId}?tab=messages`;
-  const msg = await base44.entities.AlterMessage.create({
-    alter_id: alterId,
-    content: prepared.content,
-    author_alter_ids: prepared.authorIds,
-    ...(authorId ? { author_alter_id: authorId } : {}),
-  });
-  // Notify the alter whose board this is
-  await base44.entities.MentionLog.create({
-    mentioned_alter_id: alterId,
-    author_alter_id: authorId,
-    log_type: "mention",
-    source_type: "message",
-    source_id: msg.id,
-    source_label: "Board message",
-    source_date: new Date().toISOString(),
-    preview_text: prepared.isWhisper ? "🔒 private whisper" : prepared.content.slice(0, 120),
-    navigate_path: navigatePath,
-  });
-  await recordAuthoredText({ ...prepared, alters: alters || [], sourceType: "message", sourceId: msg.id, sourceLabel: "Board message", navigatePath });
-  queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
-  queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-  setNewContent("");
-  setComposing(false);
-  setSaving(false);
-};
+  const postMessage = async () => {
+    if (!newContent.trim()) return;
+    setSaving(true);
+    try {
+      const msg = await postBoardMessage({ alterId, text: newContent, alters: alters || [], terms });
+      if (msg === null) return; // backed out of the whisper warning
+      refreshBoard(queryClient, alterId);
+      setNewContent("");
+      setComposing(false);
+    } catch (e) {
+      if (isLogCommandError(e)) toast.error(e.message); else toast.error("Couldn't post the message");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const deleteMessage = async (rawId) => {
-    await base44.entities.AlterMessage.delete(rawId);
-    queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
+    if (!(await confirm("Delete this message? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterMessage(rawId);
+    refreshBoard(queryClient, alterId);
   };
 
   return (

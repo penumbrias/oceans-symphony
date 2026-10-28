@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "New profile widgets: Inbox (unread count, messages, leave a message) and Board feed (the {{alter}}'s board, with kinds to show and search)." },
+      { type: "improve", text: "Deleting a message or board message now asks first and goes to the trash, and a board message no longer shows up twice on the Board." },
       { type: "feature", text: "New profile widgets: {{Fronting}} stats (with a 30-day chart), {{Fronting}} sessions and Notes, each with Minimal, Normal and Expanded looks." },
       { type: "feature", text: "New profile widgets: Identity, Belongs to, Tags, Preferences and Get to know me, each with Minimal, Normal and Expanded looks. Tap Identity's name, pronouns or role to edit them." },
       { type: "feature", text: "The {{Alter}} info widget is now the Field widget: tap its text to edit it in place, pick Minimal, Normal or Expanded, and make a new field (for one {{alter}} or everyone) right from its options." },

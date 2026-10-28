@@ -1,6 +1,6 @@
 // The garden's profile widgets: Identity, Belongs to, Tags, Preferences and
 // Get to know me (v0.301.0); Fronting stats, Fronting sessions and Notes
-// (v0.302.0).
+// (v0.302.0); Inbox and Board feed (v0.303.0).
 //
 // Purpose-built for a board, not copies of the classic Profile tab's
 // sections (those stay as profile_header, profile_groups… so a classic
@@ -13,11 +13,17 @@
 //   • renders nothing on the page when there's nothing to show, and names
 //     itself while the layout is being edited.
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { User, Archive, Users, Tag, HeartHandshake, Sparkles, IdCard, BarChart3, History, FileText, Pencil, Trash2 } from "lucide-react";
+import { User, Archive, Users, Tag, HeartHandshake, Sparkles, IdCard, BarChart3, History, FileText, Pencil, Trash2, Mail, Pin, Check, Newspaper } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
+import { mentionPreview, mentionPreviewText } from "@/lib/whisperRedact";
+import { inboxKey, refreshInbox, refreshBoard, sendInboxMessage, editInboxMessage, setInboxMessagePinned, setInboxMessageRead, postBoardMessage, deleteAlterMessage } from "@/lib/alterMessages";
+import { useAlterBoardFeed, BOARD_KINDS, boardKindMatches, boardItemMatchesSearch } from "@/hooks/useAlterBoardFeed";
 import { base44 } from "@/api/base44Client";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterFrontSessions } from "@/hooks/useAlterFrontSessions";
@@ -512,6 +518,288 @@ export function NotesWidget({ settings, mode = "normal" }) {
   );
 }
 
+// ── Inbox ────────────────────────────────────────────────────────────
+
+const iconBtnCls = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100 flex-shrink-0";
+const textBtnCls = "h-11 px-3 rounded-lg text-[0.8125em] font-medium";
+const accentBtn = { background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" };
+const fieldStyle = { borderColor: "color-mix(in srgb, currentColor 20%, transparent)", background: "transparent" };
+const sinceLabel = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
+
+function InboxComposer({ alterId, alters, onDone }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [fromId, setFromId] = useState(null);
+  const [text, setText] = useState("");
+  const [pinned, setPinned] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Who's in front right now (a fresh read, not a cached list) signs it by
+  // default, preferring anyone but the recipient.
+  useEffect(() => {
+    let live = true;
+    base44.entities.FrontingSession.filter({ is_active: true }).then((rows) => {
+      if (!live) return;
+      const pick = (rows || []).find((r) => r.alter_id && r.alter_id !== alterId) || (rows || []).find((r) => r.alter_id);
+      if (pick) setFromId((cur) => cur || pick.alter_id);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [alterId]);
+  const send = async () => {
+    if (!text.trim() || !fromId) return;
+    setSaving(true);
+    try {
+      const msg = await sendInboxMessage({ toAlterId: alterId, fromAlterId: fromId, text, pinned, alters, terms: t });
+      if (msg === null) return;
+      refreshInbox(qc, alterId);
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
+      setText(""); setPinned(false);
+      onDone?.();
+    } catch (e) {
+      toast.error(isLogCommandError(e) ? e.message : "Couldn't send the message");
+    } finally { setSaving(false); }
+  };
+  return (
+    <div data-own-hold="" className="space-y-[0.5em]">
+      <div>
+        <p className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-1">From</p>
+        <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={fromId} onChange={setFromId}
+          terms={t} showNone={false} placeholder="Choose who this is from…" zIndex={80} />
+      </div>
+      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+        placeholder={`Leave a message… @ to mention, /w @name [secret] to whisper`} className="min-h-[80px] text-sm" />
+      <label className="flex items-center gap-2 min-h-[44px] text-[0.8125em] cursor-pointer">
+        <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="w-5 h-5" style={{ accentColor: "var(--v2-accent)" }} />
+        Keep it on the home screen until it's dismissed
+      </label>
+      <div className="flex justify-end gap-2">
+        {onDone && <button type="button" onClick={onDone} className={textBtnCls}>Cancel</button>}
+        <button type="button" onClick={send} disabled={saving || !text.trim() || !fromId} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Send</button>
+      </div>
+    </div>
+  );
+}
+
+function InboxEditor({ message, alters, onDone }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [text, setText] = useState(message.content || "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      const out = await editInboxMessage({ message, text, alters, terms: t });
+      if (out === null) return;
+      refreshInbox(qc, message.to_alter_id);
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
+      onDone();
+    } catch (e) {
+      toast.error(isLogCommandError(e) ? e.message : "Couldn't save the message");
+    } finally { setSaving(false); }
+  };
+  return (
+    <div data-own-hold="" className="space-y-[0.4em]">
+      <MentionTextarea value={text} onChange={setText} alters={alters} signposts className="min-h-[60px] text-sm" autoFocus />
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onDone} className={textBtnCls}>Cancel</button>
+        <button type="button" onClick={save} disabled={saving || !text.trim()} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Save</button>
+      </div>
+    </div>
+  );
+}
+
+export function InboxWidget({ settings, mode = "normal" }) {
+  const qc = useQueryClient();
+  const formatAlter = useAlterLabel();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { data: messages = [] } = useQuery({
+    queryKey: inboxKey(alterId),
+    queryFn: () => base44.entities.AlterMessage.filter({ to_alter_id: alterId }, "-created_date"),
+    enabled: !!alterId,
+  });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const [editing, setEditing] = useState(null);
+  const [composing, setComposing] = useState(false);
+  const [shown, setShown] = useState(null);
+  if (!alter) return null;
+  const byId = Object.fromEntries(alters.map((a) => [a.id, a]));
+  const unread = messages.filter((m) => !m.is_read).length;
+  const pool = settings?.pinnedOnly ? messages.filter((m) => m.pinned) : messages;
+  const step = Math.max(1, Number(settings?.count) || 5);
+  const limit = shown ?? step;
+  const list = pool.slice(0, limit);
+  const unreadText = unread ? `${unread} unread ${unread === 1 ? "message" : "messages"}` : "No unread messages";
+  const act = (fn) => async () => { await fn(); refreshInbox(qc, alterId); };
+  const remove = async (m) => {
+    if (!(await confirm("Delete this message? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterMessage(m.id);
+    refreshInbox(qc, alterId);
+  };
+  if (mode === "minimal") {
+    return (
+      <GardenBox empty={false} name="Inbox" data-inbox-widget="">
+        <p className="flex items-center gap-[0.5em]"><Mail className="w-[1.2em] h-[1.2em] flex-shrink-0" style={{ color: "var(--v2-accent)" }} aria-hidden="true" />
+          <span className={unread ? "font-semibold" : "opacity-70"}>{unreadText}</span></p>
+      </GardenBox>
+    );
+  }
+  const row = (m) => {
+    const from = byId[m.from_alter_id];
+    const fromName = from ? formatAlter(from) : "Unknown";
+    if (editing === m.id) return <li key={m.id} className="py-[0.4em]"><InboxEditor message={m} alters={alters} onDone={() => setEditing(null)} /></li>;
+    return (
+      <li key={m.id} data-highlight-id={m.id} className="pt-[0.4em] border-b border-current/10 last:border-b-0">
+        <div className="min-w-0">
+          <p className="text-[0.8125em] flex items-center gap-[0.4em] flex-wrap">
+            {!m.is_read && <span className="w-[0.55em] h-[0.55em] rounded-full flex-shrink-0" style={{ background: from?.color || "var(--v2-accent)" }} aria-hidden="true" />}
+            <span className="font-semibold">From {fromName}</span>
+            {!m.is_read && <span className="sr-only">(unread)</span>}
+            {m.pinned && <span className="opacity-70">· pinned</span>}
+          </p>
+          <p className={`whitespace-pre-wrap break-words ${m.is_read ? "opacity-80" : ""}`}>{m.content}</p>
+          <p className="text-[0.75em] opacity-60 mt-[0.2em]">{sinceLabel(m.created_date)}{m.edited_date ? " · edited" : ""}</p>
+        </div>
+        <div className="flex justify-end -mr-[0.5em]">
+          {!m.is_read && (
+            <button type="button" onClick={act(() => setInboxMessageRead(m.id, true))} className={iconBtnCls} aria-label={`Mark the message from ${fromName} as read`}><Check className="w-4 h-4" /></button>
+          )}
+          <button type="button" onClick={act(() => setInboxMessagePinned(m.id, !m.pinned))} className={iconBtnCls} aria-pressed={!!m.pinned}
+            aria-label={m.pinned ? `Unpin the message from ${fromName}` : `Pin the message from ${fromName}`}
+            style={m.pinned ? { color: "var(--v2-accent)", opacity: 1 } : undefined}><Pin className="w-4 h-4" /></button>
+          <button type="button" onClick={() => setEditing(m.id)} className={iconBtnCls} aria-label={`Edit the message from ${fromName}`}><Pencil className="w-4 h-4" /></button>
+          <button type="button" onClick={() => remove(m)} className={iconBtnCls} aria-label={`Delete the message from ${fromName}`}><Trash2 className="w-4 h-4" /></button>
+        </div>
+      </li>
+    );
+  };
+  return (
+    <GardenBox empty={!pool.length && mode !== "expanded"} name="Inbox" data-inbox-widget="">
+      {unread > 0 && <p className="text-[0.8125em] font-semibold mb-[0.3em]" style={{ color: "var(--v2-accent)" }}>{unreadText}</p>}
+      <ul>{list.map(row)}</ul>
+      {pool.length > limit && (
+        <button type="button" onClick={() => setShown(limit + step)} className={`${textBtnCls} underline mt-[0.4em]`}>Show more</button>
+      )}
+      {mode === "expanded" && (
+        <div className="mt-[0.6em]">
+          {composing
+            ? <InboxComposer alterId={alterId} alters={alters} onDone={() => setComposing(false)} />
+            : <button type="button" onClick={() => setComposing(true)} className={`${textBtnCls} w-full border`} style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" }}>Leave a message</button>}
+        </div>
+      )}
+    </GardenBox>
+  );
+}
+
+// ── Board feed ───────────────────────────────────────────────────────
+
+const SOURCE_LABELS = {
+  bulletin: "Bulletin", comment: "Comment", reply: "Reply", journal: "Journal", checkin: "Check-in",
+  task: "Task", message: "Message", mention: "Mention", note: "Note",
+  session_note: "Session note", session_emotion: "Session feeling", session_symptom: "Session symptom",
+};
+const sourceLabel = (type) => SOURCE_LABELS[type] || String(type || "Item").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+function boardKindText(item) {
+  const what = sourceLabel(item.source_type);
+  if (item.log_type === "session") return what;
+  if (item._is_message) return "Board message";
+  return item.log_type === "authored" ? `Wrote a ${what.toLowerCase()}` : `Mentioned in a ${what.toLowerCase()}`;
+}
+
+function BoardComposer({ alterId, alters }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const post = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      const msg = await postBoardMessage({ alterId, text, alters, terms: t });
+      if (msg === null) return;
+      refreshBoard(qc, alterId);
+      setText("");
+    } catch (e) {
+      toast.error(isLogCommandError(e) ? e.message : "Couldn't post the message");
+    } finally { setSaving(false); }
+  };
+  return (
+    <div data-own-hold="" className="space-y-[0.4em]">
+      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+        placeholder="Post to this board… @ to mention, /w @name [secret] to whisper" className="min-h-[70px] text-sm" />
+      <div className="flex justify-end">
+        <button type="button" onClick={post} disabled={saving || !text.trim()} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Post</button>
+      </div>
+    </div>
+  );
+}
+
+export function BoardFeedWidget({ settings, mode = "normal" }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { items } = useAlterBoardFeed(alterId, { alters, sessionLabel: `${t.Alter} session`, systemLabel: t.System });
+  const [query, setQuery] = useState("");
+  const [shown, setShown] = useState(null);
+  if (!alter) return null;
+  const kinds = Array.isArray(settings?.kinds) ? settings.kinds : [];
+  const pool = items.filter((i) => (!kinds.length || kinds.some((k) => boardKindMatches(k, i))) && (mode !== "expanded" || boardItemMatchesSearch(i, query)));
+  const step = Math.max(1, Number(settings?.count) || 5);
+  const limit = mode === "minimal" ? 1 : (shown ?? step);
+  const list = pool.slice(0, limit);
+  const remove = async (item) => {
+    if (!(await confirm("Delete this message? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterMessage(item._raw_id);
+    refreshBoard(qc, alterId);
+  };
+  const dateOf = (i) => { const d = i.source_date || i.created_date; return d ? dayLabel(new Date(d).getTime()) : ""; };
+  const row = (item) => {
+    const kind = boardKindText(item);
+    return (
+      <li key={item.id} className="flex items-start gap-[0.4em] py-[0.45em] border-b border-current/10 last:border-b-0">
+        <div className="flex-1 min-w-0">
+          <p className="text-[0.75em] flex flex-wrap gap-x-[0.4em]">
+            <span className="font-semibold uppercase tracking-wide" style={{ color: "var(--v2-accent)" }}>{kind}</span>
+            {item.source_label && <span className="opacity-70">· {item.source_label}</span>}
+            <span className="opacity-60 ml-auto">{dateOf(item)}</span>
+          </p>
+          {mode === "minimal" ? (
+            <p className="line-clamp-2 break-words">{mentionPreviewText(item)}</p>
+          ) : (
+            <div className="break-words wysiwyg-content max-h-[12em] overflow-hidden [&_img]:max-h-[10em] [&_img]:rounded-lg">
+              {renderBulletinContent(mentionPreview(item), alters, t)}
+            </div>
+          )}
+        </div>
+        {mode !== "minimal" && item.navigate_path && (
+          <button type="button" onClick={() => navigate(item.navigate_path)} className={`${textBtnCls} border`}
+            style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" }} aria-label={`Open: ${kind}${item.source_label ? `, ${item.source_label}` : ""}`}>Open</button>
+        )}
+        {mode !== "minimal" && item._is_message && (
+          <button type="button" onClick={() => remove(item)} className={iconBtnCls} aria-label="Delete this board message"><Trash2 className="w-4 h-4" /></button>
+        )}
+      </li>
+    );
+  };
+  return (
+    <GardenBox empty={!items.length && mode !== "expanded"} name="Board feed" data-board-feed-widget="">
+      {mode === "expanded" && (
+        <div className="mb-[0.5em] space-y-[0.5em]">
+          <BoardComposer alterId={alterId} alters={alters} />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the board…"
+            aria-label="Search the board" data-own-hold="" className="w-full h-11 px-3 rounded-lg border text-[0.875em]" style={fieldStyle} />
+        </div>
+      )}
+      {list.length ? <ul>{list.map(row)}</ul> : (mode === "expanded" && <p className="opacity-60 text-[0.8125em]">{query ? "Nothing matches." : "Nothing here yet."}</p>)}
+      {mode !== "minimal" && pool.length > limit && (
+        <button type="button" onClick={() => setShown(limit + step)} className={`${textBtnCls} underline mt-[0.4em]`}>Show more</button>
+      )}
+    </GardenBox>
+  );
+}
+
 // ── Registry entries ─────────────────────────────────────────────────
 
 const MODES = ["minimal", "normal", "expanded"];
@@ -603,6 +891,27 @@ export const GARDEN_ALTER_WIDGETS = {
     configFields: [
       { key: "sort", type: "select", label: "Order", default: "newest",
         options: [{ value: "newest", label: "Newest first" }, { value: "oldest", label: "Oldest first" }] },
+      { key: "count", type: "number", label: "How many to show", min: 1, max: 50, default: 5 },
+    ],
+  },
+  alter_inbox: {
+    ...base, label: "Inbox", icon: Mail,
+    description: "Messages left for this {{alter}}: how many are unread, the list to read, pin, edit or delete; Expanded adds a box to leave one.",
+    render: ({ settings, mode }) => <InboxWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 4 },
+    configFields: [
+      { key: "pinnedOnly", type: "toggle", label: "Pinned messages only", default: false },
+      { key: "count", type: "number", label: "How many to show", min: 1, max: 50, default: 5 },
+    ],
+  },
+  alter_board_feed: {
+    ...base, label: "Board feed", icon: Newspaper,
+    description: "This {{alter}}'s board: what they wrote, where they're mentioned, messages left on it and their session notes. Minimal is the latest; Expanded adds search and a box to post.",
+    render: ({ settings, mode }) => <BoardFeedWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 5 },
+    configFields: [
+      { key: "kinds", type: "multi", label: "Kinds shown", default: [],
+        options: BOARD_KINDS.map((k) => ({ value: k.key, label: k.label })) },
       { key: "count", type: "number", label: "How many to show", min: 1, max: 50, default: 5 },
     ],
   },
