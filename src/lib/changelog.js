@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "Profile widgets now edit what they show: open a widget's options to change the bio, groups, tags, basics and more, saved straight to the {{alter}}'s info." },
       { type: "feature", text: "New {{Alter}} info widget: show any entries from an {{alter}}'s info on their profile, and edit them right in its options. New entries you add there are saved to their info." },
       { type: "feature", text: "New Media widget: a picture, GIF or YouTube/Vimeo video, which you can rotate, flip, fill or fit, or show several as a slideshow or grid. Videos only load when you tap play." },
       { type: "feature", text: "{{Alter}} info: the pencil on a profile opens one simple list of everything about the {{alter}}: basics, bio, your own entries, pictures, groups, preferences and tags. It saves as you type, with undo, so there's no Save button to miss." },

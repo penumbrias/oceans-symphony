@@ -326,7 +326,7 @@ export function ProfileBioSection({ alter, emptyHint = true }) {
     if (!emptyHint) return null;
     return (
       <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
-        No bio yet. Tap <strong>Edit</strong> to add one.
+        No bio yet. Add one with the pencil, or in this widget's options.
       </div>
     );
   }
@@ -339,7 +339,7 @@ export function ProfileBioSection({ alter, emptyHint = true }) {
   if (looksCorrupted) {
     return (
       <div className="bg-muted/20 rounded-xl p-4 border border-border/40 text-center">
-        <p className="text-sm text-muted-foreground italic">Bio display issue — open Edit to re-save the bio and it will display correctly.</p>
+        <p className="text-sm text-muted-foreground italic">Bio display issue — re-save the bio from the pencil and it will display correctly.</p>
       </div>
     );
   }
