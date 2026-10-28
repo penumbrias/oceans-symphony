@@ -8,6 +8,9 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
 import { useTerms } from "@/lib/useTerms";
+import { deleteLineageEvent, LINEAGE_KEY } from "@/lib/lineageEvents";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { TRASH_HINT } from "@/lib/trashSettings";
 
 const TYPE_META = {
   fusion:    { label: "Fusion",    icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20" },
@@ -67,6 +70,7 @@ function EventCard({ event, altersById, onDelete }) {
           <button
             type="button"
             onClick={() => onDelete(event.id)}
+            aria-label="Delete this event"
             className="text-muted-foreground hover:text-destructive transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -240,8 +244,9 @@ export default function LineageTab({ alterId }) {
   );
 
   async function handleDelete(eventId) {
-    await localEntities.SystemChangeEvent.delete(eventId);
-    queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
+    if (!(await confirm(`Delete this event? ${TRASH_HINT}`))) return;
+    await deleteLineageEvent(eventId);
+    queryClient.invalidateQueries({ queryKey: LINEAGE_KEY });
   }
 
   return (

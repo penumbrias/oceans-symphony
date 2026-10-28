@@ -147,15 +147,22 @@ function TypePickerDropdown({ types, value, onChange }) {
   );
 }
 
-export default function CreateRelationshipModal({ alterA: initialAlterA, allAlters = [], alterB: initialAlterB, onSave, onClose }) {
+// THE relationship editor (v0.304.0): creates one, or with `rel` edits it.
+// Every surface (System Map, the profile Relationships tab and widget)
+// opens this one; saving goes through saveRelationship
+// (src/lib/alterRelationships.js) in the caller's onSave. When editing, the
+// two alters are fixed — delete and re-create to change who it's between.
+export default function CreateRelationshipModal({ alterA: initialAlterA, allAlters = [], alterB: initialAlterB, rel = null, onSave, onClose }) {
+  const terms = useTerms();
   const relTypes = useRelationshipTypes();
-  const [selectedAlterA, setSelectedAlterA] = useState(initialAlterA || null);
-  const [selectedAlterB, setSelectedAlterB] = useState(initialAlterB || null);
-  const [direction, setDirection] = useState("bidirectional");
-  const [relType, setRelType] = useState("");
-  const [color, setColor] = useState("#3b82f6");
-  const [notes, setNotes] = useState("");
-  const [strength, setStrength] = useState(3);
+  const byId = (id) => allAlters.find((a) => a.id === id) || null;
+  const [selectedAlterA, setSelectedAlterA] = useState(rel ? byId(rel.alter_id_a) : (initialAlterA || null));
+  const [selectedAlterB, setSelectedAlterB] = useState(rel ? byId(rel.alter_id_b) : (initialAlterB || null));
+  const [direction, setDirection] = useState(rel?.direction || "bidirectional");
+  const [relType, setRelType] = useState(rel?.relationship_type || "");
+  const [color, setColor] = useState(rel?.color || "#3b82f6");
+  const [notes, setNotes] = useState(rel?.notes || "");
+  const [strength, setStrength] = useState(rel?.strength || 3);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Set default type once loaded
@@ -180,10 +187,9 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
   const handleSave = () => {
     if (!selectedAlterA || !selectedAlterB) return;
     onSave({
-      alter_id_a: selectedAlterA.id,
-      alter_id_b: selectedAlterB.id,
+      ...(rel ? {} : { alter_id_a: selectedAlterA.id, alter_id_b: selectedAlterB.id }),
       relationship_type: relType,
-      custom_label: "",
+      custom_label: relType === rel?.relationship_type ? (rel?.custom_label || "") : "",
       direction,
       color,
       notes,
@@ -196,27 +202,30 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
       <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Create Relationship</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+          <h3 className="font-semibold text-foreground">{rel ? "Edit relationship" : "Create relationship"}</h3>
+          <button onClick={onClose} className="w-11 h-11 -mr-3 flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Close"><X className="w-4 h-4" /></button>
         </div>
 
-        {/* Alter A */}
-        <AlterPickerDropdown
-          label="Alter A"
-          selected={selectedAlterA}
-          allAlters={allAlters}
-          excludeId={selectedAlterB?.id}
-          onSelect={setSelectedAlterA}
-        />
-
-        {/* Alter B */}
-        <AlterPickerDropdown
-          label="Alter B"
-          selected={selectedAlterB}
-          allAlters={allAlters}
-          excludeId={selectedAlterA?.id}
-          onSelect={setSelectedAlterB}
-        />
+        {rel ? (
+          <p className="text-sm text-foreground">
+            Between <span className="font-semibold">{selectedAlterA?.name || "Unknown"}</span> and <span className="font-semibold">{selectedAlterB?.name || "Unknown"}</span>
+          </p>
+        ) : (
+          <>
+            <AlterPickerDropdown
+              label={`${terms.Alter} A`}
+              selected={selectedAlterA}
+              excludeId={selectedAlterB?.id}
+              onSelect={setSelectedAlterA}
+            />
+            <AlterPickerDropdown
+              label={`${terms.Alter} B`}
+              selected={selectedAlterB}
+              excludeId={selectedAlterA?.id}
+              onSelect={setSelectedAlterB}
+            />
+          </>
+        )}
 
         {/* Direction — tap arrow to cycle */}
         <div>

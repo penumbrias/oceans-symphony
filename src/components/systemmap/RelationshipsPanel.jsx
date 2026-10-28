@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import CreateRelationshipModal from "./CreateRelationshipModal";
-import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
@@ -14,7 +13,8 @@ import RelationshipTypesManager from "@/components/settings/RelationshipTypesMan
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { saveRelationship, deleteRelationship, RELATIONSHIPS_KEY } from "@/lib/alterRelationships";
 import { TRASH_HINT } from "@/lib/trashSettings";
 
 export function AlterAvatar({ alter, size = 24 }) {
@@ -40,108 +40,6 @@ function DirArrow({ direction }) {
 
 function RelTypeLabel({ rel }) {
   return rel.relationship_type === "Custom" ? (rel.custom_label || "Custom") : rel.relationship_type;
-}
-
-// Cycle-safe, depth-indented <option>s for a relationship-type <select>.
-// The option VALUE is the type's label — AlterRelationship.relationship_type
-// stores the label (not the id), so nesting never changes what's saved.
-function GroupedTypeOptions({ types }) {
-  const tree = flattenTypeTree(types);
-  const NB = String.fromCharCode(160); // U+00A0; ASCII spaces collapse in <option>
-  return tree.map(t => {
-    const depth = t._depth || 0;
-    return (
-      <option key={t.id ?? t.label} value={t.label}>
-        {depth > 0 ? NB.repeat(depth * 2) + "↳ " : ""}{t.label}
-      </option>
-    );
-  });
-}
-
-function EditRelationshipModal({ rel, alterMap, alters = [], onSave, onClose }) {
-  const [direction, setDirection] = useState(rel.direction);
-  const [relType, setRelType] = useState(rel.relationship_type);
-  const [color, setColor] = useState(rel.color || "#6b7280");
-  const [notes, setNotes] = useState(rel.notes || "");
-  const [strength, setStrength] = useState(rel.strength || 3);
-
-  const { data: relTypes = [] } = useQuery({
-    queryKey: ["relationshipTypes"],
-    queryFn: async () => {
-      const all = await base44.entities.RelationshipType.list();
-      if (all.length === 0) return DEFAULT_RELATIONSHIP_TYPES.map((t, i) => ({ ...t, id: i, order: i }));
-      return all.filter(t => !t.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
-    },
-  });
-
-  const handleTypeChange = (label) => {
-    setRelType(label);
-    const found = relTypes.find(t => t.label === label);
-    if (found) setColor(found.color || "#6b7280");
-  };
-
-  const alterA = alterMap[rel.alter_id_a];
-  const alterB = alterMap[rel.alter_id_b];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto overscroll-contain"
-        onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Edit Relationship</h3>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Direction</p>
-          {[
-            { value: "a_to_b", label: `${alterA?.name} → ${alterB?.name}` },
-            { value: "b_to_a", label: `${alterB?.name} → ${alterA?.name}` },
-            { value: "bidirectional", label: `${alterA?.name} ↔ ${alterB?.name}` },
-          ].map(opt => (
-            <button key={opt.value} onClick={() => setDirection(opt.value)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm border mb-1 transition-colors ${direction === opt.value ? "bg-primary/10 border-primary/40 text-primary" : "border-border hover:bg-muted/40"}`}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
-          <select value={relType} onChange={e => handleTypeChange(e.target.value)}
-            className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            <GroupedTypeOptions types={relTypes} />
-          </select>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-            Strength <span className="font-normal normal-case text-muted-foreground/70">{["", "Very Weak", "Weak", "Moderate", "Strong", "Very Strong"][strength]}</span>
-          </p>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map(v => (
-              <button key={v} onClick={() => setStrength(v)}
-                className={`flex-1 h-8 rounded-lg border-2 text-xs font-bold transition-all ${
-                  v <= strength ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/50"
-                }`}>
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
-          <ColorPicker value={color} onChange={setColor} />
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Notes</p>
-          <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts rows={2}
-            className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: "", color, notes, strength })}>Save</Button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function RelationshipsPanel({ relationships, alters, locations = [], onRefreshRelationships }) {
@@ -214,38 +112,28 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
     : [];
 
   const handleDelete = async (rel) => {
-    await base44.entities.AlterRelationship.delete(rel.id);
-    queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
+    await deleteRelationship(rel.id);
+    queryClient.invalidateQueries({ queryKey: RELATIONSHIPS_KEY });
     onRefreshRelationships?.();
     setConfirmDelete(null);
   };
 
-  // Relationship notes render as plain text, so ~commands become "icon label"
-  // tokens rather than HTML chips.
-  const prepareNotes = async (notes) => {
+  const save = async (id, data, navigateAlterId) => {
     try {
-      return await prepareAuthoredText(notes || "", { alters, terms: t, surfaceLabel: "relationship note", chips: false });
-    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return null; } throw e; }
+      const row = await saveRelationship({ id, data, alters, terms: t, navigatePath: `/alter/${navigateAlterId}?tab=relationships` });
+      if (row === null) return false; // backed out of the whisper warning
+    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return false; } throw e; }
+    queryClient.invalidateQueries({ queryKey: RELATIONSHIPS_KEY });
+    onRefreshRelationships?.();
+    return true;
   };
 
   const handleSaveNew = async (data) => {
-    const prepared = await prepareNotes(data.notes);
-    if (prepared === null) return; // malformed command or user backed out of the whisper warning
-    const row = await base44.entities.AlterRelationship.create({ ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
-    await recordAuthoredText({ ...prepared, alters, sourceType: "relationship", sourceId: row.id, sourceLabel: "Relationship note", navigatePath: `/alter/${data.alter_id_a}?tab=relationships` });
-    queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
-    onRefreshRelationships?.();
-    setCreating(false);
+    if (await save(null, data, data.alter_id_a)) setCreating(false);
   };
 
   const handleSaveEdit = async (data) => {
-    const prepared = await prepareNotes(data.notes);
-    if (prepared === null) return;
-    await base44.entities.AlterRelationship.update(editingRel.id, { ...data, notes: prepared.content, author_alter_ids: prepared.authorIds });
-    await recordAuthoredText({ ...prepared, alters, sourceType: "relationship", sourceId: editingRel.id, sourceLabel: "Relationship note", navigatePath: `/alter/${editingRel.alter_id_a}?tab=relationships` });
-    queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
-    onRefreshRelationships?.();
-    setEditingRel(null);
+    if (await save(editingRel.id, data, editingRel.alter_id_a)) setEditingRel(null);
   };
 
   const totalCount = filteredRels.length + filteredLocationRows.length + locationListItems.length;
@@ -438,10 +326,9 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
       )}
 
       {editingRel && (
-        <EditRelationshipModal
+        <CreateRelationshipModal
           rel={editingRel}
-          alterMap={alterMap}
-          alters={alters}
+          allAlters={alters}
           onSave={handleSaveEdit}
           onClose={() => setEditingRel(null)}
         />

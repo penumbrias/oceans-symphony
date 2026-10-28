@@ -64,6 +64,7 @@ import LocationsTab from "@/components/alters/profile/LocationsTab";
 import ActivitiesTab from "@/components/alters/profile/ActivitiesTab";
 import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import { GARDEN_ALTER_WIDGETS } from "@/v2/gardenProfileWidgets";
+import { GARDEN_CONNECTION_WIDGETS } from "@/v2/gardenConnectionWidgets";
 
 // The record whose page this is, by owner type. Same query keys the pages
 // themselves use, so a widget and the page chrome never disagree.
@@ -215,6 +216,7 @@ export const ALTER_PROFILE_WIDGETS = {
     tab(({ alter }) => <OptionsTab alter={alter} />), { defaultSpan: { cols: 4, rows: 4 } }),
   // The garden's purpose-built widgets (v0.301.0).
   ...GARDEN_ALTER_WIDGETS,
+  ...GARDEN_CONNECTION_WIDGETS,
 };
 
 const TAB = { defaultSpan: { cols: 4, rows: 4 } };
