@@ -1,5 +1,6 @@
-// The garden's profile widgets, part 2 (v0.301.0): Identity, Belongs to,
-// Tags, Preferences and Get to know me.
+// The garden's profile widgets: Identity, Belongs to, Tags, Preferences and
+// Get to know me (v0.301.0); Fronting stats, Fronting sessions and Notes
+// (v0.302.0).
 //
 // Purpose-built for a board, not copies of the classic Profile tab's
 // sections (those stay as profile_header, profile_groups… so a classic
@@ -12,9 +13,21 @@
 //   • renders nothing on the page when there's nothing to show, and names
 //     itself while the layout is being edited.
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { User, Archive, Users, Tag, HeartHandshake, Sparkles, IdCard } from "lucide-react";
+import { User, Archive, Users, Tag, HeartHandshake, Sparkles, IdCard, BarChart3, History, FileText, Pencil, Trash2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useAlterFrontSessions } from "@/hooks/useAlterFrontSessions";
+import { parseSessionNote } from "@/lib/perAlterSessionEntries";
+import SessionActionPopover from "@/components/fronting/SessionActionPopover";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { isLogCommandError } from "@/lib/authoredText";
+import { saveAlterNote, deleteAlterNote, alterNotesKey } from "@/lib/alterNotes";
 import { boxStyle } from "@/v2/primitives";
 import { useTerms } from "@/lib/useTerms";
 import { useInfoAlter, EditableValue } from "@/v2/infoWidgets";
@@ -238,6 +251,267 @@ export function AnswersWidget({ settings, mode = "normal" }) {
   );
 }
 
+
+// ── Fronting stats ───────────────────────────────────────────────────
+
+const DAY = 86400000;
+const RANGE_DAYS = { "7": 7, "30": 30, "90": 90, "365": 365 };
+
+// "3 h 20 min", "2 d 4 h", "12 min".
+export function formatSpan(ms) {
+  const mins = Math.round(Math.max(0, ms) / 60000);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  if (h < 48) return mins % 60 ? `${h} h ${mins % 60} min` : `${h} h`;
+  const d = Math.floor(h / 24);
+  return h % 24 ? `${d} d ${h % 24} h` : `${d} d`;
+}
+
+const startOf = (s) => new Date(s.start_time).getTime();
+const endOf = (s, now) => (s.end_time ? new Date(s.end_time).getTime() : (s.is_active ? now : startOf(s)));
+const dayLabel = (ms) => new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+const timeLabel = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+export function frontingStats(sessions, { days = 30, now = Date.now() } = {}) {
+  const from = days ? now - days * DAY : -Infinity;
+  let total = 0; let count = 0; let last = null; let live = false;
+  for (const s of sessions) {
+    const a = startOf(s); const b = endOf(s, now);
+    if (!Number.isFinite(a) || b < from) continue;
+    count += 1;
+    total += Math.max(0, b - Math.max(a, from));
+    if (!s.end_time && s.is_active) live = true;
+    if (last === null || a > last) last = a;
+  }
+  return { total, count, average: count ? total / count : 0, last, live };
+}
+
+// Minutes in front per day for the last `days` days, oldest first.
+export function dailyMinutes(sessions, { days = 30, now = Date.now() } = {}) {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const first = today.getTime() - (days - 1) * DAY;
+  const out = Array.from({ length: days }, () => 0);
+  for (const s of sessions) {
+    let a = Math.max(startOf(s), first); const b = Math.min(endOf(s, now), now);
+    while (a < b) {
+      const i = Math.floor((a - first) / DAY);
+      const dayEnd = first + (i + 1) * DAY;
+      if (i >= 0 && i < days) out[i] += (Math.min(b, dayEnd) - a) / 60000;
+      a = dayEnd;
+    }
+  }
+  return out;
+}
+
+function Sparkline({ values, label }) {
+  const max = Math.max(1, ...values);
+  const w = 100; const h = 24; const bw = w / values.length;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-[2.5em] block" role="img" aria-label={label}>
+      {values.map((v, i) => (
+        <rect key={i} x={i * bw + bw * 0.15} width={bw * 0.7} y={h - Math.max(1, (v / max) * h)} height={Math.max(1, (v / max) * h)}
+          rx={0.6} fill="var(--v2-accent)" opacity={v ? 0.85 : 0.15} />
+      ))}
+    </svg>
+  );
+}
+
+export function FrontingStatsWidget({ settings, mode = "normal" }) {
+  const t = useTerms();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { sessions } = useAlterFrontSessions(alterId, { includeInherited: !!settings?.includeInherited });
+  const days = RANGE_DAYS[settings?.range] ?? (settings?.range === "all" ? 0 : 30);
+  const stats = useMemo(() => frontingStats(sessions, { days }), [sessions, days]);
+  const spark = useMemo(() => (mode === "expanded" ? dailyMinutes(sessions, { days: 30 }) : []), [sessions, mode]);
+  if (!alter) return null;
+  const rangeText = days ? `in the last ${days} days` : "in total";
+  const stat = (label, value) => (
+    <div className="min-w-0">
+      <dt className="text-[0.75em] uppercase tracking-wide opacity-70">{label}</dt>
+      <dd className="text-[1.15em] font-semibold tabular-nums">{value}</dd>
+    </div>
+  );
+  return (
+    <GardenBox empty={!stats.count} name={`${t.Fronting} stats`} data-fronting-stats-widget="">
+      {mode === "minimal" ? (
+        <p><span className="text-[1.5em] font-semibold tabular-nums">{formatSpan(stats.total)}</span> <span className="opacity-70">{t.fronting} {rangeText}</span></p>
+      ) : (
+        <>
+          <dl className="grid grid-cols-2 gap-x-[1em] gap-y-[0.5em]">
+            {stat(`Time ${t.fronting}`, formatSpan(stats.total))}
+            {stat("Sessions", stats.count)}
+            {stat("Average", formatSpan(stats.average))}
+            {stat(`Last in ${t.front}`, stats.live ? "Now" : stats.last ? dayLabel(stats.last) : "—")}
+          </dl>
+          <p className="text-[0.75em] opacity-60 mt-[0.4em]">{days ? `Last ${days} days` : "All time"}</p>
+          {mode === "expanded" && (
+            <div className="mt-[0.6em]">
+              <Heading>Last 30 days</Heading>
+              <Sparkline values={spark} label={`Minutes ${t.fronting} each day for the last 30 days. Most in one day: ${formatSpan(Math.max(0, ...spark) * 60000)}.`} />
+            </div>
+          )}
+        </>
+      )}
+    </GardenBox>
+  );
+}
+
+// ── Fronting sessions ────────────────────────────────────────────────
+
+export function FrontingSessionsWidget({ settings, mode = "normal" }) {
+  const t = useTerms();
+  const formatAlter = useAlterLabel();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { sessions, recent } = useAlterFrontSessions(alterId, { includeInherited: !!settings?.includeInherited });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const [shown, setShown] = useState(null);
+  const [actionFor, setActionFor] = useState(null);
+  if (!alter) return null;
+  const now = Date.now();
+  const step = Math.max(1, Number(settings?.count) || 5);
+  const limit = mode === "minimal" ? 1 : (shown ?? step);
+  const list = sessions.slice(0, limit);
+  const byId = Object.fromEntries(alters.map((a) => [a.id, a]));
+  const coFrontersOf = (s) => {
+    const a = startOf(s); const b = endOf(s, now);
+    const ids = new Set();
+    for (const o of recent) {
+      const who = o.alter_id;
+      if (!who || who === alterId || o.id === s.id) continue;
+      if (startOf(o) < b && endOf(o, now) > a) ids.add(who);
+    }
+    return [...ids].map((id) => byId[id]).filter(Boolean);
+  };
+  const row = (s) => {
+    const a = startOf(s); const live = !s.end_time && s.is_active; const b = endOf(s, now);
+    const source = s._sourceAlterId ? byId[s._sourceAlterId] : null;
+    const when = `${dayLabel(a)}, ${timeLabel(a)}${live ? "" : `–${timeLabel(b)}`}`;
+    const co = mode === "expanded" ? coFrontersOf(s) : [];
+    const notes = mode === "expanded" && s.alter_id === alterId ? parseSessionNote(s.note).map((n) => n?.text).filter(Boolean) : [];
+    return (
+      <li key={`${s.id}-${s._sourceAlterId || ""}`} className="flex items-start gap-[0.6em] py-[0.4em] border-b border-current/10 last:border-b-0">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">{live ? `${t.Fronting} now · since ${timeLabel(a)}` : formatSpan(b - a)}</p>
+          <p className="text-[0.8125em] opacity-70">{when}</p>
+          {source && <p className="text-[0.75em] opacity-60 italic">as {formatAlter(source)}</p>}
+          {co.length > 0 && <p className="text-[0.8125em] opacity-80">With {co.map(formatAlter).join(", ")}</p>}
+          {notes.map((n, i) => <p key={i} className="text-[0.8125em] whitespace-pre-wrap break-words mt-[0.2em]">{n}</p>)}
+        </div>
+        <button type="button" onClick={() => setActionFor({ session: s, alter: source || alter })}
+          className="h-11 px-3 rounded-lg border text-[0.8125em] font-medium flex-shrink-0" style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" }}
+          aria-label={`Open the session from ${when}`}>
+          Open
+        </button>
+      </li>
+    );
+  };
+  return (
+    <GardenBox empty={!sessions.length} name={`${t.Fronting} sessions`} data-fronting-sessions-widget="">
+      <ul>{list.map(row)}</ul>
+      {mode !== "minimal" && sessions.length > limit && (
+        <button type="button" onClick={() => setShown(limit + step)} className="mt-[0.4em] h-11 px-3 rounded-lg text-[0.8125em] font-medium underline">
+          Show more
+        </button>
+      )}
+      <SessionActionPopover open={!!actionFor} onClose={() => setActionFor(null)}
+        session={actionFor?.session} alter={actionFor?.alter} startTime={actionFor?.session?.start_time} />
+    </GardenBox>
+  );
+}
+
+// ── Notes ────────────────────────────────────────────────────────────
+
+function NoteComposer({ alterId, alters, note = null, onDone }) {
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [text, setText] = useState(note?.content || "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      const out = await saveAlterNote({ alterId, noteId: note?.id || null, text, alters, terms: t });
+      if (out === null) return;
+      qc.invalidateQueries({ queryKey: alterNotesKey(alterId) });
+      qc.invalidateQueries({ queryKey: ["mentionLogs"] });
+      setText("");
+      onDone?.();
+    } catch (e) {
+      toast.error(isLogCommandError(e) ? e.message : "Couldn't save the note");
+    } finally { setSaving(false); }
+  };
+  return (
+    <div data-own-hold="" className="space-y-[0.4em]">
+      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+        placeholder={note ? "Edit the note…" : "Write a note… @ to mention, /w @name [secret] to whisper"}
+        className="min-h-[80px] text-sm" autoFocus={!!note} />
+      <div className="flex justify-end gap-2">
+        {onDone && note && <button type="button" onClick={onDone} className="h-11 px-3 rounded-lg text-[0.8125em]">Cancel</button>}
+        <button type="button" onClick={save} disabled={saving || !text.trim()}
+          className="h-11 px-4 rounded-lg text-[0.8125em] font-medium disabled:opacity-40"
+          style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>
+          {note ? "Save" : "Add note"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function NotesWidget({ settings, mode = "normal" }) {
+  const qc = useQueryClient();
+  const { alter, alterId } = useInfoAlter(settings);
+  const { data: notes = [] } = useQuery({
+    queryKey: alterNotesKey(alterId),
+    queryFn: () => base44.entities.AlterNote.filter({ alter_id: alterId }, "-created_date"),
+    enabled: !!alterId,
+  });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const [editing, setEditing] = useState(null);
+  const [shown, setShown] = useState(null);
+  if (!alter) return null;
+  const sorted = settings?.sort === "oldest" ? [...notes].reverse() : notes;
+  const step = Math.max(1, Number(settings?.count) || 5);
+  const limit = mode === "minimal" ? 1 : (shown ?? step);
+  const list = sorted.slice(0, limit);
+  const remove = async (note) => {
+    if (!(await confirm("Delete this note? It goes to the trash, where it can be restored for a while."))) return;
+    await deleteAlterNote(note.id);
+    qc.invalidateQueries({ queryKey: alterNotesKey(alterId) });
+  };
+  const when = (n) => (n.created_date ? new Date(n.created_date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
+  const iconBtn = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100";
+  return (
+    <GardenBox empty={!notes.length && mode !== "expanded"} name="Notes" data-notes-widget="">
+      {mode === "expanded" && <div className="mb-[0.6em]"><NoteComposer alterId={alterId} alters={alters} /></div>}
+      <ul>
+        {list.map((n) => (
+          <li key={n.id} data-highlight-id={n.id} className="py-[0.4em] border-b border-current/10 last:border-b-0">
+            {editing === n.id ? (
+              <NoteComposer alterId={alterId} alters={alters} note={n} onDone={() => setEditing(null)} />
+            ) : (
+              <div className="flex items-start gap-[0.4em]">
+                <div className="flex-1 min-w-0">
+                  <div className="break-words"><RichText content={n.content} alters={alters} /></div>
+                  {mode !== "minimal" && <p className="text-[0.75em] opacity-60 mt-[0.2em]">{when(n)}</p>}
+                </div>
+                {mode !== "minimal" && (
+                  <>
+                    <button type="button" onClick={() => setEditing(n.id)} className={iconBtn} aria-label={`Edit the note from ${when(n)}`}><Pencil className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => remove(n)} className={iconBtn} aria-label={`Delete the note from ${when(n)}`}><Trash2 className="w-4 h-4" /></button>
+                  </>
+                )}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {mode !== "minimal" && sorted.length > limit && (
+        <button type="button" onClick={() => setShown(limit + step)} className="mt-[0.4em] h-11 px-3 rounded-lg text-[0.8125em] font-medium underline">Show more</button>
+      )}
+    </GardenBox>
+  );
+}
+
 // ── Registry entries ─────────────────────────────────────────────────
 
 const MODES = ["minimal", "normal", "expanded"];
@@ -298,6 +572,38 @@ export const GARDEN_ALTER_WIDGETS = {
       { key: "questions", type: "multi", label: "Questions shown", default: [],
         options: Object.entries(PRESET_ANSWER_LABELS).map(([value, label]) => ({ value, label })) },
       infoEditorField("answers"),
+    ],
+  },
+  alter_fronting_stats: {
+    ...base, label: "{{Fronting}} stats", icon: BarChart3,
+    description: "How much this {{alter}} has been in {{front}}: total time; Normal adds sessions, average and when last; Expanded a 30-day chart.",
+    render: ({ settings, mode }) => <FrontingStatsWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 2 },
+    configFields: [
+      { key: "range", type: "select", label: "Time range", default: "30",
+        options: [{ value: "7", label: "7 days" }, { value: "30", label: "30 days" }, { value: "90", label: "90 days" }, { value: "365", label: "A year" }, { value: "all", label: "All time" }] },
+      { key: "includeInherited", type: "toggle", label: "Include history from fusions and splits", default: false },
+    ],
+  },
+  alter_fronting_sessions: {
+    ...base, label: "{{Fronting}} sessions", icon: History,
+    description: "This {{alter}}'s {{fronting}} sessions: the latest, or a list; Expanded adds who else was in {{front}} and session notes. Open one to edit it or find it on the timeline.",
+    render: ({ settings, mode }) => <FrontingSessionsWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 4 },
+    configFields: [
+      { key: "count", type: "number", label: "How many to show", min: 1, max: 50, default: 5 },
+      { key: "includeInherited", type: "toggle", label: "Include history from fusions and splits", default: false },
+    ],
+  },
+  alter_notes: {
+    ...base, label: "Notes", icon: FileText,
+    description: "This {{alter}}'s notes: the latest, or a list you can edit; Expanded adds a box to write a new one.",
+    render: ({ settings, mode }) => <NotesWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 4 },
+    configFields: [
+      { key: "sort", type: "select", label: "Order", default: "newest",
+        options: [{ value: "newest", label: "Newest first" }, { value: "oldest", label: "Oldest first" }] },
+      { key: "count", type: "number", label: "How many to show", min: 1, max: 50, default: 5 },
     ],
   },
 };

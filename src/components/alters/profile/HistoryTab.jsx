@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
+import { useAlterFrontSessions } from "@/hooks/useAlterFrontSessions";
 import { format } from "date-fns";
 import { Clock, GitMerge } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -55,121 +56,18 @@ export default function HistoryTab({ alterId }) {
     } catch {}
   };
 
-  // Scoped to this alter (plus, later, its inherited source alters): the
-  // old query pulled the newest 20,000 sessions of EVERY alter under the
-  // global key and filtered client-side on each render. Legacy group-shape
-  // rows (primary_alter_id / co_fronter_ids) can't be matched by the
-  // strict-equality filter on co-fronter membership, so a bounded scan of
-  // the legacy rows is kept for those.
-  const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ["frontHistory", "alter", alterId],
-    queryFn: async () => {
-      const [own, legacyPrimary, legacyScan] = await Promise.all([
-        base44.entities.FrontingSession.filter({ alter_id: alterId }, "-start_time"),
-        base44.entities.FrontingSession.filter({ primary_alter_id: alterId }, "-start_time"),
-        base44.entities.FrontingSession.list("-start_time", 2000),
-      ]);
-      const seen = new Set();
-      const out = [];
-      for (const s of [...own, ...legacyPrimary, ...legacyScan]) {
-        if (!s || seen.has(s.id)) continue;
-        // Keep the legacy scan only for rows that actually involve someone
-        // (the inherited filter below picks its own alters from them).
-        seen.add(s.id);
-        out.push(s);
-      }
-      return out;
-    },
-    enabled: !!alterId,
-  });
+  const { sessions: allSessions, isLoading, inheritanceMap, inheritedAlterIds } =
+    useAlterFrontSessions(alterId, { includeInherited: mergeInherited });
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const { data: changeEvents = [] } = useQuery({
-    queryKey: ["systemChangeEvents"],
-    queryFn: () => localEntities.SystemChangeEvent.list(),
-  });
-
   const altersById = useMemo(
     () => Object.fromEntries(alters.map(a => [a.id, a])),
     [alters]
   );
-
-  // Find fusion/split events where this alter appears as a result
-  const inheritanceEvents = useMemo(() =>
-    changeEvents.filter(e =>
-      (e.type === "fusion" || e.type === "split") &&
-      (e.result_alter_ids || []).includes(alterId)
-    ),
-    [changeEvents, alterId]
-  );
-
-  // Build map: sourceAlterId → { eventType, eventDate }
-  const inheritanceMap = useMemo(() => {
-    const map = {};
-    for (const event of inheritanceEvents) {
-      for (const sourceId of (event.source_alter_ids || [])) {
-        if (sourceId !== alterId && !map[sourceId]) {
-          map[sourceId] = { eventType: event.type, eventDate: new Date(event.date) };
-        }
-      }
-    }
-    return map;
-  }, [inheritanceEvents, alterId]);
-
-  const inheritedAlterIds = Object.keys(inheritanceMap);
-
-  // This alter's own sessions
-  const ownSessions = useMemo(() =>
-    sessions
-      .filter(s =>
-        s.alter_id
-          ? s.alter_id === alterId
-          : s.primary_alter_id === alterId || (s.co_fronter_ids || []).includes(alterId)
-      )
-      .map(s => ({ ...s, _sourceAlterId: null })),
-    [sessions, alterId]
-  );
-
-  // Inherited sessions from source alters (all sessions where any source alter was present)
-  const inheritedSessions = useMemo(() => {
-    if (inheritedAlterIds.length === 0) return [];
-    const results = [];
-    for (const s of sessions) {
-      // Find which inherited alter was involved in this session
-      let matchedSourceId = null;
-      if (s.alter_id) {
-        if (inheritedAlterIds.includes(s.alter_id)) matchedSourceId = s.alter_id;
-      } else {
-        if (inheritedAlterIds.includes(s.primary_alter_id)) {
-          matchedSourceId = s.primary_alter_id;
-        } else {
-          const coMatch = (s.co_fronter_ids || []).find(id => inheritedAlterIds.includes(id));
-          if (coMatch) matchedSourceId = coMatch;
-        }
-      }
-      if (!matchedSourceId) continue;
-      results.push({ ...s, _sourceAlterId: matchedSourceId });
-    }
-    return results;
-  }, [sessions, inheritedAlterIds]);
-
-  // Merge and deduplicate (prefer own session if same id appears in both).
-  // Only fold inherited sessions in when the user has opted in via the toggle.
-  const allSessions = useMemo(() => {
-    if (!mergeInherited) {
-      return [...ownSessions].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-    }
-    const ownIds = new Set(ownSessions.map(s => s.id));
-    const merged = [
-      ...ownSessions,
-      ...inheritedSessions.filter(s => !ownIds.has(s.id)),
-    ];
-    return merged.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  }, [ownSessions, inheritedSessions, mergeInherited]);
 
   const hasInheritance = inheritedAlterIds.length > 0;
   const inheritedNames = useMemo(
