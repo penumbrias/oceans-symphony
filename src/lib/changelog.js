@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 28, 2026",
+    changes: [
+      { type: "fix", text: "Closing a widget's options always keeps your changes now, with an Undo (and Redo) on the toast, so one mis-tap can no longer throw away a customisation." },
+    ],
+  },
+  {
     date: "October 27, 2026",
+    version: "0.293.0",
     changes: [
       { type: "improve", text: "The example walkthrough (Settings → Preview mode → Wiki) has a new \"Profile layouts\" page and its profile pages describe the widget boards." },
       { type: "hotfix", text: "Hotfix: the classic stacked profile view is retired now that profiles are boards; the pencil form is unchanged." },

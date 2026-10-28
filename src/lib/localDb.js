@@ -526,7 +526,7 @@ function pruneHistoryBucket(db, category) {
   for (let i = 0; i < rows.length - cap; i += 1) delete db.HistoryEvent[rows[i].id];
 }
 
-function recordHistoryEvent(evt) {
+function recordHistoryEvent(evt, { coalesce = true } = {}) {
   try {
     if (_previewDb !== null) return;
     const db = getDb();
@@ -534,7 +534,7 @@ function recordHistoryEvent(evt) {
     // Coalesce: an event for the same subject inside the window keeps the
     // EARLIER snapshot (the more valuable restore point) and just refreshes
     // its timestamp so pruning treats it as recent.
-    if (evt.action !== "deleted") {
+    if (evt.action !== "deleted" && coalesce) {
       const recent = Object.values(db.HistoryEvent).find((r) =>
         r.category === evt.category && r.action === evt.action && r.entity === evt.entity
         && r.record_id === evt.record_id && (r.field || "") === (evt.field || "")
@@ -630,6 +630,19 @@ function recordHistoryUpdate(entityName, prev, patch) {
       });
     }
   }
+}
+
+// Keep a layout exactly as it is now in Recent changes, even inside the
+// coalescing window — for writes that throw away recent work on purpose
+// (the widget options sheet's "Undo" after closing, v0.293.1). The normal
+// layout restore point keeps the EARLIER board, so without this the version
+// being undone would only live in a toast.
+export function keepLayoutRestorePoint({ entity, record_id, field = null, label = "", snapshot }) {
+  if (!entity || !record_id || snapshot == null) return;
+  recordHistoryEvent({
+    category: "layout", action: "layout", entity, record_id, field, label,
+    snapshot: JSON.parse(JSON.stringify(snapshot)),
+  }, { coalesce: false });
 }
 
 // Put a deleted record back exactly as it was — same id, so every

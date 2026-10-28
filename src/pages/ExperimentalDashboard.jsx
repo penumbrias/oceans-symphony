@@ -76,6 +76,7 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { settingsBoardStore } from "@/lib/boardStore";
+import { keepLayoutRestorePoint } from "@/lib/localDb";
 import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { BoardFieldContext } from "@/lib/boardWriter";
@@ -2404,12 +2405,26 @@ export default function ExperimentalDashboard({
         onMode={handleMode}
         onSettings={handleSettings}
         onResetWidget={handleResetWidget}
-        // The sheet's close guard: "Undo my changes" puts the widget back
-        // exactly how it was when the sheet opened.
-        onRestoreSnapshot={(id, snap) => {
-          updatePageWidgets((ws) => ws.map((w) => (
-            w.instanceId === id ? { ...w, mode: snap.mode, settings: snap.settings || {} } : w
-          )));
+        // Undo / Redo from the toast the sheet leaves when it closes with
+        // changes: puts that widget back exactly as it was. An Undo first
+        // keeps the board as it is now in Recent changes, so the edits
+        // being undone stay recoverable after the toast is gone.
+        onRestoreSnapshot={(id, snap, { keepCurrent = false } = {}) => {
+          const board = boardRef.current.board;
+          if (keepCurrent && store.id) {
+            keepLayoutRestorePoint(store.kind === "profile"
+              ? { entity: "ProfileBoard", record_id: store.id, field: "board", label: store.ownerType || "profile", snapshot: board }
+              : { entity: "SystemSettings", record_id: store.id, field: store.field, snapshot: board });
+          }
+          persist({
+            ...board,
+            pages: board.pages.map((p) => (!(p.widgets || []).some((w) => w.instanceId === id) ? p : {
+              ...p,
+              widgets: p.widgets.map((w) => (
+                w.instanceId === id ? { ...w, mode: snap.mode, settings: snap.settings || {} } : w
+              )),
+            })),
+          });
         }}
         onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
         onEditLayout={() => { setEditMode(true); setConfigId(null); }}
