@@ -76,6 +76,17 @@ export function wishAgeLabel(wish, now = new Date()) {
   return s ? `waiting ${s}` : "";
 }
 
+// A new wish (v0.304.1) — the quick-add rows on the Needs page, the
+// Wishlist tab and the Wishes widget all make one this way. No owners =
+// for everyone.
+export function createWish({ title, kind = "item", ownerIds = [] }) {
+  const owners = (ownerIds || []).filter(Boolean);
+  return base44.entities.Wish.create({
+    title: String(title || "").trim(), kind, owner_alter_ids: owners, for_everyone: owners.length === 0, is_private: false,
+    priority: "normal", status: "wished", status_changed_at: new Date().toISOString(),
+  });
+}
+
 export function setWishStatus(wish, status) {
   return base44.entities.Wish.update(wish.id, { status, status_changed_at: new Date().toISOString() });
 }

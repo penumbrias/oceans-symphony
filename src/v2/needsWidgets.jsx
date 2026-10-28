@@ -3,19 +3,21 @@
 // Each is one Section (widget contract) and reads the same helpers the
 // Needs and Goals pages use, so the numbers always agree.
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useWidgetScope } from "@/lib/boardSubject";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Target } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useScopeAlterIds } from "@/v2/subjectScope";
-import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
-import { buildBalance, sharedWishes, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
+import { Section, Row, Muted, TextAction, Dot, useWidgetMode } from "@/v2/primitives";
+import { buildBalance, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
-import { WISHES_QUERY_KEY, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel } from "@/lib/wishes";
+import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel, createWish } from "@/lib/wishes";
 import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress,
 } from "@/lib/goals";
@@ -59,32 +61,86 @@ export function NeedsBalanceWidget({ settings }) {
   );
 }
 
+// On a profile: that alter's (or the group's members') wishes. On the
+// alter's OWN profile their private wishes show too — private wishes never
+// leave it. `show` picks open, finished or both; Expanded on an alter's
+// profile adds a quick add.
+function WishQuickAdd({ alterId }) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [kind, setKind] = useState("item");
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    if (!title.trim()) return;
+    setBusy(true);
+    try {
+      await createWish({ title, kind, ownerIds: [alterId] });
+      setTitle("");
+      qc.invalidateQueries({ queryKey: WISHES_QUERY_KEY });
+    } catch (e) { toast.error(e?.message || "Couldn't save that."); } finally { setBusy(false); }
+  };
+  return (
+    <div data-own-hold="" className="space-y-[0.4em] mb-[0.5em]">
+      <div className="flex gap-[0.4em]">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          placeholder="Something wished for…" aria-label="New wish"
+          className="flex-1 min-w-0 h-11 px-3 rounded-lg border text-[0.875em]"
+          style={{ borderColor: "color-mix(in srgb, currentColor 20%, transparent)", background: "transparent" }} />
+        <button type="button" onClick={add} disabled={busy || !title.trim()} className="h-11 px-4 rounded-lg text-[0.8125em] font-medium disabled:opacity-40"
+          style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>Add</button>
+      </div>
+      <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-[0.3em]">
+        {WISH_KINDS.map((k) => (
+          <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} onClick={() => setKind(k.id)}
+            className="min-h-[2.25em] px-[0.7em] rounded-full border text-[0.8125em]"
+            style={kind === k.id
+              ? { borderColor: "var(--v2-accent)", background: "color-mix(in srgb, var(--v2-accent) 14%, transparent)" }
+              : { borderColor: "color-mix(in srgb, currentColor 20%, transparent)" }}>
+            <span aria-hidden="true">{k.emoji}</span> {k.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WishesWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const mode = useWidgetMode();
   const formatAlter = useAlterLabel();
   const wishes = useList(WISHES_QUERY_KEY, "Wish");
   const alters = useList("alters", "Alter");
   const alterById = useMemo(() => new Map(alters.map((a) => [a.id, a])), [alters]);
-  // On a profile board: wishes owned by that alter (or the group's members).
+  const scope = useWidgetScope(settings);
   const scopeIds = useScopeAlterIds(settings);
-  const open = useMemo(
-    () => sortWishes(sharedWishes(wishes).filter(isOpenWish)
-      .filter((w) => !scopeIds || (w.owner_alter_ids || []).some((id) => scopeIds.includes(id))))
-      .slice(0, limitOf(settings, 6)),
-    [wishes, settings, scopeIds],
-  );
+  const ownAlterId = scope?.type === "alter" ? scope.id : null;
+  const show = settings?.show || "open";
+  const list = useMemo(() => {
+    const pool = (wishes || []).filter((w) => {
+      if (!w) return false;
+      const owners = w.owner_alter_ids || [];
+      if (w.is_private && !(ownAlterId && owners.includes(ownAlterId))) return false;
+      if (scopeIds && !owners.some((id) => scopeIds.includes(id))) return false;
+      if (show === "finished") return !isOpenWish(w);
+      if (show === "both") return true;
+      return isOpenWish(w);
+    });
+    return sortWishes(pool).slice(0, limitOf(settings, 6));
+  }, [wishes, settings, scopeIds, ownAlterId, show]);
   return (
     <Section label={tr("widget.wishes.label")}
       action={<TextAction onClick={() => navigate("/needs?tab=wishes")}>{tr("widget.today.open")}</TextAction>}>
-      {open.length === 0 && <Muted>{tr("widget.wishes.empty")}</Muted>}
-      {open.map((w) => {
+      {mode === "expanded" && ownAlterId && <WishQuickAdd alterId={ownAlterId} />}
+      {list.length === 0 && <Muted>{tr("widget.wishes.empty")}</Muted>}
+      {list.map((w) => {
         const owner = w.for_everyone ? tr("widget.wishes.everyone")
           : (w.owner_alter_ids || []).map((id) => alterById.get(id)).filter(Boolean).map((a) => formatAlter(a)).join(", ");
+        const status = isOpenWish(w) ? wishAgeLabel(w) : wishStatusLabel(w.status);
         return (
           <Row key={w.id} left={<span aria-hidden="true" className="text-xs">{wishKindMeta(w.kind).emoji}</span>}
-            primary={w.title} secondary={owner} right={wishAgeLabel(w)}
-            onClick={() => navigate(`/needs?tab=wishes&highlight=${w.id}`)} />
+            primary={`${w.title}${w.is_private ? " 🔒" : ""}`} secondary={owner} right={status}
+            onClick={() => navigate(ownAlterId ? `/alter/${ownAlterId}?tab=wishlist&highlight=${w.id}` : `/needs?tab=wishes&highlight=${w.id}`)} />
         );
       })}
     </Section>

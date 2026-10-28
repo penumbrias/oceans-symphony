@@ -12,7 +12,7 @@ import WishCard from "@/components/wishes/WishCard";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
-import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, wishesForAlter, sortWishes } from "@/lib/wishes";
+import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, wishesForAlter, sortWishes, createWish } from "@/lib/wishes";
 
 export default function WishlistTab({ alter, alters = [] }) {
   const t = useTerms();
@@ -44,10 +44,7 @@ export default function WishlistTab({ alter, alters = [] }) {
     if (!text) return;
     setAdding(true);
     try {
-      await base44.entities.Wish.create({
-        title: text, kind, owner_alter_ids: [alter.id], for_everyone: false, is_private: false,
-        priority: "normal", status: "wished", status_changed_at: new Date().toISOString(),
-      });
+      await createWish({ title: text, kind, ownerIds: [alter.id] });
       setTitle("");
       refresh();
     } catch (e) {

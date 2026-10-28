@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Map as MapIcon, Layers, ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { placesForAlter } from "@/lib/alterPlaces";
 
 // "Locations" tab for an alter profile — every inner-world location this alter
 // is within, plus the maps/layers it's placed on. Two ways an alter is "within"
@@ -28,32 +29,11 @@ export default function LocationsTab({ alter }) {
   const layerName = (id) => layers.find((l) => l.id === id)?.name || "Layer";
   const layerMapId = (id) => layers.find((l) => l.id === id)?.map_id;
 
-  const contains = (loc, p) => {
-    const lx = loc.x ?? 0, ly = loc.y ?? 0, lw = loc.width || 200, lh = loc.height || 150;
-    return p.x >= lx && p.x <= lx + lw && p.y >= ly && p.y <= ly + lh;
-  };
-
   const { withinLocations, placedOn } = useMemo(() => {
-    const within = new Map();
-    if (alter?.inner_world_location_id) {
-      const loc = locations.find((l) => l.id === alter.inner_world_location_id);
-      if (loc) within.set(loc.id, loc);
-    }
-    const mine = placements.filter((p) => p.alter_id === alter?.id);
-    for (const p of mine) {
-      for (const loc of locations) {
-        if (loc.layer_id === p.layer_id && contains(loc, p)) within.set(loc.id, loc);
-      }
-    }
-    // Layers with a placement that isn't inside any of this alter's locations.
-    const placedLayerIds = new Set();
-    for (const p of mine) {
-      const inside = locations.some((loc) => loc.layer_id === p.layer_id && within.has(loc.id) && contains(loc, p));
-      if (!inside && p.layer_id) placedLayerIds.add(p.layer_id);
-    }
+    const { within, placedLayerIds } = placesForAlter(alter, locations, placements);
     return {
-      withinLocations: [...within.values()],
-      placedOn: [...placedLayerIds].map((lid) => ({ layerId: lid, mapId: layerMapId(lid) })),
+      withinLocations: within,
+      placedOn: placedLayerIds.map((lid) => ({ layerId: lid, mapId: layerMapId(lid) })),
     };
   }, [alter, locations, placements, layers]);
 

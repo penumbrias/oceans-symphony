@@ -192,6 +192,7 @@ export default function Journals() {
     });
   }, [entries, tab, search, selectedTag, viewingFolder, selectedAuthorId, fronterOnly, fronterFilterIds, currentAlterIds]);
 
+  const [composeAuthorId, setComposeAuthorId] = useState(null);
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setViewingEntry(entry); };
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
@@ -225,6 +226,9 @@ export default function Journals() {
   // stripped so back/refresh doesn't reopen the editor.
   useEffect(() => {
     if (searchParams.get("compose") === "1") {
+      // ?author= with ?compose=1 (a profile's Journal widget): the new
+      // entry starts signed by that member.
+      if (pendingAuthor) setComposeAuthorId(pendingAuthor);
       openNew(pendingFolder || null);
       const params = new URLSearchParams(window.location.search);
       params.delete("compose");
@@ -816,11 +820,11 @@ export default function Journals() {
       <JournalEditorModal
         key={editEntry?.id || "new"}
         open={showEditor}
-        onClose={() => { setShowEditor(false); setNewEntryFolder(null); }}
+        onClose={() => { setShowEditor(false); setNewEntryFolder(null); setComposeAuthorId(null); }}
         entry={editEntry}
         alters={alters}
         groups={groups}
-        currentAlterId={currentAlterId}
+        currentAlterId={(!editEntry && composeAuthorId) || currentAlterId}
         defaultFolder={newEntryFolder}
       />
 
