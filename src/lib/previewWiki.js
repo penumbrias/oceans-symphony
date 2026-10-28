@@ -287,22 +287,22 @@ const bioAltersGroups = `
     `"+ Add Alter" creates a new one with just a name; everything else is editable inside the profile. Archiving moves an alter out of the active list (they still show in front history); manage from Settings → Alters & Fields → Archived Alters.`)}
 `;
 
-// ── 5. Alter profile: edit modes ───────────────────────────────────────
+// ── 5. Alter profile: Alter info (the one edit list) ──────────────────
 const bioEditModes = `
-  ${intro("Wiki · Alter profile · Edit modes", `Four bio editing modes, each useful for a different stage of building a profile.`)}
-  ${section("Plain",
-    `Renders any custom HTML / template as-is and lets you freely edit the visible text. The mini-toolbar appears when you select; you can add formatting on top of an existing template without breaking its code. Good for: heavy edits, full rewrites, raw notes.`)}
-  ${section("Simple",
-    `Same rendering as Plain but only text wrapped in <code style="font-family:monospace;font-size:0.9em;">&lt;span data-edit="true"&gt;</code> is editable. Everything else is read-only. Wrap a bit of your template's text in an editable region via the pencil icon (✎) on the mini-toolbar. Good for: shared templates where the layout shouldn't change but a few fields should.`)}
-  ${section("Blocks",
-    `The structured editor. Add text blocks, image blocks (solo, left, right, gallery), dividers, raw HTML blocks. <strong>Drag the grip handle</strong> at the left of any block header to reorder; chevron buttons are a keyboard fallback. Most users live here.`)}
-  ${section("Raw",
-    `Shows the entire profile as a single raw HTML field. Use when you want to paste a template wholesale, or for advanced edits. The mini-toolbar still applies to the selected text.`)}
-  ${section("Import template",
-    `"Import Template" button accepts OS or Simply Plural templates as text or pasted HTML. Lands in Blocks mode; switch to Plain or Simple to fill in the fields without breaking the code.`)}
-  ${section("Profile style — per alter",
-    `Beyond the bio: each alter can override <strong>background colour</strong>, <strong>background image</strong>, <strong>page text colour</strong>, <strong>header text colour</strong>, and a <strong>page-specific font</strong>. The header can be hidden entirely if you'd rather code the top section yourself. Settings live in the Profile style section of the pencil (Edit) form. The <em>layout</em> of the page — which sections show, where, and how big — is the grid button next to Edit (see the Profile layouts page).`)}
-  ${tip(`Linking an alter to a theme preset (Settings → Appearance → Fronter-linked themes) makes the whole app's theme switch when that alter becomes primary fronter. Pair that with a per-alter profile-style for a fully recoloured experience while they're up.`)}
+  ${intro("Wiki · Alter profile · Alter info", `The pencil on a profile opens <strong>Alter info</strong>: one simple list holding everything about this alter. It saves as you type, with undo and redo at the top — there's no Save button to miss.`)}
+  ${section("What's in the list",
+    `<strong>Basics</strong> (name, alias, pronouns, colour, avatar, role, first appearance) · <strong>Entries</strong> (the bio and anything you add: short or long text, lists, dates, numbers, yes/no — for just this alter or for everyone) · <strong>Pictures</strong> · <strong>Belongs to</strong> (groups and subsystems) · <strong>Preferences &amp; boundaries</strong> · <strong>Tags</strong> · <strong>Get to know me</strong> answers · <strong>Page look</strong> · <strong>Header</strong>.`)}
+  ${section("Info vs. widgets",
+    `The list is where things are <em>kept</em>; widgets on the profile choose what to <em>show</em> and how. Anything you type into a widget's Content tab lands in the list too, and nothing here is lost just because no widget shows it.`)}
+  ${section("The bio",
+    `A plain write-and-format box with the mini-toolbar. <strong>View code</strong> shows the HTML, <strong>Templates</strong> opens the template library, and <strong>Paste from another app</strong> takes a bio from PluralKit, Simply Plural, Octocon, Plural Star, PluralSpace — or an HTML template, imported as is.`)}
+  ${section("Bios made of blocks",
+    `A bio built from blocks (pictures beside text, galleries, templates with fill-in fields) still works: tap the fill-in fields to edit them, or <strong>Edit blocks</strong> to rearrange. <strong>Turn the bio into widgets</strong> (under Page look) lays each part out as its own widget — text as Alter info widgets, pictures as Media widgets — with a preview first, the original bio kept, and an Undo. New alters start on widgets.`)}
+  ${section("Page look and Header",
+    `<strong>Page look</strong> holds this alter's background colour and picture, text colours, fonts, palette and song — they override the app theme on their page. <strong>Header</strong> picks what else the header shows (groups, subsystems, fields, pronouns) and the chip style. The header widget's Content tab has the same switches.`)}
+  ${section("The ⋯ menu",
+    `Archive or unarchive, Delete (it goes to the trash with their notes and messages, restorable from Recent changes), and the older edit form for anyone who still wants it.`)}
+  ${tip(`Linking an alter to a theme preset (Settings → Appearance → Fronter-linked themes) makes the whole app's theme switch when that alter becomes primary fronter. Pair that with a per-alter Page look for a fully recoloured experience while they're up.`)}
 `;
 
 // ── 6. Mini Toolbar ────────────────────────────────────────────────────
@@ -343,9 +343,9 @@ const bioProfileFields = `
   ${section("Profile tab — identity",
     `<strong>Name</strong> — official display name (used everywhere). <strong>Alias</strong> — short tag for @mentions and -signposts. If Alex's alias is "A", typing <code>@a</code> in a bulletin auto-completes to Alex; signing <code>-a</code> in a comment attributes it to them. <strong>Pronouns</strong>, <strong>Role</strong>, <strong>Color</strong> (drives chips, badges, timeline bars), <strong>Birthday</strong>.`)}
   ${section("Profile tab — bio",
-    `Big rich-text bio with Plain / Simple / Blocks / Raw modes (see Edit modes wiki). The mini-toolbar applies in every mode (see Mini Toolbar wiki).`)}
-  ${section("Profile tab — profile style",
-    `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off. Each setting is per-alter and overrides the system theme while you're on their page.`)}
+    `The bio is one entry of Alter info, written in a plain formatting box (see the Alter info and Mini Toolbar wiki pages). On the profile, an Alter info widget shows it — and can show any other entry too.`)}
+  ${section("Profile tab — page look",
+    `Background colour, background image, page text colour, header text colour, page-specific font, toggle the header on or off — under Page look in Alter info. Each setting is per-alter and overrides the system theme while you're on their page.`)}
   ${section("Profile tab — layout",
     `The Profile page starts as the header, preferences, bio, groups, subsystems, answers, tags and fields stacked top to bottom — the same as before boards. Tap the grid button to move, resize, restyle, remove or add any of them, or add headings, text, dividers and a song.`)}
   ${section("Info tab",
@@ -375,7 +375,9 @@ const bioProfileLayouts = `
     `<strong>Save &amp; close</strong> keeps the layout; <strong>Discard changes</strong> puts everything back. <strong>Use this layout for all</strong> copies it onto every profile of this kind. <strong>Use as the default layout</strong> makes it what every <em>unedited</em> profile of this kind shows. <strong>Reset this layout</strong> sends this one back to the default (or the standard layout). Each asks first, and Recent changes keeps every layout they replace.`)}
   ${section("Where layouts live",
     `A layout is saved only once you edit it — a fresh profile, a restored backup and an older device all show the same page from the record alone. Layouts travel in backups (Alters &amp; Profiles) and sync page by page between devices. Defaults are listed under Settings → Alter setup → Profile layouts, where they can be cleared.`)}
-  ${tip(`The record itself — name, pronouns, bio, style — is still edited on the pencil form. The grid button changes how the page is laid out, never what it says.`)}
+  ${section("Media and Alter info widgets",
+    `<strong>Media</strong> shows pictures, GIFs and video links (YouTube, Vimeo — they play only when tapped), as a slideshow or a grid, and can rotate, flip and fill or fit the box. Set to <em>Their Pictures</em> it shows the alter's own Pictures. <strong>Alter info</strong> shows any entries from the list, labelled, plain or inline.`)}
+  ${tip(`What a page says lives in Alter info (the pencil); the grid button changes how it's laid out. Each widget's Content tab edits the info it shows, and that edit is saved to the alter.`)}
 `;
 
 // ── 8. Currently Fronting & Switching ─────────────────────────────────
@@ -892,8 +894,8 @@ const bioTypography = `<div class="bio-text"><div style="font-family:Georgia,'Ti
 
 // Deliberately MULTI-BLOCK: real newlines before each <div> make htmlToBlocks
 // split this into separate draggable cards in the Blocks editor.
-const bioBlocksPlay = `<div class="bio-text"><div style="font-size:24px;font-weight:800;">Blocks playground 🧱</div><p style="line-height:1.7;margin:6px 0 0;">This page is built from <strong>separate blocks</strong>. Open Edit → the grid icon (Blocks mode) and drag the numbered cards below into any order — then check this page again. Blocks are also the easiest place to paste a copied template: add a text block, paste, done.</p></div>
-<div class="bio-text"><div style="background:hsl(var(--primary)/0.12);border:1px solid hsl(var(--primary)/0.35);border-radius:14px;padding:14px;"><div style="font-weight:800;color:hsl(var(--primary));">① Reorder me</div><p style="margin:4px 0 0;line-height:1.6;">Each card is its own block. In Blocks mode, grab the handle and drag.</p></div></div>
+const bioBlocksPlay = `<div class="bio-text"><div style="font-size:24px;font-weight:800;">Blocks playground 🧱</div><p style="line-height:1.7;margin:6px 0 0;">This page is built from <strong>separate blocks</strong>. Open the pencil → Edit blocks and drag the numbered cards below into any order — then check this page again. Blocks are also the easiest place to paste a copied template: add a text block, paste, done.</p></div>
+<div class="bio-text"><div style="background:hsl(var(--primary)/0.12);border:1px solid hsl(var(--primary)/0.35);border-radius:14px;padding:14px;"><div style="font-weight:800;color:hsl(var(--primary));">① Reorder me</div><p style="margin:4px 0 0;line-height:1.6;">Each card is its own block. In Edit blocks, grab the handle and drag.</p></div></div>
 <div class="bio-text"><div style="background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.4);border-radius:14px;padding:14px;"><div style="font-weight:800;color:#22c55e;">② Mix content types</div><p style="margin:4px 0 0;line-height:1.6;">Blocks can be text, images (left / right / solo), galleries, or dividers — the image ones get size &amp; crop controls.</p></div></div>
 <div class="bio-text"><div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.4);border-radius:14px;padding:14px;"><div style="font-weight:800;color:#f59e0b;">③ Paste templates here</div><p style="margin:4px 0 0;line-height:1.6;">Copy any showcase page from Raw mode (or a template from the editor's Templates button), add a block, paste — instant section.</p></div></div>
 <div class="bio-text"><div style="background:rgba(168,85,247,0.10);border:1px solid rgba(168,85,247,0.4);border-radius:14px;padding:14px;"><div style="font-weight:800;color:#a855f7;">④ Safe to experiment</div><p style="margin:4px 0 0;line-height:1.6;">The ↩ undo in the editor header steps back through every change until you save.</p></div></div>`;
@@ -914,7 +916,7 @@ export function buildPages() {
     gestures:   wikiAlter({ name: "Gestures cheatsheet",    alias: "swipe", role: "Shortcuts",        color: "#06b6d4", order_index: 1,  description: bioGestures }),
     // 2 · Alters & profiles
     altersPage: wikiAlter({ name: "Alters page & groups",   alias: "alt",   role: "Directory",        color: "#f59e0b", order_index: 2,  description: bioAltersGroups }),
-    editModes:  wikiAlter({ name: "Profile · edit modes",   alias: "edit",  role: "Profile editing",  color: "#f97316", order_index: 3,  description: bioEditModes }),
+    editModes:  wikiAlter({ name: "Profile · Alter info",   alias: "edit",  role: "Profile editing",  color: "#f97316", order_index: 3,  description: bioEditModes }),
     toolbar:    wikiAlter({ name: "Profile · mini toolbar", alias: "tool",  role: "Toolbar reference",color: "#ec4899", order_index: 4,  description: bioMiniToolbar }),
     fields:     wikiAlter({ name: "Profile · fields & tabs",alias: "field", role: "Profile reference",color: "#db2777", order_index: 5,  pronouns: "she/they", description: bioProfileFields,
       custom_fields: { "wcf-comfort": "Quiet and a warm drink.", "wcf-besttime": "Late evening.", "wcf-sensory": "Soft blankets, low light, lo-fi.", "wcf-pronoun": "she/her, but they/them is fine too." },
@@ -986,7 +988,7 @@ export function buildPages() {
   // Groups own their members via `member_alter_ids` + `parent` + `order`.
   const groups = [
     { id: uid("wiki-group"), name: "1 · Start here",        color: "#38bdf8", description: "Welcome + the gestures cheatsheet. Read these first.",                       member_alter_ids: [A.welcome.id, A.gestures.id], parent: "root", order: 0 },
-    { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, the four edit modes, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.layouts.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
+    { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, Alter info, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.layouts.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
     { id: uid("wiki-group"), name: "3 · Fronting & system", color: "#a855f7", description: "Who's out, lineage over time, the inner-world map, and presences.",           member_alter_ids: [A.fronting.id, A.systemHistory.id, A.systemMap.id, A.presences.id], parent: "root", order: 2 },
     { id: uid("wiki-group"), name: "4 · Tracking",          color: "#10b981", description: "Dashboard, timeline, activities, check-ins, symptoms, sleep, locations, tasks, diary.", member_alter_ids: [A.dashboard.id, A.timeline.id, A.activities.id, A.checkIn.id, A.symptoms.id, A.sleep.id, A.locations.id, A.todo.id, A.pinnedDailyTasks.id, A.diary.id], parent: "root", order: 3 },
     { id: uid("wiki-group"), name: "5 · Reflection & support", color: "#22c55e", description: "Journaling, grounding & learn, unblend, safety plan, reminders.",           member_alter_ids: [A.journaling.id, A.grounding.id, A.unblend.id, A.safetyPlan.id, A.reminders.id], parent: "root", order: 4 },

@@ -174,7 +174,7 @@ const info = (section) => ({ configFields: [infoEditorField(section)] });
 
 export const ALTER_PROFILE_WIDGETS = {
   profile_header: W("Header", "Avatar, name, pronouns, birthday and role — the top of the {{alter}}'s page.", User,
-    section(ProfileHeaderSection, { needsFields: true, name: "Header" }), info("basics")),
+    section(ProfileHeaderSection, { needsFields: true, name: "Header" }), info("header")),
   profile_preferences: W("Preferences & boundaries", "The {{alter}}'s comfort levels, as chips.", HeartHandshake,
     section(ProfilePreferencesSection, { name: "Preferences & boundaries" }), info("preferences")),
   profile_bio: W("Bio", "The {{alter}}'s bio.", AlignLeft, section(ProfileBioSection, { name: "Bio" }), info("bio")),

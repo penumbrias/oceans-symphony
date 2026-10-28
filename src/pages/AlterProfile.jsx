@@ -468,8 +468,9 @@ function AlterProfileInner() {
           // garden model, v0.294.0); widgets on the board show it.
           <AlterInfo alter={alter} onOpenClassic={() => setEditMode("classic")} />
         ) : editMode === "classic" ? (
-          // The old pencil form — page style and header options still live
-          // here. Its Save writes only what changed (saveAlterEdits).
+          // The old pencil form, kept behind Alter info's ⋯ menu (v0.298.0)
+          // for anyone who still wants it. Its Save writes only what changed
+          // (saveAlterEdits).
           <ProfileTab
             alter={alter}
             onEditModeChange={setEditMode}

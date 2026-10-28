@@ -9,8 +9,8 @@ import { FileDown, LayoutTemplate, Code2, PenSquare } from "lucide-react";
 import { Segmented } from "@/components/shared/SettingRows";
 import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
 import SimplePreview from "@/components/shared/SimplePreview";
-import { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
-import BioEditor, { ImportSPModal } from "@/components/alters/BioEditor";
+import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
+import { ImportSPModal } from "@/components/alters/BioEditor";
 import BioTemplatePicker from "@/components/alters/BioTemplatePicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DateFieldInput } from "@/components/alters/profile/fieldControls";
@@ -60,9 +60,12 @@ export function EntryInput({ k, type, value, onCommit, label }) {
 
 // ── The bio: one long-text entry ─────────────────────────────────────
 // A bio written with the block editor (pictures beside text, galleries,
-// templates with fill-in fields) keeps working exactly as before: its
-// fill-in fields edit here, and "Edit blocks" opens the full bio editor.
-export function BioEntry({ k, value, onChange }) {
+// templates with fill-in fields) keeps working: its fill-in fields edit
+// here and "Edit blocks" opens the block editor. The old Plain / Simple /
+// Blocks / Raw switch is gone (v0.298.0): plain text and "View code" cover
+// a written bio, and "Turn the bio into widgets" (Page look) lays a block
+// bio out as widgets that move freely.
+export function BioEntry({ k, value, onChange, blocksHint = null }) {
   // Bumped when the bio is replaced from outside the text box (a template,
   // a paste, the blocks editor) so the box shows the new bio.
   const [seed, setSeed] = useState(0);
@@ -80,9 +83,12 @@ export function BioEntry({ k, value, onChange }) {
   return (
     <div className="space-y-2" data-info-bio="">
       {isBlocks ? (
-        <div className="rounded-xl border border-border/50 p-3">
-          <SimplePreview blocks={blocks} onBlockChange={onBlockChange} scopeId={`alter-info-bio-${k}`} />
-        </div>
+        <>
+          <div className="rounded-xl border border-border/50 p-3">
+            <SimplePreview blocks={blocks} onBlockChange={onBlockChange} scopeId={`alter-info-bio-${k}`} />
+          </div>
+          {blocksHint && <p className="text-[0.6875rem] text-muted-foreground">{blocksHint}</p>}
+        </>
       ) : code ? (
         <DebouncedText key={`code:${k}:${seed}`} value={value || ""} onCommit={onChange} multiline rows={8} maxLength={500000}
           ariaLabel="Bio code" placeholder="<p>HTML…</p>" className={`${areaCls} font-mono text-xs`} />
@@ -112,7 +118,7 @@ export function BioEntry({ k, value, onChange }) {
       <Dialog open={blocksOpen} onOpenChange={(open) => { setBlocksOpen(open); if (!open) setSeed((n) => n + 1); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogTitle>Edit blocks</DialogTitle>
-          <BioEditor value={value || ""} onChange={onChange} />
+          <BlockEditor value={value || ""} onChange={onChange} />
         </DialogContent>
       </Dialog>
     </div>
