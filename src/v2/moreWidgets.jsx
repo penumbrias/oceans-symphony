@@ -23,6 +23,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 import { useWidgetScope, recordMentionsAlters } from "@/lib/boardSubject";
+import { locationIdsForAlters } from "@/lib/alterPlaces";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
@@ -669,15 +670,17 @@ export function InnerLocationsWidget({ settings }) {
   const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => localEntities.InnerWorldLayer.list() });
   const { data: locations = [] } = useQuery({ queryKey: ["innerWorldLocations"], queryFn: () => localEntities.InnerWorldLocation.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: placements = [] } = useQuery({ queryKey: ["innerWorldPlacements"], queryFn: () => localEntities.InnerWorldPlacement.list() });
   // On a location's profile the widget opens on that location's map; on an
-  // alter's (or a group's) it lists the places those alters are in.
+  // alter's (or a group's) it lists the places those alters are in — by
+  // assignment or by where their dot sits on the map (alterPlaces.js).
   const scope = useWidgetScope(settings);
   const scopeIds = useScopeAlterIds(settings);
   const here = scope?.type === "location" ? locations.find((l) => l.id === scope.id) : null;
   const mapId = settings?.mapId || here?.map_id || "";
   let fLocations = mapId ? locations.filter((l) => l.map_id === mapId) : locations;
   if (scopeIds && scope?.type !== "location") {
-    const placed = new Set(alters.filter((a) => scopeIds.includes(a.id)).map((a) => a.inner_world_location_id).filter(Boolean));
+    const placed = locationIdsForAlters(scopeIds, alters, locations, placements);
     fLocations = fLocations.filter((l) => placed.has(l.id));
   }
   const mapIds = new Set(fLocations.map((l) => l.map_id));

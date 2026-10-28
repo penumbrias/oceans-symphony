@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "improve", text: "On a profile, the Wishes widget shows that {{alter}}'s private wishes and finished ones, with a quick add; Journal's New signs the entry as them; Places finds where their dot sits on the map." },
       { type: "feature", text: "New profile widgets: Relationships (with a small map), Lineage and Activity links." },
       { type: "improve", text: "Relationships are edited in one editor everywhere, with a searchable type picker, and deleting a lineage event now asks first." },
       { type: "feature", text: "New profile widgets: Inbox (unread count, messages, leave a message) and Board feed (the {{alter}}'s board, with kinds to show and search)." },

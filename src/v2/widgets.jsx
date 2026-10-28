@@ -1219,13 +1219,19 @@ function JournalWidget({ settings }) {
   const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
   // On a profile board: that alter's (or the group's members') entries.
   const scopeIds = useScopeAlterIds(settings);
-  const scoped = scopeIds ? entries.filter((e) => journalAuthorIds(e).some((id) => scopeIds.includes(id))) : entries;
+  const scope = useWidgetScope(settings);
+  const withCo = settings?.coAuthored !== false;
+  const scoped = scopeIds
+    ? entries.filter((e) => (withCo ? journalAuthorIds(e) : [e.author_alter_id]).some((id) => scopeIds.includes(id)))
+    : entries;
   const list = sortJournalsNewestFirst(scoped).slice(0, limit);
+  // On an alter's profile a new entry starts signed by them.
+  const newPath = scope?.type === "alter" ? `/journals?compose=1&author=${encodeURIComponent(scope.id)}` : "/journals?compose=1";
   return (
     <Section label={tr("widget.journal.label")}
       action={<span className="flex items-center gap-3">
         <TextAction onClick={() => navigate("/journals?import=1")}>{tr("widget.journal.import")}</TextAction>
-        <TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>
+        <TextAction onClick={() => navigate(newPath)}>{tr("widget.journal.new")}</TextAction>
       </span>}>
       {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
       {list.map((e) => (
@@ -3047,7 +3053,11 @@ export const V2_WIDGETS = {
     icon: BookOpen, category: "journals", subjects: ["home", "alter", "group", "location"],
     render: ({ settings }) => <JournalWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [SCOPE_FIELD, { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    configFields: [
+      SCOPE_FIELD,
+      { key: "coAuthored", type: "toggle", label: "Include entries they co-wrote", default: true },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   journal_book: {
@@ -3128,11 +3138,16 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   wishes: {
-    label: "Wishes", description: "Everyone's open wishes, longest waiting first. Private wishes stay on their own profile.",
+    label: "Wishes", description: "Everyone's open wishes, longest waiting first. Private wishes show only on their own {{alter}}'s profile, where Expanded adds a quick add.",
     icon: Heart, category: "needs", subjects: ["home", "alter", "group", "location"],
     render: sized(({ settings }) => <WishesWidget settings={settings} />),
-    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
-    configFields: [SCOPE_FIELD, { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 }],
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      SCOPE_FIELD,
+      { key: "show", type: "select", label: "Shows", default: "open",
+        options: [{ value: "open", label: "Open wishes" }, { value: "finished", label: "Done and let go" }, { value: "both", label: "Both" }] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   goals: {
