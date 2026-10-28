@@ -64,7 +64,9 @@ export async function createAlter(form, { groupIds = [] } = {}) {
   const filled = Object.fromEntries(
     Object.entries(toRecord(form)).filter(([, v]) => v !== null && v !== undefined && v !== "")
   );
-  const created = await base44.entities.Alter.create({ ...filled, is_archived: false });
+  // New alters start on the garden profile layout (v0.297.0) — the info
+  // widgets. Older app versions ignore the flag and show the classic page.
+  const created = await base44.entities.Alter.create({ profile_layout: "garden", ...filled, is_archived: false });
   if (groupIds.length && created?.id) {
     try {
       await setAlterGroups({ alterId: created.id, groupIds });

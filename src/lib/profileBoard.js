@@ -80,6 +80,24 @@ export const ALTER_PROFILE_PAGES = [
   { tab: "options", label: "Options", widgets: ["profile_options"] },
 ];
 
+// The garden layout (v0.297.0): the alter profile's Profile page built from
+// the info widgets — the header, their Pictures (a Media widget that shows
+// whatever is in the alter's Pictures), the bio as an Info widget, then the
+// rest of the info. New alters start on it (createAlter stamps
+// profile_layout: "garden"), and so does a profile the person converts.
+// The other pages are the classic ones. An entry is a widget id, or
+// { widgetId, settings, span } for a widget that starts set up.
+export const GARDEN_PICTURES_WIDGET = { widgetId: "media", settings: { source: "pictures", autoFit: false }, span: { cols: 12, rows: 3 } };
+export const GARDEN_BIO_WIDGET = { widgetId: "info", settings: { entries: ["bio"], layout: "plain" } };
+export const GARDEN_ALTER_PROFILE_PAGES = [
+  { tab: "profile", label: "Profile", widgets: [
+    "profile_header", GARDEN_PICTURES_WIDGET, GARDEN_BIO_WIDGET, "profile_preferences", "profile_fields",
+    "profile_groups", "profile_subsystems", "profile_answers", "profile_tags",
+  ] },
+  ...ALTER_PROFILE_PAGES.slice(1),
+];
+export const isGardenProfile = (record) => record?.profile_layout === "garden";
+
 export const GROUP_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [
     "profile_header", "profile_bio", "profile_nested_groups", "profile_members",
@@ -123,7 +141,9 @@ export const PROFILE_SEED_SPAN = { cols: 12, rows: 2 };
 export const seedInstanceId = (pageTab, widgetId, n) => `seed_${pageTab}_${widgetId}${n ? `_${n}` : ""}`;
 
 export function seedProfileBoard(record, ownerType = "alter") {
-  const pages = PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;
+  const pages = ownerType === "alter" && isGardenProfile(record)
+    ? GARDEN_ALTER_PROFILE_PAGES
+    : PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;
   let y;
   return {
     version: 2,
@@ -146,17 +166,19 @@ export function seedProfileBoard(record, ownerType = "alter") {
         label: p.label,
         layoutMode: "free",
         showAs: "auto",
-        widgets: p.widgets.map((widgetId) => {
+        widgets: p.widgets.map((entry) => {
+          const widgetId = typeof entry === "string" ? entry : entry.widgetId;
+          const span = { ...PROFILE_SEED_SPAN, ...(typeof entry === "object" ? entry.span : null) };
           counts[widgetId] = (counts[widgetId] || 0) + 1;
           const w = {
             instanceId: seedInstanceId(p.tab, widgetId, counts[widgetId] > 1 ? counts[widgetId] : 0),
             widgetId,
-            span: { ...PROFILE_SEED_SPAN },
+            span,
             pos: { x: 0, y },
             mode: "normal",
-            settings: {},
+            settings: typeof entry === "object" && entry.settings ? { ...entry.settings } : {},
           };
-          y += PROFILE_SEED_SPAN.rows;
+          y += span.rows;
           return w;
         }),
       };

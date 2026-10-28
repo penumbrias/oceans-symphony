@@ -16,6 +16,7 @@ import React from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Row, Group } from "@/components/shared/SettingRows";
 import { useAlterInfoForm } from "./useAlterInfoForm";
+import ProfileConvertRow from "./ProfileConvertRow";
 import { smallBtn } from "./entryEditors";
 import {
   InfoBar, BasicsSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
@@ -50,6 +51,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
         <Group title="Get to know me"><AnswersSection info={info} /></Group>
       )}
       <Group title="Page look">
+        <ProfileConvertRow alter={alter} info={info} />
         <Row label="Page style and header options" hint="Still on the classic edit form for now">
           <button type="button" className={smallBtn} onClick={onOpenClassic}>Classic edit form</button>
         </Row>

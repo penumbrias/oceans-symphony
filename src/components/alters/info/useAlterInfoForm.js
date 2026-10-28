@@ -147,8 +147,20 @@ export function useAlterInfoForm(alter) {
   const undo = useCallback(() => { history.undo(); setRevision((r) => r + 1); }, [history]);
   const redo = useCallback(() => { history.redo(); setRevision((r) => r + 1); }, [history]);
 
+  // Start over from the record as stored now, after something else wrote it
+  // (the profile conversion): the draft, its baseline and undo history.
+  // Flush first so nothing typed is lost.
+  const reload = useCallback((fresh) => {
+    if (!fresh) return;
+    const loaded = formFromAlter(fresh);
+    savedRef.current = loaded;
+    history.reset(loaded);
+    setStatus("saved");
+    setRevision((r) => r + 1);
+  }, [history]);
+
   return {
-    form, set, update, setCustomField, status, revision, reseed, flush: save,
+    form, set, update, setCustomField, status, revision, reseed, flush: save, reload,
     undo, redo, canUndo: history.canUndo, canRedo: history.canRedo,
   };
 }

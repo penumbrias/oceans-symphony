@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 28, 2026",
     changes: [
+      { type: "feature", text: "Turn a classic bio into widgets you can move and style, with a preview and an Undo; nothing is deleted. It's on the pencil → Page look, or Settings → {{Alter}} setup → Profile layouts for everyone." },
+      { type: "improve", text: "New {{alters}} start on the widget layout: their header, Pictures, bio and the rest of their info." },
       { type: "feature", text: "Profile widgets now edit what they show: open a widget's options to change the bio, groups, tags, basics and more, saved straight to the {{alter}}'s info." },
       { type: "feature", text: "New {{Alter}} info widget: show any entries from an {{alter}}'s info on their profile, and edit them right in its options. New entries you add there are saved to their info." },
       { type: "feature", text: "New Media widget: a picture, GIF or YouTube/Vimeo video, which you can rotate, flip, fill or fit, or show several as a slideshow or grid. Videos only load when you tap play." },
