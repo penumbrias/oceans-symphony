@@ -8,12 +8,15 @@
 // here too; the old form is only reachable from the ⋯ menu ("Classic edit
 // form (older)") for anyone who still wants it.
 //
-// Rows follow the inspector row grammar (SettingRows.jsx). Everything saves
+// Rows follow the inspector row grammar (SettingRows.jsx), split into
+// pages with the inspector's TabBar (v0.299.0): Info · Entries · Pictures ·
+// Links · Look. Everything saves
 // as you type (useAlterInfoForm) with undo / redo for the whole list; there
 // is no Save button to miss. The sections are shared with the profile
 // widgets' Content tabs (infoSections.jsx, v0.296.0).
 
-import React from "react";
+import React, { useState } from "react";
+import { User, ListChecks, Images, Link2, Palette } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -22,17 +25,19 @@ import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { deleteAlter, refreshAlter } from "@/lib/alterEntry";
 import { TRASH_HINT } from "@/lib/trashSettings";
-import { Group } from "@/components/shared/SettingRows";
+import { Group, TabBar } from "@/components/shared/SettingRows";
 import { useAlterInfoForm } from "./useAlterInfoForm";
 import ProfileConvertRow from "./ProfileConvertRow";
 import {
-  InfoBar, BasicsSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
+  InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
   PreferencesSection, TagsSection, AnswersSection, answerRowsOf, PageStyleSection, HeaderOptionsSection,
 } from "./infoSections";
 
 export default function AlterInfo({ alter, onOpenClassic }) {
   const t = useTerms();
   const info = useAlterInfoForm(alter);
+  // Pages, like the widget inspector: one tab on screen at a time.
+  const [tab, setTab] = useState("info");
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { form, set } = info;
@@ -62,33 +67,59 @@ export default function AlterInfo({ alter, onOpenClassic }) {
     ...(onOpenClassic ? [{ label: "Classic edit form (older)", onClick: onOpenClassic }] : []),
   ];
 
-  return (
-    <div className="space-y-1" data-alter-info="">
-      <InfoBar info={info} title={`${form.name || t.Alter} · info`} sticky
-        menu={menu} />
-      <p className="text-xs text-muted-foreground pt-2">
-        Everything about {form.name || `this ${t.alter}`} lives here and saves as you type. Widgets on the profile choose what to show, so anything here is kept even when nothing shows it.
-      </p>
+  const tabs = [
+    { id: "info", label: "Info", icon: User },
+    { id: "entries", label: "Entries", icon: ListChecks },
+    { id: "pictures", label: "Pictures", icon: Images },
+    { id: "links", label: "Links", icon: Link2 },
+    { id: "look", label: "Look", icon: Palette },
+  ];
 
-      <Group title="Basics"><BasicsSection alter={alter} info={info} /></Group>
-      <Group title="Entries"><EntriesSection alter={alter} info={info} /></Group>
-      <Group title="Pictures">
-        <PicturesSection alter={alter} avatarUrl={form.avatar_url} onUseAsAvatar={(url) => set("avatar_url", url)} />
-      </Group>
-      <Group title="Belongs to">
-        <GroupsSection alter={alter} />
-        <SubsystemsSection alter={alter} info={info} />
-      </Group>
-      <Group title="Preferences & boundaries"><PreferencesSection info={info} /></Group>
-      <Group title="Tags"><TagsSection info={info} /></Group>
-      {answerRowsOf(form).length > 0 && (
-        <Group title="Get to know me"><AnswersSection info={info} /></Group>
-      )}
-      <Group title="Page look">
-        <ProfileConvertRow alter={alter} info={info} />
-        <PageStyleSection alter={alter} info={info} />
-      </Group>
-      <Group title="Header"><HeaderOptionsSection info={info} /></Group>
+  return (
+    <div data-alter-info="">
+      {/* The bar and the tabs stay put while a tab scrolls (inspector). */}
+      <div className="sticky top-0 z-20 -mx-1 px-1 bg-background/95 backdrop-blur">
+        <InfoBar info={info} title={`${form.name || t.Alter} · info`} menu={menu} />
+        <TabBar tabs={tabs} value={tab} onChange={setTab} />
+      </div>
+      <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} data-alter-info-tab={tab}>
+        {tab === "info" && (
+          <>
+            <Group title="Basics" first><BasicsSection alter={alter} info={info} /></Group>
+            <Group title="Bio"><BioSection alter={alter} info={info} withRow={false} /></Group>
+          </>
+        )}
+        {tab === "entries" && (
+          <Group title={`About ${form.name || `this ${t.alter}`}`} first><EntriesSection alter={alter} info={info} bio={false} /></Group>
+        )}
+        {tab === "pictures" && (
+          <Group title="Pictures" first>
+            <PicturesSection alter={alter} avatarUrl={form.avatar_url} onUseAsAvatar={(url) => set("avatar_url", url)} />
+          </Group>
+        )}
+        {tab === "links" && (
+          <>
+            <Group title="Belongs to" first>
+              <GroupsSection alter={alter} />
+              <SubsystemsSection alter={alter} info={info} />
+            </Group>
+            <Group title="Preferences & boundaries"><PreferencesSection info={info} /></Group>
+            <Group title="Tags"><TagsSection info={info} /></Group>
+            {answerRowsOf(form).length > 0 && (
+              <Group title="Get to know me"><AnswersSection info={info} /></Group>
+            )}
+          </>
+        )}
+        {tab === "look" && (
+          <>
+            <Group title="Page look" first>
+              <ProfileConvertRow alter={alter} info={info} />
+              <PageStyleSection alter={alter} info={info} />
+            </Group>
+            <Group title="Header"><HeaderOptionsSection info={info} /></Group>
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -112,7 +112,7 @@ export async function addOwnEntry(alterId, { name, kind = "text", value = "" }) 
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
   if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) {
     // Older Get to know me rows keep an id-keyed map here; never write over it.
-    throw new Error("Add this entry for every alter from the Alter info list instead");
+    throw new Error("This profile has fields from an older version. Add the entry for everyone from the info list instead, so nothing is written over.");
   }
   const list = [...ownListOf(fresh)];
   if (!list.some((f) => f?.name === clean)) {
