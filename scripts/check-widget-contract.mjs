@@ -28,6 +28,7 @@ const WIDGET_FILES = [
   "src/v2/commandWidgets.jsx",
   "src/v2/activityWidgets.jsx",
   "src/v2/infoWidgets.jsx",
+  "src/v2/gardenProfileWidgets.jsx",
   "src/v2/primitives.jsx",
   "src/v2/notices.jsx",
   "src/lib/widgetRegistry.jsx",
