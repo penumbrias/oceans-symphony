@@ -113,7 +113,7 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
       <div role="tablist" aria-label="Kind of line" className="flex flex-wrap gap-1">{shownKinds.map(tab)}</div>
       {kind === "text" && (
         <div className="space-y-1.5">
-          <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+          <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
             placeholder="Write a note… [[Page title]] links a page" className="min-h-[60px] text-sm" />
           <div className="flex justify-end gap-2">
             {compact && <Button size="sm" variant="ghost" onClick={() => setOpenForm(false)}>Close</Button>}

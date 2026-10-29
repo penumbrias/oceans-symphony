@@ -458,7 +458,7 @@ function NoteComposer({ source, ownerId, alters, note = null, onDone }) {
   };
   return (
     <div data-own-hold="" className="space-y-[0.4em]">
-      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
         placeholder={note ? "Edit the note…" : "Write a note… @ to mention, /w @name [secret] to whisper"}
         className="min-h-[80px] text-sm" autoFocus={!!note} />
       <div className="flex justify-end gap-2">
@@ -583,7 +583,7 @@ function InboxComposer({ alterId, alters, onDone }) {
         <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={fromId} onChange={setFromId}
           terms={t} showNone={false} placeholder="Choose who this is from…" zIndex={80} />
       </div>
-      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
         placeholder={`Leave a message… @ to mention, /w @name [secret] to whisper`} className="min-h-[80px] text-sm" />
       <label className="flex items-center gap-2 min-h-[44px] text-[0.8125em] cursor-pointer">
         <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="w-5 h-5" style={{ accentColor: "var(--v2-accent)" }} />
@@ -617,7 +617,7 @@ function InboxEditor({ message, alters, onDone }) {
   };
   return (
     <div data-own-hold="" className="space-y-[0.4em]">
-      <MentionTextarea value={text} onChange={setText} alters={alters} signposts className="min-h-[60px] text-sm" autoFocus />
+      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts className="min-h-[60px] text-sm" autoFocus />
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onDone} className={textBtnCls}>Cancel</button>
         <button type="button" onClick={save} disabled={saving || !text.trim()} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Save</button>
@@ -707,7 +707,7 @@ export function InboxWidget({ settings, mode = "normal" }) {
             {!m.is_read && <span className="sr-only">(unread)</span>}
             {m.pinned && <span className="opacity-70">· pinned</span>}
           </p>
-          <p className={`whitespace-pre-wrap break-words ${m.is_read ? "opacity-80" : ""}`}>{m.content}</p>
+          <div className={`break-words ${m.is_read ? "opacity-80" : ""}`}><RichText content={m.content} alters={alters} /></div>
           <p className="text-[0.75em] opacity-60 mt-[0.2em]">{sinceLabel(m.created_date)}{m.edited_date ? " · edited" : ""}</p>
         </div>
         <div className="flex justify-end -mr-[0.5em]">
@@ -781,7 +781,7 @@ function BoardComposer({ alterId, alters }) {
   };
   return (
     <div data-own-hold="" className="space-y-[0.4em]">
-      <MentionTextarea value={text} onChange={setText} alters={alters} signposts
+      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
         placeholder="Post to this board… @ to mention, /w @name [secret] to whisper" className="min-h-[70px] text-sm" />
       <div className="flex justify-end">
         <button type="button" onClick={post} disabled={saving || !text.trim()} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Post</button>

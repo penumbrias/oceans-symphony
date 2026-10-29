@@ -53,10 +53,12 @@ export function EntryInput({ k, type, value, onCommit, label }) {
     <div className="space-y-1">
       {/* Short text is one line, unless it already holds line breaks (a
           one-line box would drop them). */}
+      {/* Text entries carry the shared formatting toolbar while focused
+          (owner, v0.311.0); a list stays plain — its commas are the data. */}
       {type === "list" || String(v).includes("\n")
-        ? <DebouncedText key={k} value={String(v)} onCommit={onCommit} multiline rows={2}
+        ? <DebouncedText key={k} value={String(v)} onCommit={onCommit} multiline rows={2} toolbar={type !== "list"}
             maxLength={5000} ariaLabel={label} placeholder={type === "list" ? "item, item, item" : "Not filled yet"} className={areaCls} />
-        : <DebouncedText key={k} value={String(v)} onCommit={onCommit}
+        : <DebouncedText key={k} value={String(v)} onCommit={onCommit} toolbar
             maxLength={5000} ariaLabel={label} placeholder="Not filled yet" className={inputCls} />}
       {type === "list" && <p className="text-[0.6875rem] text-muted-foreground">Separate items with commas.</p>}
     </div>

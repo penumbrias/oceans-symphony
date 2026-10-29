@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "The formatting toolbar now appears in {{Alter}} info text entries, the Heading widget, and note, message, to-do, wish and goal boxes." },
       { type: "improve", text: "Layout editing: drop a widget on the left or right edge of another to put them side by side — the row shares the width, no resizing needed." },
       { type: "fix", text: "The Down alignment (top, middle, bottom) now works on profile widgets and when viewing a profile." },
       { type: "feature", text: "The new group profile: Profile, {{Fronting}}, Board, Notes and Journal pages built from group widgets. New groups start on it, and older ones can switch or revert any time." },

@@ -83,7 +83,7 @@ export default function NotesTab({ alterId }) {
         <div key={note.id} className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-2">
           {editingId === note.id ? (
             <div className="space-y-2">
-              <MentionTextarea
+              <MentionTextarea toolbar
                 value={editContent}
                 onChange={setEditContent}
                 alters={alters}
@@ -122,7 +122,7 @@ export default function NotesTab({ alterId }) {
 
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-          <MentionTextarea
+          <MentionTextarea toolbar
             placeholder={`Write a note… @ to mention, /w @name [secret] to whisper`}
             value={newContent}
             onChange={setNewContent}

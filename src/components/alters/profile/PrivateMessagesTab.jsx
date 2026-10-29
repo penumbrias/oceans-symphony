@@ -6,6 +6,7 @@ import { Mail, Pin, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
 import { isLogCommandError } from "@/lib/authoredText";
 import { sendInboxMessage, editInboxMessage, setInboxMessagePinned, setInboxMessageRead, deleteAlterMessage, refreshInbox, inboxKey } from "@/lib/alterMessages";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -74,7 +75,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
           </div>
           {editing ? (
             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-              <MentionTextarea
+              <MentionTextarea toolbar
                 value={draft}
                 onChange={setDraft}
                 alters={alters || []}
@@ -88,7 +89,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onE
               </div>
             </div>
           ) : (
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <div className="text-sm text-foreground leading-relaxed break-words"><RichText content={message.content} alters={alters || []} /></div>
           )}
           <p className="text-xs text-muted-foreground mt-2">
             {formatDistanceToNow(new Date(message.created_date), { addSuffix: true })}
@@ -304,7 +305,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
           </div>
 
           <div>
-            <MentionTextarea
+            <MentionTextarea toolbar
               placeholder={`Leave a message for this ${terms.alter}...`}
               value={content}
               onChange={setContent}
