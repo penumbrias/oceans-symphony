@@ -1461,15 +1461,19 @@ export default function ExperimentalDashboard({
     };
     // When the bottom chrome hosts the bar it also answers this event
     // (on every page) — don't double-toggle from here.
-    if (altersHostedInNav) return undefined;
+    if (altersHostedInNav || profileBoard) return undefined;
     window.addEventListener("os-v2-toggle-alters-bar", onToggle);
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
-  }, [pinnedBar.enabled, pinnedBar.collapsed, writePinnedBar, altersHostedInNav]);
-  const altersTop = altersBarOn && pinnedBar.position === "top";
+  }, [pinnedBar.enabled, pinnedBar.collapsed, writePinnedBar, altersHostedInNav, profileBoard]);
+  // A profile board never draws its own copy (v0.313.1): it's a page like
+  // any other, so the app's chrome shows the bar there, and a second copy
+  // from the board doubled it.
+  const boardDrawsAlters = altersBarOn && !profileBoard;
+  const altersTop = boardDrawsAlters && pinnedBar.position === "top";
   // With the quick-action bar OFF, the pinned bar moves INTO the bottom
   // chrome (V2BottomChrome renders it there — the user's spec), so the
   // board must not also draw its own floating copy.
-  const altersBottom = altersBarOn && pinnedBar.position === "bottom" && !altersHostedInNav;
+  const altersBottom = boardDrawsAlters && pinnedBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
   const flowView = viewFlow && freeMode && !editMode;
