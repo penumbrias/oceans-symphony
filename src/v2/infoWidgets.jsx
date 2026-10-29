@@ -100,9 +100,15 @@ function changedAt(alter, entry) {
 // One entry's value, edited where it's shown (v0.300.0). Tapping the value
 // opens its editor in place (long text in a sheet with the full bio
 // editor); what's typed is saved to the alter's info as it's written.
-export function EditableValue({ alter, entry, value, editable, children, inline = false }) {
+//
+// On a profile page the values are only read (v0.313.0, owner: tapping
+// text while getting around kept opening editors); they're changed in
+// Edit page (the widget's options) or Info.
+export function EditableValue({ alter, entry, value, editable: editableSetting, children, inline = false }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const onProfileBoard = !!useBoardSubject();
+  const editable = editableSetting && !onProfileBoard;
   const commit = async (v) => {
     try {
       await writeEntry(alter.id, entry.id, v);

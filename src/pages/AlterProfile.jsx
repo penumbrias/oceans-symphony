@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,7 @@ const PAGE_ICONS = {
 const NEW_PAGE_ICONS = {
   [profilePageId("profile")]: User,
   [profilePageId("fronting")]: BarChart3,
+  [profilePageId("fields")]: ListChecks,
   [profilePageId("messages")]: Mail,
   [profilePageId("notes")]: FileText,
   [profilePageId("journal")]: BookOpen,
@@ -421,11 +422,12 @@ function AlterProfileInner() {
                 data-tour="alter-profile-layout-btn"
                 variant="outline"
                 size="sm"
-                className="h-9 px-2.5 gap-1.5"
+                className="h-9 w-9 px-0"
                 onClick={openProfileLayoutEditor}
-                title="Edit this page — move, resize and add widgets"
+                title="Edit page — move, resize and add widgets, and change what's shown"
+                aria-label="Edit page"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit page
+                <Pencil className="w-4 h-4" />
               </Button>
             )}
           </div>

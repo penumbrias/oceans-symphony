@@ -3260,7 +3260,7 @@ export const V2_WIDGETS = {
       { key: "layout", type: "select", label: "Layout", default: "labelled",
         options: [{ value: "labelled", label: "Labels above" }, { value: "inline", label: "Label: value" }, { value: "plain", label: "Just the values" }] },
       { key: "showEmpty", type: "toggle", label: "Show fields that aren't filled in", default: false },
-      { key: "editInPlace", type: "toggle", label: "Tap the text to edit it", default: true },
+      { key: "editInPlace", type: "toggle", label: "Tap the text to edit it (home screen)", default: true },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   },
