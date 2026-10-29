@@ -1,13 +1,9 @@
-// Settings → Appearance (v0.318.0). The look of the app is edited in ONE
-// place — Display options, the inspector the page menu opens — so this
-// section is the door to it plus the few mode switches that are not a
-// look: the New UI opt-in, which home greets you, and the language.
+// The door to Display options (v0.318.0; Settings itself links through
+// the catalogue since v0.320.0). The look of the app is edited in ONE
+// place — Display options, the inspector the page menu opens.
 import React from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { NewUiToggle, HomeOpensOnRow } from "@/components/settings/DashboardLayoutSettings";
-import { V2LanguageSection } from "@/components/settings/V2DisplaySettings";
-import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 export function openDisplayOptions() {
   window.dispatchEvent(new CustomEvent("os-open-display-options"));
@@ -26,22 +22,5 @@ export function DisplayOptionsButton({ label = null, hint = null }) {
         {hint && <span className="text-xs text-muted-foreground block mt-0.5">{hint}</span>}
       </span>
     </button>
-  );
-}
-
-export default function AppearanceSection() {
-  return (
-    <div className="space-y-4">
-      <div data-tour="settings-display-options">
-        <DisplayOptionsButton hint="Fonts and text size, shape, bars, colours and backgrounds, themes and presets — one editor, the same one the page menu opens." />
-      </div>
-      {UI_V2_ENABLED && (
-        <div className="space-y-2">
-          <NewUiToggle />
-          <HomeOpensOnRow />
-        </div>
-      )}
-      <V2LanguageSection />
-    </div>
   );
 }

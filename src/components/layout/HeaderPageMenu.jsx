@@ -180,22 +180,22 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
     });
     pageActions.push({
       key: "dash-appearance",
-      label: "Layout & appearance",
+      label: "Display options",
       icon: SlidersHorizontal,
-      onSelect: () => navigate("/settings#appearance"),
+      onSelect: () => navigate("/settings#display"),
     });
   } else if (path === "/Home" || path.startsWith("/alter/") || path.startsWith("/group/")) {
     pageActions.push({
       key: "alter-setup",
-      label: `${terms.Alter} setup`,
+      label: `${terms.Alter} settings`,
       icon: Users,
       onSelect: () => navigate("/settings#alters"),
     });
     if (!onProfile) pageActions.push({
       key: "alter-appearance",
-      label: "Layout & appearance",
+      label: "Display options",
       icon: SlidersHorizontal,
-      onSelect: () => navigate("/settings#appearance"),
+      onSelect: () => navigate("/settings#display"),
     });
   } else if (
     path.startsWith("/planner") ||
@@ -205,7 +205,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
   ) {
     pageActions.push({
       key: "tracking-setup",
-      label: "Tracking setup",
+      label: "Tracking settings",
       icon: Activity,
       onSelect: () => navigate("/settings#checkin"),
     });
