@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // ─── AlterChip ────────────────────────────────────────────────────────────────
 
@@ -740,19 +741,19 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
       if (type === "fusion" && fusionType === "absorption") {
         resultAlterIds = [absorptionTarget];
       } else if (type === "fusion" && fusionType === "new_formation") {
-        const created = await localEntities.Alter.create({
+        const created = await localEntities.Alter.create(withNewAlterDefaults({
           name: newAlterName.trim(),
           color: newAlterColor,
           pronouns: "",
           description: "",
           is_archived: false,
-        });
+        }));
         resultAlterIds = [created.id];
       } else if (type === "split") {
         const existing = splitResults.filter(r => r.type === "existing").map(r => r.id);
         const created = await Promise.all(
           splitResults.filter(r => r.type === "new").map(r =>
-            localEntities.Alter.create({ name: r.name, color: r.color || "#9333ea", is_archived: false })
+            localEntities.Alter.create(withNewAlterDefaults({ name: r.name, color: r.color || "#9333ea", is_archived: false }))
           )
         );
         resultAlterIds = [...existing, ...created.map(c => c.id)];

@@ -651,8 +651,8 @@ useEffect(() => {
         {[
           { key: PS.HEADER_SHOW_GROUPS, label: "Show groups" },
           { key: PS.HEADER_SHOW_SUBSYSTEMS, label: `Show ${subsystemTerm}s` },
-          { key: PS.HEADER_SHOW_FIELDS, label: "Show custom fields" },
-          { key: PS.HEADER_SHOW_ALTER_FIELDS, label: `Show ${t.alter}-specific custom fields` },
+          { key: PS.HEADER_SHOW_FIELDS, label: "Show entries" },
+          { key: PS.HEADER_SHOW_ALTER_FIELDS, label: `Show ${t.alter}-only entries` },
           { key: PS.HEADER_SHOW_PRONOUNS, label: "Always show pronouns" },
         ].map(({ key, label }) => {
           const on = !!form.custom_fields?.[key];

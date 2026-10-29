@@ -26,6 +26,10 @@ export const CHANGELOG = [
       { type: "improve", text: "Group notes can now be edited, and the profile's {{Fronting}} page name follows your terms." },
       { type: "feature", text: "The new contact profile: About, Relationships, Boundaries, Notes and Options built from contact widgets, with your time together on About. New contacts start on it; Options can switch or revert." },
       { type: "feature", text: "The new inner-world location profile: what the place is, its description, the {{alters}} there and the places inside it, as widgets. New locations start on it; the pencil can switch or revert." },
+      { type: "improve", text: "{{Alter}} profiles: the top buttons now say what they do — {{Front}}, Info and Edit page — and {{Front}} works like everywhere else, hold included for the level rail." },
+      { type: "improve", text: "Preferences & boundaries now sit in Info, just under pronouns." },
+      { type: "improve", text: "Custom fields are called entries everywhere, and each entry's ⋯ on a profile can rename it, change its kind, hide it or delete it." },
+      { type: "improve", text: "New {{alters}} are hidden from friends until you choose to share them." },
     ],
   },
   {

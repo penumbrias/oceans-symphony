@@ -17,7 +17,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText,
-  Undo2, Redo2, ShieldCheck, BookOpen, LayoutGrid, BarChart3,
+  Undo2, Redo2, ShieldCheck, BookOpen, IdCard, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -245,16 +245,16 @@ function GroupProfileInner() {
           </Button>
           {!page.layoutEditing && (
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setEditMode(true)} title="Its name, picture, description and settings">
+                <IdCard className="w-3.5 h-3.5" /> Info
+              </Button>
               <Button
                 data-tour="group-profile-layout-btn"
-                variant="outline" size="sm"
+                variant="outline" size="sm" className="h-9 gap-1.5"
                 onClick={openProfileLayoutEditor}
-                aria-label="Edit layout" title="Edit layout — move, resize and add widgets on this page"
+                title="Edit this page — move, resize and add widgets"
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setEditMode(true)} aria-label="Edit" title="Edit">
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-3.5 h-3.5" /> Edit page
               </Button>
             </div>
           )}

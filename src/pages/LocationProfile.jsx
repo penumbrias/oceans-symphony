@@ -21,7 +21,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Pencil, Eye, Save, Loader2, X, MapPin, Map as MapIcon, Trash2,
-  Lock, Unlock, Image as ImageIcon, ExternalLink, Upload, Undo2, Redo2, LayoutGrid,
+  Lock, Unlock, Image as ImageIcon, ExternalLink, Upload, Undo2, Redo2, IdCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -218,16 +218,16 @@ function LocationProfileInner() {
             </Button>
             {!page.layoutEditing && (
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setEditMode(true)} title="Its name, picture, description and settings">
+                  <IdCard className="w-3.5 h-3.5" /> Info
+                </Button>
                 <Button
                   data-tour="location-profile-layout-btn"
-                  variant="outline" size="sm"
+                  variant="outline" size="sm" className="h-9 gap-1.5"
                   onClick={openProfileLayoutEditor}
-                  aria-label="Edit layout" title="Edit layout — move, resize and add widgets on this page"
+                  title="Edit this page — move, resize and add widgets"
                 >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setEditMode(true)} aria-label="Edit" title="Edit">
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Pencil className="w-3.5 h-3.5" /> Edit page
                 </Button>
               </div>
             )}

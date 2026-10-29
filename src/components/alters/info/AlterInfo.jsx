@@ -33,7 +33,7 @@ import { useAlterInfoForm } from "./useAlterInfoForm";
 import ProfileConvertRow from "./ProfileConvertRow";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
-  PreferencesSection, TagsSection, AnswersSection, answerRowsOf, PageStyleSection, HeaderOptionsSection,
+  TagsSection, AnswersSection, answerRowsOf, PageStyleSection, HeaderOptionsSection,
 } from "./infoSections";
 
 export default function AlterInfo({ alter, onOpenClassic }) {
@@ -135,7 +135,6 @@ export default function AlterInfo({ alter, onOpenClassic }) {
               <GroupsSection alter={alter} />
               <SubsystemsSection alter={alter} info={info} />
             </Group>
-            <Group title="Preferences & boundaries"><PreferencesSection info={info} /></Group>
             <Group title="Tags"><TagsSection info={info} /></Group>
             {answerRowsOf(form).length > 0 && (
               <Group title="Get to know me"><AnswersSection info={info} /></Group>
