@@ -261,7 +261,7 @@ export function AnswersWidget({ settings, mode = "normal" }) {
 // ── Fronting stats ───────────────────────────────────────────────────
 
 const DAY = 86400000;
-const RANGE_DAYS = { "7": 7, "30": 30, "90": 90, "365": 365 };
+export const RANGE_DAYS = { "7": 7, "30": 30, "90": 90, "365": 365 };
 
 // "3 h 20 min", "2 d 4 h", "12 min".
 export function formatSpan(ms) {
@@ -309,7 +309,7 @@ export function dailyMinutes(sessions, { days = 30, now = Date.now() } = {}) {
   return out;
 }
 
-function Sparkline({ values, label }) {
+export function Sparkline({ values, label }) {
   const max = Math.max(1, ...values);
   const w = 100; const h = 24; const bw = w / values.length;
   return (
@@ -427,7 +427,17 @@ export function FrontingSessionsWidget({ settings, mode = "normal" }) {
 
 // ── Notes ────────────────────────────────────────────────────────────
 
-function NoteComposer({ alterId, alters, note = null, onDone }) {
+// Where a Notes widget's notes live. The alter's (AlterNote) is here; the
+// group's (GroupNote) is in gardenGroupWidgets.jsx. Each saves through its
+// own one save path, so the widget never writes a note itself.
+export const ALTER_NOTES_SOURCE = {
+  key: alterNotesKey,
+  list: (id) => base44.entities.AlterNote.filter({ alter_id: id }, "-created_date"),
+  save: ({ ownerId, noteId, text, alters, terms }) => saveAlterNote({ alterId: ownerId, noteId, text, alters, terms }),
+  remove: deleteAlterNote,
+};
+
+function NoteComposer({ source, ownerId, alters, note = null, onDone }) {
   const t = useTerms();
   const qc = useQueryClient();
   const [text, setText] = useState(note?.content || "");
@@ -436,9 +446,9 @@ function NoteComposer({ alterId, alters, note = null, onDone }) {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      const out = await saveAlterNote({ alterId, noteId: note?.id || null, text, alters, terms: t });
+      const out = await source.save({ ownerId, noteId: note?.id || null, text, alters, terms: t });
       if (out === null) return;
-      qc.invalidateQueries({ queryKey: alterNotesKey(alterId) });
+      qc.invalidateQueries({ queryKey: source.key(ownerId) });
       qc.invalidateQueries({ queryKey: ["mentionLogs"] });
       setText("");
       onDone?.();
@@ -463,37 +473,36 @@ function NoteComposer({ alterId, alters, note = null, onDone }) {
   );
 }
 
-export function NotesWidget({ settings, mode = "normal" }) {
+// The list + composer every Notes widget shows, for any source.
+export function NotesList({ source, ownerId, settings, mode = "normal" }) {
   const qc = useQueryClient();
-  const { alter, alterId } = useInfoAlter(settings);
   const { data: notes = [] } = useQuery({
-    queryKey: alterNotesKey(alterId),
-    queryFn: () => base44.entities.AlterNote.filter({ alter_id: alterId }, "-created_date"),
-    enabled: !!alterId,
+    queryKey: source.key(ownerId),
+    queryFn: () => source.list(ownerId),
+    enabled: !!ownerId,
   });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [editing, setEditing] = useState(null);
   const [shown, setShown] = useState(null);
-  if (!alter) return null;
   const sorted = settings?.sort === "oldest" ? [...notes].reverse() : notes;
   const step = Math.max(1, Number(settings?.count) || 5);
   const limit = mode === "minimal" ? 1 : (shown ?? step);
   const list = sorted.slice(0, limit);
   const remove = async (note) => {
     if (!(await confirm("Delete this note? It goes to the trash, where it can be restored for a while."))) return;
-    await deleteAlterNote(note.id);
-    qc.invalidateQueries({ queryKey: alterNotesKey(alterId) });
+    await source.remove(note.id);
+    qc.invalidateQueries({ queryKey: source.key(ownerId) });
   };
   const when = (n) => (n.created_date ? new Date(n.created_date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
   const iconBtn = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100";
   return (
     <GardenBox empty={!notes.length && mode !== "expanded"} name="Notes" data-notes-widget="">
-      {mode === "expanded" && <div className="mb-[0.6em]"><NoteComposer alterId={alterId} alters={alters} /></div>}
+      {mode === "expanded" && <div className="mb-[0.6em]"><NoteComposer source={source} ownerId={ownerId} alters={alters} /></div>}
       <ul>
         {list.map((n) => (
           <li key={n.id} data-highlight-id={n.id} className="py-[0.4em] border-b border-current/10 last:border-b-0">
             {editing === n.id ? (
-              <NoteComposer alterId={alterId} alters={alters} note={n} onDone={() => setEditing(null)} />
+              <NoteComposer source={source} ownerId={ownerId} alters={alters} note={n} onDone={() => setEditing(null)} />
             ) : (
               <div className="flex items-start gap-[0.4em]">
                 <div className="flex-1 min-w-0">
@@ -516,6 +525,12 @@ export function NotesWidget({ settings, mode = "normal" }) {
       )}
     </GardenBox>
   );
+}
+
+export function NotesWidget({ settings, mode = "normal" }) {
+  const { alter, alterId } = useInfoAlter(settings);
+  if (!alter) return null;
+  return <NotesList source={ALTER_NOTES_SOURCE} ownerId={alterId} settings={settings} mode={mode} />;
 }
 
 // ── Inbox ────────────────────────────────────────────────────────────

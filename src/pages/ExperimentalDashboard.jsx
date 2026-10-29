@@ -46,6 +46,7 @@ import {
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useFrontingIds, useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
@@ -1313,7 +1314,7 @@ export default function ExperimentalDashboard({
     // clearing a board impossible. The 12s Undo toast restores the whole
     // board, widgets included, so nothing is lost without recourse.
     const deletedId = page.id;
-    const deletedName = page.label || "Page";
+    const deletedName = applyTerms(page.label, t) || "Page";
     const n = page.widgets.length;
     persist({
       ...home,
@@ -2044,7 +2045,7 @@ export default function ExperimentalDashboard({
                 }`}
               >
                 {Icon && <Icon className="w-4 h-4" />}
-                <span>{p.label || `Page ${i + 1}`}</span>
+                <span>{(applyTerms(p.label, t) || `Page ${i + 1}`)}</span>
               </button>
             );
           })}
@@ -2079,8 +2080,8 @@ export default function ExperimentalDashboard({
               type="button"
               role="tab"
               aria-selected={p.id === page.id}
-              aria-label={p.label || `Page ${i + 1}`}
-              title={p.label || `Page ${i + 1}`}
+              aria-label={(applyTerms(p.label, t) || `Page ${i + 1}`)}
+              title={(applyTerms(p.label, t) || `Page ${i + 1}`)}
               onClick={() => goToPage(i)}
               className="min-w-[24px] min-h-[24px] flex items-center justify-center"
             >
@@ -2113,12 +2114,12 @@ export default function ExperimentalDashboard({
         <div className="flex items-center justify-center gap-1.5 mb-3">
           <input
             key={page.id}
-            defaultValue={page.label}
+            defaultValue={applyTerms(page.label, t)}
             placeholder={`Page ${pageIdx + 1}`}
             aria-label="Page name"
             onBlur={(e) => {
               const v = e.target.value.trim();
-              if (v !== page.label) handleRenamePage(v);
+              if (v !== applyTerms(page.label, t)) handleRenamePage(v);
             }}
             className="h-7 w-32 px-2 rounded-lg border border-border/50 bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
           />

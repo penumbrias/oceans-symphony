@@ -13,8 +13,8 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { listProfileBoardRows, profileBoardQueryKey } from "@/lib/boardStore";
-import { DEFAULT_OWNER_ID, pickProfileBoardRows, PROFILE_OWNER_TYPES, isGardenProfile, usesNewProfile, NEW_LAYOUT_SUFFIX } from "@/lib/profileBoard";
-import { switchToNewProfile, revertToOldProfile } from "@/lib/alterEntry";
+import { DEFAULT_OWNER_ID, pickProfileBoardRows, PROFILE_OWNER_TYPES, isGardenProfile, usesNewProfile, NEW_LAYOUT_SUFFIX, hasNewProfile } from "@/lib/profileBoard";
+import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
 import { convertAlterProfile } from "@/lib/profileConvertRun";
 import { clearDefaultLayout } from "@/lib/profileBoardBulk";
 
@@ -121,15 +121,19 @@ function ConvertAllRow() {
 // The new profile for everyone (v0.305.0). Only each record's layout flag
 // changes; every profile keeps the layout it has now, and each one can
 // revert on its own (pencil → ⋯), or everyone at once here.
-function NewProfileAllRow() {
+// Groups too (v0.307.0): `ownerType` picks which records.
+function NewProfileAllRow({ ownerType = "alter" }) {
   const t = useTerms();
   const qc = useQueryClient();
   const [progress, setProgress] = useState(null);
-  const { data: alters = [] } = useQuery({
-    queryKey: ["alters"],
-    queryFn: () => base44.entities.Alter.list(),
+  const isGroup = ownerType === "group";
+  const one = isGroup ? "group" : t.alter;
+  const many = isGroup ? "groups" : t.alters;
+  const { data: records = [] } = useQuery({
+    queryKey: [isGroup ? "groups" : "alters"],
+    queryFn: () => (isGroup ? base44.entities.Group.list() : base44.entities.Alter.list()),
   });
-  const live = alters.filter((a) => a?.id);
+  const live = records.filter((a) => a?.id);
   const older = live.filter((a) => !usesNewProfile(a));
   const onNew = live.filter((a) => usesNewProfile(a));
   const runAll = async (list, fn, label) => {
@@ -142,41 +146,41 @@ function NewProfileAllRow() {
       setProgress({ done, total: list.length, label });
     }
     setProgress(null);
-    qc.invalidateQueries({ queryKey: ["alters"] });
-    qc.invalidateQueries({ queryKey: ["alter"] });
+    if (isGroup) qc.invalidateQueries({ queryKey: ["groups"] });
+    else { qc.invalidateQueries({ queryKey: ["alters"] }); qc.invalidateQueries({ queryKey: ["alter"] }); }
     return { done, failed };
   };
   const useForAll = async () => {
     const ok = await confirm({
-      title: `Use the new profile for every ${t.alter}?`,
-      body: `${older.length} ${older.length === 1 ? "profile switches" : "profiles switch"} to the new seven-page profile. Nothing is deleted: the layout each one has now is kept, and any profile can go back from its pencil → ⋯ → Revert to the old profile, or all of them from here.`,
+      title: `Use the new profile for every ${one}?`,
+      body: `${older.length} ${older.length === 1 ? "profile switches" : "profiles switch"} to the new profile. Nothing is deleted: the layout each one has now is kept, and any profile can go back from its pencil (Revert to the old profile), or all of them from here.`,
       confirmLabel: "Use for everyone",
     });
     if (!ok) return;
-    const { done, failed } = await runAll(older, switchToNewProfile, "Switching");
+    const { done, failed } = await runAll(older, (id) => switchRecordToNewProfile(ownerType, id), "Switching");
     if (failed) toast.error(`${failed} couldn't switch; they keep the layout they had.`);
     else toast.success(`${done} profile${done === 1 ? "" : "s"} now use the new profile.`);
   };
   const revertAll = async () => {
     const ok = await confirm({
-      title: `Put every ${t.alter} back on the old profile?`,
+      title: `Put every ${one} back on the old profile?`,
       body: `${onNew.length} ${onNew.length === 1 ? "profile goes" : "profiles go"} back to the layout ${onNew.length === 1 ? "it" : "they"} had before. Their new-profile layouts are kept, so switching again brings them back as they were.`,
       confirmLabel: "Revert everyone",
     });
     if (!ok) return;
-    const { done, failed } = await runAll(onNew, revertToOldProfile, "Reverting");
+    const { done, failed } = await runAll(onNew, (id) => revertRecordToOldProfile(ownerType, id), "Reverting");
     if (failed) toast.error(`${failed} couldn't change; they keep the new profile.`);
     else toast.success(`${done} profile${done === 1 ? "" : "s"} back on the old profile.`);
   };
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-border/30" data-new-profile-all="">
+    <div className="flex items-center gap-3 py-2 border-b border-border/30" data-new-profile-all={ownerType}>
       <Sparkles className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium">The new {t.alter} profile</div>
+        <div className="text-sm font-medium">The new {one} profile</div>
         <div className="text-xs text-muted-foreground">
           {progress ? `${progress.label} ${progress.done} of ${progress.total}…`
-            : older.length ? `${onNew.length} of ${live.length} use it. New ${t.alters} start on it.`
-            : `Every ${t.alter} uses it.`}
+            : older.length ? `${onNew.length} of ${live.length} use it. New ${many} start on it.`
+            : `Every ${one} uses it.`}
         </div>
       </div>
       <div className="flex flex-col gap-1.5 flex-shrink-0">
@@ -206,10 +210,12 @@ export default function ProfileLayoutSettings() {
       </p>
       <div>
         <NewProfileAllRow />
+        <NewProfileAllRow ownerType="group" />
         <ConvertAllRow />
         <TypeRow type="alter" suffix={NEW_LAYOUT_SUFFIX} label={`${t.alters} (new profile)`} labelOne={`new ${t.alter} profile`} />
+        <TypeRow type="group" suffix={NEW_LAYOUT_SUFFIX} label="groups (new profile)" labelOne="new group profile" />
         {PROFILE_OWNER_TYPES.map((type) => (
-          <TypeRow key={type} type={type} label={type === "alter" ? `${t.alters} (old profile)` : labels[type][0]} labelOne={labels[type][1]} />
+          <TypeRow key={type} type={type} label={hasNewProfile(type) ? `${labels[type][0]} (old profile)` : labels[type][0]} labelOne={labels[type][1]} />
         ))}
       </div>
     </div>

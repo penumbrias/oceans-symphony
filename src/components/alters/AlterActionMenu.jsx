@@ -15,6 +15,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useFrontLevels } from "@/lib/frontLevels";
 import FrontStatusPill from "@/components/fronting/FrontStatusPill";
+import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
 
 // Long-press popup for an alter chip/icon on the alters page. Actions:
 // go to profile, create/open subsystem, toggle front, toggle primary,
@@ -82,6 +83,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], session = 
     setCreating(true);
     try {
       const g = await base44.entities.Group.create({
+        profile_layout: NEW_PROFILE_LAYOUT,
         name: `${alter.name}'s ${subTerm}`,
         color: alter.color || "#8b5cf6",
         parent: "",

@@ -237,9 +237,12 @@ export function deleteGroupCascade(group) {
     // v0.289.0) go to the trash as one batch, so a restore brings both.
     await withTrashBatch(async () => {
       await base44.entities.Group.delete(group.id);
+      // Both layouts: the old profile's and the new one's (`<id>::v2`).
       let layouts = [];
-      try { layouts = await base44.entities.ProfileBoard.filter({ owner_type: "group", owner_id: group.id }); } catch { layouts = []; }
-      for (const r of layouts || []) {
+      for (const ownerId of [group.id, `${group.id}::v2`]) {
+        try { layouts.push(...((await base44.entities.ProfileBoard.filter({ owner_type: "group", owner_id: ownerId })) || [])); } catch { /* none */ }
+      }
+      for (const r of layouts) {
         try { await base44.entities.ProfileBoard.delete(r.id); } catch { /* folded on next read */ }
       }
     });
