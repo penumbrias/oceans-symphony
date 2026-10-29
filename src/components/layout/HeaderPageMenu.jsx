@@ -7,7 +7,7 @@ import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getSyncFolder, runSync } from "@/lib/deviceSyncRunner";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
-import { useLookSubject, openProfileLook } from "@/lib/lookSubject";
+import { useLookSubject } from "@/lib/lookSubject";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -94,12 +94,17 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
   };
 
   const pageActions = [];
+  // On a profile page (alter, group, inner-world location) the menu is
+  // short (v0.313.0, owner's call): Display options and the setup links.
+  // The home-screen editors and the look links are not offered there —
+  // the profile's own look is the Style button on its Edit page bar.
+  const onProfile = !!lookSubject;
   if (v2Options) {
     // Classic chrome hosting the v2 top bar: the classic home is the
     // actual home screen, so ITS editor leads; the board editor sits
     // right under it under its own name. In the full new UI the board
     // IS the home screen and there's no classic editor to offer.
-    if (v2Options.editClassicHome) {
+    if (v2Options.editClassicHome && !onProfile) {
       pageActions.push({
         key: "classic-edit-home",
         label: "Edit home screen",
@@ -107,7 +112,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
         onSelect: () => v2Options.editClassicHome(),
       });
     }
-    pageActions.push({
+    if (!onProfile) pageActions.push({
       key: "v2-edit-home",
       label: v2Options.editClassicHome ? "Edit widget board" : "Edit home screen",
       icon: LayoutGrid,
@@ -186,7 +191,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       icon: Users,
       onSelect: () => navigate("/settings#alters"),
     });
-    pageActions.push({
+    if (!onProfile) pageActions.push({
       key: "alter-appearance",
       label: "Layout & appearance",
       icon: SlidersHorizontal,
@@ -203,17 +208,6 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       label: "Tracking setup",
       icon: Activity,
       onSelect: () => navigate("/settings#checkin"),
-    });
-  }
-  // On a profile page (alter, group, inner-world location) the profile's
-  // own look has its own sheet, Profile display options (v0.312.1) —
-  // under either chrome.
-  if (lookSubject) {
-    pageActions.push({
-      key: "profile-look",
-      label: "Profile display options",
-      icon: Palette,
-      onSelect: () => openProfileLook(),
     });
   }
   // Under the classic chrome every page off the home screen can still

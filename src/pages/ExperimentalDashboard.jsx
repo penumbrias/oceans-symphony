@@ -29,8 +29,9 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home,
+  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home, Palette,
 } from "lucide-react";
+import { openProfileLook } from "@/lib/lookSubject";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";
@@ -2670,17 +2671,30 @@ export default function ExperimentalDashboard({
               <span className="text-[0.5625rem]">Display</span>
             </button>
             )}
+            {profileBoard && (
+            <button type="button" aria-label="Profile style" title="Profile style — this profile's colours, pictures, fonts and song"
+              data-profile-style-btn="" onClick={() => { closeEditSurfaces(); openProfileLook(); }}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
+              <Palette className="w-4 h-4" />
+              <span className="text-[0.5625rem]">Style</span>
+            </button>
+            )}
+            {/* ONE Save / exit button (v0.313.0): tap = save and close; the
+                menu holds discard, the layout actions and the packs. */}
             <div className="flex-1 relative">
-              <button type="button" aria-label="Save" title="Save" aria-expanded={saveMenuOpen}
+              <button type="button" aria-label="Save and exit" title="Save and exit — hold or tap the arrow for more" aria-expanded={saveMenuOpen}
+                data-save-exit-btn=""
                 onClick={() => { setSaveMenuOpen((v) => !v); setExitMenuOpen(false); }}
                 className={`w-full h-full flex flex-col items-center justify-center gap-0.5 ${saveMenuOpen ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
                 <Check className="w-4 h-4" />
-                <span className="text-[0.5625rem]">Save</span>
+                <span className="text-[0.5625rem]">Save / exit</span>
               </button>
               {saveMenuOpen && (
                 <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
                   <button type="button" onClick={exitSave}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
+                  <button type="button" onClick={exitDiscard}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Discard changes</button>
                   {profileBoard && (<>
                   <button type="button" onClick={useLayoutForAll}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use this layout for all {ownerNoun()}…</button>
@@ -2695,23 +2709,7 @@ export default function ExperimentalDashboard({
                   <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
                   </>)}
-                </div>
-              )}
-            </div>
-            <div className="flex-1 relative">
-              <button type="button" aria-label="Exit edit mode" title="Exit edit mode" aria-expanded={exitMenuOpen}
-                onClick={() => { setExitMenuOpen((v) => !v); setSaveMenuOpen(false); }}
-                className={`w-full h-full flex flex-col items-center justify-center gap-0.5 ${exitMenuOpen ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
-                <X className="w-4 h-4" />
-                <span className="text-[0.5625rem]">Exit</span>
-              </button>
-              {exitMenuOpen && (
-                <div className="absolute bottom-full mb-1 right-0 min-w-[190px] rounded-xl border border-border/60 bg-card shadow-xl p-1 space-y-0.5">
-                  <button type="button" onClick={exitSave}
-                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save & close</button>
-                  <button type="button" onClick={exitDiscard}
-                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Discard changes</button>
-                  <button type="button" onClick={() => setExitMenuOpen(false)}
+                  <button type="button" onClick={() => setSaveMenuOpen(false)}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Keep editing</button>
                 </div>
               )}

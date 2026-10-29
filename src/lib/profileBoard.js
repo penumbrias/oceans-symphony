@@ -130,6 +130,11 @@ export const NEW_ALTER_PROFILE_PAGES = [
     "alter_belongs", "alter_preferences", "alter_tags", "alter_answers",
   ] },
   { tab: "fronting", label: "{{Fronting}}", widgets: ["alter_fronting_stats", "alter_fronting_sessions"] },
+  // Custom fields (v0.313.0): every field that's switched on, listed to
+  // read; they're changed in Info or the widget's options.
+  { tab: "fields", label: "Custom fields", widgets: [
+    { widgetId: "info", settings: { entries: ["*fields"], layout: "labelled" }, span: { cols: 12, rows: 6 } },
+  ] },
   { tab: "messages", label: "Messages", widgets: [
     { widgetId: "alter_inbox", mode: "expanded" }, { widgetId: "alter_board_feed", mode: "expanded" },
   ] },
@@ -275,6 +280,27 @@ export function seedProfileBoard(record, ownerType = "alter") {
       };
     }),
   };
+}
+
+// Pages added to a profile type after people had already saved layouts
+// (v0.313.0). A saved board without one shows it from the seed, after the
+// page it follows, until the person removes it (_removedPages). Shown at
+// read time only; it's saved with the person's next layout change.
+const ADDED_NEW_PROFILE_PAGES = { alter: [{ tab: "fields", after: "profile" }] };
+
+export function withAddedProfilePages(board, record, ownerType = "alter") {
+  const added = hasNewProfile(ownerType) && usesNewProfile(record) ? ADDED_NEW_PROFILE_PAGES[ownerType] : null;
+  if (!added || !board || board._seeded || !Array.isArray(board.pages)) return board;
+  let pages = board.pages;
+  for (const { tab, after } of added) {
+    const id = profilePageId(tab);
+    if (pages.some((p) => p?.id === id) || board._removedPages?.[id]) continue;
+    const page = seedProfileBoard(record, ownerType).pages.find((p) => p.id === id);
+    if (!page) continue;
+    const at = pages.findIndex((p) => p?.id === profilePageId(after));
+    pages = at < 0 ? [...pages, page] : [...pages.slice(0, at + 1), page, ...pages.slice(at + 1)];
+  }
+  return pages === board.pages ? board : { ...board, pages };
 }
 
 // The one row a profile's layout is read from, out of however many exist

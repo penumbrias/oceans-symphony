@@ -43,7 +43,9 @@ import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/wave
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { pageForPath, readPageLook, hasPageLook, writePageLook } from "@/lib/pageLooks";
-import { takeLookFocus } from "@/lib/lookSubject";
+import { takeLookFocus, useLookSubject, LOOK_DEFAULTS_ID } from "@/lib/lookSubject";
+import { readLookDefaults } from "@/lib/profileLookDefaults";
+import ProfileLookTabs from "@/components/profile/ProfileLookTabs";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/setupPacks";
@@ -56,7 +58,7 @@ import { useFontOptions } from "@/lib/useFontOptions";
 import {
   getAccessibilitySettings, setAccessibilityFontSize,
   setAccessibilityFontFamily, setAccessibilityHeadingFont,
-  setAccessibilityLargeTouch,
+  setAccessibilityLargeTouch, A11Y_CHANGED_EVENT,
 } from "@/lib/useAccessibility";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveBackground } from "@/components/v2/PageBackground";
@@ -175,6 +177,11 @@ function TextTab({ v2 }) {
   const fontOptions = useFontOptions({ includeInherit: false });
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
   const refresh = () => setA11y(getAccessibilitySettings());
+  // Undo/redo (UndoRedoHistory) sets these from outside — follow it.
+  useEffect(() => {
+    window.addEventListener(A11Y_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(A11Y_CHANGED_EVENT, refresh);
+  }, []);
   const [kind, setKind] = useState("body");
 
   const sizeIdx = Math.max(0, SIZE_STEPS.indexOf(a11y.fontSize || "default"));
@@ -246,6 +253,11 @@ function ShapeTab({ v2 }) {
   const tr = useT();
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
   const refresh = () => setA11y(getAccessibilitySettings());
+  // Undo/redo (UndoRedoHistory) sets these from outside — follow it.
+  useEffect(() => {
+    window.addEventListener(A11Y_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(A11Y_CHANGED_EVENT, refresh);
+  }, []);
   const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
   const alignDef = tokenById.alignX;
   return (
@@ -1582,11 +1594,13 @@ function StylesTab({ v2 }) {
 
 // ── The popup body ─────────────────────────────────────────────────────
 // ── The scope row (v0.310.0) ──────────────────────────────────────────
-// Everywhere · This page. "This page" is the page the sheet was opened on
-// (its own background and song, pageLooks.js). The home page is the board,
-// whose background is already the Everywhere one, so it has no page scope,
-// and a profile page has its own sheet (Profile display options,
-// ProfileLookSheet) rather than a scope here.
+// Everywhere · This page · New <alter> profiles. "This page" is the page
+// the sheet was opened on (its own background and song, pageLooks.js). The
+// home page is the board, whose background is already the Everywhere one,
+// so it has no page scope. A profile page has its own sheet (Profile
+// style, ProfileLookSheet) for ITS look; here it offers the defaults every
+// new or empty profile of that kind starts with (profileLookDefaults.js,
+// v0.313.0) — the same tabs, written to SystemSettings.
 function PageLookTab({ settingsRow, page }) {
   const tr = useT();
   const qc = useQueryClient();
@@ -1636,9 +1650,20 @@ export default function UiEditSheet() {
   const tr = useT();
   const terms = useTerms();
 
-  // Where the sheet is: a page of the app with a look of its own, or not.
+  // Where the sheet is: a page of the app with a look of its own, or a
+  // profile (whose KIND has defaults to edit here).
   const location = useLocation();
   const page = useMemo(() => pageForPath(location.pathname), [location.pathname]);
+  const subject = useLookSubject();
+  const defaultsType = subject?.type || (location.pathname === "/Home" ? "alter" : null);
+  const defaultsLabel = defaultsType ? ({
+    alter: `New ${terms.alter} profiles`, group: "New group profiles", location: "New location profiles",
+  }[defaultsType]) : "";
+  const defaultsSubject = useMemo(() => (defaultsType ? {
+    type: defaultsType, id: LOOK_DEFAULTS_ID, label: defaultsLabel,
+    customFields: readLookDefaults(settingsRow, defaultsType),
+    hint: `The look every ${defaultsType === "alter" ? terms.alter : defaultsType} profile starts with, and what empty ones show. A profile's own Profile style always wins, setting by setting.`,
+  } : null), [defaultsType, defaultsLabel, settingsRow, terms.alter]);
   const pageLabel = page ? ({
     alters: terms.Alters, checkin: `${terms.System} Meeting`,
     "system-map": `${terms.System} Map`, "system-history": `${terms.System} History`,
@@ -1646,6 +1671,7 @@ export default function UiEditSheet() {
   const scopes = [
     { value: "app", label: tr("editSheet.scopeApp") },
     ...(page ? [{ value: "page", label: pageLabel }] : []),
+    ...(defaultsSubject ? [{ value: "defaults", label: defaultsLabel }] : []),
   ];
   // Opened for one bar (openBarsEditor) → land on Bars; opened for this
   // page's look (openPageLook) → land on the page.
@@ -1678,7 +1704,9 @@ export default function UiEditSheet() {
   };
   const pickTab = (id) => { setTab(id); scrollTop(); };
   const pickScope = (id) => { setScope(id); scrollTop(); };
-  useEdgeSafeSliders(true, [tab, effectiveScope]);
+  const [defaultsTab, setDefaultsTab] = useState("colour");
+  const pickDefaultsTab = (id) => { setDefaultsTab(id); scrollTop(); };
+  useEdgeSafeSliders(true, [tab, effectiveScope, defaultsTab]);
 
   return (
     <div ref={panelRef}>
@@ -1687,7 +1715,9 @@ export default function UiEditSheet() {
           <Segmented label={tr("editSheet.scope")} value={effectiveScope} onChange={pickScope} options={scopes} />
         </div>
       )}
-      {effectiveScope === "page" && page ? (
+      {effectiveScope === "defaults" && defaultsSubject ? (
+        <ProfileLookTabs subject={defaultsSubject} tab={defaultsTab} onTab={pickDefaultsTab} />
+      ) : effectiveScope === "page" && page ? (
         <>
           <div className="sticky -top-1 z-10 -mx-4 bg-background">
             <TabBar tabs={[{ id: "colour", label: tr("editSheet.tabColour"), icon: Palette, dot: hasPageLook(settingsRow, page.id) }]} value="colour" onChange={() => {}} />

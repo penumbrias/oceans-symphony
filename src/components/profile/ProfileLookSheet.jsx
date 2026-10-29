@@ -1,4 +1,4 @@
-// Profile display options (v0.312.1) — the profile's own look sheet.
+// Profile style (v0.312.1) — the profile's own look sheet.
 //
 // The same half-height, non-modal inspector as Display options (V2Frame's
 // OptionsSheet: peek handle, dock flip, undo/redo), but its own surface
@@ -9,7 +9,7 @@
 //
 // Mounted ONCE by AppLayout (ProfileLookHost) and opened from anywhere on a
 // profile page with the "os-open-profile-look" event — the cog menu's
-// "Profile display options" and the forms' PageLookRow.
+// "Profile style" and the forms' PageLookRow.
 
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
@@ -103,7 +103,7 @@ function ProfileLookSheet({ open, onClose, subject }) {
   );
 }
 
-// ONE Profile display options sheet for the whole app, mounted once by
+// ONE Profile style sheet for the whole app, mounted once by
 // AppLayout. It closes by itself when the profile leaves the screen.
 export function ProfileLookHost() {
   const subject = useLookSubject();

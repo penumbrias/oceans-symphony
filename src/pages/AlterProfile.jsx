@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ import { PS } from "@/lib/profileStyle";
 // (ProfileBoardCanvas) is shared with the group, contact and location pages.
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
 import { useRegisterLookSubject } from "@/lib/lookSubject";
+import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 
@@ -52,6 +53,7 @@ const PAGE_ICONS = {
 const NEW_PAGE_ICONS = {
   [profilePageId("profile")]: User,
   [profilePageId("fronting")]: BarChart3,
+  [profilePageId("fields")]: ListChecks,
   [profilePageId("messages")]: Mail,
   [profilePageId("notes")]: FileText,
   [profilePageId("journal")]: BookOpen,
@@ -133,6 +135,10 @@ function AlterProfileInner() {
   // Display options offers this alter's look while the page is open
   // (v0.310.0 — the profile scope, ProfileLookTabs).
   useRegisterLookSubject("alter", alter, alter?.name);
+  // What the page DRAWS: the alter's own look over the defaults for new
+  // and empty alter profiles (profileLookDefaults.js). Forms and the look
+  // sheet keep the raw record.
+  const lookCf = withLookDefaults(alter?.custom_fields, useLookDefaults("alter"));
 
   // Whether this alter is currently fronting. The header's Front button is
   // the standard front control (tap = on at the top level / adjust, hold =
@@ -148,7 +154,7 @@ function AlterProfileInner() {
   // reference to one of the profile's palette colours; resolve the reference
   // against the live .os-pf theme so the header (outside .os-pf) gets a concrete
   // colour. Cleared on unmount so other pages keep the global wave.
-  const profileWaveRaw = alter?.custom_fields?.["_theme_wave"];
+  const profileWaveRaw = lookCf["_theme_wave"];
   useEffect(() => {
     if (!profileWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
     let color = profileWaveRaw;
@@ -186,7 +192,7 @@ function AlterProfileInner() {
   // through useRotatingImageUrl first, which is a no-op passthrough of the
   // fixed value when rotation isn't turned on.
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
-  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[PS.BG_ROTATION], fallbackUrl: alter?.custom_fields?.[PS.BG_IMAGE], alter });
+  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[PS.BG_ROTATION], fallbackUrl: lookCf[PS.BG_IMAGE], alter });
 
   // Resolve avatar URL (local or external)
   useEffect(() => {
@@ -199,10 +205,10 @@ function AlterProfileInner() {
 
   // Resolve header image URL
   useEffect(() => {
-    const img = alter?.custom_fields?.[PS.HEADER_IMAGE];
+    const img = lookCf[PS.HEADER_IMAGE];
     if (img) resolveImageUrl(img).then(setResolvedHeaderImage).catch(() => setResolvedHeaderImage(null));
     else setResolvedHeaderImage(null);
-  }, [alter?.custom_fields?.[PS.HEADER_IMAGE]]);
+  }, [lookCf[PS.HEADER_IMAGE]]);
 
   // Resolve page background image URL. Like the header above, this MUST go
   // through resolveImageUrl — a raw local-image:// (legacy) value can't be
@@ -246,7 +252,7 @@ function AlterProfileInner() {
   const alterColor = hasColor ? alter.color : null;
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
-  const cf = alter.custom_fields || {};
+  const cf = lookCf;
   const ps = readProfileBg(cf);
   const pageBgColor = ps.bgColor;
   const pageBgOpacity = ps.bgOpacity;       // image:0.5 / colour:0.15 default
@@ -421,11 +427,12 @@ function AlterProfileInner() {
                 data-tour="alter-profile-layout-btn"
                 variant="outline"
                 size="sm"
-                className="h-9 px-2.5 gap-1.5"
+                className="h-9 w-9 px-0"
                 onClick={openProfileLayoutEditor}
-                title="Edit this page — move, resize and add widgets"
+                title="Edit page — move, resize and add widgets, and change what's shown"
+                aria-label="Edit page"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit page
+                <Pencil className="w-4 h-4" />
               </Button>
             )}
           </div>

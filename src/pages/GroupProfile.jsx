@@ -34,6 +34,7 @@ import { deleteGroupCascade } from "@/lib/groupMembership";
 import GroupSelect from "@/components/groups/GroupSelect";
 import PageLookRow from "@/components/profile/PageLookRow";
 import { useRegisterLookSubject, withFreshLook } from "@/lib/lookSubject";
+import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { pushAlterShares } from "@/lib/friendsShare";
@@ -105,11 +106,14 @@ function GroupProfileInner() {
   useEffect(() => { if (group) setOnNewLayout(groupOnNew); }, [group?.id, groupOnNew]);
   // Display options offers this group's look while the page is open.
   useRegisterLookSubject("group", group, group?.name);
+  // What the page draws: the group's own look over the group defaults
+  // (profileLookDefaults.js); the form keeps the raw record.
+  const lookCf = withLookDefaults(group?.custom_fields, useLookDefaults("group"));
 
   // Recolour the APP-HEADER wave to this group's wave colour while it's open
   // (resolving a var(--color-…) palette reference against the live .os-pf
   // theme). Cleared on unmount. Mirrors AlterProfile.
-  const groupWaveRaw = group?.custom_fields?.["_theme_wave"];
+  const groupWaveRaw = lookCf["_theme_wave"];
   useEffect(() => {
     if (!groupWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
     let color = groupWaveRaw;
@@ -223,7 +227,7 @@ function GroupProfileInner() {
 
   const members = getMemberAlters(group, alters).filter((m) => !(group.hide_archived_members && m.is_archived));
 
-  const cf = group.custom_fields || {};
+  const cf = lookCf;
   const ps = readProfileBg(cf);
   const bgColor = ps.bgColor;
   const bgImage = ps.bgImage;
@@ -254,11 +258,12 @@ function GroupProfileInner() {
               </Button>
               <Button
                 data-tour="group-profile-layout-btn"
-                variant="outline" size="sm" className="h-9 gap-1.5"
+                variant="outline" size="sm" className="h-9 w-9 px-0"
                 onClick={openProfileLayoutEditor}
-                title="Edit this page — move, resize and add widgets"
+                title="Edit page — move, resize and add widgets, and change what's shown"
+                aria-label="Edit page"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit page
+                <Pencil className="w-4 h-4" />
               </Button>
             </div>
           )}

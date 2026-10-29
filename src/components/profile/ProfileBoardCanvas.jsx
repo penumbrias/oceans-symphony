@@ -26,7 +26,7 @@ import { V2_WIDGETS } from "@/v2/widgets";
 import { profileRegistryFor } from "@/v2/profileWidgets";
 import { BoardSubjectContext } from "@/lib/boardSubject";
 import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
-import { seedProfileBoard, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickProfileBoardRows, layoutForCopy } from "@/lib/profileBoard";
+import { seedProfileBoard, withAddedProfilePages, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickProfileBoardRows, layoutForCopy } from "@/lib/profileBoard";
 
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
@@ -115,7 +115,7 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
       ...base,
       recordId,
       layoutSuffix,
-      board: base.board || fittedSeed || defaultBoard || seedProfileBoard(record, ownerType),
+      board: withAddedProfilePages(base.board || fittedSeed || defaultBoard, record, ownerType) || seedProfileBoard(record, ownerType),
       write: async (next, opts) => {
         const row = await base.write(next, opts);
         if (!row) setFittedSeed(next);

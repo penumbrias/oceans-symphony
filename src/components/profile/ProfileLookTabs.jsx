@@ -1,6 +1,7 @@
 // A profile's look, as inspector tabs (v0.310.0) — built to
-// docs/inspector-design-guide.md and mounted inside Profile display options
-// (ProfileLookSheet, its own sheet since v0.312.1). This replaces the old
+// docs/inspector-design-guide.md and mounted inside Profile style
+// (ProfileLookSheet, its own sheet since v0.312.1), and, for the defaults
+// of new/empty profiles (profileLookDefaults.js), inside Display options. This replaces the old
 // "Profile style" accordion (ProfileStyleEditor) and the Look tab of Alter
 // info.
 //
@@ -30,7 +31,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import { useTerms } from "@/lib/useTerms";
 import { PS, readProfileBg } from "@/lib/profileStyle";
-import { patchProfileLook, LOOK_QUERY_KEYS, PROFILE_LOOK_KEYS } from "@/lib/lookSubject";
+import { patchProfileLook, LOOK_QUERY_KEYS, PROFILE_LOOK_KEYS, isLookDefaultsSubject } from "@/lib/lookSubject";
 
 // Body ↔ header pairs: the palette, text, font and background opacity.
 // Pictures are never copied (a banner and a page picture usually differ).
@@ -153,6 +154,11 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
   const qc = useQueryClient();
   const { type, id } = subject;
   const isAlter = type === "alter";
+  // The defaults for new/empty profiles of this type (profileLookDefaults.js)
+  // use the same tabs; a picture pool belongs to one alter, so rotation
+  // stays off here.
+  const forDefaults = isLookDefaultsSubject(subject);
+  const pictureOwnerId = isAlter && !forDefaults ? id : null;
   const subsystemTerm = `sub${t.system}`;
 
   // The draft: the record's look plus edits not yet written. Re-seeded
@@ -243,15 +249,20 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
     toast.success(direction === "headerToBody" ? "Header colours copied to the body" : "Body colours copied to the header");
   };
   const resetAll = async () => {
-    if (!(await confirm({ title: "Reset the whole look?", body: "Colours, pictures, fonts, the song and the header options go back to the app's look. The page's content is untouched.", confirmLabel: "Reset", destructive: true }))) return;
+    if (!(await confirm({ title: forDefaults ? "Reset the defaults?" : "Reset the whole look?", body: forDefaults ? "New and empty profiles go back to the app's look. Profiles with their own Profile style are untouched." : "Colours, pictures, fonts, the song and the header options go back to the app's look. The page's content is untouched.", confirmLabel: "Reset", destructive: true }))) return;
     resetKeys(PROFILE_LOOK_KEYS);
   };
 
   return (
-    <div data-profile-look={type}>
+    <div data-profile-look={type} data-profile-look-defaults={forDefaults ? "" : undefined}>
       <div className="sticky -top-1 z-10 -mx-4 bg-background">
         <TabBar tabs={tabs} value={tab} onChange={onTab} />
       </div>
+      {forDefaults && (
+        <p className="text-[0.6875rem] text-muted-foreground pt-2">
+          {subject.hint || "The look every profile of this kind starts with. A profile's own Profile style always wins, setting by setting."}
+        </p>
+      )}
       <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
         {tab === "content" && (
           <>
@@ -321,14 +332,14 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
                 </Group>
                 <Group title="Background">
                   <PictureRow label="Picture" url={cf[PS.BG_IMAGE] || ""} onPick={(url) => set(PS.BG_IMAGE, url)} onClear={() => clear(PS.BG_IMAGE)}
-                    ownerAlterId={isAlter ? id : null} ownerAlterName={isAlter ? ownerName : ""} />
-                  {isAlter && (
+                    ownerAlterId={pictureOwnerId} ownerAlterName={pictureOwnerId ? ownerName : ""} />
+                  {isAlter && !forDefaults && (
                     <ChoiceRow label="Rotation" hint="Cycle through a pool of pictures on each app open" value={cf[PS.BG_ROTATION] || "off"}
                       own={!!cf[PS.BG_ROTATION]} onClear={() => clear(PS.BG_ROTATION)}
                       onChange={(v) => set(PS.BG_ROTATION, v)}
                       options={[{ value: "off", label: "Off" }, { value: "random", label: "Random" }, { value: "sequential", label: "In order" }]} />
                   )}
-                  {isAlter && (cf[PS.BG_ROTATION] || "off") !== "off" && (
+                  {isAlter && !forDefaults && (cf[PS.BG_ROTATION] || "off") !== "off" && (
                     <Row label="Pool pictures">
                       <button type="button" onClick={() => setPoolOpen(true)}
                         className="h-8 px-3 rounded-lg border border-border/60 text-xs hover:bg-muted/40">Manage…</button>
@@ -344,7 +355,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
                     : ps.bgColor ? opacityRow(PS.BG_OPACITY, "Background opacity", 0.15) : null}
                 </Group>
                 <Group title="Song">
-                  <StackedRow label="Page song" hint="Plays when the profile opens">
+                  <StackedRow label="Page song" hint={forDefaults ? "Plays when a profile without its own song opens" : "Plays when the profile opens"}>
                     <ProfileSongPicker value={cf[PS.SONG] || null} onChange={(v) => (v ? set(PS.SONG, v) : clear(PS.SONG))} subjectLabel="page" />
                   </StackedRow>
                 </Group>
@@ -362,7 +373,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
                 </Group>
                 <Group title="Header picture">
                   <PictureRow label="Picture" hint="The banner behind the name" url={cf[PS.HEADER_IMAGE] || ""} onPick={(url) => set(PS.HEADER_IMAGE, url)} onClear={() => clear(PS.HEADER_IMAGE)}
-                    ownerAlterId={isAlter ? id : null} ownerAlterName={isAlter ? ownerName : ""} />
+                    ownerAlterId={pictureOwnerId} ownerAlterName={pictureOwnerId ? ownerName : ""} />
                   {cf[PS.HEADER_IMAGE] && opacityRow(PS.HEADER_OPACITY, "Picture opacity", 0.45)}
                 </Group>
               </>
@@ -390,7 +401,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
           </>
         )}
       </div>
-      {isAlter && (
+      {isAlter && !forDefaults && (
         <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={id} role="background" />
       )}
     </div>

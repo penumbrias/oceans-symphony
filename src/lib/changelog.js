@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "improve", text: "\"Profile style\" (was Profile display options) is now a Style button on the profile's Edit page bar, and Save and Exit there are one Save / exit button." },
+      { type: "improve", text: "The profile cog menu is shorter: Display options and the setup links, without the home-screen and appearance links." },
+      { type: "feature", text: "Display options on a profile has \"New profiles\": the look every new or empty {{alter}}, group or location profile starts with. A profile's own Profile style always wins." },
+      { type: "fix", text: "Undo in Display options now covers text size, fonts and touch spacing." },
+      { type: "feature", text: "{{Alter}} profiles have a Custom fields page listing every field that's switched on." },
+      { type: "improve", text: "Text on a profile page no longer opens an editor when tapped; change it in Info or Edit page, which is now just a pencil." },
       { type: "improve", text: "A profile's look now has its own sheet, \"Profile display options\", from the cog menu or {{Alter}} info — not a row inside Display options." },
       { type: "fix", text: "Activity sheet: a start or end time picked on the phone's clock now sticks instead of snapping back, and a cleared time no longer jumps to midnight." },
       { type: "improve", text: "Custom fields are called custom fields again, on profiles and in Settings." },
