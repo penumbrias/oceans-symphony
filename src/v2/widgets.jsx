@@ -37,6 +37,7 @@ import { Square,
   HeartHandshake, Target, Image as ImageIcon,
 } from "lucide-react";
 import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
+import { LINKED_PROFILE_WIDGETS } from "@/v2/linkedProfileWidgets";
 import { InfoEntriesField, MediaItemsField, PicturesSourceField, AlterPictureField } from "@/components/v2/infoWidgetFields";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
@@ -3572,3 +3573,8 @@ V2_WIDGETS.poll_results = foldWidget(V2_WIDGETS.polls, () => ({ show: "results" 
 V2_WIDGETS.poll_new = foldWidget(V2_WIDGETS.polls, () => ({ show: "new" }), {
   supportsMultiInstance: false, minSpan: { cols: 2, rows: 1 },
 });
+
+// ── Profile widgets anywhere (v0.315.0) ───────────────────────────
+// Every purpose-built profile widget can go on the home screen too, with a
+// picker for whose it is (src/v2/linkedProfileWidgets.jsx).
+Object.assign(V2_WIDGETS, LINKED_PROFILE_WIDGETS);

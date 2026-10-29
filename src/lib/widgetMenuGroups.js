@@ -11,6 +11,12 @@
 export const WIDGET_MENU_GROUPS = [
   // Only on a profile board: the parts of that profile (v0.290.0).
   { id: "profile", label: "This profile", hint: "The parts of this page — header, bio, tabs" },
+  // A profile's widgets placed anywhere else, with whose they are picked
+  // in their options (v0.315.0, linkedProfileWidgets.jsx).
+  { id: "linked_alter", label: "{{Alter}} profiles", hint: "Parts of one {{alter}}'s profile — pick whose in the widget's options" },
+  { id: "linked_group", label: "Group profiles", hint: "Parts of one group's profile — pick which group in the widget's options" },
+  { id: "linked_contact", label: "Contact profiles", hint: "Parts of one contact's profile — pick who in the widget's options" },
+  { id: "linked_location", label: "Location profiles", hint: "Parts of one location's profile — pick which in the widget's options" },
   { id: "now", label: "Right now", hint: "Who's here, what's running, today at a glance" },
   { id: "log", label: "Log", hint: "One-tap buttons and check-ins" },
   { id: "plan", label: "Plan & track", hint: "Planner views, to-dos, reminders, timeline" },
@@ -57,6 +63,8 @@ const BY_CATEGORY = {
   analytics: "lookback",
   nav: "pieces", layout: "pieces", chrome: "pieces", meta: "pieces",
   profile: "profile",
+  linked_alter: "linked_alter", linked_group: "linked_group",
+  linked_contact: "linked_contact", linked_location: "linked_location",
 };
 
 const GROUP_OF_ID = new Map();

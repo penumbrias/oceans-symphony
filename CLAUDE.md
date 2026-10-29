@@ -469,6 +469,18 @@ Rules for keeping the targets healthy:
   the store (stamped), and the entity layer snapshots every replaced board
   into Recent changes (`category: "layout"`, restorable). Settings → Alter
   setup → Profile layouts (`ProfileLayoutSettings.jsx`) clears a default.
+  **Every widget everywhere (v0.315.0).** Both libraries offer every widget.
+  On a profile, a shared widget whose `subjects` don't include that type is
+  wrapped by `profileRegistryFor` with `boardSubjectFor: () => null`, so it
+  shows everyone's like on home. Profile (garden) widgets are in
+  `V2_WIDGETS` too via `LINKED_PROFILE_WIDGETS` (`src/v2/linkedProfileWidgets.jsx`,
+  same ids): a "Whose / Which group" picker first in their options
+  (`alterId` / `groupId` / `contactId` / `locationId`), `needsSetup` so adding
+  one opens its options, and `boardSubjectFor` handing group/contact/location
+  widgets the picked record as their subject. `WidgetSubject`
+  (`boardSubject.js`) applies `boardSubjectFor` around a widget's body, its
+  options sheet and its library preview — never read a picked record any
+  other way.
   **The classic profile view is gone (v0.293.0).** `ProfileTab.jsx` is the
   pencil form only; viewing is always the board. Every `_`-prefixed profile
   style key is a `PS.*` constant in `src/lib/profileStyle.js` — never

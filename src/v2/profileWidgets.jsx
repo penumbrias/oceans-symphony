@@ -277,13 +277,19 @@ export const PROFILE_WIDGETS = {
 };
 
 // The registry a profile board of `ownerType` gets: the widgets made for
-// that type, plus every shared widget that says it fits (`subjects`).
+// that type, plus every shared widget (v0.315.0: all of them, not only the
+// ones made for profiles). A shared widget that says it fits this kind of
+// profile (`subjects`) shows this profile's slice; any other shows
+// everyone's, exactly as it does on the home screen; another kind of
+// profile's widget asks whose it is in its options.
+const homeOnly = (def) => ({ ...def, boardSubjectFor: () => null });
 export function profileRegistryFor(ownerType, sharedRegistry = {}) {
   const own = PROFILE_WIDGETS[ownerType] || ALTER_PROFILE_WIDGETS;
   if (!PROFILE_OWNER_TYPES.includes(ownerType)) return { ...own };
   const out = {};
   for (const [id, def] of Object.entries(sharedRegistry)) {
-    if (def && widgetFitsSubject(def, ownerType)) out[id] = def;
+    if (!def) continue;
+    out[id] = widgetFitsSubject(def, ownerType) || def.boardSubjectFor ? def : homeOnly(def);
   }
   for (const [id, def] of Object.entries(own)) {
     if (widgetFitsSubject(def, ownerType)) out[id] = def;

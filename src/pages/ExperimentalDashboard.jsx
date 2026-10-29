@@ -59,6 +59,7 @@ import {
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
+import { WidgetSubject } from "@/lib/boardSubject";
 const UiEditSheetBody = React.lazy(() => import("@/components/v2/UiEditSheet"));
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -573,6 +574,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             </div>
           )}>
           <WidgetChromeContext.Provider value={chrome}>
+          <WidgetSubject def={def} settings={widget.settings}>
           {def.render({
             mode,
             settings: foldedSettings(def, widget.settings),
@@ -580,6 +582,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             api,
             updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
           })}
+          </WidgetSubject>
           </WidgetChromeContext.Provider>
         </ErrorBoundary>
         </div>
@@ -1244,8 +1247,8 @@ export default function ExperimentalDashboard({
     // Duplicates are allowed everywhere (v0.231.0, owner ask): two copies
     // of the same widget with different options is a real use case. The
     // drawer's "on this page" tag is informational only.
+    const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: effectiveMode(mode, def.supportsModes), settings };
     updatePageWidgets((ws) => {
-      const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: effectiveMode(mode, def.supportsModes), settings };
       if (!pageIsFree) return [...ws, added];
       // Free page: land in the next EMPTY spot (first gap that fits, else
       // below everything) — never interjected into the arrangement.
@@ -1257,6 +1260,9 @@ export default function ExperimentalDashboard({
       setDrawerOpen(false);
       setEditMode(true);
     }
+    // A widget that has to be told something first (whose profile it
+    // shows) opens its options straight away.
+    if (def.needsSetup?.(settings)) { setDrawerOpen(false); setConfigId(added.instanceId); }
     // Pin-while-editing keeps the drawer open so several apps can be pinned
     // in a row.
   };
@@ -1288,6 +1294,7 @@ export default function ExperimentalDashboard({
     toast.success(`${widgetLabel(def, t)} added`);
     setDrawerOpen(false);
     setEditMode(true);
+    if (def.needsSetup?.({})) setConfigId(added.instanceId);
   };
 
   const setWallpaper = (url) => persist({ ...boardRef.current.board, wallpaper: { url: url || "" } });
@@ -2464,7 +2471,11 @@ export default function ExperimentalDashboard({
         onSelect={handleAssetSelected}
       />
 
-      {/* Per-widget options sheet — derived live from home state. */}
+      {/* Per-widget options sheet — derived live from home state. It sees
+          the same subject the widget does (a group widget on the home
+          screen edits the group picked in it). */}
+      <WidgetSubject def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
+        settings={widgets.find((w) => w.instanceId === configId)?.settings}>
       <WidgetConfigSheet
         onRemove={(id) => { handleRemove(id); setConfigId(null); }}
         onDuplicate={handleDuplicate}
@@ -2510,6 +2521,7 @@ export default function ExperimentalDashboard({
         onEditLayout={() => { setEditMode(true); setConfigId(null); }}
         onApplyLook={handleApplyLook}
       />
+      </WidgetSubject>
 
       {/* Page style picker */}
       <Drawer open={stylePickerOpen} onOpenChange={(v) => { if (!v) setStylePickerOpen(false); }}>

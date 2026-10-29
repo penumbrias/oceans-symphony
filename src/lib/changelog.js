@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "Profile widgets can go on the home screen: add one from Alter, Group, Contact or Location profiles in Add widget and pick whose it shows." },
+      { type: "feature", text: "Every home-screen widget can now be added to a profile page, and one kind of profile can show another's widgets (a group's on an {{alter}}'s page)." },
       { type: "feature", text: "Frame any picture: drag it to choose what stays in view and zoom in. A profile picture framed once shows that way on cards, bars and widgets." },
       { type: "feature", text: "Pictures can fade with a Picture opacity slider, and the Identity widget's colour behind the picture can be turned off for see-through pictures." },
       { type: "feature", text: "Widgets can overlap and be rotated: Shape → Arrange has \"Overlap other widgets\", layer buttons (To back, Back, Forward, To front) and Rotate." },
