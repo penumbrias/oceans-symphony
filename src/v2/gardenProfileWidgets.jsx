@@ -875,7 +875,7 @@ export const GARDEN_ALTER_WIDGETS = {
       { key: "avatarSize", type: "number", label: "Picture size", min: 32, max: 200, default: 88, unit: "px" },
       { key: "align", type: "select", label: "Alignment", default: "left",
         options: [{ value: "left", label: "Beside" }, { value: "center", label: "Centred" }] },
-      { key: "editInPlace", type: "toggle", label: "Tap the text to edit it", default: true },
+      { key: "editInPlace", type: "toggle", label: "Tap the text to edit it (home screen)", default: true },
     ],
   },
   alter_belongs: {
