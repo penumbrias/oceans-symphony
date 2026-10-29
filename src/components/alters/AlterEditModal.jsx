@@ -20,8 +20,7 @@ import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { registerAlterUpload } from "@/lib/assetFolders";
 import BioEditor from "@/components/alters/BioEditor";
-import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
+import { IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import RotationModeControl from "@/components/shared/RotationModeControl";
@@ -386,22 +385,9 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
             <BioEditor value={form.description} onChange={(val) => set("description", val)} />
           </div>
 
-          {/* Profile style — shared editor: Header is a collapsible
-              subsection; Body renders inline beneath it. */}
-          <SubSection title="Profile style" icon={Palette} defaultOpen={false}>
-            <ProfileStyleEditor
-              customFields={form.custom_fields}
-              setField={setCF}
-              clearField={clearCF}
-              rotationConfig={null}
-            />
-          </SubSection>
-
-          {/* No song section here on purpose: a song belongs to the PROFILE
-              STYLE, not to creating an {alter}. The ProfileStyleEditor above
-              carries it, so it's editable here AND on every profile page,
-              any time — rather than only at creation. Existing alters keep
-              their original profile_song field; it still plays. */}
+          {/* No look here: the page's colours, pictures, fonts and song are
+              set on the profile page itself (Display options → the profile,
+              v0.310.0), not while creating an {alter}. */}
 
           {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
               the top of the {alters} page (and the Set Front modal). */}

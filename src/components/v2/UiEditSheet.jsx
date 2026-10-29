@@ -42,6 +42,9 @@ import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { pageForPath, readPageLook, hasPageLook, writePageLook } from "@/lib/pageLooks";
+import { useLookSubject, takeLookFocus } from "@/lib/lookSubject";
+import ProfileLookTabs from "@/components/profile/ProfileLookTabs";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/setupPacks";
@@ -1579,6 +1582,41 @@ function StylesTab({ v2 }) {
 }
 
 // ── The popup body ─────────────────────────────────────────────────────
+// ── The scope row (v0.310.0) ──────────────────────────────────────────
+// Everywhere · This page · <name>'s profile. "This page" is the page the
+// sheet was opened on (its own background and song, pageLooks.js); the
+// profile scope is the profile on screen (lookSubject.js), with its look
+// as the same kind of tabs (ProfileLookTabs). The home page is the board,
+// whose background is already the Everywhere one, so it has no page scope.
+function PageLookTab({ settingsRow, page }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const look = readPageLook(settingsRow, page.id);
+  const background = resolveBackground(look?.background);
+  const write = async (next) => {
+    if (!settingsRow?.id) return;
+    await writePageLook(settingsRow, page.id, (cur) => ({ ...(cur || {}), background: next }));
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+  const reset = async () => {
+    if (!settingsRow?.id) return;
+    await writePageLook(settingsRow, page.id, null);
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+  return (
+    <div>
+      <p className="text-[0.6875rem] text-muted-foreground pt-2">{tr("editSheet.scopePageHint", { page: page.label })}</p>
+      <BackgroundBlock background={background} onChange={write} wallpaper={{}} />
+      <div className="pt-4 pb-2">
+        <button type="button" onClick={reset}
+          className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
+          {tr("editSheet.scopePageReset")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function UiEditSheet() {
   const v2 = useV2Display();
   const qc = useQueryClient();
@@ -1597,11 +1635,34 @@ export default function UiEditSheet() {
 
   const alignX = (v2.uiV2.tokens.alignX ?? "center") === "right" ? "right" : "left";
   const tr = useT();
+  const terms = useTerms();
 
-  // Opened for one bar (openBarsEditor) → land on Bars.
+  // Where the sheet is: a page of the app, or a profile.
+  const location = useLocation();
+  const page = useMemo(() => pageForPath(location.pathname), [location.pathname]);
+  const subject = useLookSubject();
+  const pageLabel = page ? ({
+    alters: terms.Alters, checkin: `${terms.System} Meeting`,
+    "system-map": `${terms.System} Map`, "system-history": `${terms.System} History`,
+  }[page.id] || page.label) : "";
+  const scopes = [
+    { value: "app", label: tr("editSheet.scopeApp") },
+    ...(page ? [{ value: "page", label: pageLabel }] : []),
+    ...(subject ? [{ value: "profile", label: subject.label || tr("editSheet.scopeProfile") }] : []),
+  ];
+  // Opened for one bar (openBarsEditor) → land on Bars; opened from a
+  // profile's "Page look" → land on that profile.
+  const [scope, setScope] = useState(() => {
+    const focus = takeLookFocus();
+    if (focus === "profile" && subject) return "profile";
+    if (focus === "page" && page) return "page";
+    return "app";
+  });
+  const effectiveScope = scopes.some((s) => s.value === scope) ? scope : "app";
   const [tab, setTab] = useState(() => {
     try { return sessionStorage.getItem("os_bars_focus") ? "bars" : "text"; } catch { return "text"; }
   });
+  const [profileTab, setProfileTab] = useState("colour");
   const tabs = [
     { id: "text", label: tr("editSheet.tabText"), icon: Type },
     { id: "shape", label: tr("editSheet.tabShape"), icon: Square },
@@ -1612,8 +1673,7 @@ export default function UiEditSheet() {
   // A tab change starts at the top of the panel — the host scrolls, so
   // this scrolls the nearest scrolling ancestor.
   const panelRef = useRef(null);
-  const pickTab = (id) => {
-    setTab(id);
+  const scrollTop = () => {
     let el = panelRef.current?.parentElement;
     while (el && el !== document.body) {
       const ov = getComputedStyle(el).overflowY;
@@ -1621,26 +1681,49 @@ export default function UiEditSheet() {
       el = el.parentElement;
     }
   };
-  useEdgeSafeSliders(true, [tab]);
+  const pickTab = (id) => { setTab(id); scrollTop(); };
+  const pickProfileTab = (id) => { setProfileTab(id); scrollTop(); };
+  const pickScope = (id) => { setScope(id); scrollTop(); };
+  useEdgeSafeSliders(true, [tab, effectiveScope, profileTab]);
 
   return (
     <div ref={panelRef}>
-      {/* The tab strip stays put while the panel scrolls (the hosts give it
-          a scrolling container with 16px side padding, hence the -mx-4). */}
-      <div className="sticky -top-1 z-10 -mx-4 bg-background">
-        <TabBar tabs={tabs} value={tab} onChange={pickTab} />
-      </div>
-      <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
-        {tab === "text" && <TextTab v2={v2} />}
-        {tab === "shape" && <ShapeTab v2={v2} />}
-        {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
-        {tab === "colour" && (
-          <ColourTab v2={v2}>
-            <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
-          </ColourTab>
-        )}
-        {tab === "styles" && <StylesTab v2={v2} />}
-      </div>
+      {scopes.length > 1 && (
+        <div className="pb-1.5" data-display-scope={effectiveScope}>
+          <Segmented label={tr("editSheet.scope")} value={effectiveScope} onChange={pickScope} options={scopes} />
+        </div>
+      )}
+      {effectiveScope === "profile" && subject ? (
+        <ProfileLookTabs subject={subject} tab={profileTab} onTab={pickProfileTab} />
+      ) : effectiveScope === "page" && page ? (
+        <>
+          <div className="sticky -top-1 z-10 -mx-4 bg-background">
+            <TabBar tabs={[{ id: "colour", label: tr("editSheet.tabColour"), icon: Palette, dot: hasPageLook(settingsRow, page.id) }]} value="colour" onChange={() => {}} />
+          </div>
+          <div role="tabpanel" aria-labelledby="inspector-tab-colour" className="pt-2">
+            <PageLookTab settingsRow={settingsRow} page={page} />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* The tab strip stays put while the panel scrolls (the hosts give it
+              a scrolling container with 16px side padding, hence the -mx-4). */}
+          <div className="sticky -top-1 z-10 -mx-4 bg-background">
+            <TabBar tabs={tabs} value={tab} onChange={pickTab} />
+          </div>
+          <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
+            {tab === "text" && <TextTab v2={v2} />}
+            {tab === "shape" && <ShapeTab v2={v2} />}
+            {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
+            {tab === "colour" && (
+              <ColourTab v2={v2}>
+                <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
+              </ColourTab>
+            )}
+            {tab === "styles" && <StylesTab v2={v2} />}
+          </div>
+        </>
+      )}
     </div>
   );
 }

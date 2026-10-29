@@ -21,7 +21,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Pencil, Eye, Save, Loader2, X, MapPin, Map as MapIcon, Trash2,
-  Lock, Unlock, Image as ImageIcon, ExternalLink, Upload, Undo2, Redo2, IdCard,
+  Lock, Unlock, ExternalLink, Upload, Undo2, Redo2, IdCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,8 @@ import { isLocalMode } from "@/lib/storageMode";
 import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
-import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import PageLookRow from "@/components/profile/PageLookRow";
+import { useRegisterLookSubject, withFreshLook } from "@/lib/lookSubject";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -71,6 +72,8 @@ function LocationProfileInner() {
   const location = locations.find((l) => String(l.id) === String(id)) || null;
   const locationOnNew = usesNewProfile(location);
   useEffect(() => { if (location) setOnNewLayout(locationOnNew); }, [location?.id, locationOnNew]);
+  // Display options offers this location's look while the page is open.
+  useRegisterLookSubject("location", location, location?.name);
 
   // Recolour the app-header wave to this location's wave colour while open.
   const waveRaw = location?.custom_fields?.["_theme_wave"];
@@ -148,6 +151,7 @@ function LocationProfileInner() {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
     try {
+      const fresh = (await base44.entities.InnerWorldLocation.get(location.id)) || location;
       await base44.entities.InnerWorldLocation.update(location.id, {
         name: form.name.trim(),
         color: form.color,
@@ -158,7 +162,7 @@ function LocationProfileInner() {
         is_locked: !!form.is_locked,
         link_target_type: form.link_target_type || null,
         link_target_id: form.link_target_id || null,
-        custom_fields: form.custom_fields,
+        custom_fields: withFreshLook(form.custom_fields, fresh.custom_fields),
       });
       queryClient.invalidateQueries({ queryKey: ["innerWorldLocations"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -299,14 +303,9 @@ function LocationProfileInner() {
           <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
         </div>
 
-        {/* Shared profile style editor */}
-        <SubSection title="Profile style" icon={ImageIcon} defaultOpen={false}>
-          <ProfileStyleEditor
-            customFields={form.custom_fields}
-            setField={setCf}
-            clearField={(key) => setForm((f) => { const cf = { ...f.custom_fields }; delete cf[key]; return { ...f, custom_fields: cf }; })}
-          />
-        </SubSection>
+        {/* The page's look is edited in Display options on this location
+            (v0.310.0); the form keeps whatever the sheet wrote (withFreshLook). */}
+        <PageLookRow />
 
         {/* On the map — the location's box appearance + link + lock */}
         <SubSection title="On the map" icon={MapPin} defaultOpen={false}>

@@ -3,7 +3,7 @@ import { PS } from "@/lib/profileStyle";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { deleteAlter as deleteAlterEverywhere, extractYear, firstAppearanceOf, saveAlterEdits, refreshAlter, createOwnedSubsystem } from "@/lib/alterEntry";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Link2, FolderPlus, Folder, Undo2, Redo2, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,8 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import { parsePreferences } from "@/lib/alterPreferences";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
-import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
+import PageLookRow from "@/components/profile/PageLookRow";
+import { IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -631,55 +631,9 @@ useEffect(() => {
         <BioEditor value={form.description} onChange={(val) => set("description", val)} />
       </div>
 
-      {/* Profile style — shared editor (Header collapsible; Body inline).
-          Same editor as the Add New / Edit {alter} modal. */}
-      <SubSection title="Profile style" icon={Image} defaultOpen={false}>
-        <ProfileStyleEditor
-          customFields={form.custom_fields}
-          setField={setBgField}
-          clearField={(key) => setForm((f) => {
-            const cf = { ...f.custom_fields };
-            delete cf[key];
-            return { ...f, custom_fields: cf };
-          })}
-          rotationConfig={{ alterId: alter.id, role: "background" }}
-        />
-      </SubSection>
-
-      <SubSection title="Header extras" icon={Users} defaultOpen={false}>
-        <p className="text-xs text-muted-foreground mb-1.5">Show extra info in this profile's header — it moves up there instead of showing in the body below. Group &amp; {subsystemTerm} chips link to their pages.</p>
-        {[
-          { key: PS.HEADER_SHOW_GROUPS, label: "Show groups" },
-          { key: PS.HEADER_SHOW_SUBSYSTEMS, label: `Show ${subsystemTerm}s` },
-          { key: PS.HEADER_SHOW_FIELDS, label: "Show entries" },
-          { key: PS.HEADER_SHOW_ALTER_FIELDS, label: `Show ${t.alter}-only entries` },
-          { key: PS.HEADER_SHOW_PRONOUNS, label: "Always show pronouns" },
-        ].map(({ key, label }) => {
-          const on = !!form.custom_fields?.[key];
-          return (
-            <button key={key} type="button" onClick={() => setBgField(key, !on)} className="w-full flex items-center justify-between gap-2 py-1.5">
-              <span className="text-sm text-foreground">{label}</span>
-              <span className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-colors ${on ? "bg-primary justify-end" : "bg-muted justify-start"}`}>
-                <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
-              </span>
-            </button>
-          );
-        })}
-        <div className="pt-2">
-          <p className="text-xs text-muted-foreground mb-1">Group / {subsystemTerm} chip style</p>
-          <div className="flex gap-1.5">
-            {["icon", "name", "both"].map((m) => {
-              const active = (form.custom_fields?.[PS.HEADER_CHIP_MODE] || "both") === m;
-              return (
-                <button key={m} type="button" onClick={() => setBgField(PS.HEADER_CHIP_MODE, m)}
-                  className={`flex-1 h-8 rounded-lg border text-xs font-medium capitalize transition-colors ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}>
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </SubSection>
+      {/* The page's look — colours, pictures, fonts, song, header — is
+          edited in Display options on this profile (v0.310.0). */}
+      <PageLookRow />
 
       {presetAnswerRows.length > 0 && (
         <div>

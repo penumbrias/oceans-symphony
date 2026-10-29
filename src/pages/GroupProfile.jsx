@@ -16,7 +16,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, User, Crown, Users, Pencil, Eye, EyeOff, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText,
+  Loader2, Upload, X, Trash2, Smile, MessageSquare, FileText,
   Undo2, Redo2, ShieldCheck, BookOpen, IdCard, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,7 +32,8 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import { deleteGroupCascade } from "@/lib/groupMembership";
 import GroupSelect from "@/components/groups/GroupSelect";
-import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import PageLookRow from "@/components/profile/PageLookRow";
+import { useRegisterLookSubject, withFreshLook } from "@/lib/lookSubject";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { pushAlterShares } from "@/lib/friendsShare";
@@ -102,6 +103,8 @@ function GroupProfileInner() {
   const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
   const groupOnNew = usesNewProfile(group);
   useEffect(() => { if (group) setOnNewLayout(groupOnNew); }, [group?.id, groupOnNew]);
+  // Display options offers this group's look while the page is open.
+  useRegisterLookSubject("group", group, group?.name);
 
   // Recolour the APP-HEADER wave to this group's wave colour while it's open
   // (resolving a var(--color-…) palette reference against the live .os-pf
@@ -171,6 +174,7 @@ function GroupProfileInner() {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
     try {
+      const fresh = (await base44.entities.Group.get(group.id)) || group;
       await base44.entities.Group.update(group.id, {
         name: form.name.trim(),
         color: form.color,
@@ -180,7 +184,7 @@ function GroupProfileInner() {
         owner_alter_id: form.owner_alter_id || "",
         parent: form.parent || "",
         ...pickGroupConfig(form),
-        custom_fields: form.custom_fields,
+        custom_fields: withFreshLook(form.custom_fields, fresh.custom_fields),
       });
       toast.success("Saved!");
       queryClient.invalidateQueries({ queryKey: ["groups"] });
@@ -409,20 +413,9 @@ function GroupProfileInner() {
         <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
       </div>
 
-      {/* Profile style — shared editor (collapsible Header / Body with
-          colours, images, fonts, opacity + readability). Matches the
-          Add New Group modal pattern. */}
-      <SubSection title="Profile style" icon={ImageIcon} defaultOpen={false}>
-        <ProfileStyleEditor
-          customFields={form.custom_fields}
-          setField={setCf}
-          clearField={(key) => setForm((f) => {
-            const cf = { ...f.custom_fields };
-            delete cf[key];
-            return { ...f, custom_fields: cf };
-          })}
-        />
-      </SubSection>
+      {/* The page's look is edited in Display options on this group
+          (v0.310.0); the form keeps whatever the sheet wrote (withFreshLook). */}
+      <PageLookRow />
 
       <GroupFriendsVisibility group={group} members={members} allGroups={allGroups} alters={alters} />
 

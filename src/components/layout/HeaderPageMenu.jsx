@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb, Palette } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSyncAdapter } from "@/lib/syncAdapters";
@@ -201,6 +201,17 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       label: "Tracking setup",
       icon: Activity,
       onSelect: () => navigate("/settings#checkin"),
+    });
+  }
+  // Under the classic chrome every page off the home screen can still
+  // open Display options (v0.310.0): its Editing row offers this page's
+  // own background, or the profile on screen.
+  if (!v2Options && path !== "/") {
+    pageActions.push({
+      key: "display-options",
+      label: "Display options",
+      icon: Palette,
+      onSelect: () => window.dispatchEvent(new CustomEvent("os-open-display-options")),
     });
   }
 

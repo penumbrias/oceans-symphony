@@ -57,6 +57,7 @@ import { resolveUiV2, buildTokenVars, V2_TOKEN_DEFS } from "@/lib/uiV2";
 import { applyHomePresetToBoard } from "@/lib/homePresetParts";
 import { writeBoard, BOARD_SETTINGS_FIELDS, WIDGET_BOARD_FIELD } from "@/lib/boardWriter";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
+import PageLookHost from "@/components/v2/PageLookHost";
 import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
@@ -1088,6 +1089,9 @@ const handleNotifClick = (mentionLog) => {
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
+          {/* The page's own background (Display options → this page),
+              fixed -z-10 inside main's isolate context like the board's. */}
+          <PageLookHost />
           {!showFeatureTour && !pageScopedTourRoute && (
             // Own stacking layer: the v2 board's page background is a
             // fixed -z-10 layer INSIDE the board's context, which paints
