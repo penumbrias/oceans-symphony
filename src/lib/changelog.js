@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "improve", text: "Custom fields are called custom fields again, on profiles and in Settings." },
       { type: "feature", text: "Display options now has an Editing row: Everywhere, this page, or the profile you're on. A page can have its own background and song (the planner's needn't match the journal's)." },
       { type: "improve", text: "A profile's look — colours, pictures, fonts, song, header — is now edited in Display options on that profile, in the same tabs as everything else. The old Profile style section and the Look tab of {{Alter}} info are gone; \"Page look\" opens the new one." },
       { type: "feature", text: "The formatting toolbar now appears in {{Alter}} info text entries, the Heading widget, and note, message, to-do, wish and goal boxes." },
@@ -31,7 +32,7 @@ export const CHANGELOG = [
       { type: "feature", text: "The new inner-world location profile: what the place is, its description, the {{alters}} there and the places inside it, as widgets. New locations start on it; the pencil can switch or revert." },
       { type: "improve", text: "{{Alter}} profiles: the top buttons now say what they do — {{Front}}, Info and Edit page — and {{Front}} works like everywhere else, hold included for the level rail." },
       { type: "improve", text: "Preferences & boundaries now sit in Info, just under pronouns." },
-      { type: "improve", text: "Custom fields are called entries everywhere, and each entry's ⋯ on a profile can rename it, change its kind, hide it or delete it." },
+      { type: "improve", text: "Each custom field's ⋯ on a profile can rename it, change its kind, hide it or delete it." },
       { type: "improve", text: "New {{alters}} are hidden from friends until you choose to share them." },
     ],
   },

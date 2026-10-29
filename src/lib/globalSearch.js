@@ -810,7 +810,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["appearance", "Appearance", "Theme, colours, fonts, wallpaper, presets, dashboard layout, navigation, corner style, home screen, widgets"],
     ["notifications", "Notifications & reminders", "Reminders, push notifications, notifications off, allow notifications, status bar, persistent notification, pop-up messages, alerts, battery"],
     ["accessibility", "Accessibility", "Font size, text size, contrast, bottom bar height, motion"],
-    ["alters", `${Alter} setup`, `Entries (custom fields), relationship types, archived ${Alters}, ${Alter} order, arrangement, labels, ${fronting} levels, profile songs, duplicates`],
+    ["alters", `${Alter} setup`, `Custom fields, relationship types, archived ${Alters}, ${Alter} order, arrangement, labels, ${fronting} levels, profile songs, duplicates`],
     ["checkin", "Tracking setup", "Custom emotions, symptoms, diary card templates, quick actions, triggers, check-in"],
     ["systems", Systems, `Multiple ${Systems}, switching between ${Systems}`],
     ["data", "Data & privacy", "Backup, export, import, restore, encryption, passphrase, storage mode, sync, panic hide, delete"],

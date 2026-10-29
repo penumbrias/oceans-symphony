@@ -261,7 +261,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
                 <>
                   <SwitchRow label="Show groups" checked={!!cf[PS.HEADER_SHOW_GROUPS]} onChange={(on) => set(PS.HEADER_SHOW_GROUPS, on ? true : undefined)} />
                   <SwitchRow label={`Show ${subsystemTerm}s`} checked={!!cf[PS.HEADER_SHOW_SUBSYSTEMS]} onChange={(on) => set(PS.HEADER_SHOW_SUBSYSTEMS, on ? true : undefined)} />
-                  <SwitchRow label="Show entries" checked={!!cf[PS.HEADER_SHOW_FIELDS]} onChange={(on) => set(PS.HEADER_SHOW_FIELDS, on ? true : undefined)} />
+                  <SwitchRow label="Show custom fields" checked={!!cf[PS.HEADER_SHOW_FIELDS]} onChange={(on) => set(PS.HEADER_SHOW_FIELDS, on ? true : undefined)} />
                   <SwitchRow label={`Show ${t.alter}-only entries`} checked={!!cf[PS.HEADER_SHOW_ALTER_FIELDS]} onChange={(on) => set(PS.HEADER_SHOW_ALTER_FIELDS, on ? true : undefined)} />
                   <SwitchRow label="Always show pronouns" checked={!!cf[PS.HEADER_SHOW_PRONOUNS]} onChange={(on) => set(PS.HEADER_SHOW_PRONOUNS, on ? true : undefined)} />
                   <ChoiceRow label={`Group and ${subsystemTerm} chips`} value={cf[PS.HEADER_CHIP_MODE] || "both"}
