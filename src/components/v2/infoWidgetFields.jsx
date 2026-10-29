@@ -95,7 +95,7 @@ export function InfoEntriesField({ settings, set }) {
       refreshAlter(qc, alterId);
       setIds([...ids.filter((x) => x !== id), id]);
       setAdding(null);
-    } catch (e) { toast.error(e?.message || "Couldn't add that entry"); }
+    } catch (e) { toast.error(e?.message || "Couldn't add that custom field"); }
   };
   const blockedOwn = !!alter?.alter_custom_fields && !Array.isArray(alter.alter_custom_fields);
 
@@ -116,7 +116,7 @@ export function InfoEntriesField({ settings, set }) {
                   onRemove={(idx) => setIds(shown.filter((_, j) => j !== idx).map((e) => e.id))} />
               </div>
               {entry.kind === "all"
-                ? <p className="text-xs text-muted-foreground">Every entry that's filled in and not listed on its own, including ones added later.</p>
+                ? <p className="text-xs text-muted-foreground">Every custom field that's filled in and not listed on its own, including ones added later.</p>
                 : entry.kind === "bio"
                 ? <BioEntry k={`${alterId}`} value={entryValue(alter, "bio")} onChange={(v) => commit("bio", v)} />
                 : <EntryInput k={`${alterId}:${entry.id}`} type={entry.kind} label={entry.label}
@@ -124,9 +124,9 @@ export function InfoEntriesField({ settings, set }) {
             </div>
           ))}
           <StackedRow label={shown.length ? "Show another field" : "Show a field"}>
-            <SearchableSelect value={null} placeholder="Pick an entry…" searchPlaceholder="Search entries…"
+            <SearchableSelect value={null} placeholder="Pick what to show…" searchPlaceholder="Search…"
               options={[
-                ...(ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (entries)` }]),
+                ...(ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (custom fields)` }]),
                 ...all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label })),
               ]}
               onChange={(id) => { if (id) setIds([...ids, id]); }} />

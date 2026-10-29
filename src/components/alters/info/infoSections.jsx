@@ -101,7 +101,7 @@ function EntryEditForm({ draft, onDraft, onSave, onCancel, everyone }) {
   return (
     <div className="pt-1" data-edit-entry="">
       <StackedRow label="Name">
-        <input value={draft.name} onChange={(e) => onDraft({ ...draft, name: e.target.value })} aria-label="Entry name" autoFocus
+        <input value={draft.name} onChange={(e) => onDraft({ ...draft, name: e.target.value })} aria-label="Custom field name" autoFocus
           className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }} />
       </StackedRow>
       <ChoiceRow label="Kind" options={ENTRY_KINDS} value={draft.kind} onChange={(v) => onDraft({ ...draft, kind: v })}
@@ -429,7 +429,7 @@ export function EntriesSection({ alter, info, bio = true }) {
     return { ...f, alter_custom_fields: list };
   });
   const removeOwn = (index) => {
-    const name = ownFields?.[index]?.name || "entry";
+    const name = ownFields?.[index]?.name || "custom field";
     update((f) => ({ ...f, alter_custom_fields: (f.alter_custom_fields || []).filter((_, i) => i !== index) }));
     info.reseed();
     toast(`Removed “${name}”`, { action: { label: "Undo", onClick: info.undo } });
@@ -443,13 +443,13 @@ export function EntriesSection({ alter, info, bio = true }) {
     const taken = adding.scope === "everyone"
       ? systemFields.some((f) => (f.name || "").trim().toLowerCase() === name.toLowerCase())
       : (ownFields || []).some((f) => (f?.name || "").trim().toLowerCase() === name.toLowerCase());
-    if (taken) { toast.error(`There's already an entry called “${name}”`); return; }
+    if (taken) { toast.error(`There's already a custom field called “${name}”`); return; }
     if (adding.scope === "everyone") {
       try {
         const created = await base44.entities.CustomField.create({ name, field_type: kind, order: systemFields.length });
         qc.invalidateQueries({ queryKey: ["customFields"] });
         if (created?.id && fieldOrder) setCustomField(FIELD_ORDER_KEY, [...fieldOrder, created.id]);
-      } catch (e) { toast.error(e?.message || "Couldn't add that entry"); return; }
+      } catch (e) { toast.error(e?.message || "Couldn't add that custom field"); return; }
     } else {
       update((f) => ({ ...f, alter_custom_fields: [...(Array.isArray(f.alter_custom_fields) ? f.alter_custom_fields : []), { name, value: "", field_type: kind }] }));
     }
@@ -468,7 +468,7 @@ export function EntriesSection({ alter, info, bio = true }) {
     } catch (e) { toast.error(e?.message || "That didn't save"); }
   };
   const deleteShared = async (field) => {
-    if (!(await confirm(`Delete the entry “${field.name}” for every ${t.alter}? It stops showing on profiles. ${TRASH_HINT}`))) return;
+    if (!(await confirm(`Delete the custom field “${field.name}” for every ${t.alter}? It stops showing on profiles. ${TRASH_HINT}`))) return;
     try {
       await base44.entities.CustomField.delete(field.id);
       qc.invalidateQueries({ queryKey: ["customFields"] });
@@ -485,7 +485,7 @@ export function EntriesSection({ alter, info, bio = true }) {
     } else {
       const index = Number(editing.key.slice(4));
       if ((ownFields || []).some((f, j) => j !== index && (f?.name || "").trim().toLowerCase() === name.toLowerCase())) {
-        toast.error(`There's already an entry called “${name}”`); return;
+        toast.error(`There's already a custom field called “${name}”`); return;
       }
       update((f) => {
         const list = [...(f.alter_custom_fields || [])];
@@ -539,7 +539,7 @@ export function EntriesSection({ alter, info, bio = true }) {
       ) : (
         <div className="flex flex-wrap gap-2 mt-2">
           <button type="button" className={smallBtn} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
-            <Plus className="w-3.5 h-3.5" /> Add an entry
+            <Plus className="w-3.5 h-3.5" /> Add a custom field
           </button>
           {fieldOrder && (
             <button type="button" className={smallBtn} title={`Use the order Settings sets for every ${t.alter}`}
@@ -548,7 +548,7 @@ export function EntriesSection({ alter, info, bio = true }) {
             </button>
           )}
           <button type="button" className={smallBtn} onClick={() => navigate("/settings#alter-entries")}>
-            Entries for every {t.alter}…
+            Custom fields for every {t.alter}…
           </button>
         </div>
       )}
@@ -559,14 +559,14 @@ export function EntriesSection({ alter, info, bio = true }) {
 // The "new entry" form (v0.300.0): name, kind, and who has it — just this
 // alter (one of their own entries) or every alter (a custom field). The
 // Alter info list and the Field widget's options both use it.
-export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, blockedOwn = false, addLabel = "Add entry" }) {
+export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, blockedOwn = false, addLabel = "Add custom field" }) {
   const t = useTerms();
   const who = alterName || `this ${t.alter}`;
   return (
     <div className="mt-2 pt-1 border-t border-border/50" data-add-entry="">
-      <StackedRow label="New entry's name">
+      <StackedRow label="New custom field's name">
         <input value={draft.name} onChange={(e) => onDraft({ ...draft, name: e.target.value })} placeholder="Like Likes or Backstory"
-          aria-label="New entry's name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }} />
+          aria-label="New custom field's name" autoFocus className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }} />
       </StackedRow>
       <ChoiceRow label="Kind" options={ENTRY_KINDS} value={draft.kind} onChange={(v) => onDraft({ ...draft, kind: v })} />
       <ChoiceRow label="Who has it" value={draft.scope} onChange={(v) => onDraft({ ...draft, scope: v })}

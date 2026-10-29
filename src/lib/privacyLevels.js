@@ -29,7 +29,7 @@ export const SHARE_FIELD_LABELS = {
   color: "Colour",
   avatar: "Avatar",
   bio: "Bio",
-  customFields: "Entries",
+  customFields: "Custom fields",
   groups: "Groups",
 };
 
