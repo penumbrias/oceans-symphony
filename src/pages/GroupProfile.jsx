@@ -254,11 +254,12 @@ function GroupProfileInner() {
               </Button>
               <Button
                 data-tour="group-profile-layout-btn"
-                variant="outline" size="sm" className="h-9 gap-1.5"
+                variant="outline" size="sm" className="h-9 w-9 px-0"
                 onClick={openProfileLayoutEditor}
-                title="Edit this page — move, resize and add widgets"
+                title="Edit page — move, resize and add widgets, and change what's shown"
+                aria-label="Edit page"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit page
+                <Pencil className="w-4 h-4" />
               </Button>
             </div>
           )}

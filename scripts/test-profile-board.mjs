@@ -13,7 +13,7 @@ import {
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
   NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, NEW_LAYOUT_SUFFIX, usesNewProfile, layoutSuffixFor, layoutOwnerIds,
   NEW_GROUP_PROFILE_PAGES, GROUP_PROFILE_PAGES, hasNewProfile, NEW_CONTACT_PROFILE_PAGES, CONTACT_PROFILE_PAGES,
-  NEW_LOCATION_PROFILE_PAGES, LOCATION_PROFILE_PAGES,
+  NEW_LOCATION_PROFILE_PAGES, LOCATION_PROFILE_PAGES, withAddedProfilePages,
 } from "../src/lib/profileBoard.js";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -234,12 +234,12 @@ test("with no saved layout the conversion starts from the garden page, without a
   assert.ok(textOnly.pages[0].widgets.some((w) => w.widgetId === "media" && w.settings.source === "pictures"));
 });
 
-test("the new profile (v0.305.0) seeds seven pages, with its own layout row id", () => {
+test("the new profile (v0.305.0) seeds eight pages, with its own layout row id", () => {
   const rec = { id: "a1", profile_layout: "v2" };
   assert.ok(usesNewProfile(rec));
   assert.ok(!usesNewProfile({ id: "a1", profile_layout: "garden" }));
   const b = seedProfileBoard(rec, "alter");
-  assert.deepEqual(b.pages.map((p) => tabOfPageId(p.id)), ["profile", "fronting", "messages", "notes", "journal", "wishes", "connections"]);
+  assert.deepEqual(b.pages.map((p) => tabOfPageId(p.id)), ["profile", "fronting", "fields", "messages", "notes", "journal", "wishes", "connections"]);
   assert.equal(b.pages.length, NEW_ALTER_PROFILE_PAGES.length);
   const notes = b.pages.find((p) => p.id === profilePageId("notes")).widgets[0];
   assert.equal(notes.mode, "expanded");
@@ -251,6 +251,19 @@ test("the new profile (v0.305.0) seeds seven pages, with its own layout row id",
   // Classic and garden seeds are unchanged.
   assert.equal(seedProfileBoard({ id: "a1" }, "alter").pages.length, ALTER_PROFILE_PAGES.length);
   assert.equal(seedProfileBoard({ id: "a1", profile_layout: "garden" }, "alter").pages[0].widgets[1].widgetId, "media");
+});
+
+test("a saved new profile gets the Custom fields page until it's removed (v0.313.0)", () => {
+  const rec = { id: "a1", profile_layout: "v2" };
+  const seed = seedProfileBoard(rec, "alter");
+  const saved = { ...seed, _seeded: undefined, pages: seed.pages.filter((p) => p.id !== profilePageId("fields")) };
+  const shown = withAddedProfilePages(saved, rec, "alter");
+  assert.deepEqual(shown.pages.map((p) => tabOfPageId(p.id)).slice(0, 3), ["profile", "fields", "fronting"]);
+  assert.equal(saved.pages.length, seed.pages.length - 1, "the saved board is not changed");
+  assert.equal(withAddedProfilePages({ ...saved, _removedPages: { [profilePageId("fields")]: "2026-10-29T00:00:00Z" } }, rec, "alter").pages.length, saved.pages.length);
+  assert.equal(withAddedProfilePages(seed, rec, "alter"), seed);
+  assert.equal(withAddedProfilePages(saved, { id: "a1" }, "alter"), saved, "classic profiles are left alone");
+  assert.equal(withAddedProfilePages(null, rec, "alter"), null);
 });
 
 test("every old tab name lands on a page of the new profile", () => {
