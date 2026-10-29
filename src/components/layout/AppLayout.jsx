@@ -58,6 +58,7 @@ import { applyHomePresetToBoard } from "@/lib/homePresetParts";
 import { writeBoard, BOARD_SETTINGS_FIELDS, WIDGET_BOARD_FIELD } from "@/lib/boardWriter";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock, DisplayOptionsHost } from "@/components/v2/V2Frame";
 import PageLookHost from "@/components/v2/PageLookHost";
+import { ProfileLookHost } from "@/components/profile/ProfileLookSheet";
 import { readPinnedBar } from "@/lib/barsModel";
 import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
@@ -815,6 +816,7 @@ const handleNotifClick = (mentionLog) => {
       <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
 
       {UI_V2_ENABLED && <DisplayOptionsHost />}
+      <ProfileLookHost />
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
       {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
           headers (hidden via [data-classic-v2-top] in index.css). */}

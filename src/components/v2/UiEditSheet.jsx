@@ -43,8 +43,7 @@ import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/wave
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { pageForPath, readPageLook, hasPageLook, writePageLook } from "@/lib/pageLooks";
-import { useLookSubject, takeLookFocus } from "@/lib/lookSubject";
-import ProfileLookTabs from "@/components/profile/ProfileLookTabs";
+import { takeLookFocus } from "@/lib/lookSubject";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { useNavigate, useLocation } from "react-router-dom";
 import { buildApplyPatch, packToJson, applyAppTheme, savePackFile } from "@/lib/setupPacks";
@@ -1583,11 +1582,11 @@ function StylesTab({ v2 }) {
 
 // ── The popup body ─────────────────────────────────────────────────────
 // ── The scope row (v0.310.0) ──────────────────────────────────────────
-// Everywhere · This page · <name>'s profile. "This page" is the page the
-// sheet was opened on (its own background and song, pageLooks.js); the
-// profile scope is the profile on screen (lookSubject.js), with its look
-// as the same kind of tabs (ProfileLookTabs). The home page is the board,
-// whose background is already the Everywhere one, so it has no page scope.
+// Everywhere · This page. "This page" is the page the sheet was opened on
+// (its own background and song, pageLooks.js). The home page is the board,
+// whose background is already the Everywhere one, so it has no page scope,
+// and a profile page has its own sheet (Profile display options,
+// ProfileLookSheet) rather than a scope here.
 function PageLookTab({ settingsRow, page }) {
   const tr = useT();
   const qc = useQueryClient();
@@ -1637,10 +1636,9 @@ export default function UiEditSheet() {
   const tr = useT();
   const terms = useTerms();
 
-  // Where the sheet is: a page of the app, or a profile.
+  // Where the sheet is: a page of the app with a look of its own, or not.
   const location = useLocation();
   const page = useMemo(() => pageForPath(location.pathname), [location.pathname]);
-  const subject = useLookSubject();
   const pageLabel = page ? ({
     alters: terms.Alters, checkin: `${terms.System} Meeting`,
     "system-map": `${terms.System} Map`, "system-history": `${terms.System} History`,
@@ -1648,13 +1646,11 @@ export default function UiEditSheet() {
   const scopes = [
     { value: "app", label: tr("editSheet.scopeApp") },
     ...(page ? [{ value: "page", label: pageLabel }] : []),
-    ...(subject ? [{ value: "profile", label: subject.label || tr("editSheet.scopeProfile") }] : []),
   ];
-  // Opened for one bar (openBarsEditor) → land on Bars; opened from a
-  // profile's "Page look" → land on that profile.
+  // Opened for one bar (openBarsEditor) → land on Bars; opened for this
+  // page's look (openPageLook) → land on the page.
   const [scope, setScope] = useState(() => {
     const focus = takeLookFocus();
-    if (focus === "profile" && subject) return "profile";
     if (focus === "page" && page) return "page";
     return "app";
   });
@@ -1662,7 +1658,6 @@ export default function UiEditSheet() {
   const [tab, setTab] = useState(() => {
     try { return sessionStorage.getItem("os_bars_focus") ? "bars" : "text"; } catch { return "text"; }
   });
-  const [profileTab, setProfileTab] = useState("colour");
   const tabs = [
     { id: "text", label: tr("editSheet.tabText"), icon: Type },
     { id: "shape", label: tr("editSheet.tabShape"), icon: Square },
@@ -1682,9 +1677,8 @@ export default function UiEditSheet() {
     }
   };
   const pickTab = (id) => { setTab(id); scrollTop(); };
-  const pickProfileTab = (id) => { setProfileTab(id); scrollTop(); };
   const pickScope = (id) => { setScope(id); scrollTop(); };
-  useEdgeSafeSliders(true, [tab, effectiveScope, profileTab]);
+  useEdgeSafeSliders(true, [tab, effectiveScope]);
 
   return (
     <div ref={panelRef}>
@@ -1693,9 +1687,7 @@ export default function UiEditSheet() {
           <Segmented label={tr("editSheet.scope")} value={effectiveScope} onChange={pickScope} options={scopes} />
         </div>
       )}
-      {effectiveScope === "profile" && subject ? (
-        <ProfileLookTabs subject={subject} tab={profileTab} onTab={pickProfileTab} />
-      ) : effectiveScope === "page" && page ? (
+      {effectiveScope === "page" && page ? (
         <>
           <div className="sticky -top-1 z-10 -mx-4 bg-background">
             <TabBar tabs={[{ id: "colour", label: tr("editSheet.tabColour"), icon: Palette, dot: hasPageLook(settingsRow, page.id) }]} value="colour" onChange={() => {}} />

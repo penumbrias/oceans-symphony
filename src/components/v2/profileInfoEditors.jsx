@@ -18,7 +18,7 @@ const SECTIONS = {
   basics: ({ alter, info }) => <BasicsSection alter={alter} info={info} />,
   // What else the header shows is part of the page's look (Display
   // options → this profile → Content, v0.310.0).
-  header: ({ alter, info }) => <><BasicsSection alter={alter} info={info} /><PageLookRow hint="What the header shows, its colours and banner — in Display options" /></>,
+  header: ({ alter, info }) => <><BasicsSection alter={alter} info={info} /><PageLookRow hint="What the header shows, its colours and banner" /></>,
   bio: ({ info }) => <BioSection info={info} withRow={false} />,
   entries: ({ alter, info }) => <EntriesSection alter={alter} info={info} bio={false} />,
   groups: ({ alter }) => <GroupsSection alter={alter} />,

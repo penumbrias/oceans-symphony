@@ -7,8 +7,8 @@
 // pencil button opens. The old form is only reachable from the ⋯ menu
 // ("Classic edit form (older)") for anyone who still wants it. The page's
 // LOOK is not information about the alter, so since v0.310.0 it lives in
-// Display options (the profile scope, ProfileLookTabs); the "Page look"
-// row on the Info tab opens it.
+// Profile display options (ProfileLookSheet, ProfileLookTabs); the
+// "Profile display options" row on the Info tab opens it.
 //
 // Rows follow the inspector row grammar (SettingRows.jsx), split into
 // pages with the inspector's TabBar (v0.299.0): Info · Entries · Pictures ·

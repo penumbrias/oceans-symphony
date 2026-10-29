@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "improve", text: "A profile's look now has its own sheet, \"Profile display options\", from the cog menu or {{Alter}} info — not a row inside Display options." },
       { type: "fix", text: "Activity sheet: a start or end time picked on the phone's clock now sticks instead of snapping back, and a cleared time no longer jumps to midnight." },
       { type: "improve", text: "Custom fields are called custom fields again, on profiles and in Settings." },
       { type: "feature", text: "Display options now has an Editing row: Everywhere, this page, or the profile you're on. A page can have its own background and song (the planner's needn't match the journal's)." },
