@@ -25,6 +25,7 @@ import React from "react";
 import { ArrowLeftRight, Clock, Hourglass, Link2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import ActivityAnchorPicker from "@/components/activities/ActivityAnchorPicker";
+import { isNative } from "@/lib/platform";
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } };
@@ -44,6 +45,18 @@ const timeStr = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 export const fmtLength = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
   return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+};
+// A cleared or half-typed field reports "" (or a broken value). Treat that
+// as "not done yet", never as midnight — otherwise the start jumps to 00:00
+// and the field fights the person (owner report, 2026-10-29: the start
+// "can't be adjusted no matter what").
+const okDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
+const okTime = (v) => /^\d{2}:\d{2}/.test(String(v || ""));
+// On the installed apps a tap on a time/date field opens the system picker
+// directly, so it never depends on the web view noticing the tap.
+const openPicker = (e) => {
+  if (!isNative()) return;
+  try { e.currentTarget.showPicker?.(); } catch { /* already open / not allowed */ }
 };
 const chipLabel = (m) => (m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}½h` : `${m / 60}h`);
 
@@ -89,11 +102,13 @@ export default function ActivityWhenField({
   const anchorAt = byEnd ? end : s;
 
   const setDay = (v) => {
+    if (!okDate(v)) return;
     const [y, mo, da] = String(v).split("-").map(Number);
     if (!y || !mo || !da) return;
     placeAnchor(new Date(y, mo - 1, da, anchorAt.getHours(), anchorAt.getMinutes(), 0, 0));
   };
   const setClock = (v) => {
+    if (!okTime(v)) return;
     const [h, m] = String(v).split(":").map(Number);
     const d = new Date(anchorAt); d.setHours(h || 0, m || 0, 0, 0);
     placeAnchor(d);
@@ -109,6 +124,7 @@ export default function ActivityWhenField({
   // the start, ready for the time to be typed (owner report on the old
   // planner sheet, where the date bounced back).
   const commitEnd = (dStr, tStr, { dateEdit = false } = {}) => {
+    if (!okDate(dStr) || (!dateEdit && !okTime(tStr))) return;
     const [y, mo, da] = String(dStr).split("-").map(Number);
     const [h, mi] = String(tStr).split(":").map(Number);
     if (!y || !mo || !da) return;
@@ -119,6 +135,7 @@ export default function ActivityWhenField({
   // The mirror when the end is the anchor ("From"): a start time after the
   // end rolls back a day; a start date never rolls.
   const commitStart = (dStr, tStr, { dateEdit = false } = {}) => {
+    if (!okDate(dStr) || (!dateEdit && !okTime(tStr))) return;
     const [y, mo, da] = String(dStr).split("-").map(Number);
     const [h, mi] = String(tStr).split(":").map(Number);
     if (!y || !mo || !da) return;
@@ -209,13 +226,13 @@ export default function ActivityWhenField({
           <div className="grid grid-cols-2 gap-2">
             <label className="min-w-0 text-xs text-muted-foreground">
               {tr("planner.startedAt")}
-              <input type="date" value={dateStr(s)} aria-label={tr("planner.date")}
+              <input type="date" onClick={openPicker} value={dateStr(s)} aria-label={tr("planner.date")}
                 onChange={(e) => commitStart(e.target.value, timeStr(s), { dateEdit: true })}
                 className={`mt-1 ${field}`} />
             </label>
             <label className="min-w-0 text-xs text-muted-foreground">
               <span className="invisible" aria-hidden="true">·</span>
-              <input type="time" value={hasLength ? timeStr(s) : ""} aria-label={tr("planner.startsAt")}
+              <input type="time" onClick={openPicker} value={hasLength ? timeStr(s) : ""} aria-label={tr("planner.startsAt")}
                 onChange={(e) => commitStart(dateStr(hasLength ? s : end), e.target.value)}
                 className={`mt-1 ${field}`} />
             </label>
@@ -229,13 +246,13 @@ export default function ActivityWhenField({
           <div className="grid grid-cols-2 gap-2">
             <label className="min-w-0 text-xs text-muted-foreground">
               {tr("planner.endsAt")}
-              <input type="date" value={dateStr(hasLength ? end : s)} aria-label={tr("planner.endDate")}
+              <input type="date" onClick={openPicker} value={dateStr(hasLength ? end : s)} aria-label={tr("planner.endDate")}
                 onChange={(e) => commitEnd(e.target.value, timeStr(hasLength ? end : s), { dateEdit: true })}
                 className={`mt-1 ${field}`} />
             </label>
             <label className="min-w-0 text-xs text-muted-foreground">
               <span className="invisible" aria-hidden="true">·</span>
-              <input type="time" value={hasLength ? timeStr(end) : ""} aria-label={tr("planner.endTime")}
+              <input type="time" onClick={openPicker} value={hasLength ? timeStr(end) : ""} aria-label={tr("planner.endTime")}
                 onChange={(e) => commitEnd(dateStr(hasLength ? end : s), e.target.value)}
                 className={`mt-1 ${field}`} />
             </label>
@@ -258,7 +275,7 @@ export default function ActivityWhenField({
         {!hideDay && (
           <label className="flex-1 text-xs text-muted-foreground">
             {tr("planner.date")}
-            <input type="date" ref={dayInputRef} value={dateStr(anchorAt)} onChange={(e) => setDay(e.target.value)}
+            <input type="date" onClick={openPicker} ref={dayInputRef} value={dateStr(anchorAt)} onChange={(e) => setDay(e.target.value)}
               className={`mt-1 ${field}`} />
           </label>
         )}
@@ -273,7 +290,7 @@ export default function ActivityWhenField({
               <ArrowLeftRight className="w-3 h-3" aria-hidden="true" />
             </button>
           )}
-          <input type="time" value={timeStr(anchorAt)} onChange={(e) => setClock(e.target.value)}
+          <input type="time" onClick={openPicker} value={timeStr(anchorAt)} onChange={(e) => setClock(e.target.value)}
             aria-label={byEnd ? tr("planner.endTime") : tr("planner.startsAt")}
             className={`mt-1 ${field}`} />
         </div>
