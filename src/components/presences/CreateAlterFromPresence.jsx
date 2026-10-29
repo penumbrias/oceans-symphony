@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { sightingsOf } from "./PresencePicker";
 import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // Promote a recorded presence into a real alter, carrying over its data
 // (name from the label/vibe, colour, emoji, vibe+notes → bio). The user then
@@ -65,7 +66,7 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
       // the alter editor keeps in sync.
       const seen = [...sightingsOf(presence)].sort();
       const firstSeen = seen[0] ? new Date(seen[0]) : new Date();
-      const newAlter = await base44.entities.Alter.create({
+      const newAlter = await base44.entities.Alter.create(withNewAlterDefaults({
         name: name.trim(),
         color: presence.color || "",
         emoji: presence.emoji || "",
@@ -73,7 +74,7 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
         birthday: format(firstSeen, "MMM d, yyyy"),
         origin_year: firstSeen.getFullYear(),
         is_archived: false,
-      });
+      }));
 
       if (mode === "subsystem" && ownerId) {
         let group = subsystemId ? groups.find((g) => g.id === subsystemId) : null;

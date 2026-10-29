@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { runAutoBackupNow } from "@/lib/autoBackup";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // Front-history range presets — mirror OpenPluralConnect. Real exports carry
 // hundreds of sessions, so default to a year rather than all-time.
@@ -259,7 +260,7 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
               alterIdByOctoId[mapped.octo_id] = existing.id;
               altersUpdated++;
             } else {
-              const created = await localEntities.Alter.create(mapped);
+              const created = await localEntities.Alter.create(withNewAlterDefaults(mapped));
               alterIdByOctoId[mapped.octo_id] = created.id;
               altersCreated++;
             }

@@ -95,7 +95,7 @@ export function InfoEntriesField({ settings, set }) {
       refreshAlter(qc, alterId);
       setIds([...ids.filter((x) => x !== id), id]);
       setAdding(null);
-    } catch (e) { toast.error(e?.message || "Couldn't add that entry"); }
+    } catch (e) { toast.error(e?.message || "Couldn't add that custom field"); }
   };
   const blockedOwn = !!alter?.alter_custom_fields && !Array.isArray(alter.alter_custom_fields);
 
@@ -124,7 +124,7 @@ export function InfoEntriesField({ settings, set }) {
             </div>
           ))}
           <StackedRow label={shown.length ? "Show another field" : "Show a field"}>
-            <SearchableSelect value={null} placeholder="Pick an entry…" searchPlaceholder="Search entries…"
+            <SearchableSelect value={null} placeholder="Pick what to show…" searchPlaceholder="Search…"
               options={[
                 ...(ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (custom fields)` }]),
                 ...all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label })),

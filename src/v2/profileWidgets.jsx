@@ -191,7 +191,7 @@ export const ALTER_PROFILE_WIDGETS = {
   profile_subsystems: W("Sub{{system}}s", "The sub{{system}}s this {{alter}} owns.", Folder, section(ProfileSubsystemsSection, { name: "Sub{{system}}s" }), info("subsystems")),
   profile_answers: W("Get to know me answers", "What this {{alter}} answered in Get to know me.", Sparkles, section(ProfileAnswersSection, { name: "Get to know me answers" }), info("answers")),
   profile_tags: W("Tags", "This {{alter}}'s tags.", Tag, section(ProfileTagsSection, { name: "Tags" }), info("tags")),
-  profile_fields: W("Info fields", "The filled custom fields, in this profile's own layout.", ListChecks,
+  profile_fields: W("Info fields", "The filled-in custom fields, in this profile's own layout.", ListChecks,
     section(ProfileFieldsSection, { needsFields: true, name: "Info fields" }), info("entries")),
   profile_info: W("Info", "Every custom field, editable in place — the Info tab.", IdCard,
     tab(({ alter, systemFields }) => <InfoTab alter={alter} systemFields={systemFields} />), { defaultSpan: { cols: 4, rows: 4 }, ...info("entries") }),

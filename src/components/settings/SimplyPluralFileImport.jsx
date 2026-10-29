@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
 import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // ── Simply Plural FILE importer ───────────────────────────────────────────────
 //
@@ -346,7 +347,7 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
               alterIdBySpId[mapped.sp_id] = existing.id;
               altersUpdated++;
             } else {
-              const created = await localEntities.Alter.create(mapped);
+              const created = await localEntities.Alter.create(withNewAlterDefaults(mapped));
               alterIdBySpId[mapped.sp_id] = created.id;
               altersCreated++;
             }

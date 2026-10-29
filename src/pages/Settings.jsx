@@ -690,7 +690,7 @@ export default function Settings() {
 
         {/* ── ALTER SETUP ── */}
         <Section id="alters" icon={Users} label={`${terms.Alter} setup`}>
-          <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
+          <SubSection title="Custom fields" defaultOpen={typeof window !== "undefined" && window.location.hash === "#alter-entries"}><CustomFieldsManager embedded /></SubSection>
           <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
           <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
           <SubSection title="Archived contacts" defaultOpen={false}><ArchivedContactsManager /></SubSection>
@@ -1052,6 +1052,7 @@ function SectionsAccordion({ children }) {
       // ("#about-updates" → open About & help, with What's new expanded
       // by the subsection itself).
       if (h === "about-updates") return "about";
+      if (h === "alter-entries") return "alters";
       return h || null;
     } catch { return null; }
   });

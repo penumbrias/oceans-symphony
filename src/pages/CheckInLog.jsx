@@ -506,7 +506,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
           the editor when no note exists yet (a small + button). */}
       {editingNote ? (
         <div className="space-y-1.5">
-          <MentionTextarea
+          <MentionTextarea toolbar
             autoFocus
             value={noteDraft}
             onChange={setNoteDraft}
@@ -1186,7 +1186,7 @@ function CustomNoteDialog({ open, onClose, alters }) {
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Add note</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <MentionTextarea
+          <MentionTextarea toolbar
             value={text}
             onChange={setText}
             alters={alters}

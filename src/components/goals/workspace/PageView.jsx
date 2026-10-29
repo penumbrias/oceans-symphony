@@ -38,7 +38,7 @@ function PageNote({ page, editing, setEditing }) {
   if (editing) {
     return (
       <div className="space-y-1.5">
-        <MentionTextarea value={text} onChange={setText} alters={alters} signposts autoFocus className="min-h-[70px] text-sm" />
+        <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts autoFocus className="min-h-[70px] text-sm" />
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
           <Button size="sm" disabled={busy} onClick={() => run(async () => {

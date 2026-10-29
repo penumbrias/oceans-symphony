@@ -935,6 +935,17 @@ export default function WidgetConfigSheet({
         </StackedRow>
       );
     }
+    if (f.type === "text" && f.toolbar) {
+      // Text that can be formatted (the Heading widget): full width, with
+      // the shared formatting toolbar under it while it's focused.
+      return (
+        <StackedRow key={f.key} label={label} hint={f.help}>
+          <DebouncedText key={`${widget.instanceId}:${f.key}`} value={val} placeholder={f.placeholder ? applyTerms(f.placeholder, t) : undefined}
+            maxLength={f.maxLength || 2000} toolbar onCommit={(v) => { if (v !== val) commit(v); }}
+            className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        </StackedRow>
+      );
+    }
     if (f.type === "text") {
       return (
         <Row key={f.key} label={label} hint={f.help}>

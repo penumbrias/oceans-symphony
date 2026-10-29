@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, LayoutGrid, BarChart3, Network } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 import { useTerms } from "@/lib/useTerms";
-import { toggleFrontFor } from "@/hooks/useSwipeActions";
+import { FrontingToggleButton } from "@/components/alters/AlterCard";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import AlterInfo from "@/components/alters/info/AlterInfo";
@@ -27,6 +27,7 @@ import { PS } from "@/lib/profileStyle";
 // then the page renders the seeded board, which is today's page. The host
 // (ProfileBoardCanvas) is shared with the group, contact and location pages.
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
+import { useRegisterLookSubject } from "@/lib/lookSubject";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 
@@ -129,18 +130,18 @@ function AlterProfileInner() {
   });
 
   useEffect(() => { if (alter) setOnNewLayout(usesNewProfile(alter)); }, [alter]);
+  // Display options offers this alter's look while the page is open
+  // (v0.310.0 — the profile scope, ProfileLookTabs).
+  useRegisterLookSubject("alter", alter, alter?.name);
 
-  // Whether this alter is currently fronting, + a one-tap toggle from the
-  // profile header. Reuses the canonical refetch-before-write toggleFrontFor
-  // so it stays consistent with the alters list / Set Front modal.
+  // Whether this alter is currently fronting. The header's Front button is
+  // the standard front control (tap = on at the top level / adjust, hold =
+  // the level rail), so it behaves like the alters list and the bars.
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
   const isFronting = !!alter && activeSessions.some((s) => s.alter_id === alter.id);
-  const handleToggleFront = () => {
-    if (alter) toggleFrontFor(alter, null, base44, queryClient, toast, terms);
-  };
 
   // Recolour the APP-HEADER wave to this profile's wave colour while it's open.
   // _theme_wave is either a concrete colour (custom hex) or a var(--color-…)
@@ -322,65 +323,60 @@ function AlterProfileInner() {
           in both view and edit mode — never the whole page. */}
       {surfaceCss && <style>{surfaceCss}</style>}
       <div className={cn("relative z-10 os-pf", pageTextColor && "apc")} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
-        {/* Header row: pin toggle on the left (the app header already
-            provides Back, so the page-level Back was removed); Prev/Next
-            + message button on the right. data-pf-chrome backs this row with
-            the profile bg colour when a background image is set, so the
-            ghost/outline buttons stay legible over the image. */}
-        <div data-pf-chrome className="flex flex-wrap items-center justify-between gap-y-2 mb-4 px-2 py-1.5">
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
-                queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-                toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to top`);
-              } catch (e) {
-                toast.error(e?.message || "Failed to update pin");
-              }
-            }}
-            aria-pressed={!!alter.is_pinned}
-            aria-label={alter.is_pinned ? "Unpin from top of the alters page" : "Pin to top of the alters page"}
-            title={alter.is_pinned ? "Unpin from top of the alters page" : "Pin to top of the alters page"}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors flex-shrink-0",
-              alter.is_pinned
-                ? "text-primary bg-primary/10 hover:bg-primary/15"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            <Pin className={cn("w-4 h-4", alter.is_pinned && "fill-primary")} />
-          </button>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {prevAlter && (
-              <Link to={`/alter/${prevAlter.id}`}>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" aria-label={`Previous ${terms.alter}`} title={`Previous ${terms.alter}`}>
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
+        {/* Header row (v0.310.0): getting around on the left (previous,
+            next, pin), doing things on the right, each with a word under
+            its icon so nothing has to be guessed — Front (the same tap /
+            hold control as everywhere else, so the level rail works
+            here too), Info (everything about them), Edit page (the
+            layout). data-pf-chrome backs this row with the profile bg
+            colour when a background image is set, so the buttons stay
+            legible over it. */}
+        <div data-pf-chrome data-profile-header-actions="" className="flex flex-wrap items-center justify-between gap-y-2 mb-4 px-1 py-1.5">
+          <div className="flex items-center gap-0.5">
+            {prevAlter ? (
+              <Link to={`/alter/${prevAlter.id}`} aria-label={`Previous ${terms.alter}: ${prevAlter.name}`} title={`Previous ${terms.alter}: ${prevAlter.name}`}
+                className="w-8 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                <ArrowLeft className="w-4 h-4" />
               </Link>
-            )}
-            {nextAlter && (
-              <Link to={`/alter/${nextAlter.id}`}>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" aria-label={`Next ${terms.alter}`} title={`Next ${terms.alter}`}>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+            ) : <span className="w-8 h-10" aria-hidden="true" />}
+            {nextAlter ? (
+              <Link to={`/alter/${nextAlter.id}`} aria-label={`Next ${terms.alter}: ${nextAlter.name}`} title={`Next ${terms.alter}: ${nextAlter.name}`}
+                className="w-8 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                <ArrowRight className="w-4 h-4" />
               </Link>
-            )}
-            {/* One-tap front toggle for this alter (visible on every tab). */}
-            <Button
-              variant={isFronting ? "default" : "outline"}
-              size="sm"
-              onClick={handleToggleFront}
-              aria-label={isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
-              title={isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
+            ) : <span className="w-8 h-10" aria-hidden="true" />}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
+                  queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+                  queryClient.invalidateQueries({ queryKey: ["alters"] });
+                  toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to the top of the ${terms.alters} page`);
+                } catch (e) {
+                  toast.error(e?.message || "Failed to update pin");
+                }
+              }}
+              aria-pressed={!!alter.is_pinned}
+              aria-label={alter.is_pinned ? `Unpin from the top of the ${terms.alters} page` : `Pin to the top of the ${terms.alters} page`}
+              title={alter.is_pinned ? `Unpin from the top of the ${terms.alters} page` : `Pin to the top of the ${terms.alters} page`}
+              className={cn(
+                "w-8 h-10 flex items-center justify-center rounded-lg transition-colors",
+                alter.is_pinned ? "text-primary bg-primary/10 hover:bg-primary/15" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
             >
-              <User className="w-3.5 h-3.5" />
-            </Button>
-            {!onProfilePage && !layoutEditing && (
+              <Pin className={cn("w-4 h-4", alter.is_pinned && "fill-primary")} />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {!layoutEditing && (
+              <FrontingToggleButton alter={alter} activeSessions={activeSessions} label={isFronting ? `In ${terms.front}` : terms.Front} />
+            )}
+            {!onProfilePage && !layoutEditing && !editMode && (
               <Button
                 variant="outline"
                 size="sm"
+                className="h-9 px-2.5 gap-1.5"
                 onClick={() => {
                   // Open the Messages page with its compose form (the page
                   // reads ?compose=1).
@@ -390,9 +386,34 @@ function AlterProfileInner() {
                   setSearchParams(params, { replace: true });
                 }}
                 aria-label="Message"
-                title="Message"
+                title={`Message ${alter.name}`}
               >
                 <Mail className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            {!layoutEditing && editMode === "classic" && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => saveRef.current?.()}
+                className="h-9 px-2.5 gap-1.5 bg-primary hover:bg-primary/90"
+                title="Save"
+              >
+                <Save className="w-3.5 h-3.5" /> Save
+              </Button>
+            )}
+            {!layoutEditing && (
+              <Button
+                data-tour="alter-profile-edit-btn"
+                variant={editMode ? "default" : "outline"}
+                size="sm"
+                className="h-9 px-2.5 gap-1.5"
+                onClick={() => setEditMode(e => (e ? false : "info"))}
+                aria-pressed={!!editMode}
+                title={editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, entries, pictures, groups…`}
+              >
+                {editMode ? <Eye className="w-3.5 h-3.5" /> : <IdCard className="w-3.5 h-3.5" />}
+                {editMode ? "Done" : "Info"}
               </Button>
             )}
             {!editMode && !layoutEditing && (
@@ -400,38 +421,12 @@ function AlterProfileInner() {
                 data-tour="alter-profile-layout-btn"
                 variant="outline"
                 size="sm"
+                className="h-9 px-2.5 gap-1.5"
                 onClick={openProfileLayoutEditor}
-                aria-label="Edit layout"
-                title="Edit layout — move, resize and add widgets on this page"
+                title="Edit this page — move, resize and add widgets"
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
+                <Pencil className="w-3.5 h-3.5" /> Edit page
               </Button>
-            )}
-            {onProfilePage && !layoutEditing && (
-              <div className="flex items-center gap-2">
-                {editMode === "classic" && (
-                  <Button
-                    variant="default"
-                    size="icon"
-                    onClick={() => saveRef.current?.()}
-                    className="h-8 w-8 bg-primary hover:bg-primary/90"
-                    title="Save"
-                    aria-label="Save"
-                  >
-                    <Save className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button
-                  data-tour="alter-profile-edit-btn"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditMode(e => (e ? false : "info"))}
-                  aria-label={editMode ? "Done" : "Edit info"}
-                  title={editMode ? "Done" : `Edit ${terms.alter} info`}
-                >
-                  {editMode ? <Eye className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
-                </Button>
-              </div>
             )}
           </div>
         </div>

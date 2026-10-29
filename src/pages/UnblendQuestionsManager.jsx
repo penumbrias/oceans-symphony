@@ -438,7 +438,7 @@ export default function UnblendQuestionsManager() {
         )}
         {customFieldSlots.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1">
-            No custom fields defined yet. Add some in Settings → {terms.Alters || "Alters"} & Fields.
+            No custom fields yet. Add some in Settings → {terms.Alter || "Alter"} setup → Custom fields.
           </p>
         ) : (
           <div className="rounded-xl border border-border/40 bg-card max-h-72 overflow-y-auto divide-y divide-border/30">

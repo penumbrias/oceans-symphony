@@ -7,7 +7,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, LayoutGrid, Info, Link2, Shield, FileText, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Pencil, IdCard, Info, Link2, Shield, FileText, SlidersHorizontal } from "lucide-react";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
 import { CONTACT_PROFILE_PAGES, NEW_CONTACT_PROFILE_PAGES, profilePageId, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
@@ -60,15 +60,15 @@ export default function ContactProfile() {
         </button>
         {!page.layoutEditing && (
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={() => setEditOpen(true)} title="Everything about this person"><IdCard className="w-3.5 h-3.5" /> Info</Button>
             <Button
               data-tour="contact-profile-layout-btn"
-              size="sm" variant="outline"
+              variant="outline" size="sm" className="h-9 gap-1.5"
               onClick={openProfileLayoutEditor}
-              aria-label="Edit layout" title="Edit layout — move, resize and add widgets on this page"
+              title="Edit this page — move, resize and add widgets"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" /> Edit page
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} aria-label="Edit" title="Edit"><Pencil className="w-3.5 h-3.5" /></Button>
           </div>
         )}
       </div>

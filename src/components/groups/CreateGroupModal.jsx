@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Folder, Upload, X, Link2, Users, Crown, Palette, Settings2 } from "lucide-react";
+import { Loader2, Save, Folder, Upload, X, Link2, Users, Crown, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { setGroupMembers } from "@/lib/groupMembership";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupSelect from "@/components/groups/GroupSelect";
@@ -236,11 +235,6 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
             <Label>Description / Bio</Label>
             <BioEditor value={description} onChange={setDescription} />
           </div>
-
-          {/* Profile style */}
-          <SubSection title="Profile style" icon={Palette} defaultOpen={false}>
-            <ProfileStyleEditor customFields={customFields} setField={setCF} clearField={clearCF} />
-          </SubSection>
 
           {/* Group config */}
           <SubSection title="Group config" icon={Settings2} defaultOpen={false}>

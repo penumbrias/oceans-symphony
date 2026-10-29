@@ -171,12 +171,12 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">What's driving this? (optional)</label>
-        <MentionTextarea value={form.driving} onChange={(v) => set("driving", v)} alters={alters} signposts
+        <MentionTextarea toolbar value={form.driving} onChange={(v) => set("driving", v)} alters={alters} signposts
           placeholder="What's behind wanting it…" className="min-h-[60px] text-sm" />
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">How does it affect us? (optional)</label>
-        <MentionTextarea value={form.impact} onChange={(v) => set("impact", v)} alters={alters} signposts
+        <MentionTextarea toolbar value={form.impact} onChange={(v) => set("impact", v)} alters={alters} signposts
           placeholder="What having it, or not having it, does…" className="min-h-[60px] text-sm" />
       </div>
 
