@@ -7,9 +7,11 @@
 // bulletin board that group's posts. A widget's own `subject` setting can
 // point it at a different record; the context is only the default.
 //
-// A widget says where it belongs with `subjects` on its registry entry
-// (["home"] when absent). The add-widget library lists only widgets that
-// fit the board it was opened from (widgetFitsSubject).
+// A widget says which subjects it was made for with `subjects` on its
+// registry entry (["home"] when absent). Since v0.315.0 every library lists
+// every widget: one placed on a board it wasn't made for is given its own
+// subject (WidgetSubject below) — null for a home widget on a profile, the
+// picked record for a profile widget elsewhere (linkedProfileWidgets.jsx).
 
 import React from "react";
 
@@ -29,6 +31,28 @@ export const widgetFitsSubject = (def, subjectOrType) => {
   const type = typeof subjectOrType === "string" ? subjectOrType : subjectTypeOf(subjectOrType);
   return widgetSubjects(def).includes(type);
 };
+
+// ── A widget's own subject (v0.315.0) ─────────────────────────────────
+// A registry entry may say whose page it is about itself:
+// `boardSubjectFor(settings, boardSubject)` returns the subject its body and
+// its options see. A group widget placed on the home screen answers with
+// the group picked in its options ({ type, id, linked: true }); a home
+// widget placed on a profile it wasn't made for answers null, so it shows
+// everyone's, exactly as on the home screen. Without it, the board's own
+// subject applies.
+export function WidgetSubject({ def, settings, children }) {
+  const board = useBoardSubject();
+  const own = typeof def?.boardSubjectFor === "function" ? def.boardSubjectFor(settings || {}, board) : undefined;
+  const ownType = own?.type || null;
+  const ownId = own?.id || null;
+  const ownLinked = !!own?.linked;
+  const value = React.useMemo(
+    () => (ownType ? { type: ownType, id: ownId, ...(ownLinked ? { linked: true } : {}) } : null),
+    [ownType, ownId, ownLinked],
+  );
+  if (own === undefined) return children;
+  return React.createElement(BoardSubjectContext.Provider, { value }, children);
+}
 
 // ── A shared widget's scope on a profile board (v0.292.0) ─────────────
 // A widget that can live on a profile (journal, wishes, bulletin board,
