@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // User-configurable tap count for the grocery-list panic cover. The
 // gesture lives in `useTripleTapPanic` — three quick pointerdowns on
@@ -47,7 +48,7 @@ export default function GroceryPanicTapsSettings() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = list?.[0];
+  const settings = pickPrimarySystemSettings(list);
   const current = readPanicTapsSetting(settings);
 
   const update = async (value) => {

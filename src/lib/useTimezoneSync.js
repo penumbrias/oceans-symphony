@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { detectTimezone } from '@/lib/timezoneHelpers';
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 /**
  * Hook that auto-detects and syncs user's timezone on first load.
@@ -11,7 +12,7 @@ export function useTimezoneSync() {
     const syncTimezone = async () => {
       try {
         const settings = await base44.entities.SystemSettings.list();
-        const setting = settings?.[0];
+        const setting = pickPrimarySystemSettings(settings);
 
         // If timezone not set, detect and save
         if (!setting?.timezone) {

@@ -26,6 +26,7 @@ import {
   COUNT_MIN,
   COUNT_MAX,
 } from "@/lib/upcomingPlansLimit";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 /**
  * Shared widget: a compact list of upcoming planned activities, surfaced
@@ -57,7 +58,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],

@@ -23,6 +23,7 @@ import {
   getAccessibilitySettings, setAccessibilityFontSize, setAccessibilityFontFamily,
   setAccessibilityHeadingFont, setAccessibilityLargeTouch, A11Y_CHANGED_EVENT,
 } from "@/lib/useAccessibility";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // The Text and Shape tabs' knobs that live in localStorage (accessibility
 // settings), not on SystemSettings — text size above all, the one the
@@ -127,7 +128,7 @@ const COALESCE_MS = 2500;
 export default function UndoRedoButtons() {
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settingsRow = rows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(rows) || null;
   const {
     selectedTheme, themeMode, customColors,
     setSelectedTheme, setThemeMode, updateCustomColorsFull, clearCustomColors,

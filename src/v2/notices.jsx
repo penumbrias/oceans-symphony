@@ -52,6 +52,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const MAX_VISIBLE = 4;
 const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
@@ -428,7 +429,7 @@ export default function V2Notices() {
     queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(),
   });
 
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const remindersById = useMemo(() => Object.fromEntries(reminders.map((r) => [r.id, r])), [reminders]);
   const frontingAlterIds = useMemo(

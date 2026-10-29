@@ -24,6 +24,7 @@ import {
   CONTACT_METHOD_TYPES,
   getSafetyLevels,
 } from "@/lib/contacts";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Create / edit an external Contact. Mirrors the AlterEditModal patterns
 // (avatar upload → local image store, ColorPickerModal, Dialog shell) but for
@@ -61,7 +62,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
 
   // Custom safety labels (Phase 2) — keep the shared cache an ARRAY.
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   const safetyLevels = getSafetyLevels(settings);
 
   // Separate custom-field definitions for contacts (NOT the alter CustomField set).

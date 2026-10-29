@@ -29,6 +29,7 @@ import { base44 } from "@/api/base44Client";
 import { getLocalIdentity, ensurePushIdentity, FRIENDS_API_BASE } from "@/lib/friendsApi";
 import { isPushEnabled } from "@/lib/pushRegistration";
 import { computePrescheduledFires, isPrescheduleableType, isRollingFrontReminder } from "@/lib/nativeReminderScheduler";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Same host rule as the Friends relay — see src/lib/apiBase.js for why
 // the packaged app targets need an absolute URL here.
@@ -76,7 +77,7 @@ export async function syncRemindersToServer() {
 
   let settings = null;
   try {
-    settings = (await base44.entities.SystemSettings.list())?.[0] || null;
+    settings = pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || null;
   } catch { setServerPushActive(false); return; }
 
   // Off by default — a fully-local user never reaches the server here.
@@ -217,7 +218,7 @@ export function useServerReminderSync() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   useEffect(() => {
     const sig = JSON.stringify({

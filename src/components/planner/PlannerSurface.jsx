@@ -47,6 +47,7 @@ import { collectAlterDates } from "@/lib/importantDates";
 import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
 import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
 import { withTrashBatch } from "@/lib/localDb";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -165,7 +166,7 @@ export default function PlannerSurface({
   const { data: settingsRows = [] } = useQuery({
     queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settingsRow = settingsRows[0];
+  const settingsRow = pickPrimarySystemSettings(settingsRows);
   const pageLook = useMemo(() => {
     const userStyles = resolveUserStyles(settingsRow?.ui_v2_styles);
     const styleMode = settingsRow?.ui_v2_home?.styleMode || "current";

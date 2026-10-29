@@ -7,6 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
 import { duePlanReminder, ackPlan } from "@/lib/planBannerAcks";
 import { useNowTick } from "@/lib/useNowTick";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function AnnouncementBanner() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function AnnouncementBanner() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],

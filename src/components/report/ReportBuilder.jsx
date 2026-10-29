@@ -12,6 +12,7 @@ import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
 import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { useTerms } from "@/lib/useTerms";
 import { useTherapyKeyword } from "./TherapyNotesCard";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
   const [open, setOpen] = useState(false);
@@ -260,7 +261,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
   // Privacy-level shortcuts for the alter-appendix exclusion list: "Only this
   // level" excludes everyone NOT tagged with the chosen level.
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const privacyLevels = useMemo(() => sortedLevels(getPrivacyLevels(settingsList[0])), [settingsList]);
+  const privacyLevels = useMemo(() => sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList))), [settingsList]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const weekAgo = format(addDays(new Date(), -7), "yyyy-MM-dd");

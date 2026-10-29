@@ -15,6 +15,7 @@ import { getLocalIdentity, FRIENDS_API_BASE, fetchFriendsList } from "@/lib/frie
 import { getPrivacyLevels, resolveVisibleAlters } from "@/lib/privacyLevels";
 import { encryptForRecipients, decryptEnvelope, isCryptoAvailable } from "@/lib/friendsCrypto";
 import { sanitizeSharedMember } from "@/lib/remoteSanitize";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 function stripHtml(html) {
   if (!html) return "";
@@ -79,7 +80,7 @@ export async function pushAlterShares() {
     base44.entities.SystemSettings.list().catch(() => []),
     base44.entities.Group.list().catch(() => []),
   ]);
-  const levels = getPrivacyLevels(settingsList[0]);
+  const levels = getPrivacyLevels(pickPrimarySystemSettings(settingsList));
   const groupsById = Object.fromEntries((groups || []).map((g) => [g.id, g.name || "Group"]));
   const perFriendVisibility = id.perFriendVisibility || {};
 

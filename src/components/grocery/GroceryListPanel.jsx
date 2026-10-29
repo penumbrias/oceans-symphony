@@ -17,6 +17,7 @@ import useKeyboardInset from "@/hooks/useKeyboardInset";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // v0.87.7: list types — the panel is now a general list tool, not just
 // groceries. "shopping" keeps the full purchased/ran-out/frequent-items
@@ -122,10 +123,10 @@ export default function GroceryListPanel({ lockedMode = false }) {
     queryKey: ["systemSettings"],
     queryFn: () => localEntities.SystemSettings.list(),
   });
-  const currentTaps = readPanicTapsSetting(settingsList?.[0]);
+  const currentTaps = readPanicTapsSetting(pickPrimarySystemSettings(settingsList));
   const setTaps = async (value) => {
     try {
-      await writePanicTapsSetting(value, { settings: settingsList?.[0], qc });
+      await writePanicTapsSetting(value, { settings: pickPrimarySystemSettings(settingsList), qc });
       toast.success(value === "off" ? "Quick-tap disabled" : `${value} taps to open`);
     } catch (e) { toast.error(e?.message || "Couldn't save"); }
   };

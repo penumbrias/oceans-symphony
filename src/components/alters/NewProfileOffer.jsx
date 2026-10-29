@@ -18,6 +18,7 @@ import { refreshAlter } from "@/lib/alterEntry";
 import {
   switchRecordToNewProfile, revertRecordToOldProfile, dismissRecordNewProfileOffer, turnOffNewProfileOffer, OFFER_OFF_FIELD,
 } from "@/lib/profileLayoutSwitch";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const LIST_KEY = { group: ["groups"], contact: ["contacts"], location: ["innerWorldLocations"] };
 const refresh = (qc, ownerType, id) => {
@@ -34,7 +35,7 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsRows[0] || null;
+  const settings = pickPrimarySystemSettings(settingsRows) || null;
   if (!rec?.id || usesNewProfile(rec) || rec.new_profile_offer_dismissed || settings?.[OFFER_OFF_FIELD[ownerType]]) return null;
 
   const run = async (fn, done) => {

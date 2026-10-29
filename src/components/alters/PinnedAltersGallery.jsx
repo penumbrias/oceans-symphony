@@ -12,6 +12,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
 import { alterPictureStyle } from "@/lib/imageFraming";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -75,7 +76,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   const config = (settings && settings.pinned_alters_config) || {};
   const savedOrder = Array.isArray(config.order) ? config.order : [];
   // Bar height in px (0 = fit the icons). Independent of icon size, so a

@@ -19,6 +19,7 @@ import { RotateCcw, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { restorePatchFrom, applyAppTheme } from "@/lib/setupPacks";
 import { writeSettingsWithBoards } from "@/lib/boardWriter";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const MARK_KEY = "symphony_pack_trial_v1";
 
@@ -30,7 +31,7 @@ export default function PackRestoreBar() {
   const { data: rows = [] } = useQuery({
     queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: !!mark,
   });
-  const settingsRow = rows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(rows) || null;
   const point = settingsRow?.ui_v2_restore_point || null;
 
   useEffect(() => {

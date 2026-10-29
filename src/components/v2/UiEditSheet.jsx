@@ -68,6 +68,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useIsWide } from "@/lib/useIsWide";
 import { readPinnedBar, pinnedBarLook, pinnedBarPatch, pinnedBarLookPatch } from "@/lib/barsModel";
 import BarShowSwitch, { useBarsChrome, useBarLabels } from "@/components/v2/BarShowSwitch";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const tokenById = Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d]));
 
@@ -393,7 +394,7 @@ function BarsTab({ v2, alignX }) {
   // Which nav page / quick-action key is picking an icon right now.
   const [iconFor, setIconFor] = useState(null); // { kind, id, label }
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settingsRow = settingsRows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
 
   const writeSettings = async (patch) => {
     if (!settingsRow?.id) return;
@@ -1062,7 +1063,7 @@ function StylesTab({ v2 }) {
   } = useTheme();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settingsRow = settingsRows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
   // The board this sheet was opened on — the home screen or the widget
   // board (v0.277.0: this was always the widget board, so a change made
   // while editing the home screen landed somewhere else).
@@ -1634,7 +1635,7 @@ export default function UiEditSheet() {
   const v2 = useV2Display();
   const qc = useQueryClient();
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settingsRow = settingsRows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
 
   // The board this sheet was opened on (home screen or widget board).
   const homeField = useBoardField();

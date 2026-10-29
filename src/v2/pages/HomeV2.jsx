@@ -20,6 +20,7 @@ import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
 import V2Notices from "@/v2/notices";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { unifyHomeBoards, RETIRED_DESKTOP_FIELD } from "@/lib/homeBoardUnify";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const V2_HOME_FIELD = "ui_v2_home";
 
@@ -48,7 +49,7 @@ export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const liveRow = settingsRows?.[0] || settingsRow || null;
+  const liveRow = pickPrimarySystemSettings(settingsRows) || settingsRow || null;
   // An import or "use another device's appearance" can bring an old
   // separate desktop board back in — fold it before seeding anything.
   const hasRetired = !!liveRow?.[RETIRED_DESKTOP_FIELD];
@@ -66,7 +67,7 @@ export default function HomeV2({ settingsRow, api, onExitLeft = null }) {
         // Refetch before writing: another surface may have created the
         // singleton row (or seeded this field) in the meantime.
         const fresh = await base44.entities.SystemSettings.list();
-        const row = fresh[0] || null;
+        const row = pickPrimarySystemSettings(fresh) || null;
         if (row?.[field]) return;
         if (row) await base44.entities.SystemSettings.update(row.id, { [field]: start });
         else await base44.entities.SystemSettings.create({ [field]: start });

@@ -88,6 +88,7 @@ import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: the Polls PAGE only enters the bundle when someone opens this
 // modal — a static import dragged the whole page into the entry chunk.
 const CreatePollModal = React.lazy(() => import("@/pages/Polls").then((m) => ({ default: m.CreatePollModal })));
@@ -810,7 +811,7 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   const t = useTerms();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data?.[0];
+  const settings = pickPrimarySystemSettings(useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data);
   // The picture is the system's own (SystemSettings.system_avatar_url), not
   // a widget decoration — set it here and every other surface that shows it
   // updates too.

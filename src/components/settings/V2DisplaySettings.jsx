@@ -23,6 +23,7 @@ import { setAccessibilityFontSize } from "@/lib/useAccessibility";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { requestHomeAction } from "@/components/v2/V2Frame";
 import { EditBarsButton } from "@/components/v2/BarShowSwitch";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const LOOK_IDS = ["accent", "density", "radius", "borderW"];
 
@@ -93,7 +94,7 @@ export function useV2Display() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settingsRow = settingsList[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsList) || null;
   const uiV2 = resolveUiV2(settingsRow?.ui_v2);
   const enabled = UI_V2_ENABLED && uiV2.enabled === true;
   const write = async (patch) => {

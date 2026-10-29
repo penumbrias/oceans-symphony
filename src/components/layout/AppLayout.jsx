@@ -29,6 +29,7 @@ import SidebarNav, { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import GlobalPullToRefresh from "@/components/layout/GlobalPullToRefresh";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
@@ -342,14 +343,14 @@ const { data: mentionLogs = [] } = useQuery({
 });
 
 const navConfig = useMemo(() => {
-  return systemSettings?.[0]?.navigation_config || DEFAULT_CONFIG;
+  return pickPrimarySystemSettings(systemSettings)?.navigation_config || DEFAULT_CONFIG;
 }, [systemSettings]);
 
 // System banner — a full-bleed image behind the top of the page on the
 // pages the user picked. Scope: "home" (Dashboard + alters directory),
 // "all", or "off" (default home). Height + image vertical position are
 // configurable in Settings → System Profile.
-const settings0 = systemSettings?.[0];
+const settings0 = pickPrimarySystemSettings(systemSettings);
 
 // ── UI v2 (opt-in rebuild) ──
 // UI_V2_ENABLED is the build-time kill switch; ui_v2.enabled is the
@@ -667,7 +668,7 @@ useEffect(() => {
   // sync can't quietly put the old layout back (v0.277.0).
   const boardField = BOARD_SETTINGS_FIELDS.includes(preset.homeField) ? preset.homeField : WIDGET_BOARD_FIELD;
   const hasBoardPart = !!applyHomePresetToBoard(preset, {});
-  const settings = systemSettings?.[0];
+  const settings = pickPrimarySystemSettings(systemSettings);
   (async () => {
     if (Object.keys(settingsPatch).length > 0) {
       if (settings?.id) await base44.entities.SystemSettings.update(settings.id, settingsPatch);

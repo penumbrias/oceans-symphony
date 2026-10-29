@@ -16,6 +16,7 @@ import { mergeAlterInto } from "@/lib/alterMerge";
 import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { Settings2 } from "lucide-react";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function OptionsTab({ alter }) {
   const queryClient = useQueryClient();
@@ -33,7 +34,7 @@ export default function OptionsTab({ alter }) {
 
   const { data: allAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: showMerge });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const levels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
 
   const toggleLevel = async (levelId) => {
     const next = levelIds.includes(levelId) ? levelIds.filter((id) => id !== levelId) : [...levelIds, levelId];

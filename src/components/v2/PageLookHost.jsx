@@ -12,12 +12,13 @@ import PageBackground, { resolveBackground } from "@/components/v2/PageBackgroun
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { pageForPath, readPageLook } from "@/lib/pageLooks";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function PageLookHost() {
   const location = useLocation();
   const page = useMemo(() => pageForPath(location.pathname), [location.pathname]);
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const look = readPageLook(rows[0], page?.id);
+  const look = readPageLook(pickPrimarySystemSettings(rows), page?.id);
   const raw = useMemo(() => resolveBackground(look?.background), [look?.background]);
   // A folder rotates the picture on each app open, like the home board.
   const pick = useRotatingImageUrl({

@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { PROFILE_LOOK_KEYS } from "@/lib/lookSubject";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const PROFILE_LOOK_DEFAULTS_FIELD = "profile_look_defaults";
 export const LOOK_DEFAULT_TYPES = ["alter", "group", "location"];
@@ -55,7 +56,7 @@ export function recordWithLookDefaults(record, defaults) {
 
 export function useLookDefaults(type) {
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const row = rows[0] || null;
+  const row = pickPrimarySystemSettings(rows) || null;
   return useMemo(() => readLookDefaults(row, type), [row, type]);
 }
 
@@ -69,7 +70,7 @@ export function useRecordWithLookDefaults(record, type) {
 export async function patchLookDefaults(type, changes) {
   if (!LOOK_DEFAULT_TYPES.includes(type)) throw new Error(`No defaults for ${type}`);
   const rows = await base44.entities.SystemSettings.list();
-  const row = rows[0];
+  const row = pickPrimarySystemSettings(rows);
   if (!row?.id) throw new Error("There's no settings record to save the defaults to yet");
   const all = row[PROFILE_LOOK_DEFAULTS_FIELD] && typeof row[PROFILE_LOOK_DEFAULTS_FIELD] === "object" ? { ...row[PROFILE_LOOK_DEFAULTS_FIELD] } : {};
   const entry = { ...(all[type] && typeof all[type] === "object" ? all[type] : {}) };

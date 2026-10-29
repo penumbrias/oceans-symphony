@@ -30,6 +30,7 @@ import UpcomingPlansSurfacesSection from './UpcomingPlansSurfacesSection';
 import { isNative } from '@/lib/platform';
 import { markThemeChangedToday } from '@/lib/dailyTaskSystem';
 import { V2SpacingRow, V2AccentRow, V2ShapeRows, V2LayoutControls, V2LanguageSection } from '@/components/settings/V2DisplaySettings';
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
@@ -243,7 +244,7 @@ function WaveColorSwatch() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = list?.[0];
+  const settings = pickPrimarySystemSettings(list);
   const currentKey = readWaveColorKey(settings);
   const customHex = typeof settings?.wave_color_custom === 'string' ? settings.wave_color_custom : '';
   const usingCustom = !!customHex;
@@ -613,7 +614,7 @@ export default function AdvancedAppearance() {
     queryKey: ['systemSettings'],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const systemSettings = systemSettingsList[0] || null;
+  const systemSettings = pickPrimarySystemSettings(systemSettingsList) || null;
 
   // Mirrors ThemeContext's logic: dark when the user picked 'dark' or when
   // they're on 'system' and the html element currently carries the dark

@@ -6,6 +6,7 @@
 // widget). Without one, the bar shows the profile picture.
 
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export function barPictureOverride(settingsRow, alterId) {
   const map = settingsRow?.pinned_alters_config?.pinnedAvatars;
@@ -23,7 +24,7 @@ export function barPictureFor(settingsRow, alter) {
 export async function setBarPicture(alterId, url) {
   if (!alterId) return null;
   const rows = (await base44.entities.SystemSettings.list()) || [];
-  const row = rows[0];
+  const row = pickPrimarySystemSettings(rows);
   if (!row?.id) throw new Error("Settings aren't ready yet");
   const config = (row.pinned_alters_config && typeof row.pinned_alters_config === "object") ? row.pinned_alters_config : {};
   const map = { ...((config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {}) };

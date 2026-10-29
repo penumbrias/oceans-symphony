@@ -8,6 +8,7 @@ import { Plus, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { getPrivacyLevels, makeLevel, sortedLevels, defaultFieldProfile, SHARE_FIELDS, SHARE_FIELD_LABELS, selectablePillClass } from "@/lib/privacyLevels";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Define the catalogue of privacy levels + each level's field profile (what a
 // friend who can see that level gets). Stored on SystemSettings.privacy_levels.
@@ -16,7 +17,7 @@ export default function PrivacyLevelsManager({ isOpen, onClose }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const [levels, setLevels] = useState([]);
   const [saving, setSaving] = useState(false);

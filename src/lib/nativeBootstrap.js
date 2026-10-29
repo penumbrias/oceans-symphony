@@ -20,6 +20,7 @@ import {
   BACKUP_NOTIFICATION_EXTRA_KIND,
 } from '@/lib/nativeBackupScheduler';
 import { runAutoBackupNow, getAutoBackupMode, BACKUP_MODES } from '@/lib/autoBackup';
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 let started = false;
 
@@ -157,7 +158,7 @@ export async function initNativeShell() {
     const { getLocalIdentity, ensurePushIdentity } = await import("@/lib/friendsApi");
     const { cloudReminderDeliveryEnabled } = await import("@/lib/serverReminderSync");
     const { localEntities } = await import("@/api/base44Client");
-    const settings = (await localEntities.SystemSettings.list().catch(() => []))?.[0] || null;
+    const settings = pickPrimarySystemSettings(await localEntities.SystemSettings.list().catch(() => [])) || null;
     let identity = await getLocalIdentity().catch(() => null);
     if (!identity && cloudReminderDeliveryEnabled(settings, false)) {
       // Cloud delivery explicitly on but no identity yet (e.g. after reinstall) —

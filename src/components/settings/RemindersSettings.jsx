@@ -22,6 +22,7 @@ import {
   readPlanRemindersDefaultOffset,
   writePlanRemindersDefaultOffset,
 } from "@/lib/planReminderScheduler";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const NATIVE_MODE = isNative();
 
@@ -31,7 +32,7 @@ export default function RemindersSettings() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const [quietEnabled, setQuietEnabled] = useState(false);
   const [quietStart, setQuietStart] = useState("22:00");

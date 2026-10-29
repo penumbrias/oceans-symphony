@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import BulletinComposer from "@/components/bulletin/BulletinComposer";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const SYSTEM_BOARD = "__system";
 
@@ -34,7 +35,7 @@ export default function BulletinComposerModal({
   const { data: settingsRows = [] } = useQuery({
     queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: open,
   });
-  const settings = settingsRows[0];
+  const settings = pickPrimarySystemSettings(settingsRows);
   const favourites = useMemo(
     () => (Array.isArray(settings?.favorite_board_ids) ? settings.favorite_board_ids : []),
     [settings]

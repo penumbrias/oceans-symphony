@@ -6,6 +6,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const ENTITY = { alter: "Alter", group: "Group", contact: "Contact", location: "InnerWorldLocation" };
 // SystemSettings field that turns the "Try the new profile" card off for
@@ -51,7 +52,7 @@ export function dismissRecordNewProfileOffer(type, id) {
 export async function turnOffNewProfileOffer(type) {
   const field = OFFER_OFF_FIELD[type];
   if (!field) return;
-  const fresh = (await base44.entities.SystemSettings.list())[0];
+  const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
   if (fresh?.id) await base44.entities.SystemSettings.update(fresh.id, { [field]: true });
   else await base44.entities.SystemSettings.create({ [field]: true });
 }

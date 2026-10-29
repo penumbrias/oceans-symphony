@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { ALTER_LABEL_MODES, DEFAULT_ALTER_LABEL_MODE, isAlterLabelMode } from "@/lib/alterLabel";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const OPTIONS = [
   {
@@ -36,7 +37,7 @@ export default function AlterLabelSettings({ embedded = false } = {}) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = list?.[0] || null;
+  const settings = pickPrimarySystemSettings(list) || null;
   const current = isAlterLabelMode(settings?.alter_label_mode)
     ? settings.alter_label_mode
     : DEFAULT_ALTER_LABEL_MODE;

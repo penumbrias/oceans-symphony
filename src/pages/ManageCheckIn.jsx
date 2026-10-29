@@ -27,7 +27,7 @@ import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@
 function SectionsTab() {
   const qc = useQueryClient();
   const { data: list = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = list?.[0] || null;
+  const settings = pickPrimarySystemSettings(list) || null;
   const enabled = enabledCheckinSectionIds(settings);
   const [saving, setSaving] = useState(false);
 

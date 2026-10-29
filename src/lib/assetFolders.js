@@ -1,3 +1,4 @@
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Asset-library auto-organisation (v0.192.1) — ONE map for the library
 // page and the picker, and the user's overrides on top.
 //
@@ -127,7 +128,7 @@ export async function registerAlterUpload({ url, alterId, role, name = "" }) {
   try {
     const { base44 } = await import("@/api/base44Client");
     const rows = await base44.entities.SystemSettings.list();
-    const rules = resolveAssetRules(rows[0] || null);
+    const rules = resolveAssetRules(pickPrimarySystemSettings(rows) || null);
     if (!rules.perAlter) return;
     const existing = await base44.entities.ImageAsset.filter({ image_url: url });
     if (existing && existing.length) return;

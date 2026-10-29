@@ -29,6 +29,7 @@ import { PicturesSection, NewEntryForm, AvatarRows } from "@/components/alters/i
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { setAlterFields } from "@/lib/alterEntry";
 import { barPictureOverride, setBarPicture } from "@/lib/barPicture";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 function MoveRemove({ index, count, onMove, onRemove, label }) {
   return (
@@ -331,14 +332,14 @@ export function AlterPictureField({ settings, set }) {
     <div className="space-y-1">
       <WhoseRow settings={settings} set={set} />
       {alter && (bar ? (
-        <AvatarRows alter={alter} value={barPictureOverride(settingsRows[0], alter.id)} k={`bar:${alter.id}`} onChange={setBar}
+        <AvatarRows alter={alter} value={barPictureOverride(pickPrimarySystemSettings(settingsRows), alter.id)} k={`bar:${alter.id}`} onChange={setBar}
           label="Pinned bar picture" hint={`What the pinned ${t.alters} bar shows for ${formatAlter(alter)}. Without one, it shows the profile picture.`} />
       ) : (
         <AvatarRows alter={alter} value={alter.avatar_url} k={`avatar:${alter.id}`} onChange={(url) => setAvatar({ avatar_url: url })}
           label="Profile picture" rotation={alter.avatar_rotation_mode} onRotation={(m) => setAvatar({ avatar_rotation_mode: m })} />
       ))}
       {alter && (
-        <AlterPictureFramer alter={alter} url={bar ? (barPictureOverride(settingsRows[0], alter.id) || alter.avatar_url) : alter.avatar_url}
+        <AlterPictureFramer alter={alter} url={bar ? (barPictureOverride(pickPrimarySystemSettings(settingsRows), alter.id) || alter.avatar_url) : alter.avatar_url}
           shape={settings?.shape === "circle" ? "circle" : "box"} />
       )}
       {!alter && alterId && <p className="text-xs text-muted-foreground">That {t.alter} isn't here any more.</p>}

@@ -27,6 +27,7 @@ import { profileRegistryFor } from "@/v2/profileWidgets";
 import { BoardSubjectContext } from "@/lib/boardSubject";
 import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
 import { seedProfileBoard, withAddedProfilePages, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickProfileBoardRows, layoutForCopy } from "@/lib/profileBoard";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
@@ -90,7 +91,7 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settingsRow = settingsRows[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
   const recordId = record?.id || null;
   const ownerId = recordId ? `${recordId}${layoutSuffix}` : null;
   const defaultOwnerId = DEFAULT_OWNER_ID + layoutSuffix;

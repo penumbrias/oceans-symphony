@@ -15,6 +15,7 @@ import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { loadSystemDistressSet, saveSystemDistressSet } from "@/lib/emotionDistress";
 import { useEmotionCategoryLabels, EMOTION_CATEGORY_KEYS, DEFAULT_CATEGORY_LABELS } from "@/lib/emotionCategories";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const db = isLocalMode() ? localEntities : base44.entities;
 
@@ -224,7 +225,7 @@ function CategoryNamesEditor() {
     queryKey: ["systemSettings"],
     queryFn: () => db.SystemSettings.list(),
   });
-  const row = settingsList[0];
+  const row = pickPrimarySystemSettings(settingsList);
   const overrides = row?.emotion_category_names || {};
   const [draft, setDraft] = useState(null); // null = not editing
   const [saving, setSaving] = useState(false);

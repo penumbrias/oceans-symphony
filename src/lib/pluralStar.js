@@ -25,6 +25,7 @@ import { saveLocalImage } from "@/lib/localImageStorage";
 
 import { withBatch } from "@/lib/localDb";
 import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // ─── Detection ─────────────────────────────────────────────────────────────
 
 // Does this parsed JSON look like a Plural Star export? Returns true for
@@ -515,7 +516,7 @@ async function importPluralStarInner({ data, media }, opts = {}) {
   if (!dryRun && updateSystemProfile) {
     try {
       const settingsList = await base44.entities.SystemSettings.list();
-      const settings = settingsList[0];
+      const settings = pickPrimarySystemSettings(settingsList);
       if (settings && data.system) {
         const patch = {};
         const currentName = (settings.system_name || "").trim();

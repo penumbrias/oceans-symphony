@@ -18,6 +18,7 @@ import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 // the Assets Library page so both file an image the same way).
 import { resolveAssetRules, autoFolderForItem, explicitFolderOf, alterFolderName } from "@/lib/assetFolders";
 import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -76,7 +77,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
     [alters]
   );
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: open });
-  const rules = useMemo(() => resolveAssetRules(settingsList[0] || null), [settingsList]);
+  const rules = useMemo(() => resolveAssetRules(pickPrimarySystemSettings(settingsList) || null), [settingsList]);
   const referenced = useReferencedAssets(rules, alterNameById);
   const usage = useImageUsage(rules, alterNameById);
   const ownerFolderFor = (asset) =>

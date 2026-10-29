@@ -40,6 +40,7 @@ import {
   autoFolderForItem, explicitFolderOf, kindFolderFor,
   VIDEOS_FOLDER, AUDIO_FOLDER, OTHERS_FOLDER, SONGS_AUDIO_FOLDER, UNORGANIZED_FOLDER, BUILT_IN_KIND_FOLDERS,
 } from "@/lib/assetFolders";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const PAGE = 24; // lazy-load page size per folder
 
@@ -358,7 +359,7 @@ export default function AssetsLibrary() {
   // The organisation rules (auto-folder names, per-alter filing) — the
   // user's overrides on SystemSettings.asset_folder_rules over the defaults.
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settingsRow = settingsList[0] || null;
+  const settingsRow = pickPrimarySystemSettings(settingsList) || null;
   const rules = useMemo(() => resolveAssetRules(settingsRow), [settingsRow]);
   const AUTO_FOLDERS = useMemo(() => new Set([...autoFolderNames(rules), BUILT_IN_FOLDER]), [rules]);
   const alterFolderName = (alterId, role) => alterFolderNameRules(alterNameById[alterId] || "Unknown alter", role, rules);

@@ -19,6 +19,7 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
 import { setBarPicture } from "@/lib/barPicture";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 function Pills({ value, options, onChange }) {
   return (
@@ -95,7 +96,7 @@ export default function PinnedAltersConfigPanel() {
   const qc = useQueryClient();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   const config = (settings && settings.pinned_alters_config) || {};
 
   const [pinsOpen, setPinsOpen] = useState(false);

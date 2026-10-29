@@ -29,7 +29,7 @@ export function NewUiToggle() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const record = rows[0];
+  const record = pickPrimarySystemSettings(rows);
   const on = record?.ui_v2?.enabled === true;
   const toggle = async (next) => {
     try {
@@ -120,7 +120,7 @@ export function HomeScreenResetDialog({ open, onClose }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const record = settings[0] || null;
+  const record = pickPrimarySystemSettings(settings) || null;
 
   const resetHome = async (keepAsPage) => {
     onClose?.();
@@ -200,7 +200,7 @@ export default function DashboardLayoutSettings() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const record = settings[0] || null;
+  const record = pickPrimarySystemSettings(settings) || null;
   const [resetOpen, setResetOpen] = useState(false);
 
   // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
