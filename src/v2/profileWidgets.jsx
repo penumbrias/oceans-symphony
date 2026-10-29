@@ -31,7 +31,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { infoEditorField } from "@/components/v2/profileInfoEditors";
-import { boxStyle, useWidgetChrome } from "@/v2/primitives";
+import { boxStyle, useWidgetChrome, valignBoxStyle } from "@/v2/primitives";
 import { useBoardSubject, widgetFitsSubject } from "@/lib/boardSubject";
 import {
   GroupHeaderSection, GroupBioSection, GroupNestedSection, GroupMembersSection,
@@ -131,7 +131,11 @@ export function ProfileBox({ children, name = "" }) {
       {showLabel && (
         <h2 data-widget-label="" className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex-shrink-0">{ownName}</h2>
       )}
-      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      {/* Body moves with the board's "Down" alignment; the ref'd child is
+          what the empty check reads. */}
+      <div className="min-h-0 flex-1 overflow-y-auto" style={valignBoxStyle()}>
+        <div ref={bodyRef} className="min-w-0">{children}</div>
+      </div>
       {empty && (
         <div className="pf-widget-empty flex-1 items-center justify-center rounded-xl border border-dashed border-border/60 text-[0.75em] text-muted-foreground px-3 text-center" aria-hidden="true">
           {ownName || name} — nothing to show yet

@@ -46,6 +46,7 @@ const SLOP = 14; // finger jitter allowed during the hold (was 6 — too twitchy
 const SWITCH_AT = 0.75; // fraction of a cell the pointer must travel to change target (0.5 = old behaviour)
 const AUTOSCROLL_DIVISOR = 16; // was 6
 const AUTOSCROLL_MAX = 12; // px per frame
+const BESIDE_EDGE = 0.3; // outer fraction of a widget that means "drop beside it"
 
 export function useFreeMove({
   gridRef,
@@ -57,9 +58,13 @@ export function useFreeMove({
   enabled = true,
   onCommit,
   onRemove,
+  // Drop beside (v0.306.0): pointer over the left or right edge of another
+  // widget → onBeside({ id, side }) instead of a cell drop. Return false
+  // from it to fall back to the ordinary drop.
+  onBeside = null,
   trashSelector = "[data-widget-trash]",
 }) {
-  const [drag, setDrag] = useState(null); // { dx, dy, target: {x,y}, overTrash }
+  const [drag, setDrag] = useState(null); // { dx, dy, target: {x,y}, overTrash, beside }
   const state = useRef(null);
 
   const cleanup = useCallback(() => {
@@ -118,9 +123,27 @@ export function useFreeMove({
       const overTrash = !!tRect
         && clientX >= tRect.left && clientX <= tRect.right
         && clientY >= tRect.top && clientY <= tRect.bottom;
+      // Over the outer third of another widget = "put it beside that one".
+      // The lifted widget follows the finger, so it's skipped; the middle
+      // of a widget stays an ordinary drop (which pushes it down).
+      let beside = null;
+      if (onBeside && !overTrash) {
+        const own = node.closest?.("[data-widget-id]");
+        const els = document.elementsFromPoint?.(clientX, clientY) || [];
+        for (const el of els) {
+          const host = el.closest?.("[data-widget-id]");
+          if (!host || host === own) continue;
+          const r = host.getBoundingClientRect();
+          const f = r.width > 0 ? (clientX - r.left) / r.width : 0.5;
+          const id = host.getAttribute("data-widget-id");
+          if (f < BESIDE_EDGE) beside = { id, side: "left" };
+          else if (f > 1 - BESIDE_EDGE) beside = { id, side: "right" };
+          break;
+        }
+      }
       st.pointerY = clientY;
       st.point = { x: clientX, y: clientY };
-      setDrag({ dx: clientX - startX, dy: clientY - startY + scrolled, target: { x, y }, overTrash });
+      setDrag({ dx: clientX - startX, dy: clientY - startY + scrolled, target: { x, y }, overTrash, beside });
     };
     const onMove = (ev) => {
       const st = state.current;
@@ -141,6 +164,7 @@ export function useFreeMove({
       setDrag(null);
       if (!snapshot) return;
       if (snapshot.overTrash) onRemove?.();
+      else if (snapshot.beside && onBeside?.(snapshot.beside) !== false) { /* placed beside */ }
       else if (snapshot.target.x !== pos.x || snapshot.target.y !== pos.y) onCommit?.(snapshot.target);
     };
 
@@ -218,7 +242,7 @@ export function useFreeMove({
       };
       st.raf = requestAnimationFrame(step);
     }, HOLD_MS);
-  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, trashSelector]);
+  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, onBeside, trashSelector]);
 
   // Keep the latest preview where pointerup can read it without a stale closure.
   useEffect(() => { if (state.current) state.current.last = drag; }, [drag]);

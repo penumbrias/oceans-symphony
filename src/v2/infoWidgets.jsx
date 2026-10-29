@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Play, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { boxStyle } from "@/v2/primitives";
+import { boxStyle, valignBoxStyle } from "@/v2/primitives";
 import { useBoardSubject } from "@/lib/boardSubject";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -198,7 +198,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
     </EditableValue>
   );
   return (
-    <div className="h-full text-[0.875em] leading-relaxed" style={flush()} data-info-widget="" data-mode={mode}>
+    <div className="h-full text-[0.875em] leading-relaxed" style={{ ...flush(), ...valignBoxStyle() }} data-info-widget="" data-mode={mode}>
       {layout === "inline" ? (
         <dl className="space-y-0.5">
           {rows.map((r) => (

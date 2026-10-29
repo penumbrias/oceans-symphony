@@ -34,7 +34,7 @@ import RichText from "@/components/shared/RichText";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { isLogCommandError } from "@/lib/authoredText";
 import { saveAlterNote, deleteAlterNote, alterNotesKey } from "@/lib/alterNotes";
-import { boxStyle } from "@/v2/primitives";
+import { boxStyle, valignBoxStyle } from "@/v2/primitives";
 import { useTerms } from "@/lib/useTerms";
 import { useInfoAlter, EditableValue } from "@/v2/infoWidgets";
 import { infoEditorField } from "@/components/v2/profileInfoEditors";
@@ -55,12 +55,12 @@ const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 // itself while the layout is edited (.pf-widget-empty, index.css).
 export function GardenBox({ empty, name, children, ...rest }) {
   return (
-    <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={flush()} {...rest}>
+    <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={{ ...flush(), ...valignBoxStyle() }} {...rest}>
       {empty ? (
         <div className="pf-widget-empty h-full items-center justify-center rounded-xl border border-dashed border-current opacity-50 text-[0.8125em] px-3 text-center" aria-hidden="true">
           {name} — nothing to show yet
         </div>
-      ) : children}
+      ) : <div className="min-w-0">{children}</div>}
     </section>
   );
 }

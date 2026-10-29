@@ -41,7 +41,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel, widgetAutoLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, resolveOverlaps, hasOverlaps,
+  HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
@@ -152,7 +152,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -238,15 +238,16 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     enabled: free && editMode && !a11yStack,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
+    onBeside: onBeside ? (b) => onBeside(widget.instanceId, b) : null,
   });
   // Tell the board where this widget would land so it can draw the
   // drop-target ghost (dragging blind was the other half of "clunky").
   React.useEffect(() => {
     if (!free) return undefined;
-    onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash } : null);
+    onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash, beside: move.drag.beside || null } : null);
     return undefined;
      
-  }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.dragging]);
+  }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.drag?.beside?.id, move.drag?.beside?.side, move.dragging]);
 
   const look = widgetLookFor(widget.settings, userStyles, styleMode);
   // Name + show/hide for the widget's heading (Section reads it).
@@ -327,11 +328,14 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     <>
     {/* Where it will land — drawn in the grid itself, so the preview is the
         actual cell rather than an approximation of it. */}
-    {free && move.drag && (
+    {free && move.drag && !move.drag.beside && (
       <div aria-hidden="true" className="rounded-xl border-2 border-dashed pointer-events-none"
         style={{
           gridColumn: `${move.drag.target.x + 1} / span ${shownCols}`,
           gridRow: `${move.drag.target.y + 1} / span ${shownRows}`,
+          // The canvas aligns items to the top, which left this empty box
+          // zero-height (a bare line) — fill the cells it stands for.
+          alignSelf: "stretch",
           borderColor: "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 60%, transparent)",
         }} />
     )}
@@ -468,10 +472,17 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // border you see is the size you set; overflow scrolls inside it.
           ...(free || fixedHeight
             ? { height: "100%", overflowY: "auto" }
+            // Flow view: the cell stretches to its row (the canvas below),
+            // so filling it gives "Down" alignment room to move the content
+            // beside a taller neighbour.
+            : flowView ? { height: "100%" }
             : null),
           // Per-widget content alignment, consumed by Section's row stack
           // (and by the flex wrapper below for content-sized widgets).
           "--v2-widget-valign": valignJustify,
+          // Only what the person picked — boxes that always sat at the top
+          // (profile sections, Field) read this one (valignBoxStyle).
+          ...(widget.settings?.valign ? { "--v2-widget-valign-set": valignJustify } : null),
           "--v2-widget-halign": halignItems,
           // Horizontal "Left"/"Right" MIRRORS the layout, not just the
           // justification — a left-handed (or RTL-language) user picking
@@ -1321,6 +1332,19 @@ export default function ExperimentalDashboard({
       )
     );
 
+  // Drop beside (v0.306.0): dropped on another widget's left or right edge,
+  // the widget joins that row and the row shares the width evenly.
+  const besideMinCols = (w) => registry[w.widgetId]?.minSpan?.cols || 1;
+  const handleBeside = (instanceId, { id, side }) => {
+    const cur = boardRef.current.board.pages.find((p) => p.id === page.id);
+    if (!placeBeside(cur?.widgets || [], gridCols, instanceId, id, side, besideMinCols)) return false;
+    updatePageWidgets((ws) => {
+      const next = placeBeside(ws, gridCols, instanceId, id, side, besideMinCols);
+      return next ? resolveOverlaps(next, gridCols, instanceId) : ws;
+    });
+    return true;
+  };
+
   // Resizing a widget on a free page pushes its neighbours down and leaves
   // holes behind; dragging each one back up is the hassle. Closing the gaps
   // is pure gravity — each widget falls straight up into the empty space
@@ -1728,10 +1752,25 @@ export default function ExperimentalDashboard({
   }, [editMode, a11yStack, home.pages.length, pageIdx, onExitLeft, onExitRight]);
 
   // Drop-target ghost while a widget drags in free mode.
-  const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash }
+  const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash, beside }
+  const [dragId, setDragId] = React.useState(null);
   const handleDragTarget = React.useCallback((instanceId, t) => {
     setDragGhost(t ? { ...t } : null);
+    setDragId(t ? instanceId : null);
   }, []);
+
+  // Where the widget lands. Beside another widget, that's the moved
+  // widget's cell in the row it would join (worked out the same way the
+  // drop will be), so the ghost shows the half it'll take.
+  const ghostCell = React.useMemo(() => {
+    if (!dragGhost) return null;
+    const b = dragGhost.beside;
+    if (!b || !dragId) return dragGhost;
+    const next = placeBeside(page.widgets, gridCols, dragId, b.id, b.side, (w) => registry[w.widgetId]?.minSpan?.cols || 1);
+    const m = next?.find((w) => w.instanceId === dragId);
+    if (!m) return dragGhost;
+    return { x: m.pos.x, y: Math.max(0, m.pos.y - (topRowOffset || 0)), cols: m.span.cols, rows: dragGhost.rows };
+  }, [dragGhost, dragId, page.widgets, gridCols, registry, topRowOffset]);
 
   // "Show as" phone / tablet: the page keeps that shape on a wider screen
   // — a centred column of that width (auto / desktop use the full width).
@@ -1746,7 +1785,9 @@ export default function ExperimentalDashboard({
         display: "grid",
         gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
         gap: home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem",
-        alignItems: "start",
+        // Flow view: widgets sharing a row are as tall as the tallest one,
+        // so their boxes line up and "Down" alignment has room to work.
+        alignItems: flowView ? "stretch" : "start",
         // Free pages need fixed-height rows for cell coordinates to mean
         // anything, plus a few spare rows so there's somewhere to drag TO.
         // Flow view deliberately omits them: rows are as tall as their
@@ -1756,11 +1797,13 @@ export default function ExperimentalDashboard({
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
-      {freeMode && dragGhost && !dragGhost.overTrash && (
+      {freeMode && ghostCell && !dragGhost.overTrash && (
         <div aria-hidden="true" className="pointer-events-none"
+          data-drop-ghost={dragGhost.beside ? "beside" : "cell"}
           style={{
-            gridColumn: `${dragGhost.x + 1} / span ${Math.min(dragGhost.cols, gridCols)}`,
-            gridRow: `${dragGhost.y + 1} / span ${dragGhost.rows}`,
+            gridColumn: `${ghostCell.x + 1} / span ${Math.min(ghostCell.cols, gridCols)}`,
+            gridRow: `${ghostCell.y + 1} / span ${ghostCell.rows}`,
+            alignSelf: "stretch",
             border: "2px dashed var(--v2-accent)",
             borderRadius: "var(--v2-radius, 12px)",
             background: "color-mix(in srgb, var(--v2-accent) 10%, transparent)",
@@ -1800,6 +1843,7 @@ export default function ExperimentalDashboard({
           free={freeMode && !flowView}
           flowView={flowView}
           onPos={handlePos}
+          onBeside={handleBeside}
           userStyles={userStyles}
         />
       ))}
