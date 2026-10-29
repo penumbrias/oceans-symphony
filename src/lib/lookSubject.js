@@ -1,9 +1,10 @@
-// The look subject (v0.310.0) — which profile Display options is looking at.
+// The look subject (v0.310.0) — which profile is on screen for Profile
+// display options.
 //
 // A profile page (alter, group, inner-world location) registers itself
-// here while it is on screen; Display options, which is mounted once by
-// AppLayout outside every page, reads it and offers "<name>'s profile" as
-// a scope beside "Everywhere" and "This page". The profile's look is still
+// here while it is on screen; Profile display options (ProfileLookSheet,
+// mounted once by AppLayout outside every page) reads it and edits that
+// profile's look. The profile's look is still
 // the PS.* style keys on the record's custom_fields (profileStyle.js) —
 // nothing stored moved — and every write goes through patchProfileLook,
 // which reads the record fresh and merges key by key.
@@ -43,12 +44,13 @@ export function useRegisterLookSubject(type, record, label) {
   }, [type, id, label, customFields]);
 }
 
-// Opens Display options on the profile scope (the "Page look…" rows).
-export const LOOK_FOCUS_KEY = "os_look_focus";
+// Opens Profile display options (ProfileLookSheet) for the profile on
+// screen — the cog menu's entry and the forms' PageLookRow.
 export function openProfileLook() {
-  try { sessionStorage.setItem(LOOK_FOCUS_KEY, "profile"); } catch { /* storage off */ }
-  window.dispatchEvent(new CustomEvent("os-open-display-options"));
+  window.dispatchEvent(new CustomEvent("os-open-profile-look"));
 }
+// Opens Display options on "this page" (the page's own background/song).
+export const LOOK_FOCUS_KEY = "os_look_focus";
 export function openPageLook() {
   try { sessionStorage.setItem(LOOK_FOCUS_KEY, "page"); } catch { /* storage off */ }
   window.dispatchEvent(new CustomEvent("os-open-display-options"));

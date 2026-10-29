@@ -7,6 +7,7 @@ import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getSyncFolder, runSync } from "@/lib/deviceSyncRunner";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
+import { useLookSubject, openProfileLook } from "@/lib/lookSubject";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -36,6 +37,7 @@ import {
 // read as a stray glyph there.
 export default function HeaderPageMenu({ className, v2Options = null, label = null }) {
   const location = useLocation();
+  const lookSubject = useLookSubject();
   const navigate = useNavigate();
   const terms = useTerms();
   const path = location.pathname;
@@ -203,9 +205,20 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       onSelect: () => navigate("/settings#checkin"),
     });
   }
+  // On a profile page (alter, group, inner-world location) the profile's
+  // own look has its own sheet, Profile display options (v0.312.1) —
+  // under either chrome.
+  if (lookSubject) {
+    pageActions.push({
+      key: "profile-look",
+      label: "Profile display options",
+      icon: Palette,
+      onSelect: () => openProfileLook(),
+    });
+  }
   // Under the classic chrome every page off the home screen can still
   // open Display options (v0.310.0): its Editing row offers this page's
-  // own background, or the profile on screen.
+  // own background and song.
   if (!v2Options && path !== "/") {
     pageActions.push({
       key: "display-options",

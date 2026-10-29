@@ -70,7 +70,7 @@ function TypeRow({ type, label, labelOne, suffix = "" }) {
 
 // Convert every classic alter profile to the widget layout (v0.297.0).
 // Each conversion keeps the original bio and can be undone from that
-// alter's info (pencil → Page look).
+// alter's info (pencil → Profile page).
 function ConvertAllRow() {
   const t = useTerms();
   const qc = useQueryClient();
@@ -83,7 +83,7 @@ function ConvertAllRow() {
   const run = async () => {
     const ok = await confirm({
       title: `Turn every ${t.alter}'s bio into widgets?`,
-      body: `${classic.length} ${classic.length === 1 ? `profile uses` : `profiles use`} the classic layout. Each bio's parts become widgets you can move and style, and its pictures join that ${t.alter}'s Pictures. Nothing is deleted: every original bio is kept, and each ${t.alter}'s info (the pencil → Page look) has an Undo.`,
+      body: `${classic.length} ${classic.length === 1 ? `profile uses` : `profiles use`} the classic layout. Each bio's parts become widgets you can move and style, and its pictures join that ${t.alter}'s Pictures. Nothing is deleted: every original bio is kept, and each ${t.alter}'s info (the pencil → Profile page) has an Undo.`,
       confirmLabel: "Convert all",
     });
     if (!ok) return;
