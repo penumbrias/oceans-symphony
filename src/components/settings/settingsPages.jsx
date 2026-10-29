@@ -211,7 +211,7 @@ export function buildSettingsGroups(ctx) {
         { id: "data-inspector", label: "See your data", hint: "Every category, its size, export or delete one", icon: Table2, tour: "settings-data-inspector",
           keywords: "see your data inspector records counts sizes categories trash deleted items recent changes",
           render: () => <DataInspector /> },
-        { id: "find-my-data", label: "Find my data", hint: "Opened to an empty app? Every copy on this device", icon: LifeBuoy,
+        { id: "find-my-data", label: "Find my data", hint: "Opened to an empty app? Lists every copy on this device and only re-points the app, never deletes", icon: LifeBuoy,
           keywords: "find my data recovery rescue empty wrong system lost data", action: () => ctx.openRescue?.() },
         { id: "privacy-cover", label: "Privacy cover", hint: "Triple-tap to hide the app behind a grocery list", icon: EyeOff,
           keywords: "privacy cover panic hide grocery list triple tap", render: () => <GroceryPanicTapsSettings /> },

@@ -17,7 +17,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
 import BioEditor from "@/components/alters/BioEditor";
 import { IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
-import { Row, Group, SliderRow, ChoiceRow } from "@/components/shared/SettingRows";
+import { Group, SliderRow, ChoiceRow, SwitchRow } from "@/components/shared/SettingRows";
 
 export default function ProfileSettings() {
   const terms = useTerms();
@@ -186,10 +186,9 @@ export default function ProfileSettings() {
       {/* The count is hidden by default — the raw number can feel clinical
           or invasive depending on how the person relates to their system.
           The reveal is local-only, so each visit starts hidden again. */}
-      <Row label={`${terms.Alter} count`} hint={showAlterCount ? `${activeCount} active${archivedCount > 0 ? ` · ${archivedCount} archived` : ""}` : "Hidden until you ask"}>
-        <button type="button" onClick={() => setShowAlterCount((v) => !v)}
-          className="text-xs text-primary underline underline-offset-2">{showAlterCount ? "Hide" : "Show"}</button>
-      </Row>
+      <SwitchRow label={`Show ${terms.alter} count`}
+        hint={showAlterCount ? `${activeCount} active${archivedCount > 0 ? ` · ${archivedCount} archived` : ""}` : "Hidden until you ask; starts hidden every visit"}
+        checked={showAlterCount} onChange={setShowAlterCount} />
       {/* Picture + banner, side by side. URL paste lives behind the
           link icon so the row stays to just the wireframe's ↑ ⧉ ×. */}
       <div className="flex gap-3">

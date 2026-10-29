@@ -94,7 +94,7 @@ export function StackedRow({ label, hint, children, own = false, onClear }) {
 export function Group({ title, children, first = false }) {
   return (
     <div className={first ? "" : "pt-4"}>
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pb-1">{title}</p>
+      <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pb-1">{title}</h2>
       <div>{children}</div>
     </div>
   );

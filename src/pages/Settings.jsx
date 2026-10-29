@@ -13,7 +13,6 @@ import DesktopUpdateButton from "@/components/settings/DesktopUpdateButton";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { runAutoBackupNow } from "@/lib/autoBackup";
@@ -24,7 +23,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import BugReportModal from "@/components/settings/BugReportModal";
-import { Group, LinkRow } from "@/components/shared/SettingRows";
+import { Group, LinkRow, SwitchRow } from "@/components/shared/SettingRows";
 import {
   buildSettingsGroups, filterSettingsGroups, findSettingsPage, LEGACY_HASHES, EXPORT_FORMAT_EXTRAS,
 } from "@/components/settings/settingsPages";
@@ -106,7 +105,7 @@ export default function Settings() {
         document.getElementById(`settings-group-${groupTarget}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, [openPage?.id, groupTarget]);
+  }, [openPage?.id, groupTarget, location.key]);
 
   // A row with an `action` (Display options, Check-in manager, Find my
   // data, bug report) runs it; a hash that names one of those just runs it
@@ -122,7 +121,12 @@ export default function Settings() {
     if (page.action && !page.render) { page.action(); return; }
     navigate(`/settings#${page.id}`);
   };
-  const goHome = () => navigate("/settings");
+  // Back is a real back when there is somewhere to go back to (a deep link
+  // from another page returns there); otherwise the Settings home.
+  const goHome = () => {
+    const idx = typeof window !== "undefined" ? window.history.state?.idx : 0;
+    if (idx > 0) navigate(-1); else navigate("/settings");
+  };
 
   if (isLoading) {
     return (
@@ -215,7 +219,7 @@ export default function Settings() {
           </div>
 
           {/* Search — people look for the THING they want to change. */}
-          <div data-tour="settings-quick-nav" className="relative mb-3">
+          <div data-tour="settings-quick-nav" role="search" className="relative mb-3">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Search settings" aria-label="Search settings"
@@ -285,19 +289,11 @@ function PageTutorialsControls() {
       <p className="text-sm text-muted-foreground leading-relaxed">
         First-visit page tutorials prompt you on each page so you can explore one at a time instead of taking the whole guided tour at once.
       </p>
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 px-3 py-2">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">Show page-tutorial prompts</p>
-          <p className="text-xs text-muted-foreground">"New to this page? Show me around" banner on first visit.</p>
-        </div>
-        <Switch
+      <Group title="Page tutorials" first>
+        <SwitchRow label="Show page-tutorial prompts" hint={'"New to this page? Show me around" banner on first visit.'}
           checked={enabled}
-          onCheckedChange={(next) => {
-            setPageTutorialsEnabled(next);
-            setEnabled(next);
-          }}
-        />
-      </div>
+          onChange={(next) => { setPageTutorialsEnabled(next); setEnabled(next); }} />
+      </Group>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
