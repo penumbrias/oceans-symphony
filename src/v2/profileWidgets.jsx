@@ -67,6 +67,7 @@ import { GARDEN_ALTER_WIDGETS } from "@/v2/gardenProfileWidgets";
 import { GARDEN_CONNECTION_WIDGETS } from "@/v2/gardenConnectionWidgets";
 import { GARDEN_GROUP_WIDGETS } from "@/v2/gardenGroupWidgets";
 import { GARDEN_CONTACT_WIDGETS } from "@/v2/gardenContactWidgets";
+import { GARDEN_LOCATION_WIDGETS } from "@/v2/gardenLocationWidgets";
 
 // The record whose page this is, by owner type. Same query keys the pages
 // themselves use, so a widget and the page chrome never disagree.
@@ -261,6 +262,7 @@ export const LOCATION_PROFILE_WIDGETS = {
   profile_sub_locations: LW("Sub-locations", "The locations inside this one on the map.", MapPin, lsection(LocationSubLocationsSection, { name: "Sub-locations" })),
   profile_members: LW("{{Alters}} here", "Who is placed in this location.", Users, lsection(LocationMembersSection, { name: "{{Alters}} here" })),
   profile_on_map: LW("On the map", "Where tapping it leads, and the way to the map.", MapIcon, lsection(LocationOnMapSection, { name: "On the map" })),
+  ...GARDEN_LOCATION_WIDGETS,
 };
 
 export const PROFILE_WIDGETS = {

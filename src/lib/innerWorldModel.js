@@ -26,6 +26,7 @@
 import { localEntities } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { trashProfileBoards } from "@/lib/boardStore";
+import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
 
 export const IW_KEYS = {
   maps: ["innerWorldMaps"],
@@ -215,6 +216,8 @@ export async function createLocation(mapId, layerId, fields = {}) {
   return localEntities.InnerWorldLocation.create({
     name: "New location", shape: "rectangle", color: "",
     x: 0, y: 0, width: 200, height: 150, order: 0,
+    // New locations open on the new profile (v0.309.0).
+    profile_layout: NEW_PROFILE_LAYOUT,
     ...fields,
     map_id: mapId,
     layer_id: layerId,

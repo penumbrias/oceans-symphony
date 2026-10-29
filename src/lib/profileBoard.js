@@ -175,9 +175,17 @@ export const NEW_CONTACT_PROFILE_PAGES = [
   { tab: "notes", label: "Notes", widgets: [{ widgetId: "contact_notes", mode: "expanded", settings: { count: 20 } }] },
   { tab: "options", label: "Options", widgets: ["profile_options"] },
 ];
+// The new location profile (v0.309.0): one page, as before; its place on
+// the map stays a tap away on the identity widget.
+export const NEW_LOCATION_PROFILE_PAGES = [
+  { tab: "profile", label: "Profile", widgets: [
+    "location_identity", "location_about", "location_alters", "location_places",
+  ] },
+];
 NEW_PROFILE_PAGES.alter = NEW_ALTER_PROFILE_PAGES;
 NEW_PROFILE_PAGES.group = NEW_GROUP_PROFILE_PAGES;
 NEW_PROFILE_PAGES.contact = NEW_CONTACT_PROFILE_PAGES;
+NEW_PROFILE_PAGES.location = NEW_LOCATION_PROFILE_PAGES;
 
 export const GROUP_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [

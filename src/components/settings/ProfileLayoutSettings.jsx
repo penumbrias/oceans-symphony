@@ -121,12 +121,13 @@ function ConvertAllRow() {
 // The new profile for everyone (v0.305.0). Only each record's layout flag
 // changes; every profile keeps the layout it has now, and each one can
 // revert on its own (pencil → ⋯), or everyone at once here.
-// Groups (v0.307.0) and contacts (v0.308.0) too: `ownerType` picks which
+// Groups (v0.307.0), contacts (v0.308.0) and locations (v0.309.0) too: `ownerType` picks which
 // records.
 const ROW_KIND = {
   alter: { key: ["alters"], entity: "Alter" },
   group: { key: ["groups"], entity: "Group", one: "group", many: "groups" },
   contact: { key: ["contacts"], entity: "Contact", one: "contact", many: "contacts" },
+  location: { key: ["innerWorldLocations"], entity: "InnerWorldLocation", one: "location", many: "locations" },
 };
 function NewProfileAllRow({ ownerType = "alter" }) {
   const t = useTerms();
@@ -218,10 +219,12 @@ export default function ProfileLayoutSettings() {
         <NewProfileAllRow />
         <NewProfileAllRow ownerType="group" />
         <NewProfileAllRow ownerType="contact" />
+        <NewProfileAllRow ownerType="location" />
         <ConvertAllRow />
         <TypeRow type="alter" suffix={NEW_LAYOUT_SUFFIX} label={`${t.alters} (new profile)`} labelOne={`new ${t.alter} profile`} />
         <TypeRow type="group" suffix={NEW_LAYOUT_SUFFIX} label="groups (new profile)" labelOne="new group profile" />
         <TypeRow type="contact" suffix={NEW_LAYOUT_SUFFIX} label="contacts (new profile)" labelOne="new contact profile" />
+        <TypeRow type="location" suffix={NEW_LAYOUT_SUFFIX} label="locations (new profile)" labelOne="new location profile" />
         {PROFILE_OWNER_TYPES.map((type) => (
           <TypeRow key={type} type={type} label={hasNewProfile(type) ? `${labels[type][0]} (old profile)` : labels[type][0]} labelOne={labels[type][1]} />
         ))}
