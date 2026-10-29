@@ -3265,7 +3265,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   },
   media: {
-    label: "Image", description: "A picture, GIF or video \u2014 from your library, a link, or an {{alter}}'s profile picture, Pictures or pinned bar picture. Rotate it, flip it, fill or fit the box, or show several as a slideshow or grid.",
+    label: "Image", description: "A picture, GIF or video \u2014 from your library, a link, or an {{alter}}'s profile picture, Pictures or pinned bar picture. Frame it by dragging, zoom, fade, rotate or flip it, fill or fit the box, or show several as a slideshow or grid.",
     icon: ImageIcon, category: "layout",
     // A page piece: fits every board, profiles included.
     subjects: ["home", "alter", "group", "contact", "location"],
@@ -3289,8 +3289,10 @@ export const V2_WIDGETS = {
         options: [{ value: "box", label: "Fill the box" }, { value: "circle", label: "Circle" }] },
       { key: "fit", type: "select", label: "Fit", default: "cover",
         options: [{ value: "cover", label: "Fill" }, { value: "contain", label: "Whole" }] },
-      { key: "focus", type: "select", label: "Keep in view", default: "center",
-        options: [{ value: "center", label: "Middle" }, { value: "top", label: "Top" }, { value: "bottom", label: "Bottom" }, { value: "left", label: "Left" }, { value: "right", label: "Right" }] },
+      // "Keep in view" presets (focus) are still read for older widgets;
+      // each picture is framed by dragging now (v0.314.0) — on the item
+      // ("Frame" beside it) or, for an alter's pictures, on the alter.
+      { key: "imageOpacity", type: "number", label: "Picture opacity", min: 0, max: 100, step: 5, default: 100, unit: "%" },
       { key: "rotate", type: "number", label: "Rotate", min: -180, max: 180, default: 0, unit: "\u00b0" },
       { key: "flipX", type: "toggle", label: "Mirror", default: false },
       { key: "flipY", type: "toggle", label: "Upside down", default: false },

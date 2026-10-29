@@ -10,7 +10,7 @@
 // Each widget has ONE visible box (widget contract): flush and borderless
 // until the person sets a border, background or padding, like Text.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Play, ExternalLink, Image as ImageIcon } from "lucide-react";
@@ -28,6 +28,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EntryInput, BioEntry, KIND_LABEL } from "@/components/alters/info/entryEditors";
 import { mediaItemsOf, parseVideoLink, mediaTransform, MEDIA_FOCUS } from "@/lib/mediaItems";
+import { framedImageStyle, framingFor } from "@/lib/imageFraming";
 import { PICTURE_ROLE } from "@/lib/alterImageUpload";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { barPictureFor } from "@/lib/barPicture";
@@ -240,17 +241,53 @@ export function InfoWidget({ settings, mode = "normal" }) {
 
 // ── Media ────────────────────────────────────────────────────────────
 
+// A circle as big as fits its box both ways (v0.314.0 — it used to take
+// the full width and get cut off in a wide box). When the box has no
+// height of its own (a widget sized to its content) the width decides.
+function useCircleSize() {
+  const [size, setSize] = useState(0);
+  const obs = useRef(null);
+  const ref = useCallback((el) => {
+    obs.current?.disconnect();
+    obs.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const next = Math.floor(h >= 24 ? Math.min(w, h) : w);
+      setSize((cur) => (Math.abs(cur - next) > 1 ? next : cur));
+    };
+    obs.current = new ResizeObserver(measure);
+    obs.current.observe(el);
+    measure();
+  }, []);
+  return { ref, size };
+}
+
+// The picture's frame (where it sits, zoom) under the widget's own
+// rotate / mirror, and its opacity (v0.314.0).
+function framedMediaStyle(item, settings) {
+  const style = framedImageStyle(item.frame, {
+    fit: settings?.fit === "contain" ? "contain" : "cover",
+    fallbackPosition: MEDIA_FOCUS[settings?.focus] || "center",
+  });
+  const turn = mediaTransform(settings);
+  const transform = [turn, style.transform].filter(Boolean).join(" ") || undefined;
+  const opacity = Number(settings?.imageOpacity);
+  return {
+    ...style,
+    transform,
+    ...(Number.isFinite(opacity) && opacity < 100 && settings?.imageOpacity !== "" ? { opacity: Math.max(0, opacity) / 100 } : {}),
+  };
+}
+
 function MediaImage({ item, settings }) {
   const src = useResolvedAvatarUrl(item.src);
   if (!src) return <div className="w-full h-full flex items-center justify-center opacity-50"><ImageIcon className="w-6 h-6" /></div>;
   return (
     <img src={src} alt={item.caption || ""} draggable={false}
       className="w-full h-full block select-none"
-      style={{
-        objectFit: settings?.fit === "contain" ? "contain" : "cover",
-        objectPosition: MEDIA_FOCUS[settings?.focus] || "center",
-        transform: mediaTransform(settings),
-      }} />
+      style={framedMediaStyle(item, settings)} />
   );
 }
 
@@ -295,7 +332,7 @@ function MediaItem({ item, settings }) {
 // "Their Pictures" (v0.297.0): the alter's own Pictures, so a picture added
 // in the Alter info list shows up without touching the widget.
 function useOwnPictures(settings, enabled) {
-  const { alterId } = useInfoAlter(settings);
+  const { alterId, alter } = useInfoAlter(settings);
   const { data = [] } = useQuery({
     queryKey: ["imageAssets", "owned", alterId],
     queryFn: () => base44.entities.ImageAsset.filter({ owner_alter_id: alterId }, "-created_date"),
@@ -303,7 +340,7 @@ function useOwnPictures(settings, enabled) {
   });
   return useMemo(() => (enabled ? data : [])
     .filter((a) => a?.image_url && (!a.owner_role || a.owner_role === PICTURE_ROLE))
-    .map((a) => ({ src: a.image_url, kind: "image", caption: "" })), [data, enabled]);
+    .map((a) => ({ src: a.image_url, kind: "image", caption: "", frame: framingFor(alter, a.image_url) })), [data, enabled, alter]);
 }
 
 // "Profile picture" and "Pinned bar picture" (v0.300.0): the one picture
@@ -323,7 +360,7 @@ function useAlterPicture(settings, source) {
   });
   if (!on || !alter) return [];
   const src = source === "bar" ? barPictureFor(settingsRows[0], alter) : rotating;
-  return src ? [{ src, kind: "image", caption: "" }] : [];
+  return src ? [{ src, kind: "image", caption: "", frame: framingFor(alter, src) }] : [];
 }
 
 export const ALTER_PICTURE_SOURCES = ["pictures", "avatar", "bar"];
@@ -344,6 +381,7 @@ export function MediaWidget({ settings }) {
     return () => clearInterval(t);
   }, [arrange, count, seconds]);
   const showCaption = settings?.showCaption !== false;
+  const circleBox = useCircleSize();
   if (!count) {
     // Nothing to show: blank on the page, a hint while the layout is edited.
     return (
@@ -373,10 +411,19 @@ export function MediaWidget({ settings }) {
   const circle = settings?.shape === "circle";
   return (
     <figure className="h-full flex flex-col min-h-0 m-0" style={flush()} data-media-widget="">
-      {/* A circle is as wide as the box; otherwise the picture fills it. */}
-      <div className={circle ? "relative w-full mx-auto overflow-hidden rounded-full flex-shrink-0" : "relative flex-1 min-h-0 overflow-hidden"}
-        style={circle ? { aspectRatio: "1 / 1" } : undefined}>
-        <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />
+      {/* A circle is as big as fits the box both ways (v0.314.0 — it used
+          to take the full width and get cut off in a wide box); otherwise
+          the picture fills it. */}
+      <div ref={circle ? circleBox.ref : undefined}
+        className={circle ? "relative flex-1 min-h-0 flex justify-center" : "relative flex-1 min-h-0 overflow-hidden"}
+        // A circle in a tall box sits at the top unless Shape → Down says otherwise.
+        style={circle ? { alignItems: "var(--v2-widget-valign-set, flex-start)" } : undefined}>
+        {circle ? (
+          <div className="relative overflow-hidden rounded-full flex-shrink-0" data-media-circle=""
+            style={{ width: circleBox.size, height: circleBox.size }}>
+            <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />
+          </div>
+        ) : <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />}
         {count > 1 && (
           <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
             {items.map((_, i) => (

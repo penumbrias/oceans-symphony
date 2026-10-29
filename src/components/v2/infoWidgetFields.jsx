@@ -8,7 +8,9 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronUp, ChevronDown, X, Plus, ImagePlus, Loader2, Film } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Plus, ImagePlus, Loader2, Film, Crop } from "lucide-react";
+import ImageFramer from "@/components/shared/ImageFramer";
+import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { StackedRow, Row } from "@/components/shared/SettingRows";
@@ -213,19 +215,41 @@ export function MediaItemsField({ settings, set }) {
     setLink("");
   };
   const setCaption = (i, caption) => setItems(items.map((it, j) => (j === i ? { ...it, caption } : it)));
+  // Framing one picture (v0.314.0); the frame rides on the item.
+  const [framing, setFraming] = useState(null);
+  const setFrame = (i, frame) => set({
+    items: mediaItemsOf(settings).map((it, j) => {
+      if (j !== i) return it;
+      const { frame: _old, ...rest } = it;
+      return frame ? { ...rest, frame } : rest;
+    }),
+  });
 
   return (
     <div className="space-y-1">
       {items.map((it, i) => (
-        <div key={`${i}:${it.src}`} className="flex items-center gap-2 py-1.5 border-b border-border/30">
-          <ItemThumb item={it} />
-          <div className="flex-1 min-w-0">
-            <DebouncedText value={it.caption} onCommit={(v) => setCaption(i, v)} maxLength={200}
-              placeholder="Caption (optional)" ariaLabel={`Caption ${i + 1}`} className={inputCls} />
+        <div key={`${i}:${it.src}`} className="border-b border-border/30">
+          <div className="flex items-center gap-2 py-1.5">
+            <ItemThumb item={it} />
+            <div className="flex-1 min-w-0">
+              <DebouncedText value={it.caption} onCommit={(v) => setCaption(i, v)} maxLength={200}
+                placeholder="Caption (optional)" ariaLabel={`Caption ${i + 1}`} className={inputCls} />
+            </div>
+            {it.kind === "image" && (
+              <button type="button" onClick={() => setFraming(framing === i ? null : i)} aria-expanded={framing === i}
+                aria-label={`Frame picture ${i + 1}`} title="Frame: choose what stays in view"
+                className={`w-11 h-11 flex items-center justify-center rounded flex-shrink-0 ${framing === i || it.frame ? "text-foreground" : "text-muted-foreground"}`}>
+                <Crop className="w-4 h-4" />
+              </button>
+            )}
+            <MoveRemove index={i} count={items.length} label={`item ${i + 1}`}
+              onMove={(idx, dir) => { setFraming(null); setItems(move(items, idx, dir)); }}
+              onRemove={(idx) => { setFraming(null); setItems(items.filter((_, j) => j !== idx)); }} />
           </div>
-          <MoveRemove index={i} count={items.length} label={`item ${i + 1}`}
-            onMove={(idx, dir) => setItems(move(items, idx, dir))}
-            onRemove={(idx) => setItems(items.filter((_, j) => j !== idx))} />
+          {framing === i && it.kind === "image" && (
+            <ImageFramer src={it.src} value={it.frame} onChange={(f) => setFrame(i, f)}
+              shape={settings?.shape === "circle" ? "circle" : "box"} fit={settings?.fit === "contain" ? "contain" : "cover"} label={`Picture ${i + 1}`} />
+          )}
         </div>
       ))}
       <div className="flex flex-wrap gap-1.5 pt-2">
@@ -313,6 +337,10 @@ export function AlterPictureField({ settings, set }) {
         <AvatarRows alter={alter} value={alter.avatar_url} k={`avatar:${alter.id}`} onChange={(url) => setAvatar({ avatar_url: url })}
           label="Profile picture" rotation={alter.avatar_rotation_mode} onRotation={(m) => setAvatar({ avatar_rotation_mode: m })} />
       ))}
+      {alter && (
+        <AlterPictureFramer alter={alter} url={bar ? (barPictureOverride(settingsRows[0], alter.id) || alter.avatar_url) : alter.avatar_url}
+          shape={settings?.shape === "circle" ? "circle" : "box"} />
+      )}
       {!alter && alterId && <p className="text-xs text-muted-foreground">That {t.alter} isn't here any more.</p>}
     </div>
   );

@@ -40,7 +40,11 @@ export function mediaItemsOf(settings) {
   const raw = Array.isArray(settings?.items) ? settings.items : [];
   return raw
     .filter((it) => it && typeof it.src === "string" && it.src.trim())
-    .map((it) => ({ src: it.src, kind: it.kind === "video" ? "video" : "image", caption: typeof it.caption === "string" ? it.caption : "" }));
+    .map((it) => ({
+      src: it.src, kind: it.kind === "video" ? "video" : "image", caption: typeof it.caption === "string" ? it.caption : "",
+      // Where the picture sits in its box (v0.314.0, src/lib/imageFraming.js).
+      ...(it.frame && typeof it.frame === "object" ? { frame: it.frame } : {}),
+    }));
 }
 
 export const MEDIA_FOCUS = {

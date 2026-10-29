@@ -38,7 +38,7 @@ import { toast } from "sonner";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
-import { HOME_MODES, effectiveMode } from "@/lib/experimentalHome";
+import { HOME_MODES, effectiveMode, layerOf } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
@@ -640,6 +640,8 @@ function Disclosure({ label, hint, icon: Icon, open, onToggle, children }) {
 
 const TAB_ICONS = { content: ListChecks, text: Type, shape: Square, colour: Palette, styles: Star };
 
+const layerBtnCls = "flex-1 min-w-0 text-xs px-1.5 min-h-[2.25rem] rounded-full border border-border/50 text-muted-foreground hover:text-foreground whitespace-nowrap";
+
 export default function WidgetConfigSheet({
   widget,            // live widget object or null (sheet closed)
   def,               // registry entry for widget.widgetId
@@ -659,6 +661,7 @@ export default function WidgetConfigSheet({
   onDeleteStyle,     // (styleId)
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
   onRestoreSnapshot, // (instanceId, { mode, settings }, { keepCurrent }) → put the widget back how it was (Undo / Redo after closing)
+  onLayer = null,    // (instanceId, "front" | "forward" | "backward" | "back") → layer order; null where widgets can't overlap
 }) {
   const open = !!widget && !!def;
   // Everything in this sheet applies live and is saved as it happens, so
@@ -1317,6 +1320,28 @@ export default function WidgetConfigSheet({
                   own={own("shadow")} onClear={() => set({ shadow: "" })}
                   options={Object.keys(SHADOW_PRESETS).map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))} />
               </Group>
+              {/* Arrange (v0.314.0): overlap, layer order and tilt. */}
+              {onLayer && (
+                <Group title="Arrange">
+                  <SwitchRow label="Overlap other widgets" hint="Sits on top of them instead of pushing them aside"
+                    checked={settings.layered === true} onChange={(v) => set({ layered: v ? true : "" })} />
+                  <StackedRow label="Layer" hint={settings.layered === true ? "Higher sits in front" : "Turn on overlap to stack widgets"}
+                    own={own("zLayer")} onClear={() => set({ zLayer: "" })}>
+                    <span className="flex items-center gap-1">
+                      {[["back", "To back"], ["backward", "Back"]].map(([a, l]) => (
+                        <button key={a} type="button" onClick={() => onLayer(widget.instanceId, a)} className={layerBtnCls}>{l}</button>
+                      ))}
+                      <span className="w-8 flex-shrink-0 text-center text-sm tabular-nums" aria-live="polite" aria-label={`Layer ${layerOf(widget)}`}>{layerOf(widget)}</span>
+                      {[["forward", "Forward"], ["front", "To front"]].map(([a, l]) => (
+                        <button key={a} type="button" onClick={() => onLayer(widget.instanceId, a)} className={layerBtnCls}>{l}</button>
+                      ))}
+                    </span>
+                  </StackedRow>
+                  <SliderRow label="Rotate" value={settings.boxRotate} fallback={0}
+                    min={-180} max={180} step={1} unit="°"
+                    onChange={(v) => set({ boxRotate: v })} onClear={() => set({ boxRotate: "" })} />
+                </Group>
+              )}
               {resetFooter("shape", "Reset shape")}
             </div>
           )}

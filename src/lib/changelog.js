@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "Frame any picture: drag it to choose what stays in view and zoom in. A profile picture framed once shows that way on cards, bars and widgets." },
+      { type: "feature", text: "Pictures can fade with a Picture opacity slider, and the Identity widget's colour behind the picture can be turned off for see-through pictures." },
+      { type: "feature", text: "Widgets can overlap and be rotated: Shape → Arrange has \"Overlap other widgets\", layer buttons (To back, Back, Forward, To front) and Rotate." },
+      { type: "fix", text: "A circle Image widget now fits its box instead of being cut off at the bottom." },
       { type: "fix", text: "{{Alter}} profiles no longer show the pinned bar twice." },
       { type: "improve", text: "\"Profile style\" (was Profile display options) is now a Style button on the profile's Edit page bar, and Save and Exit there are one Save / exit button." },
       { type: "improve", text: "The profile cog menu is shorter: Display options and the setup links, without the home-screen and appearance links." },
