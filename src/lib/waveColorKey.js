@@ -1,7 +1,7 @@
 // User-pickable palette key for the header wave's fill colour.
 // Lives on SystemSettings.wave_color_key and is read by both the
 // renderer (HeaderWaveBlock) and the picker UI (in
-// AdvancedAppearanceNew). Stored as a string slug rather than an
+// Display options → Bars → Top bar). Stored as a string slug rather than an
 // HTML colour value so the user can switch palettes without the
 // wave going stale.
 //

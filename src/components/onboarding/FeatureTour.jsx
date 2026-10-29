@@ -943,13 +943,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🎨", title: "Appearance",
-      body: `Appearance holds the app's look: UI size, fonts (with an extra pack, or your own), theme colours, corner style and layout.`,
-      route: "/settings", target: "settings-appearance", look: `the highlighted Appearance section`,
+      body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. Appearance opens it, and keeps the New UI and language switches.`,
+      route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options button, inside Appearance`,
     }),
     s("settings", {
       emoji: "💾", title: "Presets and themes",
-      body: `Save your look as a preset, choosing which parts it keeps. ${t.Fronter} Themes links a preset to an ${t.alter}, so the app changes to their look when they lead the ${t.front}.`,
-      route: "/settings", target: "settings-appearance", look: `Presets, inside Appearance`,
+      body: `In Display options → Styles, save your look as a preset, choosing which parts it keeps. Link a preset to an ${t.alter} and the app changes to their look when they ${t.front}.`,
+      route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `Display options → Styles`,
+    }),
+    s("settings", {
+      emoji: "♿", title: "Sizes for low vision",
+      body: `Accessibility keeps low-vision mode, reduce motion and high contrast. Text size, tap targets and bar height are in Display options — this button opens it.`,
+      route: "/settings", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button, inside Accessibility`,
     }),
     s("settings", {
       emoji: "🧩", title: `${t.Alter} setup`,

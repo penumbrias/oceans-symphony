@@ -72,7 +72,7 @@ export function ClassicBarsToggles({ withSwitches = true }) {
   );
 }
 
-function HomeOpensOnRow() {
+export function HomeOpensOnRow() {
   const queryClient = useQueryClient();
   const { data: rows = [] } = useQuery({
     queryKey: ["systemSettings"],

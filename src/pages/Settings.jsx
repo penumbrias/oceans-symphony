@@ -40,7 +40,7 @@ import { runAutoBackupNow } from "@/lib/autoBackup";
 // (UI size, fonts, theme, presets, corner style, dashboard layout,
 // navigation, upcoming-plans surfaces) so all the shared theme/font/
 // preset state stays in one component.
-import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
+import AppearanceSection from "@/components/settings/AppearanceSection";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import RelayServerSettings from "@/components/settings/RelayServerSettings";
 import { PopupMessagesSection, PersistentNotificationsSection, ServerDeliverySection, NotificationTests } from "@/components/settings/NotificationSettings";
@@ -652,13 +652,10 @@ export default function Settings() {
         </Section>
 
         {/* ── APPEARANCE ──
-            The entire Appearance body lives in AdvancedAppearance so
-            the theme / font / preset state (shared via useTheme + local
-            useState) stays in one component. It renders the full
-            structured layout: UI size, Advanced, Fonts, Theme, Corner
-            style, Presets, Dashboard layout, Navigation, Upcoming plans. */}
+            The look is edited in Display options (the inspector); this
+            section is the door to it plus the mode switches (v0.318.0). */}
         <Section id="appearance" icon={Palette} label="Appearance">
-          <AdvancedAppearance />
+          <AppearanceSection />
         </Section>
 
         {/* ── NOTIFICATIONS & REMINDERS ── */}

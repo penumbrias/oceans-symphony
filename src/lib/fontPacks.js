@@ -59,6 +59,7 @@ export function installExtraFonts() {
     const link = injectLink();
     if (!link) { reject(new Error("Fonts can't be installed here")); return; }
     try { localStorage.setItem(LS_KEY, "true"); } catch { /* storage off */ }
+    notifyFontPackChanged();
     if (link.sheet) { resolve(); return; }              // already loaded
     let settled = false;
     const done = (ok) => {
@@ -82,4 +83,12 @@ export function uninstallExtraFonts() {
   try { localStorage.removeItem(LS_KEY); } catch { /* storage off */ }
   const link = typeof document !== "undefined" && document.getElementById(LINK_ID);
   if (link) link.remove();
+  notifyFontPackChanged();
+}
+
+// Fired after the pack is installed or removed, so every font picker
+// (useFontOptions) re-reads the list without a reload.
+export const FONT_PACK_CHANGED_EVENT = "symphony-font-pack-changed";
+function notifyFontPackChanged() {
+  try { window.dispatchEvent(new CustomEvent(FONT_PACK_CHANGED_EVENT)); } catch { /* no window */ }
 }

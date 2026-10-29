@@ -24,8 +24,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload, Type, Square, PanelTop, Palette, Star as StarIcon } from "lucide-react";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar } from "@/components/shared/SettingRows";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload, Type, Square, PanelTop, Palette, Star as StarIcon, Loader2, Trash2 } from "lucide-react";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
+import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
+import { CORNER_MODES } from "@/lib/useCornerMode";
+import { isNative } from "@/lib/platform";
+import { buildSidebarGroups } from "@/components/layout/SidebarNav";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -41,7 +47,7 @@ import { useV2Display } from "@/components/settings/V2DisplaySettings";
 import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, orderSidebarGroups } from "@/utils/navigationConfig";
 import { pageForPath, readPageLook, hasPageLook, writePageLook } from "@/lib/pageLooks";
 import { takeLookFocus, useLookSubject, LOOK_DEFAULTS_ID } from "@/lib/lookSubject";
 import { readLookDefaults } from "@/lib/profileLookDefaults";
@@ -54,11 +60,12 @@ import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { writeBoard, writeSettingsWithBoards, useBoardField } from "@/lib/boardWriter";
 import { useTheme } from "@/lib/ThemeContext";
-import { useFontOptions } from "@/lib/useFontOptions";
+import { useFontOptions, useExtraFontsInstalled } from "@/lib/useFontOptions";
 import {
   getAccessibilitySettings, setAccessibilityFontSize,
   setAccessibilityFontFamily, setAccessibilityHeadingFont,
-  setAccessibilityLargeTouch, A11Y_CHANGED_EVENT,
+  setAccessibilityLargeTouch, setAccessibilityNavHeight, A11Y_CHANGED_EVENT,
+  APP_FONT_OPTIONS,
 } from "@/lib/useAccessibility";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveBackground } from "@/components/v2/PageBackground";
@@ -169,6 +176,75 @@ function StyleFlagButtons({ def, value = [], onChange }) {
   );
 }
 
+// The classic bottom bar's height is four named steps (a11y navHeight);
+// the new UI's is a pixel token (stripH). One row, whichever engine the
+// chrome on screen reads (barsModel's rule).
+const NAV_STEPS = ["compact", "default", "tall", "extra-tall"];
+
+// Get / remove the optional pack of 14 extra decorative fonts — the one
+// place it lives now (it used to sit only under Settings → Appearance).
+function FontPackRow() {
+  const tr = useT();
+  const installed = useExtraFontsInstalled();
+  const [busy, setBusy] = useState(false);
+  const install = async () => {
+    setBusy(true);
+    try { await installExtraFonts(); toast.success(tr("editSheet.fontPackDone")); }
+    catch (e) { toast.error(e?.message || tr("editSheet.fontPackFailed")); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Row label={tr("editSheet.fontPack")} hint={installed ? tr("editSheet.fontPackHintOn") : tr("editSheet.fontPackHint")}>
+      {installed ? (
+        <button type="button" onClick={() => { uninstallExtraFonts(); toast.success(tr("editSheet.fontPackRemoved")); }}
+          className="text-xs px-2.5 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-destructive">
+          {tr("editSheet.fontPackRemove")}
+        </button>
+      ) : (
+        <button type="button" onClick={install} disabled={busy}
+          className="text-xs px-2.5 h-8 rounded-lg border border-primary/60 text-primary disabled:opacity-50 flex items-center gap-1">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          {tr("editSheet.fontPackGet")}
+        </button>
+      )}
+    </Row>
+  );
+}
+
+// The person's uploaded fonts, each with a delete. The font goes to the
+// trash; its file stays until the purge, so restoring brings it back.
+function UploadedFontsGroup({ a11y, refresh }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const { data: customFonts = [] } = useQuery({ queryKey: ["customFonts"], queryFn: () => base44.entities.CustomFont.list() });
+  if (!customFonts.length) return null;
+  const remove = async (f) => {
+    try {
+      const family = customFontFamilyCss(f.id);
+      await base44.entities.CustomFont.delete(f.id);
+      await refreshCustomFontFaces();
+      qc.invalidateQueries({ queryKey: ["customFonts"] });
+      // Never leave the app pointing at a family that no longer exists.
+      if (a11y.fontFamily === family) setAccessibilityFontFamily(APP_FONT_OPTIONS[0].value);
+      if (a11y.headingFont === family) setAccessibilityHeadingFont("default");
+      refresh();
+      toast.success(tr("editSheet.fontDeleted"));
+    } catch (e) { toast.error(e?.message || tr("editSheet.fontDeleteFailed")); }
+  };
+  return (
+    <Group title={tr("editSheet.yourFonts")}>
+      {customFonts.map((f) => (
+        <Row key={f.id} label={f.display_name}>
+          <button type="button" onClick={() => remove(f)} aria-label={`Delete ${f.display_name}`} title={tr("editSheet.presetDelete")}
+            className="w-7 h-7 rounded-lg border border-border/50 text-muted-foreground hover:text-destructive flex items-center justify-center">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </Row>
+      ))}
+    </Group>
+  );
+}
+
 // ── TEXT tab ───────────────────────────────────────────────────────────
 // Body | Headings on one segmented row; the font, size and style of the
 // chosen kind sit together under it, so a change can't bleed into the
@@ -215,6 +291,7 @@ function TextTab({ v2 }) {
               <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />
             </span>
           </Row>
+          <FontPackRow />
           <SliderRow label={tr("editSheet.textSize")} value={sizeIdx} fallback={sizeIdx}
             min={0} max={SIZE_STEPS.length - 1} step={1}
             labels={SIZE_STEPS.map((k) => `${SIZE_PCT[k]}%`)} onChange={setBodySize} />
@@ -245,6 +322,18 @@ function TextTab({ v2 }) {
           </Row>
         </div>
       )}
+      <UploadedFontsGroup a11y={a11y} refresh={refresh} />
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetTextBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        setAccessibilityFontSize("default");
+        setAccessibilityFontFamily(APP_FONT_OPTIONS[0].value);
+        setAccessibilityHeadingFont("default");
+        const next = { ...(v2.uiV2.tokens || {}) };
+        for (const id of ["headerScale", "bodyStyle", "headerStyle"]) delete next[id];
+        v2.write({ tokens: next });
+        refresh();
+      }} />
     </div>
   );
 }
@@ -252,6 +341,21 @@ function TextTab({ v2 }) {
 // ── SHAPE tab — width, alignment, spacing, edges ───────────────────────
 function ShapeTab({ v2 }) {
   const tr = useT();
+  const qc = useQueryClient();
+  const { v2Chrome } = useBarsChrome();
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
+  // Under the classic chrome corners are a mode (SystemSettings.corner_mode:
+  // "sharp" zeroes every corner; the radius token draws nothing there), so
+  // the row is the mode's own choice. The new UI gets the slider. The one
+  // never writes the other's key.
+  const cornerMode = settingsRow?.corner_mode === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : CORNER_MODES.ROUNDED;
+  const writeCornerMode = async (mode) => {
+    if (!settingsRow?.id || mode === cornerMode) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: mode });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+  const densityDef = tokenById.density;
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
   const refresh = () => setA11y(getAccessibilitySettings());
   // Undo/redo (UndoRedoHistory) sets these from outside — follow it.
@@ -273,11 +377,37 @@ function ShapeTab({ v2 }) {
         <SliderRow label={tr("editSheet.touchSpacing")} value={touchIdx} fallback={touchIdx}
           min={0} max={TOUCH_STEPS.length - 1} step={1} labels={TOUCH_STEPS.map((k) => tr(`editSheet.touch.${k}`))}
           onChange={(i) => { setAccessibilityLargeTouch(TOUCH_STEPS[Math.round(i)]); refresh(); }} />
+        {/* The new UI's spacing scale (density) — a sizing control, so it
+            lives with the sizes. Inert under the classic chrome. */}
+        {v2Chrome && (
+          <ChoiceRow label={densityDef.label} value={v2.uiV2.tokens.density ?? densityDef.default}
+            onChange={(val) => v2.setToken("density", val)}
+            options={densityDef.options.map((o) => ({ value: o.v, label: o.label }))} />
+        )}
       </Group>
       <Group title={tr("editSheet.groupEdges")}>
-        <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
-        <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
+        {v2Chrome ? (
+          <>
+            <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
+            <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
+          </>
+        ) : (
+          <ChoiceRow label={tr("editSheet.corners")} value={cornerMode} onChange={writeCornerMode}
+            options={[{ value: CORNER_MODES.ROUNDED, label: tr("editSheet.cornersRounded") }, { value: CORNER_MODES.SHARP, label: tr("editSheet.cornersSharp") }]} />
+        )}
       </Group>
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetShapeBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        setAccessibilityLargeTouch("default");
+        const next = { ...(v2.uiV2.tokens || {}) };
+        // Only this chrome's own keys: the new UI's tokens stay as they
+        // are for a classic user, and the classic mode for a v2 user.
+        for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
+        await v2.write({ tokens: next });
+        if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
+        refresh();
+      }} />
     </div>
   );
 }
@@ -395,6 +525,7 @@ function BarsTab({ v2, alignX }) {
   const [iconFor, setIconFor] = useState(null); // { kind, id, label }
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
+  const { v2Chrome: v2ChromeNow } = useBarsChrome();
 
   const writeSettings = async (patch) => {
     if (!settingsRow?.id) return;
@@ -403,6 +534,18 @@ function BarsTab({ v2, alignX }) {
   };
 
   const tokenRow = (id, labelKey) => <TokenSliderRow v2={v2} id={id} label={tr(labelKey)} />;
+
+  // The classic bottom bar's height lives in the a11y engine (navHeight).
+  const [a11y, setA11y] = useState(() => getAccessibilitySettings());
+  const refreshA11y = () => setA11y(getAccessibilitySettings());
+  useEffect(() => {
+    window.addEventListener(A11Y_CHANGED_EVENT, refreshA11y);
+    return () => window.removeEventListener(A11Y_CHANGED_EVENT, refreshA11y);
+  }, []);
+  const navIdx = Math.max(0, NAV_STEPS.indexOf(a11y.navHeight || "default"));
+
+  // The new UI's apps button (its own rows on the top bar).
+  const appsIconUrl = useResolvedAvatarUrl(v2.uiV2.appsIcon || "");
 
   // Bottom bar arrangement — the REAL list the bar renders is
   // navigation_config.bottomBar (the same one Settings → Navigation
@@ -420,16 +563,82 @@ function BarsTab({ v2, alignX }) {
     return p ? (termMap[p.id] || p.label) : id;
   };
   const writeBottomBar = (next) => writeSettings({ navigation_config: { ...navConfig, bottomBar: next } });
-  const moveNavItem = (idx, dir) => {
-    const next = [...bottomIds];
-    const to = idx + dir;
-    if (to < 0 || to >= next.length) return;
-    [next[idx], next[to]] = [next[to], next[idx]];
-    writeBottomBar(next);
+  // The classic top navigation bar (web only — phones never show it) is
+  // the same kind of list: navigation_config.topBar, up to six pages.
+  const topIds = Array.isArray(navConfig.topBar) ? navConfig.topBar : DEFAULT_CONFIG.topBar;
+  const writeClassicTopBar = (next) => writeSettings({ navigation_config: { ...navConfig, topBar: next } });
+  const classicTopBarShown = !v2ChromeNow && !isNative();
+
+  // One page-list editor for both: icon (bottom tabs only) · name · ↑ ↓ · ×,
+  // then "Add a tab…" while there is room.
+  const pageList = (ids, write, max, withIcons) => {
+    const move = (idx, dir) => {
+      const next = [...ids];
+      const to = idx + dir;
+      if (to < 0 || to >= next.length) return;
+      [next[idx], next[to]] = [next[to], next[idx]];
+      write(next);
+    };
+    const addOptions = ALL_PAGES.filter((p) => !ids.includes(p.id)).map((p) => ({ id: p.id, label: termMap[p.id] || p.label }));
+    return (
+      <>
+        {ids.map((id, idx) => (
+          <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
+            {withIcons && (
+              <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
+                aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
+                className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+                <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
+            <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0}
+              aria-label={`${pageLabel(id)} ↑`}
+              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => move(idx, 1)} disabled={idx === ids.length - 1}
+              aria-label={`${pageLabel(id)} ↓`}
+              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => write(ids.filter((x) => x !== id))}
+              disabled={ids.length <= 1}
+              aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
+              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
+              <X className="w-3 h-3 mx-auto" />
+            </button>
+          </div>
+        ))}
+        {ids.length < max && (
+          <SearchableSelect
+            value=""
+            onChange={(id) => { if (id) write([...ids, id]); }}
+            options={addOptions}
+            placeholder={tr("editSheet.addTab")}
+            searchPlaceholder={tr("editSheet.addTab")}
+          />
+        )}
+      </>
+    );
   };
-  const addNavOptions = ALL_PAGES
-    .filter((p) => !bottomIds.includes(p.id))
-    .map((p) => ({ id: p.id, label: termMap[p.id] || p.label }));
+
+  // The classic sidebar (desktop) and phone drawer: every page in its
+  // group, in the person's order, hidden ones unticked in place —
+  // navigation_config.sidebar, the same config SidebarNav reads.
+  const sidebarGroups = orderSidebarGroups(buildSidebarGroups(terms.Alters, terms.System), navConfig.sidebar);
+  const sidebarHidden = new Set(navConfig.sidebar?.hidden || []);
+  const writeSidebar = (patch) => writeSettings({ navigation_config: { ...navConfig, sidebar: { ...(navConfig.sidebar || {}), ...patch } } });
+  const toggleSidebar = (pageId) => {
+    const hidden = new Set(sidebarHidden);
+    if (hidden.has(pageId)) hidden.delete(pageId); else hidden.add(pageId);
+    writeSidebar({ hidden: [...hidden] });
+  };
+  const moveSidebar = (group, index, dir) => {
+    const a = group.items[index]?.id;
+    const b = group.items[index + dir]?.id;
+    if (!a || !b) return;
+    const flat = sidebarGroups.flatMap((g) => g.items.map((i) => i.id));
+    const ia = flat.indexOf(a), ib = flat.indexOf(b);
+    [flat[ia], flat[ib]] = [flat[ib], flat[ia]];
+    writeSidebar({ order: flat });
+  };
 
   // Wave color: a palette key ("Off" = background), or a custom hex.
   const waveKey = readWaveColorKey(settingsRow);
@@ -438,7 +647,7 @@ function BarsTab({ v2, alignX }) {
   // The pinned bar: placement + look through lib/barsModel.js (it lives on
   // this device's ui_v2 — older records are moved across on first change);
   // its size and pins are the pinned config the gallery reads.
-  const { v2Chrome } = useBarsChrome();
+  const v2Chrome = v2ChromeNow;
   const labels = useBarLabels();
   const wide = useIsWide();
   const pinnedBar = readPinnedBar(settingsRow);
@@ -456,7 +665,7 @@ function BarsTab({ v2, alignX }) {
   const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    return ["top", "tabs", "actions", "alters", "rail"].includes(id) ? id : "top";
+    return ["top", "tabs", "actions", "alters", "rail", "sidebar"].includes(id) ? id : "top";
   });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
@@ -478,9 +687,9 @@ function BarsTab({ v2, alignX }) {
   const barOptions = [
     { value: "top", label: labels.top }, { value: "tabs", label: labels.tabs },
     { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
-    ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : []),
+    ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : [{ value: "sidebar", label: tr("editSheet.barSidebar") }]),
   ];
-  const shownBar = bar === "rail" && !v2Chrome ? "top" : bar;
+  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) ? "top" : bar;
 
   return (
     <div>
@@ -501,7 +710,9 @@ function BarsTab({ v2, alignX }) {
         <BarPart label={tr("editSheet.partLook")}>
           <BarLookRows v2={v2} barId="top" alignX={alignX} />
           {v2Chrome && <BarShowSwitch barId="wave" label={tr("editSheet.wave")} />}
-          {v2Chrome && v2.uiV2.bars.wave && (
+          {/* The classic header has the wave too ("Off" = the Background
+              key); it was only ever reachable from Settings → Appearance. */}
+          {(v2Chrome ? v2.uiV2.bars.wave : true) && (
             <StackedRow label={tr("editSheet.waveColor")}>
               <div className="flex gap-1.5 flex-wrap items-center">
                 {/* Swatches, not word-pills: the choice IS a colour. The
@@ -531,63 +742,77 @@ function BarsTab({ v2, alignX }) {
             </StackedRow>
           )}
         </BarPart>
-        <BarPart label={tr("editSheet.partContent")}>
-          {topBar.order.map((id, idx) => {
-            const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
-            if (!item) return null;
-            const shown = !topBar.hidden.includes(id);
-            return (
-              <ArrangeRow key={id} label={applyTerms(tr(item.labelKey), terms)}
-                checked={shown}
-                onCheck={(v) => writeTopBar({ hidden: v ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id] })}
-                onUp={idx === 0 ? null : () => moveTopItem(idx, -1)}
-                onDown={idx === topBar.order.length - 1 ? null : () => moveTopItem(idx, 1)} />
-            );
-          })}
-        </BarPart>
+        {(v2Chrome || classicTopBarShown) && (
+          <BarPart label={tr("editSheet.partContent")}>
+            {v2Chrome ? (
+              <>
+                {topBar.order.map((id, idx) => {
+                  const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
+                  if (!item) return null;
+                  const shown = !topBar.hidden.includes(id);
+                  return (
+                    <ArrangeRow key={id} label={applyTerms(tr(item.labelKey), terms)}
+                      checked={shown}
+                      onCheck={(v) => writeTopBar({ hidden: v ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id] })}
+                      onUp={idx === 0 ? null : () => moveTopItem(idx, -1)}
+                      onDown={idx === topBar.order.length - 1 ? null : () => moveTopItem(idx, 1)} />
+                  );
+                })}
+                {/* The apps button: what it opens and the picture on it. */}
+                <ChoiceRow label={tr("options.appsView")} value={v2.uiV2.appsView || "grid"}
+                  onChange={(val) => v2.write({ appsView: val })}
+                  options={[{ value: "grid", label: tr("options.appsViewGrid") }, { value: "sidebar", label: tr("options.appsViewSidebar") }]} />
+                <Row label={tr("options.appsIcon")} own={!!v2.uiV2.appsIcon} onClear={() => v2.write({ appsIcon: "" })}>
+                  <span className="w-8 h-8 flex items-center justify-center rounded-lg border border-border">
+                    {appsIconUrl
+                      ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover rounded" />
+                      : <img src="/logo.png" alt="" className="w-5 h-5 object-contain rounded" />}
+                  </span>
+                  <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={tr("options.appsIconPick")} allowFolders />
+                </Row>
+              </>
+            ) : (
+              // The classic top navigation bar: its pages (web only).
+              pageList(topIds, writeClassicTopBar, 6, false)
+            )}
+          </BarPart>
+        )}
       </div>)}
 
       {/* ── Bottom tabs ── */}
       {shownBar === "tabs" && (<div data-bar-section="tabs">
         <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="tabs" /></BarPart>
         <BarPart label={tr("editSheet.partSize")}>
-          {tokenRow("stripH", "editSheet.barHeight")}
+          {v2Chrome ? tokenRow("stripH", "editSheet.barHeight") : (
+            <SliderRow label={tr("editSheet.barHeight")} value={navIdx} fallback={navIdx}
+              min={0} max={NAV_STEPS.length - 1} step={1} labels={NAV_STEPS.map((k) => tr(`editSheet.navH.${k}`))}
+              onChange={(i) => { setAccessibilityNavHeight(NAV_STEPS[Math.round(i)]); refreshA11y(); }} />
+          )}
         </BarPart>
         <BarPart label={tr("editSheet.partLook")}>
           <BarLookRows v2={v2} barId="tabs" alignX={alignX} />
         </BarPart>
         <BarPart label={tr("editSheet.partContent")}>
-          {bottomIds.map((id, idx) => (
-            <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
-              <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
-                aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
-                className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
-                <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
-              <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
-                aria-label={`${pageLabel(id)} ↑`}
-                className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => moveNavItem(idx, 1)} disabled={idx === bottomIds.length - 1}
-                aria-label={`${pageLabel(id)} ↓`}
-                className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => writeBottomBar(bottomIds.filter((x) => x !== id))}
-                disabled={bottomIds.length <= 1}
-                aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
-                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
-                <X className="w-3 h-3 mx-auto" />
-              </button>
+          {pageList(bottomIds, writeBottomBar, v2Chrome ? 6 : 5, true)}
+        </BarPart>
+      </div>)}
+
+      {/* ── Sidebar / phone drawer (classic chrome) ── */}
+      {!v2Chrome && shownBar === "sidebar" && (<div data-bar-section="sidebar">
+        <BarPart label={tr("editSheet.partContent")} first>
+          <p className="text-[0.6875rem] text-muted-foreground pb-1">{tr("editSheet.sidebarHint")}</p>
+          {sidebarGroups.map((group) => (
+            <div key={group.label} className="space-y-1 pt-2">
+              <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-1">{group.label}</p>
+              {group.items.map((item, index) => (
+                <ArrangeRow key={item.id} label={item.label}
+                  checked={!sidebarHidden.has(item.id)}
+                  onCheck={() => toggleSidebar(item.id)}
+                  onUp={index === 0 ? null : () => moveSidebar(group, index, -1)}
+                  onDown={index === group.items.length - 1 ? null : () => moveSidebar(group, index, 1)} />
+              ))}
             </div>
           ))}
-          {bottomIds.length < 6 && (
-            <SearchableSelect
-              value=""
-              onChange={(id) => { if (id) writeBottomBar([...bottomIds, id]); }}
-              options={addNavOptions}
-              placeholder={tr("editSheet.addTab")}
-              searchPlaceholder={tr("editSheet.addTab")}
-            />
-          )}
         </BarPart>
       </div>)}
 
@@ -761,6 +986,40 @@ function BarsTab({ v2, alignX }) {
           </BarPart>
         </div>
       )}
+      {/* Reset the bar on screen: its look, show flag, size and contents,
+          back to the app's defaults. Confirms first. */}
+      <ResetRow label={tr("editSheet.resetBar")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetBarBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        const ui = settingsRow?.ui_v2 || {};
+        const looks = { ...(ui.barLooks || {}) };
+        const tokens = { ...(ui.tokens || {}) };
+        const bars = { ...(ui.bars || {}) };
+        const patch = {};
+        if (shownBar === "top") {
+          delete looks.top; delete tokens.statusH;
+          patch.topBar = null; patch.appsView = "grid"; patch.appsIcon = "";
+          await writeSettings({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navConfig, topBar: DEFAULT_CONFIG.topBar } }) });
+        } else if (shownBar === "tabs") {
+          delete looks.tabs; delete tokens.stripH; delete bars.tabs;
+          if (!v2Chrome) { setAccessibilityNavHeight("default"); refreshA11y(); }
+          await writeSettings({ navigation_config: { ...navConfig, bottomBar: DEFAULT_CONFIG.bottomBar } });
+        } else if (shownBar === "actions") {
+          delete looks.actions; delete looks.active; delete bars.actions;
+          for (const id of ["cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble"]) delete tokens[id];
+          patch.commandKeys = null;
+        } else if (shownBar === "alters") {
+          delete looks.alters;
+          await writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }));
+        } else if (shownBar === "rail") {
+          delete looks.rail; delete bars.rail; delete tokens.railW; delete tokens.railSide; delete tokens.railActions;
+        } else if (shownBar === "sidebar") {
+          await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
+        }
+        const next = { ...patch, barLooks: looks, tokens, bars };
+        for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+        await v2.write(next);
+      }} />
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
         current={iconFor ? (v2.uiV2.icons?.[iconFor.kind]?.[iconFor.id]?.iconName || "") : ""}
@@ -777,10 +1036,10 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
-function ColourTab({ children, v2 }) {
+function ColourTab({ children, v2, onResetBackground = null }) {
   const tr = useT();
   const {
-    themeMode, selectedTheme, customColors, updateCustomColorsFull,
+    themeMode, selectedTheme, customColors, updateCustomColorsFull, clearCustomColors,
     allPresets, userCustomPresets,
   } = useTheme();
   const isDark = themeMode === "dark" ||
@@ -859,6 +1118,13 @@ function ColourTab({ children, v2 }) {
         })()}
       </Group>
       {children}
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetColourBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        clearCustomColors();
+        if (v2) v2.setToken("accent", "");
+        onResetBackground?.();
+      }} />
     </div>
   );
 }
@@ -1078,7 +1344,14 @@ function StylesTab({ v2 }) {
   const [tab, setTab] = useState("style");
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
-  const [parts, setParts] = useState({ colors: true, widgets: false, size: false, layout: false });
+  // Every part a preset can capture — the union of the old Appearance
+  // form's eleven and this sheet's four, since both wrote the same store.
+  // Terms, navigation and banner are off by default so a colour theme
+  // doesn't quietly rearrange the app when it loads.
+  const [parts, setParts] = useState({
+    colors: true, fonts: true, size: false, widgets: false, layout: false,
+    wave: false, corner: false, navigation: false, terms: false, banner: false,
+  });
   const [linkAlterId, setLinkAlterId] = useState("");
   const [renaming, setRenaming] = useState(null); // { from, to }
   const [notesFor, setNotesFor] = useState(null);
@@ -1197,11 +1470,32 @@ function StylesTab({ v2 }) {
       payload.dark = snap.dark;
       payload.themeMode = themeMode;
     }
+    if (parts.fonts) {
+      payload.font = getAccessibilitySettings().fontFamily || "";
+      payload.headingFont = getAccessibilitySettings().headingFont || "default";
+      // Label mode rides with the typography identity, as it always did.
+      if (settingsRow?.alter_label_mode) payload.alterLabelMode = settingsRow.alter_label_mode;
+    }
     if (parts.size) {
       payload.fontSize = getAccessibilitySettings().fontSize || "default";
       payload.uiV2Tokens = Object.fromEntries(
         SIZE_TOKEN_IDS.filter((id) => v2.uiV2.tokens[id] !== undefined).map((id) => [id, v2.uiV2.tokens[id]])
       );
+    }
+    if (parts.wave) {
+      payload.waveColorKey = readWaveColorKey(settingsRow);
+      if (typeof settingsRow?.wave_color_custom === "string") payload.waveColorCustom = settingsRow.wave_color_custom;
+    }
+    if (parts.corner && settingsRow?.corner_mode) payload.cornerMode = settingsRow.corner_mode;
+    if (parts.navigation && settingsRow?.navigation_config) payload.navigationConfig = settingsRow.navigation_config;
+    if (parts.terms) payload.terms = { system: terms.system, alter: terms.alter, switch: terms.switch, front: terms.front };
+    if (parts.banner) {
+      payload.banner = {
+        system_banner_url: settingsRow?.system_banner_url ?? null,
+        system_banner_height: settingsRow?.system_banner_height,
+        system_banner_position: settingsRow?.system_banner_position,
+        system_banner_scope: settingsRow?.system_banner_scope,
+      };
     }
     // Widget look + board layout use the SAME parts the Settings →
     // Appearance preset form saves, so a preset saved here and one saved
@@ -1258,6 +1552,30 @@ function StylesTab({ v2 }) {
     const patch = {};
     if (preset.uiV2Tokens) {
       patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
+    }
+    // The parts the old Appearance form saved — only the keys the preset
+    // carries are touched, so a colours-only preset leaves the rest alone.
+    if (preset.terms) {
+      patch.term_system = preset.terms.system || "system";
+      patch.term_alter = preset.terms.alter || "alter";
+      patch.term_switch = preset.terms.switch || "switch";
+      patch.term_front = preset.terms.front || "front";
+    }
+    if (preset.waveColorKey && WAVE_COLOR_KEYS.includes(preset.waveColorKey)) {
+      patch.wave_color_key = preset.waveColorKey;
+      patch.wave_color_custom = preset.waveColorCustom || null;
+    } else if (preset.waveColorCustom) {
+      patch.wave_color_custom = preset.waveColorCustom;
+    }
+    if (preset.cornerMode) patch.corner_mode = preset.cornerMode;
+    if (preset.alterLabelMode) patch.alter_label_mode = preset.alterLabelMode;
+    if (preset.navigationConfig) patch.navigation_config = preset.navigationConfig;
+    if (Array.isArray(preset.dashboardLayout)) patch.dashboard_layout = preset.dashboardLayout;
+    if (preset.experimentalHome && typeof preset.experimentalHome === "object") patch.experimental_home = preset.experimentalHome;
+    if (preset.banner && typeof preset.banner === "object") {
+      for (const k of ["system_banner_url", "system_banner_height", "system_banner_position", "system_banner_scope"]) {
+        if (preset.banner[k] !== undefined) patch[k] = preset.banner[k];
+      }
     }
     await writeSettings(patch);
     // The board part goes through the shared writer: applied to the board
@@ -1321,6 +1639,7 @@ function StylesTab({ v2 }) {
     if (preset.uiV2HomeLook || preset.uiV2HomeDesktopLook || preset.uiV2Home) covers.push({ id: "widgets", label: tr("editSheet.partWidgets") });
     if (preset.fontSize || preset.uiV2Tokens || preset.font) covers.push({ id: "size", label: tr("editSheet.partSize") });
     if (preset.uiV2HomeLayout || preset.uiV2HomeDesktopLayout || preset.uiV2Home || preset.dashboardLayout) covers.push({ id: "layout", label: tr("editSheet.partLayout") });
+    if (preset.terms || preset.navigationConfig || preset.banner || preset.waveColorKey || preset.waveColorCustom || preset.cornerMode) covers.push({ id: "other", label: tr("editSheet.partOther") });
     // A preset that saved none of the above (only terms, navigation,
     // banner, wave or corner) used to show on NEITHER tab — the user's
     // own preset just vanished from the list. List it under Style.
@@ -1384,8 +1703,11 @@ function StylesTab({ v2 }) {
   };
 
   const PART_TOGGLES = [
-    ["colors", tr("editSheet.partColor")], ["widgets", tr("editSheet.partWidgets")],
-    ["size", tr("editSheet.partSize")], ["layout", tr("editSheet.partLayout")],
+    ["colors", tr("editSheet.partColor")], ["fonts", tr("editSheet.partFonts")],
+    ["size", tr("editSheet.partSize")], ["widgets", tr("editSheet.partWidgets")],
+    ["layout", tr("editSheet.partLayout")], ["wave", tr("editSheet.partWave")],
+    ["corner", tr("editSheet.partCorner")], ["navigation", tr("editSheet.partNavigation")],
+    ["terms", tr("editSheet.partTerms")], ["banner", applyTerms(tr("editSheet.partBanner"), terms)],
   ];
 
   return (
@@ -1530,18 +1852,14 @@ function StylesTab({ v2 }) {
             {tr("editSheet.presetSave")}
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {PART_TOGGLES.map(([id, label]) => (
-            <label key={id} className="flex items-center gap-1.5 text-xs cursor-pointer">
-              <input type="checkbox" checked={!!parts[id]} onChange={(e) => setParts((p) => ({ ...p, [id]: e.target.checked }))}
-                className="w-3.5 h-3.5 rounded accent-primary" /> {label}
-            </label>
-          ))}
-          <div className="flex-1 min-w-[120px]">
-            <SearchableSelect value={linkAlterId} onChange={(id) => setLinkAlterId(id || "")}
-              options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
-          </div>
-        </div>
+        <StackedRow label={tr("editSheet.presetParts")}>
+          <Chips multiple label={tr("editSheet.presetParts")}
+            options={PART_TOGGLES.map(([id, label]) => ({ value: id, label }))}
+            value={PART_TOGGLES.map(([id]) => id).filter((id) => !!parts[id])}
+            onChange={(ids) => setParts(Object.fromEntries(PART_TOGGLES.map(([id]) => [id, ids.includes(id)])))} />
+        </StackedRow>
+        <SearchableSelect value={linkAlterId} onChange={(id) => setLinkAlterId(id || "")}
+          options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
       </div>
 
       {/* ── Setup packs — whole-setup share/import (the "texture pack"
@@ -1739,7 +2057,7 @@ export default function UiEditSheet() {
             {tab === "shape" && <ShapeTab v2={v2} />}
             {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
             {tab === "colour" && (
-              <ColourTab v2={v2}>
+              <ColourTab v2={v2} onResetBackground={() => writeBackground(null)}>
                 <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
               </ColourTab>
             )}
