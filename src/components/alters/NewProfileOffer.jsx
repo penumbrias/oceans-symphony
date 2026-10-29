@@ -1,4 +1,4 @@
-// "Try the new profile" (alters v0.305.0, groups v0.307.0) — shown at the
+// "Try the new profile" (alters v0.305.0, groups v0.307.0, contacts v0.308.0, locations v0.309.0) — shown at the
 // top of a profile still on its old layout. Switching only flips a flag on
 // the record: the layout the profile has now is kept as it is, and the
 // pencil has "Revert to the old profile" any time.
@@ -19,7 +19,7 @@ import {
   switchRecordToNewProfile, revertRecordToOldProfile, dismissRecordNewProfileOffer, turnOffNewProfileOffer, OFFER_OFF_FIELD,
 } from "@/lib/profileLayoutSwitch";
 
-const LIST_KEY = { group: ["groups"], contact: ["contacts"] };
+const LIST_KEY = { group: ["groups"], contact: ["contacts"], location: ["innerWorldLocations"] };
 const refresh = (qc, ownerType, id) => {
   if (ownerType === "alter") refreshAlter(qc, id);
   else qc.invalidateQueries({ queryKey: LIST_KEY[ownerType] });
@@ -55,6 +55,8 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
 
   const what = ownerType === "group"
     ? `Five pages made of widgets built for groups: Profile, ${t.Fronting}, Board, Notes and Journal. This page's layout is kept, and you can go back any time from the pencil.`
+    : ownerType === "location"
+    ? `One page made of widgets built for locations: what it is, its description, the ${t.alters} placed there and the places inside it. This page's layout is kept, and you can go back any time from the pencil.`
     : ownerType === "contact"
     ? "About, Relationships, Boundaries, Notes and Options, made of widgets built for contacts. This page's layout is kept, and you can go back any time from Options."
     : `Seven pages made of widgets built for profiles: Profile, ${t.Fronting}, Messages, Notes, Journal, Wishes and Connections. This page's layout is kept, and you can go back any time from the pencil's ⋯ menu.`;
@@ -68,7 +70,7 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
       <div className="flex flex-wrap gap-2 pt-1">
         <Button size="sm" disabled={busy} onClick={switchNow} className="min-h-[44px]">Switch to it</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={notNow} className="min-h-[44px]">Not now</Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={never} className="min-h-[44px] text-muted-foreground">{ownerType === "group" ? "Don't ask on any group" : ownerType === "contact" ? "Don't ask on any contact" : "Don't ask on any profile"}</Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={never} className="min-h-[44px] text-muted-foreground">{ownerType === "group" ? "Don't ask on any group" : ownerType === "contact" ? "Don't ask on any contact" : ownerType === "location" ? "Don't ask on any location" : "Don't ask on any profile"}</Button>
       </div>
     </section>
   );

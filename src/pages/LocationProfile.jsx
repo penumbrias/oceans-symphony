@@ -9,7 +9,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
 import PageBackground from "@/components/profile/PageBackground";
-import { LOCATION_PROFILE_PAGES, profilePageId } from "@/lib/profileBoard";
+import { LOCATION_PROFILE_PAGES, NEW_LOCATION_PROFILE_PAGES, profilePageId, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
+import NewProfileOffer from "@/components/alters/NewProfileOffer";
+import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { withTrashBatch } from "@/lib/localDb";
 import { trashProfileBoards } from "@/lib/boardStore";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -53,7 +55,10 @@ function LocationProfileInner() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingMapBg, setUploadingMapBg] = useState(false);
-  const page = useProfilePageState(LOCATION_PROFILE_PAGES);
+  // Which profile the location shows (v0.309.0) is read off the cached
+  // list, so the pages are right on the first render.
+  const [onNewLayout, setOnNewLayout] = useState(() => usesNewProfile((queryClient.getQueryData(["innerWorldLocations"]) || []).find((l) => String(l.id) === String(id))));
+  const page = useProfilePageState(onNewLayout ? NEW_LOCATION_PROFILE_PAGES : LOCATION_PROFILE_PAGES);
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ["innerWorldLocations"],
@@ -64,6 +69,8 @@ function LocationProfileInner() {
   const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => base44.entities.InnerWorldLayer.list() });
 
   const location = locations.find((l) => String(l.id) === String(id)) || null;
+  const locationOnNew = usesNewProfile(location);
+  useEffect(() => { if (location) setOnNewLayout(locationOnNew); }, [location?.id, locationOnNew]);
 
   // Recolour the app-header wave to this location's wave colour while open.
   const waveRaw = location?.custom_fields?.["_theme_wave"];
@@ -233,7 +240,13 @@ function LocationProfileInner() {
               <span className="font-display text-lg font-semibold truncate">{location.name}</span>
             </div>
           )}
-          <ProfileBoardCanvas ownerType="location" record={location} pageIcons={PAGE_ICONS} page={page} tourId="location-profile-tabs" api={{ alters }} />
+          {page.onFirstPage && !page.layoutEditing && <NewProfileOffer ownerType="location" record={location} />}
+          {/* One render behind a switch, the pages and the layout would
+              disagree — wait for the page list to follow the record. */}
+          {onNewLayout === locationOnNew && (
+            <ProfileBoardCanvas key={locationOnNew ? "v2" : "classic"} ownerType="location" record={location} pageIcons={PAGE_ICONS} page={page}
+              tourId="location-profile-tabs" api={{ alters }} layoutSuffix={layoutSuffixFor(location, "location")} />
+          )}
         </div>
       </motion.div>
     );
@@ -351,6 +364,8 @@ function LocationProfileInner() {
             {form.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />} {form.is_locked ? "Position locked" : "Lock position on map"}
           </button>
         </SubSection>
+
+        <ProfileLayoutSwitch ownerType="location" record={location} />
 
         <div className="flex flex-col gap-2 pt-1">
           <Button onClick={handleSave} disabled={saving} className="w-full">

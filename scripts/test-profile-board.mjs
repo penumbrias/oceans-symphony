@@ -13,6 +13,7 @@ import {
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
   NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, NEW_LAYOUT_SUFFIX, usesNewProfile, layoutSuffixFor, layoutOwnerIds,
   NEW_GROUP_PROFILE_PAGES, GROUP_PROFILE_PAGES, hasNewProfile, NEW_CONTACT_PROFILE_PAGES, CONTACT_PROFILE_PAGES,
+  NEW_LOCATION_PROFILE_PAGES, LOCATION_PROFILE_PAGES,
 } from "../src/lib/profileBoard.js";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -245,7 +246,7 @@ test("the new profile (v0.305.0) seeds seven pages, with its own layout row id",
   assert.equal(notes.settings.count, 20);
   assert.equal(layoutSuffixFor(rec), NEW_LAYOUT_SUFFIX);
   assert.equal(layoutSuffixFor({ id: "a1" }), "");
-  assert.equal(layoutSuffixFor(rec, "location"), "");
+  assert.equal(layoutSuffixFor({ id: "l1" }, "location"), "");
   assert.deepEqual(layoutOwnerIds("a1"), ["a1", "a1::v2"]);
   // Classic and garden seeds are unchanged.
   assert.equal(seedProfileBoard({ id: "a1" }, "alter").pages.length, ALTER_PROFILE_PAGES.length);
@@ -269,8 +270,8 @@ test("new group profile: own pages, own row, every old tab still a page", () => 
   const tabs = new Set(NEW_GROUP_PROFILE_PAGES.map((p) => p.tab));
   for (const p of GROUP_PROFILE_PAGES) assert.ok(tabs.has(p.tab), `no page for ?tab=${p.tab}`);
   assert.equal(hasNewProfile("group"), true);
-  assert.equal(hasNewProfile("location"), false);
-  assert.equal(layoutSuffixFor({ profile_layout: "v2" }, "location"), "", "no new location profile yet");
+  assert.equal(hasNewProfile("nope"), false);
+  assert.equal(layoutSuffixFor({ profile_layout: "v2" }, "nope"), "", "a type without a new profile keeps its row");
 });
 
 test("new contact profile: own pages, every old tab still a page", () => {
@@ -284,6 +285,16 @@ test("new contact profile: own pages, every old tab still a page", () => {
   assert.equal(new Set(ids).size, ids.length, "instance ids unique");
   const boundaries = b.pages.find((p) => p.id === profilePageId("boundaries")).widgets[0];
   assert.deepEqual(boundaries.settings.entries, ["boundaries", "system_rules"]);
+});
+
+test("new location profile: one page, own row", () => {
+  const rec = { id: "l1", profile_layout: "v2" };
+  const b = seedProfileBoard(rec, "location");
+  assert.deepEqual(b.pages.map((p) => p.id), NEW_LOCATION_PROFILE_PAGES.map((p) => profilePageId(p.tab)));
+  assert.deepEqual(b.pages[0].widgets.map((w) => w.widgetId), ["location_identity", "location_about", "location_alters", "location_places"]);
+  assert.equal(layoutSuffixFor(rec, "location"), NEW_LAYOUT_SUFFIX);
+  assert.equal(seedProfileBoard({ id: "l2" }, "location").pages.length, LOCATION_PROFILE_PAGES.length);
+  for (const p of LOCATION_PROFILE_PAGES) assert.ok(NEW_LOCATION_PROFILE_PAGES.some((n) => n.tab === p.tab), `no page for ?tab=${p.tab}`);
 });
 
 console.log(`\n${passed} checks passed`);

@@ -1,5 +1,6 @@
-// Old ↔ new profile (groups v0.307.0, contacts v0.308.0) — a small block on
-// the record's own settings (a group's pencil form, a contact's Options).
+// Old ↔ new profile (groups v0.307.0, contacts v0.308.0, locations v0.309.0) — a small
+// block on the record's own settings (a group's or location's edit form, a
+// contact's Options).
 // Only a flag on the record moves; each layout keeps its own row, so both
 // ways are lossless. Alters have it in Alter info's ⋯ menu instead.
 import React, { useState } from "react";
@@ -10,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { usesNewProfile } from "@/lib/profileBoard";
 import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
 
-const QUERY_KEY = { group: ["groups"], contact: ["contacts"] };
+const QUERY_KEY = { group: ["groups"], contact: ["contacts"], location: ["innerWorldLocations"] };
+const PLURAL = { group: "groups", contact: "contacts", location: "locations" };
 
 export default function ProfileLayoutSwitch({ ownerType, record, noun = ownerType }) {
   const qc = useQueryClient();
@@ -33,7 +35,7 @@ export default function ProfileLayoutSwitch({ ownerType, record, noun = ownerTyp
       <p className="text-xs text-muted-foreground">
         {onNew
           ? `This ${noun} uses the new profile. Going back brings the old layout back exactly as it was.`
-          : `The new profile is made of widgets built for ${noun === "group" ? "groups" : "contacts"}. This page's layout is kept, so you can come back to it.`}
+          : `The new profile is made of widgets built for ${PLURAL[ownerType] || `${noun}s`}. This page's layout is kept, so you can come back to it.`}
       </p>
       <Button variant="outline" size="sm" onClick={run} disabled={busy} className="min-h-[44px] gap-1.5">
         {onNew ? <Undo2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
