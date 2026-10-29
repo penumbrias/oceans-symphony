@@ -240,6 +240,12 @@ export function getAccessibilitySettings() {
   };
 }
 
+// Every setter below announces itself so the edit menus' undo history
+// (UndoRedoHistory) can record text size and fonts, which live here in
+// localStorage rather than on SystemSettings.
+export const A11Y_CHANGED_EVENT = "a11y-changed";
+const announce = () => { try { window.dispatchEvent(new Event(A11Y_CHANGED_EVENT)); } catch { /* SSR / no window */ } };
+
 export function setAccessibilityHeadingFont(value) {
   if (!value || value === "default") {
     localStorage.removeItem(LS_HEADING_FONT);
@@ -247,6 +253,7 @@ export function setAccessibilityHeadingFont(value) {
     localStorage.setItem(LS_HEADING_FONT, value);
   }
   applyHeadingFont(value);
+  announce();
 }
 
 export function setAccessibilityFontSize(value) {
@@ -254,6 +261,7 @@ export function setAccessibilityFontSize(value) {
   applyFontSize(value);
   // Let the landscape hint (and any other listeners) re-evaluate immediately.
   try { window.dispatchEvent(new Event("a11y-fontsize-changed")); } catch { /* SSR / no window */ }
+  announce();
 }
 
 export function setAccessibilityReduceMotion(enabled) {
@@ -274,6 +282,7 @@ export function setAccessibilityMode(enabled) {
 export function setAccessibilityLargeTouch(value) {
   localStorage.setItem(LS_LARGE_TOUCH, value);
   applyLargeTouch(value);
+  announce();
 }
 
 export function setAccessibilityNavHeight(value) {
@@ -284,4 +293,5 @@ export function setAccessibilityNavHeight(value) {
 export function setAccessibilityFontFamily(value) {
   localStorage.setItem(LS_FONT_FAMILY, value);
   applyFontFamily(value);
+  announce();
 }

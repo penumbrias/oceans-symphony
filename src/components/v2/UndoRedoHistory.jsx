@@ -19,6 +19,20 @@ import { Undo2, Redo2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTheme } from "@/lib/ThemeContext";
 import { writeSettingsWithBoards } from "@/lib/boardWriter";
+import {
+  getAccessibilitySettings, setAccessibilityFontSize, setAccessibilityFontFamily,
+  setAccessibilityHeadingFont, setAccessibilityLargeTouch, A11Y_CHANGED_EVENT,
+} from "@/lib/useAccessibility";
+
+// The Text and Shape tabs' knobs that live in localStorage (accessibility
+// settings), not on SystemSettings — text size above all, the one the
+// owner kept changing by accident with no way back (v0.313.0).
+const A11Y_FIELDS = ["fontSize", "fontFamily", "headingFont", "largeTouch"];
+const A11Y_LABELS = { fontSize: "Text size", fontFamily: "Font", headingFont: "Heading font", largeTouch: "Touch spacing" };
+const readA11y = () => {
+  const all = getAccessibilitySettings();
+  return Object.fromEntries(A11Y_FIELDS.map((k) => [k, all[k]]));
+};
 
 // Every field a Display options control writes — bars included (the
 // pinned bar's size lives in pinned_alters_config, the bottom tabs in
@@ -78,6 +92,9 @@ function diffLabel(prev, next) {
   if (prev.settings.wave_color_key !== next.settings.wave_color_key
     || prev.settings.wave_color_custom !== next.settings.wave_color_custom) parts.push("Wave colour");
   if (JSON.stringify(prev.theme) !== JSON.stringify(next.theme)) parts.push("Colours & theme");
+  for (const k of A11Y_FIELDS) {
+    if ((prev.a11y || {})[k] !== (next.a11y || {})[k]) parts.push(A11Y_LABELS[k]);
+  }
   return [...new Set(parts)].slice(0, 3).join(" · ") || "Change";
 }
 
@@ -102,6 +119,7 @@ function changedPaths(prev, next) {
     if (JSON.stringify(prev.settings[f]) !== JSON.stringify(next.settings[f])) walk(prev.settings[f], next.settings[f], f, 2);
   }
   if (JSON.stringify(prev.theme) !== JSON.stringify(next.theme)) walk(prev.theme, next.theme, "theme", 1);
+  if (JSON.stringify(prev.a11y) !== JSON.stringify(next.a11y)) walk(prev.a11y || {}, next.a11y || {}, "a11y", 1);
   return out.sort().join("|");
 }
 const COALESCE_MS = 2500;
@@ -121,10 +139,17 @@ export default function UndoRedoButtons() {
     hist.listeners.add(fn);
     return () => hist.listeners.delete(fn);
   }, []);
+  const [a11y, setA11y] = useState(readA11y);
+  useEffect(() => {
+    const on = () => setA11y(readA11y());
+    window.addEventListener(A11Y_CHANGED_EVENT, on);
+    return () => window.removeEventListener(A11Y_CHANGED_EVENT, on);
+  }, []);
 
   const snapNow = () => ({
     settings: Object.fromEntries(SETTINGS_FIELDS.map((f) => [f, settingsRow?.[f] ?? null])),
     theme: { selectedTheme, themeMode, customColors },
+    a11y,
   });
   const snapJson = settingsRow ? JSON.stringify(snapNow()) : null;
 
@@ -179,6 +204,13 @@ export default function UndoRedoButtons() {
       else if (customColors) clearCustomColors();
       if (t.selectedTheme && t.selectedTheme !== selectedTheme) setSelectedTheme(t.selectedTheme);
       if (t.themeMode && t.themeMode !== themeMode) setThemeMode(t.themeMode);
+      const a = e.snap.a11y;
+      if (a) {
+        if (a.fontSize && a.fontSize !== a11y.fontSize) setAccessibilityFontSize(a.fontSize);
+        if (a.fontFamily && a.fontFamily !== a11y.fontFamily) setAccessibilityFontFamily(a.fontFamily);
+        if ((a.headingFont || "default") !== (a11y.headingFont || "default")) setAccessibilityHeadingFont(a.headingFont || "default");
+        if (a.largeTouch && a.largeTouch !== a11y.largeTouch) setAccessibilityLargeTouch(a.largeTouch);
+      }
     } catch { /* next interaction retries */ }
   };
 
