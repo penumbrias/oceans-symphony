@@ -7,6 +7,7 @@ import {
   arePageTutorialsEnabled,
   hasUserCompletedFullTour,
   subscribePageTutorials,
+  tutorialRouteKey,
 } from "@/lib/pageTutorials";
 import { getRoutesWithTourSteps } from "@/components/onboarding/FeatureTour";
 
@@ -30,14 +31,18 @@ export default function PageTutorialBanner({ onLaunch }) {
   // (handleShow / handleDismiss). Previously, navigating away marked it seen,
   // so it vanished after a single glance without being dismissed.
 
-  if (!shouldShow(pathname)) return null;
+  // Seen-ness is per page, not per record: one "seen" covers every
+  // profile. The tour itself is launched for the exact path so it opens on
+  // THIS profile.
+  const pageKey = tutorialRouteKey(pathname);
+  if (!shouldShow(pageKey)) return null;
 
   const handleShow = () => {
-    markRouteSeen(pathname);
+    markRouteSeen(pageKey);
     onLaunch?.(pathname);
   };
   const handleDismiss = () => {
-    markRouteSeen(pathname);
+    markRouteSeen(pageKey);
   };
 
   return (
@@ -67,9 +72,9 @@ export default function PageTutorialBanner({ onLaunch }) {
   );
 }
 
-function shouldShow(pathname) {
+function shouldShow(pageKey) {
   if (!arePageTutorialsEnabled()) return false;
   if (hasUserCompletedFullTour()) return false;
-  if (isRouteSeen(pathname)) return false;
-  return getRoutesWithTourSteps().has(pathname);
+  if (isRouteSeen(pageKey)) return false;
+  return getRoutesWithTourSteps().has(pageKey);
 }
