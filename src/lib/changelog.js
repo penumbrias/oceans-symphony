@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "fix", text: "System map: saving a location's description from its details window works again." },
       { type: "improve", text: "\"Show me around\" on each page is now a short step-by-step walk-through, one thing at a time, instead of long walls of text. {{Alter}} profiles have their own." },
       { type: "improve", text: "The setup guide is refreshed for profiles and the home screen as they work now, with shorter pages." },
       { type: "fix", text: "Tours now highlight the right button on every step, including inside the Set {{Fronters}} window and closed Settings sections." },

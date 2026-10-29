@@ -1191,6 +1191,29 @@ non-modal sheet, `useEdgeSafeSliders` for Android's back gesture. Never
 hand-roll a row, slider or tab strip; migrate old accordions when touched.
 `docs/v2-edit-menu-spec.md` is superseded.
 
+### UI changes get a Fable review before merging (pages, not pills)
+
+**Every PR that adds or changes UI is reviewed by a Fable agent (model
+`claude-fable-5-1`) against `docs/inspector-design-guide.md` before it is
+merged.** If the session doing the work isn't running on Fable, it spawns a
+Fable subagent (`Agent` with `model: "fable"`) for the review and hands it
+the diff plus the guide — not its own conclusion. The review checks, at
+minimum:
+
+- Option menus and multi-part editors are built as **drill-in pages or the
+  inspector's fixed `TabBar`** — never a row of little pill tabs that splits
+  one screen into sections, which is the default pattern non-Fable agents
+  keep falling back to.
+- Rows come from `src/components/shared/SettingRows.jsx` (sliders with the
+  number beside them, inherited values greyed + dashed with ×, per-tab Reset,
+  destructive actions under ⋯), not hand-rolled controls.
+- Existing components are reused, not re-implemented (see "Reuse existing
+  components" above), labels go through `useTerms()`, and the surface is
+  named after the thing it edits.
+
+The review's findings are fixed in the same PR. A PR that skips the review
+is not ready to merge, however green CI is.
+
 ### UI v2 — follow the standards doc
 
 **`docs/v2-ui-standards.md` is the contract for every v2 surface.** Read it
