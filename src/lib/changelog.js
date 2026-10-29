@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "Settings → Appearance now opens Display options, the one editor for fonts, sizes, bars, colours, themes and presets. The light/dark chip is gone: every theme is a light row and a dark row under Styles." },
+      { type: "improve", text: "Display options took in what only Appearance had: the extra font pack and your uploaded fonts (Text), the apps button and the classic top bar, bottom bar and sidebar (Bars), and every part a preset can keep (Styles)." },
+      { type: "improve", text: "Accessibility links out to Display options for text size, tap targets and bar height instead of keeping its own copy." },
+      { type: "improve", text: "With the classic look, the corner slider and bottom bar height in Display options now change the classic corners and bar too." },
       { type: "fix", text: "Every settings screen, widget and importer now reads and saves the same settings record, so a stray empty record can no longer hide your profile, look or notification choices." },
       { type: "fix", text: "System map: saving a location's description from its details window works again." },
       { type: "improve", text: "\"Show me around\" on each page is now a short step-by-step walk-through, one thing at a time, instead of long walls of text. {{Alter}} profiles have their own." },

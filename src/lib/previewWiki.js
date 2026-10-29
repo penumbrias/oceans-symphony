@@ -259,7 +259,7 @@ const bioDashboard = `
   ${section("Search everything",
     `Searches across all entities — alters, bulletins, journals, check-ins, tasks, locations. Tap a result to jump to it.`)}
   ${section("Nav grid",
-    `Tiles for every page (Alters, Timeline, Activities, Journals, System Meeting, …). Re-orderable in Settings → Appearance → Navigation Settings. The To-Do tile shows an amber badge for the count of urgent OR due-within-72-hours tasks. The Reminders tile shows a red badge for currently-firing instances.`)}
+    `Tiles for every page (Alters, Timeline, Activities, Journals, System Meeting, …). Re-orderable in Display options → Bars → Bottom tabs → What's on it. The To-Do tile shows an amber badge for the count of urgent OR due-within-72-hours tasks. The Reminders tile shows a red badge for currently-firing instances.`)}
   ${section("Bulletin Board",
     `The board lives at the bottom of the dashboard. Quick task input above and the composer below. See the Bulletin Board wiki alter for the full feature set.`)}
   ${tip(`The "Guide" and "Tour" buttons (top of the dashboard) launch the in-app feature tour and the onboarding cards. They're separate flows — the tour points at real UI in your system; the guide is the cards explanation.`)}
@@ -302,7 +302,7 @@ const bioEditModes = `
     `Under Profile page on the Info tab, <strong>Profile style</strong> opens this alter's own look sheet: background colour and picture, text colours, fonts, palette and song — they override the app theme on their page — and, on its Content tab, what else the header shows (groups, subsystems, custom fields, pronouns) and the chip style. The header widget's Content tab has the same switches.`)}
   ${section("The ⋯ menu",
     `Archive or unarchive, Delete (it goes to the trash with their notes and messages, restorable from Recent changes), and the older edit form for anyone who still wants it.`)}
-  ${tip(`Linking an alter to a theme preset (Settings → Appearance → Fronter-linked themes) makes the whole app's theme switch when that alter becomes primary fronter. Pair that with a per-alter look (Profile style) for a fully recoloured experience while they're up.`)}
+  ${tip(`Linking an alter to a theme preset (Display options → Styles → the link button on a preset) makes the whole app's theme switch when that alter becomes primary fronter. Pair that with a per-alter look (Profile style) for a fully recoloured experience while they're up.`)}
 `;
 
 // ── 6. Mini Toolbar ────────────────────────────────────────────────────
@@ -522,7 +522,7 @@ const bioPinnedDailyTasks = `
   ${section("Auto tasks are read-only here",
     `Tasks with mode = AUTO update through the trigger pipeline on the Daily Tasks page (e.g. "create a journal entry today" fires automatically). The widget shows them with an external-link icon — tap it to jump to the Daily Tasks page where the auto state refreshes.`)}
   ${section("Where it lives",
-    `Default position: between the "Pinned bulletins & tasks" strip and the "Current symptoms" card. Toggle it off or reorder it under Settings → Appearance → Dashboard Layout, same as every other dashboard element.`)}
+    `Default position: between the "Pinned bulletins & tasks" strip and the "Current symptoms" card. Toggle it off or move it by editing the home screen in place, same as every other dashboard element.`)}
 `;
 
 // ── 13. To-Do & plans integration ─────────────────────────────────────
@@ -593,11 +593,9 @@ const bioSettings = `
   ${section("Profile",
     `System name + description. "View alter count" reveals the active/archived alter count (hidden by default, each visit starts hidden). Terminology presets at the bottom — pick "Headmates", "Parts (IFS)", "Collective", etc., or set custom words. All app copy honours these.`)}
   ${section("Appearance",
-    `Font Family + Heading Font dropdowns (searchable, categorised). Theme mode chip cycles Dark → Light → System → Dark. Eight built-in colour presets (warm, cool, forest, sunset, ocean, berry, charcoal, ivory) plus full custom-colour editing (background / surface / primary / secondary / accent / muted / text / text 2). Save your tweaks as a named preset. "Fronter-linked themes" pairs presets to alters — when an alter becomes primary, the whole app theme switches.`)}
-  ${section("Appearance → Navigation Settings",
-    `Drag-and-drop which pages appear in the top bar, the bottom bar, or are hidden. Editable in compact list view or a grid editor.`)}
+    `One button opens Display options — the inspector every look setting lives in: Text (fonts, with the extra pack and your own uploads, text size), Shape (width, spacing, touch targets, corners), Bars (every bar's show / position / size / look / what's on it, including the sidebar), Colour (the eight app colours, highlight, background) and Styles (built-in themes as light and dark rows, your presets with the parts they keep, link a preset to an alter so the app changes to their look when they front). Appearance itself keeps the New UI switch, "Home opens on" and the language.`)}
   ${section("Accessibility",
-    `Font family (Inter / system / Atkinson Hyperlegible / Nunito), text size (Small / Default / Large / Extra Large), touch target size, nav bar height, high-contrast toggle, reduce-motion toggle (also pauses the header wave animation).`)}
+    `Accessibility mode (low-vision layout), reduce motion, high contrast and the floating Support bubble. Text size, tap targets and bar height are in Display options — a button here opens it.`)}
   ${section("Alters & Fields",
     `Custom field schema (text / number / boolean), Relationship type catalog (for the Lineage tab), Archived alters manager.`)}
   ${section("Tracking & Analytics",
@@ -841,7 +839,7 @@ const bioThemeShowcase = richBio(`
     <div style="font-family:'Playfair Display',serif;font-size:1.6em;font-weight:700;color:#fde68a;letter-spacing:.1em;">THEME PRESETS</div>
   </div>
   <div style="padding:16px 18px;color:#fed7aa;font-size:.9em;line-height:1.8;">
-    <p style="margin:0 0 .9em;">The amber-on-black you're seeing right now is <strong>this page's own theme preset</strong>. Bind a palette + font to an alter (Settings → Appearance → Fronter-linked themes) and the <em>whole app</em> recolours when they become the primary fronter — then snaps back when someone else takes over.</p>
+    <p style="margin:0 0 .9em;">The amber-on-black you're seeing right now is <strong>this page's own theme preset</strong>. Bind a palette + font to an alter (Display options → Styles → link a preset) and the <em>whole app</em> recolours when they become the primary fronter — then snaps back when someone else takes over.</p>
     <p style="margin:0;font-size:.86em;"><b style="color:#fbbf24;">Try it:</b> long-press this page's chip on the dashboard to make it primary and watch the app turn warm. Other showcase pages carry their own palettes too — sky, neon, berry, bloom — so switching primary is a live demo of the feature.</p>
   </div>
 </div>

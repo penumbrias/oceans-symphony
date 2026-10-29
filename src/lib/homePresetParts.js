@@ -8,7 +8,7 @@
 // second theme replaced the board wholesale. Their wish is exactly the
 // split below: keep ONE layout, let each theme bring its own background.
 //
-// AdvancedAppearanceNew + UiEditSheet (manual apply) and AppLayout (apply
+// UiEditSheet (manual apply) and AppLayout (apply
 // on fronter change) MUST go through applyHomePresetToBoard so they can't
 // diverge. Legacy presets that carry a full `uiV2Home` still apply whole
 // (unchanged behaviour), so nothing already saved breaks.
