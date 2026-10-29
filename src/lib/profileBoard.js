@@ -111,8 +111,12 @@ export const isGardenProfile = (record) => record?.profile_layout === "garden";
 export const NEW_PROFILE_LAYOUT = "v2";
 export const NEW_LAYOUT_SUFFIX = "::v2";
 export const usesNewProfile = (record) => record?.profile_layout === NEW_PROFILE_LAYOUT;
+// Which profile types have a new profile (alters v0.305.0, groups
+// v0.307.0) — filled in below, once the page lists exist.
+export const NEW_PROFILE_PAGES = {};
+export const hasNewProfile = (ownerType) => !!NEW_PROFILE_PAGES[ownerType];
 export const layoutSuffixFor = (record, ownerType = "alter") =>
-  ownerType === "alter" && usesNewProfile(record) ? NEW_LAYOUT_SUFFIX : "";
+  hasNewProfile(ownerType) && usesNewProfile(record) ? NEW_LAYOUT_SUFFIX : "";
 // Every owner id a record's layouts can be stored under (for deletes).
 export const layoutOwnerIds = (id) => (id ? [String(id), `${id}${NEW_LAYOUT_SUFFIX}`] : []);
 
@@ -125,7 +129,7 @@ export const NEW_ALTER_PROFILE_PAGES = [
     NEW_PROFILE_AVATAR_WIDGET, NEW_PROFILE_BIO_WIDGET, NEW_PROFILE_FIELDS_WIDGET,
     "alter_belongs", "alter_preferences", "alter_tags", "alter_answers",
   ] },
-  { tab: "fronting", label: "Fronting", widgets: ["alter_fronting_stats", "alter_fronting_sessions"] },
+  { tab: "fronting", label: "{{Fronting}}", widgets: ["alter_fronting_stats", "alter_fronting_sessions"] },
   { tab: "messages", label: "Messages", widgets: [
     { widgetId: "alter_inbox", mode: "expanded" }, { widgetId: "alter_board_feed", mode: "expanded" },
   ] },
@@ -145,6 +149,20 @@ export const NEW_PROFILE_TAB_ALIASES = {
   wishlist: "wishes",
   lineage: "connections", relationships: "connections", locations: "connections", activities: "connections",
 };
+
+// The new group profile (v0.307.0): the group's own widgets
+// (src/v2/gardenGroupWidgets.jsx), the shared bulletin board (which opens
+// on the group's board) and the shared journal (its members' entries).
+// Every old ?tab= name (profile, board, notes, journal) is still a page.
+export const NEW_GROUP_PROFILE_PAGES = [
+  { tab: "profile", label: "Profile", widgets: ["group_identity", "group_about", "group_members", "group_nested"] },
+  { tab: "fronting", label: "{{Fronting}}", widgets: [{ widgetId: "group_fronting", mode: "expanded" }] },
+  { tab: "board", label: "Board", widgets: ["bulletin_board"] },
+  { tab: "notes", label: "Notes", widgets: [{ widgetId: "group_notes", mode: "expanded", settings: { count: 20 } }] },
+  { tab: "journal", label: "Journal", widgets: ["journal"] },
+];
+NEW_PROFILE_PAGES.alter = NEW_ALTER_PROFILE_PAGES;
+NEW_PROFILE_PAGES.group = NEW_GROUP_PROFILE_PAGES;
 
 export const GROUP_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [
@@ -189,8 +207,8 @@ export const PROFILE_SEED_SPAN = { cols: 12, rows: 2 };
 export const seedInstanceId = (pageTab, widgetId, n) => `seed_${pageTab}_${widgetId}${n ? `_${n}` : ""}`;
 
 export function seedProfileBoard(record, ownerType = "alter") {
-  const pages = ownerType === "alter" && usesNewProfile(record)
-    ? NEW_ALTER_PROFILE_PAGES
+  const pages = hasNewProfile(ownerType) && usesNewProfile(record)
+    ? NEW_PROFILE_PAGES[ownerType]
     : ownerType === "alter" && isGardenProfile(record)
       ? GARDEN_ALTER_PROFILE_PAGES
       : PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;

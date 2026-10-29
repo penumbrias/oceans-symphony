@@ -21,7 +21,8 @@ import GroupIcon from "@/components/shared/GroupIcon";
 import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { groupNotesKey, listGroupNotes, saveGroupNote, deleteGroupNote } from "@/lib/groupNotes";
 import AlterCard from "@/components/alters/AlterCard";
 import { getMemberAlters, getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
@@ -297,32 +298,24 @@ export function GroupNotesTab({ groupId }) {
   const [saving, setSaving] = useState(false);
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: notes = [] } = useQuery({
-    queryKey: ["groupNotes", groupId],
-    queryFn: async () => {
-      const all = await base44.entities.GroupNote.list("-created_date");
-      return all.filter((n) => n.group_id === groupId);
-    },
+    queryKey: groupNotesKey(groupId),
+    queryFn: () => listGroupNotes(groupId),
   });
   const add = async () => {
     if (!text.trim()) return;
-    // Notes render as plain text, so ~commands become "icon label" tokens.
-    let prepared;
-    try {
-      prepared = await prepareAuthoredText(text.trim(), { alters, terms: t, surfaceLabel: "group note", chips: false });
-    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-    if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
-      const row = await base44.entities.GroupNote.create({ group_id: groupId, content: prepared.content, author_alter_ids: prepared.authorIds, created_date: new Date().toISOString() });
-      await recordAuthoredText({ ...prepared, alters, sourceType: "group", sourceId: row.id, sourceLabel: "Group note", navigatePath: `/group/${groupId}` });
+      // Notes render as plain text here, so ~commands become "icon label" tokens.
+      const row = await saveGroupNote({ groupId, text, alters, terms: t, chips: false });
+      if (row === null) return; // backed out of the whisper warning
       setText("");
-      qc.invalidateQueries({ queryKey: ["groupNotes", groupId] });
-    } catch (e) { toast.error(e?.message || "Couldn't save note"); }
+      qc.invalidateQueries({ queryKey: groupNotesKey(groupId) });
+    } catch (e) { toast.error(isLogCommandError(e) ? e.message : (e?.message || "Couldn't save note")); }
     finally { setSaving(false); }
   };
   const del = async (id) => {
     if (!(await confirm("Delete this note?"))) return;
-    try { await base44.entities.GroupNote.delete(id); qc.invalidateQueries({ queryKey: ["groupNotes", groupId] }); } catch (e) { toast.error(e?.message || "Couldn't delete"); }
+    try { await deleteGroupNote(id); qc.invalidateQueries({ queryKey: groupNotesKey(groupId) }); } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
   return (
     <div className="space-y-3">

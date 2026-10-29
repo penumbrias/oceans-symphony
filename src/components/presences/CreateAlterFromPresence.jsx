@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { sightingsOf } from "./PresencePicker";
+import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
 
 // Promote a recorded presence into a real alter, carrying over its data
 // (name from the label/vibe, colour, emoji, vibe+notes → bio). The user then
@@ -78,6 +79,7 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
         let group = subsystemId ? groups.find((g) => g.id === subsystemId) : null;
         if (!group) {
           group = await base44.entities.Group.create({
+            profile_layout: NEW_PROFILE_LAYOUT,
             name: newSubName.trim() || `${owner?.name || name.trim()}'s ${subTerm}`,
             color: presence.color || owner?.color || "#8b5cf6",
             parent: "",

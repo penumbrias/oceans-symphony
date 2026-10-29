@@ -65,6 +65,7 @@ import ActivitiesTab from "@/components/alters/profile/ActivitiesTab";
 import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import { GARDEN_ALTER_WIDGETS } from "@/v2/gardenProfileWidgets";
 import { GARDEN_CONNECTION_WIDGETS } from "@/v2/gardenConnectionWidgets";
+import { GARDEN_GROUP_WIDGETS } from "@/v2/gardenGroupWidgets";
 
 // The record whose page this is, by owner type. Same query keys the pages
 // themselves use, so a widget and the page chrome never disagree.
@@ -235,6 +236,7 @@ export const GROUP_PROFILE_WIDGETS = {
   profile_board: GW("Board", "This group's bulletin board — the Board tab.", MessageSquare, gsection(GroupBoardSection, { name: "Board" }), TAB),
   profile_notes: GW("Notes", "A private notebook for this group — the Notes tab.", FileText, gsection(GroupNotesSection, { name: "Notes" }), TAB),
   profile_journal: GW("Journal", "Journal entries by any of its {{alters}} — the Journal tab.", BookOpen, gsection(GroupJournalSection, { name: "Journal" }), TAB),
+  ...GARDEN_GROUP_WIDGETS,
 };
 
 const CW = widgetOf("contact");

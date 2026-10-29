@@ -6,7 +6,9 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
 import PageBackground from "@/components/profile/PageBackground";
 import { GroupAvatar } from "@/components/groups/GroupSections";
-import { GROUP_PROFILE_PAGES, profilePageId } from "@/lib/profileBoard";
+import { GROUP_PROFILE_PAGES, NEW_GROUP_PROFILE_PAGES, profilePageId, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
+import NewProfileOffer from "@/components/alters/NewProfileOffer";
+import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +17,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText,
-  Undo2, Redo2, ShieldCheck, BookOpen, LayoutGrid,
+  Undo2, Redo2, ShieldCheck, BookOpen, LayoutGrid, BarChart3, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -56,7 +58,40 @@ const PAGE_ICONS = {
   [profilePageId("board")]: MessageSquare,
   [profilePageId("notes")]: FileText,
   [profilePageId("journal")]: BookOpen,
+  [profilePageId("fronting")]: BarChart3,
 };
+
+// Old ↔ new profile (v0.307.0), on the pencil form. Only a flag on the
+// group moves; each layout keeps its own row, so both ways are lossless.
+function GroupLayoutSwitch({ group }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const onNew = usesNewProfile(group);
+  const run = async () => {
+    setBusy(true);
+    try {
+      if (onNew) await revertRecordToOldProfile("group", group.id);
+      else await switchRecordToNewProfile("group", group.id);
+      qc.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(onNew ? "Back on the old profile — the new one is kept for later" : "Now showing the new profile");
+    } catch (e) { toast.error(e?.message || "That didn't save"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-2" data-group-layout-switch="">
+      <p className="text-sm font-medium">Profile layout</p>
+      <p className="text-xs text-muted-foreground">
+        {onNew
+          ? "This group uses the new profile. Going back brings the old layout back exactly as it was."
+          : "The new profile is made of widgets built for groups. This page's layout is kept, so you can come back to it."}
+      </p>
+      <Button variant="outline" size="sm" onClick={run} disabled={busy} className="min-h-[44px] gap-1.5">
+        {onNew ? <Undo2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+        {onNew ? "Revert to the old profile" : "Switch to the new profile"}
+      </Button>
+    </div>
+  );
+}
 
 function GroupProfileInner() {
   const { id: groupId } = useParams();
@@ -66,7 +101,12 @@ function GroupProfileInner() {
   const [editMode, setEditMode] = useState(false);
   // The board's pages are the tabs (profile | board | notes | journal);
   // ?tab= opens one and the board keeps the URL in step.
-  const page = useProfilePageState(GROUP_PROFILE_PAGES);
+  // Which profile the group shows is read off the cached groups list, so
+  // the pages are right on the first render.
+  const cachedGroups = queryClient.getQueryData(["groups"]) || [];
+  const cachedGroup = cachedGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId)));
+  const [onNewLayout, setOnNewLayout] = useState(() => usesNewProfile(cachedGroup));
+  const page = useProfilePageState(onNewLayout ? NEW_GROUP_PROFILE_PAGES : GROUP_PROFILE_PAGES);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showPageTextPicker, setShowPageTextPicker] = useState(false);
@@ -92,6 +132,8 @@ function GroupProfileInner() {
   // Resolve by entity id OR sp_id — alter.groups stores `sp_id || id`, so a
   // chip tapped from an alter profile can arrive with either.
   const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
+  const groupOnNew = usesNewProfile(group);
+  useEffect(() => { if (group) setOnNewLayout(groupOnNew); }, [group?.id, groupOnNew]);
 
   // Recolour the APP-HEADER wave to this group's wave colour while it's open
   // (resolving a var(--color-…) palette reference against the live .os-pf
@@ -258,7 +300,13 @@ function GroupProfileInner() {
           </div>
         )}
 
-        <ProfileBoardCanvas ownerType="group" record={group} pageIcons={PAGE_ICONS} page={page} tourId="group-profile-tabs" api={{ alters }} />
+        {page.onFirstPage && !page.layoutEditing && <NewProfileOffer ownerType="group" record={group} />}
+        {/* One render behind a switch, the pages and the layout would
+            disagree — wait for the page list to follow the record. */}
+        {onNewLayout === groupOnNew && (
+          <ProfileBoardCanvas key={groupOnNew ? "v2" : "classic"} ownerType="group" record={group} pageIcons={PAGE_ICONS} page={page}
+            tourId="group-profile-tabs" api={{ alters }} layoutSuffix={layoutSuffixFor(group, "group")} />
+        )}
         </div>
       </motion.div>
     );
@@ -409,6 +457,8 @@ function GroupProfileInner() {
       </SubSection>
 
       <GroupFriendsVisibility group={group} members={members} allGroups={allGroups} alters={alters} />
+
+      <GroupLayoutSwitch group={group} />
 
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}

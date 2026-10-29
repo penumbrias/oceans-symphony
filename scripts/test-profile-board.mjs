@@ -12,6 +12,7 @@ import {
   seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId, layoutForCopy, DEFAULT_OWNER_ID, isDefaultOwnerId,
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
   NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, NEW_LAYOUT_SUFFIX, usesNewProfile, layoutSuffixFor, layoutOwnerIds,
+  NEW_GROUP_PROFILE_PAGES, GROUP_PROFILE_PAGES, hasNewProfile,
 } from "../src/lib/profileBoard.js";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -244,7 +245,7 @@ test("the new profile (v0.305.0) seeds seven pages, with its own layout row id",
   assert.equal(notes.settings.count, 20);
   assert.equal(layoutSuffixFor(rec), NEW_LAYOUT_SUFFIX);
   assert.equal(layoutSuffixFor({ id: "a1" }), "");
-  assert.equal(layoutSuffixFor(rec, "group"), "");
+  assert.equal(layoutSuffixFor(rec, "contact"), "");
   assert.deepEqual(layoutOwnerIds("a1"), ["a1", "a1::v2"]);
   // Classic and garden seeds are unchanged.
   assert.equal(seedProfileBoard({ id: "a1" }, "alter").pages.length, ALTER_PROFILE_PAGES.length);
@@ -256,6 +257,20 @@ test("every old tab name lands on a page of the new profile", () => {
   for (const p of ALTER_PROFILE_PAGES) {
     assert.ok(tabs.has(p.tab) || tabs.has(NEW_PROFILE_TAB_ALIASES[p.tab]), `no page for ?tab=${p.tab}`);
   }
+});
+
+test("new group profile: own pages, own row, every old tab still a page", () => {
+  const rec = { id: "g1", profile_layout: "v2" };
+  const b = seedProfileBoard(rec, "group");
+  assert.deepEqual(b.pages.map((p) => p.id), NEW_GROUP_PROFILE_PAGES.map((p) => profilePageId(p.tab)));
+  assert.equal(layoutSuffixFor(rec, "group"), NEW_LAYOUT_SUFFIX);
+  assert.equal(layoutSuffixFor({ id: "g2" }, "group"), "");
+  assert.equal(seedProfileBoard({ id: "g2" }, "group").pages.length, GROUP_PROFILE_PAGES.length);
+  const tabs = new Set(NEW_GROUP_PROFILE_PAGES.map((p) => p.tab));
+  for (const p of GROUP_PROFILE_PAGES) assert.ok(tabs.has(p.tab), `no page for ?tab=${p.tab}`);
+  assert.equal(hasNewProfile("group"), true);
+  assert.equal(hasNewProfile("contact"), false);
+  assert.equal(layoutSuffixFor({ profile_layout: "v2" }, "contact"), "", "no new contact profile yet");
 });
 
 console.log(`\n${passed} checks passed`);

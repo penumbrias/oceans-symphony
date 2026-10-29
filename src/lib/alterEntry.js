@@ -32,6 +32,7 @@ import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { setAlterGroups } from "@/lib/groupMembership";
 import { NEW_PROFILE_LAYOUT, NEW_LAYOUT_SUFFIX } from "@/lib/profileBoard";
+import { switchRecordToNewProfile, revertRecordToOldProfile, dismissRecordNewProfileOffer } from "@/lib/profileLayoutSwitch";
 
 // A 4-digit year out of a free-form "first appeared" string, so the
 // integer origin_year (lineage, timeline) follows whatever was typed.
@@ -134,6 +135,7 @@ export async function patchAlterCustomFields(alterId, changes) {
 export async function createOwnedSubsystem(alter, name) {
   if (!alter?.id) throw new Error("No alter");
   return base44.entities.Group.create({
+    profile_layout: NEW_PROFILE_LAYOUT,
     name,
     color: alter.color || "#8b5cf6",
     parent: "",
@@ -147,28 +149,9 @@ export async function createOwnedSubsystem(alter, name) {
 // changes: the classic layout and the new one are separate rows, so either
 // way is lossless and can be undone. Reverting puts back the value the
 // alter had before (the classic page, or the v0.297 garden page).
-export async function switchToNewProfile(alterId) {
-  const fresh = await base44.entities.Alter.get(alterId);
-  if (!fresh || fresh.profile_layout === NEW_PROFILE_LAYOUT) return fresh;
-  return base44.entities.Alter.update(alterId, {
-    profile_layout: NEW_PROFILE_LAYOUT,
-    profile_layout_before_v2: fresh.profile_layout ?? null,
-  });
-}
-
-export async function revertToOldProfile(alterId) {
-  const fresh = await base44.entities.Alter.get(alterId);
-  if (!fresh || fresh.profile_layout !== NEW_PROFILE_LAYOUT) return fresh;
-  return base44.entities.Alter.update(alterId, {
-    profile_layout: fresh.profile_layout_before_v2 || "classic",
-    // Reverting is an answer: don't offer the new profile again.
-    new_profile_offer_dismissed: true,
-  });
-}
-
-export function dismissNewProfileOffer(alterId) {
-  return base44.entities.Alter.update(alterId, { new_profile_offer_dismissed: true });
-}
+export const switchToNewProfile = (alterId) => switchRecordToNewProfile("alter", alterId);
+export const revertToOldProfile = (alterId) => revertRecordToOldProfile("alter", alterId);
+export const dismissNewProfileOffer = (alterId) => dismissRecordNewProfileOffer("alter", alterId);
 
 export function refreshAlter(queryClient, alterId) {
   queryClient?.invalidateQueries({ queryKey: ["alters"] });

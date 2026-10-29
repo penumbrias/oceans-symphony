@@ -24,6 +24,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { pickGroupConfig } from "@/lib/groupConfig";
+import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
 
 export default function CreateGroupModal({ open, onClose, parentGroup = null }) {
   const queryClient = useQueryClient();
@@ -105,6 +106,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
     setSaving(true);
     try {
       const created = await base44.entities.Group.create({
+        profile_layout: NEW_PROFILE_LAYOUT,
         name: name.trim(),
         color,
         avatar_url: avatarUrl,
