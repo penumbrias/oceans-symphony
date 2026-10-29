@@ -211,7 +211,7 @@ export default function MessagesTab({ alterId, alters }) {
       {/* Compose */}
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
-          <MentionTextarea
+          <MentionTextarea toolbar
             placeholder={`Leave a message for this ${terms.alter}...`}
             value={newContent}
             onChange={setNewContent}

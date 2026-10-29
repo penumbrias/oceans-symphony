@@ -2,6 +2,7 @@
 // letters: they flush on blur, on unmount, and when the app is hidden or
 // closed. Shared by the widget inspector and the Alter info list (v0.294.0).
 import React from "react";
+import useFieldToolbar from "@/components/shared/useFieldToolbar";
 const WysiwygEditorLazy = React.lazy(() => import("@/components/shared/WysiwygEditor"));
 
 // Rich text with a DEBOUNCED commit — the wysiwyg emits per keystroke and
@@ -51,8 +52,11 @@ export function RichTextField({ value, onCommit, placeholder }) {
 // Committing only onBlur loses whatever was typed when the sheet is closed
 // with Escape or the drag handle — the input unmounts without ever blurring,
 // and the user's text is simply gone.
-export function DebouncedText({ value, onCommit, multiline, rows, maxLength, placeholder, className, type, inputMode, ariaLabel }) {
+// toolbar: the shared formatting toolbar while the box is focused (v0.311.0)
+// — only where the saved text renders rich (MarkdownText and friends).
+export function DebouncedText({ value, onCommit, multiline, rows, maxLength, placeholder, className, type, inputMode, ariaLabel, toolbar = false }) {
   const [local, setLocal] = React.useState(value ?? "");
+  const fieldRef = React.useRef(null);
   const timer = React.useRef(null);
   const pending = React.useRef(null);
   const commitRef = React.useRef(onCommit);
@@ -92,11 +96,16 @@ export function DebouncedText({ value, onCommit, multiline, rows, maxLength, pla
     if (pending.current !== null) { const v = pending.current; pending.current = null; onCommit(v); }
   };
 
+  const fieldToolbar = useFieldToolbar({ enabled: toolbar, fieldRef, value: local, onChange: change });
+
   const props = {
-    value: local, placeholder, maxLength, className, "aria-label": ariaLabel,
+    ref: fieldRef, value: local, placeholder, maxLength, className, "aria-label": ariaLabel,
     onChange: (e) => change(e.target.value),
-    onBlur: flush,
+    onFocus: fieldToolbar.onFocus,
+    onBlur: () => { flush(); fieldToolbar.onBlur(); },
   };
-  return multiline ? <textarea {...props} rows={rows || 3} /> : <input {...props} type={type} inputMode={inputMode} />;
+  const field = multiline ? <textarea {...props} rows={rows || 3} /> : <input {...props} type={type} inputMode={inputMode} />;
+  if (!toolbar) return field;
+  return <div className="min-w-0">{field}{fieldToolbar.toolbar}</div>;
 }
 

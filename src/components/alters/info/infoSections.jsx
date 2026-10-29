@@ -32,7 +32,11 @@ import { isGardenProfile, usesNewProfile } from "@/lib/profileBoard";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
-import { FIELD_ORDER_KEY } from "@/lib/alterInfoEntries";
+import {
+  FIELD_ORDER_KEY, hiddenEntryIdsOf, setSharedEntryHidden, updateSharedEntry,
+} from "@/lib/alterInfoEntries";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { TRASH_HINT } from "@/lib/trashSettings";
 import { groupNameColor } from "@/lib/contrast";
 import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, smallBtn } from "./entryEditors";
 
@@ -53,22 +57,60 @@ function MoveButtons({ index, count, onMove, label }) {
   );
 }
 
-// A labelled entry: name (+ kind) on top, the value under it.
-export function EntryRow({ name, kind, shared, children, onMove, index, count, onRemove }) {
+// A labelled entry: name (+ kind) on top, the value under it. `menu` is
+// the entry's ⋯ actions (rename, hide, delete…); `badge` a short state
+// like "Hidden".
+export function EntryRow({ name, kind, shared, children, onMove, index, count, onRemove, menu = null, badge = null }) {
   return (
     <div className="py-2 border-b border-border/30 last:border-b-0" data-info-entry={name}>
       <div className="flex items-center gap-1.5 min-h-[28px]">
         {onMove && <MoveButtons index={index} count={count} onMove={onMove} label={name} />}
         <span className="text-sm font-medium flex-1 min-w-0 truncate">{name}</span>
+        {badge && <span className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground flex-shrink-0">{badge}</span>}
         <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{KIND_LABEL[kind] || "Text"}{shared ? ` · ${shared}` : ""}</span>
-        {onRemove && (
+        {onRemove && !menu && (
           <button type="button" onClick={onRemove} aria-label={`Remove ${name}`} title="Remove"
             className="w-11 h-11 -my-1.5 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive flex-shrink-0">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
+        {menu && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label={`More for ${name}`} title="More"
+                className="w-11 h-11 -my-1.5 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground flex-shrink-0">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {menu.map((m) => (
+                <DropdownMenuItem key={m.label} onClick={m.onClick} className={`min-h-[44px] ${m.destructive ? "text-destructive" : ""}`}>{m.label}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
-      <div className="pt-1">{children}</div>
+      {children && <div className="pt-1">{children}</div>}
+    </div>
+  );
+}
+
+// Rename an entry or change its kind, in place of its value.
+function EntryEditForm({ draft, onDraft, onSave, onCancel, everyone }) {
+  const t = useTerms();
+  return (
+    <div className="pt-1" data-edit-entry="">
+      <StackedRow label="Name">
+        <input value={draft.name} onChange={(e) => onDraft({ ...draft, name: e.target.value })} aria-label="Entry name" autoFocus
+          className={inputCls} onKeyDown={(e) => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }} />
+      </StackedRow>
+      <ChoiceRow label="Kind" options={ENTRY_KINDS} value={draft.kind} onChange={(v) => onDraft({ ...draft, kind: v })}
+        hint="What's written stays; it's shown the new way." />
+      {everyone && <p className="text-xs text-muted-foreground py-1">This changes it for every {t.alter}.</p>}
+      <div className="flex justify-end gap-2 py-2">
+        <button type="button" className={smallBtn} onClick={onCancel}>Cancel</button>
+        <button type="button" className={smallBtn} onClick={onSave} disabled={!draft.name.trim()}><Check className="w-3.5 h-3.5" /> Save</button>
+      </div>
     </div>
   );
 }
@@ -194,9 +236,12 @@ export function InfoBar({ info, title, sticky = false, menu = null }) {
 }
 
 // ── Basics: name, alias, pronouns, colour, avatar, role, first appearance ──
+// Preferences & boundaries (how each pronoun set, name or term feels) open
+// under Pronouns since v0.310.0 — they are the detail behind that answer.
 export function BasicsSection({ alter, info }) {
   const t = useTerms();
   const { form, set, update, revision } = info;
+  const [prefsOpen, setPrefsOpen] = useState(false);
   if (!form) return null;
   const k = (id) => `${revision}:${id}`;
   return (
@@ -214,6 +259,17 @@ export function BasicsSection({ alter, info }) {
       <Row label="Pronouns">
         <DebouncedText key={k("pronouns")} value={form.pronouns} onCommit={(v) => set("pronouns", v)} maxLength={80} ariaLabel="Pronouns" placeholder="they/them" className={`${inputBase} w-[12rem]`} />
       </Row>
+      <button type="button" onClick={() => setPrefsOpen((o) => !o)} aria-expanded={prefsOpen} data-pronoun-preferences-toggle=""
+        className="w-full min-h-[44px] flex items-center gap-2 pl-4 pr-1 text-left text-sm text-muted-foreground hover:text-foreground">
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${prefsOpen ? "" : "-rotate-90"}`} aria-hidden="true" />
+        <span className="flex-1">Preferences & boundaries</span>
+        {(form.preferences || []).length > 0 && <span className="text-xs tabular-nums">{form.preferences.length}</span>}
+      </button>
+      {prefsOpen && (
+        <div className="pl-4 pb-2 border-l-2 border-border/50 ml-2" data-pronoun-preferences="">
+          <PreferencesSection info={info} />
+        </div>
+      )}
       <ColourRow label="Colour" value={form.color} fallback="#8b5cf6" onChange={(hex) => set("color", hex)} onClear={() => set("color", "")} />
       <AvatarRows alter={alter} value={form.avatar_url} k={k("avatar_url")} onChange={(url) => set("avatar_url", url)}
         rotation={form.avatar_rotation_mode} onRotation={(m) => set("avatar_rotation_mode", m)} />
@@ -322,10 +378,17 @@ export function EntriesSection({ alter, info, bio = true }) {
   const qc = useQueryClient();
   const { form, update, setCustomField, revision } = info;
   const [adding, setAdding] = useState(null); // { name, kind, scope }
+  const [editing, setEditing] = useState(null); // { key, name, kind } — key "field:<id>" or "own:<index>"
+  const navigate = useNavigate();
   const { data: systemFields = [] } = useQuery({
     queryKey: ["customFields"],
     queryFn: () => base44.entities.CustomField.list("order"),
   });
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const hiddenIds = hiddenEntryIdsOf(settingsRows[0]);
   const cf = form?.custom_fields || {};
   const fieldOrder = Array.isArray(cf[FIELD_ORDER_KEY]) ? cf[FIELD_ORDER_KEY] : null;
   const orderedFields = useMemo(() => {
@@ -394,29 +457,100 @@ export function EntriesSection({ alter, info, bio = true }) {
   };
   const blockedOwn = !ownFields && Object.keys(legacyMap).length > 0;
 
+  // Managing entries (v0.310.0): the same things Settings → Alter setup →
+  // Entries can do, without leaving the profile.
+  const toggleHidden = async (field) => {
+    const hide = !hiddenIds.includes(field.id);
+    try {
+      await setSharedEntryHidden(field.id, hide);
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(hide ? `“${field.name}” is hidden on profiles; what's written is kept` : `“${field.name}” shows on profiles again`);
+    } catch (e) { toast.error(e?.message || "That didn't save"); }
+  };
+  const deleteShared = async (field) => {
+    if (!(await confirm(`Delete the entry “${field.name}” for every ${t.alter}? It stops showing on profiles. ${TRASH_HINT}`))) return;
+    try {
+      await base44.entities.CustomField.delete(field.id);
+      qc.invalidateQueries({ queryKey: ["customFields"] });
+    } catch (e) { toast.error(e?.message || "Couldn't delete it"); }
+  };
+  const saveEdit = async () => {
+    const name = (editing?.name || "").trim();
+    if (!name) return;
+    if (editing.key.startsWith("field:")) {
+      try {
+        await updateSharedEntry(editing.key.slice(6), { name, kind: editing.kind });
+        qc.invalidateQueries({ queryKey: ["customFields"] });
+      } catch (e) { toast.error(e?.message || "That didn't save"); return; }
+    } else {
+      const index = Number(editing.key.slice(4));
+      if ((ownFields || []).some((f, j) => j !== index && (f?.name || "").trim().toLowerCase() === name.toLowerCase())) {
+        toast.error(`There's already an entry called “${name}”`); return;
+      }
+      update((f) => {
+        const list = [...(f.alter_custom_fields || [])];
+        if (!list[index]) return f;
+        list[index] = { ...list[index], name, field_type: editing.kind };
+        return { ...f, alter_custom_fields: list };
+      });
+      info.reseed();
+    }
+    setEditing(null);
+  };
+  const editForm = (key) => editing?.key === key && (
+    <EntryEditForm draft={editing} onDraft={setEditing} onSave={saveEdit} onCancel={() => setEditing(null)} everyone={key.startsWith("field:")} />
+  );
+
   return (
     <>
       {bio && <BioSection alter={alter} info={info} />}
-      {orderedFields.map((field, i) => (
-        <EntryRow key={field.id} name={field.name} kind={field.field_type || "text"} shared={`every ${t.alter}`}
-          index={i} count={orderedFields.length} onMove={moveField}>
-          <EntryInput k={k(field.id)} type={field.field_type || "text"} label={field.name}
-            value={cf[field.id] ?? legacyMap[field.id] ?? ""} onCommit={(v) => setCustomField(field.id, v)} />
-        </EntryRow>
-      ))}
+      {orderedFields.map((field, i) => {
+        const hidden = hiddenIds.includes(field.id);
+        return (
+          <EntryRow key={field.id} name={field.name} kind={field.field_type || "text"} shared={`every ${t.alter}`}
+            index={i} count={orderedFields.length} onMove={moveField} badge={hidden ? "Hidden" : null}
+            menu={[
+              { label: "Rename or change kind", onClick: () => setEditing({ key: `field:${field.id}`, name: field.name || "", kind: field.field_type || "text" }) },
+              { label: hidden ? "Show on profiles" : "Hide on profiles", onClick: () => toggleHidden(field) },
+              { label: `Delete for every ${t.alter}…`, onClick: () => deleteShared(field), destructive: true },
+            ]}>
+            {editForm(`field:${field.id}`) || (
+              <EntryInput k={k(field.id)} type={field.field_type || "text"} label={field.name}
+                value={cf[field.id] ?? legacyMap[field.id] ?? ""} onCommit={(v) => setCustomField(field.id, v)} />
+            )}
+          </EntryRow>
+        );
+      })}
       {(ownFields || []).map((field, i) => (
         <EntryRow key={`own-${i}-${field.name}`} name={field.name || "Untitled"} kind={field.field_type || "text"} shared={`just ${form.name || `this ${t.alter}`}`}
-          index={i} count={ownFields.length} onMove={moveOwn} onRemove={() => removeOwn(i)}>
-          <EntryInput k={k(`own-${i}`)} type={field.field_type || "text"} label={field.name} value={field.value} onCommit={(v) => setOwnValue(i, v)} />
+          index={i} count={ownFields.length} onMove={moveOwn}
+          menu={[
+            { label: "Rename or change kind", onClick: () => setEditing({ key: `own:${i}`, name: field.name || "", kind: field.field_type || "text" }) },
+            { label: "Remove", onClick: () => removeOwn(i), destructive: true },
+          ]}>
+          {editForm(`own:${i}`) || (
+            <EntryInput k={k(`own-${i}`)} type={field.field_type || "text"} label={field.name} value={field.value} onCommit={(v) => setOwnValue(i, v)} />
+          )}
         </EntryRow>
       ))}
       {adding ? (
         <NewEntryForm draft={adding} onDraft={setAdding} onAdd={addEntry} onCancel={() => setAdding(null)}
           alterName={form.name} blockedOwn={blockedOwn} />
       ) : (
-        <button type="button" className={`${smallBtn} mt-2`} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
-          <Plus className="w-3.5 h-3.5" /> Add an entry
-        </button>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button type="button" className={smallBtn} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
+            <Plus className="w-3.5 h-3.5" /> Add an entry
+          </button>
+          {fieldOrder && (
+            <button type="button" className={smallBtn} title={`Use the order Settings sets for every ${t.alter}`}
+              onClick={() => { setCustomField(FIELD_ORDER_KEY, undefined); info.reseed(); }}>
+              Use the usual order
+            </button>
+          )}
+          <button type="button" className={smallBtn} onClick={() => navigate("/settings#alter-entries")}>
+            Entries for every {t.alter}…
+          </button>
+        </div>
       )}
     </>
   );

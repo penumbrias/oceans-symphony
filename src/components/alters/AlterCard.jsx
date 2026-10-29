@@ -25,7 +25,9 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export function FrontingToggleButton({ alter, activeSessions = [], gesture = null, onDone = null, size = "sm" }) {
+// `label` (v0.310.0) draws it as a labelled pill (the profile page's
+// header) with the very same tap / hold behaviour.
+export function FrontingToggleButton({ alter, activeSessions = [], gesture = null, onDone = null, size = "sm", label = null }) {
   const terms = useTerms();
   // The standard front control (v0.122.0): tap while NOT fronting puts
   // them straight on at the TOP level; tap while fronting opens the
@@ -54,7 +56,10 @@ export function FrontingToggleButton({ alter, activeSessions = [], gesture = nul
         onDone?.();
       }}
       aria-label={isFronting ? `${alter.name}: ${terms.fronting} — change level or remove` : `Add ${alter.name} to ${terms.front}`}
-      className={`flex-shrink-0 ${size === "lg" ? "w-11 h-11" : "w-8 h-8"} rounded-full flex items-center justify-center overflow-hidden transition-all hover:scale-110 active:scale-95`}
+      className={label
+        ? "flex-shrink-0 h-9 px-2.5 gap-1.5 rounded-full flex items-center justify-center text-xs font-medium text-foreground transition-all active:scale-95"
+        : `flex-shrink-0 ${size === "lg" ? "w-11 h-11" : "w-8 h-8"} rounded-full flex items-center justify-center overflow-hidden transition-all hover:scale-110 active:scale-95`}
+      data-front-toggle={label ? "labelled" : undefined}
       style={{
         backgroundColor: isFronting ? `${color}20` : "var(--color-muted)",
         border: isFronting ? `2px solid ${color}` : "2px solid var(--color-muted)",
@@ -70,6 +75,7 @@ export function FrontingToggleButton({ alter, activeSessions = [], gesture = nul
       ) : (
         <IconSlot override={icon} Default={Zap} className={`${iconCls} text-muted-foreground`} />
       )}
+      {label && <span>{label}</span>}
     </button>
     {!gesture && own.node}
     </>

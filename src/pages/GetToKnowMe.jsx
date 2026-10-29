@@ -435,7 +435,7 @@ export default function GetToKnowMe() {
       <div className="flex items-center gap-2">
         <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
           <Switch checked={!hideCustomFields} onCheckedChange={(on) => setHideCustomFieldsPersist(!on)} />
-          Include custom fields
+          Include entries
         </label>
       </div>
 
@@ -474,7 +474,7 @@ export default function GetToKnowMe() {
       {!currentQuestion ? (
         <section className="rounded-2xl border border-border/50 bg-card p-5">
           <p className="text-sm text-muted-foreground text-center">
-            No questions available yet — add some custom fields, {terms.alters || "alters"}, or your own questions in{" "}
+            No questions available yet — add some entries, {terms.alters || "alters"}, or your own questions in{" "}
             <button onClick={() => navigate("/unblend/questions")} className="text-primary underline">
               Manage questions
             </button>

@@ -326,7 +326,7 @@ function TurnForm({ alters, categories, onDone, onCancel }) {
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium">Anything agreed alongside it? (optional)</p>
-        <MentionTextarea value={note} onChange={setNote} alters={alters} signposts placeholder="e.g. quiet until 4, then music" className="min-h-[60px] text-sm" />
+        <MentionTextarea toolbar value={note} onChange={setNote} alters={alters} signposts placeholder="e.g. quiet until 4, then music" className="min-h-[60px] text-sm" />
       </div>
       <div className="flex gap-2 justify-end">
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>

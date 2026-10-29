@@ -43,6 +43,7 @@ import { useModPagesVersion } from "@/lib/mods/registry";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import DOMPurify from "dompurify";
+import { spoilersToHtml } from "@/lib/renderBulletinContent";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
@@ -870,7 +871,14 @@ function HeadingWidget({ settings }) {
   const align = settings?.align || "left";
   // Chromeless by default, but still the widget's visible box — a border or
   // background set in its look has somewhere to land (widget contract).
-  return <p className={cls} style={{ ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align }}>{settings?.text || settings?.label || "Heading"}</p>;
+  const text = settings?.text || settings?.label || "Heading";
+  const style = { ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align };
+  // Formatted with the toolbar (v0.311.0) → render it sanitized; a plain
+  // heading renders exactly as before.
+  if (/<[a-z][^>]*>|\|\|[^|]+?\|\|/i.test(text)) {
+    return <p className={cls} style={style} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(spoilersToHtml(text)) }} />;
+  }
+  return <p className={cls} style={style}>{text}</p>;
 }
 
 function TextWidget({ settings }) {
@@ -3193,7 +3201,7 @@ export const V2_WIDGETS = {
     render: ({ settings }) => <HeadingWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
-      { key: "text", type: "text", label: "Text", placeholder: "Heading" },
+      { key: "text", type: "text", label: "Text", placeholder: "Heading", toolbar: true },
       { key: "size", type: "select", label: "Size", default: "lg",
         options: [{ value: "sm", label: "Small" }, { value: "md", label: "Medium" }, { value: "lg", label: "Large" }] },
       { key: "align", type: "select", label: "Alignment", default: "left",
@@ -3242,7 +3250,7 @@ export const V2_WIDGETS = {
   // ── The garden (v0.295.0): an alter's info is entered once, in Alter
   // info; these show it. Editing them edits the info itself. ──
   info: {
-    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any custom field. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
+    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any entry. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
     icon: IdCard, category: "alters",
     subjects: ["home", "alter"],
     render: ({ settings, mode }) => <InfoWidget settings={settings} mode={mode} />,

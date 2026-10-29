@@ -71,7 +71,7 @@ function NoteEditor({ initial, onCancel, onSave, saving }) {
   const [text, setText] = useState(initial || "");
   return (
     <div className="space-y-1.5 w-full">
-      <MentionTextarea value={text} onChange={setText} alters={alters} signposts autoFocus
+      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts autoFocus
         placeholder="Write a note… [[Page title]] links a page"
         className="min-h-[70px] text-sm" />
       <div className="flex gap-2 justify-end">

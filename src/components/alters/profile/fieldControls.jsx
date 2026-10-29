@@ -1,11 +1,12 @@
 // Custom-field controls, one copy for every place that shows or edits a
 // field value: the Info widget (InfoTab) and the Alter info list
 // (AlterInfo, v0.294.0). Moved out of InfoTab unchanged.
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import MarkdownText from "@/components/shared/MarkdownText";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
+import useFieldToolbar from "@/components/shared/useFieldToolbar";
 import { parseDateFieldValue, formatDateField } from "@/lib/importantDates";
 
 const DATE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -168,7 +169,20 @@ export function FieldEditor({ type, value, onChange, autoFocus = false }) {
   if (type === "date") {
     return <DateFieldInput value={value} onChange={onChange} autoFocus={autoFocus} />;
   }
-  // text (default)
-  return <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm min-h-[60px]" autoFocus={autoFocus} />;
+  // text (default) — with the shared formatting toolbar (v0.311.0); the
+  // value renders through MarkdownText, which shows the formatting.
+  return <TextFieldEditor value={value} onChange={onChange} autoFocus={autoFocus} />;
+}
+
+function TextFieldEditor({ value, onChange, autoFocus }) {
+  const ref = useRef(null);
+  const tb = useFieldToolbar({ fieldRef: ref, value, onChange });
+  return (
+    <div className="flex-1 min-w-0">
+      <Textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} onFocus={tb.onFocus} onBlur={tb.onBlur}
+        className="text-sm min-h-[60px]" autoFocus={autoFocus} />
+      {tb.toolbar}
+    </div>
+  );
 }
 

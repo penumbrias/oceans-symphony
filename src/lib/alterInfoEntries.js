@@ -135,3 +135,47 @@ export async function addSharedEntry({ name, kind = "text" }) {
   const created = await base44.entities.CustomField.create({ name: clean, field_type: kind, order: fields.length });
   return `field:${created.id}`;
 }
+
+// ── Managing entries (v0.310.0) ──
+// The Alter info list's Entries page manages entries the same ways
+// Settings → Alter setup → Entries does, so nobody has to leave the
+// profile to rename, hide or remove one. Every write reads fresh.
+
+// Shared entries hidden from profiles: SystemSettings.hidden_field_ids
+// (the list the older Info tab's eye toggle has always written). A hidden
+// entry keeps its values; it just isn't shown by "Every other field".
+export const hiddenEntryIdsOf = (settings) => (Array.isArray(settings?.hidden_field_ids) ? settings.hidden_field_ids : []);
+
+export async function setSharedEntryHidden(fieldId, hidden) {
+  const fresh = (await base44.entities.SystemSettings.list())[0];
+  const ids = hiddenEntryIdsOf(fresh).filter((id) => id !== fieldId);
+  if (hidden) ids.push(fieldId);
+  if (fresh?.id) return base44.entities.SystemSettings.update(fresh.id, { hidden_field_ids: ids });
+  return base44.entities.SystemSettings.create({ hidden_field_ids: ids });
+}
+
+// Rename a shared entry or change its kind, for every alter. Values are
+// kept by the field's id, so nothing moves.
+export async function updateSharedEntry(fieldId, { name, kind }) {
+  const clean = String(name || "").trim();
+  if (!fieldId || !clean) throw new Error("The entry needs a name");
+  const fields = (await base44.entities.CustomField.list("order")) || [];
+  if (fields.some((f) => f.id !== fieldId && sameName(f?.name, clean))) throw new Error(`There's already an entry called “${clean}”`);
+  return base44.entities.CustomField.update(fieldId, { name: clean, ...(kind ? { field_type: kind } : {}) });
+}
+
+// Rename one of this alter's own entries or change its kind, keeping its
+// value. A widget that listed it by its old name shows it under "Every
+// other field" until it's picked again.
+export async function updateOwnEntry(alterId, oldName, { name, kind }) {
+  const clean = String(name || "").trim();
+  if (!alterId || !clean) throw new Error("The entry needs a name");
+  const fresh = (await base44.entities.Alter.get(alterId)) || {};
+  if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) throw new Error("This entry can't be changed here");
+  const list = [...ownListOf(fresh)];
+  const i = list.findIndex((f) => f?.name === oldName);
+  if (i < 0) throw new Error("That entry isn't there any more");
+  if (list.some((f, j) => j !== i && sameName(f?.name, clean))) throw new Error(`There's already an entry called “${clean}”`);
+  list[i] = { ...list[i], name: clean, ...(kind ? { field_type: kind } : {}) };
+  return base44.entities.Alter.update(alterId, { alter_custom_fields: list });
+}

@@ -10,6 +10,7 @@ import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
+import useFieldToolbar from "@/components/shared/useFieldToolbar";
 
 // One reusable textarea with @mention (always) + -signpost (opt-in via
 // `signposts`) autocomplete, so every surface shares the same behaviour
@@ -65,13 +66,18 @@ function SuggestionRow({ alter, label, onSelect }) {
 }
 
 const MentionTextarea = forwardRef(function MentionTextarea(
-  { value = "", onChange, alters = [], signposts = false, commands = true, systemName, placeholder, className, rows, ...textareaProps },
+  { value = "", onChange, alters = [], signposts = false, commands = true, systemName, placeholder, className, rows, toolbar = false, ...textareaProps },
   forwardedRef
 ) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const innerRef = useRef(null);
   useImperativeHandle(forwardedRef, () => innerRef.current, []);
+  // toolbar: the shared formatting toolbar under the box while it's focused
+  // (v0.311.0). Only for hosts whose saved text renders through a rich
+  // renderer (RichText / renderBulletinContent) — elsewhere the tags would
+  // show as text.
+  const fieldToolbar = useFieldToolbar({ enabled: toolbar, fieldRef: innerRef, value, onChange });
 
   const [menu, setMenu] = useState(null); // { type, start, query } | { type:"command", start, segments }
 
@@ -280,8 +286,10 @@ const MentionTextarea = forwardRef(function MentionTextarea(
           }
           textareaProps.onKeyDown?.(e);
         }}
-        onBlur={(e) => { setTimeout(() => setMenu(null), 120); textareaProps.onBlur?.(e); }}
+        onFocus={(e) => { fieldToolbar.onFocus(); textareaProps.onFocus?.(e); }}
+        onBlur={(e) => { setTimeout(() => setMenu(null), 120); fieldToolbar.onBlur(); textareaProps.onBlur?.(e); }}
       />
+      {fieldToolbar.toolbar}
       {open && menuPos && createPortal(
         <div className="fixed z-[240] bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
           style={menuPos}>

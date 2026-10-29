@@ -21,7 +21,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { FieldValue } from "@/components/alters/profile/fieldControls";
-import { infoEntriesFor, entryValue, writeEntry } from "@/lib/alterInfoEntries";
+import { infoEntriesFor, entryValue, writeEntry, hiddenEntryIdsOf } from "@/lib/alterInfoEntries";
 import { refreshAlter } from "@/lib/alterEntry";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -77,10 +77,13 @@ export const DEFAULT_INFO_ENTRIES = ["bio"];
 // shows without touching the widget.
 export const ALL_FIELDS_ENTRY = "*fields";
 export const ALL_FIELDS_LABEL = "Every other field";
-export function expandInfoEntryIds(ids, all) {
+// Shared entries hidden from profiles (v0.310.0, Entries → ⋯ → Hide) are
+// left out of it; one listed on its own still shows.
+export function expandInfoEntryIds(ids, all, hiddenFieldIds = []) {
   if (!ids.includes(ALL_FIELDS_ENTRY)) return ids;
   const named = new Set(ids);
-  const rest = all.filter((e) => (e.id.startsWith("field:") || e.id.startsWith("own:")) && !named.has(e.id)).map((e) => e.id);
+  const hidden = new Set(hiddenFieldIds.map((id) => `field:${id}`));
+  const rest = all.filter((e) => (e.id.startsWith("field:") || e.id.startsWith("own:")) && !named.has(e.id) && !hidden.has(e.id)).map((e) => e.id);
   return ids.flatMap((id) => (id === ALL_FIELDS_ENTRY ? rest : [id]));
 }
 
@@ -165,11 +168,12 @@ export function InfoWidget({ settings, mode = "normal" }) {
   const showEmpty = !!settings?.showEmpty;
   const editable = settings?.editInPlace !== false;
   const all = useMemo(() => infoEntriesFor(alter, systemFields), [alter, systemFields]);
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   if (!alterId) {
     return <div className="text-[0.8125em] opacity-70 p-2" style={flush()}>Choose whose info to show in this widget's options.</div>;
   }
   if (!alter) return null;
-  const rows = expandInfoEntryIds(ids, all)
+  const rows = expandInfoEntryIds(ids, all, hiddenEntryIdsOf(settingsRows[0]))
     .map((id) => all.find((e) => e.id === id))
     .filter(Boolean)
     .map((entry) => ({ entry, value: entryValue(alter, entry.id) }))
