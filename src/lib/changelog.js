@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "improve", text: "Add widget is tidier: it opens on groups you pick from, every widget shows a small live preview, and versions of the same widget (a profile's whole tab and its compact widget, the planner's views) are one card with a Version choice." },
       { type: "feature", text: "Profile widgets can go on the home screen: add one from Alter, Group, Contact or Location profiles in Add widget and pick whose it shows." },
       { type: "feature", text: "Every home-screen widget can now be added to a profile page, and one kind of profile can show another's widgets (a group's on an {{alter}}'s page)." },
       { type: "feature", text: "Frame any picture: drag it to choose what stays in view and zoom in. A profile picture framed once shows that way on cards, bars and widgets." },

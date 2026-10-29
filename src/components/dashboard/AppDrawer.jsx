@@ -11,7 +11,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, Trash2, List } from "lucide-react";
+import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, Trash2, List, Layers } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";
@@ -22,13 +22,14 @@ import { buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { WIDGET_REGISTRY, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
-import { groupWidgetEntries } from "@/lib/widgetMenuGroups";
+import { groupWidgetEntries, widgetEntryMatches } from "@/lib/widgetMenuGroups";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
 import { ChoiceRow, Chips, StackedRow } from "@/components/shared/SettingRows";
 import { WidgetSubject } from "@/lib/boardSubject";
+import { useLinkedPreviewSettings } from "@/v2/linkedProfileWidgets";
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
@@ -47,7 +48,10 @@ class PreviewBoundary extends React.Component {
 // A live render of the actual widget, Android-widget-picker style — the
 // real component with the user's real data, just not interactive. `styleId`
 // previews a page style (shell class) or a saved user style (look vars).
-function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [], maxHeight = 170 }) {
+// A profile widget meant for anywhere previews with the first record of
+// its kind (useLinkedPreviewSettings), not its "choose which" note.
+function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [], maxHeight = 170, height = null }) {
+  const settings = useLinkedPreviewSettings(def);
   // Same pipeline a placed widget uses (widgetLookFor): a built-in style is
   // its LOOK vars from getStyleLook, a saved style is its stored look. The
   // old "shell class" for built-ins painted nothing any more, so tapping a
@@ -60,28 +64,74 @@ function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [
     <div
       aria-hidden="true"
       className="pointer-events-none select-none overflow-hidden"
-      style={{ ...(look ? lookToStyle(look) : null), maxHeight, borderRadius: "var(--v2-radius, 8px)" }}
+      style={{ ...(look ? lookToStyle(look) : null), ...(height ? { height } : { maxHeight }), borderRadius: "var(--v2-radius, 8px)" }}
     >
       <PreviewBoundary>
-        <WidgetSubject def={def} settings={{}}>{def.render({ mode, settings: {}, instanceId: `preview_${mode}`, api })}</WidgetSubject>
+        <WidgetSubject def={def} settings={settings}>{def.render({ mode, settings, instanceId: `preview_${mode}`, api })}</WidgetSubject>
       </PreviewBoundary>
     </div>
   );
 }
 
+// The picture on a library card: the live preview drawn at a phone-widget
+// width and scaled down to the card, mounted only once the card scrolls
+// near the screen (a category holds up to a few dozen widgets, each one
+// the real thing with real data).
+const THUMB_WIDTH = 320;
+function WidgetThumb({ def, api, height = 104 }) {
+  const ref = React.useRef(null);
+  const [width, setWidth] = useState(0);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    setWidth(el.clientWidth);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(([e]) => setWidth(e.contentRect.width)) : null;
+    ro?.observe(el);
+    if (typeof IntersectionObserver === "undefined") { setSeen(true); return () => ro?.disconnect(); }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: "240px" });
+    io.observe(el);
+    return () => { ro?.disconnect(); io.disconnect(); };
+  }, []);
+  const scale = width ? width / THUMB_WIDTH : 0;
+  return (
+    <div ref={ref} className="relative overflow-hidden rounded-lg bg-muted/30" style={{ height }}>
+      {seen && scale > 0 && (
+        <div style={{ width: THUMB_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+          <WidgetPreview def={def} api={api} height={height / scale} />
+        </div>
+      )}
+      {/* The bottom fades out — a cropped preview, not a broken one. */}
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background/90 to-transparent pointer-events-none" />
+    </div>
+  );
+}
+
 // Tapping a widget in the library opens this: the same row grammar as the
-// widget inspector (docs/inspector-design-guide.md) — Display and Style as
-// rows, a live preview between them, one primary "Add to page" button —
-// so a widget is added configured rather than fixed afterwards.
-function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t, placedCount = 0 }) {
+// widget inspector (docs/inspector-design-guide.md) — Version, Display and
+// Style as rows, a live preview between them, one primary "Add to page"
+// button — so a widget is added configured rather than fixed afterwards.
+// An entry standing for several versions of one thing (WIDGET_FAMILIES)
+// picks the version first; everything below follows it.
+function WidgetDetail({ entry, api, userStyles, onBack, onAdd, t, placedCount }) {
+  const variants = entry.variants || null;
+  const [variantId, setVariantId] = useState(entry.id);
+  const current = variants?.find((v) => v.id === variantId) || { id: entry.id, def: entry.def };
+  const { id, def } = current;
   const modes = HOME_MODES.filter((m) => (def.supportsModes || ["normal"]).includes(m));
   const [mode, setMode] = useState(effectiveMode("normal", def.supportsModes));
+  // A version without the picked display size falls back to its own.
+  useEffect(() => {
+    if (!(def.supportsModes || ["normal"]).includes(mode)) setMode(effectiveMode("normal", def.supportsModes));
+  }, [def]); // eslint-disable-line react-hooks/exhaustive-deps
   const [styleId, setStyleId] = useState("");
   const styleOptions = [
     { value: "", label: "Page style" },
     ...userStyles.map((st) => ({ value: `${USER_STYLE_PREFIX}${st.id}`, label: `${st.label} · yours` })),
     ...HOME_STYLES.filter((st) => st.id !== "current").map((st) => ({ value: st.id, label: st.label })),
   ];
+  const title = entry.family?.label ? applyTerms(entry.family.label, t) : widgetLabel(entry.def, t);
+  const n = placedCount(id);
   return (
     <div className="flex flex-col min-h-full">
       <div className="flex items-start gap-2 pb-2">
@@ -90,15 +140,20 @@ function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t, placedCount 
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{widgetLabel(def, t)}</p>
+          <p className="text-sm font-semibold">{title}</p>
           <p className="text-xs text-muted-foreground">{widgetDescription(def, t)}</p>
-          {placedCount > 0 && (
+          {n > 0 && (
             <p className="text-[0.6875rem] text-muted-foreground flex items-center gap-1 mt-0.5">
-              <Check className="w-3 h-3" /> {placedCount === 1 ? "Already on this page" : `On this page ${placedCount} times`}
+              <Check className="w-3 h-3" /> {n === 1 ? "Already on this page" : `On this page ${n} times`}
             </p>
           )}
         </div>
       </div>
+
+      {variants && (
+        <ChoiceRow label="Version" value={variantId} onChange={setVariantId}
+          options={variants.map((v) => ({ value: v.id, label: applyTerms(v.label, t) }))} />
+      )}
 
       {modes.length > 1 && (
         <ChoiceRow label="Display" value={mode} onChange={setMode}
@@ -106,7 +161,7 @@ function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t, placedCount 
       )}
 
       <div className="my-2 rounded-xl border border-border/50 p-2 bg-background/40">
-        <WidgetPreview def={def} mode={mode} api={api} styleId={styleId} userStyles={userStyles} maxHeight={260} />
+        <WidgetPreview key={id} def={def} mode={mode} api={api} styleId={styleId} userStyles={userStyles} maxHeight={260} />
       </div>
 
       <StackedRow label="Style" hint="How the box is drawn; the page style is the default">
@@ -232,8 +287,8 @@ export default function AppDrawer({
   const [folderAddOpen, setFolderAddOpen] = useState(false);
   const [detailId, setDetailId] = useState(null);
   const [widgetSearch, setWidgetSearch] = useState("");
-  // Which group's chip is picked ("all" lists every group in order).
-  const [widgetGroup, setWidgetGroup] = useState("all");
+  // Which group is open; null = the group tiles the library opens on.
+  const [widgetGroup, setWidgetGroup] = useState(null);
 
   const modNavV = useModPagesVersion();
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
@@ -264,25 +319,39 @@ export default function AppDrawer({
     return m;
   }, [placedWidgetIds]);
 
-  // The add-widget list, grouped by what each widget is for
-  // (widgetMenuGroups.js). Needs & goals widgets are experimental — left
-  // out until switched on.
+  // The add-widget list, grouped by what each widget is for, versions of
+  // one thing folded into one entry (widgetMenuGroups.js). Needs & goals
+  // widgets are experimental — left out until switched on.
+  const entryLabel = (e) => (e.family?.label ? applyTerms(e.family.label, t) : widgetLabel(e.def, t));
+  const placedFor = (e) => (e.variants || [e]).reduce((n, v) => n + (placedCount.get(v.id) || 0), 0);
   const widgetQuery = widgetSearch.trim().toLowerCase();
   const widgetGroups = useMemo(() => {
     const entries = Object.entries(registry).filter(([, d]) =>
       d && !d.hiddenFromDrawer && (d.category !== "needs" || experimentalFeaturesOn));
-    return groupWidgetEntries(entries, ([, d]) => widgetLabel(d, t));
-  }, [registry, experimentalFeaturesOn, t]);
+    return groupWidgetEntries(entries, entryLabel);
+  }, [registry, experimentalFeaturesOn, t]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownWidgetGroups = useMemo(() => {
     if (widgetQuery) {
+      const matches = (e) => widgetEntryMatches(e, widgetQuery, (d) => widgetLabel(d, t), (d) => widgetDescription(d, t))
+        || entryLabel(e).toLowerCase().includes(widgetQuery);
       return widgetGroups
-        .map((g) => ({ ...g, items: g.items.filter(([, d]) =>
-          widgetLabel(d, t).toLowerCase().includes(widgetQuery)
-          || widgetDescription(d, t).toLowerCase().includes(widgetQuery)) }))
+        .map((g) => ({
+          ...g,
+          items: g.items.filter(matches),
+          sections: g.sections?.map((sec) => ({ ...sec, items: sec.items.filter(matches) })).filter((sec) => sec.items.length > 0),
+        }))
         .filter((g) => g.items.length > 0);
     }
-    return widgetGroup === "all" ? widgetGroups : widgetGroups.filter((g) => g.group.id === widgetGroup);
-  }, [widgetGroups, widgetGroup, widgetQuery, t]);
+    return widgetGroups.filter((g) => g.group.id === widgetGroup);
+  }, [widgetGroups, widgetGroup, widgetQuery, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const detailEntry = useMemo(() => {
+    if (!detailId) return null;
+    for (const g of widgetGroups) {
+      const hit = g.items.find((e) => e.id === detailId);
+      if (hit) return hit;
+    }
+    return registry[detailId] ? { id: detailId, def: registry[detailId] } : null;
+  }, [detailId, widgetGroups, registry]);
 
   // Hooks stay ABOVE the early return — a hook after `if (!open) return`
   // shifts the hook order the moment the drawer opens, which is exactly the
@@ -571,23 +640,23 @@ export default function AppDrawer({
               )}
             </>
           ) : (
-            detailId && registry[detailId] ? (
+            detailEntry ? (
               <WidgetDetail
-                id={detailId}
-                def={registry[detailId]}
+                key={detailEntry.id}
+                entry={detailEntry}
                 api={api}
                 userStyles={userStyles}
                 t={t}
-                placedCount={placedCount.get(detailId) || 0}
+                placedCount={(id) => placedCount.get(id) || 0}
                 onBack={() => setDetailId(null)}
                 onAdd={(id, settings, mode) => { onAddWidget?.(id, settings, { mode }); setDetailId(null); }}
               />
             ) : (
             <div>
               {/* Search and the group strip stay put while the list scrolls
-                  (the inspector's fixed tab strip, in library form). One
-                  line, scrolling sideways — nine groups wrapped to three
-                  lines before. */}
+                  (the inspector's fixed tab strip, in library form). The
+                  library opens on the groups as tiles; inside a group the
+                  strip hops between groups, "All groups" goes back. */}
               <div className="sticky -top-4 z-10 -mx-4 px-4 pt-0 pb-2 bg-background space-y-2">
                 <input
                   value={widgetSearch}
@@ -596,11 +665,15 @@ export default function AppDrawer({
                   aria-label="Search widgets"
                   className="w-full h-10 px-3 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                {!widgetQuery && (
+                {!widgetQuery && widgetGroup && (
                   <div role="tablist" aria-label="Widget groups"
                     className="flex gap-1.5 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-0.5 [scrollbar-width:none]"
                     style={{ WebkitOverflowScrolling: "touch" }}>
-                    {[{ id: "all", label: "All" }, ...widgetGroups.map((g) => g.group)].map((g) => (
+                    <button type="button" onClick={() => setWidgetGroup(null)}
+                      className="text-xs pl-2 pr-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground whitespace-nowrap flex-shrink-0 flex items-center gap-0.5">
+                      <ChevronLeft className="w-3.5 h-3.5" /> All groups
+                    </button>
+                    {widgetGroups.map((g) => g.group).map((g) => (
                       <button key={g.id} type="button" role="tab" aria-selected={widgetGroup === g.id}
                         ref={(el) => { if (el && widgetGroup === g.id) el.scrollIntoView?.({ inline: "nearest", block: "nearest" }); }}
                         onClick={() => setWidgetGroup(g.id)}
@@ -615,61 +688,106 @@ export default function AppDrawer({
                   </div>
                 )}
               </div>
-              {shownWidgetGroups.length === 0 && (
-                <p className="text-xs text-muted-foreground py-6 text-center">No widgets match “{widgetSearch.trim()}”.</p>
-              )}
-              {shownWidgetGroups.map(({ group, items }) => (
-                <div key={group.id} className="pb-2">
-                  {(widgetGroup === "all" || widgetQuery) ? (
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-2 pb-1">
-                      {applyTerms(group.label, t)}
-                    </p>
-                  ) : group.hint ? (
-                    <p className="text-xs text-muted-foreground pt-1 pb-1">{applyTerms(group.hint, t)}</p>
-                  ) : null}
-                  {/* One row per widget, no box around the list: icon, name
-                      and what it does on the left, a labelled Add on the
-                      right (full words, never a bare +). */}
-                  <div className="divide-y divide-border/30">
-                    {items.map(([id, def]) => {
-                      const label = widgetLabel(def, t);
-                      const Icon = def.icon || PlusSquare;
-                      const n = placedCount.get(id) || 0;
-                      return (
-                        <div key={id}
-                          onPointerDown={(e) => startWidgetHold(e, id, label)}
-                          className="flex items-center gap-2.5 py-2">
-                          <button type="button" onClick={() => setDetailId(id)}
-                            aria-label={`${label}: preview and options`}
-                            className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
-                            <span className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0">
-                              <Icon className="w-4 h-4 text-muted-foreground" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="text-sm font-medium truncate">{label}</span>
-                                {n > 0 && (
-                                  <span className="text-[0.625rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0 tabular-nums">
-                                    <Check className="w-3 h-3" /> {n > 1 ? `×${n}` : "on page"}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="block text-xs text-muted-foreground truncate">{widgetDescription(def, t)}</span>
-                            </span>
-                          </button>
-                          <button type="button" onClick={() => onAddWidget?.(id)}
-                            aria-label={`Add ${label}`} title={`Add ${label}`}
-                            className="h-8 px-3 rounded-full border border-primary/60 text-primary text-xs font-medium flex items-center gap-1 flex-shrink-0">
-                            <Plus className="w-3.5 h-3.5" /> Add
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+
+              {!widgetQuery && !widgetGroup ? (
+                // The groups as tiles: what each holds, and how many.
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                  {widgetGroups.map(({ group, items }) => {
+                    const Icon = group.icon || PlusSquare;
+                    return (
+                      <button key={group.id} type="button" onClick={() => setWidgetGroup(group.id)}
+                        className="text-left rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 p-3 flex flex-col gap-1.5 min-h-[6.5rem]">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                            <Icon className="w-4 h-4" />
+                          </span>
+                          <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{items.length}</span>
+                        </span>
+                        <span className="text-sm font-medium leading-tight">{applyTerms(group.label, t)}</span>
+                        {group.hint && (
+                          <span className="text-[0.6875rem] text-muted-foreground leading-snug line-clamp-2">{applyTerms(group.hint, t)}</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
-              <p className="text-[0.6875rem] text-muted-foreground text-center pt-1">
-                {onDropWidget ? "Tap a widget to preview it · hold and drag to place it" : "Tap a widget to preview it"}
+              ) : (
+                <>
+                  {shownWidgetGroups.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-6 text-center">No widgets match “{widgetSearch.trim()}”.</p>
+                  )}
+                  {shownWidgetGroups.map(({ group, items, sections }) => (
+                    <div key={group.id} className="pb-2">
+                      {widgetQuery ? (
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-2 pb-1">
+                          {applyTerms(group.label, t)}
+                        </p>
+                      ) : group.hint ? (
+                        <p className="text-xs text-muted-foreground pt-1 pb-2">{applyTerms(group.hint, t)}</p>
+                      ) : null}
+                      {(sections || [{ group: null, items }]).map((sec) => (
+                        <div key={sec.group?.id || "all"}>
+                          {sec.group && (
+                            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-2 pb-1">
+                              {applyTerms(sec.group.label, t)}
+                            </p>
+                          )}
+                          {/* Cards with a live preview, two across on a
+                              phone: picture, name, what it does, a labelled
+                              Add (full words, never a bare +). */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {sec.items.map((entry) => {
+                              // Under its kind's heading a profile widget
+                              // needs no "Group:" in front of its name.
+                              const label = (sec.group && entry.def.menuLabel) ? applyTerms(entry.def.menuLabel, t) : entryLabel(entry);
+                              const n = placedFor(entry);
+                              const description = entry.family?.description
+                                ? applyTerms(entry.family.description, t) : widgetDescription(entry.def, t);
+                              return (
+                                <div key={entry.id}
+                                  onPointerDown={(e) => startWidgetHold(e, entry.id, label)}
+                                  className="rounded-xl border border-border/50 bg-background p-1.5 flex flex-col gap-1.5">
+                                  <button type="button" onClick={() => setDetailId(entry.id)}
+                                    aria-label={`${label}: preview and options`}
+                                    className="text-left flex flex-col gap-1.5 min-w-0">
+                                    <WidgetThumb def={entry.def} api={api} />
+                                    <span className="px-0.5 min-w-0">
+                                      <span className="flex items-center gap-1 min-w-0">
+                                        <span className="text-[0.8125rem] font-medium truncate">{label}</span>
+                                        {n > 0 && (
+                                          <span className="text-[0.625rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0 tabular-nums" title="On this page">
+                                            <Check className="w-3 h-3" />{n > 1 ? `×${n}` : ""}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span className="text-[0.6875rem] text-muted-foreground leading-snug line-clamp-2">{description}</span>
+                                    </span>
+                                  </button>
+                                  <div className="flex items-center gap-1 mt-auto px-0.5">
+                                    {entry.variants ? (
+                                      <button type="button" onClick={() => setDetailId(entry.id)}
+                                        className="text-[0.6875rem] text-muted-foreground flex items-center gap-0.5 min-w-0 truncate">
+                                        <Layers className="w-3 h-3 flex-shrink-0" /> {entry.variants.length} versions
+                                      </button>
+                                    ) : <span />}
+                                    <button type="button" onClick={() => onAddWidget?.(entry.id)}
+                                      aria-label={`Add ${label}`} title={`Add ${label}`}
+                                      className="ml-auto h-7 px-2.5 rounded-full border border-primary/60 text-primary text-xs font-medium flex items-center gap-1 flex-shrink-0">
+                                      <Plus className="w-3.5 h-3.5" /> Add
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              )}
+              <p className="text-[0.6875rem] text-muted-foreground text-center pt-2">
+                {onDropWidget ? "Tap a widget for its versions and sizes · hold and drag to place it" : "Tap a widget for its versions and sizes"}
               </p>
             </div>
             )
