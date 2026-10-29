@@ -6,7 +6,7 @@
 // Three phases:
 //   • Welcome (1 page): what the app is + the medical acknowledgement.
 //   • Setup (2 pages): terminology, then the setup checklist hub.
-//   • About the app (v0.316.0 rewrite): a "You're all set!" transition, then
+//   • About the app (v0.317.0 rewrite): a "You're all set!" transition, then
 //     one short page per area of the app as it's grouped today (profiles,
 //     home screen, logging, your day, writing, support, looking back,
 //     privacy). Details live in each page's "Show me around" walk-through,
@@ -296,7 +296,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       extraAction: { label: "Dive in", onClick: () => onClose?.() },
       extraActionPrimary: true,
     },
-    // ─── About the app (v0.316.0) ────────────────────────────────────────
+    // ─── About the app (v0.317.0) ────────────────────────────────────────
     // One page per area of the app, the way the app itself is now grouped
     // — short, current, and pointing at the "Show me around" walk-throughs
     // for the details rather than explaining every control here.

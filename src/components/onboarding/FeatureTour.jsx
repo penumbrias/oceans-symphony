@@ -16,7 +16,7 @@ import { tutorialRouteKey } from "@/lib/pageTutorials";
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
 //
-// One step = one idea (v0.316.0). The page tutorials ("New to this page?")
+// One step = one idea (v0.317.0). The page tutorials ("New to this page?")
 // play these steps one at a time, so a step's body stays short — two or
 // three sentences about the ONE thing it highlights. A feature with more to
 // say gets more steps, not a longer one. `node scripts/check-tour-steps.mjs`
@@ -121,12 +121,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       }),
       s("newui", {
         emoji: "➕", title: "Add widgets",
-        body: `In edit mode, the apps button (top-left) has an "Add widget" tab. Search, or use the chips to sort widgets by what they're for: Right now, Log, Plan & track, Write & talk and more.`,
+        body: `In edit mode, the apps button (top-left) has an "Add widget" tab. It opens on groups by what widgets are for, like Right now, Log, Plan & track and Profiles, or search across all of them.`,
         route: "/", look: `the app-logo button in the top-left — in edit mode its drawer gains the "Add widget" tab`,
       }),
       s("newui", {
         emoji: "👀", title: "Try before you add",
-        body: `Tap + to add a widget straight away. Tap the row instead for a live preview with your own data, and pick its size and style first. Or hold the row and drag it into place.`,
+        body: `Each widget is a card with a small live preview and an Add button. Widgets that come in versions, like the planner's views, are one card: tap it to pick the version, size and style first.`,
         route: "/",
       }),
       s("newui", {
