@@ -202,7 +202,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
 
           <div>
             <label className="text-sm font-medium">Description</label>
-            <MentionTextarea
+            <MentionTextarea toolbar
               value={formData.description}
               onChange={(val) => setFormData({ ...formData, description: val })}
               alters={alters}
