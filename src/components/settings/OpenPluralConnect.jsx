@@ -39,6 +39,7 @@ import { useTerms } from "@/lib/useTerms";
 import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
 import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
 import { runAutoBackupNow } from "@/lib/autoBackup";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // ── Front-history range presets (mirror SimplyPluralConnect) ──────────────────
 // Each period is bounded by its started_at; we filter assignments whose period
@@ -405,7 +406,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
               alterIdByOpId[member.id] = existing.id;
               altersUpdated++;
             } else {
-              const created = await localEntities.Alter.create(mapped);
+              const created = await localEntities.Alter.create(withNewAlterDefaults(mapped));
               alterIdByOpId[member.id] = created.id;
               altersCreated++;
             }

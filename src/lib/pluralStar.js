@@ -24,6 +24,7 @@ import { base44 } from "@/api/base44Client";
 import { saveLocalImage } from "@/lib/localImageStorage";
 
 import { withBatch } from "@/lib/localDb";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 // ─── Detection ─────────────────────────────────────────────────────────────
 
 // Does this parsed JSON look like a Plural Star export? Returns true for
@@ -436,7 +437,7 @@ async function importPluralStarInner({ data, media }, opts = {}) {
     const psId = payload.ps_id; delete payload.ps_id;
     if (dryRun) { alterIdByPsId.set(psId, `dry-a-${psId}`); counts.alters++; continue; }
     try {
-      const created = await base44.entities.Alter.create(payload);
+      const created = await base44.entities.Alter.create(withNewAlterDefaults(payload));
       alterIdByPsId.set(psId, created.id);
       counts.alters++;
     } catch (e) { warnings.push(`${payload.name} failed: ${e?.message || e}`); }

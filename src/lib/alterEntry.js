@@ -33,6 +33,7 @@ import { withTrashBatch } from "@/lib/localDb";
 import { setAlterGroups } from "@/lib/groupMembership";
 import { NEW_PROFILE_LAYOUT, NEW_LAYOUT_SUFFIX } from "@/lib/profileBoard";
 import { switchRecordToNewProfile, revertRecordToOldProfile, dismissRecordNewProfileOffer } from "@/lib/profileLayoutSwitch";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // A 4-digit year out of a free-form "first appeared" string, so the
 // integer origin_year (lineage, timeline) follows whatever was typed.
@@ -69,7 +70,7 @@ export async function createAlter(form, { groupIds = [] } = {}) {
   // New alters start on the new profile (v0.305.0; the garden layout from
   // v0.297.0). Older app versions don't know the value and show the
   // classic page.
-  const created = await base44.entities.Alter.create({ profile_layout: NEW_PROFILE_LAYOUT, ...filled, is_archived: false });
+  const created = await base44.entities.Alter.create(withNewAlterDefaults({ profile_layout: NEW_PROFILE_LAYOUT, ...filled, is_archived: false }));
   if (groupIds.length && created?.id) {
     try {
       await setAlterGroups({ alterId: created.id, groupIds });

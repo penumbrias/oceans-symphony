@@ -61,7 +61,7 @@ function SortableFieldRow({ field, isEditing, editName, editType, setEditName, s
           onChange={e => setEditName(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
           autoFocus
-          placeholder="Field name..."
+          placeholder="Entry name…"
         />
         <div className="flex gap-2 flex-wrap">
           {Object.entries(TYPE_LABELS).map(([key, label]) => {
@@ -212,7 +212,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
   };
 
   const deleteField = async (field) => {
-    if (!(await confirm(`Delete custom field "${field.name}"? It stops showing on profiles. ${TRASH_HINT}`))) return;
+    if (!(await confirm(`Delete the entry "${field.name}" for everyone? It stops showing on profiles. ${TRASH_HINT}`))) return;
     await base44.entities.CustomField.delete(field.id);
     queryClient.invalidateQueries({ queryKey: ["customFields"] });
   };
@@ -245,12 +245,13 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
             Info heading) — every {alter}'s page keeps its own arrangement
             now, so a system-wide switch here would only fight it. */}
         <p className="text-[0.6875rem] text-muted-foreground">
-          How fields lay out is set on each profile — the small chip beside
-          the Info heading (Stacked / Side by side / One line).
+          How entries are laid out is set on each profile, in its Field
+          widget's options (older profiles: the chip beside the Info heading).
+          Each profile's Entries page can also rename, hide or remove them.
         </p>
 
         {sortedFields.length === 0 && !adding && (
-          <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
+          <p className="text-sm text-muted-foreground italic py-2">No entries yet. Entries are the questions every profile answers, like Likes or Age.</p>
         )}
 
         {/* Once a user has more than a handful of custom fields, the
@@ -285,7 +286,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
         {adding ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
             <Input
-              placeholder="Field name..."
+              placeholder="Entry name…"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addField()}
@@ -309,13 +310,13 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
             <div className="flex gap-2 justify-end">
               <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewName(""); }}>Cancel</Button>
               <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={addField} disabled={saving || !newName.trim()}>
-                Add Field
+                Add entry
               </Button>
             </div>
           </div>
         ) : (
           <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setAdding(true)}>
-            <Plus className="w-4 h-4" /> Add Custom Field
+            <Plus className="w-4 h-4" /> Add an entry
           </Button>
         )}
     </div>
@@ -331,9 +332,9 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
             <Hash className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-lg">Custom Fields</CardTitle>
+            <CardTitle className="text-lg">Entries</CardTitle>
             <CardDescription>
-              Fields that appear on every alter's Info tab. You can fill them in per-alter. Drag the handle to reorder.
+              Entries every profile has. Fill them in on each profile's Entries page. Drag the handle to reorder.
             </CardDescription>
           </div>
         </div>

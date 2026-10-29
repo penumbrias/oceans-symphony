@@ -388,7 +388,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
 
           {/* Custom fields — a separate set from alter custom fields. */}
           <div>
-            <Label className="text-xs mb-1.5 block">Custom fields <span className="text-muted-foreground">(optional)</span></Label>
+            <Label className="text-xs mb-1.5 block">Entries <span className="text-muted-foreground">(optional)</span></Label>
             <div className="space-y-2">
               {sortedDefs.map((def) => (
                 <div key={def.id}>

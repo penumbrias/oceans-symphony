@@ -195,10 +195,10 @@ const PROMPT_OVERRIDES = {
 
 function humanisePrompt(fieldName) {
   const raw = String(fieldName || "").trim();
-  if (!raw) return "Custom field";
+  if (!raw) return "Entry";
   const lower = raw.toLowerCase();
   if (PROMPT_OVERRIDES[lower]) return PROMPT_OVERRIDES[lower];
-  return `Custom field: ${raw}`;
+  return `Entry: ${raw}`;
 }
 
 function uniqueStringValues(values) {

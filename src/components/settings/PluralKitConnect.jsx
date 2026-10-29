@@ -17,6 +17,7 @@ import {
   getSwitches,
   mapPkMemberToAlter,
 } from "@/lib/pluralKit";
+import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // Download a remote image and return a data URL. Returns null on any
 // failure (CORS, 404, network, expired Discord signed URL, etc). We
@@ -362,7 +363,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
           await localEntities.Alter.update(match.id, updatePayload);
           updated += 1;
         } else {
-          await localEntities.Alter.create(mapped);
+          await localEntities.Alter.create(withNewAlterDefaults(mapped));
           created += 1;
         }
       }
