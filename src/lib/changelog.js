@@ -20,7 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
-      { type: "fix", text: "Activity sheet: clearing or half-typing a time no longer snaps the start to midnight, and on the app a tap on any time or date field opens the picker." },
+      { type: "fix", text: "Activity sheet: a start or end time picked on the phone's clock now sticks instead of snapping back, and a cleared time no longer jumps to midnight." },
       { type: "improve", text: "Layout editing: drop a widget on the left or right edge of another to put them side by side — the row shares the width, no resizing needed." },
       { type: "fix", text: "The Down alignment (top, middle, bottom) now works on profile widgets and when viewing a profile." },
       { type: "feature", text: "The new group profile: Profile, {{Fronting}}, Board, Notes and Journal pages built from group widgets. New groups start on it, and older ones can switch or revert any time." },
