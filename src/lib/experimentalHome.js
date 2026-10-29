@@ -472,3 +472,55 @@ export function findFreeCell(widgets, gridCols, span = { cols: 1, rows: 1 }) {
   }
   return { x: 0, y: maxY };
 }
+
+// ── Drop beside (v0.306.0) ──────────────────────────────────────────
+// Putting two widgets on one row used to mean resizing each one to half
+// width by hand first. Dropping a widget on the left or right edge of
+// another one does it in one move: the moved widget joins that row on the
+// chosen side and the row's widths are shared out evenly across the full
+// width (respecting each widget's smallest width). Heights are untouched.
+//
+// The row is every widget that starts on the target's line. Returns the
+// new widget list, or null when the row can't fit one more (the caller
+// then falls back to an ordinary drop).
+export function placeBeside(widgets, gridCols, movedId, targetId, side, minColsFor = () => 1) {
+  const list = widgets || [];
+  const moved = list.find((w) => w.instanceId === movedId);
+  const target = list.find((w) => w.instanceId === targetId);
+  if (!moved || !target || movedId === targetId || gridCols < 2) return null;
+  const rowY = Math.max(0, target.pos?.y || 0);
+  const row = list
+    .filter((w) => w.instanceId !== movedId && Math.max(0, w.pos?.y || 0) === rowY && w.pos)
+    .sort((a, b) => (a.pos?.x || 0) - (b.pos?.x || 0));
+  const at = row.findIndex((w) => w.instanceId === targetId);
+  if (at === -1) return null;
+  row.splice(side === "left" ? at : at + 1, 0, moved);
+  const n = row.length;
+  if (n > gridCols) return null;
+  const mins = row.map((w) => Math.max(1, Math.min(gridCols, Number(minColsFor(w)) || 1)));
+  if (mins.reduce((s, m) => s + m, 0) > gridCols) return null;
+
+  const base = Math.floor(gridCols / n);
+  const extra = gridCols % n;
+  const widths = row.map((_, i) => Math.max(mins[i], base + (i < extra ? 1 : 0)));
+  // A widget's minimum can push the total over; take the excess back from
+  // the widest ones that still have room above their own minimum.
+  let over = widths.reduce((s, c) => s + c, 0) - gridCols;
+  while (over > 0) {
+    let pick = -1;
+    for (let i = 0; i < n; i += 1) {
+      if (widths[i] > mins[i] && (pick === -1 || widths[i] > widths[pick])) pick = i;
+    }
+    if (pick === -1) return null;
+    widths[pick] -= 1;
+    over -= 1;
+  }
+
+  const next = new Map();
+  let x = 0;
+  row.forEach((w, i) => {
+    next.set(w.instanceId, { ...w, pos: { x, y: rowY }, span: { ...(w.span || {}), cols: widths[i] } });
+    x += widths[i];
+  });
+  return list.map((w) => next.get(w.instanceId) || w);
+}

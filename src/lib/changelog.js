@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 29, 2026",
+    changes: [
+      { type: "improve", text: "Layout editing: drop a widget on the left or right edge of another to put them side by side — the row shares the width, no resizing needed." },
+      { type: "fix", text: "The Down alignment (top, middle, bottom) now works on profile widgets and when viewing a profile." },
+    ],
+  },
+  {
     date: "October 28, 2026",
+    version: "0.305.0",
     changes: [
       { type: "feature", text: "The new {{alter}} profile: seven pages built from profile widgets. New {{alters}} start on it, older profiles offer a switch, and Revert to the old profile brings back the old layout exactly." },
       { type: "improve", text: "Settings → Profile layouts can move every {{alter}} to the new profile, or all of them back." },

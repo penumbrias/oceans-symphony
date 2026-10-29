@@ -81,6 +81,19 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
   };
 }
 
+// The board's "Down" alignment for a widget whose box is NOT a Section:
+// spread on the box (which must fill the widget, h-full) and put the
+// content in ONE child, so the content keeps its own block layout and the
+// box moves it up, to the middle or down ("safe" = top when it overflows).
+// These boxes always sat at the top, so they read only the alignment the
+// person actually picked (--v2-widget-valign-set), never the board's
+// centred default — an untouched widget looks exactly as it did.
+export const valignBoxStyle = () => ({
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "var(--v2-widget-valign-set, flex-start)",
+});
+
 export function Section({ label, action, center, children }) {
   const chrome = useWidgetChrome();
   // Only a widget that draws a heading gets the person's name in it — a
