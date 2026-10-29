@@ -3,22 +3,14 @@
 // separate wizard are now INTEGRATED into this Guide as inline pages, so
 // there's one flow the user sees on first launch and can replay any time.
 //
-// Three phases (v0.84.8) so the honest "Setup · 3/3" only starts at the
-// actual setup pages, not the whole 20:
-//   • Welcome (4 pages): Welcome / This app is your home / Your Alters /
-//     The Quick Check-In. Informational orientation.
-//   • Setup (3 pages): Choose what to track / Emotions / Backups. The
-//     only actually-interactive setup portion.
-//   • About the app (13 pages): a "You're all set!" transition landing
-//     page with buttons to jump straight to the Alters page or the
-//     check-in manager, followed by the classic feature-intro slides
-//     (Check-In Log, Symptom Tracking, Journals, Timeline, Tasks &
-//     Habits, Bulletin, Reminders, Analytics, Support & Learn, Therapy
-//     Report, Privacy & Data, You're all set).
-//
-// The prior "Fronting Tracker" and "System Map" slides are gone; the
-// System Map slot became the minimal Quick Check-In overview inside the
-// Welcome phase.
+// Three phases:
+//   • Welcome (1 page): what the app is + the medical acknowledgement.
+//   • Setup (2 pages): terminology, then the setup checklist hub.
+//   • About the app (v0.316.0 rewrite): a "You're all set!" transition, then
+//     one short page per area of the app as it's grouped today (profiles,
+//     home screen, logging, your day, writing, support, looking back,
+//     privacy). Details live in each page's "Show me around" walk-through,
+//     so these pages stay short and current instead of listing every control.
 //
 // Interactive slides render via the shared SetupWizardShell's `render`
 // prop; passive slides are declared with body/features/tip.
@@ -29,14 +21,14 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Users, BookOpen, BarChart2, Shield,
-  FileText, Sparkles, Clock, CheckSquare, Activity,
+  Users, BarChart2, Shield, Sparkles, CheckSquare,
   MessageSquare, Zap, Bell, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { withBatch } from "@/lib/localDb";
 import { useTerms } from "@/lib/useTerms";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";
 import {
   TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, itemToSymptomFields,
@@ -105,6 +97,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
     enabled: !!open,
   });
   const settingsRow = pickPrimarySystemSettings(settingsList) || settingsList[0] || null;
+  const uiV2On = UI_V2_ENABLED && settingsRow?.ui_v2?.enabled === true;
 
   useEffect(() => {
     if (!open) setTermsSaved(false);
@@ -199,12 +192,12 @@ export default function TourModal({ open, onClose, openAt = null }) {
     {
       phase: "Welcome",
       title: "Welcome to Oceans Symphony",
-      subtitle: "A companion app built for dissociative systems",
+      subtitle: `A companion app built for dissociative ${t.systems}`,
       icon: <Bell className="w-8 h-8" />,
       color: "from-violet-500/20 to-purple-500/20",
       body:
-        `Oceans Symphony is built by and for DID/dissociative ${t.systems}, and is completely free for anyone to use, for any purpose. It is designed specifically to help track and manage dissociative and PTSD symptoms, help your ${t.system} stay connected, track experiences, and bridge the gaps that amnesia creates; a local, private, life companion app.\n\n` +
-        `The following pages will help you set up and learn about OS' features!`,
+        `Oceans Symphony is built by and for dissociative ${t.systems}, and it's free for anyone. It helps you track experiences, stay connected across the ${t.system} and bridge the gaps amnesia leaves, privately, on your own device.\n\n` +
+        `The next pages help you set it up the way you want.`,
       render: () => (
         <div className="space-y-3 pt-1 border-t border-border/40">
           <MedicalDisclaimer compact />
@@ -275,6 +268,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       render: () => (
         <SetupChecklist
           onCloseGuide={onClose}
+          uiV2On={uiV2On}
           bundleProps={{
             existingKeys, selected, onToggleItem: toggleItem, onToggleBundle: toggleBundle,
             terms: t, applyBundlesDiff,
@@ -287,9 +281,8 @@ export default function TourModal({ open, onClose, openAt = null }) {
       onNext: applyBundlesDiff,
       nextLabel: "Complete setup!",
     },
-    // Transition — setup is done. Alters/manager buttons removed per
-    // owner (they're now inside the setup checklist above); this page is
-    // just a "you're all set!" moment with Dive in / Next options.
+    // Transition — setup is done. "Dive in" is the recommended path; "Read
+    // more" walks the short "About the app" pages below.
     {
       phase: "About the app",
       title: "You're all set! 🎉",
@@ -297,248 +290,152 @@ export default function TourModal({ open, onClose, openAt = null }) {
       icon: "✨",
       color: "from-violet-500/20 to-emerald-500/20",
       body:
-        `Dive in, or press "Read more" to read more about the app's features. Press the "Show me around" banner at the top of each page to get an in-depth walk through of each feature.`,
-      // Dive in = skip the rest of the guide. It's the recommended action
-      // here (finish setup, actually start using the app), so it takes the
-      // primary/filled variant and "Read more" becomes secondary.
+        `Dive in, or tap "Read more" for a quick look at what's here. Each page also has a "Show me around" banner that walks you through it one step at a time.`,
       nextLabel: "Read more",
       skipHidden: false,
       extraAction: { label: "Dive in", onClick: () => onClose?.() },
       extraActionPrimary: true,
     },
+    // ─── About the app (v0.316.0) ────────────────────────────────────────
+    // One page per area of the app, the way the app itself is now grouped
+    // — short, current, and pointing at the "Show me around" walk-throughs
+    // for the details rather than explaining every control here.
     {
       phase: "About the app",
       title: "This app is your home",
       subtitle: `There's no "right" way to use it`,
       icon: "🏡",
       color: "from-amber-500/20 to-rose-500/20",
-      body: `This is your space — use it however feels right for your ${t.system}. There aren't any rules to follow and nothing is being submitted anywhere; everything you log stays on your device as your own private record.\n\nExperiment with what you track. Skip what doesn't help. Come back to features later if they don't click yet. The app is meant to fit around your ${t.system} — not the other way around.`,
-      tip: `Custom terminology lives in Settings → Profile → Terminology. Every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed to match how your ${t.system} talks about itself.`,
+      body: `Use it however fits your ${t.system}. Track what helps, skip what doesn't, and come back to things later. Nothing you log leaves this device unless you send it.`,
+      tip: `Every word the app uses for your ${t.system} — "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed in Settings → Profile → Terminology.`,
     },
     {
       phase: "About the app",
-      title: `Your ${t.Alters}`,
-      subtitle: `Every part of the ${t.system}, all in one place`,
+      title: `Your ${t.alters}`,
+      subtitle: "Every profile is a page you arrange",
       icon: <Users className="w-8 h-8" />,
       color: "from-purple-500/20 to-pink-500/20",
-      body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other ${t.alters}, and their own journal entries. Add them one by one, or import from Simply Plural, PluralKit, and other apps (Settings → Data & Privacy → Import).`,
-      tip: `Press the thunder/active icon next to an ${t.alter} card to set their ${t.front} status; long press to set/remove as primary.`,
+      body: `Each ${t.alter} has a profile made of widgets, like the home screen. What's on it is up to you.`,
       features: [
-        "Custom profiles with avatars",
-        "Pronouns and roles",
-        `Private ${t.alter} notes`,
-        "Custom fields",
-        "Import from other apps",
+        "Info holds everything about them, and saves as you type",
+        "The pencil (Edit page) moves, resizes and adds widgets",
+        "Custom fields for anything else you want to keep",
+        "Groups, contacts and inner-world places work the same way",
       ],
+      tip: `The ${t.Front} button on a profile puts them in ${t.front}; hold it for the levels.`,
     },
-    // Was System Map slot — now a minimal Quick Check-In overview.
     {
       phase: "About the app",
-      title: "The Quick Check-In",
-      subtitle: "The fastest way to log anything",
+      title: "Your home screen",
+      subtitle: "Built from widgets",
       icon: <Sparkles className="w-8 h-8" />,
+      color: "from-sky-500/20 to-indigo-500/20",
+      body: `The home screen is made of widgets. Each one shows or does one thing: who's ${t.fronting}, today's plans, a journal, a breathing circle.`,
+      features: [
+        "Hold an empty spot to move, resize or add widgets",
+        "Each widget's gear changes what it shows and how it looks",
+        "Build more pages and swipe between them",
+        "Any widget can go on a profile too",
+      ],
+      tip: "Display options → Bars sets up every bar in the app in one place.",
+    },
+    {
+      phase: "About the app",
+      title: "Logging in a tap",
+      subtitle: "Catch it while it's happening",
+      icon: <Zap className="w-8 h-8" />,
       color: "from-amber-500/20 to-yellow-500/20",
-      body: `Open Quick Check-In from the dashboard any time and enter as much or as little as you'd like. It's built around several optional sections you can turn on/off from Settings → Tracking setup → Check-in manager.`,
+      body: `Quick Check-In takes as much or as little as you like. The quick actions bar is always one tap away.`,
       features: [
-        "Feeling — emotions with a general → specific wheel",
-        `${t.Fronting} — set or change who's ${t.fronting}`,
-        "Activity — what you're doing",
-        "Symptoms / Habits / Context — tracked items",
-        "Diary — daily rating fields",
-        "Note — a free-text note (long ones become journals)",
-        "Company, Location — who's with you and where",
+        `Feelings, who's ${t.fronting}, activity, symptoms, a note`,
+        "Statuses, places, sleep and diary cards",
+        "Shortcuts you build yourself",
+        "Everything is timestamped",
       ],
-      tip: "Every section is customizable — the next few pages walk you through choosing what to track, tuning emotions, and setting up backups.",
-    },
-    // ─── Rest of the classic guide, unchanged ────────────────────────────
-    {
-      phase: "About the app",
-      title: "Check-In Log",
-      subtitle: `Track how the ${t.system} is doing day to day`,
-      icon: <Sparkles className="w-8 h-8" />,
-      color: "from-amber-500/20 to-yellow-500/20",
-      body: `Quick check-ins let any part log emotions, symptoms, activities, diary entries, and notes in one place. Everything is timestamped and tied to who was ${t.fronting}.`,
-      tip: "The Quick Check-In button on the home screen is the fastest way to log anything.",
-      features: [
-        "Emotion check-ins",
-        "Symptom and habit tracking",
-        "Activity logging",
-        "Diary fields inside each check-in",
-        "Sleep tracking",
-      ],
+      tip: "Missed something? Press and hold a day on the timeline to add it afterwards.",
     },
     {
       phase: "About the app",
-      title: "Symptom Tracking",
-      subtitle: "Log and monitor symptoms over time",
-      icon: <Activity className="w-8 h-8" />,
-      color: "from-red-500/20 to-rose-500/20",
-      body: `Track dissociation, anxiety, flashbacks, and any custom symptoms. Active symptoms show on the dashboard. The timeline shows severity changes as a visual bar.`,
-      tip: "Long press an active symptom chip to adjust severity or end the session.",
-      features: [
-        "Custom symptoms and habits",
-        "Severity tracking over time",
-        "Timeline visualization",
-        "Active symptom display",
-        "Analytics charts",
-      ],
-    },
-    {
-      phase: "About the app",
-      title: "Journals",
-      subtitle: `Write, remember, and share across the ${t.system}`,
-      icon: <BookOpen className="w-8 h-8" />,
-      color: "from-green-500/20 to-teal-500/20",
-      body: `Journal entries can be written by specific ${t.alters} and shared with the ${t.system}. Mention other ${t.alters} with @ to send them notifications. The bulletin board is for ${t.system}-wide messages.`,
-      tip: `Use @ mentions in journals and bulletins to notify specific ${t.alters}.`,
-      features: [
-        "Private and shared entries",
-        "@ mentions with notifications",
-        "Bulletin board",
-        "Threaded comments",
-        "Rich text blocks",
-      ],
-    },
-    {
-      phase: "About the app",
-      title: "Timeline",
-      subtitle: `Your ${t.system}'s history, all in one view`,
-      icon: <Clock className="w-8 h-8" />,
-      color: "from-indigo-500/20 to-blue-500/20",
-      body: `The infinite timeline shows everything — ${t.fronting} sessions, emotions, activities, symptoms, journal entries, and tasks — laid out chronologically by day. Zoom in and out to explore.`,
-      tip: `Press and hold anywhere on the timeline to retroactively add a ${t.fronting} session or quick check-in at that time.`,
-      features: [
-        `${t.Fronting} session bars`,
-        "Emotion and symptom events",
-        "Activity tracking",
-        "Zoom and scroll",
-        "Daily tally view",
-        "Retroactive entry via long press",
-      ],
-    },
-    {
-      phase: "About the app",
-      title: "Tasks & Habits",
-      subtitle: "Daily, weekly, monthly, and yearly tracking",
+      title: "Your day",
+      subtitle: "Plans, routines and nudges",
       icon: <CheckSquare className="w-8 h-8" />,
       color: "from-teal-500/20 to-emerald-500/20",
-      body: `Build task lists for any time scale — daily routines, weekly goals, monthly intentions, or yearly milestones. Track streaks and habit completion over time.`,
-      tip: "Tasks repeat on their schedule and track streaks automatically.",
+      body: `The planner holds what you did and what you mean to do. Plans stay until you say how they went, so nothing quietly disappears.`,
       features: [
-        "Daily, weekly, monthly, yearly tasks",
-        "Completion streaks",
-        "Historical review",
-        "Manual check-off",
-        "System-wide task sharing",
+        "Planner: drag on the week to log or plan",
+        "Daily tasks with streaks, and a to-do list",
+        "Reminders that open the right thing",
       ],
-    },
-    {
-      phase: "About the app",
-      title: "Bulletin Board",
-      subtitle: "System-wide announcements and messages",
-      icon: <MessageSquare className="w-8 h-8" />,
-      color: "from-orange-500/20 to-amber-500/20",
-      body: `Post messages that any part of the ${t.system} can see. Great for leaving notes between ${t.alters}, announcements, or anything the whole ${t.system} should know.`,
-      tip: "Pin important bulletins so they always appear at the top of the board.",
-      features: [
-        "System-wide messages",
-        "@ mention notifications",
-        "Comments and replies",
-        "Pin important posts",
-        "Timestamped for reference",
-      ],
-    },
-    {
-      phase: "About the app",
-      title: "Reminders & Notifications",
-      subtitle: "Stay on track between sessions",
-      icon: <Zap className="w-8 h-8" />,
-      color: "from-yellow-500/20 to-orange-500/20",
-      body: `Set scheduled reminders to log fronting, check in, or take care of yourself. Reminders can link directly to any part of the app — tap a notification and it opens the right thing instantly.`,
       tip: isNative()
-        ? "Reminders are delivered even when the app is closed, as long as you grant notification permission."
-        : "In the web app, reminders fire while the app is open; turn on \"Reliable reminders\" under Settings → Notifications to get them when it's closed.",
-      features: [
-        "Scheduled reminders",
-        "Deep-link to any feature",
-        "Custom messages",
-        "Repeating or one-time",
-        "Notification history",
-      ],
+        ? "Reminders arrive even with the app closed, once notifications are allowed."
+        : "In the web app, reminders arrive while it's open; turn on \"Reliable reminders\" in Settings → Notifications for when it's closed.",
     },
     {
       phase: "About the app",
-      title: "Analytics",
-      subtitle: `Understand your ${t.system}'s patterns`,
-      icon: <BarChart2 className="w-8 h-8" />,
-      color: "from-violet-500/20 to-indigo-500/20",
-      body: `See which ${t.alters} ${t.front} most, when ${t.switching} happens, emotion patterns, symptom trends, and more. Analytics draw from all your logged data automatically.`,
-      tip: "The more you log, the more meaningful your analytics become.",
+      title: "Writing and talking",
+      subtitle: `Bridging the gaps across the ${t.system}`,
+      icon: <MessageSquare className="w-8 h-8" />,
+      color: "from-green-500/20 to-teal-500/20",
+      body: `Leave words for each other, however you talk best.`,
       features: [
-        `${t.Fronting} distribution`,
-        `${t.Cofronting} patterns`,
-        "Emotion trends",
-        "Symptom analytics",
-        "Activity summaries",
+        "Journals, with folders and private entries",
+        `${t.System} chat with channels`,
+        `Bulletin board for the whole ${t.system}`,
+        "@ mentions notify, whispers stay private",
       ],
+      tip: `Anywhere you write, @name mentions an ${t.alter} and ~therapy saves a note for your next report.`,
     },
     {
       phase: "About the app",
       title: "Support & Learn",
-      subtitle: "Grounding tools and trauma-informed skills",
+      subtitle: "Grounding when you need it",
       icon: <Shield className="w-8 h-8" />,
       color: "from-pink-500/20 to-rose-500/20",
-      body: `Access breathing exercises, imagery techniques, and grounding tools instantly. The Learn section is a full 13-module curriculum of trauma-informed coping skills you can work through at your own pace, drawing primarily from the Finding Solid Ground workbook — a validated, clinician-authored source. The app itself is not a substitute for professional care.`,
-      tip: "The floating bubble button gives instant access to support from anywhere in the app.",
+      body: `Grounding techniques, breathing, sounds and a 13-module course of coping skills drawn mainly from the Finding Solid Ground workbook. The app isn't a substitute for professional care.`,
       features: [
-        "9 breathing techniques",
-        "Imagery grounding",
-        "13-module curriculum",
-        "Interactive exercises",
-        "Personal coping cards",
-        "Resources page with validated sources",
+        "Help me figure out what I need",
+        "Guided breathing and soundscapes",
+        "A safety plan you build over time",
       ],
+      tip: "The 🫧 bubble on every screen opens Support.",
     },
     {
       phase: "About the app",
-      title: "Therapy Report",
-      subtitle: "Bridge the amnesia gap in therapy",
-      icon: <FileText className="w-8 h-8" />,
-      color: "from-teal-500/20 to-green-500/20",
-      body: `Generate a structured PDF report of your ${t.system}'s activity over any time period. Bring it to therapy so your therapist can see what happened between sessions — even across amnesia barriers.`,
-      tip: "Reports are generated entirely on your device — nothing is ever sent to a server.",
+      title: "Looking back",
+      subtitle: "See the patterns, bring them to therapy",
+      icon: <BarChart2 className="w-8 h-8" />,
+      color: "from-violet-500/20 to-indigo-500/20",
+      body: `Everything you log comes together, so you can see what happened even across amnesia.`,
       features: [
-        "PDF and plain text export",
-        "Smart highlights mode",
-        `${t.Alter} anonymization option`,
-        "Customizable sections",
-        "Personal note to therapist",
+        "Timeline: every day, everything in it",
+        `Analytics: ${t.fronting}, feelings, symptoms, activities`,
+        "Therapy report: a summary to share, made on your device",
       ],
+      tip: "The more you log, the more the analytics can show.",
     },
     {
       phase: "About the app",
-      title: "Privacy & Data",
+      title: "Privacy & your data",
       subtitle: "Your data, your control",
       icon: "🔒",
       color: "from-slate-500/20 to-gray-500/20",
-      body: `Oceans Symphony is private by design — by default, your data stays on this device only. Nothing is uploaded or synced by default; records live in this browser's IndexedDB and only leave the device if you export a backup yourself, opt in to Friends mode, or turn on cloud-backed reminders. (Friends sends your display name, ${t.system} name, friend code, friends list, push registration, public key and current ${t.front} — at the granularity you pick — plus any ${t.alters} you share, end-to-end encrypted; never your journals, check-ins or other local data.) By default records are stored unencrypted, so anyone with access to the device could read them. For even greater security, turn on password encryption under Settings → Data & privacy → Storage & encryption: that adds AES-256-GCM encryption at rest on top (on-device only — not end-to-end). The app is free and open source, built by a dissociative ${t.system}, and is in active development — bugs may be encountered. Regular backups are recommended — you'll be asked once how you want them handled, and backup files can be password-locked.`,
-      tip: "Privacy & Data Notice lives at the top of Settings — tap to expand for details.",
+      body: `Everything stays on this device, and there's no account. It only leaves when you choose: a backup, Friends, cloud reminders or device sync. There's no cloud copy, so please keep backups.`,
       features: [
-        "Unencrypted by default",
-        "Optional on-device encryption at rest",
-        "Backups as plain JSON, compact, or copy-paste text",
-        "No ads, no tracking",
-        "Active development — bugs may be encountered",
+        "Automatic backups, password-locked if you like",
+        "Optional password lock for everything on this device",
+        "Deleted things wait in the trash for 30 days",
+        "No ads, no tracking, free and open source",
       ],
+      tip: "Settings → Data & privacy has it all, including \"See your data\".",
     },
     {
       phase: "About the app",
-      title: "You're all set 🎉",
+      title: "You're all set 💜",
       subtitle: `Welcome to the ${t.system}`,
       icon: "💜",
       color: "from-violet-500/20 to-purple-500/20",
-      body: `Explore at your own pace. Every feature is designed with dissociative ${t.systems} in mind. You can reopen this guide anytime from the ⚙ menu on the home screen (Setup guide), or from Settings → About.`,
-      tip: "Want a hands-on walkthrough of the UI itself? Choose Feature tour from the ⚙ menu on the home screen for an interactive step-by-step tour that spotlights the actual UI.",
+      body: `Explore at your own pace. Each page's "Show me around" walks you through it one step at a time. Reopen this guide any time from the ⚙ menu on the home screen, or Settings → About & help.`,
+      tip: "For a tour of the whole app, choose Feature tour from the ⚙ menu on the home screen.",
       nextLabel: "Start exploring 💜",
       onNext: handleFinish,
     },

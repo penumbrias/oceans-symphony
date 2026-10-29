@@ -115,7 +115,7 @@ function ChecklistItem({ id, icon: Icon, title, description, done, expanded, onT
 // `bundleProps` lets the parent (TourModal) hand in the bundle picker's
 // wired-up state so the Tracking section can host it inline (v0.85 —
 // picker moved out of its own pre-checklist page and into this hub).
-export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
+export default function SetupChecklist({ onCloseGuide, bundleProps = null, uiV2On = false }) {
   const t = useTerms();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -260,12 +260,17 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
       id: "alters",
       icon: Users,
       title: `${t.Alters} setup`,
-      description: `Add ${t.alters} one at a time, or import a backup.`,
+      description: `Add ${t.alters}, or bring them in from another app.`,
       content: (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            You can add {t.alters} one by one from the {t.Alters} page, or import from Simply Plural,
-            PluralKit, or a Symphony backup.
+            A name is enough to start. Each {t.alter}'s profile is a page of widgets you can
+            arrange; their <strong>Info</strong> holds everything else about them, and saves as
+            you type.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Coming from another app? Import takes a Symphony backup or another plural app's
+            export.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => { onCloseGuide?.(); navigate("/Home"); }} className="text-xs gap-1">
@@ -282,15 +287,32 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
     {
       id: "newui",
       icon: Sparkles,
-      title: "Check out the widget board",
-      description: "Swipe left on your home screen — pages you build from widgets.",
-      content: (
+      title: "Your home screen",
+      description: "Built from widgets — move, resize and add your own.",
+      content: uiV2On ? (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Swipe left on your home screen (or use the grid button in its header) and you're on
-            the widget board — extra pages you assemble yourself: what's on them, where each
-            piece sits, how big it is and how it looks. Your home screen itself is editable the
-            same way: open the ⚙ menu up top and choose "Edit home screen".
+            Your home screen is made of widgets, each showing or doing one thing. Press and hold an
+            empty spot (or open the ⚙ menu and choose "Edit home screen") to move, resize and add
+            them. A widget's gear changes what it shows and how it looks.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Profiles are built the same way, and any widget can go on either.
+          </p>
+          <Button
+            size="sm"
+            className="text-xs gap-1"
+            onClick={() => { onCloseGuide?.(); navigate("/"); }}
+          >
+            <Sparkles className="w-3 h-3" /> Go to the home screen
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Your home screen is built from widgets, and so is the widget board: extra pages you
+            put together yourself, one swipe to the left. Hold an empty spot (or open the ⚙ menu
+            and choose "Edit home screen") to move, resize and add them.
           </p>
           <Button
             size="sm"
@@ -310,8 +332,8 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
           {/* The v2 bars hosted inside the CLASSIC chrome — the same
               toggles as Settings → Appearance → Layout, one component. */}
           <p className="text-xs text-muted-foreground pt-1">
-            The new bars are part of the classic look too: the bottom bars, quick action bar and
-            pinned {t.alters} bar are on by default, and the new top bar is one switch away.
+            The bars: the bottom bars, quick actions bar and pinned {t.alters} bar are on by
+            default, and the new top bar is one switch away.
           </p>
           <ClassicBarsToggles />
         </div>

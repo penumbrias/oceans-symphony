@@ -90,3 +90,14 @@ export function subscribePageTutorials(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
+
+// The page a route belongs to, for page tutorials (v0.316.0). Profile
+// routes carry a record id and a ?tab=, so every alter's profile is one
+// tutorial page ("/alter/:id") rather than one per alter, and a tour step
+// that opens a profile on a particular tab still belongs to it.
+export function tutorialRouteKey(route) {
+  if (!route) return route;
+  const path = String(route).split(/[?#]/)[0];
+  if (/^\/alter\/[^/]+$/.test(path)) return "/alter/:id";
+  return path;
+}

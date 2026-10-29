@@ -16,13 +16,15 @@ const ICONS = {
   recent: Clock,
 };
 
-export default function AlterSortToggle({ sorter, className = "", showLabel = false }) {
+// `data-tour` is passed through so the feature tour can spotlight it.
+export default function AlterSortToggle({ sorter, className = "", showLabel = false, "data-tour": dataTour }) {
   const terms = useTerms();
   const Icon = ICONS[sorter.mode] || ArrowDownAZ;
   const label = applyTerms(sorter.current.label, terms);
   return (
     <button
       type="button"
+      data-tour={dataTour}
       onClick={sorter.cycle}
       title={`Sorted by ${label} — tap to change`}
       aria-label={`Sorted by ${label}. Tap to change the order.`}

@@ -192,6 +192,8 @@ Rules:
 - Tour steps must use `t.` terms (never hardcode "alter", "system", "fronting", etc.).
 - Tour accuracy matters — never describe a feature differently from how it actually works (e.g. correct icon names, correct field locations).
 - The tour is the user's primary onboarding resource. Stale steps erode trust.
+- **One idea per step (v0.316.0).** The page tutorials ("New to this page? Show me around") play these steps one card at a time, so a body is two or three short sentences about the ONE thing it highlights — never a wall of text. A feature with more to say gets more steps. A `target` may be an array of fallbacks (the control, then the section holding it). Run `node scripts/check-tour-steps.mjs` (`npm run check:tour`) — it fails on a body over `STEP_BODY_LIMIT` (300), a duplicated step, or a target with no `data-tour` anchor.
+- Profile steps route to `/alter/<id>?tab=…`; `tutorialRouteKey` (`src/lib/pageTutorials.js`) folds every profile into one tutorial page (`/alter/:id`).
 
 ---
 
