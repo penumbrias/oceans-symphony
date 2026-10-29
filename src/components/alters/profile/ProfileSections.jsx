@@ -34,6 +34,7 @@ import { needsHalo, getPageBackground, adjustForContrast } from "@/lib/contrast"
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 
 export function getContrastColor(hex) {
@@ -261,7 +262,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
           <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
             style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
             {avatar
-              ? <img src={avatar} alt={alter.name} className="w-full h-full object-cover" />
+              ? <img src={avatar} alt={alter.name} className="w-full h-full object-cover" style={alterPictureStyle(alter, rotatingAvatarUrl)} />
               : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
           </div>
           <div className="absolute -bottom-2 left-0 right-0 flex justify-center">

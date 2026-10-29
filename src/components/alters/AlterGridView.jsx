@@ -16,6 +16,7 @@ import AlterActionMenu from "./AlterActionMenu";
 import AlterHoldRail from "./AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
 import GroupIcon from "@/components/shared/GroupIcon";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 const EMPTY_SET = new Set();
 // Past this nesting depth the tinted-card-inside-tinted-card shrinks toward
@@ -68,14 +69,17 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
         onClick={() => { if (!holdMenu.suppressed()) onTap?.(); }}
       >
         {resolvedUrl && !imgError ? (
-          <img
-            src={resolvedUrl}
-            alt={alter.name}
-            style={{ boxShadow }}
-            className={`rounded-full object-cover transition-all cursor-pointer ${sizeClass} ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
-            draggable={false}
-            onError={() => setImgError(resolvedUrl)}
-          />
+          // Wrapped so a zoomed frame stays inside the circle (v0.314.0).
+          <span style={{ boxShadow }} className={`block rounded-full overflow-hidden transition-all cursor-pointer ${sizeClass}`}>
+            <img
+              src={resolvedUrl}
+              alt={alter.name}
+              style={alterPictureStyle(alter, rotatingAvatarUrl)}
+              className={`w-full h-full object-cover ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
+              draggable={false}
+              onError={() => setImgError(resolvedUrl)}
+            />
+          </span>
         ) : (
           <div
             style={{

@@ -42,6 +42,7 @@ import { WIDGET_REGISTRY, widgetLabel, widgetAutoLabel } from "@/lib/widgetRegis
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
+  isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
@@ -153,7 +154,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -286,6 +287,11 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const fixedHeight = flowView
     ? (handSized || !!resize.preview)
     : (shownRows > 1 || handSized || !!resize.preview);
+  // Layer order and tilt (v0.314.0) — see isLayered in experimentalHome.
+  const layered = isLayered(widget);
+  const zLayer = layerOf(widget);
+  const tilt = boxRotation(widget);
+  const tiltCss = tilt ? `rotate(${tilt}deg)` : "";
 
   const style = collapsed
     // Empty right now (view mode): keep it mounted at zero size so its
@@ -298,8 +304,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       ? {
           gridColumn: `${cell.x + 1} / span ${shownCols}`,
           gridRow: `${cell.y + 1} / span ${shownRows}`,
-          transform: move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : undefined,
-          zIndex: move.dragging ? 45 : undefined,
+          transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
+          zIndex: move.dragging ? 45 : zLayer || undefined,
           opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
           // The cell is the widget's boundary. Without this, anything taller
           // than its rows paints straight over its neighbour — which is the
@@ -320,7 +326,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
-        transform: CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform),
+        transform: [CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform), tiltCss].filter(Boolean).join(" ") || undefined,
         transition,
         zIndex: isDragging ? 40 : undefined,
         opacity: isDragging ? 0.85 : undefined,
@@ -392,6 +398,17 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           >
             <Settings2 className="w-3 h-3" />
           </button>
+          {/* Layer quick buttons — only on a widget that overlaps others,
+              where the order is something you can see. */}
+          {layered && onLayer && !a11yStack && (
+            <span className="h-6 flex items-center rounded-full bg-background border border-border shadow-sm overflow-hidden">
+              <button type="button" aria-label="Send back one layer" title="Send back" onClick={() => onLayer(widget.instanceId, "backward")}
+                className="px-1 h-full text-muted-foreground hover:text-foreground"><ArrowDown className="w-3 h-3" /></button>
+              <span className="text-[0.625rem] tabular-nums text-muted-foreground px-0.5" aria-label={`Layer ${zLayer}`}>{zLayer}</span>
+              <button type="button" aria-label="Bring forward one layer" title="Bring forward" onClick={() => onLayer(widget.instanceId, "forward")}
+                className="px-1 h-full text-muted-foreground hover:text-foreground"><ArrowUp className="w-3 h-3" /></button>
+            </span>
+          )}
           {/* A11y-stack reorder buttons */}
           {a11yStack && (
             <span className="h-6 flex items-center rounded-full bg-background border border-border shadow-sm overflow-hidden">
@@ -1105,14 +1122,23 @@ export default function ExperimentalDashboard({
   const selectAllOnPage = () => setMultiIds(page.widgets.map((w) => w.instanceId));
 
   const handleSettings = (instanceId, patch) =>
-    updatePageWidgets((ws) =>
-      ws.map((w) => {
+    updatePageWidgets((ws) => {
+      const next = ws.map((w) => {
         // While editing a selection, every change lands on ALL of them —
         // the point of selecting several is to stop repeating yourself.
         const hit = multiEditing ? multiIds.includes(w.instanceId) : w.instanceId === instanceId;
         return hit ? { ...w, settings: { ...w.settings, ...patch } } : w;
-      })
-    );
+      });
+      // Overlapping switched off: whatever it sat on moves out of its way.
+      return pageIsFree && "layered" in patch && patch.layered !== true
+        ? resolveOverlaps(next, gridCols, instanceId) : next;
+    });
+  // Layer buttons (v0.314.0): front / back / forward / backward.
+  const handleLayer = (instanceId, action) =>
+    updatePageWidgets((ws) => {
+      const z = nextLayer(ws, instanceId, action);
+      return ws.map((w) => (w.instanceId === instanceId ? { ...w, settings: { ...w.settings, zLayer: z || "" } } : w));
+    });
   // Copying a look = the LOOK_KEYS only (colours/shape/spacing/font/css) —
   // never a widget's own options, its name or its size, which are not
   // "how it looks".
@@ -1472,7 +1498,9 @@ export default function ExperimentalDashboard({
   const altersBottom = altersBarOn && pinnedBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
-  const flowView = viewFlow && freeMode && !editMode;
+  // A page with overlapping widgets keeps its exact placement when viewed:
+  // flowing it would stack what was meant to sit on top.
+  const flowView = viewFlow && freeMode && !editMode && !page.widgets.some(isLayered);
 
   // One pass, per page and width: give every widget the rows its content
   // actually needs, then untangle. Done centrally and written once —
@@ -1845,6 +1873,7 @@ export default function ExperimentalDashboard({
           flowView={flowView}
           onPos={handlePos}
           onBeside={handleBeside}
+          onLayer={freeMode && !flowView ? handleLayer : null}
           userStyles={userStyles}
         />
       ))}
@@ -2450,6 +2479,7 @@ export default function ExperimentalDashboard({
         onMode={handleMode}
         onSettings={handleSettings}
         onResetWidget={handleResetWidget}
+        onLayer={freeMode ? handleLayer : null}
         // Undo / Redo from the toast the sheet leaves when it closes with
         // changes: puts that widget back exactly as it was. An Undo first
         // keeps the board as it is now in Recent changes, so the edits

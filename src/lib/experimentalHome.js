@@ -357,6 +357,7 @@ export function compactVertically(widgets, gridCols) {
   );
 
   for (const w of ordered) {
+    if (isLayered(w)) continue;
     const c = Math.min(Math.max(1, w.span?.cols || 1), gridCols);
     const r = Math.max(1, w.span?.rows || 1);
     const x = Math.max(0, Math.min(w.pos?.x || 0, gridCols - c));
@@ -392,6 +393,41 @@ export function compactVertically(widgets, gridCols) {
 // DOWN. Never sideways (that would fight the user's chosen columns) and
 // never upward-compacted (that would eat the gaps they deliberately left).
 
+// ── Layers (v0.314.0) ──────────────────────────────────────────────
+// A widget set to "Overlap other widgets" (settings.layered) sits on top
+// of whatever is under it instead of pushing it aside: it never moves
+// anything and nothing moves for it. Its stacking order is
+// settings.zLayer (0 = normal, negative = behind the normal widgets),
+// and settings.boxRotate tilts the whole widget. All three are optional;
+// a board without them behaves exactly as before.
+export const LAYER_MIN = -8;
+export const LAYER_MAX = 20;
+export const isLayered = (w) => w?.settings?.layered === true;
+export function layerOf(w) {
+  const n = Number(w?.settings?.zLayer);
+  return Number.isFinite(n) ? Math.max(LAYER_MIN, Math.min(LAYER_MAX, Math.round(n))) : 0;
+}
+// The zLayer a widget gets from a layer button: "front" / "back" go past
+// every other widget on the page, "forward" / "backward" step by one.
+export function nextLayer(widgets, instanceId, action) {
+  const list = widgets || [];
+  const me = list.find((w) => w.instanceId === instanceId);
+  if (!me) return 0;
+  const others = list.filter((w) => w.instanceId !== instanceId).map(layerOf);
+  const cur = layerOf(me);
+  let next = cur;
+  if (action === "front") next = Math.max(cur, (others.length ? Math.max(...others) : 0) + 1);
+  else if (action === "back") next = Math.min(cur, (others.length ? Math.min(...others) : 0) - 1);
+  else if (action === "forward") next = cur + 1;
+  else if (action === "backward") next = cur - 1;
+  return Math.max(LAYER_MIN, Math.min(LAYER_MAX, next));
+}
+// The tilt in degrees, -180…180 (0 = straight).
+export function boxRotation(w) {
+  const n = Number(w?.settings?.boxRotate);
+  return Number.isFinite(n) ? Math.max(-180, Math.min(180, n)) : 0;
+}
+
 const box = (w, gridCols) => {
   const x = Math.max(0, Math.min(gridCols - 1, w.pos?.x || 0));
   const c = Math.max(1, Math.min(w.span?.cols || 1, gridCols - x));
@@ -400,7 +436,7 @@ const box = (w, gridCols) => {
 const hits = (a, b) => a.x < b.x + b.c && b.x < a.x + a.c && a.y < b.y + b.r && b.y < a.y + a.r;
 
 export function hasOverlaps(widgets, gridCols) {
-  const boxes = widgets.map((w) => box(w, gridCols));
+  const boxes = widgets.filter((w) => !isLayered(w)).map((w) => box(w, gridCols));
   for (let i = 0; i < boxes.length; i += 1) {
     for (let j = i + 1; j < boxes.length; j += 1) if (hits(boxes[i], boxes[j])) return true;
   }
@@ -420,6 +456,8 @@ export function resolveOverlaps(widgets, gridCols, anchorId = null) {
   const placed = [];
   const byId = {};
   for (const w of order) {
+    // Overlapping widgets stay exactly where they were put.
+    if (isLayered(w)) continue;
     const b = box(w, gridCols);
     // Push down past whatever is already in the way, re-checking each time
     // (moving down can land on something else).

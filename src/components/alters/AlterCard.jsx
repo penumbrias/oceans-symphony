@@ -14,6 +14,7 @@ import AlterActionMenu from "./AlterActionMenu";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
 import { useFrontLook } from "@/lib/frontLook";
 import { IconSlot } from "@/components/shared/LucideByName";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 function getContrastColor(hex) {
   if (!hex) return "var(--color-text-secondary)";
@@ -156,6 +157,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
               style={{ backgroundColor: bgColor || "var(--color-muted)", ...(lsShape ? lsShape.inner : {}) }}>
               {showAvatar ? (
                 <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
+                  style={alterPictureStyle(alter, rotatingAvatarUrl)}
                   onError={() => setAvatarErrorFor(resolvedAvatar)} />
               ) : null}
               <div className="w-full h-full items-center justify-center"

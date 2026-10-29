@@ -32,6 +32,7 @@ import { saveStatusNote } from "@/lib/checkinEntry";
 import { changeFront } from "@/lib/setFront";
 import { triggerPatch } from "@/lib/triggerCategories";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -114,7 +115,7 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
           style={{ backgroundColor: bg || "hsl(var(--muted))" }}
         >
           {resolvedAvatar ? (
-            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
+            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" style={alterPictureStyle(alter, rotatingAvatarUrl)} />
           ) : (
             <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
           )}
@@ -181,7 +182,7 @@ function PanelHeader({ alter, onRemove }) {
         style={{ backgroundColor: bg || "hsl(var(--muted))" }}
       >
         {resolvedAvatar
-          ? <img src={resolvedAvatar} alt={alter?.name} className="w-full h-full object-cover" />
+          ? <img src={resolvedAvatar} alt={alter?.name} className="w-full h-full object-cover" style={alterPictureStyle(alter, rotatingAvatarUrl)} />
           : <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />}
       </div>
       <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{alter?.name}</span>
@@ -205,7 +206,7 @@ function HoldMenuAvatar({ alter }) {
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   return resolvedAvatar
-    ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
+    ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" style={alterPictureStyle(alter, rotatingAvatarUrl)} />
     : <User className="w-5 h-5 text-muted-foreground" />;
 }
 

@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { shapeLayerStyles } from "@/lib/avatarShapes";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -314,7 +315,8 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         <span className="w-full h-full overflow-hidden flex items-center justify-center"
           style={{ backgroundColor: alter.color ? `${alter.color}44` : "var(--color-surface)", ...layers.inner }}>
         {resolvedAvatar ? (
-          <img src={resolvedAvatar} alt={label} className={`w-full h-full object-cover ${blurAvatar ? "blur-md" : ""}`} />
+          <img src={resolvedAvatar} alt={label} className={`w-full h-full object-cover ${blurAvatar ? "blur-md" : ""}`}
+            style={alterPictureStyle(alter, avatarOverride || alter.avatar_url)} />
         ) : (
           <span className="text-lg font-semibold text-foreground">
             {(alter.name || "?").charAt(0).toUpperCase()}

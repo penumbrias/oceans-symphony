@@ -42,6 +42,8 @@ import { useAlterGroups, presetAnswerRowsOf } from "@/components/alters/profile/
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
+import { alterPictureStyle } from "@/lib/imageFraming";
+import { AvatarFramingField } from "@/components/v2/pictureFramingFields";
 import { parsePreferences, PREF_LEVELS, PREF_CATEGORIES } from "@/lib/alterPreferences";
 import { PrefLevelIcon } from "@/components/alters/AlterPreferencesEditor";
 import { indexGroups, ancestorIds } from "@/lib/groupTree";
@@ -93,6 +95,10 @@ export function IdentityWidget({ settings, mode = "normal" }) {
   const center = settings?.align === "center";
   const size = Math.max(32, Math.min(200, Number(settings?.avatarSize) || 88));
   const showAvatar = settings?.showAvatar !== false;
+  // See-through pictures (v0.314.0): the colour behind can be turned off,
+  // and the picture itself can fade.
+  const backing = settings?.avatarBacking !== false;
+  const avatarOpacity = Math.max(0, Math.min(100, Number(settings?.avatarOpacity ?? 100)));
   const editable = settings?.editInPlace !== false;
   const line = (key, cls) => {
     const value = key === "birthday" ? firstAppearanceOf(alter).birthday : alter[key];
@@ -110,8 +116,10 @@ export function IdentityWidget({ settings, mode = "normal" }) {
       <div className={`flex gap-[0.9em] ${center ? "flex-col items-center text-center" : "items-start"}`}>
         {showAvatar && (
           <div className="overflow-hidden flex-shrink-0 flex items-center justify-center"
-            style={{ width: size, height: size, borderRadius: AVATAR_RADIUS[settings?.avatarShape] || AVATAR_RADIUS.rounded, backgroundColor: alter.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)" }}>
-            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <User className="w-1/2 h-1/2 opacity-70" aria-hidden="true" />}
+            style={{ width: size, height: size, borderRadius: AVATAR_RADIUS[settings?.avatarShape] || AVATAR_RADIUS.rounded, backgroundColor: backing || !avatar ? (alter.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)") : "transparent" }}>
+            {avatar
+              ? <img src={avatar} alt="" className="w-full h-full" style={{ ...alterPictureStyle(alter, rotating), ...(avatarOpacity < 100 ? { opacity: avatarOpacity / 100 } : {}) }} />
+              : <User className="w-1/2 h-1/2 opacity-70" aria-hidden="true" />}
           </div>
         )}
         <div className="min-w-0 flex-1 space-y-[0.15em]">
@@ -873,6 +881,10 @@ export const GARDEN_ALTER_WIDGETS = {
       { key: "avatarShape", type: "select", label: "Picture shape", default: "rounded",
         options: [{ value: "circle", label: "Circle" }, { value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }] },
       { key: "avatarSize", type: "number", label: "Picture size", min: 32, max: 200, default: 88, unit: "px" },
+      { key: "_frame", type: "component", label: "", Component: AvatarFramingField },
+      { key: "avatarOpacity", type: "number", label: "Picture opacity", min: 0, max: 100, step: 5, default: 100, unit: "%" },
+      { key: "avatarBacking", type: "toggle", label: "Colour behind the picture", default: true,
+        help: "Turn off so see-through pictures show what's behind them" },
       { key: "align", type: "select", label: "Alignment", default: "left",
         options: [{ value: "left", label: "Beside" }, { value: "center", label: "Centred" }] },
       { key: "editInPlace", type: "toggle", label: "Tap the text to edit it", default: true },

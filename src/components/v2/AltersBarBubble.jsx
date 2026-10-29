@@ -12,6 +12,7 @@ import { useTerms } from "@/lib/useTerms";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import { readPinnedBar } from "@/lib/barsModel";
 import { EdgeDock } from "@/components/v2/EdgeDock";
+import { alterPictureStyle } from "@/lib/imageFraming";
 
 function BubbleFace({ alterId }) {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -19,7 +20,7 @@ function BubbleFace({ alterId }) {
   const url = useResolvedAvatarUrl(a?.avatar_url);
   if (!a) return <Pin style={{ width: "42%", height: "42%" }} />;
   return url
-    ? <img src={url} alt="" className="w-full h-full object-cover rounded-full" />
+    ? <span className="block w-full h-full rounded-full overflow-hidden"><img src={url} alt="" className="w-full h-full object-cover" style={alterPictureStyle(a, a.avatar_url)} /></span>
     : <span className="text-sm font-semibold">{(a.name || "?").charAt(0).toUpperCase()}</span>;
 }
 
