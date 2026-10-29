@@ -10,7 +10,7 @@
 // Each widget has ONE visible box (widget contract): flush and borderless
 // until the person sets a border, background or padding, like Text.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Play, ExternalLink, Image as ImageIcon } from "lucide-react";
@@ -241,6 +241,29 @@ export function InfoWidget({ settings, mode = "normal" }) {
 
 // ── Media ────────────────────────────────────────────────────────────
 
+// A circle as big as fits its box both ways (v0.314.0 — it used to take
+// the full width and get cut off in a wide box). When the box has no
+// height of its own (a widget sized to its content) the width decides.
+function useCircleSize() {
+  const [size, setSize] = useState(0);
+  const obs = useRef(null);
+  const ref = useCallback((el) => {
+    obs.current?.disconnect();
+    obs.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const next = Math.floor(h >= 24 ? Math.min(w, h) : w);
+      setSize((cur) => (Math.abs(cur - next) > 1 ? next : cur));
+    };
+    obs.current = new ResizeObserver(measure);
+    obs.current.observe(el);
+    measure();
+  }, []);
+  return { ref, size };
+}
+
 // The picture's frame (where it sits, zoom) under the widget's own
 // rotate / mirror, and its opacity (v0.314.0).
 function framedMediaStyle(item, settings) {
@@ -358,6 +381,7 @@ export function MediaWidget({ settings }) {
     return () => clearInterval(t);
   }, [arrange, count, seconds]);
   const showCaption = settings?.showCaption !== false;
+  const circleBox = useCircleSize();
   if (!count) {
     // Nothing to show: blank on the page, a hint while the layout is edited.
     return (
@@ -390,11 +414,13 @@ export function MediaWidget({ settings }) {
       {/* A circle is as big as fits the box both ways (v0.314.0 — it used
           to take the full width and get cut off in a wide box); otherwise
           the picture fills it. */}
-      <div className={circle ? "relative flex-1 min-h-0 flex items-center justify-center" : "relative flex-1 min-h-0 overflow-hidden"}
-        style={circle ? { containerType: "size" } : undefined}>
+      <div ref={circle ? circleBox.ref : undefined}
+        className={circle ? "relative flex-1 min-h-0 flex justify-center" : "relative flex-1 min-h-0 overflow-hidden"}
+        // A circle in a tall box sits at the top unless Shape → Down says otherwise.
+        style={circle ? { alignItems: "var(--v2-widget-valign-set, flex-start)" } : undefined}>
         {circle ? (
           <div className="relative overflow-hidden rounded-full flex-shrink-0" data-media-circle=""
-            style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+            style={{ width: circleBox.size, height: circleBox.size }}>
             <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />
           </div>
         ) : <MediaItem key={`${current.src}-${index}`} item={current} settings={settings} />}

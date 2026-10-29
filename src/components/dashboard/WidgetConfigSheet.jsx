@@ -640,7 +640,7 @@ function Disclosure({ label, hint, icon: Icon, open, onToggle, children }) {
 
 const TAB_ICONS = { content: ListChecks, text: Type, shape: Square, colour: Palette, styles: Star };
 
-const layerBtnCls = "text-xs px-2 min-h-[2rem] rounded-full border border-border/50 text-muted-foreground hover:text-foreground";
+const layerBtnCls = "flex-1 min-w-0 text-xs px-1.5 min-h-[2.25rem] rounded-full border border-border/50 text-muted-foreground hover:text-foreground whitespace-nowrap";
 
 export default function WidgetConfigSheet({
   widget,            // live widget object or null (sheet closed)
@@ -1325,18 +1325,18 @@ export default function WidgetConfigSheet({
                 <Group title="Arrange">
                   <SwitchRow label="Overlap other widgets" hint="Sits on top of them instead of pushing them aside"
                     checked={settings.layered === true} onChange={(v) => set({ layered: v ? true : "" })} />
-                  <Row label="Layer" hint={settings.layered === true ? "Higher sits in front" : "Turn on overlap to stack widgets"}
+                  <StackedRow label="Layer" hint={settings.layered === true ? "Higher sits in front" : "Turn on overlap to stack widgets"}
                     own={own("zLayer")} onClear={() => set({ zLayer: "" })}>
-                    <span className="flex items-center gap-1 flex-wrap justify-end">
+                    <span className="flex items-center gap-1">
                       {[["back", "To back"], ["backward", "Back"]].map(([a, l]) => (
                         <button key={a} type="button" onClick={() => onLayer(widget.instanceId, a)} className={layerBtnCls}>{l}</button>
                       ))}
-                      <span className="w-7 text-center text-xs tabular-nums" aria-live="polite" aria-label={`Layer ${layerOf(widget)}`}>{layerOf(widget)}</span>
+                      <span className="w-8 flex-shrink-0 text-center text-sm tabular-nums" aria-live="polite" aria-label={`Layer ${layerOf(widget)}`}>{layerOf(widget)}</span>
                       {[["forward", "Forward"], ["front", "To front"]].map(([a, l]) => (
                         <button key={a} type="button" onClick={() => onLayer(widget.instanceId, a)} className={layerBtnCls}>{l}</button>
                       ))}
                     </span>
-                  </Row>
+                  </StackedRow>
                   <SliderRow label="Rotate" value={settings.boxRotate} fallback={0}
                     min={-180} max={180} step={1} unit="°"
                     onChange={(v) => set({ boxRotate: v })} onClear={() => set({ boxRotate: "" })} />
