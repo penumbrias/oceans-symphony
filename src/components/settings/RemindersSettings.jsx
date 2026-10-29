@@ -23,6 +23,7 @@ import {
   writePlanRemindersDefaultOffset,
 } from "@/lib/planReminderScheduler";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { isSurfaceEnabled, SURFACE_IN_APP_BANNER, getEnabledSurfaces } from "@/lib/upcomingPlansSurfaces";
 
 const NATIVE_MODE = isNative();
 
@@ -135,6 +136,29 @@ export default function RemindersSettings() {
             setEndCheckinOn(v);
             writeActiveEndReminderEnabled(v);
             toast(v ? "End-of-plan check-in enabled" : "End-of-plan check-in disabled");
+          }}
+        />
+      </div>
+
+      {/* The soft in-app banner near a plan's reminder window (v0.319.0:
+          moved here from the retired Appearance → Upcoming plans surfaces
+          list; same stored flag). */}
+      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+        <div>
+          <p className="font-semibold text-sm">Soft in-app banner before a plan</p>
+          <p className="text-xs text-muted-foreground">A quiet banner at the top while a plan's reminder window is open</p>
+        </div>
+        <Switch
+          checked={isSurfaceEnabled(settings, SURFACE_IN_APP_BANNER)}
+          onCheckedChange={async (v) => {
+            const next = getEnabledSurfaces(settings);
+            if (v) next.add(SURFACE_IN_APP_BANNER); else next.delete(SURFACE_IN_APP_BANNER);
+            try {
+              const data = { upcoming_plans_surfaces: Array.from(next) };
+              if (settings?.id) await base44.entities.SystemSettings.update(settings.id, data);
+              else await base44.entities.SystemSettings.create(data);
+              queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+            } catch (e) { toast.error(e?.message || "Couldn't update"); }
           }}
         />
       </div>

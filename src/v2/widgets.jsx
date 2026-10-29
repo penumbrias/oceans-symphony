@@ -84,6 +84,8 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
+import RecurringTasksDue from "@/components/tasks/RecurringTasksDue";
+import { WINDOW_OPTIONS, DEFAULT_WINDOW_ID, DEFAULT_COUNT, COUNT_MIN, COUNT_MAX } from "@/lib/upcomingPlansLimit";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -536,19 +538,33 @@ function TodayAddSheet({ open, onClose }) {
 // plans, or the classic Coming up panel (v0.280.1).
 function TodayViews({ settings }) {
   const show = settings?.show;
+  const recurring = settings?.recurring !== false;
   if (show === "todos") return <TasksWidget settings={settings} />;
   if (show === "plans") return <PlansWidget settings={settings} />;
   if (show === "upcoming") {
+    // The count / time window is this widget's own option (Content tab) —
+    // it used to live under Settings → Appearance → Upcoming plans. Until
+    // the person sets it there, the value saved through the panel's own
+    // cog still applies (nothing they chose is silently dropped).
+    let limitConfig;
+    if (settings?.upcomingMode) {
+      const mode = settings.upcomingMode === "window" ? "window" : "count";
+      const windowId = WINDOW_OPTIONS.some((w) => w.id === settings?.upcomingWindow) ? settings.upcomingWindow : DEFAULT_WINDOW_ID;
+      const count = Math.min(COUNT_MAX, Math.max(COUNT_MIN, parseInt(settings?.upcomingCount, 10) || DEFAULT_COUNT));
+      limitConfig = mode === "window" ? { mode, windowId } : { mode, count };
+    }
     return (
       <Section>
-        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"} />
+        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"}
+          limitConfig={limitConfig}
+          showRecurring={recurring} />
       </Section>
     );
   }
-  return <TodayWidget />;
+  return <TodayWidget recurring={recurring} />;
 }
 
-function TodayWidget() {
+function TodayWidget({ recurring = true }) {
   const tr = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -664,6 +680,9 @@ function TodayWidget() {
           <TextAction onClick={() => navigate("/planner")}>{tr("widget.today.review")}</TextAction>
         </Muted>
       )}
+      {/* Today's recurring tasks — every kind (once, target, tally, steps),
+          each with its own entry, so the day's plan is the whole day. */}
+      {recurring && <RecurringTasksDue />}
     </Section>
   );
 }
@@ -2947,6 +2966,16 @@ export const V2_WIDGETS = {
         showIf: (st) => st?.show === "plans" },
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8,
         showIf: (st) => st?.show === "plans" || st?.show === "todos" },
+      { key: "upcomingMode", type: "select", label: "Show plans", default: "count",
+        options: [{ value: "count", label: "The next few" }, { value: "window", label: "Inside a time window" }],
+        showIf: (st) => st?.show === "upcoming" },
+      { key: "upcomingCount", type: "number", label: "How many", min: COUNT_MIN, max: COUNT_MAX, default: DEFAULT_COUNT,
+        showIf: (st) => st?.show === "upcoming" && (st?.upcomingMode || "count") === "count" },
+      { key: "upcomingWindow", type: "select", label: "Time window", default: DEFAULT_WINDOW_ID,
+        options: WINDOW_OPTIONS.map((w) => ({ value: w.id, label: w.label })),
+        showIf: (st) => st?.show === "upcoming" && st?.upcomingMode === "window" },
+      { key: "recurring", type: "toggle", label: "Recurring tasks due today", default: true,
+        showIf: (st) => !st?.show || st?.show === "today" || st?.show === "upcoming" },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },

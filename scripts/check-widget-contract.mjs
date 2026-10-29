@@ -34,6 +34,7 @@ const WIDGET_FILES = [
   "src/v2/gardenContactWidgets.jsx",
   "src/v2/gardenLocationWidgets.jsx",
   "src/v2/primitives.jsx",
+  "src/components/tasks/RecurringTasksDue.jsx",
   "src/v2/notices.jsx",
   "src/lib/widgetRegistry.jsx",
 ];

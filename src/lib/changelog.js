@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "The Today and Coming up widgets now list today's recurring tasks too, every kind: tick a once task, tap +1 on a target or tally task, open a steps task's checklist." },
+      { type: "improve", text: "The \"Upcoming plans surfaces\" list is gone: place the Coming up widget where you want it, and set how many plans or which time window in the widget's own options. The soft in-app banner switch moved to Notifications → Reminders. (The old per-surface switches no longer apply, so plans show in the fronting panel again.)" },
       { type: "feature", text: "Settings → Appearance now opens Display options, the one editor for fonts, sizes, bars, colours, themes and presets. The light/dark chip is gone: every theme is a light row and a dark row under Styles." },
       { type: "improve", text: "Display options took in what only Appearance had: the extra font pack and your uploaded fonts (Text), the apps button and the classic top bar, bottom bar and sidebar (Bars), and every part a preset can keep (Styles)." },
       { type: "improve", text: "Accessibility links out to Display options for text size, tap targets and bar height instead of keeping its own copy." },
