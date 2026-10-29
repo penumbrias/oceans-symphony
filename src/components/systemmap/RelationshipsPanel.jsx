@@ -13,7 +13,7 @@ import RelationshipTypesManager from "@/components/settings/RelationshipTypesMan
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { isLogCommandError } from "@/lib/authoredText";
+import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { saveRelationship, deleteRelationship, RELATIONSHIPS_KEY } from "@/lib/alterRelationships";
 import { TRASH_HINT } from "@/lib/trashSettings";
 
