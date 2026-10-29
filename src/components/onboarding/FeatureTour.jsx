@@ -952,6 +952,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `Display options → Styles`,
     }),
     s("settings", {
+      emoji: "♿", title: "Sizes for low vision",
+      body: `Accessibility keeps low-vision mode, reduce motion and high contrast. Text size, tap targets and bar height are in Display options — this button opens it.`,
+      route: "/settings", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button, inside Accessibility`,
+    }),
+    s("settings", {
       emoji: "🧩", title: `${t.Alter} setup`,
       body: `Custom fields for every profile, relationship types, archived ${t.alters} and contacts, a duplicate finder, ${t.alter} order, list labels, and profile layouts and songs.`,
       route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alter} setup section`,

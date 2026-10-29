@@ -238,6 +238,19 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
   );
 }
 
+// The last row of every tab (docs/inspector-design-guide.md): "Reset this
+// tab". One component, every inspector.
+export function ResetRow({ onReset, label = "Reset this tab" }) {
+  return (
+    <div className="pt-4 pb-2">
+      <button type="button" onClick={onReset}
+        className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
+        {label}
+      </button>
+    </div>
+  );
+}
+
 // A count: − n +, with the number typeable.
 export function StepRow({ label, hint, value, min = 0, max = 99, step = 1, onChange }) {
   const n = Number.isFinite(Number(value)) && isSet(value) ? Number(value) : min;

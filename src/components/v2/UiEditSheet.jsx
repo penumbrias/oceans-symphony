@@ -31,7 +31,7 @@ import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFac
 import { CORNER_MODES } from "@/lib/useCornerMode";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -181,18 +181,6 @@ function StyleFlagButtons({ def, value = [], onChange }) {
 // chrome on screen reads (barsModel's rule).
 const NAV_STEPS = ["compact", "default", "tall", "extra-tall"];
 
-// The last row of every tab (docs/inspector-design-guide.md).
-function ResetTabRow({ label, onReset }) {
-  return (
-    <div className="pt-4 pb-2">
-      <button type="button" onClick={onReset}
-        className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
-        {label}
-      </button>
-    </div>
-  );
-}
-
 // Get / remove the optional pack of 14 extra decorative fonts — the one
 // place it lives now (it used to sit only under Settings → Appearance).
 function FontPackRow() {
@@ -241,7 +229,7 @@ function UploadedFontsGroup({ a11y, refresh }) {
       if (a11y.headingFont === family) setAccessibilityHeadingFont("default");
       refresh();
       toast.success(tr("editSheet.fontDeleted"));
-    } catch (e) { toast.error(e?.message || "Couldn't delete that font"); }
+    } catch (e) { toast.error(e?.message || tr("editSheet.fontDeleteFailed")); }
   };
   return (
     <Group title={tr("editSheet.yourFonts")}>
@@ -335,7 +323,7 @@ function TextTab({ v2 }) {
         </div>
       )}
       <UploadedFontsGroup a11y={a11y} refresh={refresh} />
-      <ResetTabRow label={tr("editSheet.resetTab")} onReset={async () => {
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetTextBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
         setAccessibilityFontSize("default");
@@ -358,17 +346,12 @@ function ShapeTab({ v2 }) {
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
   // Under the classic chrome corners are a mode (SystemSettings.corner_mode:
-  // its "sharp" rule zeroes every corner). The one slider drives both: 0 px
-  // is sharp, anything else rounded, and the token is kept for the new UI.
-  const cornerSharp = !v2Chrome && settingsRow?.corner_mode === CORNER_MODES.SHARP;
-  const radiusDef = tokenById.radius;
-  const radiusShown = cornerSharp ? 0 : (v2.uiV2.tokens.radius ?? radiusDef.default);
-  const writeRadius = async (val) => {
-    const n = Math.round(val);
-    v2.setToken("radius", n);
-    if (v2Chrome || !settingsRow?.id) return;
-    const mode = n === 0 ? CORNER_MODES.SHARP : CORNER_MODES.ROUNDED;
-    if ((settingsRow.corner_mode || CORNER_MODES.ROUNDED) === mode) return;
+  // "sharp" zeroes every corner; the radius token draws nothing there), so
+  // the row is the mode's own choice. The new UI gets the slider. The one
+  // never writes the other's key.
+  const cornerMode = settingsRow?.corner_mode === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : CORNER_MODES.ROUNDED;
+  const writeCornerMode = async (mode) => {
+    if (!settingsRow?.id || mode === cornerMode) return;
     await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: mode });
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
@@ -403,23 +386,26 @@ function ShapeTab({ v2 }) {
         )}
       </Group>
       <Group title={tr("editSheet.groupEdges")}>
-        {v2Chrome && <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />}
-        <SliderRow label={tr("editSheet.radius")} hint={v2Chrome ? null : tr("editSheet.radiusClassicHint")}
-          value={radiusShown} fallback={radiusDef.default}
-          min={radiusDef.min} max={radiusDef.max} step={radiusDef.step} unit={radiusDef.unit || ""}
-          onChange={writeRadius} />
+        {v2Chrome ? (
+          <>
+            <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
+            <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
+          </>
+        ) : (
+          <ChoiceRow label={tr("editSheet.corners")} value={cornerMode} onChange={writeCornerMode}
+            options={[{ value: CORNER_MODES.ROUNDED, label: tr("editSheet.cornersRounded") }, { value: CORNER_MODES.SHARP, label: tr("editSheet.cornersSharp") }]} />
+        )}
       </Group>
-      <ResetTabRow label={tr("editSheet.resetTab")} onReset={async () => {
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetShapeBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
         setAccessibilityLargeTouch("default");
         const next = { ...(v2.uiV2.tokens || {}) };
-        for (const id of ["contentW", "alignX", "alignY", "density", "borderW", "radius"]) delete next[id];
+        // Only this chrome's own keys: the new UI's tokens stay as they
+        // are for a classic user, and the classic mode for a v2 user.
+        for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
         await v2.write({ tokens: next });
-        if (!v2Chrome && settingsRow?.id && settingsRow.corner_mode === CORNER_MODES.SHARP) {
-          await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: CORNER_MODES.ROUNDED });
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
-        }
+        if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
         refresh();
       }} />
     </div>
@@ -1000,6 +986,40 @@ function BarsTab({ v2, alignX }) {
           </BarPart>
         </div>
       )}
+      {/* Reset the bar on screen: its look, show flag, size and contents,
+          back to the app's defaults. Confirms first. */}
+      <ResetRow label={tr("editSheet.resetBar")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetBarBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        const ui = settingsRow?.ui_v2 || {};
+        const looks = { ...(ui.barLooks || {}) };
+        const tokens = { ...(ui.tokens || {}) };
+        const bars = { ...(ui.bars || {}) };
+        const patch = {};
+        if (shownBar === "top") {
+          delete looks.top; delete tokens.statusH;
+          patch.topBar = null; patch.appsView = "grid"; patch.appsIcon = "";
+          await writeSettings({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navConfig, topBar: DEFAULT_CONFIG.topBar } }) });
+        } else if (shownBar === "tabs") {
+          delete looks.tabs; delete tokens.stripH; delete bars.tabs;
+          if (!v2Chrome) { setAccessibilityNavHeight("default"); refreshA11y(); }
+          await writeSettings({ navigation_config: { ...navConfig, bottomBar: DEFAULT_CONFIG.bottomBar } });
+        } else if (shownBar === "actions") {
+          delete looks.actions; delete looks.active; delete bars.actions;
+          for (const id of ["cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble"]) delete tokens[id];
+          patch.commandKeys = null;
+        } else if (shownBar === "alters") {
+          delete looks.alters;
+          await writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }));
+        } else if (shownBar === "rail") {
+          delete looks.rail; delete bars.rail; delete tokens.railW; delete tokens.railSide; delete tokens.railActions;
+        } else if (shownBar === "sidebar") {
+          await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
+        }
+        const next = { ...patch, barLooks: looks, tokens, bars };
+        for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+        await v2.write(next);
+      }} />
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
         current={iconFor ? (v2.uiV2.icons?.[iconFor.kind]?.[iconFor.id]?.iconName || "") : ""}
@@ -1016,10 +1036,10 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
-function ColourTab({ children, v2 }) {
+function ColourTab({ children, v2, onResetBackground = null }) {
   const tr = useT();
   const {
-    themeMode, selectedTheme, customColors, updateCustomColorsFull,
+    themeMode, selectedTheme, customColors, updateCustomColorsFull, clearCustomColors,
     allPresets, userCustomPresets,
   } = useTheme();
   const isDark = themeMode === "dark" ||
@@ -1098,6 +1118,13 @@ function ColourTab({ children, v2 }) {
         })()}
       </Group>
       {children}
+      <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
+        const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetColourBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
+        if (!ok) return;
+        clearCustomColors();
+        if (v2) v2.setToken("accent", "");
+        onResetBackground?.();
+      }} />
     </div>
   );
 }
@@ -1825,18 +1852,14 @@ function StylesTab({ v2 }) {
             {tr("editSheet.presetSave")}
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {PART_TOGGLES.map(([id, label]) => (
-            <label key={id} className="flex items-center gap-1.5 text-xs cursor-pointer">
-              <input type="checkbox" checked={!!parts[id]} onChange={(e) => setParts((p) => ({ ...p, [id]: e.target.checked }))}
-                className="w-3.5 h-3.5 rounded accent-primary" /> {label}
-            </label>
-          ))}
-          <div className="flex-1 min-w-[120px]">
-            <SearchableSelect value={linkAlterId} onChange={(id) => setLinkAlterId(id || "")}
-              options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
-          </div>
-        </div>
+        <StackedRow label={tr("editSheet.presetParts")}>
+          <Chips multiple label={tr("editSheet.presetParts")}
+            options={PART_TOGGLES.map(([id, label]) => ({ value: id, label }))}
+            value={PART_TOGGLES.map(([id]) => id).filter((id) => !!parts[id])}
+            onChange={(ids) => setParts(Object.fromEntries(PART_TOGGLES.map(([id]) => [id, ids.includes(id)])))} />
+        </StackedRow>
+        <SearchableSelect value={linkAlterId} onChange={(id) => setLinkAlterId(id || "")}
+          options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
       </div>
 
       {/* ── Setup packs — whole-setup share/import (the "texture pack"
@@ -2034,7 +2057,7 @@ export default function UiEditSheet() {
             {tab === "shape" && <ShapeTab v2={v2} />}
             {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
             {tab === "colour" && (
-              <ColourTab v2={v2}>
+              <ColourTab v2={v2} onResetBackground={() => writeBackground(null)}>
                 <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
               </ColourTab>
             )}

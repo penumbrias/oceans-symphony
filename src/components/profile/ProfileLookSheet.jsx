@@ -12,6 +12,7 @@
 // "Profile style" and the forms' PageLookRow.
 
 import React, { useEffect, useRef, useState } from "react";
+import { openDisplayOptions } from "@/components/settings/AppearanceSection";
 import { ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -55,7 +56,7 @@ function ProfileLookSheet({ open, onClose, subject }) {
 
   const openAppOptions = () => {
     onClose();
-    window.dispatchEvent(new CustomEvent("os-open-display-options"));
+    openDisplayOptions();
   };
 
   return (

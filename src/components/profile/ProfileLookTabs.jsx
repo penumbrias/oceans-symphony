@@ -20,7 +20,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, FileText, Type, Palette, Star as StarIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import FontUploadButton from "@/components/shared/FontUploadButton";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -135,17 +135,6 @@ function FontRow({ label, value, onChange }) {
         <FontUploadButton onUploaded={(family) => onChange(family)} />
       </span>
     </Row>
-  );
-}
-
-function ResetRow({ onReset }) {
-  return (
-    <div className="pt-4 pb-2">
-      <button type="button" onClick={onReset}
-        className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
-        Reset this tab
-      </button>
-    </div>
   );
 }
 
