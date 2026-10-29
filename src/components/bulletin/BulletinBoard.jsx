@@ -9,7 +9,6 @@ import BulletinComposer from "./BulletinComposer";
 import QuickTaskComposer from "./QuickTaskComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
-import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { getBulletinBatchSize } from "@/lib/bulletinLimit";
 
 export default function BulletinBoard({
@@ -229,8 +228,6 @@ export default function BulletinBoard({
           }}
         />
       }
-
-      {!boardOnly && <UpcomingPlans placement="bulletin_top" />}
 
       {/* Pinned — always on top, never reordered. Includes both pinned
           bulletins/tasks AND standalone pinned polls (Polls page polls

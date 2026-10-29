@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
-import { isSurfaceEnabled } from "@/lib/upcomingPlansSurfaces";
+import RecurringTasksDue, { useRecurringTasksDue } from "@/components/tasks/RecurringTasksDue";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import {
   getActiveLimit,
@@ -26,39 +26,36 @@ import {
   COUNT_MIN,
   COUNT_MAX,
 } from "@/lib/upcomingPlansLimit";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 /**
- * Shared widget: a compact list of upcoming planned activities, surfaced
- * on whichever places the user has enabled in Settings → Appearance →
- * Upcoming plans visibility.
+ * Shared widget: a compact list of upcoming planned activities. Placing
+ * it (on a board, in the per-alter panel) IS the opt-in — the old
+ * Settings → Appearance surfaces list is gone (v0.319.0).
  *
  * Props:
- *   placement   — surface id (must match an entry in upcomingPlansSurfaces).
- *                 If the user hasn't enabled this placement, renders null.
+ *   placement   — which copy this is; each keeps its own count / window
+ *                 (upcomingPlansLimit.js scope) behind its inline cog.
  *   limit       — max items to show. Pass an explicit number to force a
- *                 cap (e.g. the alter panel uses 3 to stay compact); leave
- *                 undefined to honour the user's Settings → Upcoming Plans
- *                 Visibility "limit" preference (count or time window).
+ *                 cap (e.g. the alter panel uses 3 to stay compact).
+ *   limitConfig — { mode: "count", count } or { mode: "window", windowId }
+ *                 from the hosting widget's own options; when given, the
+ *                 inline cog is hidden (the widget's Content tab owns it).
  *   filterByAlterId — optional; when set, only plans assigned to this alter
  *                     show. Used by the per-alter panel.
+ *   showRecurring — also list today's recurring tasks (every kind, with
+ *                   entry) under the plans. Off for the per-alter panel.
  *   title       — heading text. Default "📅 Coming up".
  */
-export default function UpcomingPlans({ placement, limit, filterByAlterId = null, title = "📅 Coming up" }) {
+export default function UpcomingPlans({ placement, limit, limitConfig: limitOverride = null, filterByAlterId = null, showRecurring = true, title = "📅 Coming up" }) {
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
 
   // Surfaces that pass an explicit numeric `limit` (e.g. the alter panel
-  // forces 3) are ignoring the user's preference, so the inline cog
-  // shouldn't appear there — it'd let the user change something they
-  // can't see take effect.
-  const allowInlineSettings = typeof limit !== "number";
-
-  const { data: settingsList = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
-  });
-  const settings = pickPrimarySystemSettings(settingsList) || null;
+  // forces 3) or get their limit from the hosting widget's options are
+  // ignoring the inline preference, so the cog shouldn't appear there.
+  const allowInlineSettings = typeof limit !== "number" && !limitOverride;
+  const recurringOn = showRecurring && !filterByAlterId && typeof limit !== "number";
+  const { rows: recurringRows } = useRecurringTasksDue();
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],
@@ -76,9 +73,9 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   // dashboard panels can show different things (e.g. "today" up top, "this
   // week" lower down). Falls back to the global Settings default until the
   // panel is individually configured via its cog.
-  const [limitConfig, setLimitConfig] = useState(() => getActiveLimit(placement));
+  const [storedLimit, setStoredLimit] = useState(() => getActiveLimit(placement));
   useEffect(() => {
-    const reread = () => setLimitConfig(getActiveLimit(placement));
+    const reread = () => setStoredLimit(getActiveLimit(placement));
     reread();
     window.addEventListener("storage", reread);
     window.addEventListener("upcoming-plans-limit-changed", reread);
@@ -87,14 +84,12 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
       window.removeEventListener("upcoming-plans-limit-changed", reread);
     };
   }, [placement]);
-
-  // Per-alter panel ignores the surface gate (it's the contextual default
-  // and the per-alter panel itself controls when it renders).
-  // "widget" joins alter_panel in bypassing the surface toggles: putting
-  // the widget on a board IS the opt-in, so a Settings switch gating it
-  // would just make a placed widget mysteriously render nothing.
-  if (placement !== "alter_panel" && placement !== "widget"
-      && !isSurfaceEnabled(settings, placement)) return null;
+  // The hosting widget's own options win over the stored preference.
+  const limitConfig = limitOverride
+    ? (limitOverride.mode === MODE_WINDOW
+      ? (() => { const opt = WINDOW_OPTIONS.find((w) => w.id === limitOverride.windowId) || WINDOW_OPTIONS[3]; return { mode: MODE_WINDOW, windowMs: opt.ms, windowId: opt.id, windowLabel: opt.label }; })()
+      : { mode: MODE_COUNT, count: Math.min(COUNT_MAX, Math.max(COUNT_MIN, Number(limitOverride.count) || 5)) })
+    : storedLimit;
 
   // Filter for assigned alter if needed
   const visibleActivities = filterByAlterId
@@ -136,7 +131,8 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
     const ts = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     return ts > now;
   }).length;
-  if (upcomingCount === 0) return null;
+  const hasRecurring = recurringOn && recurringRows.length > 0;
+  if (upcomingCount === 0 && !hasRecurring) return null;
 
   return (
     <div className="mb-3">
@@ -166,13 +162,16 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
           >See all</button>
         </div>
       </div>
-      <PlannedActivitiesList
-        activities={prefilteredActivities}
-        alters={alters}
-        compact
-        limit={effectiveLimit}
-        onClick={(activity) => navigate(activity?.id ? `/planner?activityId=${activity.id}` : "/planner")}
-      />
+      {upcomingCount > 0 && (
+        <PlannedActivitiesList
+          activities={prefilteredActivities}
+          alters={alters}
+          compact
+          limit={effectiveLimit}
+          onClick={(activity) => navigate(activity?.id ? `/planner?activityId=${activity.id}` : "/planner")}
+        />
+      )}
+      {hasRecurring && <div className="px-1"><RecurringTasksDue /></div>}
       {allowInlineSettings && (
         <UpcomingPlansSettingsDialog
           open={showSettings}

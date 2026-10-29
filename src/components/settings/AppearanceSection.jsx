@@ -1,15 +1,12 @@
 // Settings → Appearance (v0.318.0). The look of the app is edited in ONE
 // place — Display options, the inspector the page menu opens — so this
 // section is the door to it plus the few mode switches that are not a
-// look: the New UI opt-in, which home greets you, the language, and (until
-// the plans widgets carry it) where upcoming plans appear.
+// look: the New UI opt-in, which home greets you, and the language.
 import React from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { SubSection } from "@/components/settings/SettingsUI";
 import { NewUiToggle, HomeOpensOnRow } from "@/components/settings/DashboardLayoutSettings";
 import { V2LanguageSection } from "@/components/settings/V2DisplaySettings";
-import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 export function openDisplayOptions() {
@@ -45,9 +42,6 @@ export default function AppearanceSection() {
         </div>
       )}
       <V2LanguageSection />
-      <SubSection title="Upcoming plans surfaces" defaultOpen={false}>
-        <UpcomingPlansSurfacesSection />
-      </SubSection>
     </div>
   );
 }
