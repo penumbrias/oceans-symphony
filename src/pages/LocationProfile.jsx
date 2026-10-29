@@ -33,6 +33,7 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import PageLookRow from "@/components/profile/PageLookRow";
 import { useRegisterLookSubject, withFreshLook } from "@/lib/lookSubject";
+import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -74,9 +75,12 @@ function LocationProfileInner() {
   useEffect(() => { if (location) setOnNewLayout(locationOnNew); }, [location?.id, locationOnNew]);
   // Display options offers this location's look while the page is open.
   useRegisterLookSubject("location", location, location?.name);
+  // What the page draws: the location's own look over the location
+  // defaults (profileLookDefaults.js); the form keeps the raw record.
+  const lookCf = withLookDefaults(location?.custom_fields, useLookDefaults("location"));
 
   // Recolour the app-header wave to this location's wave colour while open.
-  const waveRaw = location?.custom_fields?.["_theme_wave"];
+  const waveRaw = lookCf["_theme_wave"];
   useEffect(() => {
     if (!waveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
     let color = waveRaw;
@@ -202,7 +206,7 @@ function LocationProfileInner() {
 
   // ---------- VIEW MODE: the board ----------
   if (!editMode) {
-    const cf = location.custom_fields || {};
+    const cf = lookCf;
     const ps = readProfileBg(cf);
     const themeCss = profileThemeCss("os-pf", cf);
     const surfaceCss = profileSurfaceCss("os-pf", cf);

@@ -33,6 +33,7 @@ import { base44 } from "@/api/base44Client";
 import { infoEditorField } from "@/components/v2/profileInfoEditors";
 import { boxStyle, useWidgetChrome, valignBoxStyle } from "@/v2/primitives";
 import { useBoardSubject, widgetFitsSubject } from "@/lib/boardSubject";
+import { useRecordWithLookDefaults } from "@/lib/profileLookDefaults";
 import {
   GroupHeaderSection, GroupBioSection, GroupNestedSection, GroupMembersSection,
   GroupBoardSection, GroupNotesSection, GroupJournalSection,
@@ -94,6 +95,9 @@ const RECORD_QUERY = {
   },
 };
 
+// The record carries the type's look defaults (profileLookDefaults.js)
+// on its custom_fields for DRAWING — a widget that writes custom_fields
+// must patch keys (patchAlterCustomFields), never write this map back.
 export function useSubjectRecord(type) {
   const subject = useBoardSubject();
   const id = subject?.type === type ? subject.id : null;
@@ -104,8 +108,8 @@ export function useSubjectRecord(type) {
     enabled: !!id,
     ...(q.pick ? {} : { staleTime: 0 }),
   });
-  if (!id) return null;
-  return q.pick ? q.pick(data, id) : data;
+  const raw = !id ? null : (q.pick ? q.pick(data, id) : data);
+  return useRecordWithLookDefaults(raw, type);
 }
 
 export const useSubjectAlter = () => useSubjectRecord("alter");

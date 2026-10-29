@@ -2,7 +2,7 @@
 // display options.
 //
 // A profile page (alter, group, inner-world location) registers itself
-// here while it is on screen; Profile display options (ProfileLookSheet,
+// here while it is on screen; Profile style (ProfileLookSheet,
 // mounted once by AppLayout outside every page) reads it and edits that
 // profile's look. The profile's look is still
 // the PS.* style keys on the record's custom_fields (profileStyle.js) —
@@ -44,8 +44,8 @@ export function useRegisterLookSubject(type, record, label) {
   }, [type, id, label, customFields]);
 }
 
-// Opens Profile display options (ProfileLookSheet) for the profile on
-// screen — the cog menu's entry and the forms' PageLookRow.
+// Opens Profile style (ProfileLookSheet) for the profile on screen — the
+// Edit page bar's button and the forms' PageLookRow.
 export function openProfileLook() {
   window.dispatchEvent(new CustomEvent("os-open-profile-look"));
 }
@@ -81,16 +81,25 @@ export function withFreshLook(formCf, freshCf) {
 }
 
 const ENTITY = { alter: "Alter", group: "Group", location: "InnerWorldLocation" };
+// The subject id that means "the defaults for new/empty profiles of this
+// type" (profileLookDefaults.js) rather than one record.
+export const LOOK_DEFAULTS_ID = "__look_defaults__";
+export const isLookDefaultsSubject = (subject) => !!subject && subject.id === LOOK_DEFAULTS_ID;
 export const LOOK_QUERY_KEYS = {
-  alter: (id) => [["alters"], ["alter", id]],
-  group: () => [["groups"]],
-  location: () => [["innerWorldLocations"]],
+  alter: (id) => (id === LOOK_DEFAULTS_ID ? [["systemSettings"]] : [["alters"], ["alter", id]]),
+  group: (id) => (id === LOOK_DEFAULTS_ID ? [["systemSettings"]] : [["groups"]]),
+  location: (id) => (id === LOOK_DEFAULTS_ID ? [["systemSettings"]] : [["innerWorldLocations"]]),
 };
 
 // Writes look keys onto the record: fresh read, merged key by key, a value
-// of undefined removes the key. Alters go through alterEntry's own path.
+// of undefined removes the key. Alters go through alterEntry's own path;
+// the defaults subject writes SystemSettings.profile_look_defaults.
 export async function patchProfileLook({ type, id }, changes) {
   if (!id || !changes) return null;
+  if (id === LOOK_DEFAULTS_ID) {
+    const { patchLookDefaults } = await import("@/lib/profileLookDefaults");
+    return patchLookDefaults(type, changes);
+  }
   if (type === "alter") return patchAlterCustomFields(id, changes);
   const entity = ENTITY[type];
   if (!entity) throw new Error(`No look for ${type}`);
