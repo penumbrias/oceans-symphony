@@ -66,6 +66,7 @@ import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import { GARDEN_ALTER_WIDGETS } from "@/v2/gardenProfileWidgets";
 import { GARDEN_CONNECTION_WIDGETS } from "@/v2/gardenConnectionWidgets";
 import { GARDEN_GROUP_WIDGETS } from "@/v2/gardenGroupWidgets";
+import { GARDEN_CONTACT_WIDGETS } from "@/v2/gardenContactWidgets";
 
 // The record whose page this is, by owner type. Same query keys the pages
 // themselves use, so a widget and the page chrome never disagree.
@@ -249,6 +250,7 @@ export const CONTACT_PROFILE_WIDGETS = {
   profile_boundaries: CW("Boundaries & rules", "Boundaries and {{system}} rules — the Boundaries tab.", Shield, csection(ContactBoundariesSection, { name: "Boundaries & rules" })),
   profile_notes: CW("Notes", "Notes about this person — the Notes tab.", FileText, csection(ContactNotesSection, { name: "Notes" }), TAB),
   profile_options: CW("Options", "Pin, archive and delete — the Options tab.", SlidersHorizontal, csection(ContactOptionsSection, { name: "Options" })),
+  ...GARDEN_CONTACT_WIDGETS,
 };
 
 const LW = widgetOf("location");

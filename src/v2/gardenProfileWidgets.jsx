@@ -493,7 +493,10 @@ export function NotesList({ source, ownerId, settings, mode = "normal" }) {
     await source.remove(note.id);
     qc.invalidateQueries({ queryKey: source.key(ownerId) });
   };
-  const when = (n) => (n.created_date ? new Date(n.created_date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
+  // A source can date its notes by another field (contact notes keep a
+  // `timestamp` the person can change).
+  const dateOf = source.dateOf || ((n) => n.created_date);
+  const when = (n) => (dateOf(n) ? new Date(dateOf(n)).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
   const iconBtn = "w-11 h-11 flex items-center justify-center rounded-lg opacity-70 hover:opacity-100";
   return (
     <GardenBox empty={!notes.length && mode !== "expanded"} name="Notes" data-notes-widget="">

@@ -12,7 +12,7 @@ import {
   seedProfileBoard, pickProfileBoardRows, profilePageId, tabOfPageId, layoutForCopy, DEFAULT_OWNER_ID, isDefaultOwnerId,
   ALTER_PROFILE_PAGES, PROFILE_PAGES, PROFILE_OWNER_TYPES, GARDEN_ALTER_PROFILE_PAGES,
   NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, NEW_LAYOUT_SUFFIX, usesNewProfile, layoutSuffixFor, layoutOwnerIds,
-  NEW_GROUP_PROFILE_PAGES, GROUP_PROFILE_PAGES, hasNewProfile,
+  NEW_GROUP_PROFILE_PAGES, GROUP_PROFILE_PAGES, hasNewProfile, NEW_CONTACT_PROFILE_PAGES, CONTACT_PROFILE_PAGES,
 } from "../src/lib/profileBoard.js";
 import { planFromBlocks, picturesOfParts, entryNamesFor, widgetsForParts, convertBoard } from "../src/lib/profileConvert.js";
 import { mergeForEntity, BOARD_FIELDS, stampCreate, stampUpdate } from "../src/lib/syncMerge.js";
@@ -245,7 +245,7 @@ test("the new profile (v0.305.0) seeds seven pages, with its own layout row id",
   assert.equal(notes.settings.count, 20);
   assert.equal(layoutSuffixFor(rec), NEW_LAYOUT_SUFFIX);
   assert.equal(layoutSuffixFor({ id: "a1" }), "");
-  assert.equal(layoutSuffixFor(rec, "contact"), "");
+  assert.equal(layoutSuffixFor(rec, "location"), "");
   assert.deepEqual(layoutOwnerIds("a1"), ["a1", "a1::v2"]);
   // Classic and garden seeds are unchanged.
   assert.equal(seedProfileBoard({ id: "a1" }, "alter").pages.length, ALTER_PROFILE_PAGES.length);
@@ -269,8 +269,21 @@ test("new group profile: own pages, own row, every old tab still a page", () => 
   const tabs = new Set(NEW_GROUP_PROFILE_PAGES.map((p) => p.tab));
   for (const p of GROUP_PROFILE_PAGES) assert.ok(tabs.has(p.tab), `no page for ?tab=${p.tab}`);
   assert.equal(hasNewProfile("group"), true);
-  assert.equal(hasNewProfile("contact"), false);
-  assert.equal(layoutSuffixFor({ profile_layout: "v2" }, "contact"), "", "no new contact profile yet");
+  assert.equal(hasNewProfile("location"), false);
+  assert.equal(layoutSuffixFor({ profile_layout: "v2" }, "location"), "", "no new location profile yet");
+});
+
+test("new contact profile: own pages, every old tab still a page", () => {
+  const rec = { id: "c1", profile_layout: "v2" };
+  const b = seedProfileBoard(rec, "contact");
+  assert.deepEqual(b.pages.map((p) => p.id), NEW_CONTACT_PROFILE_PAGES.map((p) => profilePageId(p.tab)));
+  assert.equal(layoutSuffixFor(rec, "contact"), NEW_LAYOUT_SUFFIX);
+  const tabs = new Set(NEW_CONTACT_PROFILE_PAGES.map((p) => p.tab));
+  for (const p of CONTACT_PROFILE_PAGES) assert.ok(tabs.has(p.tab), `no page for ?tab=${p.tab}`);
+  const ids = b.pages.flatMap((p) => p.widgets.map((w) => w.instanceId));
+  assert.equal(new Set(ids).size, ids.length, "instance ids unique");
+  const boundaries = b.pages.find((p) => p.id === profilePageId("boundaries")).widgets[0];
+  assert.deepEqual(boundaries.settings.entries, ["boundaries", "system_rules"]);
 });
 
 console.log(`\n${passed} checks passed`);

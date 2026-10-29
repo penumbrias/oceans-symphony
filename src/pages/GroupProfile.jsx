@@ -8,7 +8,7 @@ import PageBackground from "@/components/profile/PageBackground";
 import { GroupAvatar } from "@/components/groups/GroupSections";
 import { GROUP_PROFILE_PAGES, NEW_GROUP_PROFILE_PAGES, profilePageId, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
-import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
+import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText,
-  Undo2, Redo2, ShieldCheck, BookOpen, LayoutGrid, BarChart3, Sparkles,
+  Undo2, Redo2, ShieldCheck, BookOpen, LayoutGrid, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -60,38 +60,6 @@ const PAGE_ICONS = {
   [profilePageId("journal")]: BookOpen,
   [profilePageId("fronting")]: BarChart3,
 };
-
-// Old ↔ new profile (v0.307.0), on the pencil form. Only a flag on the
-// group moves; each layout keeps its own row, so both ways are lossless.
-function GroupLayoutSwitch({ group }) {
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const onNew = usesNewProfile(group);
-  const run = async () => {
-    setBusy(true);
-    try {
-      if (onNew) await revertRecordToOldProfile("group", group.id);
-      else await switchRecordToNewProfile("group", group.id);
-      qc.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(onNew ? "Back on the old profile — the new one is kept for later" : "Now showing the new profile");
-    } catch (e) { toast.error(e?.message || "That didn't save"); }
-    finally { setBusy(false); }
-  };
-  return (
-    <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-2" data-group-layout-switch="">
-      <p className="text-sm font-medium">Profile layout</p>
-      <p className="text-xs text-muted-foreground">
-        {onNew
-          ? "This group uses the new profile. Going back brings the old layout back exactly as it was."
-          : "The new profile is made of widgets built for groups. This page's layout is kept, so you can come back to it."}
-      </p>
-      <Button variant="outline" size="sm" onClick={run} disabled={busy} className="min-h-[44px] gap-1.5">
-        {onNew ? <Undo2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-        {onNew ? "Revert to the old profile" : "Switch to the new profile"}
-      </Button>
-    </div>
-  );
-}
 
 function GroupProfileInner() {
   const { id: groupId } = useParams();
@@ -458,7 +426,7 @@ function GroupProfileInner() {
 
       <GroupFriendsVisibility group={group} members={members} allGroups={allGroups} alters={alters} />
 
-      <GroupLayoutSwitch group={group} />
+      <ProfileLayoutSwitch ownerType="group" record={group} />
 
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}
