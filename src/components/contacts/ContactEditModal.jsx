@@ -15,6 +15,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import {
   DEFAULT_SAFETY_KEY,
@@ -205,7 +206,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
       };
       let saved;
       if (isNew) {
-        saved = await base44.entities.Contact.create({ ...payload, is_archived: false, is_pinned: false });
+        saved = await base44.entities.Contact.create({ profile_layout: NEW_PROFILE_LAYOUT, ...payload, is_archived: false, is_pinned: false });
       } else {
         saved = await base44.entities.Contact.update(contact.id, payload);
       }

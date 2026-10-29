@@ -21,7 +21,8 @@ import { startEncounter, endEncounterForContact, lastSeenEncounter } from "@/lib
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactRelationshipsTab from "@/components/contacts/ContactRelationshipsTab";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { contactNotesKey, listContactNotes, saveContactNote, deleteContactNote } from "@/lib/contactNotes";
 import { useTerms } from "@/lib/useTerms";
 import {
   getSafetyMeta, getAwarenessMeta, contactDisplayName,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/contacts";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
@@ -198,46 +200,36 @@ export function ContactNotesSection({ contact }) {
   const alters = useAlters();
   const [newNote, setNewNote] = useState("");
   const { data: notes = [] } = useQuery({
-    queryKey: ["contactNotes", id],
-    queryFn: () => base44.entities.ContactNote.filter({ contact_id: id }),
+    queryKey: contactNotesKey(id),
+    queryFn: () => listContactNotes(id),
     enabled: !!id,
   });
+  // Notes render as plain text here, so ~commands become "icon label" tokens.
   const addNote = async () => {
     const text = newNote.trim();
     if (!text) return;
-    // Notes render as plain text, so ~commands become "icon label" tokens.
-    let prepared;
     try {
-      prepared = await prepareAuthoredText(text, { alters, terms, surfaceLabel: "contact note", chips: false });
-    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-    if (prepared === null) return; // user backed out of the whisper warning
-    try {
-      const row = await base44.entities.ContactNote.create({ contact_id: id, content: prepared.content, author_alter_ids: prepared.authorIds, timestamp: new Date().toISOString() });
-      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: row.id, sourceLabel: "Contact note", navigatePath: `/contacts/${id}` });
+      const row = await saveContactNote({ contactId: id, text, alters, terms, chips: false });
+      if (row === null) return; // user backed out of the whisper warning
       setNewNote("");
-      queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
-    } catch (err) { toast.error(err?.message || "Couldn't save note"); }
+      queryClient.invalidateQueries({ queryKey: contactNotesKey(id) });
+    } catch (err) { toast.error(isLogCommandError(err) ? err.message : (err?.message || "Couldn't save note")); }
   };
   const deleteNote = async (noteId) => {
     if (!(await confirm({ title: "Delete this note?", body: TRASH_HINT, confirmLabel: "Delete", destructive: true }))) return;
     try {
-      await base44.entities.ContactNote.delete(noteId);
-      queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
+      await deleteContactNote(noteId);
+      queryClient.invalidateQueries({ queryKey: contactNotesKey(id) });
     } catch (err) { toast.error(err?.message || "Couldn't delete note"); }
   };
   const saveNote = async (noteId, text, timestamp) => {
-    let prepared;
     try {
-      prepared = await prepareAuthoredText(text, { alters, terms, surfaceLabel: "contact note", chips: false });
-    } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return false; } throw e; }
-    if (prepared === null) return false; // user backed out of the whisper warning
-    try {
-      await base44.entities.ContactNote.update(noteId, { content: prepared.content, author_alter_ids: prepared.authorIds, timestamp });
-      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: noteId, sourceLabel: "Contact note", navigatePath: `/contacts/${id}` });
-      queryClient.invalidateQueries({ queryKey: ["contactNotes", id] });
+      const row = await saveContactNote({ contactId: id, noteId, text, alters, terms, chips: false, timestamp });
+      if (row === null) return false; // user backed out of the whisper warning
+      queryClient.invalidateQueries({ queryKey: contactNotesKey(id) });
       toast.success("Note updated");
       return true;
-    } catch (err) { toast.error(err?.message || "Couldn't update note"); return false; }
+    } catch (err) { toast.error(isLogCommandError(err) ? err.message : (err?.message || "Couldn't update note")); return false; }
   };
   const sortedNotes = [...notes].sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
   return (
@@ -300,6 +292,7 @@ export function ContactOptionsSection({ contact }) {
         onClick={() => patch({ is_archived: !contact.is_archived }, contact.is_archived ? "Unarchived" : "Archived")}
       />
       <OptionRow icon={Trash2} label="Delete" danger onClick={handleDelete} />
+      <div className="pt-2"><ProfileLayoutSwitch ownerType="contact" record={contact} /></div>
     </div>
   );
 }

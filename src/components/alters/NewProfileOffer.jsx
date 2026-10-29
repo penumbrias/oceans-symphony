@@ -19,9 +19,10 @@ import {
   switchRecordToNewProfile, revertRecordToOldProfile, dismissRecordNewProfileOffer, turnOffNewProfileOffer, OFFER_OFF_FIELD,
 } from "@/lib/profileLayoutSwitch";
 
+const LIST_KEY = { group: ["groups"], contact: ["contacts"] };
 const refresh = (qc, ownerType, id) => {
   if (ownerType === "alter") refreshAlter(qc, id);
-  else qc.invalidateQueries({ queryKey: ["groups"] });
+  else qc.invalidateQueries({ queryKey: LIST_KEY[ownerType] });
 };
 
 export default function NewProfileOffer({ alter = null, record = null, ownerType = "alter" }) {
@@ -54,6 +55,8 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
 
   const what = ownerType === "group"
     ? `Five pages made of widgets built for groups: Profile, ${t.Fronting}, Board, Notes and Journal. This page's layout is kept, and you can go back any time from the pencil.`
+    : ownerType === "contact"
+    ? "About, Relationships, Boundaries, Notes and Options, made of widgets built for contacts. This page's layout is kept, and you can go back any time from Options."
     : `Seven pages made of widgets built for profiles: Profile, ${t.Fronting}, Messages, Notes, Journal, Wishes and Connections. This page's layout is kept, and you can go back any time from the pencil's ⋯ menu.`;
   return (
     <section aria-labelledby="new-profile-offer-title" data-new-profile-offer=""
@@ -65,7 +68,7 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
       <div className="flex flex-wrap gap-2 pt-1">
         <Button size="sm" disabled={busy} onClick={switchNow} className="min-h-[44px]">Switch to it</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={notNow} className="min-h-[44px]">Not now</Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={never} className="min-h-[44px] text-muted-foreground">{ownerType === "group" ? "Don't ask on any group" : "Don't ask on any profile"}</Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={never} className="min-h-[44px] text-muted-foreground">{ownerType === "group" ? "Don't ask on any group" : ownerType === "contact" ? "Don't ask on any contact" : "Don't ask on any profile"}</Button>
       </div>
     </section>
   );

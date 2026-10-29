@@ -2,15 +2,16 @@
 // (ContactSections.jsx + src/v2/profileWidgets.jsx on the home-screen
 // canvas): one page per tab, every section a widget. The record's own
 // fields are still edited in ContactEditModal (the pencil).
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Pencil, LayoutGrid, Info, Link2, Shield, FileText, SlidersHorizontal } from "lucide-react";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
-import { CONTACT_PROFILE_PAGES, profilePageId } from "@/lib/profileBoard";
+import { CONTACT_PROFILE_PAGES, NEW_CONTACT_PROFILE_PAGES, profilePageId, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
+import NewProfileOffer from "@/components/alters/NewProfileOffer";
 import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -26,10 +27,16 @@ export default function ContactProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
-  const page = useProfilePageState(CONTACT_PROFILE_PAGES);
+  const queryClient = useQueryClient();
+  // Which profile the contact shows (v0.308.0) is read off the cached
+  // contacts list, so the pages are right on the first render.
+  const [onNewLayout, setOnNewLayout] = useState(() => usesNewProfile((queryClient.getQueryData(["contacts"]) || []).find((c) => c.id === id)));
+  const page = useProfilePageState(onNewLayout ? NEW_CONTACT_PROFILE_PAGES : CONTACT_PROFILE_PAGES);
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: contacts = [], isLoading } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   const contact = contacts.find((c) => c.id === id) || null;
+  const contactOnNew = usesNewProfile(contact);
+  useEffect(() => { if (contact) setOnNewLayout(contactOnNew); }, [contact?.id, contactOnNew]);
   const avatar = useResolvedAvatarUrl(contact?.avatar_url);
 
   if (isLoading) return <div className="max-w-2xl mx-auto px-2 py-10 text-center text-muted-foreground text-sm">Loading…</div>;
@@ -76,7 +83,13 @@ export default function ContactProfile() {
         </div>
       )}
 
-      <ProfileBoardCanvas ownerType="contact" record={contact} pageIcons={PAGE_ICONS} page={page} tourId="contact-profile-tabs" api={{ alters }} />
+      {page.onFirstPage && !page.layoutEditing && <NewProfileOffer ownerType="contact" record={contact} />}
+      {/* One render behind a switch, the pages and the layout would
+          disagree — wait for the page list to follow the record. */}
+      {onNewLayout === contactOnNew && (
+        <ProfileBoardCanvas key={contactOnNew ? "v2" : "classic"} ownerType="contact" record={contact} pageIcons={PAGE_ICONS} page={page}
+          tourId="contact-profile-tabs" api={{ alters }} layoutSuffix={layoutSuffixFor(contact, "contact")} />
+      )}
 
       <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} contact={contact} />
     </div>

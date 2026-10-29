@@ -31,6 +31,7 @@ const WIDGET_FILES = [
   "src/v2/gardenProfileWidgets.jsx",
   "src/v2/gardenConnectionWidgets.jsx",
   "src/v2/gardenGroupWidgets.jsx",
+  "src/v2/gardenContactWidgets.jsx",
   "src/v2/primitives.jsx",
   "src/v2/notices.jsx",
   "src/lib/widgetRegistry.jsx",

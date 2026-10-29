@@ -121,17 +121,23 @@ function ConvertAllRow() {
 // The new profile for everyone (v0.305.0). Only each record's layout flag
 // changes; every profile keeps the layout it has now, and each one can
 // revert on its own (pencil → ⋯), or everyone at once here.
-// Groups too (v0.307.0): `ownerType` picks which records.
+// Groups (v0.307.0) and contacts (v0.308.0) too: `ownerType` picks which
+// records.
+const ROW_KIND = {
+  alter: { key: ["alters"], entity: "Alter" },
+  group: { key: ["groups"], entity: "Group", one: "group", many: "groups" },
+  contact: { key: ["contacts"], entity: "Contact", one: "contact", many: "contacts" },
+};
 function NewProfileAllRow({ ownerType = "alter" }) {
   const t = useTerms();
   const qc = useQueryClient();
   const [progress, setProgress] = useState(null);
-  const isGroup = ownerType === "group";
-  const one = isGroup ? "group" : t.alter;
-  const many = isGroup ? "groups" : t.alters;
+  const kind = ROW_KIND[ownerType] || ROW_KIND.alter;
+  const one = kind.one || t.alter;
+  const many = kind.many || t.alters;
   const { data: records = [] } = useQuery({
-    queryKey: [isGroup ? "groups" : "alters"],
-    queryFn: () => (isGroup ? base44.entities.Group.list() : base44.entities.Alter.list()),
+    queryKey: kind.key,
+    queryFn: () => base44.entities[kind.entity].list(),
   });
   const live = records.filter((a) => a?.id);
   const older = live.filter((a) => !usesNewProfile(a));
@@ -146,14 +152,14 @@ function NewProfileAllRow({ ownerType = "alter" }) {
       setProgress({ done, total: list.length, label });
     }
     setProgress(null);
-    if (isGroup) qc.invalidateQueries({ queryKey: ["groups"] });
-    else { qc.invalidateQueries({ queryKey: ["alters"] }); qc.invalidateQueries({ queryKey: ["alter"] }); }
+    qc.invalidateQueries({ queryKey: kind.key });
+    if (ownerType === "alter") qc.invalidateQueries({ queryKey: ["alter"] });
     return { done, failed };
   };
   const useForAll = async () => {
     const ok = await confirm({
       title: `Use the new profile for every ${one}?`,
-      body: `${older.length} ${older.length === 1 ? "profile switches" : "profiles switch"} to the new profile. Nothing is deleted: the layout each one has now is kept, and any profile can go back from its pencil (Revert to the old profile), or all of them from here.`,
+      body: `${older.length} ${older.length === 1 ? "profile switches" : "profiles switch"} to the new profile. Nothing is deleted: the layout each one has now is kept, and any profile can go back on its own (Revert to the old profile), or all of them from here.`,
       confirmLabel: "Use for everyone",
     });
     if (!ok) return;
@@ -211,9 +217,11 @@ export default function ProfileLayoutSettings() {
       <div>
         <NewProfileAllRow />
         <NewProfileAllRow ownerType="group" />
+        <NewProfileAllRow ownerType="contact" />
         <ConvertAllRow />
         <TypeRow type="alter" suffix={NEW_LAYOUT_SUFFIX} label={`${t.alters} (new profile)`} labelOne={`new ${t.alter} profile`} />
         <TypeRow type="group" suffix={NEW_LAYOUT_SUFFIX} label="groups (new profile)" labelOne="new group profile" />
+        <TypeRow type="contact" suffix={NEW_LAYOUT_SUFFIX} label="contacts (new profile)" labelOne="new contact profile" />
         {PROFILE_OWNER_TYPES.map((type) => (
           <TypeRow key={type} type={type} label={hasNewProfile(type) ? `${labels[type][0]} (old profile)` : labels[type][0]} labelOne={labels[type][1]} />
         ))}

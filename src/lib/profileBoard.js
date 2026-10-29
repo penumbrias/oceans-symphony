@@ -161,8 +161,23 @@ export const NEW_GROUP_PROFILE_PAGES = [
   { tab: "notes", label: "Notes", widgets: [{ widgetId: "group_notes", mode: "expanded", settings: { count: 20 } }] },
   { tab: "journal", label: "Journal", widgets: ["journal"] },
 ];
+// The new contact profile (v0.308.0). Every old ?tab= name (about,
+// relationships, boundaries, notes, options) is still a page; time together
+// moved off every page onto About.
+export const NEW_CONTACT_PROFILE_PAGES = [
+  { tab: "about", label: "About", widgets: [
+    "contact_identity", "contact_together", "contact_reach", "contact_details",
+  ] },
+  { tab: "relationships", label: "Relationships", widgets: ["profile_relationships"] },
+  { tab: "boundaries", label: "Boundaries & Rules", widgets: [
+    { widgetId: "contact_details", settings: { entries: ["boundaries", "system_rules"] } },
+  ] },
+  { tab: "notes", label: "Notes", widgets: [{ widgetId: "contact_notes", mode: "expanded", settings: { count: 20 } }] },
+  { tab: "options", label: "Options", widgets: ["profile_options"] },
+];
 NEW_PROFILE_PAGES.alter = NEW_ALTER_PROFILE_PAGES;
 NEW_PROFILE_PAGES.group = NEW_GROUP_PROFILE_PAGES;
+NEW_PROFILE_PAGES.contact = NEW_CONTACT_PROFILE_PAGES;
 
 export const GROUP_PROFILE_PAGES = [
   { tab: "profile", label: "Profile", widgets: [

@@ -24,6 +24,7 @@ export const CHANGELOG = [
       { type: "fix", text: "The Down alignment (top, middle, bottom) now works on profile widgets and when viewing a profile." },
       { type: "feature", text: "The new group profile: Profile, {{Fronting}}, Board, Notes and Journal pages built from group widgets. New groups start on it, and older ones can switch or revert any time." },
       { type: "improve", text: "Group notes can now be edited, and the profile's {{Fronting}} page name follows your terms." },
+      { type: "feature", text: "The new contact profile: About, Relationships, Boundaries, Notes and Options built from contact widgets, with your time together on About. New contacts start on it; Options can switch or revert." },
     ],
   },
   {
