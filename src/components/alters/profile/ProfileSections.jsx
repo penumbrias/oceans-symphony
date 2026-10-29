@@ -22,6 +22,7 @@ import GroupIcon from "@/components/shared/GroupIcon";
 import { parsePreferences } from "@/lib/alterPreferences";
 import { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
 import { colorWithAlpha, readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
+import { patchAlterCustomFields } from "@/lib/alterEntry";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -250,7 +251,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
             quality={0.8}
             label="⚠️ Fix background"
             onFixed={async (url) => {
-              await base44.entities.Alter.update(alter.id, { custom_fields: { ...alter.custom_fields, [PS.BG_IMAGE]: url } });
+              await patchAlterCustomFields(alter.id, { [PS.BG_IMAGE]: url });
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }}
           />
