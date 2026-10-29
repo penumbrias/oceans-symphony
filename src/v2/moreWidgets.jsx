@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, isSameDay, addDays, startOfDay } from "date-fns";
 import {
-  ChevronLeft, ChevronRight, CheckCircle2, Circle, Hash, Lock, Wind, GraduationCap,
+  ChevronLeft, ChevronRight, CheckCircle2, Hash, Lock, Wind, GraduationCap,
   ListChecks, CalendarClock, Clock, Heart,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,8 +26,8 @@ import { useWidgetScope, recordMentionsAlters } from "@/lib/boardSubject";
 import { locationIdsForAlters } from "@/lib/alterPlaces";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import {
-  applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
-  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
+  applyTerms, getPeriodKey, getTodayString, FREQUENCY_LABELS,
+  hasCustomReset, isCustomResetDone, isTaskDueOn,
 } from "@/lib/dailyTaskSystem";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -41,7 +41,8 @@ import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
 import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
-import { isCountedTask, taskCountState, taskCountConfig, addTaskCount, countLabel, TASK_TICKS_QUERY_KEY } from "@/lib/taskCounts";
+import { RecurringTaskRow } from "@/components/tasks/RecurringTasksDue";
+import { isCountedTask, taskCountState, countLabel } from "@/lib/taskCounts";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
@@ -272,8 +273,6 @@ const ALL_FREQS = ["daily", "weekly", "monthly", "yearly"];
 export function DailyTasksWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const terms = useTerms();
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState(null);
   const frequencies = useMemo(() => {
     const raw = Array.isArray(settings?.frequencies) ? settings.frequencies
       : (settings?.frequency ? [settings.frequency] : ["daily"]);
@@ -298,56 +297,6 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
     const doneCount = mine.filter(isDone).length;
     return { frequency, periodKey, mine, isDone, doneCount };
   }), [frequencies, progress, templates]);
-
-  const toggle = async (g, t) => {
-    // Auto tasks tick themselves off when the thing they track happens —
-    // ticking one by hand would lie about what was done.
-    if (t.mode === "AUTO") {
-      toast.info("This one ticks itself off when you do the thing it tracks.");
-      return;
-    }
-    // Counted tasks: a tap adds one; a steps task opens its checklist.
-    if (isCountedTask(t)) {
-      if (taskCountConfig(t).mode === "steps") { navigate("/tasks"); return; }
-      setBusy(t.id);
-      try {
-        const { becameDone } = await addTaskCount(t, { templates });
-        qc.invalidateQueries({ queryKey: TASK_TICKS_QUERY_KEY });
-        qc.invalidateQueries({ queryKey: ["dailyProgress"] });
-        if (becameDone) toast.success(`${applyTerms(t.title || "", terms)} done! 🎉`);
-      } catch (e) {
-        toast.error(e?.message || "Couldn't save that.");
-      } finally {
-        setBusy(null);
-      }
-      return;
-    }
-    setBusy(t.id);
-    try {
-      const on = g.isDone(t);
-      const templatesFor = templates.filter((x) => (x.frequency || "daily") === g.frequency);
-      if (on && hasCustomReset(t)) {
-        // Un-doing a custom-reset task clears it from the record that
-        // holds its latest completion (which may not be this period's).
-        const last = lastCompletionOf(t.id, progress);
-        const rec = last?.record;
-        await toggleDailyProgressTasks({
-          periodKey: rec?.period_key || g.periodKey, dateKey: rec?.date || getTodayString(), frequency: g.frequency,
-          setIds: [], clearIds: [t.id], templates: templatesFor,
-        });
-      } else {
-        await toggleDailyProgressTasks({
-          periodKey: g.periodKey, dateKey: getTodayString(), frequency: g.frequency,
-          setIds: on ? [] : [t.id], clearIds: on ? [t.id] : [], templates: templatesFor,
-        });
-      }
-      qc.invalidateQueries({ queryKey: ["dailyProgress"] });
-    } catch (e) {
-      toast.error(e?.message || "Couldn't save that.");
-    } finally {
-      setBusy(null);
-    }
-  };
 
   const multi = groups.length > 1;
   const label = multi ? "Recurring tasks" : `${FREQUENCY_LABELS?.[groups[0].frequency] || "Daily"} tasks`;
@@ -388,28 +337,16 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
         <React.Fragment key={g.frequency}>
           <GroupHead g={g} />
           {g.mine.length === 0 && <Muted>No {g.frequency} tasks set up yet.</Muted>}
-          {g.mine.map((t) => {
-            const on = g.isDone(t);
-            return (
-              <Row
-                key={t.id}
-                left={
-                  <button type="button" onClick={() => toggle(g, t)} disabled={busy === t.id}
-                    aria-label={isCountedTask(t) ? "Add one" : (on ? "Mark not done" : "Mark done")} className="flex-shrink-0 disabled:opacity-50">
-                    {on
-                      ? <CheckCircle2 className="w-4 h-4" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }} />
-                      : <Circle className="w-4 h-4 text-muted-foreground" />}
-                  </button>
-                }
-                primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
-                secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
-                right={isCountedTask(t)
-                  ? countLabel(taskCountState(t, ticks))
-                  : (mode === "expanded" && t.points ? `${t.points} xp` : undefined)}
-                onClick={isDailyTaskOpenable(t) ? () => openDailyTask(t, navigate) : undefined}
-              />
-            );
-          })}
+          {g.mine.map((t) => (
+            <RecurringTaskRow
+              key={t.id} task={t} done={g.isDone(t)} ticks={ticks} templates={templates}
+              secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
+              right={isCountedTask(t)
+                ? countLabel(taskCountState(t, ticks))
+                : (mode === "expanded" && t.points ? `${t.points} xp` : undefined)}
+              onOpen={isDailyTaskOpenable(t) ? () => openDailyTask(t, navigate) : undefined}
+            />
+          ))}
         </React.Fragment>
       ))}
     </Section>

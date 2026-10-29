@@ -55,7 +55,7 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
   // ignoring the inline preference, so the cog shouldn't appear there.
   const allowInlineSettings = typeof limit !== "number" && !limitOverride;
   const recurringOn = showRecurring && !filterByAlterId && typeof limit !== "number";
-  const { rows: recurringRows } = useRecurringTasksDue();
+  const { rows: recurringRows } = useRecurringTasksDue({ enabled: recurringOn });
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],

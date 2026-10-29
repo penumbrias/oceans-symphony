@@ -543,14 +543,20 @@ function TodayViews({ settings }) {
   if (show === "plans") return <PlansWidget settings={settings} />;
   if (show === "upcoming") {
     // The count / time window is this widget's own option (Content tab) —
-    // it used to live under Settings → Appearance → Upcoming plans.
-    const mode = settings?.upcomingMode === "window" ? "window" : "count";
-    const windowId = WINDOW_OPTIONS.some((w) => w.id === settings?.upcomingWindow) ? settings.upcomingWindow : DEFAULT_WINDOW_ID;
-    const count = Math.min(COUNT_MAX, Math.max(COUNT_MIN, parseInt(settings?.upcomingCount, 10) || DEFAULT_COUNT));
+    // it used to live under Settings → Appearance → Upcoming plans. Until
+    // the person sets it there, the value saved through the panel's own
+    // cog still applies (nothing they chose is silently dropped).
+    let limitConfig;
+    if (settings?.upcomingMode) {
+      const mode = settings.upcomingMode === "window" ? "window" : "count";
+      const windowId = WINDOW_OPTIONS.some((w) => w.id === settings?.upcomingWindow) ? settings.upcomingWindow : DEFAULT_WINDOW_ID;
+      const count = Math.min(COUNT_MAX, Math.max(COUNT_MIN, parseInt(settings?.upcomingCount, 10) || DEFAULT_COUNT));
+      limitConfig = mode === "window" ? { mode, windowId } : { mode, count };
+    }
     return (
       <Section>
         <UpcomingPlans placement="widget" title={settings?.label || "Coming up"}
-          limitConfig={mode === "window" ? { mode, windowId } : { mode, count }}
+          limitConfig={limitConfig}
           showRecurring={recurring} />
       </Section>
     );
