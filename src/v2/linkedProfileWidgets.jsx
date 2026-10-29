@@ -125,6 +125,8 @@ export function linkedWidget(type, def) {
   return {
     ...def,
     label: labelFor(type, def.label),
+    // Its own name, for the menu's per-kind headings (v0.316.0).
+    menuLabel: def.label,
     category: linkedCategory(type),
     subjects: ["home", "alter", "group", "contact", "location"],
     supportsMultiInstance: true,
@@ -152,3 +154,24 @@ export const LINKED_PROFILE_WIDGETS = Object.fromEntries(
   Object.entries(GARDEN_BY_TYPE).flatMap(([type, defs]) =>
     Object.entries(defs).map(([id, def]) => [id, linkedWidget(type, def)])),
 );
+
+// The add-widget menu previews a placed-anywhere profile widget with the
+// first record of its kind, so the preview shows the widget rather than
+// "choose which…" (v0.316.0). Same queries as the pickers above.
+const PREVIEW_SOURCES = {
+  alter: { queryKey: ["alters"], list: () => base44.entities.Alter.list(), usable: (r) => !r.is_archived },
+  group: { queryKey: ["groups"], list: () => base44.entities.Group.list(), usable: () => true },
+  contact: { queryKey: ["contacts"], list: () => base44.entities.Contact.list(), usable: (r) => !r.is_archived },
+  location: { queryKey: ["innerWorldLocations"], list: () => base44.entities.InnerWorldLocation.list(), usable: () => true },
+};
+
+export function useLinkedPreviewSettings(def) {
+  const type = Object.keys(LINK_KEYS).find((k) => def?.category === linkedCategory(k)) || null;
+  const source = PREVIEW_SOURCES[type || "alter"];
+  const { data = [] } = useQuery({ queryKey: source.queryKey, queryFn: source.list, enabled: !!type });
+  return useMemo(() => {
+    if (!type) return {};
+    const first = (Array.isArray(data) ? data : []).find(source.usable);
+    return first ? { [LINK_KEYS[type]]: first.id } : {};
+  }, [type, data, source]);
+}

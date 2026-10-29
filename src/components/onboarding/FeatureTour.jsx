@@ -84,7 +84,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "newui", sectionLabel: "New UI",
         emoji: "➕",
         title: "Adding widgets",
-        body: `In edit mode, the apps button (top-left) opens the drawer with an "Add widget" tab: search at the top, then chips that sort widgets by what they're for: Right now, Log, Plan & track, Write & talk, ${t.Alters} & map, Calm, Look back and Page pieces. Each widget is one row with a + to add it straight away. Tap the row for a live preview with your real data, pick Minimal, Normal or Expanded, try a style, and add it already set up — or hold the row and drag it to the spot you want.`,
+        body: `In edit mode, the apps button (top-left) opens the drawer with an "Add widget" tab. It opens on groups of widgets by what they're for — Right now, Log, Plan & track, Write & talk, ${t.Alters} & map, Calm, Look back, Page pieces and Profiles — or search across all of them. Each widget is a card with a small live preview and an Add button. Widgets that come in versions (like the planner's day, week, month and year) are one card: tap it to pick the version, choose Minimal, Normal or Expanded, try a style, and add it already set up — or hold the card and drag it to the spot you want.`,
         route: "/", target: null,
         look: `the app-logo button in the top-left — in edit mode its drawer gains the "Add widget" tab`, action: null,
       },
