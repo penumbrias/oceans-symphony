@@ -27,6 +27,7 @@ import { PS } from "@/lib/profileStyle";
 // then the page renders the seeded board, which is today's page. The host
 // (ProfileBoardCanvas) is shared with the group, contact and location pages.
 import ProfileBoardCanvas, { useProfilePageState, openProfileLayoutEditor } from "@/components/profile/ProfileBoardCanvas";
+import { useRegisterLookSubject } from "@/lib/lookSubject";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 
@@ -129,6 +130,9 @@ function AlterProfileInner() {
   });
 
   useEffect(() => { if (alter) setOnNewLayout(usesNewProfile(alter)); }, [alter]);
+  // Display options offers this alter's look while the page is open
+  // (v0.310.0 — the profile scope, ProfileLookTabs).
+  useRegisterLookSubject("alter", alter, alter?.name);
 
   // Whether this alter is currently fronting, + a one-tap toggle from the
   // profile header. Reuses the canonical refetch-before-write toggleFrontFor

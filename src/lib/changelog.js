@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "feature", text: "Display options now has an Editing row: Everywhere, this page, or the profile you're on. A page can have its own background and song (the planner's needn't match the journal's)." },
+      { type: "improve", text: "A profile's look — colours, pictures, fonts, song, header — is now edited in Display options on that profile, in the same tabs as everything else. The old Profile style section and the Look tab of {{Alter}} info are gone; \"Page look\" opens the new one." },
       { type: "improve", text: "Layout editing: drop a widget on the left or right edge of another to put them side by side — the row shares the width, no resizing needed." },
       { type: "fix", text: "The Down alignment (top, middle, bottom) now works on profile widgets and when viewing a profile." },
       { type: "feature", text: "The new group profile: Profile, {{Fronting}}, Board, Notes and Journal pages built from group widgets. New groups start on it, and older ones can switch or revert any time." },

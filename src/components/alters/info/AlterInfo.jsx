@@ -4,19 +4,21 @@
 // ONE simple list, the record itself; widgets on the profile board choose
 // what to show and how. Nothing entered here is lost just because no
 // widget shows it. This replaces the pencil form as what the profile's
-// pencil button opens. Since v0.298.0 the page look and header options are
-// here too; the old form is only reachable from the ⋯ menu ("Classic edit
-// form (older)") for anyone who still wants it.
+// pencil button opens. The old form is only reachable from the ⋯ menu
+// ("Classic edit form (older)") for anyone who still wants it. The page's
+// LOOK is not information about the alter, so since v0.310.0 it lives in
+// Display options (the profile scope, ProfileLookTabs); the "Page look"
+// row on the Info tab opens it.
 //
 // Rows follow the inspector row grammar (SettingRows.jsx), split into
 // pages with the inspector's TabBar (v0.299.0): Info · Entries · Pictures ·
-// Links · Look. Everything saves
+// Links. Everything saves
 // as you type (useAlterInfoForm) with undo / redo for the whole list; there
 // is no Save button to miss. The sections are shared with the profile
 // widgets' Content tabs (infoSections.jsx, v0.296.0).
 
 import React, { useState } from "react";
-import { User, ListChecks, Images, Link2, Palette } from "lucide-react";
+import { User, ListChecks, Images, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -31,9 +33,10 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 import { Group, TabBar } from "@/components/shared/SettingRows";
 import { useAlterInfoForm } from "./useAlterInfoForm";
 import ProfileConvertRow from "./ProfileConvertRow";
+import PageLookRow from "@/components/profile/PageLookRow";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
-  PreferencesSection, TagsSection, AnswersSection, answerRowsOf, PageStyleSection, HeaderOptionsSection,
+  PreferencesSection, TagsSection, AnswersSection, answerRowsOf,
 } from "./infoSections";
 
 export default function AlterInfo({ alter, onOpenClassic }) {
@@ -96,7 +99,6 @@ export default function AlterInfo({ alter, onOpenClassic }) {
     { id: "entries", label: "Entries", icon: ListChecks },
     { id: "pictures", label: "Pictures", icon: Images },
     { id: "links", label: "Links", icon: Link2 },
-    { id: "look", label: "Look", icon: Palette },
   ];
 
   return (
@@ -119,6 +121,10 @@ export default function AlterInfo({ alter, onOpenClassic }) {
           <>
             <Group title="Basics" first><BasicsSection alter={alter} info={info} /></Group>
             <Group title="Bio"><BioSection alter={alter} info={info} withRow={false} /></Group>
+            <Group title="Profile page">
+              <ProfileConvertRow alter={alter} info={info} />
+              <PageLookRow />
+            </Group>
           </>
         )}
         {tab === "entries" && (
@@ -140,15 +146,6 @@ export default function AlterInfo({ alter, onOpenClassic }) {
             {answerRowsOf(form).length > 0 && (
               <Group title="Get to know me"><AnswersSection info={info} /></Group>
             )}
-          </>
-        )}
-        {tab === "look" && (
-          <>
-            <Group title="Page look" first>
-              <ProfileConvertRow alter={alter} info={info} />
-              <PageStyleSection alter={alter} info={info} />
-            </Group>
-            <Group title="Header"><HeaderOptionsSection info={info} /></Group>
           </>
         )}
       </div>
