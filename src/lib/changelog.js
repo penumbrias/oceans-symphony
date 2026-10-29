@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 29, 2026",
     changes: [
+      { type: "fix", text: "{{Alter}} profiles no longer show the pinned bar twice." },
       { type: "improve", text: "\"Profile style\" (was Profile display options) is now a Style button on the profile's Edit page bar, and Save and Exit there are one Save / exit button." },
       { type: "improve", text: "The profile cog menu is shorter: Display options and the setup links, without the home-screen and appearance links." },
       { type: "feature", text: "Display options on a profile has \"New profiles\": the look every new or empty {{alter}}, group or location profile starts with. A profile's own Profile style always wins." },
