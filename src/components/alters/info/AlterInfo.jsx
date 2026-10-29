@@ -96,7 +96,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
 
   const tabs = [
     { id: "info", label: "Info", icon: User },
-    { id: "entries", label: "Entries", icon: ListChecks },
+    { id: "entries", label: "Custom fields", icon: ListChecks },
     { id: "pictures", label: "Pictures", icon: Images },
     { id: "links", label: "Links", icon: Link2 },
   ];

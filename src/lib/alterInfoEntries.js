@@ -94,7 +94,7 @@ export async function writeEntry(alterId, entryId, value) {
   if (entryId.startsWith("own:")) {
     const name = entryId.slice(4);
     const fresh = (await base44.entities.Alter.get(alterId)) || {};
-    if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) throw new Error("This entry can't be saved here");
+    if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) throw new Error("This custom field can't be saved here");
     const list = [...ownListOf(fresh)];
     const i = list.findIndex((f) => f?.name === name);
     if (i < 0) list.push({ name, value, field_type: "text" });
@@ -108,11 +108,11 @@ export async function writeEntry(alterId, entryId, value) {
 // existing entry with the same name is reused, never duplicated.
 export async function addOwnEntry(alterId, { name, kind = "text", value = "" }) {
   const clean = String(name || "").trim();
-  if (!alterId || !clean) throw new Error("The entry needs a name");
+  if (!alterId || !clean) throw new Error("The custom field needs a name");
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
   if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) {
     // Older Get to know me rows keep an id-keyed map here; never write over it.
-    throw new Error("This profile has fields from an older version. Add the entry for everyone instead, so nothing is written over.");
+    throw new Error("This profile has fields from an older version. Add the custom field for everyone instead, so nothing is written over.");
   }
   const list = [...ownListOf(fresh)];
   const same = list.find((f) => sameName(f?.name, clean));
@@ -128,7 +128,7 @@ const sameName = (a, b) => String(a || "").trim().toLowerCase() === String(b || 
 // its id. A field with the same name is reused, never duplicated.
 export async function addSharedEntry({ name, kind = "text" }) {
   const clean = String(name || "").trim();
-  if (!clean) throw new Error("The entry needs a name");
+  if (!clean) throw new Error("The custom field needs a name");
   const fields = (await base44.entities.CustomField.list("order")) || [];
   const same = fields.find((f) => sameName(f?.name, clean));
   if (same) return `field:${same.id}`;
@@ -158,9 +158,9 @@ export async function setSharedEntryHidden(fieldId, hidden) {
 // kept by the field's id, so nothing moves.
 export async function updateSharedEntry(fieldId, { name, kind }) {
   const clean = String(name || "").trim();
-  if (!fieldId || !clean) throw new Error("The entry needs a name");
+  if (!fieldId || !clean) throw new Error("The custom field needs a name");
   const fields = (await base44.entities.CustomField.list("order")) || [];
-  if (fields.some((f) => f.id !== fieldId && sameName(f?.name, clean))) throw new Error(`There's already an entry called “${clean}”`);
+  if (fields.some((f) => f.id !== fieldId && sameName(f?.name, clean))) throw new Error(`There's already a custom field called “${clean}”`);
   return base44.entities.CustomField.update(fieldId, { name: clean, ...(kind ? { field_type: kind } : {}) });
 }
 
@@ -169,13 +169,13 @@ export async function updateSharedEntry(fieldId, { name, kind }) {
 // other field" until it's picked again.
 export async function updateOwnEntry(alterId, oldName, { name, kind }) {
   const clean = String(name || "").trim();
-  if (!alterId || !clean) throw new Error("The entry needs a name");
+  if (!alterId || !clean) throw new Error("The custom field needs a name");
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
-  if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) throw new Error("This entry can't be changed here");
+  if (fresh.alter_custom_fields && !Array.isArray(fresh.alter_custom_fields)) throw new Error("This custom field can't be changed here");
   const list = [...ownListOf(fresh)];
   const i = list.findIndex((f) => f?.name === oldName);
-  if (i < 0) throw new Error("That entry isn't there any more");
-  if (list.some((f, j) => j !== i && sameName(f?.name, clean))) throw new Error(`There's already an entry called “${clean}”`);
+  if (i < 0) throw new Error("That custom field isn't there any more");
+  if (list.some((f, j) => j !== i && sameName(f?.name, clean))) throw new Error(`There's already a custom field called “${clean}”`);
   list[i] = { ...list[i], name: clean, ...(kind ? { field_type: kind } : {}) };
   return base44.entities.Alter.update(alterId, { alter_custom_fields: list });
 }

@@ -133,8 +133,8 @@ export default function UnblendQuestionsManager() {
       return {
         id: dynId,
         field: f,
-        prompt: live?.prompt || `Entry: ${f.name}`,
-        kindLabel: f.field_type === "list" ? "Entry (list)" : "Entry",
+        prompt: live?.prompt || `Custom field: ${f.name}`,
+        kindLabel: f.field_type === "list" ? "Custom field (list)" : "Custom field",
         optionCount: live?.options?.length || 0,
         isHidden,
         hasData,
@@ -343,7 +343,7 @@ export default function UnblendQuestionsManager() {
               renderQuestionRow({
                 key: `user_${rec.id}`,
                 prompt: rec.prompt,
-                kindLabel: rec.kind === "custom_field" ? "Entry" :
+                kindLabel: rec.kind === "custom_field" ? "Custom field" :
                           rec.kind === "multiple_choice" ? "Multiple choice" :
                           rec.kind === "color" ? "Color picker" :
                           rec.kind === "pronouns" ? "Pronouns" :
@@ -399,9 +399,9 @@ export default function UnblendQuestionsManager() {
       <section className="space-y-3">
         {sectionHeader(
           <Cog className="w-4 h-4 text-muted-foreground" />,
-          "Entry questions",
+          "Custom field questions",
           customFieldSlots.filter((s) => !s.isHidden).length + " / " + customFieldSlots.length,
-          `Every entry shared by all ${terms.alters || "alters"} becomes a Help me unblend question by default. Toggle visibility per entry — hidden ones won't appear in the queue until you switch them back on.`
+          `Every custom field becomes a Help me unblend question by default. Toggle visibility per field — hidden ones won't appear in the queue until you switch them back on.`
         )}
         {customFieldSlots.length > 0 && (
           <div className="flex items-center gap-2">
@@ -438,7 +438,7 @@ export default function UnblendQuestionsManager() {
         )}
         {customFieldSlots.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1">
-            No entries yet. Add some in Settings → {terms.Alter || "Alter"} setup → Entries.
+            No custom fields yet. Add some in Settings → {terms.Alter || "Alter"} setup → Custom fields.
           </p>
         ) : (
           <div className="rounded-xl border border-border/40 bg-card max-h-72 overflow-y-auto divide-y divide-border/30">

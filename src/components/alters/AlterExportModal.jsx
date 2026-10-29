@@ -147,7 +147,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
                 </button>
               ))}
             </div>
-            <p className="text-[0.625rem] text-muted-foreground mt-1">Basics = name, pronouns, role, age, colour. Full also adds bio, entries, and groups.</p>
+            <p className="text-[0.625rem] text-muted-foreground mt-1">Basics = name, pronouns, role, age, colour. Full also adds bio, custom fields, and groups.</p>
           </div>
           <label className="flex items-center justify-between gap-3">
             <span className="text-sm">Anonymize names <span className="text-xs text-muted-foreground">(shows “Member 1, 2…”)</span></span>

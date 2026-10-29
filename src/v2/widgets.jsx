@@ -3250,7 +3250,7 @@ export const V2_WIDGETS = {
   // ── The garden (v0.295.0): an alter's info is entered once, in Alter
   // info; these show it. Editing them edits the info itself. ──
   info: {
-    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any entry. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
+    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any custom field. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
     icon: IdCard, category: "alters",
     subjects: ["home", "alter"],
     render: ({ settings, mode }) => <InfoWidget settings={settings} mode={mode} />,

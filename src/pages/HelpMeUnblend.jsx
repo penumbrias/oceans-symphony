@@ -365,7 +365,7 @@ export default function HelpMeUnblend() {
             </p>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Help me unblend only asks questions whose answer would actually narrow the list. To unlock more, fill in {terms.alter || "alter"} colours, pronouns, roles, ages, or entries — or use Get to know me to seed answers when you're grounded enough to.
+            Help me unblend only asks questions whose answer would actually narrow the list. To unlock more, fill in {terms.alter || "alter"} colours, pronouns, roles, ages, or custom fields — or use Get to know me to seed answers when you're grounded enough to.
           </p>
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" onClick={() => navigate("/get-to-know-me")} className="gap-1.5">
