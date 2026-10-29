@@ -17,6 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 // widgets share the same catalogue. Re-exported here for back-compat.
 import { buildNavGroups, buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 export { buildNavGroups, buildGridItems };
 
 // ── Sortable tile ──────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ export default function QuickNavMenu() {
   });
 
   const navConfig = useMemo(() => {
-    return systemSettingsData?.[0]?.navigation_config || DEFAULT_CONFIG;
+    return pickPrimarySystemSettings(systemSettingsData)?.navigation_config || DEFAULT_CONFIG;
   }, [systemSettingsData]);
 
   const modNavV = useModPagesVersion();
@@ -267,7 +268,7 @@ export default function QuickNavMenu() {
     if (!localOrder) { setEditMode(false); return; }
     setSaving(true);
     try {
-      const settings = systemSettingsData?.[0];
+      const settings = pickPrimarySystemSettings(systemSettingsData);
       const removed = navConfig.dashboardGridRemoved || [];
       // Any item in the original grid that's no longer in localOrder was removed here
       const removedNow = configuredGridItems.map(i => i.id).filter(id => !localOrder.includes(id));

@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Front-history range presets — mirror OpenPluralConnect. Real exports carry
 // hundreds of sessions, so default to a year rather than all-time.
@@ -414,7 +415,7 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
         try {
           const sysAvatarUrl = includeAvatars && d.user.avatar_url ? d.user.avatar_url : "";
           const settingsList = await localEntities.SystemSettings.list();
-          const existingSettings = settingsList[0] || null;
+          const existingSettings = pickPrimarySystemSettings(settingsList) || null;
           const patch = buildSystemIdentityPatch(d.user, existingSettings || {}, { systemAvatarUrl: sysAvatarUrl });
           if (Object.keys(patch).length > 0) {
             if (existingSettings?.id) {

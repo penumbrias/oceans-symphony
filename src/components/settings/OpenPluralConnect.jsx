@@ -40,6 +40,7 @@ import { createLiveFrontGate } from "@/lib/openFrontsAtExport";
 import OpenFrontsCurrentOption from "@/components/settings/OpenFrontsCurrentOption";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // ── Front-history range presets (mirror SimplyPluralConnect) ──────────────────
 // Each period is bounded by its started_at; we filter assignments whose period
@@ -604,7 +605,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
           // Read the existing singleton (singleton-merge pattern: read + spread
           // + update, never list()[0]-clobber).
           const settingsList = await localEntities.SystemSettings.list();
-          const existingSettings = settingsList[0] || null;
+          const existingSettings = pickPrimarySystemSettings(settingsList) || null;
           const patch = buildSystemIdentityPatch(sys, existingSettings || {}, {
             systemAvatarUrl: sysAvatarUrl,
             systemBannerUrl: sysBannerUrl,

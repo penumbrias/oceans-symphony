@@ -32,6 +32,7 @@ import DashboardLayoutSettings, { HomeScreenResetDialog } from "@/components/set
 import TourModal from "@/components/onboarding/TourModal";
 import { loadChecklist, checklistComplete, checklistProgress } from "@/components/onboarding/SetupChecklist";
 import { ClipboardList, X } from "lucide-react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // v0.84.9: terminology moved INTO the Guide (page 2 of the Welcome phase)
 // so there's no more blocking pre-Guide modal — first-run is: Guide opens
@@ -318,7 +319,7 @@ export default function Dashboard() {
     queryFn: () => base44.entities.SystemSettings.list()
   });
   const terms = useTerms();
-  const systemName = settings[0]?.system_name || `Your ${terms.system}`;
+  const systemName = pickPrimarySystemSettings(settings)?.system_name || `Your ${terms.system}`;
   // Tap the dashboard title to switch systems — only when more than one exists,
   // so single-system users see no change.
   const multiSystem = hasMultipleSystems();
@@ -507,8 +508,8 @@ export default function Dashboard() {
   // EXPERIMENTAL_HOME_ENABLED gates the whole feature at build time. When
   // false, anyone who previously enabled it falls back to the classic
   // dashboard (their saved layout is untouched and returns if re-enabled).
-  const uiV2On = UI_V2_ENABLED && settings[0]?.ui_v2?.enabled === true;
-  const experimentalOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
+  const uiV2On = UI_V2_ENABLED && pickPrimarySystemSettings(settings)?.ui_v2?.enabled === true;
+  const experimentalOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && pickPrimarySystemSettings(settings)?.experimental_home?.enabled === true;
 
   // ── The widget board as a swipe-left page of the CLASSIC home ──
   // Classic home is the leftmost "page"; swiping left (or the board
@@ -516,7 +517,7 @@ export default function Dashboard() {
   // nothing is migrated or duplicated). Swiping right past the board's
   // first page comes back. ui_v2.homeDefault === "board" opens on the
   // board instead, so board-as-homescreen stays one setting away.
-  const classicBoardAvailable = UI_V2_ENABLED && !uiV2On && !experimentalOn && !!settings[0];
+  const classicBoardAvailable = UI_V2_ENABLED && !uiV2On && !experimentalOn && !!pickPrimarySystemSettings(settings);
   const [boardOpen, setBoardOpen] = useState(false);
   // Which way the last classic↔board move went (1 = into the board,
   // -1 = back out, 0 = no move yet) — drives the same slide-in the board
@@ -537,7 +538,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (location.key === lastLocKey.current) return;
     lastLocKey.current = location.key;
-    if (settings[0]?.ui_v2?.homeDefault === "board") {
+    if (pickPrimarySystemSettings(settings)?.ui_v2?.homeDefault === "board") {
       if (!boardOpen && classicBoardAvailable) openBoard();
     } else if (boardOpen) {
       closeBoard();
@@ -550,7 +551,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (bootedBoardDefault.current || !classicBoardAvailable) return;
     bootedBoardDefault.current = true;
-    if (settings[0]?.ui_v2?.homeDefault === "board") setBoardOpen(true);
+    if (pickPrimarySystemSettings(settings)?.ui_v2?.homeDefault === "board") setBoardOpen(true);
   }, [classicBoardAvailable, settings]);
 
   // Pressing Home while the board is open must leave the board.
@@ -723,7 +724,7 @@ export default function Dashboard() {
       />
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
-      {uiV2On && <HomeV2 settingsRow={settings[0] || null} api={homeApi} />}
+      {uiV2On && <HomeV2 settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />}
 
       {/* The widget board as the classic home's swipe-left page — the
           SAME board, same saved layout; swiping right past its first
@@ -737,7 +738,7 @@ export default function Dashboard() {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
-          <HomeV2 settingsRow={settings[0] || null} api={homeApi} onExitLeft={closeBoard} />
+          <HomeV2 settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} onExitLeft={closeBoard} />
         </motion.div>
       )}
       <V2SetFrontHost alters={alters} />
@@ -747,7 +748,7 @@ export default function Dashboard() {
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (
-        <ExperimentalDashboard settingsRow={settings[0] || null} api={homeApi} />
+        <ExperimentalDashboard settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />
       )}
 
       {/* The classic home ON the board canvas — same component, edit
@@ -765,7 +766,7 @@ export default function Dashboard() {
           <NewUiBanner onOpenBoard={classicBoardAvailable ? openBoard : null} />
         </div>
         <ClassicHomeCanvas
-          settingsRow={settings[0] || null}
+          settingsRow={pickPrimarySystemSettings(settings) || null}
           api={homeApi}
           onOpenBoard={classicBoardAvailable ? openBoard : null}
         />

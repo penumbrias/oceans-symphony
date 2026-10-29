@@ -34,6 +34,7 @@ import {
   showLocalTestNotification, pushDeepDiagnostic,
 } from "@/lib/pushRegistration";
 import { scheduledAlertsDiagnostics } from "@/lib/planReminderScheduler";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const NATIVE = isNative();
 
@@ -42,7 +43,7 @@ function useSettingsRow() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  return list?.[0] || null;
+  return pickPrimarySystemSettings(list) || null;
 }
 
 // One row: label (+ optional one-line note) and a switch.

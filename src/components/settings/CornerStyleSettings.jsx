@@ -4,6 +4,7 @@ import { Square, Squircle, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CORNER_MODES, DEFAULT_CORNER_MODE } from "@/lib/useCornerMode";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const OPTIONS = [
   {
@@ -26,7 +27,7 @@ export default function CornerStyleSettings({ embedded = false } = {}) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = list?.[0] || null;
+  const settings = pickPrimarySystemSettings(list) || null;
   const current = settings?.corner_mode === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : DEFAULT_CORNER_MODE;
   const [saving, setSaving] = useState(false);
 

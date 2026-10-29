@@ -11,6 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const EMOTION_CATEGORY_KEYS = ["good", "bad", "neutral", "body"];
 
@@ -40,5 +41,5 @@ export function useEmotionCategoryLabels() {
     queryFn: () => base44.entities.SystemSettings.list(),
     staleTime: 0,
   });
-  return resolveCategoryLabels(settingsList[0]);
+  return resolveCategoryLabels(pickPrimarySystemSettings(settingsList));
 }

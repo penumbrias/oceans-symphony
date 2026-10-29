@@ -41,6 +41,7 @@ import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
 import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride, visibilitySettings.allowedLevelIds]);
 
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const levels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
   const maxLevelNumber = levels.length ? Math.max(...levels.map((l) => l.number)) : 0;
   const allowedSet = new Set(allowedLevelIds);
   const thresholdValue = (() => {

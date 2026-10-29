@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function ProfileSongsSettings() {
   const terms = useTerms();
@@ -16,7 +17,7 @@ export default function ProfileSongsSettings() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const row = settingsList[0];
+  const row = pickPrimarySystemSettings(settingsList);
   const enabled = row?.profile_songs_enabled !== false;
 
   const save = async (v) => {

@@ -4,6 +4,7 @@ import { DEFAULT_TERMS, gerund } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { withBatch } from "@/lib/localDb";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Non-hook terms resolver for seeding contexts (no React tree available).
 // Mirrors useTerms' base + gerund-override logic for the forms preset
@@ -11,7 +12,7 @@ import { withBatch } from "@/lib/localDb";
 const cap = (w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
 export async function getSeedTerms() {
   let s = {};
-  try { s = (await base44.entities.SystemSettings.list())[0] || {}; } catch { /* defaults */ }
+  try { s = pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || {}; } catch { /* defaults */ }
   const safe = (v, f) => (v && String(v).trim() ? String(v).trim() : f);
   const system = safe(s.term_system, DEFAULT_TERMS.system);
   const alter = safe(s.term_alter, DEFAULT_TERMS.alter);

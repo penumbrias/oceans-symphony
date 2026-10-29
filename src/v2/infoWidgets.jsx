@@ -32,6 +32,7 @@ import { framedImageStyle, framingFor } from "@/lib/imageFraming";
 import { PICTURE_ROLE } from "@/lib/alterImageUpload";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { barPictureFor } from "@/lib/barPicture";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -180,7 +181,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
     return <div className="text-[0.8125em] opacity-70 p-2" style={flush()}>Choose whose info to show in this widget's options.</div>;
   }
   if (!alter) return null;
-  const rows = expandInfoEntryIds(ids, all, hiddenEntryIdsOf(settingsRows[0]))
+  const rows = expandInfoEntryIds(ids, all, hiddenEntryIdsOf(pickPrimarySystemSettings(settingsRows)))
     .map((id) => all.find((e) => e.id === id))
     .filter(Boolean)
     .map((entry) => ({ entry, value: entryValue(alter, entry.id) }))
@@ -359,7 +360,7 @@ function useAlterPicture(settings, source) {
     enabled: source === "bar",
   });
   if (!on || !alter) return [];
-  const src = source === "bar" ? barPictureFor(settingsRows[0], alter) : rotating;
+  const src = source === "bar" ? barPictureFor(pickPrimarySystemSettings(settingsRows), alter) : rotating;
   return src ? [{ src, kind: "image", caption: "", frame: framingFor(alter, src) }] : [];
 }
 

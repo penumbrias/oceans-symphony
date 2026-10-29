@@ -31,6 +31,7 @@ import {
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
@@ -39,7 +40,7 @@ const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.e
 // Keep the shared ["systemSettings"] cache an ARRAY — see the note in
 // Contacts.jsx. Returning a single object here pollutes the cache and
 // crashes other components that .find()/[0] on it.
-const useSettings = () => (useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data || [])[0] || null;
+const useSettings = () => pickPrimarySystemSettings(useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data);
 
 // Delete a contact with the layout of its profile page, in one trash batch.
 export async function deleteContact(contact) {

@@ -13,6 +13,7 @@ import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -34,7 +35,7 @@ export default function Home() {
     queryFn: () => base44.entities.SystemSettings.list()
   });
 
-  const systemSettings = settings[0] || null;
+  const systemSettings = pickPrimarySystemSettings(settings) || null;
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);

@@ -39,6 +39,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { groupNameColor } from "@/lib/contrast";
 import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, smallBtn } from "./entryEditors";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
 
@@ -388,7 +389,7 @@ export function EntriesSection({ alter, info, bio = true }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const hiddenIds = hiddenEntryIdsOf(settingsRows[0]);
+  const hiddenIds = hiddenEntryIdsOf(pickPrimarySystemSettings(settingsRows));
   const cf = form?.custom_fields || {};
   const fieldOrder = Array.isArray(cf[FIELD_ORDER_KEY]) ? cf[FIELD_ORDER_KEY] : null;
   const orderedFields = useMemo(() => {

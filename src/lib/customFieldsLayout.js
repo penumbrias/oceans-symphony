@@ -13,6 +13,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const FIELD_LAYOUTS = [
   { id: "stacked", label: "Stacked", hint: "One per row, full width" },
@@ -33,7 +34,7 @@ export function useCustomFieldsLayout(alter = null) {
   });
   const own = alter?.custom_fields_layout;
   if (FIELD_LAYOUTS.some((l) => l.id === own)) return own;
-  return resolveFieldLayout(settingsList[0]);
+  return resolveFieldLayout(pickPrimarySystemSettings(settingsList));
 }
 
 // Container + item classes for a field list in the chosen layout. The

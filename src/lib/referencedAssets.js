@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { getLocalImageId } from "@/lib/localImageStorage";
 import { alterFolderName } from "@/lib/assetFolders";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // The app's own logo / icons are deliberately NOT listed (the owner's
 // call): the library is for the user's pictures, not the app's branding.
@@ -32,7 +33,7 @@ export function useReferencedAssets(rules, alterNameById = {}) {
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list().catch(() => []) });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   return useMemo(() => {
     const out = [];
@@ -74,7 +75,7 @@ export function useImageUsage(rules, alterNameById = {}) {
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list().catch(() => []) });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   return useMemo(() => {
     const map = {};
     const put = (url, info) => { const id = getLocalImageId(url); if (id && !map[id]) map[id] = info; };

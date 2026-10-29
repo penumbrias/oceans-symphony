@@ -10,6 +10,7 @@ import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
 import { FieldValue, FieldEditor, ALTER_FIELD_TYPES } from "@/components/alters/profile/fieldControls";
 import { patchAlterCustomFields } from "@/lib/alterEntry";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const FIELD_ORDER_KEY = "_field_order";
 
@@ -26,7 +27,7 @@ export default function InfoTab({ alter, systemFields }) {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const systemSettings = settingsList[0] || null;
+  const systemSettings = pickPrimarySystemSettings(settingsList) || null;
   const hiddenFieldIds = systemSettings?.hidden_field_ids || [];
 
   const customFieldValues = alter.custom_fields || {};

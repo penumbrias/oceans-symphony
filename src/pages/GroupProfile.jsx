@@ -50,6 +50,7 @@ import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Same keys the alter profile uses, so contrast helpers + rendering treat
 // group and alter text colours identically.
@@ -456,7 +457,7 @@ function GroupProfileInner() {
 // exist yet.
 function GroupFriendsVisibility({ group, members, allGroups, alters }) {
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const levels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
   const qc = useQueryClient();
   const [includeSubs, setIncludeSubs] = useState(true);
   const [busy, setBusy] = useState(false);

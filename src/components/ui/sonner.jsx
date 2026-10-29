@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/ThemeContext"
 import { Toaster as Sonner } from "sonner"
 import { base44 } from "@/api/base44Client";
 import { readNotificationPrefs, setActivePrefs, installNotificationFilter } from "@/lib/notificationPrefs";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const Toaster = ({
   ...props
@@ -23,7 +24,7 @@ const Toaster = ({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const prefs = readNotificationPrefs(list?.[0]);
+  const prefs = readNotificationPrefs(pickPrimarySystemSettings(list));
 
   // Patch toast.success / info / warning once, then re-sync the module-
   // level cache every time the prefs object changes. The patched

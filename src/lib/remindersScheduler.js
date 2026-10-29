@@ -5,6 +5,7 @@ import { zonedFireInstant, getUserLocalDate, getCurrentMinutesInZone } from "@/l
 import { sendPushNotification, canShowReminderNotifications } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
 import { isPrescheduleableType } from "@/lib/nativeReminderScheduler";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -290,7 +291,7 @@ export async function runClientScheduler(queryClient) {
       new Date(i.created_date || 0).getTime() >= cutoff
     );
 
-    const settings = settingsList?.[0] || {};
+    const settings = pickPrimarySystemSettings(settingsList) || {};
     if (settings.reminders_paused) return []; // kill switch
 
     const quietHours = settings.quiet_hours || {};
@@ -675,7 +676,7 @@ export function useRemindersScheduler() {
     runReminderMigration();
     runReminderPushChannelMigration();
     base44.entities.SystemSettings.list().then(list => {
-      runSnoozeOptionsMigration(list?.[0]?.default_snooze_options);
+      runSnoozeOptionsMigration(pickPrimarySystemSettings(list)?.default_snooze_options);
     }).catch(() => {});
     // Run immediately on mount
     runClientScheduler(queryClient);

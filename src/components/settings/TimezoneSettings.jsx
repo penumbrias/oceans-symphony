@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { TIMEZONE_GROUPS } from "@/lib/timezoneHelpers";
 import { ChevronRight } from "lucide-react";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function TimezoneSettings() {
   const queryClient = useQueryClient();
@@ -15,7 +16,7 @@ export default function TimezoneSettings() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
 
-  const setting = settings[0];
+  const setting = pickPrimarySystemSettings(settings);
   const currentTz = setting?.timezone || "UTC";
 
   // Flatten grouped timezones for select options

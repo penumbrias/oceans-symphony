@@ -14,6 +14,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { extractYear, firstAppearanceOf, patchAlterCustomFields } from "@/lib/alterEntry";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const FIELD_ORDER_KEY = "_field_order";
 
@@ -147,7 +148,7 @@ export async function addSharedEntry({ name, kind = "text" }) {
 export const hiddenEntryIdsOf = (settings) => (Array.isArray(settings?.hidden_field_ids) ? settings.hidden_field_ids : []);
 
 export async function setSharedEntryHidden(fieldId, hidden) {
-  const fresh = (await base44.entities.SystemSettings.list())[0];
+  const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
   const ids = hiddenEntryIdsOf(fresh).filter((id) => id !== fieldId);
   if (hidden) ids.push(fieldId);
   if (fresh?.id) return base44.entities.SystemSettings.update(fresh.id, { hidden_field_ids: ids });

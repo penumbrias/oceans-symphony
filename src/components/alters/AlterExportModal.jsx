@@ -13,6 +13,7 @@ import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { shareFile } from "@/lib/shareFile";
 import { buildAlterListExportHtml, buildAlterListExportText, buildAlterListPdf } from "@/lib/alterExport";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Resolve any image URL (local-image://, blob:, http:) to a portable data URL
 // so it survives in a saved/shared HTML file.
@@ -37,7 +38,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   const systemIdentity = useSystemIdentity();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const privacyLevels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const privacyLevels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
   // Key by both id and sp_id so an alter's groups[] reference resolves whether
   // it stores a local id or an SP id.
   const groupsById = useMemo(() => {

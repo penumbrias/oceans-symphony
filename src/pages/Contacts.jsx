@@ -17,6 +17,7 @@ import {
   contactMethodHref,
   emergencySupportContacts,
 } from "@/lib/contacts";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Contacts — the directory of people OUTSIDE the system. Search, filter by
 // safety, an emergency-support header for quick "who can I ask for help?",
@@ -37,7 +38,7 @@ export default function Contacts() {
   // crashes those components ("t.find is not a function"). Fetch the list and
   // derive [0] locally instead.
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ["contacts"],
     queryFn: () => base44.entities.Contact.list(),

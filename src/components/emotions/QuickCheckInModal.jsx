@@ -123,7 +123,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(ssList?.[0]), [ssList]);
+  const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(pickPrimarySystemSettings(ssList)), [ssList]);
   const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
@@ -440,7 +440,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       // When opened targeting a specific section (e.g. a quick action for
       // Location), open ONLY that section — don't also pop Feeling open.
       // Respect the user's enabled-sections config: never open a hidden one.
-      const enabled = enabledCheckinSectionIds(ssList?.[0]);
+      const enabled = enabledCheckinSectionIds(pickPrimarySystemSettings(ssList));
       const target = initialSection && enabled.includes(initialSection) ? initialSection : (enabled[0] || "feeling");
       setOpenSections(new Set([target]));
       setCurrentSectionId(target);

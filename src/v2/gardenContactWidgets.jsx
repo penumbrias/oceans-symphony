@@ -23,6 +23,7 @@ import { contactNotesKey, listContactNotes, saveContactNote, deleteContactNote }
 import {
   GardenBox, Heading, chipCls, chipStyle, MODES, NotesList, formatSpan, RANGE_DAYS,
 } from "@/v2/gardenProfileWidgets";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // The contact whose page this is. Same ["contacts"] query every contact
 // surface reads.
@@ -34,7 +35,7 @@ export function useSubjectContact() {
   return contacts.find((c) => String(c.id) === String(id)) || null;
 }
 
-const useSettings = () => (useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data || [])[0] || null;
+const useSettings = () => pickPrimarySystemSettings(useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data);
 const useEncounters = () => useQuery({ queryKey: ["contactEncounters"], queryFn: () => base44.entities.ContactEncounter.list() }).data || [];
 
 const AVATAR_RADIUS = { circle: "9999px", rounded: "22%", square: "6%" };

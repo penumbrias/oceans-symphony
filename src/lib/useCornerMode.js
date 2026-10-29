@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // User-configurable corner style. Persisted on
 // SystemSettings.corner_mode ("rounded" | "sharp"). The applier
@@ -25,8 +26,8 @@ export function useCornerMode() {
   // radius token and every per-widget look (a stylesheet !important beats
   // inline styles) — so corner_mode is inert under v2 rather than layered
   // on top of it. The stored preference is preserved for classic mode.
-  if (list?.[0]?.ui_v2?.enabled === true) return DEFAULT_CORNER_MODE;
-  const raw = list?.[0]?.corner_mode;
+  if (pickPrimarySystemSettings(list)?.ui_v2?.enabled === true) return DEFAULT_CORNER_MODE;
+  const raw = pickPrimarySystemSettings(list)?.corner_mode;
   return raw === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : DEFAULT_CORNER_MODE;
 }
 

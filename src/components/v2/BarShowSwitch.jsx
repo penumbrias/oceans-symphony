@@ -15,12 +15,14 @@ import { useT } from "@/lib/i18n";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { barShown, barShownPatch, isV2Chrome, switchableBars, openBarsEditor } from "@/lib/barsModel";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export function useBarsChrome() {
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  // rows[0], like the chrome (AppLayout) — the row the bars are drawn from.
-  const row = rows[0] || null;
+  // The same row the chrome (AppLayout) draws the bars from — never a bare [0],
+  // since a boot stub can shadow the real record.
+  const row = pickPrimarySystemSettings(rows) || null;
   const v2Chrome = isV2Chrome(row, UI_V2_ENABLED);
   const writePatch = async (patch) => {
     if (!patch || !row?.id) return;

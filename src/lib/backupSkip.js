@@ -17,12 +17,13 @@
 // It travels with the settings, so a restore keeps the same choices.
 
 import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const skipKeyForImage = (id) => `i:${id}`;
 
 async function settingsRow() {
   const rows = await base44.entities.SystemSettings.list();
-  return rows?.[0] || null;
+  return pickPrimarySystemSettings(rows) || null;
 }
 
 function keysFrom(row) {

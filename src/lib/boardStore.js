@@ -32,6 +32,7 @@
 import { base44, localEntities } from "@/api/base44Client";
 import { stampBoardChanges } from "@/lib/boardStamp";
 import { pickProfileBoardRows, isProfileOwnerType, layoutOwnerIds } from "@/lib/profileBoard";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const isBoardStore = (x) => !!x && typeof x === "object" && typeof x.write === "function" && typeof x.update === "function";
 
@@ -53,7 +54,7 @@ export function settingsBoardStore({ settingsRow, field, qc }) {
     if (id) return base44.entities.SystemSettings.get(id);
     // No row in hand yet: look again before creating, so a slow first
     // load can't leave a second settings record behind.
-    return (await base44.entities.SystemSettings.list())[0] || null;
+    return pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || null;
   };
   const writeRaw = async (next, extra = null) => {
     const row = await findRow();

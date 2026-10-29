@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { readWaveColorKey, readWaveCustom } from "@/lib/waveColorKey";
 import { getPageWaveOverride, subscribePageWaveOverride } from "@/lib/pageWaveOverride";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Animated wave block that fills the header's upper portion with a
 // slightly lighter hue, ending in a wavy bottom edge that scrolls
@@ -40,7 +41,7 @@ export default function HeaderWaveBlock() {
     return subscribePageWaveOverride(setPageWave);
   }, []);
 
-  const settings = settingsList?.[0];
+  const settings = pickPrimarySystemSettings(settingsList);
   const colorKey = readWaveColorKey(settings);
   const customWave = readWaveCustom(settings);
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { readPanicTapsSetting, DEFAULT_PANIC_TAPS } from "@/components/settings/GroceryPanicTapsSettings";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Quick taps anywhere on the screen → open the Grocery List panel as
 // a privacy cover. The panel sits over every other UI in the app so a
@@ -46,7 +47,7 @@ export default function useTripleTapPanic() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const tapsRequired = readPanicTapsSetting(settingsList?.[0]);
+  const tapsRequired = readPanicTapsSetting(pickPrimarySystemSettings(settingsList));
 
   useEffect(() => {
     if (tapsRequired === "off") return;

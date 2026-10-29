@@ -18,6 +18,7 @@ import { registerMedia, isOtherPlaying, subscribeIdle } from "@/lib/mediaExclusi
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isOtherAudioPlaying } from "@/lib/otherAudio";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // `song` lets any surface drive this (group/location profiles, the v2 home
 // board); `alter` stays supported so existing callers are untouched.
@@ -35,7 +36,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const enabled = settingsList[0]?.profile_songs_enabled !== false;
+  const enabled = pickPrimarySystemSettings(settingsList)?.profile_songs_enabled !== false;
 
   // Local uploads resolve through the same hook avatars use (the blob's
   // own MIME type makes the object URL an audio URL); http(s) passes through.

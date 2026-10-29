@@ -46,6 +46,7 @@ import {
   REMINDERS_CHANNEL_ID,
   SWITCH_CHANNEL_ID,
 } from "@/lib/nativeNotifications";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // "Switch" notifications are reminders fired when an alter takes
 // front — contextual reminders with on: "alter_fronts". They tend to
@@ -670,7 +671,7 @@ export function useNativeReminderSync() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   // "No front update for N minutes" reminders anchor their fire times off
   // the most recent fronting change, so we watch the front history and

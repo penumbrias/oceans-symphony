@@ -8,6 +8,7 @@ import { Loader2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { CONTACT_SAFETY_LEVELS, getSafetyLevels } from "@/lib/contacts";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Phase 2 — let users rename / recolour the 4 contact safety levels.
 // The KEYS (safe/caution/unsafe/unknown) are fixed so existing Contact.safety
@@ -42,7 +43,7 @@ export default function ContactSafetyLabelsModal({ open, onClose, settings }) {
         };
       });
       const list = await base44.entities.SystemSettings.list();
-      const existing = list[0];
+      const existing = pickPrimarySystemSettings(list);
       if (existing) await base44.entities.SystemSettings.update(existing.id, { contact_safety_levels: clean });
       else await base44.entities.SystemSettings.create({ contact_safety_levels: clean });
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });

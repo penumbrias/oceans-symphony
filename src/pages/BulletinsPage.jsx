@@ -7,6 +7,7 @@ import { ChevronLeft, Plus } from "lucide-react";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Full-screen Bulletin Board view. Same component the dashboard
 // widget uses, but mounted in `pageMode` so it:
@@ -33,7 +34,7 @@ export default function BulletinsPage() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const uiV2On = UI_V2_ENABLED && settingsList[0]?.ui_v2?.enabled === true;
+  const uiV2On = UI_V2_ENABLED && pickPrimarySystemSettings(settingsList)?.ui_v2?.enabled === true;
 
   // Active fronter context — bulletins composed from this page should
   // attribute to current fronters just like the dashboard widget does.

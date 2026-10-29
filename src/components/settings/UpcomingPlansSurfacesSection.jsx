@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 /**
  * Settings → Appearance subsection: pick where Upcoming Plans render
@@ -37,7 +38,7 @@ export default function UpcomingPlansSurfacesSection() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const settings = settingsList[0] || null;
+  const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const [enabled, setEnabled] = useState(() => new Set(settings?.upcoming_plans_surfaces || DEFAULT_SURFACES));
 

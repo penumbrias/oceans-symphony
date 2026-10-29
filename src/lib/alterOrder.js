@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getMemberAlters } from "@/lib/subsystemUtils";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export function resolveAlterOrder(settingsRow) {
   const raw = settingsRow?.alter_order;
@@ -65,11 +66,11 @@ export function useAlterOrder() {
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
-  const entries = useMemo(() => resolveAlterOrder(settingsList[0]), [settingsList]);
+  const entries = useMemo(() => resolveAlterOrder(pickPrimarySystemSettings(settingsList)), [settingsList]);
   return useMemo(() => ({
     entries,
     hasOrder: entries.length > 0,
-    settingsId: settingsList[0]?.id || null,
+    settingsId: pickPrimarySystemSettings(settingsList)?.id || null,
     arrange: (list, fallback = null) => orderAlters(list, entries, groups, fallback),
     // id → position for the alters the user actually PLACED (group
     // entries expand). Surfaces use this to let a hand-set order outrank
