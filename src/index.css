@@ -1074,7 +1074,7 @@ html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
    being edited, so an empty box reads as "Groups — nothing to show yet"
    rather than a gap. */
 .pf-widget-empty { display: none; }
-html[data-home-edit] .pf-widget-empty { display: flex; min-height: 48px; }
+html[data-home-edit] .pf-widget-empty { display: flex; min-height: 40px; }
 /* A playing video embed must not swallow the drag while the layout is being edited. */
 html[data-home-edit] .media-embed { pointer-events: none; }
 

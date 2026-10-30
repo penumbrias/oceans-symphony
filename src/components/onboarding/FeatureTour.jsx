@@ -364,9 +364,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🧩", title: "Edit the page",
-      body: `The pencil edits the page itself, like the home screen. Hold a widget to move it, drag its edges to resize, and tap its ⚙ for its options.`,
+      body: `The pencil edits the page itself, and it keeps looking exactly as it does. Hold a widget to move it in the column, drag its edges to resize, and tap its ⚙ for its options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
       look: ai ? `the highlighted pencil (Edit page)` : `open a profile and look for the pencil at the top-right`,
+    }),
+    s("profile", {
+      emoji: "🧲", title: "Snap to grid",
+      body: `While editing, Snap in the bottom bar turns grid snapping off, so widgets move and size in small steps. One widget can have its own choice in its ⚙ → Shape → Arrange.`,
+      route: profile(),
     }),
     s("profile", {
       emoji: "➕", title: "Add to a page",

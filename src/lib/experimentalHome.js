@@ -82,6 +82,15 @@ function clampInt(v, min, max, fallback) {
   return Math.max(min, Math.min(max, n));
 }
 
+// Sizes and positions keep quarter steps (snapping off, v0.322.x) —
+// anything finer is rounded to the nearest quarter, never thrown away.
+const quarter = (n) => Math.round(n * 4) / 4;
+function clampStep(v, min, max, fallback) {
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, quarter(n)));
+}
+
 // Sanitize a stored config against the registry's capabilities. `registry`
 // is passed in (not imported) to keep this module free of JSX imports so
 // it stays testable and cheap to load.
@@ -177,20 +186,20 @@ export function resolveExperimentalHome(stored, registry = {}) {
       seenInstance.add(instanceId);
       const minC = def.minSpan?.cols ?? 1, maxC = def.maxSpan?.cols ?? 12;
       const minR = def.minSpan?.rows ?? 1, maxR = Math.round((def.maxSpan?.rows ?? 8) * rowUnitScale);
-      const rawCols = parseInt(w.span?.cols, 10);
+      const rawCols = parseFloat(w.span?.cols);
       widgets.push({
         instanceId,
         widgetId: w.widgetId,
         span: {
-          cols: clampInt(Number.isFinite(rawCols) ? rawCols * spanScale : NaN, minC, maxC, def.defaultSpan?.cols ?? 4),
-          rows: clampInt(w.span?.rows, minR, maxR, def.defaultSpan?.rows ?? 1),
+          cols: clampStep(Number.isFinite(rawCols) ? rawCols * spanScale : NaN, minC, maxC, def.defaultSpan?.cols ?? 4),
+          rows: clampStep(w.span?.rows, minR, maxR, def.defaultSpan?.rows ?? 1),
         },
         mode: HOME_MODES.includes(w.mode) ? w.mode : "normal",
         settings: w.settings && typeof w.settings === "object" ? w.settings : {},
         // Free-placement coordinates (grid cells, 0-based). Absent = this
         // widget just flows in order, which is the old behaviour.
-        pos: w.pos && Number.isFinite(parseInt(w.pos.x, 10)) && Number.isFinite(parseInt(w.pos.y, 10))
-          ? { x: Math.max(0, parseInt(w.pos.x, 10)), y: Math.max(0, parseInt(w.pos.y, 10)) }
+        pos: w.pos && Number.isFinite(parseFloat(w.pos.x)) && Number.isFinite(parseFloat(w.pos.y))
+          ? { x: Math.max(0, quarter(parseFloat(w.pos.x))), y: Math.max(0, quarter(parseFloat(w.pos.y))) }
           : null,
       });
     }
@@ -346,8 +355,10 @@ export function packPositions(widgets, gridCols, measuredRows = {}) {
 // switching a page into free placement, and wrong for closing gaps, which
 // should never resize or rearrange anything.
 export function compactVertically(widgets, gridCols) {
-  const taken = new Set();
-  const key = (x, y) => `${x},${y}`;
+  // Boxes, not a cell set: with grid snapping off (v0.322.x) positions and
+  // sizes can sit between grid lines, and a set of whole-cell keys would
+  // let two such widgets slide into each other.
+  const placed = [];
   const moved = new Map();
 
   // Top-down, left-to-right: a widget can only settle onto what's already
@@ -358,32 +369,98 @@ export function compactVertically(widgets, gridCols) {
 
   for (const w of ordered) {
     if (isLayered(w)) continue;
-    const c = Math.min(Math.max(1, w.span?.cols || 1), gridCols);
-    const r = Math.max(1, w.span?.rows || 1);
+    const c = Math.min(Math.max(MIN_SPAN, w.span?.cols || 1), gridCols);
+    const r = Math.max(MIN_SPAN, w.span?.rows || 1);
     const x = Math.max(0, Math.min(w.pos?.x || 0, gridCols - c));
-    const free = (yy) => {
-      if (yy < 0) return false;
-      for (let dy = 0; dy < r; dy += 1) {
-        for (let dx = 0; dx < c; dx += 1) if (taken.has(key(x + dx, yy + dy))) return false;
-      }
-      return true;
-    };
-
-    let y = Math.max(0, w.pos?.y || 0);
+    const b = { x, y: Math.max(0, w.pos?.y || 0), c, r };
     // Overlapping already? Settle downward first so gravity can't stack two
     // widgets in the same cells.
-    while (!free(y)) y += 1;
-    // Then fall as far up as there's room.
-    while (free(y - 1)) y -= 1;
-
-    for (let dy = 0; dy < r; dy += 1) {
-      for (let dx = 0; dx < c; dx += 1) taken.add(key(x + dx, y + dy));
+    let guard = 0;
+    for (let clash = placed.find((p) => hits(b, p)); clash && guard < 500; clash = placed.find((p) => hits(b, p))) {
+      b.y = clash.y + clash.r;
+      guard += 1;
     }
+    // Then fall as far up as there's room: onto the lowest bottom edge of
+    // anything above that shares a column with it.
+    const floor = placed
+      .filter((p) => p.x < b.x + b.c && b.x < p.x + p.c && p.y + p.r <= b.y)
+      .reduce((m, p) => Math.max(m, p.y + p.r), 0);
+    b.y = floor;
+    placed.push(b);
     // span is deliberately untouched.
-    moved.set(w.instanceId, { ...w, pos: { x, y } });
+    moved.set(w.instanceId, { ...w, pos: { x, y: b.y } });
   }
   // Original array order — "close gaps" must not reshuffle the list.
   return (widgets || []).map((w) => moved.get(w.instanceId) || w);
+}
+
+// ── Flow pages in edit mode (v0.322.x) ─────────────────────────────
+// A flow page (profiles, the classic home) shows its widgets as a column
+// in position order. Edit mode now shows the SAME column instead of a
+// fixed grid, so what you arrange is what you see. Reordering there is a
+// change of order, and positions are rewritten from the new order: each
+// widget takes the next spot on its row, wrapping when the row is full —
+// the same rule the column itself follows.
+export function flowOrder(widgets) {
+  return [...(widgets || [])].sort(
+    (a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0)
+  );
+}
+
+export function flowRepack(ordered, gridCols) {
+  let x = 0;
+  let y = 0;
+  let rowH = 0;
+  const EPS = 1e-6;
+  return (ordered || []).map((w) => {
+    const c = Math.min(Math.max(MIN_SPAN, w.span?.cols || 1), gridCols);
+    const r = Math.max(MIN_SPAN, w.span?.rows || 1);
+    if (x > 0 && x + c > gridCols + EPS) {
+      y += rowH;
+      x = 0;
+      rowH = 0;
+    }
+    const pos = { x, y };
+    x += c;
+    rowH = Math.max(rowH, r);
+    return (w.pos?.x === pos.x && w.pos?.y === pos.y) ? w : { ...w, pos };
+  });
+}
+
+// Move one widget to another's place in a flow page's order.
+export function flowMove(widgets, gridCols, fromId, toId) {
+  const ordered = flowOrder(widgets);
+  const from = ordered.findIndex((w) => w.instanceId === fromId);
+  const to = ordered.findIndex((w) => w.instanceId === toId);
+  if (from === -1 || to === -1 || from === to) return widgets;
+  const [moved] = ordered.splice(from, 1);
+  ordered.splice(to, 0, moved);
+  const byId = new Map(flowRepack(ordered, gridCols).map((w) => [w.instanceId, w]));
+  // Keep the stored array order; only positions change.
+  return widgets.map((w) => byId.get(w.instanceId) || w);
+}
+
+// ── Grid snapping (v0.322.x) ───────────────────────────────────────
+// Moves and resizes snap to whole grid cells unless snapping is off —
+// for the whole app (SystemSettings.board_snap === false) or for one
+// widget (settings.snap: true/false beats the app-wide choice). Off, they
+// step by a quarter of a cell, so a widget can sit and size between the
+// grid lines. Stored values are plain numbers either way.
+export const FINE_STEP = 0.25;
+export const MIN_SPAN = FINE_STEP;
+export function widgetSnaps(widget, boardSnap = true) {
+  const own = widget?.settings?.snap;
+  if (own === true || own === false) return own;
+  return boardSnap !== false;
+}
+export function snapStepFor(widget, boardSnap = true) {
+  return widgetSnaps(widget, boardSnap) ? 1 : FINE_STEP;
+}
+export const isWhole = (n) => Math.abs(n - Math.round(n)) < 1e-6;
+// True when a widget sits or sizes between grid lines.
+export function isOffGrid(w) {
+  return !isWhole(w?.pos?.x || 0) || !isWhole(w?.pos?.y || 0)
+    || !isWhole(w?.span?.cols || 1) || !isWhole(w?.span?.rows || 1);
 }
 
 // ── Free-placement collision handling ──────────────────────────────
@@ -430,8 +507,8 @@ export function boxRotation(w) {
 
 const box = (w, gridCols) => {
   const x = Math.max(0, Math.min(gridCols - 1, w.pos?.x || 0));
-  const c = Math.max(1, Math.min(w.span?.cols || 1, gridCols - x));
-  return { x, y: Math.max(0, w.pos?.y || 0), c, r: Math.max(1, w.span?.rows || 1) };
+  const c = Math.max(MIN_SPAN, Math.min(w.span?.cols || 1, gridCols - x));
+  return { x, y: Math.max(0, w.pos?.y || 0), c, r: Math.max(MIN_SPAN, w.span?.rows || 1) };
 };
 const hits = (a, b) => a.x < b.x + b.c && b.x < a.x + a.c && a.y < b.y + b.r && b.y < a.y + a.r;
 
@@ -486,29 +563,24 @@ export function resolveOverlaps(widgets, gridCols, anchorId = null) {
 export function findFreeCell(widgets, gridCols, span = { cols: 1, rows: 1 }) {
   const cols = Math.max(1, Math.min(span.cols || 1, gridCols));
   const rows = Math.max(1, span.rows || 1);
-  const occupied = new Set();
+  // Boxes rather than whole cells, so a widget sitting between grid lines
+  // (snapping off) still blocks the cells it covers.
+  const boxes = [];
   let maxY = 0;
   for (const w of widgets) {
     if (!w?.pos) continue;
-    const wc = Math.max(1, Math.min(w.span?.cols || 1, gridCols));
-    const wrs = Math.max(1, w.span?.rows || 1);
-    for (let dy = 0; dy < wrs; dy += 1) {
-      for (let dx = 0; dx < wc; dx += 1) occupied.add(`${w.pos.x + dx}:${w.pos.y + dy}`);
-    }
-    maxY = Math.max(maxY, w.pos.y + wrs);
+    const b = { x: w.pos.x || 0, y: w.pos.y || 0, c: Math.max(MIN_SPAN, Math.min(w.span?.cols || 1, gridCols)), r: Math.max(MIN_SPAN, w.span?.rows || 1) };
+    boxes.push(b);
+    maxY = Math.max(maxY, b.y + b.r);
   }
-  const fits = (x, y) => {
-    for (let dy = 0; dy < rows; dy += 1) {
-      for (let dx = 0; dx < cols; dx += 1) if (occupied.has(`${x + dx}:${y + dy}`)) return false;
-    }
-    return true;
-  };
-  for (let y = 0; y <= maxY; y += 1) {
+  const top = Math.ceil(maxY);
+  for (let y = 0; y <= top; y += 1) {
     for (let x = 0; x <= gridCols - cols; x += 1) {
-      if (fits(x, y)) return { x, y };
+      const cand = { x, y, c: cols, r: rows };
+      if (!boxes.some((b) => hits(cand, b))) return { x, y };
     }
   }
-  return { x: 0, y: maxY };
+  return { x: 0, y: top };
 }
 
 // ── Drop beside (v0.306.0) ──────────────────────────────────────────

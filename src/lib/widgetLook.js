@@ -315,7 +315,9 @@ export const LOOK_SECTIONS = [
     id: "layout", label: "Layout",
     keys: ["controlScale", "halign", "valign", "padding", "padTop", "padRight", "padBottom", "padLeft",
       // Arrange (v0.314.0): placement, so never part of a style.
-      "layered", "zLayer", "boxRotate"],
+      "layered", "zLayer", "boxRotate",
+      // Snap to grid (v0.322.x): placement too.
+      "snap"],
     lookKeys: ["padding", "padTop", "padRight", "padBottom", "padLeft"],
     required: ["padding"],
   },

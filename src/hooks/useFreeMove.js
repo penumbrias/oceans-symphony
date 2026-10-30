@@ -63,6 +63,9 @@ export function useFreeMove({
   // from it to fall back to the ordinary drop.
   onBeside = null,
   trashSelector = "[data-widget-trash]",
+  // The unit a drop lands on: 1 = whole cells (snapping on), a fraction of
+  // a cell when snapping is off.
+  step = 1,
 }) {
   const [drag, setDrag] = useState(null); // { dx, dy, target: {x,y}, overTrash, beside }
   const state = useRef(null);
@@ -105,8 +108,11 @@ export function useFreeMove({
       const fx = (clientX - rect.left) / colPitch - off.x;
       const fy = (clientY - rect.top) / rowPitch - off.y;
       const prev = st.target || { x: pos.x, y: pos.y };
-      const nx = Math.abs(fx - prev.x) >= SWITCH_AT ? Math.round(fx) : prev.x;
-      const ny = Math.abs(fy - prev.y) >= SWITCH_AT ? Math.round(fy) : prev.y;
+      // Off the grid the damping scales with the step, so the widget
+      // follows the finger in small, even moves.
+      const q = (v) => Math.round(v / step) * step;
+      const nx = Math.abs(fx - prev.x) >= SWITCH_AT * step ? q(fx) : prev.x;
+      const ny = Math.abs(fy - prev.y) >= SWITCH_AT * step ? q(fy) : prev.y;
       const x = Math.max(0, Math.min(gridCols - cols, nx));
       const y = Math.max(0, ny);
       st.target = { x, y };
@@ -221,7 +227,7 @@ export function useFreeMove({
       st.scroller = scroller;
       st.scrollBase = scroller.scrollTop;
       const EDGE = 56;
-      const step = () => {
+      const scrollStep = () => {
         const cur = state.current;
         if (!cur || !cur.active) return;
         // Only once the finger has genuinely moved — lifting a widget that
@@ -238,11 +244,11 @@ export function useFreeMove({
           else if (y > bottom - EDGE) { scroller.scrollTop += Math.min(AUTOSCROLL_MAX, Math.ceil((y - (bottom - EDGE)) / AUTOSCROLL_DIVISOR)); moved = true; }
           if (moved && cur.point) computeDrag(cur.point.x, cur.point.y);
         }
-        cur.raf = requestAnimationFrame(step);
+        cur.raf = requestAnimationFrame(scrollStep);
       };
-      st.raf = requestAnimationFrame(step);
+      st.raf = requestAnimationFrame(scrollStep);
     }, HOLD_MS);
-  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, onBeside, trashSelector]);
+  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, onBeside, trashSelector, step]);
 
   // Keep the latest preview where pointerup can read it without a stale closure.
   useEffect(() => { if (state.current) state.current.last = drag; }, [drag]);

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "improve", text: "Editing a profile page (or the home screen) no longer rearranges it: the page keeps looking exactly as it does, and widgets with nothing to show get a light dashed outline." },
+      { type: "feature", text: "Snap to grid can be turned off with Snap in the edit bar, so widgets move and size in small steps — or just for one widget in its options → Shape → Arrange." },
       { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
       { type: "fix", text: "Typing into the bio from a widget's options sheet no longer fights the sheet's drag gesture." },
       { type: "improve", text: "Info is reachable while editing the page layout: it opens over the page, so your unsaved layout stays put." },
