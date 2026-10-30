@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "Every picture can now be framed: drag and zoom group, contact, location and system pictures, the banner, profile header and background pictures, and each picture in a rotating pool." },
+      { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
       { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
       { type: "fix", text: "Typing into the bio from a widget's options sheet no longer fights the sheet's drag gesture." },
       { type: "improve", text: "Info is reachable while editing the page layout: it opens over the page, so your unsaved layout stays put." },

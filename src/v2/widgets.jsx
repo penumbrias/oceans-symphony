@@ -127,6 +127,7 @@ import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets
 import { startSleep } from "@/lib/sleepEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
+import { pictureStyle } from "@/lib/imageFraming";
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
 // midnight, which is the day before west of Greenwich, so read it as local
@@ -158,7 +159,7 @@ function PresenceAvatar({ alter, ring }) {
         backgroundColor: alter.color || "hsl(var(--muted))",
         boxShadow: ring ? `0 0 0 2px color-mix(in srgb, ${alter.color || "var(--v2-accent)"} 55%, transparent)` : undefined,
       }}>
-      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" /> : null}
+      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" style={pictureStyle(alter, alter.avatar_url)} /> : null}
     </span>
   );
 }
@@ -851,7 +852,7 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   const avatarEl = avatar
     ? (
       <span className="relative flex-shrink-0" style={{ width: size, height: size }}>
-        <img src={avatar} alt="" className="rounded-full object-cover w-full h-full" />
+        <span className="block w-full h-full rounded-full overflow-hidden"><img src={avatar} alt="" className="object-cover w-full h-full" style={pictureStyle(settings, settings?.system_avatar_url || settings?.system_avatar)} /></span>
         <AssetButton onPick={setAvatar} title={tr("widget.identity.changePicture")} allowFolders
           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-border bg-background flex items-center justify-center" />
       </span>
@@ -2314,7 +2315,7 @@ function PinnedAvatar({ alter, size, fronting, session = null, blurAvatar }) {
       }}
     >
       {resolved
-        ? <img src={resolved} alt="" className="w-full h-full object-cover" draggable={false} />
+        ? <img src={resolved} alt="" className="w-full h-full object-cover" draggable={false} style={pictureStyle(alter, alter.avatar_url)} />
         : <span className="font-semibold text-muted-foreground" style={{ fontSize: Math.max(10, size * 0.3) }}>
             {(alter.name || "?").slice(0, 2)}
           </span>}

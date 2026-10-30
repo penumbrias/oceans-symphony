@@ -43,6 +43,8 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming } from "@/lib/imageFraming";
 
 
 const PAGE_ICONS = { [profilePageId("profile")]: MapPin };
@@ -99,6 +101,7 @@ function LocationProfileInner() {
       shape: location.shape || "rectangle",
       description: location.description || "",
       background_image_url: location.background_image_url || "",
+      image_framing: location.image_framing && typeof location.image_framing === "object" ? location.image_framing : {},
       background_opacity: location.background_opacity ?? 0.7,
       is_locked: !!location.is_locked,
       link_target_type: location.link_target_type || "",
@@ -162,6 +165,7 @@ function LocationProfileInner() {
         shape: form.shape || "rectangle",
         description: form.description,
         background_image_url: form.background_image_url,
+        image_framing: form.image_framing || {},
         background_opacity: form.background_opacity ?? 0.7,
         is_locked: !!form.is_locked,
         link_target_type: form.link_target_type || null,
@@ -214,7 +218,7 @@ function LocationProfileInner() {
     const pageFont = fontStackFor(cf[PS.PAGE_FONT]);
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={ps.bgColor} bgImage={ps.bgImage} bgOpacity={ps.bgOpacity} />
+        <PageBackground bgColor={ps.bgColor} bgImage={ps.bgImage} bgOpacity={ps.bgOpacity} bgFraming={ps.bgFraming} />
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         {/* The song belongs to VIEWING the page. */}
@@ -269,7 +273,7 @@ function LocationProfileInner() {
   const linkValue = form.link_target_type ? `${form.link_target_type}:${form.link_target_id}` : "";
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-      <PageBackground bgColor={formPs.bgColor} bgImage={formPs.bgImage} bgOpacity={formPs.bgOpacity} />
+      <PageBackground bgColor={formPs.bgColor} bgImage={formPs.bgImage} bgOpacity={formPs.bgOpacity} bgFraming={formPs.bgFraming} />
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
       {/* This page's song, set in its style editor like any other profile. */}
@@ -340,6 +344,10 @@ function LocationProfileInner() {
                 <button type="button" onClick={() => setForm((f) => ({ ...f, background_image_url: "" }))} className="text-muted-foreground hover:text-destructive flex-shrink-0 self-center"><X className="w-4 h-4" /></button>
               )}
             </div>
+            <PictureFramingRow url={form.background_image_url} value={form.image_framing?.[form.background_image_url]} label="Framing"
+              shape={form.shape === "oval" || form.shape === "circle" ? "circle" : "box"} aspect="wide"
+              hint="Which part of the picture shows in the box, on the map and on the profile"
+              onChange={(f) => setForm((cur) => ({ ...cur, image_framing: withImageFraming(cur.image_framing, cur.background_image_url, f) }))} />
             {form.background_image_url && (
               <div className="space-y-1 pt-1">
                 <div className="flex items-center justify-between">

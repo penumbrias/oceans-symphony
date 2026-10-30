@@ -35,7 +35,7 @@ import { needsHalo, getPageBackground, adjustForContrast } from "@/lib/contrast"
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
-import { alterPictureStyle } from "@/lib/imageFraming";
+import { alterPictureStyle, framedBackgroundStyle } from "@/lib/imageFraming";
 
 
 export function getContrastColor(hex) {
@@ -239,8 +239,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
       {headerImage && resolvedHeaderImage && (
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: `url("${resolvedHeaderImage}")`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          ...framedBackgroundStyle(cf[PS.HEADER_IMAGE_FRAMING]),
           opacity: headerOpacity,
         }} />
       )}

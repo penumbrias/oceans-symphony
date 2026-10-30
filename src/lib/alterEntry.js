@@ -86,8 +86,22 @@ export async function saveAlterEdits({ alterId, baseline, form }) {
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
   const patch = {};
   for (const key of Object.keys(after)) {
-    if (key === "custom_fields") continue;
+    if (key === "custom_fields" || key === "image_framing") continue;
     if (!same(after[key], before[key])) patch[key] = after[key];
+  }
+  // image_framing: only the pictures this editor re-framed, onto what's
+  // stored now — the picture pool and the options sheets frame pictures
+  // straight onto the record while the form is open.
+  const ifBefore = before.image_framing || {};
+  const ifAfter = after.image_framing || {};
+  const ifChanged = [...new Set([...Object.keys(ifBefore), ...Object.keys(ifAfter)])].filter((k) => !same(ifAfter[k], ifBefore[k]));
+  if (ifChanged.length) {
+    const map = { ...(fresh.image_framing && typeof fresh.image_framing === "object" ? fresh.image_framing : {}) };
+    for (const k of ifChanged) {
+      if (k in ifAfter) map[k] = ifAfter[k];
+      else delete map[k];
+    }
+    patch.image_framing = map;
   }
   // custom_fields: only the keys this editor changed, onto what's stored now.
   const cfBefore = before.custom_fields || {};

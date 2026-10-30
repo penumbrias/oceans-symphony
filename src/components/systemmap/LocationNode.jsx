@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 
+import { pictureStyle } from "@/lib/imageFraming";
 const MIN_SIZE = 80;
 
 export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
@@ -225,7 +226,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         <foreignObject x={x} y={y} width={width} height={height} style={{ pointerEvents: "none" }}>
           <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : 8, overflow: "hidden" }}>
             <img src={resolvedBgUrl} alt="" draggable={false}
-              style={{ width: "100%", height: "100%", objectFit: "cover", opacity: background_opacity ?? 0.7, display: "block" }} />
+              style={{ width: "100%", height: "100%", opacity: background_opacity ?? 0.7, display: "block", ...pictureStyle(location, background_image_url) }} />
           </div>
         </foreignObject>
       )}

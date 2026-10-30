@@ -35,6 +35,7 @@ import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 
+import { framedBackgroundStyle, framingFor } from "@/lib/imageFraming";
 // The icon each tab's page shows in the page strip (by page id).
 const PAGE_ICONS = {
   [profilePageId("profile")]: User,
@@ -301,7 +302,7 @@ function AlterProfileInner() {
         <ProfileSongPlayer song={alter?.profile_song?.ref ? alter.profile_song : cf[PS.SONG]} />
       )}
       {hasPageBg && (
-        <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
           {resolvedBgImage ? (
             <>
               {/* SOLID full-opacity base layer of _bg_color UNDER the image, so
@@ -314,9 +315,8 @@ function AlterProfileInner() {
               {/* Image on top at its own opacity. */}
               <div className="absolute inset-0" style={{
                 backgroundImage: `url("${resolvedBgImage}")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
+                ...framedBackgroundStyle(framingFor(alter, rotatingBgUrl) || (rotatingBgUrl === lookCf[PS.BG_IMAGE] ? lookCf[PS.BG_IMAGE_FRAMING] : null)),
                 opacity: pageBgOpacity,
               }} />
             </>
@@ -463,8 +463,7 @@ function AlterProfileInner() {
                 className="absolute inset-0 pointer-events-none"
                 style={{
                   backgroundImage: `url("${resolvedHeaderImage}")`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
+                  ...framedBackgroundStyle(lookCf[PS.HEADER_IMAGE_FRAMING]),
                   opacity: headerOpacity,
                 }}
               />

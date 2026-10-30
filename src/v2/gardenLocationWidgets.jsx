@@ -25,6 +25,7 @@ import SimplePreview from "@/components/shared/SimplePreview";
 import { useLocationContext } from "@/components/systemmap/LocationSections";
 import { GardenBox, Heading, chipCls, chipStyle, MODES, textBtnCls } from "@/v2/gardenProfileWidgets";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // The location whose page this is. Same ["innerWorldLocations"] query
 // every location surface reads.
 export function useSubjectLocation() {
@@ -49,7 +50,7 @@ function LocationPicture({ location, size, shape }) {
   return (
     <div className="overflow-hidden flex-shrink-0 flex items-center justify-center"
       style={{ width: size, height: size, borderRadius: AVATAR_RADIUS[shape] || AVATAR_RADIUS.rounded, backgroundColor: location.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)" }}>
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-1/2 h-1/2 opacity-70" aria-hidden="true" />}
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" style={pictureStyle(location, image)} /> : <MapPin className="w-1/2 h-1/2 opacity-70" aria-hidden="true" />}
     </div>
   );
 }
@@ -59,7 +60,7 @@ function AlterFace({ alter, size = "2.25em" }) {
   return (
     <span className="rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
       style={{ width: size, height: size, backgroundColor: alter.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)" }} aria-hidden="true">
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <User className="w-1/2 h-1/2 opacity-70" />}
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" style={pictureStyle(alter, alter.avatar_url)} /> : <User className="w-1/2 h-1/2 opacity-70" />}
     </span>
   );
 }

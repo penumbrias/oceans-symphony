@@ -13,6 +13,7 @@ import {
   MAX_SUBSYSTEM_DEPTH,
 } from "@/lib/subsystemUtils";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // Renders the alters-section list with subsystems nested inline. An alter
 // that owns a subsystem gets an expander beside the activity bolt; owning
 // more than one shows a chooser first. Members nest inline UNTIL the
@@ -73,7 +74,7 @@ function SubsystemAccessory({ group, count = 1, tint, iconUrl, expanded, inlineE
       }}
     >
       {showImg ? (
-        <img src={resolved} alt="" className="w-full h-full object-cover" />
+        <img src={resolved} alt="" className="w-full h-full object-cover" style={count > 1 ? undefined : pictureStyle(group, group?.avatar_url)} />
       ) : count > 1 ? (
         <><FolderTree className="w-3.5 h-3.5" style={{ color }} /><span className="text-[0.625rem] font-semibold" style={{ color }}>{count}</span></>
       ) : (inlineExpandable && expanded

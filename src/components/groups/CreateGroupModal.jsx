@@ -24,6 +24,8 @@ import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { pickGroupConfig } from "@/lib/groupConfig";
 import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 
 export default function CreateGroupModal({ open, onClose, parentGroup = null }) {
   const queryClient = useQueryClient();
@@ -34,6 +36,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
   const [name, setName] = useState("");
   const [color, setColor] = useState("#8b5cf6");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [imageFraming, setImageFraming] = useState({});
   const [isSub, setIsSub] = useState(false);
   const [ownerAlterId, setOwnerAlterId] = useState("");
   const [parent, setParent] = useState(parentGroup ? (parentGroup.sp_id || parentGroup.id) : "");
@@ -92,7 +95,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
   };
 
   const reset = () => {
-    setName(""); setColor("#8b5cf6"); setAvatarUrl("");
+    setName(""); setColor("#8b5cf6"); setAvatarUrl(""); setImageFraming({});
     setIsSub(false); setOwnerAlterId("");
     setParent(parentGroup ? (parentGroup.sp_id || parentGroup.id) : "");
     setSelectedMembers(new Set()); setShowMembers(false); setMemberQuery("");
@@ -109,6 +112,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
         name: name.trim(),
         color,
         avatar_url: avatarUrl,
+        image_framing: imageFraming,
         description,
         owner_alter_id: isSub ? (ownerAlterId || "") : "",
         parent: parent || "",
@@ -154,7 +158,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
               <Label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground">Avatar</Label>
               <div className="w-[68px] h-[68px] rounded-xl border-2 border-border/60 overflow-hidden flex items-center justify-center" style={{ backgroundColor: color ? `${color}22` : "hsl(var(--muted))" }}>
                 {avatarPreview
-                  ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                  ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" style={pictureStyle({ image_framing: imageFraming }, avatarUrl)} />
                   : <Folder className="w-7 h-7" style={{ color: color || "hsl(var(--muted-foreground))" }} />}
               </div>
               {/* Wrap to stay within the avatar's width (2 per row). */}
@@ -174,6 +178,8 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
           {showAvatarUrl && (
             <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://… or paste an image URL" />
           )}
+          <PictureFramingRow url={avatarUrl} value={imageFraming[avatarUrl]} shape="rounded" label="Framing"
+            onChange={(f) => setImageFraming((m) => withImageFraming(m, avatarUrl, f))} />
 
           {/* Manage members — opens the same full "Manage members" modal used
               everywhere else (selection-only here since the group doesn't
