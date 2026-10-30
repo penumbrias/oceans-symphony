@@ -33,6 +33,7 @@ import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
+import { pictureStyle } from "@/lib/imageFraming";
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
@@ -65,7 +66,7 @@ export function ContactHeaderSection({ contact }) {
     <div>
       <div className="flex items-center gap-3 mb-4">
         <span className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center text-2xl text-white flex-shrink-0 relative" style={{ backgroundColor: contact.color || "#8b5cf6" }}>
-          {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : initial}
+          {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" style={pictureStyle(contact, contact.avatar_url)} /> : initial}
           <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-background" style={{ backgroundColor: safety.color }} title={safety.label} />
         </span>
         <div className="min-w-0">

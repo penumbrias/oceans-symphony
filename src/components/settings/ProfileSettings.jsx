@@ -17,7 +17,10 @@ import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
 import BioEditor from "@/components/alters/BioEditor";
 import { IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
-import { Group, SliderRow, ChoiceRow, SwitchRow } from "@/components/shared/SettingRows";
+import { Group, SliderRow, ChoiceRow, SwitchRow, StackedRow } from "@/components/shared/SettingRows";
+import ImageFramer from "@/components/shared/ImageFramer";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { framingOf, framedImageStyle, pictureStyle, withImageFraming } from "@/lib/imageFraming";
 
 export default function ProfileSettings() {
   const terms = useTerms();
@@ -44,6 +47,9 @@ export default function ProfileSettings() {
   const [sysAvatarAssets, setSysAvatarAssets] = useState(false);
   const [sysBannerAssets, setSysBannerAssets] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
+  // Where each of the system's pictures sits in its shape (imageFraming.js).
+  const [systemImageFraming, setSystemImageFraming] = useState({});
+  const [systemBannerFraming, setSystemBannerFraming] = useState(null);
   // Banner + rich bio — the system's own profile, mirroring an alter's
   // header image + bio. Surfaced on the alters directory (/Home) header.
   const [systemBannerUrl, setSystemBannerUrl] = useState("");
@@ -74,6 +80,8 @@ export default function ProfileSettings() {
     }
     if (typeof settings?.system_banner_height === "number") setSystemBannerHeight(settings.system_banner_height);
     if (typeof settings?.system_banner_position === "number") setSystemBannerPosition(settings.system_banner_position);
+    if (settings?.system_banner_framing !== undefined) setSystemBannerFraming(framingOf(settings.system_banner_framing));
+    if (settings?.image_framing && typeof settings.image_framing === "object") setSystemImageFraming(settings.image_framing);
     if (settings?.system_banner_scope) setSystemBannerScope(settings.system_banner_scope);
     // Keyed on the settings ROW, not the object: the settings query is
     // invalidated all over the app, and re-seeding on every new object
@@ -164,7 +172,9 @@ export default function ProfileSettings() {
       system_bio: systemBio || "",
       system_banner_height: systemBannerHeight,
       system_banner_position: systemBannerPosition,
+      system_banner_framing: systemBannerFraming,
       system_banner_scope: systemBannerScope,
+      image_framing: systemImageFraming,
     };
     try {
       if (settings?.id) {
@@ -196,7 +206,7 @@ export default function ProfileSettings() {
           <Label className="text-sm font-medium">{terms.System} picture</Label>
           <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
             {resolvedSysAvatar ? (
-              <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
+              <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" style={pictureStyle({ image_framing: systemImageFraming }, systemAvatarUrl)} />
             ) : (
               <Globe className="w-6 h-6 text-muted-foreground" />
             )}
@@ -219,7 +229,7 @@ export default function ProfileSettings() {
           <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative transition-[height]" style={{ height: systemBannerUrl ? systemBannerHeight : 64 }}>
             {resolvedSysBanner ? (
               <>
-                <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={framedImageStyle(systemBannerFraming, { fallbackPosition: `50% ${systemBannerPosition}%` })} />
                 <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
               </>
             ) : (
@@ -239,6 +249,8 @@ export default function ProfileSettings() {
           </div>
         </div>
       </div>
+      <PictureFramingRow url={systemAvatarUrl} value={systemImageFraming[systemAvatarUrl]} shape="circle" label="Framing"
+        onChange={(f) => setSystemImageFraming((m) => withImageFraming(m, systemAvatarUrl, f))} />
       {sysAvatarAssets && (
         <AssetPickerModal open onClose={() => setSysAvatarAssets(false)} onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }} />
       )}
@@ -250,8 +262,15 @@ export default function ProfileSettings() {
             <Group title="Banner display">
               <SliderRow label="Banner height" hint="How far down the banner extends." value={systemBannerHeight} min={80} max={360} step={10} unit="px"
                 onChange={(v) => setSystemBannerHeight(Number(v))} />
-              <SliderRow label="Image position" hint="Which part of the image shows (top ↔ bottom)." value={systemBannerPosition} min={0} max={100} step={5} unit="%"
-                onChange={(v) => setSystemBannerPosition(Number(v))} />
+              {/* Framing (v0.322.0): drag / zoom like every other picture.
+                  Always open (not the collapsible PictureFramingRow): it
+                  replaces a slider that was always visible here.
+                  The older top↔bottom position is kept in step for app
+                  versions that only know that. */}
+              <StackedRow label="Framing" hint="Which part of the picture stays in view, and how far it's zoomed in">
+                <ImageFramer src={systemBannerUrl} value={systemBannerFraming} shape="box" aspect="wide" label="Banner"
+                  onChange={(f) => { setSystemBannerFraming(f); setSystemBannerPosition(f ? f.y : 50); }} />
+              </StackedRow>
               <ChoiceRow label="Show banner on" hint={`"Home pages" = your dashboard and ${terms.alters} directory.`}
                 options={[{ id: "home", label: "Home pages" }, { id: "all", label: "All pages" }, { id: "off", label: "Off" }]}
                 value={systemBannerScope} onChange={setSystemBannerScope} />

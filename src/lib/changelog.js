@@ -28,6 +28,8 @@ export const CHANGELOG = [
       { type: "improve", text: "Journal widget: New opens the editor on the page, and expanded shows each entry's first lines." },
       { type: "improve", text: "Check-in log widget: tap a feeling to edit it right there." },
       { type: "improve", text: "Learn widget: tap a module and its next topic opens in a sheet." },
+      { type: "feature", text: "Every picture can now be framed: drag and zoom group, contact, location and system pictures, the banner, profile header and background pictures, and each picture in a rotating pool." },
+      { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
       { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
       { type: "fix", text: "Typing into the bio from a widget's options sheet no longer fights the sheet's drag gesture." },
       { type: "improve", text: "Info is reachable while editing the page layout: it opens over the page, so your unsaved layout stays put." },

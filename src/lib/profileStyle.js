@@ -31,10 +31,12 @@
 export const PS = {
   BG_COLOR: "_bg_color",
   BG_IMAGE: "_bg_image",
+  BG_IMAGE_FRAMING: "_bg_image_framing",     // { x, y, zoom } for _bg_image (imageFraming.js)
   BG_OPACITY: "_bg_opacity",
   READABILITY: "_section_bg_opacity",
   HEADER_BG: "_header_bg_color",
   HEADER_IMAGE: "_header_image",
+  HEADER_IMAGE_FRAMING: "_header_image_framing",
   HEADER_TEXT: "_header_text_color",
   HEADER_FONT: "_header_font",
   HEADER_OPACITY: "_header_opacity",
@@ -110,6 +112,9 @@ export function readProfileBg(cf = {}) {
     headerBgOpacity,
     headerImage,
     headerOpacity,
+    // Where each picture sits / how far it's zoomed (imageFraming.js).
+    bgFraming: cf[PS.BG_IMAGE_FRAMING] || null,
+    headerFraming: cf[PS.HEADER_IMAGE_FRAMING] || null,
     pageTextColor: cf[PS.PAGE_TEXT] || "",
     hasPageBg: !!(bgColor || bgImage),
   };

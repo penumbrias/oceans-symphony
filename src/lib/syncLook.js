@@ -38,6 +38,7 @@ export const DEVICE_LOOK_FIELDS = [
   "wave_color_custom",
   "system_banner_height",   // banner crop differs by screen width
   "system_banner_position",
+  "system_banner_framing",  // { x, y, zoom } — same reason
   "system_banner_scope",
   "upcoming_plans_surfaces",
   "notification_prefs",     // toast display preferences

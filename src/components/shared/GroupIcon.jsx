@@ -3,6 +3,7 @@ import { Folder } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isValidHexColor } from "@/lib/colorUtils";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // Renders a group / subsystem's icon: its own avatar image when one is set
 // (resolving local-image:// / SW paths), otherwise a colour-tinted folder.
 // Use this EVERYWHERE a group folder icon would otherwise render so custom
@@ -22,14 +23,14 @@ export default function GroupIcon({ group, className = "w-4 h-4", boxed = false,
         style={{ backgroundColor: resolved ? "transparent" : (color ? `${color}20` : "hsl(var(--muted))") }}
       >
         {resolved
-          ? <img src={resolved} alt="" className="w-full h-full object-cover" />
+          ? <img src={resolved} alt="" className="w-full h-full object-cover" style={pictureStyle(group, group?.avatar_url)} />
           : <Folder className={iconClassName} style={{ color: color || "hsl(var(--muted-foreground))" }} />}
       </span>
     );
   }
 
   if (resolved) {
-    return <img src={resolved} alt="" className={`${className} object-cover rounded-md flex-shrink-0`} />;
+    return <span className={`${className} rounded-md overflow-hidden flex-shrink-0 inline-block align-middle`}><img src={resolved} alt="" className="w-full h-full object-cover" style={pictureStyle(group, group?.avatar_url)} /></span>;
   }
   return <Folder className={`${className} flex-shrink-0`} style={{ color: color || "hsl(var(--muted-foreground))" }} />;
 }
