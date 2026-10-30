@@ -24,3 +24,21 @@ export const fmtClock = (secs) => {
   return `${m}:${String(s).padStart(2, "0")}`;
 };
 
+
+// How many Soundscape widgets are on screen. The floating "playing" pill
+// (SoundscapeGlobalBar) steps aside while one is, since the widget has
+// its own stop button and countdown.
+let widgetCount = 0;
+const presenceListeners = new Set();
+const notifyPresence = () => presenceListeners.forEach((fn) => fn(widgetCount));
+export function useSoundscapeWidgetMounted() {
+  useEffect(() => {
+    widgetCount += 1; notifyPresence();
+    return () => { widgetCount -= 1; notifyPresence(); };
+  }, []);
+}
+export function useSoundscapeWidgetsOnScreen() {
+  const [n, setN] = useState(widgetCount);
+  useEffect(() => { presenceListeners.add(setN); setN(widgetCount); return () => presenceListeners.delete(setN); }, []);
+  return n;
+}

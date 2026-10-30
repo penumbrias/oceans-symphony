@@ -121,6 +121,7 @@ import {
   InnerMapWidget, InnerLocationsWidget,
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
+import { CALM_WIDGETS } from "@/v2/calmWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
 import { foldWidget } from "@/lib/widgetFold";
@@ -3608,3 +3609,8 @@ V2_WIDGETS.poll_new = foldWidget(V2_WIDGETS.polls, () => ({ show: "new" }), {
 // Every purpose-built profile widget can go on the home screen too, with a
 // picker for whose it is (src/v2/linkedProfileWidgets.jsx).
 Object.assign(V2_WIDGETS, LINKED_PROFILE_WIDGETS);
+
+// ── Calm widgets (v0.320.0) ───────────────────────────────────────
+// The Support page's Scratch pad and Soundscape, on the page
+// (src/v2/calmWidgets.jsx).
+Object.assign(V2_WIDGETS, CALM_WIDGETS);

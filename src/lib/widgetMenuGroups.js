@@ -57,7 +57,7 @@ const BY_ID = {
     "alters_list", "pinned_alters", "system_identity", "system_header",
     "needs_balance", "wishes", "inner_map", "inner_locations",
   ],
-  calm: ["grounding_techniques", "breathing", "learn_modules", "song"],
+  calm: ["grounding_techniques", "breathing", "scratch_pad", "soundscape", "learn_modules", "song"],
   lookback: ["emotion_analytics", "symptom_analytics", "checkin_log", "fronting_leaders", "insight_spotlight"],
   pieces: [
     "heading", "text", "media", "divider", "spacer", "quick_links", "folder", "clock",

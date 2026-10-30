@@ -155,6 +155,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         route: "/", look: `the split handle above the bottom bar`,
       }),
       s("newui", {
+        emoji: "🌊", title: "Calm widgets",
+        body: `Add widget → Calm has the Support page's tools as widgets: a breathing circle, the Scratch pad to draw on, and the Soundscape with play, stop, the countdown and volume right on the page.`,
+        route: "/",
+      }),
+      s("newui", {
         emoji: "🔁", title: "Swap the bars",
         body: `Want the quick actions always showing? Display options → Bars → Quick actions bar → "Swap with bottom bar" keeps them fixed and folds the page tabs behind the handle.`,
         route: "/",

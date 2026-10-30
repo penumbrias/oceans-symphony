@@ -76,8 +76,9 @@ export default function Grounding({ initialPath = null }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // ?view=soundscape opens the Soundscape directly (the "playing" pill
-  // shown on other pages links here).
-  const [path, setPath] = useState(initialPath || (searchParams.get("view") === "soundscape" ? "soundscape" : "entry"));
+  // shown on other pages links here); ?view=scratchpad the Scratch pad
+  // (the widgets' "Open" links).
+  const [path, setPath] = useState(initialPath || (["soundscape", "scratchpad"].includes(searchParams.get("view")) ? searchParams.get("view") : "entry"));
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
   // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
   const deepLinkTopicId = searchParams.get("topic");
