@@ -26,11 +26,15 @@ export const CHANGELOG = [
       { type: "improve", text: "{{Alter}} cards in lists and on the {{alters}} page now show the profile header's look — its picture, colour, text colour and font. The picture button on the list turns it off." },
       { type: "improve", text: "Preferences & boundaries: \"hate\" is an angry face now (the broken heart looked like the filled heart), and each level's icon can be any emoji — under Pronouns in {{Alter}} info, shared by every profile." },
       { type: "fix", text: "Switching between the old and the new profile is a visible Profile layout row in Info → Profile page, both ways, instead of a ⋯ entry — so a reverted profile can always switch back. \"Lay the bio out as widgets\" only shows on the old profile." },
+      { type: "feature", text: "The \"New {{alter}}\" sheet is rebuilt on the {{Alter}} info pieces: Info, Custom fields and Links tabs plus a Profile style page, with undo. Nothing about the {{alter}} is saved until you tap Add." },
+      { type: "fix", text: "Group picker: the hint now uses your own term instead of \"alter\"." },
+      { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
+      { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],
   },
   {
     date: "October 29, 2026",
-    version: "0.319.0",
+    version: "0.320.0",
     changes: [
       { type: "feature", text: "Settings is one flat list with a search box: type what you want to change and tap the row. Pages are grouped into You, General, Look, Alters, Tracking, Notifications, Data & privacy and About; older links and tour steps land on the right page." },
       { type: "improve", text: "Profile, Analytics & attribution and the banner options are laid out as rows; the Privacy & Data Notice is its own page under Data & privacy; the Backup menu gained \"Back up now\"." },

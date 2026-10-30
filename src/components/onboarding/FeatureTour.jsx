@@ -155,6 +155,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         route: "/", look: `the split handle above the bottom bar`,
       }),
       s("newui", {
+        emoji: "🌊", title: "Calm widgets",
+        body: `Add widget → Calm has the Support page's tools as widgets: a breathing circle, the Scratch pad to draw on, and the Soundscape with play, stop, the countdown and volume right on the page.`,
+        route: "/",
+      }),
+      s("newui", {
         emoji: "🔁", title: "Swap the bars",
         body: `Want the quick actions always showing? Display options → Bars → Quick actions bar → "Swap with bottom bar" keeps them fixed and folds the page tabs behind the handle.`,
         route: "/",
@@ -286,6 +291,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "➕", title: `Add an ${t.alter}`,
       body: `Tap "Add ${t.Alter}" to make a new profile. A name is enough to start; everything else can be filled in later from their Info.`,
       route: "/Home", target: "alter-add-btn", look: `the highlighted "+ Add ${t.Alter}" button`,
+    }),
+    s("alters", {
+      emoji: "🪪", title: `The new ${t.alter} sheet`,
+      body: `Info, Custom fields and Links tabs, the same as ${t.Alter} info, and a Profile style row for the look. Nothing about the ${t.alter} is saved until you tap Add.`,
+      route: "/Home", target: ["new-alter-sheet", "alter-add-btn"], look: `the "New ${t.alter}" sheet (open it with Add)`,
     }),
     s("alters", {
       emoji: "📥", title: "Import and export",

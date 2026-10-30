@@ -121,15 +121,20 @@ export function VisualPicker({ ctl, fractalClock }) {
   );
 }
 
-export function VolumeRow({ ctl }) {
+// `compact`: the slider alone, for the Soundscape widget's one line.
+export function VolumeRow({ ctl, compact = false }) {
   const { p, setP } = ctl;
+  const slider = (
+    <div className="flex items-center gap-2">
+      <Volume1 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <Slider min={0} max={100} step={1} value={[Math.round(p.volume * 100)]} onValueChange={([v]) => setP({ volume: v / 100 })} aria-label="Volume" />
+      <Volume2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    </div>
+  );
+  if (compact) return slider;
   return (
     <Row label="Volume" value={`${Math.round(p.volume * 100)}%`}>
-      <div className="flex items-center gap-2">
-        <Volume1 className="w-4 h-4 text-muted-foreground" />
-        <Slider min={0} max={100} step={1} value={[Math.round(p.volume * 100)]} onValueChange={([v]) => setP({ volume: v / 100 })} aria-label="Volume" />
-        <Volume2 className="w-4 h-4 text-muted-foreground" />
-      </div>
+      {slider}
       <p className="text-[0.6875rem] text-muted-foreground">Start low, especially with headphones. It fades in and out gently.</p>
     </Row>
   );

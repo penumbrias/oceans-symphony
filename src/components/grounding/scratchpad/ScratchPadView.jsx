@@ -51,11 +51,11 @@ const TILT_HELP = {
   gravity: "They always fall towards whichever edge is lowest, like sand in a jar.",
 };
 
-const sameRules = (a, b) => Object.keys(RULES).every((k) => Math.abs(a[k] - b[k]) < 1e-9) && a.edges === b.edges;
+export const sameRules = (a, b) => Object.keys(RULES).every((k) => Math.abs(a[k] - b[k]) < 1e-9) && a.edges === b.edges;
 
-// The pad's settings and the ways to change them, shared by the screen
-// and the full-screen sheet.
-function useScratchpad() {
+// The pad's settings and the ways to change them, shared by the screen,
+// the full-screen sheet and the Scratch pad widget (calmWidgets.jsx).
+export function useScratchpad() {
   const [prefs, setPrefs] = useState(readScratchpadPrefs);
   const [tiltNote, setTiltNote] = useState(null);
   const save = (next) => { setPrefs(next); writeScratchpadPrefs(next); };
@@ -77,7 +77,7 @@ function useScratchpad() {
   };
 }
 
-function RulesetPicker({ pad }) {
+export function RulesetPicker({ pad }) {
   const { prefs, preset, changed, pickPreset } = pad;
   return (
     <>
@@ -169,7 +169,9 @@ function ResetButton({ pad }) {
 
 const pillClass = "flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-sm text-white backdrop-blur";
 
-function Focus({ pad, onExit }) {
+// Full screen. `pad` is the hook above, or the widget's adapter with the
+// same shape, so the settings sheet edits whichever pad opened it.
+export function ScratchPadFocus({ pad, onExit }) {
   const { prefs, preset, changed } = pad;
   const padRef = useRef(null);
   const [showControls, setShowControls] = useState(true);
@@ -289,7 +291,7 @@ export default function ScratchPadView({ onBack }) {
     setFocus(true);
   };
 
-  if (focus) return <Focus pad={pad} onExit={() => setFocus(false)} />;
+  if (focus) return <ScratchPadFocus pad={pad} onExit={() => setFocus(false)} />;
 
   return (
     <div ref={topRef} className="max-w-lg mx-auto p-4 space-y-5 scroll-mt-24" data-tour="grounding-scratchpad-view">
