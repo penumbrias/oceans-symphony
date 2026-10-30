@@ -7,7 +7,7 @@ import { useTerms } from "@/lib/useTerms";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
-import { parseSessionEmotions } from "@/lib/perAlterSessionEntries";
+import { emotionEvents, countEmotions } from "@/lib/lookbackCounts";
 import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 
 // Emotion analytics — revamped. Pulls events from BOTH
@@ -75,43 +75,15 @@ export default function EmotionAnalytics({ from, to }) {
   // Pulls both EmotionCheckIn and per-alter session_emotions, so the
   // analytics reflect every emotion logged anywhere — not just the
   // standalone check-in flow.
-  const events = useMemo(() => {
-    const out = [];
-    for (const c of checkIns) {
-      const ts = +new Date(c.timestamp);
-      if (!Number.isFinite(ts) || !inRange(ts)) continue;
-      const labels = Array.isArray(c.emotions) ? c.emotions.filter(Boolean) : [];
-      if (labels.length === 0) continue;
-      // Use the explicitly-recorded fronting alters; if none (e.g. the user
-      // doesn't track fronting), fall back to whoever authored something near
-      // this time so the emotion still gets attributed.
-      const explicit = Array.isArray(c.fronting_alter_ids) ? c.fronting_alter_ids.filter(Boolean) : [];
-      out.push({
-        ts, labels,
-        alterIds: explicit.length ? explicit : inferAlters(ts),
-        // Per-emotion assignment overrides ({ label: [alterIds] }) — used
-        // by the per-alter breakdown so "Anxious = Alex, Excited = Riley"
-        // attributes each emotion to its own alter(s).
-        emotionAlters: c.emotion_alters && typeof c.emotion_alters === "object" ? c.emotion_alters : null,
-      });
-    }
-    for (const s of sessions) {
-      const labels = parseSessionEmotions(s.session_emotions);
-      if (labels.length === 0) continue;
-      const ts = +new Date(s.start_time || s.timestamp);
-      if (!Number.isFinite(ts) || !inRange(ts)) continue;
-      const alterId = s.alter_id || s.primary_alter_id;
-      out.push({ ts, labels, alterIds: alterId ? [alterId] : [] });
-    }
-    return out.sort((a, b) => a.ts - b.ts);
-     
-  }, [checkIns, sessions, +from, +to, inferAlters]);
+  const events = useMemo(
+    () => emotionEvents({ checkIns, sessions, from, to, inferAlters }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [checkIns, sessions, +from, +to, inferAlters],
+  );
 
   // 1) Frequency counts (sorted, readable)
   const emotionCounts = useMemo(() => {
-    const counts = {};
-    for (const e of events) for (const l of e.labels) counts[l] = (counts[l] || 0) + 1;
-    return Object.entries(counts).map(([emotion, count]) => ({ emotion, count }))
+    return Object.entries(countEmotions(events)).map(([emotion, count]) => ({ emotion, count }))
       .sort((a, b) => b.count - a.count);
   }, [events]);
   const topEmotion = emotionCounts[0];

@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "improve", text: "Feelings and Symptom analytics widgets: your most-logged ones as bars, with how much each changed since the days before. Expanded keeps the full analytics." },
+      { type: "improve", text: "Feelings and Symptom analytics widgets on a profile count only that profile's entries." },
+      { type: "improve", text: "{{Fronting}} leaders widget: choose 7, 30 or 90 days, how many to show and whether to show pairs; tap someone to open their profile." },
       { type: "feature", text: "Reminders widget: answer each reminder right there — Done, Snooze (your snooze options) or Dismiss. Expanded shows the inbox's full cards." },
       { type: "feature", text: "Polls widget: tap a poll to unfold its options and vote on the spot; the results widget's bars can be tapped to vote too." },
       { type: "improve", text: "Sleep widget: the start / wake button sits on the same card as last night, and expanded shows the last seven nights as bars." },
