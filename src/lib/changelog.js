@@ -26,7 +26,7 @@ export const CHANGELOG = [
   },
   {
     date: "October 29, 2026",
-    version: "0.319.0",
+    version: "0.320.0",
     changes: [
       { type: "feature", text: "Settings is one flat list with a search box: type what you want to change and tap the row. Pages are grouped into You, General, Look, Alters, Tracking, Notifications, Data & privacy and About; older links and tour steps land on the right page." },
       { type: "improve", text: "Profile, Analytics & attribution and the banner options are laid out as rows; the Privacy & Data Notice is its own page under Data & privacy; the Backup menu gained \"Back up now\"." },
