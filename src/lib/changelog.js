@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "The Bio and Field widgets can show their text as pages: tabs you swipe between. \"Add a page\" in the widget's options offers ready pages like Backstory or Likes & dislikes, saved in Info." },
+      { type: "feature", text: "A Field widget can show another {{alter}}'s or a group's bio and fields, and works on group profiles too." },
       { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
       { type: "fix", text: "Typing into the bio from a widget's options sheet no longer fights the sheet's drag gesture." },
       { type: "improve", text: "Info is reachable while editing the page layout: it opens over the page, so your unsaved layout stays put." },

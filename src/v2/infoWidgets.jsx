@@ -10,7 +10,7 @@
 // Each widget has ONE visible box (widget contract): flush and borderless
 // until the person sets a border, background or padding, like Text.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Play, ExternalLink, Image as ImageIcon } from "lucide-react";
@@ -21,7 +21,9 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { FieldValue } from "@/components/alters/profile/fieldControls";
-import { infoEntriesFor, entryValue, writeEntry, hiddenEntryIdsOf } from "@/lib/alterInfoEntries";
+import { infoEntriesFor, entryValue, writeEntry, hiddenEntryIdsOf, addOwnEntry } from "@/lib/alterInfoEntries";
+import { groupEntriesFor, groupEntryValue, writeGroupEntry, addGroupOwnEntry } from "@/lib/groupInfoEntries";
+import { PAGE_KIND } from "@/lib/infoPages";
 import { refreshAlter } from "@/lib/alterEntry";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -55,6 +57,68 @@ export const useSystemFields = () => useQuery({
   queryFn: () => base44.entities.CustomField.list("order"),
 }).data || [];
 
+// Whose info a Field widget shows (v0.322.0). "profile" is the page it sits
+// on (an alter's or a group's); "alter" and "group" are the one picked in
+// its options (settings.alterId / settings.groupId), so a widget can show
+// another alter's or a group's bio and fields, on a profile or at home.
+// Older widgets have no source: on a profile they show that profile, at
+// home the alter they were set to.
+export const INFO_SOURCES = ["profile", "alter", "group"];
+export function infoSourceOf(settings, subject) {
+  const s = settings?.source;
+  if (s === "alter" || s === "group") return s;
+  if (subject?.type === "alter" || subject?.type === "group") return "profile";
+  return "alter";
+}
+
+export function useInfoRecord(settings) {
+  const qc = useQueryClient();
+  const subject = useBoardSubject();
+  const source = infoSourceOf(settings, subject);
+  const type = source === "profile" ? subject.type : source;
+  const wantedId = (source === "profile" ? subject.id : type === "group" ? settings?.groupId : settings?.alterId) || null;
+  const { data: alter = null } = useQuery({
+    queryKey: ["alter", wantedId],
+    queryFn: async () => (await base44.entities.Alter.list()).find((a) => String(a.id) === String(wantedId)) || null,
+    enabled: type === "alter" && !!wantedId,
+    staleTime: 0,
+  });
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    enabled: type === "group" && !!wantedId,
+  });
+  const systemFields = useSystemFields();
+  // A group can be named by its id or an imported sp_id (alter.groups
+  // stores either), the same match every group surface makes.
+  const record = !wantedId ? null : type === "alter" ? alter
+    : groups.find((g) => String(g.id) === String(wantedId) || (g.sp_id && String(g.sp_id) === String(wantedId))) || null;
+  return useMemo(() => {
+    const isAlter = type === "alter";
+    const refresh = () => (isAlter ? refreshAlter(qc, record?.id) : qc.invalidateQueries({ queryKey: ["groups"] }));
+    return {
+      type, source, record, wantedId,
+      onProfile: source === "profile",
+      entries: isAlter ? infoEntriesFor(record, systemFields) : groupEntriesFor(record),
+      valueOf: (entryId) => (isAlter ? entryValue(record, entryId) : groupEntryValue(record, entryId)),
+      write: async (entryId, value) => {
+        if (!record) return;
+        await (isAlter ? writeEntry(record.id, entryId, value) : writeGroupEntry(record.id, entryId, value));
+        refresh();
+      },
+      // A page is a long-text entry of this alter's or group's own.
+      addPage: async (name) => {
+        if (!record) return null;
+        const id = isAlter
+          ? await addOwnEntry(record.id, { name, kind: PAGE_KIND, page: true })
+          : await addGroupOwnEntry(record.id, { name, kind: PAGE_KIND });
+        refresh();
+        return id;
+      },
+    };
+  }, [type, source, record, wantedId, systemFields, qc]);
+}
+
 const isEmpty = (v) => v === undefined || v === null || (typeof v === "string" && !v.replace(/<[^>]*>/g, "").trim());
 
 function EntryShown({ alter, entry, value }) {
@@ -85,7 +149,9 @@ export function expandInfoEntryIds(ids, all, hiddenFieldIds = []) {
   if (!ids.includes(ALL_FIELDS_ENTRY)) return ids;
   const named = new Set(ids);
   const hidden = new Set(hiddenFieldIds.map((id) => `field:${id}`));
-  const rest = all.filter((e) => (e.id.startsWith("field:") || e.id.startsWith("own:")) && !named.has(e.id) && !hidden.has(e.id)).map((e) => e.id);
+  // Pages ("Add a page", v0.322.0) belong to the widget that shows them as
+  // pages, so they aren't repeated here; listing one on its own still works.
+  const rest = all.filter((e) => (e.id.startsWith("field:") || e.id.startsWith("own:")) && !e.page && !named.has(e.id) && !hidden.has(e.id)).map((e) => e.id);
   return ids.flatMap((id) => (id === ALL_FIELDS_ENTRY ? rest : [id]));
 }
 
@@ -106,15 +172,21 @@ function changedAt(alter, entry) {
 // On a profile page the values are only read (v0.313.0, owner: tapping
 // text while getting around kept opening editors); they're changed in
 // Edit page (the widget's options) or Info.
-export function EditableValue({ alter, entry, value, editable: editableSetting, children, inline = false }) {
+//
+// `alter` is the record the value belongs to (a group's, for a Field widget
+// showing a group); `onWrite` saves it when it isn't an alter's.
+export function EditableValue({ alter, entry, value, editable: editableSetting, children, inline = false, onWrite = null }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const onProfileBoard = !!useBoardSubject();
   const editable = editableSetting && !onProfileBoard;
   const commit = async (v) => {
     try {
-      await writeEntry(alter.id, entry.id, v);
-      refreshAlter(qc, alter.id);
+      if (onWrite) await onWrite(entry.id, v);
+      else {
+        await writeEntry(alter.id, entry.id, v);
+        refreshAlter(qc, alter.id);
+      }
     } catch (e) { toast.error(e?.message || "Couldn't save that"); }
   };
   if (!editable) return children;
@@ -161,31 +233,100 @@ export function EditableValue({ alter, entry, value, editable: editableSetting, 
   );
 }
 
+// Pages (v0.322.0): each entry is a page, with its name on a tab. Swipe
+// sideways between them or tap a tab. The track is a native sideways
+// scroller with snapping, so it works the same with touch, a trackpad,
+// a mouse (the tabs) and a keyboard (arrow keys on the tabs).
+export function InfoPages({ rows, renderPage, label = "Pages" }) {
+  const uid = useId();
+  const trackRef = useRef(null);
+  const tabRefs = useRef([]);
+  const [active, setActive] = useState(0);
+  const count = rows.length;
+  const at = Math.min(active, Math.max(0, count - 1));
+  const go = (i, focus = false) => {
+    const next = Math.max(0, Math.min(count - 1, i));
+    setActive(next);
+    const el = trackRef.current;
+    if (el) el.scrollTo({ left: next * el.clientWidth * (getComputedStyle(el).direction === "rtl" ? -1 : 1), behavior: "smooth" });
+    if (focus) tabRefs.current[next]?.focus();
+  };
+  const onScroll = () => {
+    const el = trackRef.current;
+    if (!el || !el.clientWidth) return;
+    const i = Math.round(Math.abs(el.scrollLeft) / el.clientWidth);
+    if (i !== at && i >= 0 && i < count) setActive(i);
+  };
+  // Keep the active tab in sight when there are more tabs than fit.
+  useEffect(() => {
+    tabRefs.current[at]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [at]);
+  if (count === 1) return <div>{renderPage(rows[0])}</div>;
+  return (
+    <div className="h-full flex flex-col min-h-0" data-info-pages="" data-no-page-swipe="" data-no-swipe-back="">
+      <div role="tablist" aria-label={label} className="flex gap-[0.25em] overflow-x-auto flex-shrink-0 mb-[0.5em] -mx-[0.125em] px-[0.125em]"
+        style={{ scrollbarWidth: "none" }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") { e.preventDefault(); go(at + 1, true); }
+          else if (e.key === "ArrowLeft") { e.preventDefault(); go(at - 1, true); }
+          else if (e.key === "Home") { e.preventDefault(); go(0, true); }
+          else if (e.key === "End") { e.preventDefault(); go(count - 1, true); }
+        }}>
+        {rows.map((r, i) => {
+          const on = i === at;
+          return (
+            <button key={r.entry.id} type="button" role="tab" ref={(el) => { tabRefs.current[i] = el; }}
+              id={`${uid}-tab-${i}`} aria-selected={on} aria-controls={`${uid}-panel-${i}`} tabIndex={on ? 0 : -1}
+              onClick={() => go(i)}
+              className="flex-shrink-0 min-h-[2.75em] px-[0.75em] text-[0.8125em] font-medium whitespace-nowrap border-b-2 transition-opacity"
+              style={{ borderColor: on ? "var(--v2-accent)" : "transparent", opacity: on ? 1 : 0.65 }}>
+              {r.entry.label}
+            </button>
+          );
+        })}
+      </div>
+      <div ref={trackRef} onScroll={onScroll}
+        className="flex-1 min-h-0 flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain"
+        style={{ scrollbarWidth: "none" }}>
+        {rows.map((r, i) => (
+          <section key={r.entry.id} role="tabpanel" id={`${uid}-panel-${i}`} aria-labelledby={`${uid}-tab-${i}`}
+            aria-hidden={i !== at} className="w-full flex-shrink-0 snap-start snap-always overflow-y-auto min-h-0 pr-[0.125em]">
+            {renderPage(r)}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // The Field widget (v0.300.0; the "{{Alter}} info" widget before). Shows
-// one entry from an alter's info, or several: the bio, pronouns, any
-// custom field. Minimal shows only the values, Normal adds the labels,
-// Expanded adds what kind of entry it is and who has it.
+// one entry from an alter's or a group's info, or several: the bio,
+// pronouns, any custom field. Minimal shows only the values, Normal adds
+// the labels, Expanded adds what kind of entry it is and who has it.
+// "Pages" (v0.322.0) shows each entry as a tab you swipe to.
 export function InfoWidget({ settings, mode = "normal" }) {
   const t = useTerms();
   const formatAlter = useAlterLabel();
-  const { alter, alterId } = useInfoAlter(settings);
-  const systemFields = useSystemFields();
+  const info = useInfoRecord(settings);
+  const { record, type, wantedId } = info;
   const ids = Array.isArray(settings?.entries) && settings.entries.length ? settings.entries : DEFAULT_INFO_ENTRIES;
-  const layout = mode === "minimal" ? "plain" : (settings?.layout || "labelled");
+  const layout = settings?.layout === "pages" ? "pages" : mode === "minimal" ? "plain" : (settings?.layout || "labelled");
   const expanded = mode === "expanded";
   const showEmpty = !!settings?.showEmpty;
   const editable = settings?.editInPlace !== false;
-  const all = useMemo(() => infoEntriesFor(alter, systemFields), [alter, systemFields]);
+  const all = info.entries;
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  if (!alterId) {
+  if (!wantedId) {
     return <div className="text-[0.8125em] opacity-70 p-2" style={flush()}>Choose whose info to show in this widget's options.</div>;
   }
-  if (!alter) return null;
-  const rows = expandInfoEntryIds(ids, all, hiddenEntryIdsOf(pickPrimarySystemSettings(settingsRows)))
+  if (!record) return null;
+  const hidden = type === "alter" ? hiddenEntryIdsOf(pickPrimarySystemSettings(settingsRows)) : [];
+  const rows = expandInfoEntryIds(ids, all, hidden)
     .map((id) => all.find((e) => e.id === id))
     .filter(Boolean)
-    .map((entry) => ({ entry, value: entryValue(alter, entry.id) }))
-    .filter((r) => showEmpty || !isEmpty(r.value));
+    .map((entry) => ({ entry, value: info.valueOf(entry.id) }))
+    // A page stays even while it's blank, so its tab doesn't vanish.
+    .filter((r) => showEmpty || layout === "pages" || !isEmpty(r.value));
   if (!rows.length) {
     // Nothing filled in: blank on the page, named while the layout is edited.
     return (
@@ -197,21 +338,23 @@ export function InfoWidget({ settings, mode = "normal" }) {
     );
   }
   const one = rows.length === 1;
-  const who = (entry) => (entry.own ? `Just ${formatAlter(alter)}` : entry.fieldId ? `Every ${t.alter}` : null);
+  const who = (entry) => (type !== "alter" ? null : entry.own ? `Just ${formatAlter(record)}` : entry.fieldId ? `Every ${t.alter}` : null);
   const meta = (entry) => {
     if (!expanded) return null;
-    const when = changedAt(alter, entry);
+    const when = type === "alter" ? changedAt(record, entry) : null;
     const bits = [entry.kind === "bio" ? "Long text" : KIND_LABEL[entry.kind] || "Short text", who(entry), when ? `changed ${when.toLocaleDateString()}` : null].filter(Boolean);
     return <p className="text-[0.6875em] opacity-60 mt-0.5">{bits.join(" · ")}</p>;
   };
   const valueOf = ({ entry, value }) => (
-    <EditableValue alter={alter} entry={entry} value={value} editable={editable}>
-      {isEmpty(value) ? <span className="opacity-60">{layout === "inline" ? "—" : "Not filled yet"}</span> : <EntryShown alter={alter} entry={entry} value={value} />}
+    <EditableValue alter={record} entry={entry} value={value} editable={editable} onWrite={type === "alter" ? null : info.write}>
+      {isEmpty(value) ? <span className="opacity-60">{layout === "inline" ? "—" : "Not filled yet"}</span> : <EntryShown alter={record} entry={entry} value={value} />}
     </EditableValue>
   );
   return (
     <div className="h-full text-[0.875em] leading-relaxed" style={{ ...flush(), ...valignBoxStyle() }} data-info-widget="" data-mode={mode}>
-      {layout === "inline" ? (
+      {layout === "pages" ? (
+        <InfoPages rows={rows} renderPage={(r) => <>{valueOf(r)}{meta(r.entry)}</>} />
+      ) : layout === "inline" ? (
         <dl className="space-y-0.5">
           {rows.map((r) => (
             <div key={r.entry.id}>
@@ -239,6 +382,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
     </div>
   );
 }
+
 
 // ── Media ────────────────────────────────────────────────────────────
 

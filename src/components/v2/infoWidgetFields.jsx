@@ -5,7 +5,7 @@
 // picture uploaded into a Media widget on a profile becomes one of that
 // alter's Pictures. The widget itself only stores what to show and how.
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronUp, ChevronDown, X, Plus, ImagePlus, Loader2, Film, Crop } from "lucide-react";
@@ -13,15 +13,18 @@ import ImageFramer from "@/components/shared/ImageFramer";
 import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { StackedRow, Row } from "@/components/shared/SettingRows";
+import { StackedRow, Row, ChoiceRow } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
-import { useInfoAlter, useSystemFields, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL } from "@/v2/infoWidgets";
-import { infoEntriesFor, entryValue, writeEntry, addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
+import { useInfoAlter, useInfoRecord, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL } from "@/v2/infoWidgets";
+import { useBoardSubject } from "@/lib/boardSubject";
+import GroupSelect from "@/components/groups/GroupSelect";
+import { standardPagesFor } from "@/lib/infoPages";
+import { addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
 import { refreshAlter } from "@/lib/alterEntry";
 import { mediaItemsOf, parseVideoLink } from "@/lib/mediaItems";
 import { uploadAlterImage, largeGifWarning, addAlterPicture } from "@/lib/alterImageUpload";
@@ -52,17 +55,82 @@ const move = (list, index, dir) => {
   return next;
 };
 
-// "Whose info" — on the home screen only; on a profile it's that alter.
-function WhoseRow({ settings, set }) {
+// "Whose info" (v0.322.0): on a profile, that profile, another {{alter}}
+// or a group; on the home screen an {{alter}} or a group.
+function WhoseRow({ settings, set, info }) {
   const t = useTerms();
-  const { onProfile } = useInfoAlter(settings);
+  const subject = useBoardSubject();
+  const onProfileBoard = subject?.type === "alter" || subject?.type === "group";
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  if (onProfile) return null;
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const options = [
+    ...(onProfileBoard ? [{ value: "profile", label: subject.type === "group" ? "This group" : `This ${t.alter}` }] : []),
+    { value: "alter", label: onProfileBoard ? `Another ${t.alter}` : `An ${t.alter}` },
+    { value: "group", label: "A group" },
+  ];
   return (
-    <StackedRow label={`Whose info`}>
-      <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={settings.alterId || null}
-        onChange={(id) => set({ alterId: id || "" })} terms={t} showNone={false} zIndex={120}
-        placeholder={`Choose an ${t.alter}…`} />
+    <>
+      <ChoiceRow label="Whose info" options={options} value={info.source}
+        onChange={(v) => { if (v !== info.source) set({ source: v, entries: DEFAULT_INFO_ENTRIES }); }} />
+      {info.source === "alter" && (
+        <StackedRow label={t.Alter}>
+          <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={settings.alterId || null}
+            onChange={(id) => set({ alterId: id || "" })} terms={t} showNone={false} zIndex={120}
+            placeholder={`Choose an ${t.alter}…`} />
+        </StackedRow>
+      )}
+      {info.source === "group" && (
+        <StackedRow label="Group">
+          <GroupSelect groups={groups} value={settings.groupId || ""} onChange={(id) => set({ groupId: id || "" })}
+            placeholder="Choose a group…" zIndex={120} />
+        </StackedRow>
+      )}
+    </>
+  );
+}
+
+// "Add a page" (v0.322.0): the standard pages for an alter or a group, or a
+// blank one with any name. Each is a long-text entry in their info, shown
+// here as a page (the widget switches to Pages).
+function AddPageRow({ info, ids, onAdded }) {
+  const [naming, setNaming] = useState(null);
+  const shownLabels = new Set(info.entries.filter((e) => ids.includes(e.id)).map((e) => e.label.trim().toLowerCase()));
+  const ready = standardPagesFor(info.type).filter((n) => !shownLabels.has(n.toLowerCase()));
+  const add = async (name) => {
+    const clean = String(name || "").trim();
+    if (!clean) return;
+    try {
+      const id = await info.addPage(clean);
+      if (id) onAdded(id);
+      setNaming(null);
+    } catch (e) { toast.error(e?.message || "Couldn't add that page"); }
+  };
+  return (
+    <StackedRow label="Add a page" hint="Each page is saved in their info and shows as a tab you can swipe to.">
+      <div className="flex flex-wrap gap-1.5">
+        {ready.map((name) => (
+          <button key={name} type="button" onClick={() => add(name)}
+            className="text-xs px-3 min-h-[36px] rounded-full border border-border/50 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+            <Plus className="w-3 h-3" /> {name}
+          </button>
+        ))}
+        {naming === null && (
+          <button type="button" onClick={() => setNaming("")}
+            className="text-xs px-3 min-h-[36px] rounded-full border border-dashed border-border/70 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Blank page…
+          </button>
+        )}
+      </div>
+      {naming !== null && (
+        <div className="flex items-center gap-1.5 pt-2">
+          <input value={naming} onChange={(e) => setNaming(e.target.value)} autoFocus placeholder="The page's name"
+            aria-label="The page's name" className={inputCls}
+            onKeyDown={(e) => { if (e.key === "Enter") add(naming); if (e.key === "Escape") setNaming(null); }} />
+          <button type="button" className={smallBtn} onClick={() => setNaming(null)}>Cancel</button>
+          <button type="button" onClick={() => add(naming)} disabled={!naming.trim()}
+            className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40 flex-shrink-0">Add</button>
+        </div>
+      )}
     </StackedRow>
   );
 }
@@ -71,20 +139,19 @@ export function InfoEntriesField({ settings, set }) {
   const t = useTerms();
   const formatAlter = useAlterLabel();
   const qc = useQueryClient();
-  const { alter, alterId } = useInfoAlter(settings);
-  const systemFields = useSystemFields();
+  const info = useInfoRecord(settings);
+  const { record, type, wantedId } = info;
+  const isAlter = type === "alter";
   const [adding, setAdding] = useState(null);
-  const all = useMemo(() => infoEntriesFor(alter, systemFields), [alter, systemFields]);
+  const all = info.entries;
   const ids = Array.isArray(settings.entries) && settings.entries.length ? settings.entries : DEFAULT_INFO_ENTRIES;
   const allFields = { id: ALL_FIELDS_ENTRY, label: ALL_FIELDS_LABEL, kind: "all" };
-  const shown = ids.map((id) => (id === ALL_FIELDS_ENTRY ? allFields : all.find((e) => e.id === id))).filter(Boolean);
+  const shown = ids.map((id) => (id === ALL_FIELDS_ENTRY ? (isAlter ? allFields : null) : all.find((e) => e.id === id))).filter(Boolean);
   const setIds = (next) => set({ entries: next });
+  const pages = settings.layout === "pages";
 
   const commit = async (entryId, value) => {
-    try {
-      await writeEntry(alterId, entryId, value);
-      refreshAlter(qc, alterId);
-    } catch (e) { toast.error(e?.message || "Couldn't save that"); }
+    try { await info.write(entryId, value); } catch (e) { toast.error(e?.message || "Couldn't save that"); }
   };
   // "New field…": makes the entry in the alter's info (theirs alone, or a
   // custom field every alter has) and shows it here.
@@ -93,23 +160,26 @@ export function InfoEntriesField({ settings, set }) {
     try {
       const id = adding.scope === "everyone"
         ? await addSharedEntry({ name: adding.name, kind: adding.kind })
-        : await addOwnEntry(alterId, { name: adding.name, kind: adding.kind });
+        : await addOwnEntry(record.id, { name: adding.name, kind: adding.kind });
       if (adding.scope === "everyone") qc.invalidateQueries({ queryKey: ["customFields"] });
-      refreshAlter(qc, alterId);
+      refreshAlter(qc, record.id);
       setIds([...ids.filter((x) => x !== id), id]);
       setAdding(null);
     } catch (e) { toast.error(e?.message || "Couldn't add that custom field"); }
   };
-  const blockedOwn = !!alter?.alter_custom_fields && !Array.isArray(alter.alter_custom_fields);
+  const blockedOwn = isAlter && !!record?.alter_custom_fields && !Array.isArray(record.alter_custom_fields);
+  const whoseName = record ? (isAlter ? formatAlter(record) : record.name || "this group") : "";
+  const what = pages ? "page" : "field";
 
   return (
     <div className="space-y-1">
-      <WhoseRow settings={settings} set={set} />
-      {alter && (
+      <WhoseRow settings={settings} set={set} info={info} />
+      {record && (
         <>
           <p className="text-[0.6875rem] text-muted-foreground pt-1">
-            Saved in {formatAlter(alter)}'s info, so it's kept even if this widget is removed.
+            Saved in {whoseName}'s info, so it's kept even if this widget is removed.
           </p>
+          {pages && <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-3">Pages, in tab order</p>}
           {shown.map((entry, i) => (
             <div key={entry.id} className="py-2 border-b border-border/30">
               <div className="flex items-center gap-1 min-h-[28px]">
@@ -121,33 +191,36 @@ export function InfoEntriesField({ settings, set }) {
               {entry.kind === "all"
                 ? <p className="text-xs text-muted-foreground">Every custom field that's filled in and not listed on its own, including ones added later.</p>
                 : entry.kind === "bio"
-                ? <BioEntry k={`${alterId}`} value={entryValue(alter, "bio")} onChange={(v) => commit("bio", v)} />
-                : <EntryInput k={`${alterId}:${entry.id}`} type={entry.kind} label={entry.label}
-                    value={entryValue(alter, entry.id)} onCommit={(v) => commit(entry.id, v)} />}
+                ? <BioEntry k={`${type}:${record.id}`} value={info.valueOf("bio")} onChange={(v) => commit("bio", v)} />
+                : <EntryInput k={`${type}:${record.id}:${entry.id}`} type={entry.kind} label={entry.label}
+                    value={info.valueOf(entry.id)} onCommit={(v) => commit(entry.id, v)} />}
             </div>
           ))}
-          <StackedRow label={shown.length ? "Show another field" : "Show a field"}>
+          <AddPageRow info={info} ids={ids}
+            onAdded={(id) => set({ entries: [...ids.filter((x) => x !== id), id], layout: "pages" })} />
+          <StackedRow label={shown.length ? `Show another ${what}` : `Show a ${what}`}>
             <SearchableSelect value={null} placeholder="Pick what to show…" searchPlaceholder="Search…"
               options={[
-                ...(ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (custom fields)` }]),
+                ...(!isAlter || ids.includes(ALL_FIELDS_ENTRY) ? [] : [{ id: ALL_FIELDS_ENTRY, label: `${ALL_FIELDS_LABEL} (custom fields)` }]),
                 ...all.filter((e) => !ids.includes(e.id)).map((e) => ({ id: e.id, label: e.label })),
               ]}
               onChange={(id) => { if (id) setIds([...ids, id]); }} />
           </StackedRow>
-          {adding ? (
+          {isAlter && (adding ? (
             <NewEntryForm draft={adding} onDraft={setAdding} onAdd={addNew} onCancel={() => setAdding(null)}
-              alterName={formatAlter(alter)} blockedOwn={blockedOwn} addLabel="Add and show it" />
+              alterName={formatAlter(record)} blockedOwn={blockedOwn} addLabel="Add and show it" />
           ) : (
             <button type="button" className={`${smallBtn} h-11 mt-2`} onClick={() => setAdding({ name: "", kind: "text", scope: "this" })}>
               <Plus className="w-3.5 h-3.5" /> New field…
             </button>
-          )}
+          ))}
         </>
       )}
-      {!alter && alterId && <p className="text-xs text-muted-foreground">That {t.alter} isn't here any more.</p>}
+      {!record && wantedId && <p className="text-xs text-muted-foreground">{isAlter ? `That ${t.alter} isn't` : "That group isn't"} here any more.</p>}
     </div>
   );
 }
+
 
 // ── Media ────────────────────────────────────────────────────────────
 
