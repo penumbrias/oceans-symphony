@@ -184,6 +184,7 @@ export default {
   "widget.alters.label": "{{Alters}}",
   "widget.alters.empty": "No {{alters}} yet.",
 
+  "widget.journal.locked": "Locked entry",
   "widget.journal.label": "Journal",
   "widget.journal.empty": "No entries yet.",
   "widget.journal.untitled": "Untitled entry",
@@ -214,6 +215,8 @@ export default {
   "widget.wishes.label": "Wishes",
   "widget.wishes.empty": "No open wishes.",
   "widget.wishes.everyone": "Everyone",
+  "widget.goals.failed": "Couldn't tick that step.",
+  "widget.goals.tick": "Tick {step}",
   "widget.goals.label": "Goals",
   "widget.goals.empty": "No goals yet.",
   "widget.goals.new": "New",
@@ -223,6 +226,7 @@ export default {
   "widget.sleep.empty": "No sleep logged yet.",
   "widget.sleep.inProgress": "Sleeping since",
   "widget.sleep.lastNight": "{hours}h last night",
+  "widget.sleep.week": "Last seven nights",
 
   "widget.board.label": "Board",
   "widget.board.empty": "No posts yet.",
@@ -231,6 +235,15 @@ export default {
   "widget.reminders.label": "Reminders",
   "widget.reminders.empty": "Nothing coming up.",
   "widget.reminders.item": "Reminder",
+  "widget.reminders.failed": "Couldn't update the reminder.",
+  "widget.reminders.done": "Marked done",
+  "widget.reminders.snoozed": "Snoozed for {label}",
+  "widget.reminders.snoozedUntil": "zz until {time}",
+  "widget.reminders.ago": "{time} ago",
+  "widget.reminders.markDone": "Done",
+  "widget.reminders.snooze": "Snooze",
+  "widget.reminders.unsnooze": "Unsnooze",
+  "widget.reminders.dismiss": "Dismiss",
 
   "widget.folder.label": "Folder",
   "widget.folder.empty": "Nothing in here yet — add apps in this widget's options.",
@@ -272,10 +285,16 @@ export default {
 
   "widget.recentActs.label": "Recent activities",
   "widget.recentActs.empty": "Nothing logged yet.",
+  "widget.recentActs.again": "Log again",
+  "widget.recentActs.loggedAgain": "Logged {name} again",
+  "widget.recentActs.failed": "Couldn't log it.",
 
   "widget.links.empty": "Pick destinations in this widget's options.",
 
   "widget.polls.label": "Polls",
+  "widget.polls.voteFor": "Vote for {option}",
+  "widget.polls.voteFailed": "Couldn't vote.",
+  "widget.polls.closed": "This poll is closed.",
   "widget.polls.empty": "No polls yet.",
   "widget.polls.votes": "{count} votes",
 

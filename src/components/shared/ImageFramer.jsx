@@ -14,7 +14,8 @@ import { framingOf, framedImageStyle, CENTRED, ZOOM_MIN, ZOOM_MAX } from "@/lib/
 
 const SHAPE_RADIUS = { circle: "9999px", rounded: "22%", square: "6%", box: "12px" };
 
-export default function ImageFramer({ src, value, onChange, shape = "circle", label = "Picture", fit = "cover" }) {
+// `aspect` "square" (default) or "wide" (a banner / header-shaped preview).
+export default function ImageFramer({ src, value, onChange, shape = "circle", label = "Picture", fit = "cover", aspect = "square" }) {
   const url = useResolvedAvatarUrl(src);
   const [frame, setFrame] = useState(() => framingOf(value) || CENTRED);
   const timer = useRef(null);
@@ -89,7 +90,7 @@ export default function ImageFramer({ src, value, onChange, shape = "circle", la
           data-vaul-no-drag="" data-own-hold=""
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
           onKeyDown={onKeyDown}
-          className="relative w-28 h-28 flex-shrink-0 overflow-hidden bg-muted/40 cursor-grab active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          className={`relative ${aspect === "wide" ? "w-44 h-20" : "w-28 h-28"} flex-shrink-0 overflow-hidden bg-muted/40 cursor-grab active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary`}
           style={{ borderRadius: SHAPE_RADIUS[shape] || SHAPE_RADIUS.box, touchAction: "none" }}>
           {url && <img src={url} alt="" draggable={false} className="w-full h-full block select-none pointer-events-none" style={framedImageStyle(frame, { fit })} />}
         </div>

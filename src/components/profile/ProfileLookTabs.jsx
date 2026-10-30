@@ -33,6 +33,7 @@ import { useTerms } from "@/lib/useTerms";
 import { PS, readProfileBg } from "@/lib/profileStyle";
 import { patchProfileLook, LOOK_QUERY_KEYS, PROFILE_LOOK_KEYS, isLookDefaultsSubject } from "@/lib/lookSubject";
 
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
 // Body ↔ header pairs: the palette, text, font and background opacity.
 // Pictures are never copied (a banner and a page picture usually differ).
 const SYNC_PAIRS = [
@@ -329,8 +330,11 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
                   {waveChoice === "custom" && colourRow(PS.THEME_WAVE, "Wave colour")}
                 </Group>
                 <Group title="Background">
-                  <PictureRow label="Picture" url={cf[PS.BG_IMAGE] || ""} onPick={(url) => set(PS.BG_IMAGE, url)} onClear={() => clear(PS.BG_IMAGE)}
+                  <PictureRow label="Picture" url={cf[PS.BG_IMAGE] || ""} onPick={(url) => write({ [PS.BG_IMAGE]: url, [PS.BG_IMAGE_FRAMING]: undefined })} onClear={() => write({ [PS.BG_IMAGE]: undefined, [PS.BG_IMAGE_FRAMING]: undefined })}
                     ownerAlterId={pictureOwnerId} ownerAlterName={pictureOwnerId ? ownerName : ""} />
+                  <PictureFramingRow url={cf[PS.BG_IMAGE] || ""} value={cf[PS.BG_IMAGE_FRAMING]} shape="box" aspect="wide" label="Framing"
+                    hint="Which part of the picture stays in view behind the page"
+                    onChange={(f) => (f ? set(PS.BG_IMAGE_FRAMING, f) : clear(PS.BG_IMAGE_FRAMING))} />
                   {isAlter && !forDefaults && !draft && (
                     <ChoiceRow label="Rotation" hint="Cycle through a pool of pictures on each app open" value={cf[PS.BG_ROTATION] || "off"}
                       own={!!cf[PS.BG_ROTATION]} onClear={() => clear(PS.BG_ROTATION)}
@@ -370,8 +374,11 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
                   {colourRow(PS.HEADER_THEME_MUTED, "Muted")}
                 </Group>
                 <Group title="Header picture">
-                  <PictureRow label="Picture" hint="The banner behind the name" url={cf[PS.HEADER_IMAGE] || ""} onPick={(url) => set(PS.HEADER_IMAGE, url)} onClear={() => clear(PS.HEADER_IMAGE)}
+                  <PictureRow label="Picture" hint="The banner behind the name" url={cf[PS.HEADER_IMAGE] || ""} onPick={(url) => write({ [PS.HEADER_IMAGE]: url, [PS.HEADER_IMAGE_FRAMING]: undefined })} onClear={() => write({ [PS.HEADER_IMAGE]: undefined, [PS.HEADER_IMAGE_FRAMING]: undefined })}
                     ownerAlterId={pictureOwnerId} ownerAlterName={pictureOwnerId ? ownerName : ""} />
+                  <PictureFramingRow url={cf[PS.HEADER_IMAGE] || ""} value={cf[PS.HEADER_IMAGE_FRAMING]} shape="box" aspect="wide" label="Framing"
+                    hint="Which part of the picture stays in view in the header"
+                    onChange={(f) => (f ? set(PS.HEADER_IMAGE_FRAMING, f) : clear(PS.HEADER_IMAGE_FRAMING))} />
                   {cf[PS.HEADER_IMAGE] && opacityRow(PS.HEADER_OPACITY, "Picture opacity", 0.45)}
                 </Group>
               </>

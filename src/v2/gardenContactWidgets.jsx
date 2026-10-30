@@ -25,6 +25,7 @@ import {
 } from "@/v2/gardenProfileWidgets";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // The contact whose page this is. Same ["contacts"] query every contact
 // surface reads.
 export function useSubjectContact() {
@@ -64,7 +65,7 @@ export function ContactIdentityWidget({ settings, mode = "normal" }) {
         {settings?.showAvatar !== false && (
           <div className="overflow-hidden flex-shrink-0 flex items-center justify-center text-white" // contract-ok: initial on the contact's colour
             style={{ width: size, height: size, borderRadius: AVATAR_RADIUS[settings?.avatarShape] || AVATAR_RADIUS.circle, backgroundColor: contact.color || "#8b5cf6", fontSize: size * 0.4 }}>
-            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <span aria-hidden="true">{name.trim()[0]?.toUpperCase() || "?"}</span>}
+            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" style={pictureStyle(contact, contact.avatar_url)} /> : <span aria-hidden="true">{name.trim()[0]?.toUpperCase() || "?"}</span>}
           </div>
         )}
         <div className="min-w-0 flex-1 space-y-[0.25em]">

@@ -15,6 +15,7 @@ import NewProfileOffer from "@/components/alters/NewProfileOffer";
 import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
+import { pictureStyle } from "@/lib/imageFraming";
 const PAGE_ICONS = {
   [profilePageId("about")]: Info,
   [profilePageId("relationships")]: Link2,
@@ -78,7 +79,7 @@ export default function ContactProfile() {
       {!page.onFirstPage && (
         <div className="flex items-center gap-2.5 mb-3">
           <span className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-base text-white flex-shrink-0" style={{ backgroundColor: contact.color || "#8b5cf6" }}>
-            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : initial}
+            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" style={pictureStyle(contact, contact.avatar_url)} /> : initial}
           </span>
           <span className="text-lg font-semibold truncate">{name}</span>
         </div>
