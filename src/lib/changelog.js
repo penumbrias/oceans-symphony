@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "The \"New {{alter}}\" sheet is rebuilt on the {{Alter}} info pieces: Info, Custom fields and Links tabs plus a Profile style page, with undo. Nothing about the {{alter}} is saved until you tap Add." },
+      { type: "fix", text: "Group picker: the hint now uses your own term instead of \"alter\"." },
       { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
       { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],

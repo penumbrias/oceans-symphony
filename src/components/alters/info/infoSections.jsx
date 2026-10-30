@@ -117,6 +117,7 @@ function EntryEditForm({ draft, onDraft, onSave, onCancel, everyone }) {
 }
 
 export function StatusChip({ status }) {
+  if (status === "draft") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><AlertCircle className="w-3 h-3" /> Not added yet</span>;
   if (status === "saving") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>;
   if (status === "needs-name") return <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertCircle className="w-3 h-3" /> Saved, except the name: it needs one</span>;
   if (status === "error") return <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="w-3 h-3" /> Not saved</span>;
@@ -303,14 +304,17 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
   const [showUrl, setShowUrl] = useState(false);
   const [poolOpen, setPoolOpen] = useState(false);
   const preview = useResolvedAvatarUrl(value || "");
-  if (!alter) return null;
+  // `alter` may be null for an alter that isn't saved yet (the new-alter
+  // sheet): the picture goes into the library and is filed under the alter
+  // once they exist; the pool (one alter's) is offered only for a saved one.
+  const alterId = alter?.id || null;
   const upload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setBusy(true);
     try {
-      const out = await uploadAlterImage(file, { alterId: alter.id, role });
+      const out = await uploadAlterImage(file, { alterId, role });
       const warn = largeGifWarning(out);
       if (warn) toast.warning(warn);
       onChange(out.url);
@@ -329,7 +333,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
           </button>
           <AssetButton onPick={onChange} title="Library" label="Library" className={btn}
-            allowFolders ownerAlterId={alter.id} ownerAlterName={alter.name || ""} />
+            allowFolders ownerAlterId={alterId} ownerAlterName={alter?.name || ""} />
           <button type="button" onClick={() => setShowUrl((v) => !v)} aria-expanded={showUrl} className={btn}>
             <Link2 className="w-4 h-4" /> Link
           </button>
@@ -346,7 +350,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
           </div>
         )}
       </StackedRow>
-      {onRotation && (
+      {onRotation && alterId && (
         <>
           <ChoiceRow label="Rotate through pictures" options={ROTATION_OPTIONS} value={rotation || "off"} onChange={onRotation}
             hint={`Shows a different picture from a pool for this ${t.alter} each time the app opens.`} />
@@ -355,7 +359,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
               <button type="button" onClick={() => setPoolOpen(true)} className={btn}><Images className="w-4 h-4" /> Manage</button>
             </Row>
           )}
-          <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alter.id} role={role} />
+          <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alterId} role={role} />
         </>
       )}
     </>
@@ -586,10 +590,13 @@ export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, block
   );
 }
 
-function GroupChip({ group }) {
+// A group as a chip. Opens the group's page unless `link` is false (a
+// group that isn't joined yet, in the new-alter sheet).
+export function GroupChip({ group, link = true }) {
   const navigate = useNavigate();
   return (
-    <button type="button" onClick={() => navigate(`/group/${group.id}`)} title={`Open ${group.name}`}
+    <button type="button" onClick={link ? () => navigate(`/group/${group.id}`) : undefined} title={link ? `Open ${group.name}` : undefined}
+      disabled={!link}
       className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
       style={{ borderColor: group.color ? `${group.color}55` : "hsl(var(--border))", color: groupNameColor(group.color) || "hsl(var(--foreground))" }}>
       <GroupIcon group={group} className="w-3 h-3" /> {group.name}

@@ -293,6 +293,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alter-add-btn", look: `the highlighted "+ Add ${t.Alter}" button`,
     }),
     s("alters", {
+      emoji: "🪪", title: `The new ${t.alter} sheet`,
+      body: `Info, Custom fields and Links tabs, the same as ${t.Alter} info, and a Profile style row for the look. Nothing about the ${t.alter} is saved until you tap Add.`,
+      route: "/Home", target: ["new-alter-sheet", "alter-add-btn"], look: `the "New ${t.alter}" sheet (open it with Add)`,
+    }),
+    s("alters", {
       emoji: "📥", title: "Import and export",
       body: `Import, beside Add, brings ${t.alters} in from a backup or another plural app. Export makes a shareable document of the ${t.alters} you choose, with names hidden if you like.`,
       route: "/Home", target: "alter-add-btn",
