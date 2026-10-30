@@ -255,7 +255,7 @@ const bioDashboard = `
   ${section("Critical plans strip",
     `Activity plans flagged <em>critical</em> appear here when their lead-step window opens (e.g. 1h before, 15m before). Tap the X to dismiss until the next narrower window — they reappear as the plan gets closer. A plan disappears for good 10 minutes after its end time.`)}
   ${section("Quick Check-In + Shortcuts hold-menu",
-    `Big "❤ Quick Check-In" button. Tap → full check-in modal. Long-press → hold-menu with your configurable shortcuts (Took meds / Brush teeth / Log location / start a symptom session / etc.). Configure shortcuts in Settings → Tracking & Analytics → Quick Actions.`)}
+    `Big "❤ Quick Check-In" button. Tap → full check-in modal. Long-press → hold-menu with your configurable shortcuts (Took meds / Brush teeth / Log location / start a symptom session / etc.). Configure shortcuts in Settings → Tracking → Shortcuts.`)}
   ${section("Search everything",
     `Searches across all entities — alters, bulletins, journals, check-ins, tasks, locations. Tap a result to jump to it.`)}
   ${section("Nav grid",
@@ -284,7 +284,7 @@ const bioAltersGroups = `
       </ul>
       In grid view the cards animate the action label as you drag.`)}
   ${section("Add / archive",
-    `"+ Add Alter" creates a new one with just a name; everything else is editable inside the profile. Archiving moves an alter out of the active list (they still show in front history); manage from Settings → Alters & Fields → Archived Alters.`)}
+    `"+ Add Alter" creates a new one with just a name; everything else is editable inside the profile. Archiving moves an alter out of the active list (they still show in front history); manage from Settings → Alters → Archived alters.`)}
 `;
 
 // ── 5. Alter profile: Alter info (the one edit list) ──────────────────
@@ -349,7 +349,7 @@ const bioProfileFields = `
   ${section("Profile tab — layout",
     `The Profile page starts as the header, preferences, bio, groups, subsystems, answers, tags and fields stacked top to bottom — the same as before boards. Tap Edit page to move, resize, restyle, remove or add any of them, or add headings, text, dividers and a song.`)}
   ${section("Info tab",
-    `Custom Fields and their values. Define the schema in Settings → Alters & Fields → Custom Fields (text / number / boolean). Each alter then fills in their values.`)}
+    `Custom Fields and their values. Define the schema in Settings → Alters → Custom fields (text / number / boolean). Each alter then fills in their values.`)}
   ${section("Board tab",
     `The alter's in-app activity feed. Every bulletin or comment <em>they</em> author, every journal they sign, every check-in they make, and every <code>@mention</code> directed at them lands here. Tap an item to jump to it. The "Message" button at the top of the Board jumps to the Messages tab and opens compose.`)}
   ${section("Messages tab",
@@ -563,7 +563,7 @@ const bioReminders = `
   ${section("Snooze",
     `Per-reminder snooze options as removable chips (10 min, 1h, 4h, Tomorrow 9am, Next Monday 9am, custom). Snoozed instances re-fire when their snoozed_until timestamp passes.`)}
   ${section("Push diagnostics",
-    `Settings → Notifications & reminders → Advanced has a "Test push" link that walks the full pipeline (service worker, PushManager, VAPID key, browser permission, registration, subscription, server send) and surfaces the failing step. A second link, "Show a test notification", bypasses push entirely and asks the SW to display directly — if that also doesn't appear, the problem is OS-side (Chrome notification permission, battery optimisation, Do Not Disturb).`)}
+    `Settings → Notifications → Advanced has a "Test push" link that walks the full pipeline (service worker, PushManager, VAPID key, browser permission, registration, subscription, server send) and surfaces the failing step. A second link, "Show a test notification", bypasses push entirely and asks the SW to display directly — if that also doesn't appear, the problem is OS-side (Chrome notification permission, battery optimisation, Do Not Disturb).`)}
 `;
 
 // ── 15. Friends Mode ──────────────────────────────────────────────────
@@ -589,24 +589,24 @@ const bioFriends = `
 
 // ── 16. Settings & Themes ─────────────────────────────────────────────
 const bioSettings = `
-  ${intro("Wiki · Settings & Themes", `Eight sections, quick-nav at the top.`)}
-  ${section("Profile",
-    `System name + description. "View alter count" reveals the active/archived alter count (hidden by default, each visit starts hidden). Terminology presets at the bottom — pick "Headmates", "Parts (IFS)", "Collective", etc., or set custom words. All app copy honours these.`)}
-  ${section("Appearance",
-    `One button opens Display options — the inspector every look setting lives in: Text (fonts, with the extra pack and your own uploads, text size), Shape (width, spacing, touch targets, corners), Bars (every bar's show / position / size / look / what's on it, including the sidebar), Colour (the eight app colours, highlight, background) and Styles (built-in themes as light and dark rows, your presets with the parts they keep, link a preset to an alter so the app changes to their look when they front). Appearance itself keeps the New UI switch, "Home opens on" and the language.`)}
-  ${section("Accessibility",
-    `Accessibility mode (low-vision layout), reduce motion, high contrast and the floating Support bubble. Text size, tap targets and bar height are in Display options — a button here opens it.`)}
-  ${section("Alters & Fields",
-    `Custom field schema (text / number / boolean), Relationship type catalog (for the Lineage tab), Archived alters manager.`)}
-  ${section("Tracking & Analytics",
-    `Shortcuts (the buttons on the hold-menu), Check-In Manager, Custom Emotions, Custom Trigger Types, Analytics grouping (by alter vs by group).`)}
-  ${section("Reminders",
-    `Timezone, push toggle, push diagnostics, pause-all kill switch, quiet hours window, default snooze options. See the Reminders wiki alter for the firing logic.`)}
-  ${section("Data & Privacy",
-    `Backup & Restore (per-category JSON / .symphonyz), password encryption (AES-256-GCM, optional), and file imports from other plural apps. The Privacy & Data Notice at the top of the page covers what's stored locally vs what Friends Mode transmits.`)}
-  ${section("Recent Updates",
-    `Scrollable changelog viewer.`)}
-  ${tip(`The build version and "alpha" chip are pinned in the top-right of Settings — bump-with-every-changelog by design, so when reporting a bug you can cite the exact build.`)}
+  ${intro("Wiki · Settings & Themes", `One flat list with a search box, grouped: You · General · Look · Alters · Tracking · Notifications · Data &amp; privacy · About. Type what you want to change ("backup", "font size", "quiet hours") and the matching rows stay; a row opens its page, with Back in the page header. Old links still land on the right page.`)}
+  ${section("You",
+    `Profile (picture, banner, name, bio, and the alter count hidden until you ask), Terminology (presets like "Headmates", "Parts (IFS)", "Collective", or custom words — all app copy honours them) and Systems (more than one system on this device).`)}
+  ${section("General",
+    `Language, Timezone, alter labels in lists (name / alias / both), Home screen (the New UI switch and which home greets you) and Experimental features.`)}
+  ${section("Look",
+    `Display options is the one look editor — the inspector the page menu opens: Text (fonts, the extra pack, your own uploads, text size), Shape (width, spacing, touch targets, corners), Bars (every bar's show / position / size / look / what's on it, including the sidebar), Colour and Styles (themes, your presets with the parts they keep, a preset linked to an alter). Accessibility keeps low-vision mode, reduce motion, high contrast and the floating Support bubble, and links to Display options for sizes.`)}
+  ${section("Alters",
+    `Custom fields (text / number / yes-no / list / date), relationship types, profile layouts (defaults per type), profile songs, order, archived alters and contacts, and the duplicate finder.`)}
+  ${section("Tracking",
+    `Check-in manager, custom emotions, custom triggers, fronting levels, Shortcuts (the hold-menu buttons) and Analytics &amp; attribution (grouping by alter or group, inferred presence and its window, the dashboard insight spotlight).`)}
+  ${section("Notifications",
+    `Status (what's stopping notifications right now, with fixes), Reminders (timezone, quiet hours, snooze, the soft pre-plan banner), Status bar (installed apps), Pop-up messages, Advanced (server delivery and tests) and the Friends &amp; sync server.`)}
+  ${section("Data & privacy",
+    `The Privacy &amp; Data Notice (what's stored locally, what can leave), Import, Export &amp; automatic backups, Sync between devices, chat cleanup, Storage &amp; encryption (AES-256-GCM, optional), See your data, Find my data and the Privacy cover.`)}
+  ${section("About",
+    `What's new (the changelog), Tour &amp; onboarding (page tutorials, re-run setup), Preview mode, the bug report form and the medical disclaimer.`)}
+  ${tip(`The build version and "alpha" chip are pinned in the top-right of Settings — bump-with-every-changelog by design, so when reporting a bug you can cite the exact build. The Backup button beside them exports, imports or backs up now.`)}
 `;
 
 // ── 17. Privacy & Backup ──────────────────────────────────────────────
@@ -635,7 +635,7 @@ const bioSymptoms = `
     `A <strong>check-in</strong> is a point-in-time reading. A <strong>session</strong> has a start and an end — start an active symptom (e.g. a dissociative episode) now, end it later, and the duration is recorded. This example has a couple of past sessions and a spread of check-ins so the Timeline symptoms column and the analytics look alive.`)}
   ${section("Where it surfaces",
     `The Timeline symptoms column, the Daily Tally panel, the Wellbeing analytics tab, and the Symptoms section of a therapy report. Attribution defaults to whoever's fronting.`)}
-  ${tip(`Add your own symptoms and habits — the catalogue is fully editable in Settings → Tracking. Colour and 1–5-vs-yes/no are per-entry.`)}
+  ${tip(`Add your own symptoms and habits — the catalogue is fully editable in Settings → Tracking → Check-in manager. Colour and 1–5-vs-yes/no are per-entry.`)}
 `;
 
 // ── 19. Sleep & dream journal ──────────────────────────────────────────

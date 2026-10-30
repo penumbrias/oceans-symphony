@@ -796,25 +796,59 @@ export function buildPresenceRecords({ items = [], alters = [] }) {
 }
 
 // ── Settings ───────────────────────────────────────────────────────
-// Static, not entity-backed: settings is a fixed set of sections, and
+// Static, not entity-backed: settings is a fixed set of pages, and
 // people search for the THING they want to change ("backup", "font size",
-// "wallpaper") rather than the section's name. Each record deep-links to
-// /settings#<section>, which Settings.jsx honours on mount.
+// "wallpaper") rather than the page's name. Each record deep-links to
+// /settings#<page>, which Settings.jsx honours (settingsPages.jsx).
 export function buildSettingsRecords({ terms = {} } = {}) {
   const Alter = terms.Alter || "Alter";
   const Alters = terms.Alters || "Alters";
   const Systems = terms.Systems || "Systems";
   const fronting = terms.fronting || "fronting";
   const SECTIONS = [
-    ["system", "Profile", `${terms.System || "System"} name, banner, identity, pronouns`],
-    ["appearance", "Appearance", "Theme, colours, fonts, wallpaper, presets, dashboard layout, navigation, corner style, home screen, widgets"],
-    ["notifications", "Notifications & reminders", "Reminders, push notifications, notifications off, allow notifications, status bar, persistent notification, pop-up messages, alerts, battery"],
-    ["accessibility", "Accessibility", "Font size, text size, contrast, bottom bar height, motion"],
-    ["alters", `${Alter} setup`, `Custom fields, relationship types, archived ${Alters}, ${Alter} order, arrangement, labels, ${fronting} levels, profile songs, duplicates`],
-    ["checkin", "Tracking setup", "Custom emotions, symptoms, diary card templates, quick actions, triggers, check-in"],
+    ["profile", "Profile", `${terms.System || "System"} name, banner, picture, bio, identity`],
+    ["terms", "Terminology", `Words, terms, pronouns, ${Alter}, headmates, parts, ${fronting}`],
     ["systems", Systems, `Multiple ${Systems}, switching between ${Systems}`],
-    ["data", "Data & privacy", "Backup, export, import, restore, encryption, passphrase, storage mode, sync, panic hide, delete"],
-    ["about", "About & help", "Version, what's new, changelog, updates, feature tour, disclaimer, support"],
+    ["language", "Language", "Language, locale, translation"],
+    ["timezone", "Timezone", "Timezone, time zone, clock"],
+    ["alter-labels", `${Alter} labels in lists`, "Name, alias, labels, pickers"],
+    ["home-screen", "Home screen", "New UI, home screen, widgets, board, home opens on"],
+    ["experimental", "Experimental features", "Experimental, beta, labs, needs, goals, mods"],
+    ["display", "Display options", "Appearance, theme, colours, fonts, text size, wallpaper, presets, dark, light, corners, bars, navigation, top bar, bottom bar, sidebar, wave"],
+    ["accessibility", "Accessibility", "Low vision, contrast, motion, screen reader, tap targets, bar height"],
+    ["custom-fields", "Custom fields", `Custom fields, entries, ${Alter} info schema`],
+    ["relationship-types", "Relationship types", "Relationship types, lineage"],
+    ["profile-layouts", "Profile layouts", "Profile layouts, default layout, new profile"],
+    ["profile-songs", "Profile songs", "Profile songs, music"],
+    ["alter-order", `Order your ${Alters}`, `${Alter} order, sort, arrangement`],
+    ["archived-alters", `Archived ${Alters}`, `Archived ${Alters}, restore, unarchive`],
+    ["archived-contacts", "Archived contacts", "Archived contacts, restore"],
+    ["duplicates", "Find & remove duplicates", `Duplicates, merge ${Alters}`],
+    ["checkin-manager", "Check-in manager", "Check-in fields, symptoms, diary card templates"],
+    ["emotions", "Custom emotions", "Custom emotions, feelings wheel"],
+    ["triggers", "Custom triggers", "Custom triggers, switch triggers"],
+    ["front-levels", `${terms.Fronting || "Fronting"} levels`, `${fronting} levels, co-front`],
+    ["shortcuts", "Shortcuts", "Shortcuts, quick actions, hold menu"],
+    ["analytics", "Analytics & attribution", "Analytics grouping, attribution, inferred presence, insight spotlight"],
+    ["notif-status", "Notifications status", "Notifications off, allow notifications, battery, permission"],
+    ["reminders", "Reminders", "Reminders, quiet hours, snooze, pause, pre-plan banner"],
+    ["popups", "Pop-up messages", "Pop-up messages, toasts, alerts"],
+    ["notif-advanced", "Notifications: advanced", "Push, test notification, server delivery"],
+    ["relay", "Friends & sync server", "Relay, server, friends, self-hosted"],
+    ["privacy-notice", "Privacy & Data Notice", "Privacy, what leaves this device, local storage"],
+    ["import", "Import", "Import, restore, Simply Plural, PluralKit, Octocon, PluralSpace, OpenPlural"],
+    ["export", "Export & automatic backups", "Backup, export, save, download, share, auto-backup, schedule, password lock"],
+    ["device-sync", "Sync between devices", "Sync, devices, folder"],
+    ["chat-cleanup", "Clean up deleted chat messages", "Chat cleanup, deleted messages"],
+    ["storage", "Storage & encryption", "Encryption, passphrase, storage mode, delete all data, offline images"],
+    ["data-inspector", "See your data", "Data inspector, records, deleted items, trash"],
+    ["find-my-data", "Find my data", "Lost data, empty app, recovery, rescue"],
+    ["privacy-cover", "Privacy cover", "Panic hide, grocery list, triple tap"],
+    ["whats-new", "What's new", "Changelog, updates, version, release notes"],
+    ["tour", "Tour & onboarding", "Feature tour, page tutorials, re-run setup"],
+    ["preview", "Preview mode", "Preview mode, example, wiki walkthrough"],
+    ["bug-report", "Found a bug?", "Bug report, issue, feedback, support"],
+    ["disclaimer", "Medical disclaimer", "Disclaimer, not medical advice"],
   ];
   return SECTIONS.map(([id, title, blurb]) => ({
     type: "setting",
