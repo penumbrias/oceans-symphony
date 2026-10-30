@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "The Bio and Field widgets can show their text as pages: tabs you swipe between. \"Add a page\" in the widget's options offers ready pages like Backstory or Likes & dislikes, saved in Info." },
+      { type: "feature", text: "A Field widget can show another {{alter}}'s or a group's bio and fields, and works on group profiles too." },
       { type: "improve", text: "Feelings and Symptom analytics widgets: your most-logged ones as bars, with how much each changed since the days before. Expanded keeps the full analytics." },
       { type: "improve", text: "Feelings and Symptom analytics widgets on a profile count only that profile's entries." },
       { type: "improve", text: "{{Fronting}} leaders widget: choose 7, 30 or 90 days, how many to show and whether to show pairs; tap someone to open their profile." },

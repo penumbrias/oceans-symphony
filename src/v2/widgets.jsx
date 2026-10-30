@@ -3444,15 +3444,17 @@ export const V2_WIDGETS = {
   // ── The garden (v0.295.0): an alter's info is entered once, in Alter
   // info; these show it. Editing them edits the info itself. ──
   info: {
-    label: "Field", description: "One field from an {{alter}}'s info, or several \u2014 the bio, pronouns, any custom field. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
+    label: "Field", description: "One field from an {{alter}}'s or a group's info, or several \u2014 the bio, pronouns, any custom field \u2014 as text or as pages you swipe between. Tap the text to edit it; it's saved to their info. Minimal shows just the text, expanded adds who has the field.",
     icon: IdCard, category: "alters",
-    subjects: ["home", "alter"],
+    // Pages and other people's info (v0.322.0): on a group's profile it
+    // shows that group's description and pages.
+    subjects: ["home", "alter", "group"],
     render: ({ settings, mode }) => <InfoWidget settings={settings} mode={mode} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "entries", type: "component", label: "Shows", Component: InfoEntriesField },
       { key: "layout", type: "select", label: "Layout", default: "labelled",
-        options: [{ value: "labelled", label: "Labels above" }, { value: "inline", label: "Label: value" }, { value: "plain", label: "Just the values" }] },
+        options: [{ value: "labelled", label: "Labels above" }, { value: "inline", label: "Label: value" }, { value: "plain", label: "Just the values" }, { value: "pages", label: "Pages" }] },
       { key: "showEmpty", type: "toggle", label: "Show fields that aren't filled in", default: false },
       { key: "editInPlace", type: "toggle", label: "Tap the text to edit it (home screen)", default: true },
     ],

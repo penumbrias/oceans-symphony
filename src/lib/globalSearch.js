@@ -442,7 +442,12 @@ export function buildGroupRecords({ items = [], alters = [] }) {
       subtitle: isSub ? (owner ? `Subsystem · ${owner.name}` : "Subsystem") : (snippet(g.description) || "Group"),
       // Both groups and subsystems now have a profile page.
       path: `/group/${g.id}`,
-      searchableText: joinNonEmpty([g.name, g.description, isSub ? "subsystem" : "group", owner?.name]).toLowerCase(),
+      // A group's own pages (v0.322.0, Field widget → Add a page) are its
+      // text too.
+      searchableText: joinNonEmpty([
+        g.name, stripHtml(g.description), isSub ? "subsystem" : "group", owner?.name,
+        ...(Array.isArray(g.info_fields) ? g.info_fields.flatMap((f) => [f?.name, typeof f?.value === "string" ? stripHtml(f.value) : ""]) : []),
+      ]).toLowerCase(),
     };
   });
 }
