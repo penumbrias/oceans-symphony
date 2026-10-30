@@ -851,7 +851,7 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   const avatarEl = avatar
     ? (
       <span className="relative flex-shrink-0" style={{ width: size, height: size }}>
-        <img src={avatar} alt="" className="rounded-full object-cover w-full h-full" style={pictureStyle(settings, settings?.system_avatar_url || settings?.system_avatar)} />
+        <span className="block w-full h-full rounded-full overflow-hidden"><img src={avatar} alt="" className="object-cover w-full h-full" style={pictureStyle(settings, settings?.system_avatar_url || settings?.system_avatar)} /></span>
         <AssetButton onPick={setAvatar} title={tr("widget.identity.changePicture")} allowFolders
           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-border bg-background flex items-center justify-center" />
       </span>

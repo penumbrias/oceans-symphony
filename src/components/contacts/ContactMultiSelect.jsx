@@ -16,7 +16,7 @@ import { pictureStyle } from "@/lib/imageFraming";
 function ContactThumb({ contact }) {
   const resolved = useResolvedAvatarUrl(contact?.avatar_url);
   if (resolved) {
-    return <img src={resolved} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={pictureStyle(contact, contact?.avatar_url)} />;
+    return <span className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 block"><img src={resolved} alt="" className="w-full h-full object-cover" style={pictureStyle(contact, contact?.avatar_url)} /></span>;
   }
   return (
     <div

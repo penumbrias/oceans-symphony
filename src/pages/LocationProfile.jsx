@@ -344,7 +344,7 @@ function LocationProfileInner() {
                 <button type="button" onClick={() => setForm((f) => ({ ...f, background_image_url: "" }))} className="text-muted-foreground hover:text-destructive flex-shrink-0 self-center"><X className="w-4 h-4" /></button>
               )}
             </div>
-            <PictureFramingRow url={form.background_image_url} value={form.image_framing?.[form.background_image_url]} label="Image framing"
+            <PictureFramingRow url={form.background_image_url} value={form.image_framing?.[form.background_image_url]} label="Framing"
               shape={form.shape === "oval" || form.shape === "circle" ? "circle" : "box"} aspect="wide"
               hint="Which part of the picture shows in the box, on the map and on the profile"
               onChange={(f) => setForm((cur) => ({ ...cur, image_framing: withImageFraming(cur.image_framing, cur.background_image_url, f) }))} />

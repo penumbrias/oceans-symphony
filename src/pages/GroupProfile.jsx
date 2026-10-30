@@ -355,7 +355,7 @@ function GroupProfileInner() {
           </button>
         </div>
       )}
-      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="rounded" label="Picture framing"
+      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="rounded" label="Framing"
         hint="Saved with the picture, so it shows this way everywhere"
         onChange={(f) => setForm((cur) => ({ ...cur, image_framing: withImageFraming(cur.image_framing, cur.avatar_url, f) }))} />
 

@@ -30,7 +30,7 @@ export default function GroupIcon({ group, className = "w-4 h-4", boxed = false,
   }
 
   if (resolved) {
-    return <img src={resolved} alt="" className={`${className} object-cover rounded-md flex-shrink-0`} style={pictureStyle(group, group?.avatar_url)} />;
+    return <span className={`${className} rounded-md overflow-hidden flex-shrink-0 inline-block align-middle`}><img src={resolved} alt="" className="w-full h-full object-cover" style={pictureStyle(group, group?.avatar_url)} /></span>;
   }
   return <Folder className={`${className} flex-shrink-0`} style={{ color: color || "hsl(var(--muted-foreground))" }} />;
 }

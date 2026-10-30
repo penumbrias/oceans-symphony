@@ -484,7 +484,7 @@ useEffect(() => {
       {showAvatarUrl && (
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
-      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Avatar framing"
+      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Framing"
         hint="Saved with the picture, so it shows this way everywhere"
         onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 

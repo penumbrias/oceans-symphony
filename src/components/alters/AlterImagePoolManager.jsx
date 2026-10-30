@@ -312,10 +312,8 @@ export default function AlterImagePoolManager({ open, onClose, alterId, role }) 
             )}
             {framingUrl && alter && pool.some((it) => it.image_url === framingUrl) && (
               <div className="mt-3 rounded-lg border border-border/50 px-2">
-                <AlterPictureFramer alter={alter} url={framingUrl} shape={role === "avatar" ? "circle" : "box"} label="Frame this picture" />
-                <div className="flex justify-end pb-2">
-                  <button type="button" onClick={() => setFramingUrl(null)} className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">Done</button>
-                </div>
+                <AlterPictureFramer alter={alter} url={framingUrl} shape={role === "avatar" ? "circle" : "box"} label="Framing" always={false}
+                  open onOpenChange={(v) => { if (!v) setFramingUrl(null); }} />
               </div>
             )}
           </div>

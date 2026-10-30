@@ -294,7 +294,7 @@ function AlterProfileInner() {
         <ProfileSongPlayer song={alter?.profile_song?.ref ? alter.profile_song : cf[PS.SONG]} />
       )}
       {hasPageBg && (
-        <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
           {resolvedBgImage ? (
             <>
               {/* SOLID full-opacity base layer of _bg_color UNDER the image, so

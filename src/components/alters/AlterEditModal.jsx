@@ -308,7 +308,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           {form.avatar_url && (isLocalImageUrl(form.avatar_url) || form.avatar_url.startsWith("data:")) && (
             <LocalImageFixer value={form.avatar_url} maxWidth={400} quality={0.85} onFixed={(url) => set("avatar_url", url)} />
           )}
-          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Avatar framing"
+          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Framing"
             onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
           <RotationModeControl

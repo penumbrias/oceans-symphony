@@ -178,7 +178,7 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
           {showAvatarUrl && (
             <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://… or paste an image URL" />
           )}
-          <PictureFramingRow url={avatarUrl} value={imageFraming[avatarUrl]} shape="rounded" label="Picture framing"
+          <PictureFramingRow url={avatarUrl} value={imageFraming[avatarUrl]} shape="rounded" label="Framing"
             onChange={(f) => setImageFraming((m) => withImageFraming(m, avatarUrl, f))} />
 
           {/* Manage members — opens the same full "Manage members" modal used

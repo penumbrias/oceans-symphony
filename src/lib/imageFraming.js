@@ -99,8 +99,8 @@ export function withImageFraming(map, url, frame) {
 
 // Save (or, with null, clear) the frame of one of a record's pictures, on
 // a fresh read so the other pictures' frames are kept. `entity` is the
-// entity name ("Alter", "Group", "Contact", "InnerWorldLocation",
-// "SystemSettings").
+// entity name ("Alter", "Group", "Contact", "InnerWorldLocation"; the
+// Settings form holds SystemSettings' map until Save instead).
 export async function setRecordImageFraming(entity, id, url, frame) {
   if (!entity || !id || !url) return null;
   const fresh = (await base44.entities[entity].get(id)) || {};

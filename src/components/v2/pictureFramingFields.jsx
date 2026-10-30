@@ -12,11 +12,11 @@ import { refreshAlter } from "@/lib/alterEntry";
 
 export { PictureFramingRow, RecordPictureFramer } from "@/components/shared/PictureFramingRow";
 
-export function AlterPictureFramer({ alter, url, shape = "circle", label = "Frame the picture", hint, always = true }) {
+export function AlterPictureFramer({ alter, url, shape = "circle", label = "Frame the picture", hint, always = true, open, onOpenChange }) {
   const qc = useQueryClient();
   if (!alter || !url) return null;
   return (
-    <RecordPictureFramer entity="Alter" record={alter} url={url} shape={shape} label={label} always={always}
+    <RecordPictureFramer entity="Alter" record={alter} url={url} shape={shape} label={label} always={always} open={open} onOpenChange={onOpenChange}
       hint={hint || "Saved with the picture, so it shows this way everywhere"} refresh={() => refreshAlter(qc, alter.id)} />
   );
 }

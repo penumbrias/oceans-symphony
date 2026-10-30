@@ -572,7 +572,7 @@ function LocationDetailModal({ location, alters, locationMap, scope, getParentLo
                 </div>
 
                 {editing && editData.background_image_url && (
-                  <PictureFramingRow url={editData.background_image_url} value={editData.image_framing?.[editData.background_image_url]} label="Image framing"
+                  <PictureFramingRow url={editData.background_image_url} value={editData.image_framing?.[editData.background_image_url]} label="Framing"
                     shape={editData.shape === "oval" || editData.shape === "circle" ? "circle" : "box"} aspect="wide"
                     onChange={(f) => setEditData(l => ({ ...l, image_framing: withImageFraming(l.image_framing, l.background_image_url, f) }))} />
                 )}

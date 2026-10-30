@@ -271,7 +271,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
               )}
             </div>
           </div>
-          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Photo framing"
+          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Framing"
             onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
           <div className="grid grid-cols-2 gap-2">

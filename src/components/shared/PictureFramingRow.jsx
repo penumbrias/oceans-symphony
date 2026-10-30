@@ -41,7 +41,7 @@ export function PictureFramingRow({ url, value, onChange, shape = "circle", aspe
     <StackedRow label={label} hint={hint || "Which part of the picture stays in view, and how far it's zoomed in"}>
       <ImageFramer src={url} value={value} onChange={onChange} shape={shape} aspect={aspect} label={label} />
       <div className="flex justify-end pt-1">
-        <button type="button" onClick={() => setOpen(false)} className={btn} aria-expanded={true}>
+        <button type="button" onClick={() => setOpen(false)} className={btn} aria-label="Done framing">
           <X className="w-4 h-4" /> Done
         </button>
       </div>
@@ -52,8 +52,10 @@ export function PictureFramingRow({ url, value, onChange, shape = "circle", aspe
 // Frames one of a record's pictures and saves straight onto the record.
 // `entity` is the entity name; `refresh` runs after a save (invalidate the
 // record's queries). Collapsible like PictureFramingRow unless `always`.
-export function RecordPictureFramer({ entity, record, url, shape = "circle", aspect = "square", label = "Frame the picture", hint, refresh, always = false }) {
-  const [open, setOpen] = useState(false);
+export function RecordPictureFramer({ entity, record, url, shape = "circle", aspect = "square", label = "Frame the picture", hint, refresh, always = false, open: openProp, onOpenChange }) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (v) => { setOpenState(v); onOpenChange?.(v); };
   if (!record?.id || !url) return null;
   const save = async (frame) => {
     try {

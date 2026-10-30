@@ -200,10 +200,8 @@ export function PicturesSection({ alter, avatarUrl, onUseAsAvatar }) {
       )}
       {framingUrl && pictures.some((a) => a.image_url === framingUrl) && (
         <div className="rounded-lg border border-border/50 px-2">
-          <AlterPictureFramer alter={alter} url={framingUrl} shape="box" label="Frame this picture" />
-          <div className="flex justify-end pb-2">
-            <button type="button" className={smallBtn} onClick={() => setFramingUrl(null)}>Done</button>
-          </div>
+          <AlterPictureFramer alter={alter} url={framingUrl} shape="box" label="Framing" always={false}
+            open onOpenChange={(v) => { if (!v) setFramingUrl(null); }} />
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
@@ -361,7 +359,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
       </StackedRow>
       {/* Where the picture sits in its shape — saved on the alter by the
           picture, so it shows this way everywhere (v0.322.0). */}
-      <AlterPictureFramer alter={alter} url={value} shape={shape} label={`${label} framing`} always={false}
+      <AlterPictureFramer alter={alter} url={value} shape={shape} label="Framing" always={false}
         hint={rotation && rotation !== "off" ? "This frames the main picture; each rotating picture is framed in the pool" : undefined} />
       {onRotation && (
         <>

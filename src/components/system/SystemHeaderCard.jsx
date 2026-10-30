@@ -27,13 +27,15 @@ export default function SystemHeaderCard({ settings, action = null }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           {avatar && (
-            <img
-              src={avatar}
-              alt=""
-              draggable={false}
-              className="w-12 h-12 rounded-full object-cover border border-white/40 shadow flex-shrink-0"
-              style={pictureStyle(settings, settings?.system_avatar_url)}
-            />
+            <span className="w-12 h-12 rounded-full overflow-hidden border border-white/40 shadow flex-shrink-0 block">
+              <img
+                src={avatar}
+                alt=""
+                draggable={false}
+                className="w-full h-full object-cover"
+                style={pictureStyle(settings, settings?.system_avatar_url)}
+              />
+            </span>
           )}
           <h1
             className="font-display text-3xl font-semibold text-foreground truncate"

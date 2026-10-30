@@ -249,7 +249,7 @@ export default function ProfileSettings() {
           </div>
         </div>
       </div>
-      <PictureFramingRow url={systemAvatarUrl} value={systemImageFraming[systemAvatarUrl]} shape="circle" label={`${terms.System} picture framing`}
+      <PictureFramingRow url={systemAvatarUrl} value={systemImageFraming[systemAvatarUrl]} shape="circle" label="Framing"
         onChange={(f) => setSystemImageFraming((m) => withImageFraming(m, systemAvatarUrl, f))} />
       {sysAvatarAssets && (
         <AssetPickerModal open onClose={() => setSysAvatarAssets(false)} onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }} />
@@ -263,6 +263,8 @@ export default function ProfileSettings() {
               <SliderRow label="Banner height" hint="How far down the banner extends." value={systemBannerHeight} min={80} max={360} step={10} unit="px"
                 onChange={(v) => setSystemBannerHeight(Number(v))} />
               {/* Framing (v0.322.0): drag / zoom like every other picture.
+                  Always open (not the collapsible PictureFramingRow): it
+                  replaces a slider that was always visible here.
                   The older top↔bottom position is kept in step for app
                   versions that only know that. */}
               <StackedRow label="Framing" hint="Which part of the picture stays in view, and how far it's zoomed in">
