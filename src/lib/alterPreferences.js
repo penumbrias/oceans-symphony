@@ -16,7 +16,7 @@
 // to use. Everything is opt-in via the share mode anyway.
 
 export const PREF_LEVELS = {
-  1: { emoji: "💔", label: "Hate", color: "#DC2626" },
+  1: { emoji: "😠", label: "Hate", color: "#DC2626" },
   2: { emoji: "👎", label: "Dislike", color: "#F97316" },
   3: { emoji: "😐", label: "Neutral", color: "#6B7280" },
   4: { emoji: "👍", label: "Like", color: "#22C55E" },

@@ -23,12 +23,11 @@ import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
-import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
+import AlterPreferencesEditor, { PrefLevelIconsRow } from "@/components/alters/AlterPreferencesEditor";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { isGardenProfile, usesNewProfile } from "@/lib/profileBoard";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
@@ -371,8 +370,7 @@ export function BioSection({ alter = null, info, withRow = true }) {
   const { form, set, revision } = info;
   if (!form) return null;
   const editor = (
-    <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)}
-      blocksHint={!alter || isGardenProfile(alter) || usesNewProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" on the Look tab."} />
+    <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)} />
   );
   return withRow ? <EntryRow name="Bio" kind="richtext">{editor}</EntryRow> : editor;
 }
@@ -673,6 +671,7 @@ export function PreferencesSection({ info }) {
     <>
       <p className="text-xs text-muted-foreground py-1">How each pronoun set, name or term feels, from hate to love.</p>
       <AlterPreferencesEditor value={form.preferences || []} onChange={(next) => set("preferences", next)} />
+      <PrefLevelIconsRow />
     </>
   );
 }

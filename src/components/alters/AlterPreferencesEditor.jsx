@@ -5,19 +5,70 @@
 // save with the rest of the alter.
 
 import React, { useState } from "react";
-import { Plus, Trash2, HeartCrack, ThumbsDown, Minus, ThumbsUp, Heart } from "lucide-react";
+import { Plus, Trash2, Minus } from "lucide-react";
+import { DEFAULT_PREF_ICONS, PREF_ICON_SUGGESTIONS, customPrefIcon, usePrefLevelIcons } from "@/lib/prefLevelIcons";
 import { Input } from "@/components/ui/input";
+import { StackedRow } from "@/components/shared/SettingRows";
 import { PREF_LEVELS, PREF_CATEGORIES, categoryMeta } from "@/lib/alterPreferences";
 
-// Flat (stroke) icons per level, replacing the coloured emoji (tester:
-// "make the emojis flat"). Tinted with the level colour when active /
-// displayed; muted otherwise. Exported so Friends.jsx renders shared
-// preference chips with the same visual language.
-const LEVEL_ICONS = { 1: HeartCrack, 2: ThumbsDown, 3: Minus, 4: ThumbsUp, 5: Heart };
+// The level icons (src/lib/prefLevelIcons.js): flat line icons by default
+// (hate is an angry face), or the emoji / text the person set for each
+// level. Exported so Friends.jsx and the profile widgets render preference
+// chips with the same visual language.
 export function PrefLevelIcon({ level, className = "w-3.5 h-3.5", filled = false }) {
-  const Icon = LEVEL_ICONS[level] || Minus;
+  const { icons } = usePrefLevelIcons();
   const meta = PREF_LEVELS[level] || PREF_LEVELS[3];
-  return <Icon className={className} style={{ color: meta.color }} fill={filled && (level === 5 || level === 1) ? meta.color : "none"} />;
+  const custom = customPrefIcon(icons, level);
+  if (custom) return <span className={`${className} inline-flex items-center justify-center leading-none`} style={{ fontSize: "0.95em" }} aria-hidden="true">{custom}</span>;
+  const Icon = DEFAULT_PREF_ICONS[level] || Minus;
+  return <Icon className={className} style={{ color: meta.color }} fill={filled && level === 5 ? meta.color : "none"} />;
+}
+
+function LevelGlyph({ level, active, className }) {
+  const { icons } = usePrefLevelIcons();
+  const meta = PREF_LEVELS[level] || PREF_LEVELS[3];
+  const custom = customPrefIcon(icons, level);
+  if (custom) return <span className={`${className} inline-flex items-center justify-center leading-none`} aria-hidden="true">{custom}</span>;
+  const Icon = DEFAULT_PREF_ICONS[level] || Minus;
+  return <Icon className={className} style={{ color: active ? meta.color : "currentColor" }} fill={active && level === 5 ? meta.color : "none"} />;
+}
+
+// Settings → the icon for each level: an emoji or a character or two,
+// shared by every alter. Empty = the flat default.
+export function PrefLevelIconsRow() {
+  const { icons, setIcon, setIcons } = usePrefLevelIcons();
+  const [editing, setEditing] = useState(null);
+  const anyCustom = [1, 2, 3, 4, 5].some((n) => customPrefIcon(icons, n));
+  const commit = async (n) => {
+    if (editing?.level !== n) return;
+    const text = editing.text;
+    if ((text || "").trim() === (customPrefIcon(icons, n) || "")) { setEditing(null); return; }
+    try { await setIcon(n, text); } finally { setEditing((e) => (e?.level === n ? null : e)); }
+  };
+  return (
+    <StackedRow label="Level icons" hint="An emoji for each level, shared by every profile" own={anyCustom}
+      onClear={() => setIcons({ 1: "", 2: "", 3: "", 4: "", 5: "" })}>
+      <div className="flex flex-wrap items-end gap-2 py-1" data-pref-level-icons="">
+        {Object.entries(PREF_LEVELS).map(([lvl, meta]) => {
+          const n = Number(lvl);
+          return (
+            <label key={lvl} className="flex flex-col items-center gap-1 w-14">
+              <span className="w-7 h-7 inline-flex items-center justify-center"><LevelGlyph level={n} active className="w-5 h-5" /></span>
+              <input value={editing?.level === n ? editing.text : (customPrefIcon(icons, n) || "")}
+                onFocus={() => setEditing({ level: n, text: customPrefIcon(icons, n) || "" })}
+                onChange={(e) => setEditing({ level: n, text: e.target.value })}
+                onBlur={() => commit(n)}
+                aria-label={`Icon for ${meta.label}`} maxLength={4}
+                className="w-11 h-8 text-center rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+              <span className="text-xs text-muted-foreground">{meta.label}</span>
+            </label>
+          );
+        })}
+        <button type="button" onClick={() => setIcons(Object.fromEntries([1, 2, 3, 4, 5].map((n) => [n, PREF_ICON_SUGGESTIONS[n][0]])))}
+          className="h-8 px-2.5 rounded-lg border border-border/60 text-xs hover:bg-muted/50 self-center">Use emoji {[1, 2, 3, 4, 5].map((n) => PREF_ICON_SUGGESTIONS[n][0]).join(" ")}</button>
+      </div>
+    </StackedRow>
+  );
 }
 
 function LevelPicker({ value, onChange, compact = false }) {
@@ -26,7 +77,6 @@ function LevelPicker({ value, onChange, compact = false }) {
       {Object.entries(PREF_LEVELS).map(([lvl, meta]) => {
         const n = Number(lvl);
         const active = value === n;
-        const Icon = LEVEL_ICONS[n] || Minus;
         return (
           <button
             key={lvl}
@@ -40,11 +90,7 @@ function LevelPicker({ value, onChange, compact = false }) {
             }`}
             style={active ? { backgroundColor: `${meta.color}1f`, boxShadow: `inset 0 0 0 1px ${meta.color}` } : undefined}
           >
-            <Icon
-              className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
-              style={{ color: active ? meta.color : "currentColor" }}
-              fill={active && (n === 5 || n === 1) ? meta.color : "none"}
-            />
+            <LevelGlyph level={n} active={active} className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
           </button>
         );
       })}
