@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import { snoozeUntilDate } from "./snoozeHelpers";
+import { markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder } from "@/lib/reminderInstanceActions";
 
 export default function RemindersInbox({ autoTriggerAction = null }) {
   const queryClient = useQueryClient();
@@ -67,10 +67,10 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
     .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))
     .slice(0, 10);
 
-  const updateInstance = async (id, data) => {
-    await base44.entities.ReminderInstance.update(id, data);
-    queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
-  };
+  // The writes live in src/lib/reminderInstanceActions.js, shared with the
+  // Reminders widget; this screen only decides which modal or page an
+  // inline action opens.
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
 
   const handleAction = async (instance, action) => {
     const type = action.action_type;
@@ -108,26 +108,20 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
       setCheckInOpen(true);
       return; // open check-in modal so user can log symptoms with context
     } else if (type === "dismiss") {
-      await updateInstance(instance.id, { status: "dismissed" });
+      await dismissReminder(instance); refresh();
       return;
     }
-    await updateInstance(instance.id, { status: "acted", acted_action: type });
+    await markReminderDone(instance, type); refresh();
   };
 
-  const handleSnooze = async (instance, option) => {
-    await updateInstance(instance.id, { status: "snoozed", snoozed_until: snoozeUntilDate(option) });
-  };
-
-  const handleUnsnooze = async (instance) => {
-    await updateInstance(instance.id, { status: "fired", snoozed_until: null });
-  };
-
+  const handleSnooze = async (instance, option) => { await snoozeReminder(instance, option); refresh(); };
+  const handleUnsnooze = async (instance) => { await unsnoozeReminder(instance); refresh(); };
   const handleDone = async (instance) => {
-    await updateInstance(instance.id, { status: "acted", acted_action: "done" });
+    await markReminderDone(instance); refresh();
     toast.success("Marked done");
   };
   const handleDismiss = async (instance) => {
-    await updateInstance(instance.id, { status: "dismissed" });
+    await dismissReminder(instance); refresh();
     toast.info("Dismissed");
   };
   const handleSnoozeWithToast = async (instance, option) => {
@@ -198,7 +192,7 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         onClose={(saved) => {
           setCheckInOpen(false);
           if (saved && pendingActInstance) {
-            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+            markReminderDone(pendingActInstance, "open_check_in").then(refresh);
           }
           setPendingActInstance(null);
         }}
@@ -210,7 +204,7 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         onClose={() => {
           setSetFrontOpen(false);
           if (pendingActInstance) {
-            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
+            markReminderDone(pendingActInstance, "open_set_front").then(refresh);
           }
           setPendingActInstance(null);
         }}

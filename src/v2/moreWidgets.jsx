@@ -36,7 +36,8 @@ import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
-import { CURRICULUM } from "@/components/support/TopicView";
+import TopicView, { CURRICULUM } from "@/components/support/TopicView";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
@@ -216,6 +217,8 @@ export function DailySummaryWidget({ mode = "normal" }) {
 }
 
 // ── Check-in log ───────────────────────────────────────────────────
+// Check-in log (v0.322.0): tap a feeling to edit it right here in the
+// check-in editor (the log page's own modal); symptom rows open the page.
 export function CheckInLogWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const checkIns = useList("emotionCheckIns", "EmotionCheckIn");
@@ -223,10 +226,11 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
   const symptoms = useList("symptoms", "Symptom");
   const alters = useList("alters", "Alter");
   const limit = Math.max(1, Math.min(50, parseInt(settings?.limit, 10) || (mode === "expanded" ? 20 : 8)));
+  const [editing, setEditing] = useState(null);
 
   const rows = useMemo(() => {
     const emo = checkIns.map((c) => ({
-      id: c.id, kind: "emotion", ts: c.timestamp,
+      id: c.id, kind: "emotion", ts: c.timestamp, record: c,
       title: (c.emotions || []).join(", ") || "Check-in",
       intensity: c.intensity, alterId: c.alter_id || c.fronting_alter_ids?.[0], distress: checkInIsDistress(c),
     }));
@@ -257,10 +261,12 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
             primary={r.title}
             secondary={mode === "expanded" && a ? (a.alias || a.name) : undefined}
             right={mode === "minimal" ? stamp(r.ts) : `${r.intensity ? `${r.intensity} · ` : ""}${stamp(r.ts)}`}
-            onClick={() => navigate(r.kind === "emotion" ? `/checkin-log?id=${r.id}` : "/checkin-log")}
+            onClick={() => (r.kind === "emotion" && mode !== "minimal" ? setEditing(r.record) : navigate(r.kind === "emotion" ? `/checkin-log?id=${r.id}` : "/checkin-log"))}
           />
         );
       })}
+      {/* The Check-in Log page's editor: updates the record in place. */}
+      <QuickCheckInModal isOpen={!!editing} onClose={() => setEditing(null)} alters={alters} editingEntry={editing} />
     </Section>
   );
 }
@@ -494,10 +500,14 @@ export function GroundingWidget({ mode = "normal", settings }) {
 }
 
 // ── Learning modules ───────────────────────────────────────────────
+// Learn (v0.322.0): tap a module and its next topic opens right here in
+// a drawer (the Learn page's own TopicView); "Try it" hands a technique
+// to the Support page.
 export function LearnWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const progress = useList("learningProgress", "LearningProgress");
   const doneIds = useMemo(() => new Set(progress.filter((p) => p.completed).map((p) => p.topic_id)), [progress]);
+  const [reading, setReading] = useState(null); // { topic, moduleId }
 
   const modules = useMemo(() => CURRICULUM.map((m) => {
     const total = (m.topics || []).length;
@@ -506,6 +516,12 @@ export function LearnWidget({ mode = "normal", settings }) {
   }), [doneIds]);
 
   const goTopic = (topicId) => navigate(`/grounding?tab=learn${topicId ? `&topic=${topicId}` : ""}`);
+  const openHere = (m) => {
+    const topic = m.next || (m.topics || [])[0];
+    if (!topic) return goTopic(null);
+    if (mode === "minimal") return goTopic(topic.id);
+    setReading({ topic, moduleId: m.id });
+  };
 
   if (mode === "minimal") {
     const total = modules.reduce((s, m) => s + m.total, 0);
@@ -513,7 +529,7 @@ export function LearnWidget({ mode = "normal", settings }) {
     return (
       <Section label="Learn" action={<TextAction onClick={() => goTopic(null)}>{done}/{total}</TextAction>}>
         {modules.map((m) => (
-          <Row key={m.id} primary={m.title} right={`${m.done}/${m.total}`} onClick={() => goTopic(m.next?.id)} />
+          <Row key={m.id} primary={m.title} right={`${m.done}/${m.total}`} onClick={() => openHere(m)} />
         ))}
       </Section>
     );
@@ -527,7 +543,7 @@ export function LearnWidget({ mode = "normal", settings }) {
             left={<span className="text-base leading-none flex-shrink-0">{m.emoji || "📘"}</span>}
             primary={m.title}
             right={`${m.done}/${m.total}`}
-            onClick={() => goTopic(m.next?.id || (m.topics || [])[0]?.id)}
+            onClick={() => openHere(m)}
           />
           {mode === "expanded" && (
             <div className="h-1 rounded-full bg-muted/50 overflow-hidden mt-0.5 mb-1">
@@ -542,6 +558,22 @@ export function LearnWidget({ mode = "normal", settings }) {
           )}
         </div>
       ))}
+      <Drawer open={!!reading} onOpenChange={(o) => !o && setReading(null)}>
+        <DrawerContent className="max-h-[92vh]" {...sheetPortalGuards}>
+          <div className="overflow-y-auto overscroll-contain px-4 pb-6">
+            {reading && (
+              <ErrorBoundary>
+                <TopicView
+                  topic={reading.topic}
+                  moduleId={reading.moduleId}
+                  onBack={() => setReading(null)}
+                  onTryTechnique={() => { setReading(null); navigate("/grounding"); }}
+                />
+              </ErrorBoundary>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </Section>
   );
 }

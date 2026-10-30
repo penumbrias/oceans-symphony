@@ -20,6 +20,14 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "Reminders widget: answer each reminder right there — Done, Snooze (your snooze options) or Dismiss. Expanded shows the inbox's full cards." },
+      { type: "feature", text: "Polls widget: tap a poll to unfold its options and vote on the spot; the results widget's bars can be tapped to vote too." },
+      { type: "improve", text: "Sleep widget: the start / wake button sits on the same card as last night, and expanded shows the last seven nights as bars." },
+      { type: "improve", text: "Goals widget: the next step has a checkbox you can tick right there; expanded lists every open step." },
+      { type: "improve", text: "Recent activities widget: a Log again button logs the same activity now." },
+      { type: "improve", text: "Journal widget: New opens the editor on the page, and expanded shows each entry's first lines." },
+      { type: "improve", text: "Check-in log widget: tap a feeling to edit it right there." },
+      { type: "improve", text: "Learn widget: tap a module and its next topic opens in a sheet." },
       { type: "feature", text: "Every picture can now be framed: drag and zoom group, contact, location and system pictures, the banner, profile header and background pictures, and each picture in a rotating pool." },
       { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
       { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
