@@ -69,8 +69,6 @@ import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import { resolveMergedSymptomId } from "@/lib/symptomDuplicates";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
-import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
-import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
@@ -125,6 +123,7 @@ import {
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
+import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS } from "@/v2/lookbackWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
 import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
@@ -2906,36 +2905,6 @@ function DiaryCardWidget({ mode = "normal" }) {
   );
 }
 
-// Analytics embeds — the real analytics components, scoped to a window.
-function EmotionAnalyticsWidget({ settings }) {
-  const tr = useT();
-  const days = parseInt(settings?.days, 10) || 30;
-  const to = React.useMemo(() => new Date(), []);
-  const from = React.useMemo(() => new Date(Date.now() - days * 86400000), [days]);
-  return (
-    <Section label={tr("widget.emotionAnalytics.label")}>
-      <div className="min-h-0">
-        <EmotionAnalytics from={from} to={to} />
-      </div>
-    </Section>
-  );
-}
-
-function SymptomAnalyticsWidget({ settings }) {
-  const tr = useT();
-  const days = parseInt(settings?.days, 10) || 30;
-  const endDate = React.useMemo(() => new Date(), []);
-  const startDate = React.useMemo(() => new Date(Date.now() - days * 86400000), [days]);
-  return (
-    <Section label={tr("widget.symptomAnalytics.label")}>
-      <div className="min-h-0">
-        <SymptomAnalytics startDate={startDate} endDate={endDate} />
-      </div>
-    </Section>
-  );
-}
-
-
 // Widgets written before display modes existed get the ladder here: the
 // mode goes into context, where the shared Row uses it to drop icons and
 // qualifiers at minimal, and the list widgets read it for how many rows to
@@ -3216,23 +3185,19 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   emotion_analytics: {
-    label: "Feelings analytics", description: "Your emotion patterns over a window you choose.",
-    icon: Smile, category: "analytics",
-    render: ({ settings }) => <EmotionAnalyticsWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [
-      { key: "days", type: "number", label: "Days to include", min: 7, max: 365, default: 30 },
-    ],
+    label: "Feelings analytics", description: "Your most-logged feelings over a window you choose, with the change since the days before. Expanded adds the full analytics. On a profile it counts that profile's feelings.",
+    icon: Smile, category: "analytics", subjects: ["home", "alter", "group", "location"],
+    render: sized(({ settings }) => <FeelingsLookbackWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [SCOPE_FIELD, ...LOOKBACK_FIELDS],
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   symptom_analytics: {
-    label: "Symptom analytics", description: "Symptom frequency and intensity over a window you choose.",
-    icon: Activity, category: "analytics",
-    render: ({ settings }) => <SymptomAnalyticsWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [
-      { key: "days", type: "number", label: "Days to include", min: 7, max: 365, default: 30 },
-    ],
+    label: "Symptom analytics", description: "Your most-logged symptoms over a window you choose, with the change since the days before. Expanded adds the full analytics. On a profile it counts that profile's symptoms.",
+    icon: Activity, category: "analytics", subjects: ["home", "alter", "group", "location"],
+    render: sized(({ settings }) => <SymptomsLookbackWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [SCOPE_FIELD, ...LOOKBACK_FIELDS],
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   capture: {
