@@ -22,7 +22,7 @@
 // Shared by the widget inspector, Display options and the add-widget
 // library. docs/inspector-design-guide.md is the contract.
 import React from "react";
-import { Minus, Plus, X } from "lucide-react";
+import { ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ColorPicker from "@/components/shared/ColorPicker";
 
@@ -47,6 +47,24 @@ export function Row({ label, hint, children, own = false, onClear, align = "cent
         )}
       </div>
     </div>
+  );
+}
+
+// A row that opens a page or a sheet (a drill-in): the whole row is the
+// button, with the chevron on the right. `value` is a short state shown
+// before the chevron ("On", "English"). `icon` is a lucide component.
+export function LinkRow({ label, hint, icon: Icon, value, onClick, tour, className = "" }) {
+  return (
+    <button type="button" onClick={onClick} data-tour={tour}
+      className={`flex items-center gap-3 w-full text-left min-h-[44px] py-1.5 border-b border-border/30 last:border-b-0 hover:bg-muted/30 active:bg-muted/50 -mx-1 px-1 rounded-md transition-colors ${className}`}>
+      {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
+      <span className="flex-1 min-w-0 py-1">
+        <span className="text-sm block leading-tight">{label}</span>
+        {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
+      </span>
+      {value && <span className="text-xs text-muted-foreground flex-shrink-0 truncate max-w-[40%]">{value}</span>}
+      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    </button>
   );
 }
 
@@ -76,7 +94,7 @@ export function StackedRow({ label, hint, children, own = false, onClear }) {
 export function Group({ title, children, first = false }) {
   return (
     <div className={first ? "" : "pt-4"}>
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pb-1">{title}</p>
+      <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pb-1">{title}</h2>
       <div>{children}</div>
     </div>
   );
