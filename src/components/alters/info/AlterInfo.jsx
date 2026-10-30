@@ -26,7 +26,6 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { deleteAlter, refreshAlter } from "@/lib/alterEntry";
-import { usesNewProfile } from "@/lib/profileBoard";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
 import { TRASH_HINT } from "@/lib/trashSettings";
@@ -69,8 +68,6 @@ export default function AlterInfo({ alter, onOpenClassic }) {
       navigate("/Home");
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
-  // Which profile layout (v0.305.0): the Profile page group's row.
-  const onNew = usesNewProfile(alter);
   const menu = [
     { label: "Export, merge, sharing…", onClick: () => setOptionsOpen(true) },
     { label: alter.is_archived ? "Unarchive" : "Archive", onClick: archive },
@@ -107,9 +104,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
             <Group title="Bio"><BioSection alter={alter} info={info} withRow={false} /></Group>
             <Group title="Profile page">
               <ProfileLayoutSwitch ownerType="alter" record={alter} noun={t.alter} plural={t.alters} onBefore={info.flush} />
-              {/* Laying a block bio out as widgets belongs to the old
-                  layout; the new profile is widgets already. */}
-              {!onNew && <ProfileConvertRow alter={alter} info={info} />}
+              <ProfileConvertRow alter={alter} info={info} />
               <PageLookRow />
             </Group>
           </>

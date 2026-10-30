@@ -24,9 +24,10 @@ export function setHeaderLookOnCards(on) {
 export function readHeaderLook(alter) {
   const cf = alter?.custom_fields || {};
   const bg = readProfileBg(cf);
+  const o = Number(bg.headerOpacity);
   return {
-    image: cf[PS.HEADER_IMAGE] || "",
-    imageOpacity: cf[PS.HEADER_OPACITY] !== undefined ? parseFloat(cf[PS.HEADER_OPACITY]) : 0.45,
+    image: bg.headerImage || "",
+    imageOpacity: Number.isFinite(o) ? Math.min(1, Math.max(0, o)) : 0.45,
     bgColor: bg.headerBgColorWithAlpha || cf[PS.HEADER_BG] || "",
     textColor: cf[PS.HEADER_TEXT] || "",
     font: fontStackFor(cf[PS.HEADER_FONT]) || "",

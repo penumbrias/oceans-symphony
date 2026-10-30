@@ -3,7 +3,7 @@
 // way wherever it is. Each commits through `onCommit` / `onChange`; the
 // caller decides where it is written.
 
-import React from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import { Segmented } from "@/components/shared/SettingRows";
 import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
 import BioEditor from "@/components/alters/BioEditor";
@@ -66,9 +66,37 @@ export function EntryInput({ k, type, value, onCommit, label }) {
 // keeps the options sheet (a drawer) from treating a touch in the editor
 // as a drag of the sheet.
 export function BioEntry({ k, value, onChange }) {
+  // One commit per pause in typing (same shape as RichTextField): the host
+  // is a per-keystroke saver on the widget's Content tab (writeEntry →
+  // Alter.update) and the undo history in Alter info, and neither wants a
+  // step per character. Flushed on unmount, pagehide and when hidden, so
+  // nothing typed is lost.
+  const timer = useRef(null);
+  const pending = useRef(null);
+  const commitRef = useRef(onChange);
+  commitRef.current = onChange;
+  const flushNow = useCallback(() => {
+    clearTimeout(timer.current);
+    if (pending.current != null) { const v = pending.current; pending.current = null; commitRef.current(v); }
+  }, []);
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === "hidden") flushNow(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      flushNow();
+    };
+  }, [flushNow]);
+  const change = (v) => {
+    pending.current = v;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { pending.current = null; commitRef.current(v); }, 500);
+  };
   return (
-    <div className="space-y-2" data-info-bio="" data-vaul-no-drag="">
-      <BioEditor key={k} value={value || ""} onChange={onChange} label={null} placeholder="Write a bio…" />
+    <div className="space-y-2" data-info-bio="" data-vaul-no-drag="" onBlur={flushNow}>
+      <BioEditor key={k} value={value || ""} onChange={change} label={null} placeholder="Write a bio…" />
     </div>
   );
 }

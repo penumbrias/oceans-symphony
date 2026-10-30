@@ -62,8 +62,6 @@ export default function ProfileConvertRow({ alter, info }) {
     finally { setBusy(false); }
   };
 
-  // The new profile (v0.305.0) is built from widgets already; converting
-  // belongs to the old layout.
   // The new profile (v0.305.0) is widgets already; this row is for the old
   // layout only (the Profile layout row above switches between the two).
   if (usesNewProfile(alter)) return null;

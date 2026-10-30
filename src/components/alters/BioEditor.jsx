@@ -16,7 +16,7 @@ import { convertSPToBlocks, bioBlockId as uid } from "@/lib/bioImport";
 export function ImportSPModal({ onImport, onClose }) {
   const [text, setText] = useState("");
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[130] pointer-events-auto" data-bio-modal="">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-lg mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Import Template</h3>
@@ -44,7 +44,7 @@ function HTMLPreviewModal({ html, onClose }) {
   // like the profile page — and don't leak to the app while previewing.
   const scoped = scopeBioStyles(html, "bio-html-preview");
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[130] pointer-events-auto" data-bio-modal="">
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
           <div className="flex gap-1">

@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { Plus, Trash2, Minus } from "lucide-react";
 import { DEFAULT_PREF_ICONS, PREF_ICON_SUGGESTIONS, customPrefIcon, usePrefLevelIcons } from "@/lib/prefLevelIcons";
 import { Input } from "@/components/ui/input";
+import { StackedRow } from "@/components/shared/SettingRows";
 import { PREF_LEVELS, PREF_CATEGORIES, categoryMeta } from "@/lib/alterPreferences";
 
 // The level icons (src/lib/prefLevelIcons.js): flat line icons by default
@@ -38,10 +39,16 @@ export function PrefLevelIconsRow() {
   const { icons, setIcon, setIcons } = usePrefLevelIcons();
   const [editing, setEditing] = useState(null);
   const anyCustom = [1, 2, 3, 4, 5].some((n) => customPrefIcon(icons, n));
+  const commit = async (n) => {
+    if (editing?.level !== n) return;
+    const text = editing.text;
+    if ((text || "").trim() === (customPrefIcon(icons, n) || "")) { setEditing(null); return; }
+    try { await setIcon(n, text); } finally { setEditing((e) => (e?.level === n ? null : e)); }
+  };
   return (
-    <div className="py-2 space-y-1.5" data-pref-level-icons="">
-      <p className="text-xs text-muted-foreground">Level icons — type an emoji under a level to change it (shared by every profile).</p>
-      <div className="flex flex-wrap gap-2">
+    <StackedRow label="Level icons" hint="An emoji for each level, shared by every profile" own={anyCustom}
+      onClear={() => setIcons({ 1: "", 2: "", 3: "", 4: "", 5: "" })}>
+      <div className="flex flex-wrap items-end gap-2 py-1" data-pref-level-icons="">
         {Object.entries(PREF_LEVELS).map(([lvl, meta]) => {
           const n = Number(lvl);
           return (
@@ -50,23 +57,17 @@ export function PrefLevelIconsRow() {
               <input value={editing?.level === n ? editing.text : (customPrefIcon(icons, n) || "")}
                 onFocus={() => setEditing({ level: n, text: customPrefIcon(icons, n) || "" })}
                 onChange={(e) => setEditing({ level: n, text: e.target.value })}
-                onBlur={() => { if (editing?.level === n) { setIcon(n, editing.text); setEditing(null); } }}
+                onBlur={() => commit(n)}
                 aria-label={`Icon for ${meta.label}`} maxLength={4}
                 className="w-11 h-8 text-center rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-              <span className="text-[0.6875rem] text-muted-foreground">{meta.label}</span>
+              <span className="text-xs text-muted-foreground">{meta.label}</span>
             </label>
           );
         })}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
         <button type="button" onClick={() => setIcons(Object.fromEntries([1, 2, 3, 4, 5].map((n) => [n, PREF_ICON_SUGGESTIONS[n][0]])))}
-          className="h-8 px-2.5 rounded-lg border border-border/60 text-xs hover:bg-muted/50">Use emoji {PREF_ICON_SUGGESTIONS[1][0]} {PREF_ICON_SUGGESTIONS[2][0]} {PREF_ICON_SUGGESTIONS[3][0]} {PREF_ICON_SUGGESTIONS[4][0]} {PREF_ICON_SUGGESTIONS[5][0]}</button>
-        {anyCustom && (
-          <button type="button" onClick={() => setIcons({ 1: "", 2: "", 3: "", 4: "", 5: "" })}
-            className="h-8 px-2.5 rounded-lg border border-border/60 text-xs text-muted-foreground hover:bg-muted/50">Back to flat icons</button>
-        )}
+          className="h-8 px-2.5 rounded-lg border border-border/60 text-xs hover:bg-muted/50 self-center">Use emoji {[1, 2, 3, 4, 5].map((n) => PREF_ICON_SUGGESTIONS[n][0]).join(" ")}</button>
       </div>
-    </div>
+    </StackedRow>
   );
 }
 

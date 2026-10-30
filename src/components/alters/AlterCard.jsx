@@ -167,7 +167,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={nameStyle}>
+            <p className={`font-medium text-sm text-foreground ${hl.textColor ? "" : "group-hover:text-primary"} transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={nameStyle}>
               {alter.emoji ? <span className="mr-1">{alter.emoji}</span> : null}{formatAlter(alter)}
             </p>
             {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={hl.textColor ? { color: hl.textColor, opacity: 0.8 } : undefined}>{alter.pronouns}</p>}
@@ -177,7 +177,8 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             // alter's chosen colour is so close to that surface that the
             // soft tint + text disappear, drop a thin neutral ring around
             // the chip so it stays visible — the colour itself is preserved.
-            const surfaceBg = getSurfaceBackground();
+            // With the header look on, the chip sits on the header colour.
+            const surfaceBg = hl.bgColor || getSurfaceBackground();
             const halo = bgColor && needsHalo(bgColor, surfaceBg);
             const fillColor = halo ? adjustForContrast(bgColor, surfaceBg) : bgColor;
             return (

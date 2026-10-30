@@ -19,7 +19,7 @@ export const PREF_ICON_SUGGESTIONS = { 1: ["😠", "💔", "🚫"], 2: ["👎", 
 // A custom icon is a short string (an emoji or a character or two);
 // anything else is ignored so a bad import can't break the picker.
 export function customPrefIcon(map, level) {
-  const v = map?.[level] ?? map?.[String(level)];
+  const v = map?.[String(level)];
   if (typeof v !== "string") return null;
   const s = v.trim();
   return s && [...s].length <= 3 ? s : null;

@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
+import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
@@ -120,6 +122,7 @@ function AlterProfileInner() {
   // keeps its unsaved layout, so the list opens over it instead of in
   // place of it.
   const [infoOverlay, setInfoOverlay] = useState(false);
+  const infoPeek = usePeekHeight("symphony_alter_info_peek_h", 70);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const [resolvedBgImage, setResolvedBgImage] = useState(null);
@@ -420,7 +423,7 @@ function AlterProfileInner() {
                 size="sm"
                 className="h-9 px-2.5 gap-1.5"
                 onClick={() => (layoutEditing ? setInfoOverlay(true) : setEditMode(e => (e ? false : "info")))}
-                aria-pressed={!!editMode}
+                aria-pressed={!!editMode || infoOverlay}
                 title={editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, entries, pictures, groups…`}
               >
                 {editMode ? <Eye className="w-3.5 h-3.5" /> : <IdCard className="w-3.5 h-3.5" />}
@@ -489,12 +492,20 @@ function AlterProfileInner() {
           </div>
         )}
 
-        <Dialog open={layoutEditing && infoOverlay} onOpenChange={setInfoOverlay}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-3" data-alter-info-overlay="">
-            <DialogTitle className="sr-only">{alter.name} · info</DialogTitle>
-            {layoutEditing && infoOverlay && <AlterInfo alter={alter} />}
-          </DialogContent>
-        </Dialog>
+        {/* Alter info while the layout is being edited (v0.320.1): the
+            inspector sheet, non-modal, so the board stays visible and keeps
+            its unsaved layout, and the editor's own windows (templates,
+            import, preview) work through sheetPortalGuards. */}
+        <Drawer open={layoutEditing && infoOverlay} modal={false} onOpenChange={(v) => { if (!v) setInfoOverlay(false); }}>
+          <DrawerContent hideHandle style={{ maxHeight: `${infoPeek.peekH}vh`, height: `${infoPeek.peekH}vh` }} {...sheetPortalGuards} data-alter-info-overlay="">
+            <PeekHandle resize={infoPeek} />
+            <DrawerTitle className="sr-only">{alter.name} · info</DrawerTitle>
+            <DrawerDescription className="sr-only">Everything about {alter.name}, over the page being edited.</DrawerDescription>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3">
+              {layoutEditing && infoOverlay && <AlterInfo alter={alter} />}
+            </div>
+          </DrawerContent>
+        </Drawer>
         {editMode === "info" ? (
           // The one list where the alter's information is entered (the
           // garden model, v0.294.0); widgets on the board show it.

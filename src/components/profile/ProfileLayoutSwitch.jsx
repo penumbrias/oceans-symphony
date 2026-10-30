@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Sparkles, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Row } from "@/components/shared/SettingRows";
 import { usesNewProfile } from "@/lib/profileBoard";
 import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
 import { refreshAlter } from "@/lib/alterEntry";
@@ -38,22 +39,18 @@ export default function ProfileLayoutSwitch({ ownerType, record, noun = ownerTyp
         else await revertRecordToOldProfile(ownerType, record.id);
         refreshRecord(qc, ownerType, record.id);
       };
-      toast.success(onNew ? "Back on the old profile — the new one is kept for later" : "Now showing the new profile", { action: { label: "Undo", onClick: undo } });
+      toast.success(onNew ? "Back on the old profile — the new one is kept for when you switch again" : "Now showing the new profile — the old layout is kept exactly as it was", { action: { label: "Undo", onClick: undo } });
     } catch (e) { toast.error(e?.message || "That didn't save"); }
     finally { setBusy(false); }
   };
   return (
-    <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-2" data-profile-layout-switch={ownerType} data-tour="profile-layout-switch">
-      <p className="text-sm font-medium">Profile layout</p>
-      <p className="text-xs text-muted-foreground">
-        {onNew
-          ? `This ${noun} uses the new profile (pages made of widgets). Going back brings the old layout back exactly as it was, and this one is kept for when you switch again.`
-          : `This ${noun} uses the old profile. The new profile is made of widgets built for ${plural || PLURAL[ownerType] || `${noun}s`}; this page's layout is kept, so you can come back to it any time.`}
-      </p>
-      <Button variant="outline" size="sm" onClick={run} disabled={busy} className="min-h-[44px] gap-1.5">
+    <Row label="Profile layout" own={onNew}
+      hint={onNew ? `The new profile (pages of widgets). The old layout is kept.` : `The old profile. The new one is widgets built for ${plural || PLURAL[ownerType] || `${noun}s`}.`}>
+      <Button variant="outline" size="sm" onClick={run} disabled={busy} className="min-h-[36px] gap-1.5"
+        data-profile-layout-switch={ownerType} data-tour="profile-layout-switch">
         {onNew ? <Undo2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-        {onNew ? "Revert to the old profile" : "Switch to the new profile"}
+        {onNew ? "Back to the old profile" : "Use the new profile"}
       </Button>
-    </div>
+    </Row>
   );
 }
