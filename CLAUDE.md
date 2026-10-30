@@ -1191,19 +1191,22 @@ non-modal sheet, `useEdgeSafeSliders` for Android's back gesture. Never
 hand-roll a row, slider or tab strip; migrate old accordions when touched.
 `docs/v2-edit-menu-spec.md` is superseded.
 
-### UI changes get a Fable review before merging (pages, not pills)
+### UI changes get a review before merging (pages, not pills)
 
-**Every PR that adds or changes UI is reviewed by a Fable agent (model
-`claude-fable-5-1`) against `docs/inspector-design-guide.md` before it is
-merged.** If the session doing the work isn't running on Fable, it spawns a
-Fable subagent (`Agent` with `model: "fable"`) for the review and hands it
-the diff plus the guide — not its own conclusion. The review checks, at
-minimum:
+**Every PR that adds or changes UI is reviewed against
+`docs/ui-review-guide.md` before it is merged — by the session that did the
+work, on whatever model it runs.** The guide is the cheap version of the
+Fable reviews (October 2026): `npm run check:ui` for what a grep can see, a
+five-minute read of the diff for what it can't (pill tabs splitting one
+screen, hand-made rows, re-implemented components, per-keystroke writes,
+Reset that disagrees with the "has its own setting" dot…), one look at
+390 px, and a short "UI review" section in the PR body. Do NOT spawn a
+Fable agent for it (too costly); use Fable only when the owner asks. At
+minimum the review confirms:
 
 - Option menus and multi-part editors are built as **drill-in pages or the
   inspector's fixed `TabBar`** — never a row of little pill tabs that splits
-  one screen into sections, which is the default pattern non-Fable agents
-  keep falling back to.
+  one screen into sections.
 - Rows come from `src/components/shared/SettingRows.jsx` (sliders with the
   number beside them, inherited values greyed + dashed with ×, per-tab Reset,
   destructive actions under ⋯), not hand-rolled controls.
@@ -1212,7 +1215,9 @@ minimum:
   named after the thing it edits.
 
 The review's findings are fixed in the same PR. A PR that skips the review
-is not ready to merge, however green CI is.
+is not ready to merge, however green CI is. When a review catches something
+new, add it to the guide (and to `scripts/check-ui-review.mjs` if a grep can
+find it) so the next review catches it for free.
 
 ### UI v2 — follow the standards doc
 
