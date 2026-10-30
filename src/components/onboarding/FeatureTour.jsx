@@ -214,7 +214,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("fronting", {
       emoji: "📶", title: `${t.Fronting} levels`,
-      body: `Each card shows that ${t.alter}'s ${t.fronting} level. Whoever is at the top level leads. Add levels of your own, like Observing, in Settings → Tracking setup.`,
+      body: `Each card shows that ${t.alter}'s ${t.fronting} level. Whoever is at the top level leads. Add levels of your own, like Observing, in Settings → Tracking → ${t.Fronting} levels.`,
       route: "/", look: `the level on each card at the top of the window`, action: "open-set-front",
     }),
     s("fronting", {
@@ -269,7 +269,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🎚️", title: "The level spectrum",
-      body: `With the level spectrum open, slide to a level and lift. Slide right onto the round bubble to open that ${t.alter}'s options instead. Tune it in Tracking setup → ${t.Fronting} levels.`,
+      body: `With the level spectrum open, slide to a level and lift. Slide right onto the round bubble to open that ${t.alter}'s options instead. Tune it in Settings → Tracking → ${t.Fronting} levels.`,
       route: "/Home",
     }),
     s("alters", {
@@ -810,7 +810,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("systemmap", {
       emoji: "🔗", title: "Relationships",
-      body: `Below the map, the relationships panel lists how ${t.alters} are related. Add your own types in Settings → ${t.Alter} setup → Relationship types.`,
+      body: `Below the map, the relationships panel lists how ${t.alters} are related. Add your own types in Settings → ${t.Alters} → Relationship types.`,
       route: "/system-map", target: "system-map-canvas", look: `scroll below the map`,
     }),
 
@@ -938,18 +938,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── SETTINGS ───────────────────────────────────────────────────────────
     s("settings", {
       emoji: "⚙️", title: "Finding your way",
-      body: `Settings has nine sections. The buttons at the top jump to any of them; tap a section's header to open it.`,
-      route: "/settings", target: "settings-quick-nav", look: `the highlighted buttons at the top`,
+      body: `Settings is one list, grouped: You, General, Look, ${t.Alters}, Tracking, Notifications, Data & privacy, About. Type what you want to change in the search box to jump straight to it.`,
+      route: "/settings", target: "settings-quick-nav", look: `the highlighted search box`,
     }),
     s("settings", {
       emoji: "✏️", title: `Name and words`,
       body: `Profile is where your ${t.system}'s name lives, and Terminology changes the words the app uses, like "${t.system}", "${t.alter}" and "${t.fronting}". Changes show everywhere at once.`,
-      route: "/settings", target: "settings-system", look: `the highlighted Profile section`,
+      route: "/settings", target: "settings-system", look: `the highlighted Profile row`,
     }),
     s("settings", {
       emoji: "🎨", title: "Appearance",
-      body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. Appearance opens it, and keeps the New UI and language switches.`,
-      route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options button, inside Appearance`,
+      body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. This row under Look opens it; the New UI and language switches are under General.`,
+      route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options row, under Look`,
     }),
     s("settings", {
       emoji: "💾", title: "Presets and themes",
@@ -959,42 +959,42 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("settings", {
       emoji: "♿", title: "Sizes for low vision",
       body: `Accessibility keeps low-vision mode, reduce motion and high contrast. Text size, tap targets and bar height are in Display options — this button opens it.`,
-      route: "/settings", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button, inside Accessibility`,
+      route: "/settings#accessibility", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button on the Accessibility page`,
     }),
     s("settings", {
-      emoji: "🧩", title: `${t.Alter} setup`,
+      emoji: "🧩", title: t.Alters,
       body: `Custom fields for every profile, relationship types, archived ${t.alters} and contacts, a duplicate finder, ${t.alter} order, list labels, and profile layouts and songs.`,
-      route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alter} setup section`,
+      route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alters} group`,
     }),
     s("settings", {
-      emoji: "💜", title: "Tracking setup",
+      emoji: "💜", title: "Tracking",
       body: `Shortcuts, the check-in manager, your own emotions and triggers, ${t.fronting} levels, and grouping analytics by group for big ${t.systems}.`,
-      route: "/settings", target: "settings-checkin", look: `the highlighted Tracking setup section`,
+      route: "/settings", target: "settings-checkin", look: `the highlighted Tracking group`,
     }),
     s("settings", {
       emoji: "⚡", title: "Shortcuts",
       body: `Shortcuts are one-tap actions you build: set ${t.front}, start an activity, post a status, add a to-do, open a page and more. Tap Add, fill it in and name it.`,
-      route: "/settings", target: ["settings-quick-actions", "settings-checkin"], look: `Shortcuts, inside Tracking setup`,
+      route: "/settings#shortcuts", target: ["settings-quick-actions", "settings-checkin"], look: `the Shortcuts page, under Tracking`,
     }),
     s("settings", {
       emoji: "✋", title: "Using shortcuts",
       body: `Hold any key on the quick actions bar, or the apps button, and your shortcuts pop up right there. On the classic home screen, hold Quick Check-In.`,
-      route: "/settings", target: ["settings-quick-actions", "settings-checkin"],
+      route: "/settings#shortcuts", target: ["settings-quick-actions", "settings-checkin"],
     }),
     s("settings", {
       emoji: "🪞", title: `More than one ${t.system}`,
       body: `Keep several ${t.systems}, each with its own ${t.alters}, journals and settings. Add, switch, rename or delete one (a backup is saved first). Tap your ${t.system}'s name on the home screen to switch.`,
-      route: "/settings", target: "settings-systems", look: `the highlighted ${t.Systems} section`,
+      route: "/settings", target: "settings-systems", look: `the highlighted ${t.Systems} row`,
     }),
     s("settings", {
       emoji: "🔒", title: "Your data stays here",
       body: `Everything stays on this device, and there's no account. Data leaves only when you choose: a backup, Friends, cloud reminders, an import, or device sync.`,
-      route: "/settings", target: "settings-data", look: `the highlighted Data & privacy section`,
+      route: "/settings", target: "settings-data", look: `the highlighted Data & privacy group`,
     }),
     s("settings", {
       emoji: "🔐", title: "Password lock",
       body: `For extra safety, turn on encryption under Storage & encryption. It locks everything on this device behind a passphrase. "Keep original images" lives here too.`,
-      route: "/settings", target: ["settings-storage", "settings-data"], look: `Storage & encryption, inside Data & privacy`,
+      route: "/settings#storage", target: ["settings-storage", "settings-data"], look: `the Storage & encryption page, under Data & privacy`,
     }),
     s("settings", {
       emoji: "💾", title: "Backups",
@@ -1029,22 +1029,22 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("settings", {
       emoji: "🔍", title: "See your data",
       body: `A plain list of what's stored here, by category, with counts and sizes. Export one category, or delete one; a backup of it is saved first.`,
-      route: "/settings", target: ["settings-data-inspector", "settings-data"], look: `"See Your Data", inside Data & privacy`,
+      route: "/settings#data-inspector", target: ["settings-data-inspector", "settings-data"], look: `the "See your data" page, under Data & privacy`,
     }),
     s("settings", {
       emoji: "🔌", title: "Sync between devices",
       body: `Keep two of your devices in step with no cloud. Plug your phone into your computer, or use a USB stick; each device writes its own file and reads the other's.`,
-      route: "/settings", target: ["settings-device-sync", "settings-data"], look: `"Sync between devices", inside Data & privacy`,
+      route: "/settings#device-sync", target: ["settings-device-sync", "settings-data"], look: `the "Sync between devices" page, under Data & privacy`,
     }),
     s("settings", {
       emoji: "🛟", title: "Sync never deletes",
       body: `Something removed on one device but kept on the other comes back. Anything the other device dropped is listed for you to decide on.`,
-      route: "/settings", target: ["settings-device-sync", "settings-data"],
+      route: "/settings#device-sync", target: ["settings-device-sync", "settings-data"],
     }),
     s("settings", {
       emoji: "⚖️", title: `When ${t.fronts} disagree`,
       body: `If both devices logged a ${t.switch}, you choose which is right. "Compare ${t.front} history between devices" shows both, day by day.`,
-      route: "/settings", target: ["settings-device-sync", "settings-data"],
+      route: "/settings#device-sync", target: ["settings-device-sync", "settings-data"],
     }),
     s("settings", {
       emoji: "⬇️", title: "Check for updates", desktopOnly: true,
@@ -1053,13 +1053,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🔁", title: "Re-run setup",
-      body: `The setup guide can be run again any time from About & help. It never deletes or overwrites anything, so another ${t.alter} can walk through it too.`,
-      route: "/settings", target: ["rerun-setup", "settings-about"], look: `the highlighted "Re-run setup" button`,
+      body: `The setup guide can be run again any time from About → Tour & onboarding. It never deletes or overwrites anything, so another ${t.alter} can walk through it too.`,
+      route: "/settings#tour", target: ["rerun-setup", "settings-about"], look: `the highlighted "Re-run setup" button`,
     }),
     s("settings", {
       emoji: "🧪", title: "Experimental features",
-      body: `Needs, Goals and Mods are still settling, so they stay hidden until you switch on Experimental features in About & help. Switching it off only hides them.`,
-      route: "/settings", target: "settings-about", look: `About & help → Experimental features`,
+      body: `Needs, Goals and Mods are still settling, so they stay hidden until you switch on Experimental features, under General. Switching it off only hides them.`,
+      route: "/settings", target: "settings-experimental", look: `the Experimental features row, under General`,
     }),
     s("settings", {
       emoji: "📦", title: "Tracking presets",
@@ -1164,8 +1164,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── DONE ───────────────────────────────────────────────────────────────
     s("done", {
       emoji: "👁️", title: "Want to see it filled in?",
-      body: `Settings → About & help → Preview Mode opens an example ${t.system} where every ${t.alter} explains one feature. Your real data stays untouched.`,
-      route: "/settings", target: "settings-about", look: `"Preview Mode", inside About & help`,
+      body: `Settings → About → Preview mode opens an example ${t.system} where every ${t.alter} explains one feature. Your real data stays untouched.`,
+      route: "/settings", target: ["settings-preview", "settings-about"], look: `the Preview mode row, under About`,
     }),
     s("done", {
       emoji: "💜", title: "That's the tour",
