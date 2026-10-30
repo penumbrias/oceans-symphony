@@ -62,11 +62,9 @@ export default function ProfileConvertRow({ alter, info }) {
     finally { setBusy(false); }
   };
 
-  // The new profile (v0.305.0) is built from widgets already; converting
-  // belongs to the old layout.
-  if (usesNewProfile(alter)) {
-    return <Row label="Profile layout" hint="Uses the new profile. To go back, use ⋯ → Revert to the old profile." />;
-  }
+  // The new profile (v0.305.0) is widgets already; this row is for the old
+  // layout only (the Profile layout row above switches between the two).
+  if (usesNewProfile(alter)) return null;
   if (preview.converted) {
     return (
       <Row label="Profile layout" hint={preview.canUndo ? "Converted to widgets. Undo puts the old layout and bio back." : "Uses the widget layout"}>
@@ -80,7 +78,7 @@ export default function ProfileConvertRow({ alter, info }) {
   }
   return (
     <>
-      <Row label="Turn the bio into widgets" hint="Each part of the bio becomes a widget you can move, resize and style. Nothing is deleted, and you can undo it.">
+      <Row label="Lay the bio out as widgets" hint="On the old profile, each part of the bio (text, pictures, galleries) becomes its own widget you can move, resize and style. Nothing is deleted, and you can undo it.">
         <button type="button" className={smallBtn} onClick={() => setOpen(true)}>Preview</button>
       </Row>
       <Dialog open={open} onOpenChange={(o) => { if (!busy) setOpen(o); }}>

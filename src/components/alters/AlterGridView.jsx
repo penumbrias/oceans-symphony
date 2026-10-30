@@ -8,6 +8,7 @@ import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useHeaderLook, headerLookOnCards } from "@/lib/headerLook";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import SubsystemActionMenu from "./SubsystemActionMenu";
@@ -46,6 +47,9 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
+  // The header look reaches the grid too (v0.320.0): the name takes the
+  // header's text colour and font.
+  const hl = useHeaderLook(alter, headerLookOnCards());
   const [imgErrorFor, setImgError] = useState(null);
   const imgError = !!imgErrorFor && imgErrorFor === resolvedUrl;
 
@@ -98,6 +102,7 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
         <span
           title={formatAlter(alter)}
           className={`text-xs text-center font-medium truncate w-full px-1 ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
+          style={{ ...(hl.textColor ? { color: hl.textColor } : {}), ...(hl.font ? { fontFamily: hl.font } : {}) }}
         >
           {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
         </span>

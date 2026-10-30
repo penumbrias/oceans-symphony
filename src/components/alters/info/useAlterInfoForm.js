@@ -170,3 +170,43 @@ export function useAlterInfoForm(alter) {
     undo, redo, canUndo: history.canUndo, canRedo: history.canRedo,
   };
 }
+
+// ── A draft for an alter that doesn't exist yet (v0.320.0) ──
+//
+// The "new alter" sheet shows the same sections as the Alter info list
+// (Basics, Bio, custom fields, tags, Profile style), so they need the same
+// `info` shape — but there is no record to save onto until "Add" is
+// tapped. This draft keeps the form in memory with undo / redo and never
+// writes; status is always "draft". The sheet reads `form` when adding.
+export function blankAlterForm() {
+  return {
+    name: "", alias: "", emoji: "", use_emoji_as_alias: false, pronouns: "", color: "",
+    avatar_url: "", avatar_rotation_mode: "off", role: "", birthday: "", origin_year: "",
+    description: "", subsystems_icon: "", custom_fields: {}, preferences: [], tags: [],
+    preset_answers: {}, alter_custom_fields: [], is_pinned: false,
+  };
+}
+
+export function useAlterDraftForm() {
+  const [form, setForm, history] = useUndoRedo(blankAlterForm());
+  const [revision, setRevision] = useState(0);
+  const set = useCallback((key, value) => setForm((f) => (f ? { ...f, [key]: value } : f)), [setForm]);
+  const update = useCallback((fn) => setForm((f) => (f ? fn(f) : f)), [setForm]);
+  const setCustomField = useCallback((key, value) => setForm((f) => {
+    if (!f) return f;
+    const cf = { ...(f.custom_fields || {}) };
+    if (value === undefined) delete cf[key];
+    else cf[key] = value;
+    return { ...f, custom_fields: cf };
+  }), [setForm]);
+  const reseed = useCallback(() => setRevision((r) => r + 1), []);
+  const undo = useCallback(() => { history.undo(); setRevision((r) => r + 1); }, [history]);
+  const redo = useCallback(() => { history.redo(); setRevision((r) => r + 1); }, [history]);
+  // Start over (the sheet reopened).
+  const reset = useCallback(() => { history.reset(blankAlterForm()); setRevision((r) => r + 1); }, [history]);
+  const flush = useCallback(() => Promise.resolve(), []);
+  return {
+    form, set, update, setCustomField, status: "draft", revision, reseed, flush, reload: reset, reset,
+    undo, redo, canUndo: history.canUndo, canRedo: history.canRedo,
+  };
+}

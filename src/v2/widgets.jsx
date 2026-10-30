@@ -61,6 +61,7 @@ import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import { parseSessionEmotions, parseSessionSymptoms, parseSessionNote } from "@/lib/perAlterSessionEntries";
 import { parsePreferences, PREF_LEVELS } from "@/lib/alterPreferences";
+import { PrefLevelIcon } from "@/components/alters/AlterPreferencesEditor";
 import { useAlterOrder } from "@/lib/alterOrder";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -1236,9 +1237,9 @@ function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter, holdProps })
         {prefChips.length > 0 && (
           <span className="flex flex-wrap gap-1 mt-0.5">
             {prefChips.map((p) => (
-              <span key={p.id} className="text-[0.625em] px-1.5 py-0.5 rounded-full border"
+              <span key={p.id} className="text-[0.625em] px-1.5 py-0.5 rounded-full border inline-flex items-center gap-[0.3em]"
                 style={{ borderColor: `${PREF_LEVELS[p.level].color}55`, color: PREF_LEVELS[p.level].color }}>
-                {PREF_LEVELS[p.level].emoji} {p.label}
+                <PrefLevelIcon level={p.level} className="w-[1em] h-[1em]" filled /> {p.label}
               </span>
             ))}
           </span>

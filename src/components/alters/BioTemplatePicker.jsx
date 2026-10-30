@@ -103,7 +103,7 @@ export default function BioTemplatePicker({ current, onApply, onClose }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70]" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[130] pointer-events-auto" data-bio-modal="" onClick={onClose}>
       <div
         className="bg-background border-2 border-border rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col"
         style={{ maxHeight: "85vh" }}

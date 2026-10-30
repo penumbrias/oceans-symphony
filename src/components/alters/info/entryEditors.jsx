@@ -3,18 +3,11 @@
 // way wherever it is. Each commits through `onCommit` / `onChange`; the
 // caller decides where it is written.
 
-import React, { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { FileDown, LayoutTemplate, Code2, PenSquare } from "lucide-react";
+import React, { useRef, useCallback, useEffect } from "react";
 import { Segmented } from "@/components/shared/SettingRows";
 import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
-import SimplePreview from "@/components/shared/SimplePreview";
-import { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
-import BioEditor, { ImportSPModal } from "@/components/alters/BioEditor";
-import BioTemplatePicker from "@/components/alters/BioTemplatePicker";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import BioEditor from "@/components/alters/BioEditor";
 import { DateFieldInput } from "@/components/alters/profile/fieldControls";
-import { appendImportedText } from "@/lib/bioImport";
 
 export const inputBase = "h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring";
 export const inputCls = `${inputBase} w-full`;
@@ -66,67 +59,44 @@ export function EntryInput({ k, type, value, onCommit, label }) {
 }
 
 // ── The bio: one long-text entry ─────────────────────────────────────
-// A bio written with the block editor (pictures beside text, galleries,
-// templates with fill-in fields) keeps working: its fill-in fields edit
-// here. "Full editor" opens the bio editor with its Plain / Simple / Blocks
-// / Raw modes for any bio (kept by the owner's choice, v0.298.1), and
-// "Turn the bio into widgets" (the Look tab) lays a block bio out as widgets
-// that move freely.
-export function BioEntry({ k, value, onChange, blocksHint = null }) {
-  // Bumped when the bio is replaced from outside the text box (a template,
-  // a paste, the blocks editor) so the box shows the new bio.
-  const [seed, setSeed] = useState(0);
-  const replace = (html) => { onChange(html); setSeed((n) => n + 1); };
-  const [code, setCode] = useState(false);
-  const [blocksOpen, setBlocksOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const isBlocks = (value || "").includes("data-blocks=");
-  const blocks = useMemo(() => (isBlocks ? htmlToBlocks(value) : []), [isBlocks, value]);
-  const onBlockChange = (id, patch) => {
-    const next = patch.__remove ? blocks.filter((b) => b.id !== id) : blocks.map((b) => (b.id === id ? { ...b, ...patch } : b));
-    onChange(blocksToHTML(next));
+// The bio IS the full editor (v0.320.0): Plain / Simple / Blocks / Raw
+// modes, templates, "paste from another app" and the preview, right here —
+// no small box with a "Full editor" button in front of it. The same editor
+// serves Alter info and the Bio widget's Content tab. `data-vaul-no-drag`
+// keeps the options sheet (a drawer) from treating a touch in the editor
+// as a drag of the sheet.
+export function BioEntry({ k, value, onChange }) {
+  // One commit per pause in typing (same shape as RichTextField): the host
+  // is a per-keystroke saver on the widget's Content tab (writeEntry →
+  // Alter.update) and the undo history in Alter info, and neither wants a
+  // step per character. Flushed on unmount, pagehide and when hidden, so
+  // nothing typed is lost.
+  const timer = useRef(null);
+  const pending = useRef(null);
+  const commitRef = useRef(onChange);
+  commitRef.current = onChange;
+  const flushNow = useCallback(() => {
+    clearTimeout(timer.current);
+    if (pending.current != null) { const v = pending.current; pending.current = null; commitRef.current(v); }
+  }, []);
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === "hidden") flushNow(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+      flushNow();
+    };
+  }, [flushNow]);
+  const change = (v) => {
+    pending.current = v;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { pending.current = null; commitRef.current(v); }, 500);
   };
   return (
-    <div className="space-y-2" data-info-bio="">
-      {isBlocks ? (
-        <>
-          <div className="rounded-xl border border-border/50 p-3">
-            <SimplePreview blocks={blocks} onBlockChange={onBlockChange} scopeId={`alter-info-bio-${k}`} />
-          </div>
-          {blocksHint && <p className="text-[0.6875rem] text-muted-foreground">{blocksHint}</p>}
-        </>
-      ) : code ? (
-        <DebouncedText key={`code:${k}:${seed}`} value={value || ""} onCommit={onChange} multiline rows={8} maxLength={500000}
-          ariaLabel="Bio code" placeholder="<p>HTML…</p>" className={`${areaCls} font-mono text-xs`} />
-      ) : (
-        <RichTextField key={`rich:${k}:${seed}`} value={value || ""} onCommit={onChange} placeholder="Write a bio…" />
-      )}
-      <div className="flex flex-wrap gap-1.5">
-        <button type="button" className={smallBtn} onClick={() => setBlocksOpen(true)}><PenSquare className="w-3.5 h-3.5" /> Full editor</button>
-        {!isBlocks && (
-          <button type="button" className={smallBtn} onClick={() => setCode((c) => !c)} aria-pressed={code}>
-            <Code2 className="w-3.5 h-3.5" /> {code ? "Back to text" : "View code"}
-          </button>
-        )}
-        <button type="button" className={smallBtn} onClick={() => setTemplatesOpen(true)}><LayoutTemplate className="w-3.5 h-3.5" /> Templates</button>
-        <button type="button" className={smallBtn} onClick={() => setImportOpen(true)}><FileDown className="w-3.5 h-3.5" /> Paste from another app</button>
-      </div>
-      {templatesOpen && (
-        <BioTemplatePicker current={value || ""}
-          onApply={(html, { close } = {}) => { replace(html); if (close) setTemplatesOpen(false); }}
-          onClose={() => setTemplatesOpen(false)} />
-      )}
-      {importOpen && (
-        <ImportSPModal onClose={() => setImportOpen(false)}
-          onImport={(text) => { replace(appendImportedText(value || "", text)); toast.success("Added to the end of the bio"); }} />
-      )}
-      <Dialog open={blocksOpen} onOpenChange={(open) => { setBlocksOpen(open); if (!open) setSeed((n) => n + 1); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Bio</DialogTitle>
-          <BioEditor value={value || ""} onChange={onChange} />
-        </DialogContent>
-      </Dialog>
+    <div className="space-y-2" data-info-bio="" data-vaul-no-drag="" onBlur={flushNow}>
+      <BioEditor key={k} value={value || ""} onChange={change} label={null} placeholder="Write a bio…" />
     </div>
   );
 }
