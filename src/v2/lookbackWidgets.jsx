@@ -4,6 +4,9 @@
 //   minimal  = the top three, each with its change since the window before
 //   normal   = the top N as bars (N, window and comparison in options)
 //   expanded = every one as bars, then the full analytics section below
+// "Show" (v0.327.0) can put the full analytics in normal too — on its own
+// (how these widgets looked before v0.324.0, which widgets placed back
+// then keep) or under the bars.
 // On a profile board they count only that profile's alters (SCOPE_FIELD),
 // through the same counting the analytics page uses (src/lib/lookbackCounts.js).
 import React, { useMemo } from "react";
@@ -59,17 +62,32 @@ function CountBars({ rows, labelOf, onTap }) {
   ));
 }
 
-function LookbackBody({ label, rows, labelOf, settings, empty, openPath, full }) {
+// Whether this widget draws the full analytics section, and whether the
+// bars go with it. A profile-scoped widget has no full section (it only
+// counts everyone), so it keeps its bars.
+function fullView(settings, mode, scoped = false) {
+  if (scoped) return { full: false, bars: true };
+  if (mode === "expanded") return { full: true, bars: true };
+  if (mode === "minimal") return { full: false, bars: true };
+  const v = settings?.view;
+  return { full: v === "full" || v === "both", bars: v !== "full" };
+}
+
+function LookbackBody({ label, rows, labelOf, settings, empty, openPath, full, scoped }) {
   const navigate = useNavigate();
   const mode = useWidgetMode();
   const top = clampInt(settings?.top, 1, 20, 5);
   const open = () => navigate(openPath);
   const action = <TextAction onClick={open}>Open</TextAction>;
+  const view = fullView(settings, mode, scoped);
+  if (view.full && !view.bars) {
+    return <Section label={label} action={action}>{full}</Section>;
+  }
   if (rows.length === 0) {
     return (
       <Section label={label} action={action}>
         <Muted>{empty}</Muted>
-        {mode === "expanded" && full}
+        {view.full && full}
       </Section>
     );
   }
@@ -85,17 +103,17 @@ function LookbackBody({ label, rows, labelOf, settings, empty, openPath, full })
   return (
     <Section label={label} action={action}>
       <CountBars rows={mode === "expanded" ? rows.slice(0, 30) : rows.slice(0, top)} labelOf={labelOf} onTap={open} />
-      {mode === "expanded" && full}
+      {view.full && full}
     </Section>
   );
 }
 
 // The full analytics section, only for everyone's numbers — it has no
 // per-profile scope of its own.
-function FullBelow({ scoped, children }) {
+function FullBelow({ scoped, alone = false, children }) {
   if (scoped) return null;
   return (
-    <div className="mt-2 pt-2 border-t border-border/40 min-h-0">
+    <div className={alone ? "min-h-0" : "mt-2 pt-2 border-t border-border/40 min-h-0"}>
       <ErrorBoundary fallback={<Muted>The full analytics couldn't be drawn here. Open the Analytics page.</Muted>}>
         {children}
       </ErrorBoundary>
@@ -128,7 +146,8 @@ export function FeelingsLookbackWidget({ settings }) {
       settings={settings}
       empty={`No feelings logged${scopeIds ? " here" : ""} in the last ${days} days.`}
       openPath="/analytics?tab=wellbeing"
-      full={mode === "expanded" && <FullBelow scoped={!!scopeIds}><EmotionAnalytics from={from} to={to} /></FullBelow>}
+      scoped={!!scopeIds}
+      full={<FullBelow scoped={!!scopeIds} alone={fullView(settings, mode).bars === false}><EmotionAnalytics from={from} to={to} /></FullBelow>}
     />
   );
 }
@@ -156,14 +175,30 @@ export function SymptomsLookbackWidget({ settings }) {
       settings={settings}
       empty={`No symptoms logged${scopeIds ? " here" : ""} in the last ${days} days.`}
       openPath="/analytics?tab=wellbeing"
-      full={mode === "expanded" && <FullBelow scoped={!!scopeIds}><SymptomAnalytics startDate={from} endDate={to} /></FullBelow>}
+      scoped={!!scopeIds}
+      full={<FullBelow scoped={!!scopeIds} alone={fullView(settings, mode).bars === false}><SymptomAnalytics startDate={from} endDate={to} /></FullBelow>}
     />
   );
 }
 
+// Feelings / Symptom analytics placed before v0.324.0 showed the full
+// analytics section on its own; those keep it (widgetFold pastDefaults).
+export const LOOKBACK_PAST_DEFAULTS = [
+  { before: Date.parse("2026-10-30T22:39:35Z"), settings: { view: "full" } },
+];
+
 // Options shared by both: the window, how many, and the comparison.
 export const LOOKBACK_FIELDS = [
+  { key: "view", type: "select", label: "Show", default: "list",
+    help: "Expanded always shows both.",
+    options: [
+      { value: "list", label: "The top list" },
+      { value: "full", label: "The full analytics" },
+      { value: "both", label: "Both" },
+    ] },
   { key: "days", type: "number", label: "Days to include", min: 1, max: 365, default: 30 },
-  { key: "top", type: "number", label: "How many to show", min: 1, max: 20, default: 5 },
-  { key: "compare", type: "toggle", label: "Show the change since the days before", default: true },
+  { key: "top", type: "number", label: "How many to show", min: 1, max: 20, default: 5,
+    showIf: (st) => st?.view !== "full" },
+  { key: "compare", type: "toggle", label: "Show the change since the days before", default: true,
+    showIf: (st) => st?.view !== "full" },
 ];
