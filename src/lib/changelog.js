@@ -22,12 +22,16 @@ export const CHANGELOG = [
     changes: [
       { type: "feature", text: "Every picture can now be framed, not only an alter's profile picture: drag and zoom group, contact, location and system pictures, the system banner, profile header and background pictures, and each picture in a rotating pool." },
       { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
+      { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
+      { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],
   },
   {
     date: "October 29, 2026",
-    version: "0.319.0",
+    version: "0.320.0",
     changes: [
+      { type: "feature", text: "Settings is one flat list with a search box: type what you want to change and tap the row. Pages are grouped into You, General, Look, Alters, Tracking, Notifications, Data & privacy and About; older links and tour steps land on the right page." },
+      { type: "improve", text: "Profile, Analytics & attribution and the banner options are laid out as rows; the Privacy & Data Notice is its own page under Data & privacy; the Backup menu gained \"Back up now\"." },
       { type: "feature", text: "The Today and Coming up widgets now list today's recurring tasks too, every kind: tick a once task, tap +1 on a target or tally task, open a steps task's checklist." },
       { type: "improve", text: "The \"Upcoming plans surfaces\" list is gone: place the Coming up widget where you want it, and set how many plans or which time window in the widget's own options. The soft in-app banner switch moved to Notifications → Reminders. (The old per-surface switches no longer apply, so plans show in the fronting panel again.)" },
       { type: "feature", text: "Settings → Appearance now opens Display options, the one editor for fonts, sizes, bars, colours, themes and presets. The light/dark chip is gone: every theme is a light row and a dark row under Styles." },
