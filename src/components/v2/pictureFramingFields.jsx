@@ -2,7 +2,7 @@
 // is saved on the alter (Alter.image_framing, keyed by the picture), so a
 // profile picture framed here is framed the same on cards, bars and every
 // widget that shows it. The shared rows are in
-// components/shared/PictureFramingRow.jsx (v0.320.0).
+// components/shared/PictureFramingRow.jsx (v0.322.0).
 
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";

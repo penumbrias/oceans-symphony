@@ -1,4 +1,4 @@
-// Rows that frame a picture (v0.320.0 — every picture, not only an alter's).
+// Rows that frame a picture (v0.322.0 — every picture, not only an alter's).
 // A record's picture frame is saved on the record (`image_framing`, keyed
 // by the picture), so a picture framed here is framed the same on cards,
 // bars, lists and every widget that shows it. See src/lib/imageFraming.js.

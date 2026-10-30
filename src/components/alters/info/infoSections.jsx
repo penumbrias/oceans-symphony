@@ -360,7 +360,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
         )}
       </StackedRow>
       {/* Where the picture sits in its shape — saved on the alter by the
-          picture, so it shows this way everywhere (v0.320.0). */}
+          picture, so it shows this way everywhere (v0.322.0). */}
       <AlterPictureFramer alter={alter} url={value} shape={shape} label={`${label} framing`} always={false}
         hint={rotation && rotation !== "off" ? "This frames the main picture; each rotating picture is framed in the pool" : undefined} />
       {onRotation && (

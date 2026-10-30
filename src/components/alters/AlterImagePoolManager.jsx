@@ -23,7 +23,7 @@ function PoolThumb({ item, onDelete, linkedToFolder, folderName, alter, onFrame,
       {resolved
         ? <img src={resolved} alt={item.name || "pool image"} className="w-full h-full object-cover" loading="lazy" style={pictureStyle(alter, item.image_url)} />
         : <span className="w-full h-full flex items-center justify-center text-muted-foreground"><Images className="w-5 h-5" /></span>}
-      {/* Frame this picture (v0.320.0): where it sits in the shape, saved on the alter. */}
+      {/* Frame this picture (v0.322.0): where it sits in the shape, saved on the alter. */}
       <button
         type="button"
         onClick={() => onFrame(item)}

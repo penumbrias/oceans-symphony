@@ -14,7 +14,7 @@
 //   Pictures; a group's, contact's or location's picture; the system's
 //   picture): `image_framing` on that record, a map of picture URL → frame,
 //   so a picture is framed the same everywhere it shows (each rotating
-//   picture has its own). Since v0.320.0 every record with a picture has it.
+//   picture has its own). Since v0.322.0 every record with a picture has it.
 // - a profile look's header / background picture: the look's own
 //   `_header_image_framing` / `_bg_image_framing` custom field (one frame,
 //   for the picture set there) — see PS in profileStyle.js;
