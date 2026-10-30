@@ -16,6 +16,8 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { saveRelationship, deleteRelationship, RELATIONSHIPS_KEY } from "@/lib/alterRelationships";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 
 export function AlterAvatar({ alter, size = 24 }) {
   // Resolve legacy local-image:// avatars — a raw <img src> on those renders broken.
@@ -549,6 +551,7 @@ function LocationDetailModal({ location, alters, locationMap, scope, getParentLo
                        src={resolvedBgUrl || editData.background_image_url}
                        alt="background preview"
                        className="w-full h-24 object-cover rounded border border-border"
+                       style={pictureStyle(editData, editData.background_image_url)}
                      />
                      <button
                        onClick={() => setEditData(l => ({ ...l, background_image_url: '' }))}
@@ -567,6 +570,12 @@ function LocationDetailModal({ location, alters, locationMap, scope, getParentLo
                    </div>
                  )}
                 </div>
+
+                {editing && editData.background_image_url && (
+                  <PictureFramingRow url={editData.background_image_url} value={editData.image_framing?.[editData.background_image_url]} label="Image framing"
+                    shape={editData.shape === "oval" || editData.shape === "circle" ? "circle" : "box"} aspect="wide"
+                    onChange={(f) => setEditData(l => ({ ...l, image_framing: withImageFraming(l.image_framing, l.background_image_url, f) }))} />
+                )}
 
                 {/* Background image opacity */}
                 {editing && editData.background_image_url && (

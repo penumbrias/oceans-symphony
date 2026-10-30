@@ -23,6 +23,7 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 
 
+import { framedImageStyle, framingFor, framedBackgroundStyle } from "@/lib/imageFraming";
 function getContrastColor(hex) {
   if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
   const c = hex.replace("#", "");
@@ -32,14 +33,14 @@ function getContrastColor(hex) {
 
 // Location "avatar" — the colour swatch with a map-pin, or its on-map
 // background image. Mirrors GroupAvatar's role in the header.
-export function LocationAvatar({ color, image }) {
+export function LocationAvatar({ color, image, framing = null }) {
   const [resolved, setResolved] = useState(null);
   useEffect(() => { if (image) resolveImageUrl(image).then(setResolved).catch(() => setResolved(null)); else setResolved(null); }, [image]);
   const textColor = isValidHexColor(color) ? getContrastColor(color) : "#ffffff";
   return (
     <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
       style={{ backgroundColor: isValidHexColor(color) ? color : "hsl(var(--muted))" }}>
-      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" />
+      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" style={framedImageStyle(framing)} />
         : <MapPin className="w-9 h-9" style={{ color: textColor }} />}
     </div>
   );
@@ -124,10 +125,10 @@ export function LocationHeaderSection({ location }) {
     <div className="space-y-6">
       <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(cf), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
         {hasHeader && (
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, ...framedBackgroundStyle(cf[PS.HEADER_IMAGE_FRAMING]), opacity: headerOpacity }} />
         )}
         <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
-          <LocationAvatar color={location.color} image={location.background_image_url} />
+          <LocationAvatar color={location.color} image={location.background_image_url} framing={framingFor(location, location.background_image_url)} />
           <div className="flex-1 min-w-0 space-y-1">
             <h2 className="font-display text-2xl font-semibold flex items-center gap-2" style={{ color: nameColor }}>
               <MapPin className="w-5 h-5 flex-shrink-0" /> {location.name}

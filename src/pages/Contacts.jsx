@@ -19,6 +19,7 @@ import {
 } from "@/lib/contacts";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // Contacts — the directory of people OUTSIDE the system. Search, filter by
 // safety, an emergency-support header for quick "who can I ask for help?",
 // and tap-through to each contact's profile. See contacts-feature-plan (memory).
@@ -219,7 +220,7 @@ function ContactCard({ contact, settings, onClick }) {
         className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-white text-base flex-shrink-0 relative"
         style={{ backgroundColor: contact.color || "#8b5cf6" }}
       >
-        {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : initial}
+        {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" style={pictureStyle(contact, contact.avatar_url)} /> : initial}
         <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card" style={{ backgroundColor: safety.color }} title={safety.label} />
       </span>
       <span className="flex-1 min-w-0">

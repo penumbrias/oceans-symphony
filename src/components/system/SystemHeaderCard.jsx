@@ -5,6 +5,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // The system's identity header at the top of the alters directory (/Home):
 // avatar, name, and a collapsible rich bio. The banner image itself is now
 // a full-bleed backdrop rendered by AppLayout (SystemBanner) sitting behind
@@ -31,6 +32,7 @@ export default function SystemHeaderCard({ settings, action = null }) {
               alt=""
               draggable={false}
               className="w-12 h-12 rounded-full object-cover border border-white/40 shadow flex-shrink-0"
+              style={pictureStyle(settings, settings?.system_avatar_url)}
             />
           )}
           <h1

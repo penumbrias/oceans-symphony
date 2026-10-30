@@ -24,6 +24,8 @@ import { IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import RotationModeControl from "@/components/shared/RotationModeControl";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming } from "@/lib/imageFraming";
 
 // Profile-style custom_field keys — shared with the profile renderer
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
@@ -70,7 +72,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "", avatar_rotation_mode: "off",
     birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false,
-    custom_fields: {}, preferences: [], profile_song: null,
+    custom_fields: {}, preferences: [], profile_song: null, image_framing: {},
   });
   // "Advanced" pronouns/preferences drawer (pronouns.cc-style comfort
   // levels). Auto-opens when the alter already has entries.
@@ -104,7 +106,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
   const removeGroup = (id) => setSelectedGroupIds((s) => { const n = new Set(s); n.delete(id); return n; });
 
   useEffect(() => {
-    setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [], profile_song: null });
+    setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [], profile_song: null, image_framing: {} });
     setPrefsOpen(false);
     setShowAvatarUrl(false);
     // Reset only when the sheet opens — never on a background refresh.
@@ -306,6 +308,8 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           {form.avatar_url && (isLocalImageUrl(form.avatar_url) || form.avatar_url.startsWith("data:")) && (
             <LocalImageFixer value={form.avatar_url} maxWidth={400} quality={0.85} onFixed={(url) => set("avatar_url", url)} />
           )}
+          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Avatar framing"
+            onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
           <RotationModeControl
             mode={form.avatar_rotation_mode}

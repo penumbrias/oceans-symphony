@@ -1494,6 +1494,7 @@ function StylesTab({ v2 }) {
         system_banner_url: settingsRow?.system_banner_url ?? null,
         system_banner_height: settingsRow?.system_banner_height,
         system_banner_position: settingsRow?.system_banner_position,
+        system_banner_framing: settingsRow?.system_banner_framing,
         system_banner_scope: settingsRow?.system_banner_scope,
       };
     }
@@ -1573,7 +1574,7 @@ function StylesTab({ v2 }) {
     if (Array.isArray(preset.dashboardLayout)) patch.dashboard_layout = preset.dashboardLayout;
     if (preset.experimentalHome && typeof preset.experimentalHome === "object") patch.experimental_home = preset.experimentalHome;
     if (preset.banner && typeof preset.banner === "object") {
-      for (const k of ["system_banner_url", "system_banner_height", "system_banner_position", "system_banner_scope"]) {
+      for (const k of ["system_banner_url", "system_banner_height", "system_banner_position", "system_banner_framing", "system_banner_scope"]) {
         if (preset.banner[k] !== undefined) patch[k] = preset.banner[k];
       }
     }

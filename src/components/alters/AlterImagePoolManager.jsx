@@ -3,24 +3,36 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Upload, Loader2, Trash2, Images, FolderOpen, FolderInput, Link2, Link2Off, ImagePlus, Plus } from "lucide-react";
+import { X, Upload, Loader2, Trash2, Images, FolderOpen, FolderInput, Link2, Link2Off, ImagePlus, Plus, Crop } from "lucide-react";
 import { isLocalMode } from "@/lib/storageMode";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
+import { pictureStyle } from "@/lib/imageFraming";
 
 const ROLE_LABEL = { avatar: "avatar", background: "background" };
 // Where each role's linked folder name lives on the Alter record. These
 // are read by useRotatingImageUrl to decide which pool to draw from.
 const ROLE_FOLDER_FIELD = { avatar: "avatar_pool_folder", background: "background_pool_folder" };
 
-function PoolThumb({ item, onDelete, linkedToFolder, folderName }) {
+function PoolThumb({ item, onDelete, linkedToFolder, folderName, alter, onFrame, framing }) {
   const resolved = useResolvedAvatarUrl(item.image_url);
   return (
-    <div className="relative aspect-square rounded-lg overflow-hidden border border-border/50 bg-muted/30 group">
+    <div className={`relative aspect-square rounded-lg overflow-hidden border bg-muted/30 group ${framing ? "border-primary ring-1 ring-primary" : "border-border/50"}`}>
       {resolved
-        ? <img src={resolved} alt={item.name || "pool image"} className="w-full h-full object-cover" loading="lazy" />
+        ? <img src={resolved} alt={item.name || "pool image"} className="w-full h-full object-cover" loading="lazy" style={pictureStyle(alter, item.image_url)} />
         : <span className="w-full h-full flex items-center justify-center text-muted-foreground"><Images className="w-5 h-5" /></span>}
+      {/* Frame this picture (v0.320.0): where it sits in the shape, saved on the alter. */}
+      <button
+        type="button"
+        onClick={() => onFrame(item)}
+        title="Frame this picture"
+        aria-pressed={framing}
+        className={`absolute top-1 left-1 w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white transition-opacity ${framing ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
+      >
+        <Crop className="w-3.5 h-3.5" />
+      </button>
       <button
         type="button"
         onClick={() => onDelete(item)}
@@ -46,6 +58,7 @@ export default function AlterImagePoolManager({ open, onClose, alterId, role }) 
   const [uploading, setUploading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [linkingOpen, setLinkingOpen] = useState(false);
+  const [framingUrl, setFramingUrl] = useState(null);
   const fileRef = useRef(null);
   const roleLabel = ROLE_LABEL[role] || role;
 
@@ -292,8 +305,17 @@ export default function AlterImagePoolManager({ open, onClose, alterId, role }) 
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {pool.map((item) => (
                   <PoolThumb key={item.id} item={item} onDelete={handleDelete}
-                    linkedToFolder={!!linkedFolder} folderName={linkedFolder} />
+                    linkedToFolder={!!linkedFolder} folderName={linkedFolder} alter={alter}
+                    onFrame={(it) => setFramingUrl((cur) => (cur === it.image_url ? null : it.image_url))} framing={framingUrl === item.image_url} />
                 ))}
+              </div>
+            )}
+            {framingUrl && alter && pool.some((it) => it.image_url === framingUrl) && (
+              <div className="mt-3 rounded-lg border border-border/50 px-2">
+                <AlterPictureFramer alter={alter} url={framingUrl} shape={role === "avatar" ? "circle" : "box"} label="Frame this picture" />
+                <div className="flex justify-end pb-2">
+                  <button type="button" onClick={() => setFramingUrl(null)} className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">Done</button>
+                </div>
               </div>
             )}
           </div>

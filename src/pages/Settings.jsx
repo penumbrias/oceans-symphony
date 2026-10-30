@@ -75,6 +75,9 @@ import {
 } from "@/lib/pageTutorials";
 
 
+import ImageFramer from "@/components/shared/ImageFramer";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { framingOf, framedImageStyle, pictureStyle, withImageFraming } from "@/lib/imageFraming";
 // React context lets the parent <Settings> drive single-accordion
 // behaviour: only one Section open at a time. Drops the perceived
 // scroll-length of the page from "every section's contents stacked"
@@ -243,6 +246,9 @@ export default function Settings() {
   const [sysAvatarAssets, setSysAvatarAssets] = useState(false);
   const [sysBannerAssets, setSysBannerAssets] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
+  // Where each of the system's pictures sits in its shape (imageFraming.js).
+  const [systemImageFraming, setSystemImageFraming] = useState({});
+  const [systemBannerFraming, setSystemBannerFraming] = useState(null);
   // Banner + rich bio — the system's own profile, mirroring an alter's
   // header image + bio. Surfaced on the alters directory (/Home) header.
   const [systemBannerUrl, setSystemBannerUrl] = useState("");
@@ -273,6 +279,8 @@ export default function Settings() {
     }
     if (typeof settings?.system_banner_height === "number") setSystemBannerHeight(settings.system_banner_height);
     if (typeof settings?.system_banner_position === "number") setSystemBannerPosition(settings.system_banner_position);
+    if (settings?.system_banner_framing !== undefined) setSystemBannerFraming(framingOf(settings.system_banner_framing));
+    if (settings?.image_framing && typeof settings.image_framing === "object") setSystemImageFraming(settings.image_framing);
     if (settings?.system_banner_scope) setSystemBannerScope(settings.system_banner_scope);
     // Keyed on the settings ROW, not the object: the settings query is
     // invalidated all over the app, and re-seeding on every new object
@@ -364,7 +372,9 @@ export default function Settings() {
       system_bio: systemBio || "",
       system_banner_height: systemBannerHeight,
       system_banner_position: systemBannerPosition,
+      system_banner_framing: systemBannerFraming,
       system_banner_scope: systemBannerScope,
+      image_framing: systemImageFraming,
     };
     try {
       if (settings?.id) {
@@ -530,7 +540,7 @@ export default function Settings() {
                 <Label className="text-sm font-medium">{terms.System} picture</Label>
                 <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
                   {resolvedSysAvatar ? (
-                    <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
+                    <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" style={pictureStyle({ image_framing: systemImageFraming }, systemAvatarUrl)} />
                   ) : (
                     <Globe className="w-6 h-6 text-muted-foreground" />
                   )}
@@ -553,7 +563,7 @@ export default function Settings() {
                 <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative transition-[height]" style={{ height: systemBannerUrl ? systemBannerHeight : 64 }}>
                   {resolvedSysBanner ? (
                     <>
-                      <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                      <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={framedImageStyle(systemBannerFraming, { fallbackPosition: `50% ${systemBannerPosition}%` })} />
                       <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
                     </>
                   ) : (
@@ -573,6 +583,8 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+            <PictureFramingRow url={systemAvatarUrl} value={systemImageFraming[systemAvatarUrl]} shape="circle" label={`${terms.System} picture framing`}
+              onChange={(f) => setSystemImageFraming((m) => withImageFraming(m, systemAvatarUrl, f))} />
             {sysAvatarAssets && (
               <AssetPickerModal open onClose={() => setSysAvatarAssets(false)} onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }} />
             )}
@@ -592,18 +604,11 @@ export default function Settings() {
                       className="w-full mt-1 accent-primary" />
                     <p className="text-[0.625rem] text-muted-foreground">How far down the banner extends.</p>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-medium">Image position</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {systemBannerPosition <= 33 ? "Top" : systemBannerPosition >= 67 ? "Bottom" : "Center"}
-                      </span>
-                    </div>
-                    <input type="range" min={0} max={100} step={5} value={systemBannerPosition}
-                      onChange={e => setSystemBannerPosition(Number(e.target.value))}
-                      className="w-full mt-1 accent-primary" />
-                    <p className="text-[0.625rem] text-muted-foreground">Which part of the image shows (top ↔ bottom).</p>
-                  </div>
+                  {/* Framing (v0.320.0): drag / zoom like every other picture.
+                      The older top↔bottom position is kept in step for
+                      app versions that only know that. */}
+                  <ImageFramer src={systemBannerUrl} value={systemBannerFraming} shape="box" aspect="wide" label="Banner"
+                    onChange={(f) => { setSystemBannerFraming(f); setSystemBannerPosition(f ? f.y : 50); }} />
                   <div>
                     <Label className="text-xs font-medium">Show banner on</Label>
                     <div className="mt-1 flex flex-wrap gap-1.5">

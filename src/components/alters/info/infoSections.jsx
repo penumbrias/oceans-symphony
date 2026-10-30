@@ -40,6 +40,7 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 import { groupNameColor } from "@/lib/contrast";
 import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, smallBtn } from "./entryEditors";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
 
@@ -124,7 +125,7 @@ export function StatusChip({ status }) {
 }
 
 // ── Pictures: the images this alter owns ─────────────────────────────
-function PictureThumb({ asset, isAvatar, onUseAsAvatar, onRelease }) {
+function PictureThumb({ asset, isAvatar, onUseAsAvatar, onRelease, onFrame, framing }) {
   const src = useResolvedAvatarUrl(asset.image_url);
   const pool = asset.owner_role && asset.owner_role !== PICTURE_ROLE;
   // The menu is portaled, so a sheet or scrolling list never clips it.
@@ -132,12 +133,13 @@ function PictureThumb({ asset, isAvatar, onUseAsAvatar, onRelease }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" aria-label={`${asset.name || "Picture"}${isAvatar ? " (avatar)" : ""}: options`}
-          className={`block w-full aspect-square rounded-lg overflow-hidden border bg-muted/30 ${isAvatar ? "border-primary ring-1 ring-primary" : "border-border/50"}`}>
+          className={`block w-full aspect-square rounded-lg overflow-hidden border bg-muted/30 ${isAvatar || framing ? "border-primary ring-1 ring-primary" : "border-border/50"}`}>
           {src ? <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" /> : <Images className="w-5 h-5 m-auto text-muted-foreground" />}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onSelect={() => onUseAsAvatar(asset.image_url)}>Use as avatar</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onFrame(asset.image_url)}>Frame this picture</DropdownMenuItem>
         {pool
           ? <DropdownMenuItem disabled>In the {asset.owner_role} pool</DropdownMenuItem>
           : <DropdownMenuItem onSelect={() => onRelease(asset)}>Remove from Pictures</DropdownMenuItem>}
@@ -150,6 +152,8 @@ export function PicturesSection({ alter, avatarUrl, onUseAsAvatar }) {
   const qc = useQueryClient();
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
+  // The picture being framed (its URL); the framer saves onto the alter.
+  const [framingUrl, setFramingUrl] = useState(null);
   const key = ["imageAssets", "owned", alter.id];
   const { data: pictures = [] } = useQuery({
     queryKey: key,
@@ -187,11 +191,20 @@ export function PicturesSection({ alter, avatarUrl, onUseAsAvatar }) {
       {pictures.length > 0 ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {pictures.map((a) => (
-            <PictureThumb key={a.id} asset={a} isAvatar={!!avatarUrl && a.image_url === avatarUrl} onUseAsAvatar={onUseAsAvatar} onRelease={release} />
+            <PictureThumb key={a.id} asset={a} isAvatar={!!avatarUrl && a.image_url === avatarUrl} onUseAsAvatar={onUseAsAvatar} onRelease={release}
+              onFrame={(url) => setFramingUrl((cur) => (cur === url ? null : url))} framing={framingUrl === a.image_url} />
           ))}
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">No pictures yet. Pictures added here can be shown by widgets on the profile.</p>
+      )}
+      {framingUrl && pictures.some((a) => a.image_url === framingUrl) && (
+        <div className="rounded-lg border border-border/50 px-2">
+          <AlterPictureFramer alter={alter} url={framingUrl} shape="box" label="Frame this picture" />
+          <div className="flex justify-end pb-2">
+            <button type="button" className={smallBtn} onClick={() => setFramingUrl(null)}>Done</button>
+          </div>
+        </div>
       )}
       <div className="flex flex-wrap gap-1.5">
         <button type="button" className={smallBtn} onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -296,7 +309,7 @@ const ROTATION_OPTIONS = [
 // The Alter info list uses it for the avatar; an Image widget uses it for
 // the profile picture and the pinned bar's picture. Pass `rotation` to
 // offer the avatar's rotation through a pool of pictures.
-export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", rotation, onRotation, role = "avatar", hint }) {
+export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", rotation, onRotation, role = "avatar", hint, shape = "circle" }) {
   const t = useTerms();
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -346,6 +359,10 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
           </div>
         )}
       </StackedRow>
+      {/* Where the picture sits in its shape — saved on the alter by the
+          picture, so it shows this way everywhere (v0.320.0). */}
+      <AlterPictureFramer alter={alter} url={value} shape={shape} label={`${label} framing`} always={false}
+        hint={rotation && rotation !== "off" ? "This frames the main picture; each rotating picture is framed in the pool" : undefined} />
       {onRotation && (
         <>
           <ChoiceRow label="Rotate through pictures" options={ROTATION_OPTIONS} value={rotation || "off"} onChange={onRotation}

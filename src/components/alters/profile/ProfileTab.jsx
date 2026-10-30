@@ -30,6 +30,8 @@ import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from 
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming } from "@/lib/imageFraming";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
@@ -124,6 +126,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
     is_pinned: false,
     custom_fields: {},
     preferences: [],
+    image_framing: {},
   });
   const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   // "Advanced — preferences & boundaries" drawer under Pronouns
@@ -201,6 +204,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
       preferences: parsePreferences(alter),
+      image_framing: alter.image_framing && typeof alter.image_framing === "object" ? alter.image_framing : {},
     };
     baselineRef.current = loaded;
     formHistory.reset(loaded);
@@ -480,6 +484,9 @@ useEffect(() => {
       {showAvatarUrl && (
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
+      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Avatar framing"
+        hint="Saved with the picture, so it shows this way everywhere"
+        onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
       <RotationModeControl
         mode={form.avatar_rotation_mode}

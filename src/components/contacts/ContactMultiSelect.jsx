@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { contactDisplayName } from "@/lib/contacts";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // Contact thumb — mirrors GroupMembersModal's MemberThumb pattern
 // (src/components/groups/GroupMembersModal.jsx) adapted for Contact
 // (avatar_url + color, no alter-specific fields).
 function ContactThumb({ contact }) {
   const resolved = useResolvedAvatarUrl(contact?.avatar_url);
   if (resolved) {
-    return <img src={resolved} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />;
+    return <img src={resolved} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={pictureStyle(contact, contact?.avatar_url)} />;
   }
   return (
     <div

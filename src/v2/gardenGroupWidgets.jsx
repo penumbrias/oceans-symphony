@@ -33,6 +33,7 @@ import {
   frontingStats, dailyMinutes, formatSpan, RANGE_DAYS, textBtnCls,
 } from "@/v2/gardenProfileWidgets";
 
+import { pictureStyle } from "@/lib/imageFraming";
 // The group whose page this is (by id or an imported sp_id — alter.groups
 // stores either). Same ["groups"] query every group surface reads.
 export function useSubjectGroup() {
@@ -50,7 +51,7 @@ function GroupPicture({ group, size, shape }) {
   return (
     <div className="overflow-hidden flex-shrink-0 flex items-center justify-center"
       style={{ width: size, height: size, borderRadius: AVATAR_RADIUS[shape] || AVATAR_RADIUS.rounded, backgroundColor: group.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)" }}>
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" />
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" style={pictureStyle(group, group.avatar_url)} />
         : group.emoji ? <span style={{ fontSize: size * 0.45 }} aria-hidden="true">{group.emoji}</span>
         : <Folder className="w-1/2 h-1/2 opacity-70" aria-hidden="true" />}
     </div>
@@ -62,7 +63,7 @@ function AlterFace({ alter, size = "2.25em" }) {
   return (
     <span className="rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
       style={{ width: size, height: size, backgroundColor: alter.color || "color-mix(in srgb, var(--v2-accent) 20%, transparent)" }} aria-hidden="true">
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <User className="w-1/2 h-1/2 opacity-70" />}
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" style={pictureStyle(alter, alter.avatar_url)} /> : <User className="w-1/2 h-1/2 opacity-70" />}
     </span>
   );
 }

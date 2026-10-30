@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 30, 2026",
+    changes: [
+      { type: "feature", text: "Every picture can now be framed, not only an alter's profile picture: drag and zoom group, contact, location and system pictures, the system banner, profile header and background pictures, and each picture in a rotating pool." },
+      { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
+    ],
+  },
+  {
     date: "October 29, 2026",
+    version: "0.319.0",
     changes: [
       { type: "feature", text: "The Today and Coming up widgets now list today's recurring tasks too, every kind: tick a once task, tap +1 on a target or tally task, open a steps task's checklist." },
       { type: "improve", text: "The \"Upcoming plans surfaces\" list is gone: place the Coming up widget where you want it, and set how many plans or which time window in the widget's own options. The soft in-app banner switch moved to Notifications → Reminders. (The old per-surface switches no longer apply, so plans show in the fronting panel again.)" },
