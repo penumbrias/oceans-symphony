@@ -590,10 +590,13 @@ export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, block
   );
 }
 
-function GroupChip({ group }) {
+// A group as a chip. Opens the group's page unless `link` is false (a
+// group that isn't joined yet, in the new-alter sheet).
+export function GroupChip({ group, link = true }) {
   const navigate = useNavigate();
   return (
-    <button type="button" onClick={() => navigate(`/group/${group.id}`)} title={`Open ${group.name}`}
+    <button type="button" onClick={link ? () => navigate(`/group/${group.id}`) : undefined} title={link ? `Open ${group.name}` : undefined}
+      disabled={!link}
       className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
       style={{ borderColor: group.color ? `${group.color}55` : "hsl(var(--border))", color: groupNameColor(group.color) || "hsl(var(--foreground))" }}>
       <GroupIcon group={group} className="w-3 h-3" /> {group.name}

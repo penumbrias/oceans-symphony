@@ -20,7 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
-      { type: "feature", text: "The \"New alter\" sheet was rebuilt on the same pieces as Alter info: Info, Custom fields and Links tabs, pronoun preferences & boundaries, groups to join, and a Profile style page, all with undo. Nothing is saved until you tap Add." },
+      { type: "feature", text: "The \"New {{alter}}\" sheet is rebuilt on the {{Alter}} info pieces: Info, Custom fields and Links tabs plus a Profile style page, with undo. Nothing about the {{alter}} is saved until you tap Add." },
       { type: "fix", text: "Group picker: the hint now uses your own term instead of \"alter\"." },
     ],
   },

@@ -12,16 +12,20 @@
 //   Profile style — a drill-in page: ProfileLookTabs (Content · Text ·
 //                   Colour · Styles) editing the draft's look.
 //
-// Nothing is written until "Add": the sections edit one in-memory draft
-// (useAlterDraftForm — the Alter info list's draft without the autosave),
-// with undo / redo for the whole sheet. The record is created once, through
-// alterEntry.createAlter, with its groups set through groupMembership.
-// Editing an existing alter happens on their profile (AlterInfo).
+// Nothing about the alter is written until "Add": the sections edit one
+// in-memory draft (useAlterDraftForm — the Alter info list's draft without
+// the autosave), with undo / redo for the whole sheet. The record is
+// created once, through alterEntry.createAlter, with its groups set through
+// groupMembership. Two things do land before Add, because they aren't this
+// alter's: a custom field made for every alter is a shared CustomField row
+// at once, and an uploaded picture goes into the library at once (it is
+// filed under the alter after Add). Editing an existing alter happens on
+// their profile (AlterInfo).
 
 import React, { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { User, ListChecks, Link2, Palette, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
+import { User, ListChecks, Link2, Palette, ChevronLeft, Loader2, Plus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { PS } from "@/lib/profileStyle";
@@ -30,13 +34,11 @@ import { registerAlterUpload } from "@/lib/assetFolders";
 import { isLocalImageUrl } from "@/lib/localImageStorage";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Group, Row, StackedRow, SwitchRow, TabBar } from "@/components/shared/SettingRows";
+import { Group, LinkRow, StackedRow, SwitchRow, TabBar } from "@/components/shared/SettingRows";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
-import GroupIcon from "@/components/shared/GroupIcon";
-import ProfileLookTabs from "@/components/profile/ProfileLookTabs";
-import { groupNameColor } from "@/lib/contrast";
+import ProfileLookTabs, { PROFILE_LOOK_TAB_KEYS } from "@/components/profile/ProfileLookTabs";
 import { useAlterDraftForm } from "@/components/alters/info/useAlterInfoForm";
-import { InfoBar, BasicsSection, BioSection, EntriesSection, TagsSection } from "@/components/alters/info/infoSections";
+import { InfoBar, BasicsSection, BioSection, EntriesSection, TagsSection, GroupChip } from "@/components/alters/info/infoSections";
 import { smallBtn } from "@/components/alters/info/entryEditors";
 
 // The draft's look subject for ProfileLookTabs: not a stored record.
@@ -53,14 +55,9 @@ function DraftGroupsSection({ groupIds, onChange }) {
     <>
       <StackedRow label={`Groups and ${subsystemTerm}s`} hint={`${t.Alters} can be added to more later, from their profile`}>
         <div className="flex flex-wrap gap-1.5 items-center">
-          {chosen.map((g) => (
-            <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
-              style={{ borderColor: g.color ? `${g.color}55` : "hsl(var(--border))", color: groupNameColor(g.color) || "hsl(var(--foreground))" }}>
-              <GroupIcon group={g} className="w-3 h-3" /> {g.name}
-            </span>
-          ))}
+          {chosen.map((g) => <GroupChip key={g.id} group={g} link={false} />)}
           {chosen.length === 0 && <span className="text-xs text-muted-foreground">Not in any groups</span>}
-          <button type="button" className={smallBtn} onClick={() => setOpen(true)}>Choose groups</button>
+          <button type="button" className={smallBtn} onClick={() => setOpen(true)}>Choose…</button>
         </div>
       </StackedRow>
       <GroupPickerModal alter={null} open={open} onClose={() => setOpen(false)} selectedIds={groupIds} onConfirm={onChange} />
@@ -93,7 +90,9 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
   }, [open, JSON.stringify(initialGroupIds)]);
 
   const name = (form?.name || "").trim();
-  const lookCount = Object.keys(form?.custom_fields || {}).filter((k) => k !== PS.FIELD_ORDER && Object.values(PS).includes(k)).length;
+  // Settings the look page holds (not the companion keys it writes alongside).
+  const lookKeys = Object.values(PROFILE_LOOK_TAB_KEYS).flat();
+  const lookCount = lookKeys.filter((k) => (form?.custom_fields || {})[k] !== undefined).length;
 
   // Profile style edits land on the draft's custom_fields (a value of
   // undefined removes the key), like patchProfileLook does on a record.
@@ -143,7 +142,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}
-        className="max-w-md h-[min(90vh,52rem)] flex flex-col gap-0 overflow-hidden p-0" data-new-alter-sheet="">
+        className="max-w-md h-[min(90vh,52rem)] flex flex-col gap-0 overflow-hidden p-0" data-new-alter-sheet="" data-tour="new-alter-sheet">
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
         {/* Header + fixed tab strip (the inspector's) */}
@@ -179,16 +178,14 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
             <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} data-new-alter-tab={tab}>
               {tab === "info" && (
                 <>
-                  <Group title="Basics" first><BasicsSection alter={null} info={info} /></Group>
+                  <Group title="Basics" first>
+                    <BasicsSection alter={null} info={info} />
+                    <SwitchRow label={`Pin to the top of the ${t.alters} page`} checked={!!form.is_pinned} onChange={(on) => set("is_pinned", on)} />
+                  </Group>
                   <Group title="Bio"><BioSection alter={null} info={info} withRow={false} /></Group>
                   <Group title="Profile page">
-                    <Row label="Profile style" hint="Colours, fonts, pictures and the header; can be changed any time">
-                      <button type="button" onClick={() => setPage("look")} data-new-alter-look=""
-                        className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-border/60 text-xs font-medium hover:bg-muted/50">
-                        <Palette className="w-3.5 h-3.5" /> {lookCount ? `${lookCount} set` : "Set up"} <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </Row>
-                    <SwitchRow label={`Pin to the top of the ${t.alters} page`} checked={!!form.is_pinned} onChange={(on) => set("is_pinned", on)} />
+                    <LinkRow label="Profile style" hint="Colours, fonts, pictures and the header; can be changed any time" icon={Palette}
+                      value={lookCount ? `${lookCount} set` : "Set up"} onClick={() => setPage("look")} tour="new-alter-look" />
                   </Group>
                 </>
               )}

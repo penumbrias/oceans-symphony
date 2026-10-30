@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Save, ChevronDown, ChevronRight, Check, Crown, Ban, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
+import { TabBar } from "@/components/shared/SettingRows";
 import { wouldAddingMemberCycle } from "@/lib/subsystemUtils";
 import { byGroupOrder, indexGroups, ancestorIds, rootGroups, childGroups, MAX_GROUP_DEPTH } from "@/lib/groupTree";
 
@@ -211,26 +212,14 @@ export default function GroupPickerModal({ alter, open, onClose, selectedIds = n
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{alter?.name ? `Edit Groups — ${alter.name}` : "Groups"}</DialogTitle>
+          <DialogTitle>{alter?.name ? `Edit Groups — ${alter.name}` : `Groups and ${subTerm}s`}</DialogTitle>
         </DialogHeader>
 
-        {/* Groups vs subsystems tabs */}
-        <div className="flex items-center gap-1 -mt-1">
-          <button
-            type="button"
-            onClick={() => setTab("groups")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab === "groups" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
-          >
-            <Folder className="w-3.5 h-3.5" /> Groups
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("subsystems")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab === "subsystems" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
-          >
-            <Crown className="w-3.5 h-3.5" /> {subTerm.charAt(0).toUpperCase() + subTerm.slice(1)}s
-          </button>
-        </div>
+        {/* Groups vs subsystems: the inspector's tab strip */}
+        <TabBar value={tab} onChange={setTab} tabs={[
+          { id: "groups", label: "Groups", icon: Folder },
+          { id: "subsystems", label: `${subTerm.charAt(0).toUpperCase() + subTerm.slice(1)}s`, icon: Crown },
+        ]} />
 
         <p className="text-xs text-muted-foreground">
           {tab === "groups" ? `Tap a group to add or remove this ${t.alter}.` : `Tap a ${subTerm} to add or remove this ${t.alter} as a member.`}

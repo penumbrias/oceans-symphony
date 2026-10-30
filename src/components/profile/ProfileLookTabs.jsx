@@ -142,6 +142,7 @@ function FontRow({ label, value, onChange }) {
 // sheet, v0.320.0). Every change goes to the caller's draft instead of the
 // record — the caller passes the draft back as `subject.customFields`. A
 // picture pool belongs to one saved alter, so rotation stays off here too.
+export { TAB_KEYS as PROFILE_LOOK_TAB_KEYS };
 export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null }) {
   const t = useTerms();
   const qc = useQueryClient();
@@ -178,7 +179,6 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
     const changes = pending.current;
     pending.current = {};
     if (!Object.keys(changes).length) return;
-    if (draft) { onDraft(changes); return; }
     try {
       await patchProfileLook({ type, id }, changes);
       for (const key of LOOK_QUERY_KEYS[type]?.(id) || []) qc.invalidateQueries({ queryKey: key });
@@ -200,6 +200,9 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
       for (const [k, v] of Object.entries(all)) { if (v === undefined) delete next[k]; else next[k] = v; }
       return next;
     });
+    // A draft has nothing to batch: hand it over at once, so an Add tapped
+    // right after a change carries it.
+    if (draft) { onDraft(all); return; }
     pending.current = { ...pending.current, ...all };
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, 250);
