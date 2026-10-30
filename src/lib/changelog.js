@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "October 30, 2026",
+    changes: [
+      { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
+      { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
+    ],
+  },
+  {
     date: "October 29, 2026",
+    version: "0.320.0",
     changes: [
       { type: "feature", text: "Settings is one flat list with a search box: type what you want to change and tap the row. Pages are grouped into You, General, Look, Alters, Tracking, Notifications, Data & privacy and About; older links and tour steps land on the right page." },
       { type: "improve", text: "Profile, Analytics & attribution and the banner options are laid out as rows; the Privacy & Data Notice is its own page under Data & privacy; the Backup menu gained \"Back up now\"." },
