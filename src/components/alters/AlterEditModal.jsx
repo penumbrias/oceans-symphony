@@ -25,7 +25,7 @@ import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
-import { withImageFraming } from "@/lib/imageFraming";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 
 // Profile-style custom_field keys — shared with the profile renderer
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
@@ -289,7 +289,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
               <Label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground">Avatar</Label>
               <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
                 {avatarPreview
-                  ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                  ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" style={pictureStyle(form, form.avatar_url)} />
                   : <User className="w-7 h-7 text-muted-foreground" />}
               </div>
               {/* Wrap to stay within the avatar's width (2 per row). */}

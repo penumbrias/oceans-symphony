@@ -31,7 +31,7 @@ import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
-import { withImageFraming } from "@/lib/imageFraming";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
@@ -469,7 +469,7 @@ useEffect(() => {
           <label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground font-medium">Avatar</label>
           <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
             {avatarPreview
-              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" style={pictureStyle(form, form.avatar_url)} />
               : <User className="w-7 h-7 text-muted-foreground" />}
           </div>
           <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
