@@ -11,6 +11,7 @@
     "lint": "eslint . --quiet",
     "check:widgets": "node scripts/check-widget-contract.mjs",
     "check:tour": "node scripts/check-tour-steps.mjs",
+    "check:ui": "node scripts/check-ui-review.mjs",
     "check:settings": "node scripts/check-settings-singleton.mjs",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
