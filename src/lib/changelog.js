@@ -20,8 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
-      { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad right on your page, with Clear and Full screen. Give it its own ruleset, colour, trails and tilt in its options, or follow your Support page settings." },
-      { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, watch the visual, see the timer count down and set the volume. Expanded adds the sound presets and the timer." },
+      { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
+      { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],
   },
   {

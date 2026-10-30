@@ -15,7 +15,7 @@ import { Section, Muted, TextAction, WidgetModeContext } from "@/v2/primitives";
 import { useT } from "@/lib/i18n";
 import { PRESETS as PAD_PRESETS, presetById, clampRules } from "@/lib/scratchpad/particles";
 import ScratchPadCanvas from "@/components/grounding/scratchpad/ScratchPadCanvas";
-import { useScratchpad, ScratchPadFocus, RulesetPicker } from "@/components/grounding/scratchpad/ScratchPadView";
+import { useScratchpad, ScratchPadFocus, RulesetPicker, sameRules } from "@/components/grounding/scratchpad/ScratchPadView";
 import { requestTiltPermission } from "@/lib/scratchpad/tilt";
 import { startSoundscape, stopSoundscape } from "@/lib/soundscape/engine";
 import SoundscapeVisualizer from "@/components/grounding/soundscape/SoundscapeVisualizer";
@@ -51,7 +51,9 @@ const PAD_TILT_OPTIONS = [
 function useWidgetPad(settings, updateSettings) {
   const shared = useScratchpad();
   const ownRules = !!settings?.ruleset;
-  const trailsPct = Number(settings?.trails);
+  // A cleared slider is stored as "" and means "follow the shared pad".
+  const trailsRaw = settings?.trails;
+  const trailsPct = trailsRaw === "" || trailsRaw == null ? NaN : Number(trailsRaw);
   const prefs = useMemo(() => {
     const preset = ownRules ? presetById(settings.ruleset) : presetById(shared.prefs.presetId);
     const rules = ownRules
@@ -67,24 +69,25 @@ function useWidgetPad(settings, updateSettings) {
     };
   }, [shared.prefs, ownRules, settings?.ruleset, settings?.rules, settings?.color, settings?.tilt, trailsPct]);
   const preset = presetById(prefs.presetId);
-  const changed = Object.keys(preset.rules).some((k) => prefs.rules[k] !== clampRules(preset.rules)[k]);
+  const changed = !sameRules(prefs.rules, clampRules(preset.rules));
   const save = (next) => {
     const patch = {};
     if (next.color !== prefs.color) patch.color = next.color;
     if (next.tilt !== prefs.tilt) patch.tilt = next.tilt;
     if (next.trails !== prefs.trails) patch.trails = Math.round(next.trails * 100);
-    if (next.tiltStrength !== prefs.tiltStrength) shared.save({ ...shared.prefs, tiltStrength: next.tiltStrength });
-    // Colour / tilt / trails the widget already owns stay the widget's;
-    // the rest is a shared-pad change.
-    const ownKeys = Object.keys(patch).filter((k) => (k === "trails" ? Number.isFinite(trailsPct) : !!settings?.[k]) || ownRules);
+    // Each option follows its own setting: colour / tilt / trails the
+    // widget has set stay the widget's; the rest (tilt strength always)
+    // is a change to the shared pad.
+    const owned = (k) => (k === "trails" ? Number.isFinite(trailsPct) : !!settings?.[k]);
     const sharedPatch = { ...shared.prefs };
+    if (next.tiltStrength !== prefs.tiltStrength) sharedPatch.tiltStrength = next.tiltStrength;
     for (const k of Object.keys(patch)) {
-      if (ownKeys.includes(k)) continue;
+      if (owned(k)) continue;
       sharedPatch[k] = next[k];
       delete patch[k];
     }
     if (Object.keys(patch).length) updateSettings?.(patch);
-    if (sharedPatch !== shared.prefs && Object.keys(sharedPatch).some((k) => sharedPatch[k] !== shared.prefs[k])) shared.save(sharedPatch);
+    if (Object.keys(sharedPatch).some((k) => sharedPatch[k] !== shared.prefs[k])) shared.save(sharedPatch);
   };
   return {
     prefs, preset, changed, tiltNote: shared.tiltNote, save,
@@ -129,7 +132,7 @@ function ScratchPadWidget({ settings, updateSettings, instanceId, mode = "normal
     <Section label={tr("widget.pad.label")} action={action}>
       <div
         className="flex-1 min-h-0 w-full overflow-hidden"
-        style={{ minHeight: 72, borderRadius: "var(--v2-radius, 10px)", background: "hsl(var(--primary) / 0.06)" }}
+        style={{ minHeight: 72, borderRadius: "var(--v2-radius, 10px)", background: "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 6%, transparent)" }}
       >
         {preview
           ? <div className="w-full h-full flex items-center justify-center"><Muted>{tr("widget.pad.preview")}</Muted></div>
@@ -165,7 +168,8 @@ function SoundscapeWidget({ settings, instanceId, mode = "normal" }) {
   const [error, setError] = useState(null);
   const preview = isPreview(instanceId);
   const fractalClock = useRef(0);
-  useSoundscapeWidgetMounted();
+  // Library previews don't count as "on screen" for the floating pill.
+  useSoundscapeWidgetMounted(!preview);
 
   const visual = settings?.visual || prefs.visual;
   const showVolume = settings?.showVolume !== false;
@@ -217,7 +221,7 @@ function SoundscapeWidget({ settings, instanceId, mode = "normal" }) {
       action={<TextAction onClick={() => navigate("/grounding?view=soundscape")}>{tr("widget.today.open")}</TextAction>}>
       <div
         className="flex-1 min-h-0 w-full overflow-hidden relative"
-        style={{ minHeight: 56, borderRadius: "var(--v2-radius, 10px)", background: "hsl(var(--primary) / 0.06)" }}
+        style={{ minHeight: 56, borderRadius: "var(--v2-radius, 10px)", background: "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 6%, transparent)" }}
       >
         {preview
           ? <div className="w-full h-full flex items-center justify-center"><Muted>{tr("widget.sound.preview")}</Muted></div>
@@ -262,7 +266,8 @@ export const CALM_WIDGETS = {
         help: "Pick one here to give this widget its own rules; tune them in Full screen → Settings.",
         options: [{ value: FOLLOW, label: "As on the Support page" }, ...PAD_PRESETS.map((pr) => ({ value: pr.id, label: pr.name }))] },
       { key: "color", type: "select", label: "Colour", default: FOLLOW, options: PAD_COLOR_OPTIONS },
-      { key: "trails", type: "range", label: "Trails", min: 0, max: 90, default: 60, unit: "%" },
+      { key: "trails", type: "range", label: "Trails", min: 0, max: 90, default: 60, unit: "%",
+        help: "Cleared (×), the pad follows the Support page's trails." },
       { key: "tilt", type: "select", label: "Tilt the phone", default: FOLLOW, options: PAD_TILT_OPTIONS },
     ],
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 12 },

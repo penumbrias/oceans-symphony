@@ -31,11 +31,12 @@ export const fmtClock = (secs) => {
 let widgetCount = 0;
 const presenceListeners = new Set();
 const notifyPresence = () => presenceListeners.forEach((fn) => fn(widgetCount));
-export function useSoundscapeWidgetMounted() {
+export function useSoundscapeWidgetMounted(counts = true) {
   useEffect(() => {
+    if (!counts) return undefined;
     widgetCount += 1; notifyPresence();
     return () => { widgetCount -= 1; notifyPresence(); };
-  }, []);
+  }, [counts]);
 }
 export function useSoundscapeWidgetsOnScreen() {
   const [n, setN] = useState(widgetCount);

@@ -51,7 +51,7 @@ const TILT_HELP = {
   gravity: "They always fall towards whichever edge is lowest, like sand in a jar.",
 };
 
-const sameRules = (a, b) => Object.keys(RULES).every((k) => Math.abs(a[k] - b[k]) < 1e-9) && a.edges === b.edges;
+export const sameRules = (a, b) => Object.keys(RULES).every((k) => Math.abs(a[k] - b[k]) < 1e-9) && a.edges === b.edges;
 
 // The pad's settings and the ways to change them, shared by the screen,
 // the full-screen sheet and the Scratch pad widget (calmWidgets.jsx).
