@@ -188,13 +188,24 @@ function FrequentlyOpenedWidget({ mode }) {
 }
 
 // "Fronting leaders" — top fronters by time (frontShare) and top
-// co-fronting pairs (coFrontingPairs) over the last week or month.
-// settings.window: "week" | "month" (configurable via the gear menu is
-// future work — the widget itself offers a small toggle).
-function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
+// co-fronting pairs (coFrontingPairs) over the last week, month or three
+// months. The window, how many and the pairs are options (v0.324.0); the
+// header chip steps the window and saves it. Tapping someone opens their
+// profile.
+const LEADER_WINDOWS = { week: 7, month: 30, quarter: 90 };
+const LEADER_WINDOW_ORDER = ["week", "month", "quarter"];
+function FrontingLeadersWidget({ mode, settings, api, updateSettings }) {
   const t = useTerms();
+  const navigate = useNavigate();
   const formatAlter = useAlterLabel();
-  const [windowSel, setWindowSel] = React.useState(settings?.window === "month" ? "month" : "week");
+  const windowSel = LEADER_WINDOWS[settings?.window] ? settings.window : "week";
+  const windowDays = LEADER_WINDOWS[windowSel];
+  const topN = Math.max(1, Math.min(10, parseInt(settings?.top, 10) || 5));
+  const showPairs = settings?.showPairs !== false;
+  const stepWindow = () => {
+    const next = LEADER_WINDOW_ORDER[(LEADER_WINDOW_ORDER.indexOf(windowSel) + 1) % LEADER_WINDOW_ORDER.length];
+    updateSettings?.({ window: next });
+  };
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontingSessions"],
     queryFn: () => base44.entities.FrontingSession.list(),
@@ -204,7 +215,7 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
 
   const levelCfg = useFrontLevels();
   const { top, pairs } = React.useMemo(() => {
-    const range = lastNDays(windowSel === "month" ? 30 : 7);
+    const range = lastNDays(windowDays);
     // Fronting levels (opt-in): only counting levels feed the leaderboard.
     const counted = filterCountedSessions(sessions, levelCfg);
     const share = frontShare({ sessions: counted, range });
@@ -212,13 +223,13 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
       .map(([id, ms]) => ({ alter: altersById[id], ms }))
       .filter((x) => x.alter && !x.alter.is_archived)
       .sort((a, b) => b.ms - a.ms)
-      .slice(0, 5);
+      .slice(0, topN);
     const pairs = coFrontingPairs({ sessions: counted, range })
       .map((p) => ({ ...p, a: altersById[p.alterIdA], b: altersById[p.alterIdB] }))
       .filter((p) => p.a && p.b)
       .slice(0, 3);
     return { top, pairs };
-  }, [sessions, altersById, windowSel, levelCfg]);
+  }, [sessions, altersById, windowDays, topN, levelCfg]);
 
   const fmtH = (ms) => {
     const h = ms / 3600000;
@@ -228,7 +239,7 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
   if (top.length === 0) {
     return (
       <div className="px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-xs text-muted-foreground">
-        No {t.fronting} data in the last {windowSel === "month" ? "month" : "week"} yet.
+        No {t.fronting} data in the last {windowDays} days yet.
       </div>
     );
   }
@@ -240,23 +251,25 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
         </p>
         <button
           type="button"
-          onClick={() => setWindowSel((w) => (w === "week" ? "month" : "week"))}
+          onClick={stepWindow}
+          aria-label={`Showing ${windowDays} days, tap for the next window`}
           className="text-[0.625em] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:text-foreground"
         >
-          {windowSel === "month" ? "30d" : "7d"}
+          {windowDays}d
         </button>
       </div>
       <div className="space-y-1">
         {(mode === "minimal" ? top.slice(0, 3) : top).map(({ alter, ms }, i) => (
-          <div key={alter.id} className="flex items-center gap-2">
+          <button key={alter.id} type="button" onClick={() => navigate(`/alter/${alter.id}`)}
+            className="w-full flex items-center gap-2 text-left rounded-md hover:bg-muted/40 -mx-1 px-1">
             <span className="text-[0.625em] text-muted-foreground w-3 text-right tabular-nums">{i + 1}</span>
             <AlterAvatar alter={alter} size="xs" />
             <span className="text-xs truncate flex-1">{formatAlter(alter)}</span>
             <span className="text-[0.6875em] text-muted-foreground tabular-nums">{fmtH(ms)}</span>
-          </div>
+          </button>
         ))}
       </div>
-      {mode !== "minimal" && pairs.length > 0 && (
+      {mode !== "minimal" && showPairs && pairs.length > 0 && (
         <>
           <p className="text-[0.625em] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">
             Top {t.cofronting || "co-fronting"} pairs
@@ -616,13 +629,19 @@ export const WIDGET_REGISTRY = {
 
   // ── Meta / nav ─────────────────────────────────────────────────
   fronting_leaders: {
-    label: "{{Fronting}} leaders", description: "Most frequent {{fronters}} and {{cofronting}} pairs this week or month.",
+    label: "{{Fronting}} leaders", description: "Who was {{fronting}} most and the top {{cofronting}} pairs over 7, 30 or 90 days. Tap someone to open their profile.",
     icon: Users, category: "meta",
-    render: ({ mode, settings, instanceId, api }) => (
-      <FrontingLeadersWidget mode={mode} settings={settings} instanceId={instanceId} api={api} />
+    render: ({ mode, settings, api, updateSettings }) => (
+      <FrontingLeadersWidget mode={mode} settings={settings} api={api} updateSettings={updateSettings} />
     ),
     supportsModes: ["minimal", "normal"],
-    supportsMultiInstance: false,
+    supportsMultiInstance: true,
+    configFields: [
+      { key: "window", type: "select", label: "Looking back", default: "week",
+        options: [{ value: "week", label: "7 days" }, { value: "month", label: "30 days" }, { value: "quarter", label: "90 days" }] },
+      { key: "top", type: "number", label: "How many to show", min: 1, max: 10, default: 5 },
+      { key: "showPairs", type: "toggle", label: "Show top {{cofronting}} pairs", default: true },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   current_focus: {

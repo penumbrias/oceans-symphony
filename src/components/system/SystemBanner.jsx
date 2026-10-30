@@ -1,12 +1,14 @@
 import React from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
+import { framedImageStyle } from "@/lib/imageFraming";
 // Full-bleed system banner that sits at the top of the scrollable content
 // area, BEHIND the page's own elements (edge to edge, no extra padding).
 // It scrolls away with the content like a profile banner. Height and the
 // image's vertical position are user-configurable (Settings → System
 // Profile); which pages it shows on is decided by the caller (AppLayout).
-export default function SystemBanner({ url, height = 140, position = 50 }) {
+// `framing` ({ x, y, zoom }, imageFraming.js) wins over the older `position`.
+export default function SystemBanner({ url, height = 140, position = 50, framing = null }) {
   const resolved = useResolvedAvatarUrl(url);
   if (!resolved) return null;
   return (
@@ -24,7 +26,7 @@ export default function SystemBanner({ url, height = 140, position = 50 }) {
         alt=""
         draggable={false}
         className="w-full h-full object-cover"
-        style={{ objectPosition: `50% ${position}%` }}
+        style={framedImageStyle(framing, { fallbackPosition: `50% ${position}%` })}
       />
       {/* Top readability wash — a translucent layer of the page background
           so page titles/headers sitting over the banner stay legible.

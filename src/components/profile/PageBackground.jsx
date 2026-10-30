@@ -9,7 +9,8 @@
 import React, { useState, useEffect } from "react";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 
-export default function PageBackground({ bgColor, bgImage, bgOpacity }) {
+import { framedBackgroundStyle } from "@/lib/imageFraming";
+export default function PageBackground({ bgColor, bgImage, bgOpacity, bgFraming = null }) {
   const [resolvedBg, setResolvedBg] = useState(null);
   useEffect(() => {
     if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
@@ -22,7 +23,7 @@ export default function PageBackground({ bgColor, bgImage, bgOpacity }) {
       {hasImage ? (
         <>
           {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />}
-          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, ...framedBackgroundStyle(bgFraming), opacity: bgOpacity }} />
         </>
       ) : (
         bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />

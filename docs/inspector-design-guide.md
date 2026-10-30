@@ -149,3 +149,4 @@ primary button.
 - [ ] `useEdgeSafeSliders` on the sheet.
 - [ ] Nothing stored is renamed or dropped; the same write path as before.
 - [ ] Feature tour step updated; changelog entry; verified at 390 px.
+- [ ] Reviewed with `docs/ui-review-guide.md` (`npm run check:ui` + the read-through) before merge.

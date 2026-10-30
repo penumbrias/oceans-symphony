@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
-import { markPollVotedToday } from "@/lib/dailyTaskSystem";
+import { castPollVote } from "@/lib/pollVote";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
@@ -522,38 +522,10 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
 
     setSaving(true);
     try {
-      const key = optionIdx.toString();
-      const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
-      if (!newVotes[key]) newVotes[key] = [];
-
-      if (poll.tally_mode) {
-        // Anonymous tally: each tap is +1 on this option, full stop. No
-        // toggle-off, no removal-from-other-options. The empty string is
-        // our anonymous voter id (already used for system-wide votes
-        // elsewhere, so the array length still reads as the count).
-        newVotes[key].push("");
-      } else {
-        // Per-alter mode. The picker now supports multi-select, so the
-        // existing toggle-on/move-from-other-options logic runs once per
-        // selected voter. An empty selection collapses to a single
-        // system-wide vote so the user always casts SOMETHING.
-        const voters = selectedVoters.length > 0 ? selectedVoters : [""];
-        for (const voterId of voters) {
-          if (newVotes[key].includes(voterId)) {
-            // This voter already voted on this option → toggle them off.
-            newVotes[key] = newVotes[key].filter((id) => id !== voterId);
-          } else {
-            // Move this voter from any other option to here.
-            Object.keys(newVotes).forEach((k) => {
-              newVotes[k] = newVotes[k].filter((id) => id !== voterId);
-            });
-            newVotes[key].push(voterId);
-          }
-        }
-      }
-
-      await base44.entities.Poll.update(poll.id, { votes: newVotes });
-      markPollVotedToday();
+      // One vote path for the page and the widgets (src/lib/pollVote.js):
+      // tally polls add one anonymous mark; per-alter polls toggle each
+      // selected voter, an empty selection being one system-wide vote.
+      await castPollVote(poll, optionIdx, selectedVoters);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
     } catch (e) {
       toast.error("Failed to vote");

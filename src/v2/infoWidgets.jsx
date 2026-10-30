@@ -278,7 +278,7 @@ export function InfoPages({ rows, renderPage, label = "Pages" }) {
             <button key={r.entry.id} type="button" role="tab" ref={(el) => { tabRefs.current[i] = el; }}
               id={`${uid}-tab-${i}`} aria-selected={on} aria-controls={`${uid}-panel-${i}`} tabIndex={on ? 0 : -1}
               onClick={() => go(i)}
-              className="flex-shrink-0 min-h-[2.75em] px-[0.75em] text-[0.8125em] font-medium whitespace-nowrap border-b-2 transition-opacity"
+              className="flex-shrink-0 min-h-[44px] px-[0.75em] text-[0.8125em] font-medium whitespace-nowrap border-b-2 transition-opacity"
               style={{ borderColor: on ? "var(--v2-accent)" : "transparent", opacity: on ? 1 : 0.65 }}>
               {r.entry.label}
             </button>

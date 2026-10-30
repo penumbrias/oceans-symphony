@@ -25,6 +25,8 @@ import {
   getSafetyLevels,
 } from "@/lib/contacts";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 
 // Create / edit an external Contact. Mirrors the AlterEditModal patterns
 // (avatar upload → local image store, ColorPickerModal, Dialog shell) but for
@@ -34,6 +36,7 @@ const BLANK = {
   name: "",
   nickname: "",
   avatar_url: "",
+  image_framing: {},
   color: "",
   safety: DEFAULT_SAFETY_KEY,
   relationship_label: "",
@@ -82,6 +85,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         name: contact.name || "",
         nickname: contact.nickname || "",
         avatar_url: contact.avatar_url || "",
+        image_framing: contact.image_framing && typeof contact.image_framing === "object" ? contact.image_framing : {},
         color: contact.color || "",
         safety: contact.safety || DEFAULT_SAFETY_KEY,
         relationship_label: contact.relationship_label || "",
@@ -189,6 +193,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         name,
         nickname: form.nickname.trim() || null,
         avatar_url: form.avatar_url || null,
+        image_framing: form.image_framing || {},
         color: form.color || null,
         safety: form.safety || DEFAULT_SAFETY_KEY,
         relationship_label: form.relationship_label.trim() || null,
@@ -244,7 +249,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
               className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center text-xl text-white flex-shrink-0 border border-border"
               style={{ backgroundColor: form.color || "#8b5cf6" }}
             >
-              {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : initial}
+              {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" style={pictureStyle(form, form.avatar_url)} /> : initial}
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex gap-1.5">
@@ -266,6 +271,8 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
               )}
             </div>
           </div>
+          <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Framing"
+            onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
           <div className="grid grid-cols-2 gap-2">
             <div>

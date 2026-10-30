@@ -524,6 +524,7 @@ useEffect(() => {
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
+const bannerFraming = settings0?.system_banner_framing || null;
 const bannerScope = settings0?.system_banner_scope || "home";
 // Individual alter + group/subsystem profiles have their OWN background
 // image (Settings on each profile), so the system-wide banner is always
@@ -1090,7 +1091,7 @@ const handleNotifClick = (mentionLog) => {
             the padding), so no content wrapper is needed. */}
         <main ref={mainScrollRef} id="main-content" tabIndex={-1} role="main" className="app-content-main focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
-            <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
+            <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
           )}
           {/* The page's own background (Display options → this page),
               fixed -z-10 inside main's isolate context like the board's. */}

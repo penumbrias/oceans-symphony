@@ -61,8 +61,8 @@ function WhoseRow({ settings, set, info }) {
   const t = useTerms();
   const subject = useBoardSubject();
   const onProfileBoard = subject?.type === "alter" || subject?.type === "group";
-  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: info.source === "alter" });
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: info.source === "group" });
   const options = [
     ...(onProfileBoard ? [{ value: "profile", label: subject.type === "group" ? "This group" : `This ${t.alter}` }] : []),
     { value: "alter", label: onProfileBoard ? `Another ${t.alter}` : `An ${t.alter}` },
@@ -110,13 +110,13 @@ function AddPageRow({ info, ids, onAdded }) {
       <div className="flex flex-wrap gap-1.5">
         {ready.map((name) => (
           <button key={name} type="button" onClick={() => add(name)}
-            className="text-xs px-3 min-h-[36px] rounded-full border border-border/50 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+            className="text-xs px-3 min-h-[44px] rounded-full border border-border/50 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             <Plus className="w-3 h-3" /> {name}
           </button>
         ))}
         {naming === null && (
           <button type="button" onClick={() => setNaming("")}
-            className="text-xs px-3 min-h-[36px] rounded-full border border-dashed border-border/70 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+            className="text-xs px-3 min-h-[44px] rounded-full border border-dashed border-border/70 text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             <Plus className="w-3 h-3" /> Blank page…
           </button>
         )}
@@ -179,7 +179,7 @@ export function InfoEntriesField({ settings, set }) {
           <p className="text-[0.6875rem] text-muted-foreground pt-1">
             Saved in {whoseName}'s info, so it's kept even if this widget is removed.
           </p>
-          {pages && <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-3">Pages, in tab order</p>}
+          {pages && <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-3">Pages, in tab order</h3>}
           {shown.map((entry, i) => (
             <div key={entry.id} className="py-2 border-b border-border/30">
               <div className="flex items-center gap-1 min-h-[28px]">

@@ -30,6 +30,8 @@ import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from 
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming, pictureStyle } from "@/lib/imageFraming";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
@@ -124,6 +126,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
     is_pinned: false,
     custom_fields: {},
     preferences: [],
+    image_framing: {},
   });
   const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   // "Advanced — preferences & boundaries" drawer under Pronouns
@@ -201,6 +204,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
       preferences: parsePreferences(alter),
+      image_framing: alter.image_framing && typeof alter.image_framing === "object" ? alter.image_framing : {},
     };
     baselineRef.current = loaded;
     formHistory.reset(loaded);
@@ -465,7 +469,7 @@ useEffect(() => {
           <label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground font-medium">Avatar</label>
           <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
             {avatarPreview
-              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" style={pictureStyle(form, form.avatar_url)} />
               : <User className="w-7 h-7 text-muted-foreground" />}
           </div>
           <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
@@ -480,6 +484,9 @@ useEffect(() => {
       {showAvatarUrl && (
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
+      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="circle" label="Framing"
+        hint="Saved with the picture, so it shows this way everywhere"
+        onChange={(f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))} />
 
       <RotationModeControl
         mode={form.avatar_rotation_mode}

@@ -51,6 +51,8 @@ import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import { withImageFraming } from "@/lib/imageFraming";
 
 // Same keys the alter profile uses, so contrast helpers + rendering treat
 // group and alter text colours identically.
@@ -139,6 +141,7 @@ function GroupProfileInner() {
       emoji: group.emoji || "",
       description: group.description || "",
       avatar_url: group.avatar_url || "",
+      image_framing: group.image_framing && typeof group.image_framing === "object" ? group.image_framing : {},
       owner_alter_id: group.owner_alter_id || "",
       parent: group.parent || "",
       ...pickGroupConfig(group),
@@ -186,6 +189,7 @@ function GroupProfileInner() {
         emoji: form.emoji,
         description: form.description,
         avatar_url: form.avatar_url,
+        image_framing: form.image_framing || {},
         owner_alter_id: form.owner_alter_id || "",
         parent: form.parent || "",
         ...pickGroupConfig(form),
@@ -242,7 +246,7 @@ function GroupProfileInner() {
   if (!editMode) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} bgFraming={ps.bgFraming} />
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         {/* The song belongs to VIEWING the page. */}
@@ -307,7 +311,7 @@ function GroupProfileInner() {
   const formThemeCss = profileThemeCss("os-pf", form.custom_fields || {});
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
+      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} bgFraming={formPs.bgFraming} />
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
       {/* This page's song, set in its style editor like any other profile. */}
@@ -336,7 +340,7 @@ function GroupProfileInner() {
       <div className="flex justify-center items-center gap-3">
         <button type="button" onClick={() => avatarInputRef.current?.click()}
           className="relative rounded-2xl overflow-hidden group" disabled={uploadingAvatar}>
-          <GroupAvatar url={form.avatar_url} color={form.color} emoji={form.emoji} />
+          <GroupAvatar url={form.avatar_url} color={form.color} emoji={form.emoji} framing={form.image_framing?.[form.avatar_url]} />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             {uploadingAvatar ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Upload className="w-5 h-5 text-white" />}
           </div>
@@ -351,6 +355,9 @@ function GroupProfileInner() {
           </button>
         </div>
       )}
+      <PictureFramingRow url={form.avatar_url} value={form.image_framing?.[form.avatar_url]} shape="rounded" label="Framing"
+        hint="Saved with the picture, so it shows this way everywhere"
+        onChange={(f) => setForm((cur) => ({ ...cur, image_framing: withImageFraming(cur.image_framing, cur.avatar_url, f) }))} />
 
       {/* Name + emoji + color */}
       <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">

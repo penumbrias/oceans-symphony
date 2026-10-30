@@ -30,6 +30,7 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { framedImageStyle, framingFor, framedBackgroundStyle } from "@/lib/imageFraming";
 
 
 export function getContrastColor(hex) {
@@ -42,14 +43,14 @@ export function getContrastColor(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export function GroupAvatar({ url, color, emoji, size = "w-24 h-24", iconSize = "w-10 h-10" }) {
+export function GroupAvatar({ url, color, emoji, size = "w-24 h-24", iconSize = "w-10 h-10", framing = null }) {
   const resolved = useResolvedAvatarUrl(url);
   const textColor = isValidHexColor(color) ? getContrastColor(color) : "hsl(var(--muted-foreground))";
   return (
     <div className={`${size} rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center`}
       style={{ backgroundColor: isValidHexColor(color) ? color : "hsl(var(--muted))" }}>
       {resolved
-        ? <img src={resolved} alt="" className="w-full h-full object-cover" />
+        ? <img src={resolved} alt="" className="w-full h-full object-cover" style={framedImageStyle(framing)} />
         : emoji
           ? <span className="text-3xl">{emoji}</span>
           : <Folder className={iconSize} style={{ color: textColor }} />}
@@ -106,10 +107,10 @@ export function GroupHeaderSection({ group }) {
   return (
     <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(cf), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
       {hasHeader && (
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, ...framedBackgroundStyle(cf[PS.HEADER_IMAGE_FRAMING]), opacity: headerOpacity }} />
       )}
       <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
-        <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
+        <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} framing={framingFor(group, group.avatar_url)} />
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="font-display text-2xl font-semibold flex items-center gap-2" style={{ color: nameColor }}>
             {group.emoji ? <span>{group.emoji}</span> : null}{group.name}
