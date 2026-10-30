@@ -32,7 +32,7 @@ import { Square,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
-  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music
+  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music, X
 , Map, MapPin,
   HeartHandshake, Target, Image as ImageIcon,
 } from "lucide-react";
@@ -95,6 +95,8 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // modal — a static import dragged the whole page into the entry chunk.
 const CreatePollModal = React.lazy(() => import("@/pages/Polls").then((m) => ({ default: m.CreatePollModal })));
 import { toast } from "sonner";
+import { formatDistanceToNowStrict } from "date-fns";
+import { redactWhispers } from "@/lib/whisperRedact";
 import { useQueryClient } from "@tanstack/react-query";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
@@ -124,6 +126,12 @@ import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
+import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
+import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";
+import { DEFAULT_SNOOZE_OPTIONS, formatSnoozeLabel } from "@/components/reminders/snoozeHelpers";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollVote";
+import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -1242,11 +1250,15 @@ function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter, holdProps })
   );
 }
 
-function JournalWidget({ settings }) {
+// Journal (v0.322.0): recent entries; "New" writes here in the editor
+// (the Journals page's own modal) instead of leaving the page; expanded
+// shows each entry's first lines.
+function JournalWidget({ settings, api }) {
   const tr = useT();
   const navigate = useNavigate();
+  const mode = useWidgetMode();
   const entries = useList("journalEntries", "JournalEntry");
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
+  const limit = rowsForMode(mode, parseInt(settings?.limit, 10) || 4);
   // On a profile board: that alter's (or the group's members') entries.
   const scopeIds = useScopeAlterIds(settings);
   const scope = useWidgetScope(settings);
@@ -1255,20 +1267,38 @@ function JournalWidget({ settings }) {
     ? entries.filter((e) => (withCo ? journalAuthorIds(e) : [e.author_alter_id]).some((id) => scopeIds.includes(id)))
     : entries;
   const list = sortJournalsNewestFirst(scoped).slice(0, limit);
-  // On an alter's profile a new entry starts signed by them.
-  const newPath = scope?.type === "alter" ? `/journals?compose=1&author=${encodeURIComponent(scope.id)}` : "/journals?compose=1";
+  const [composing, setComposing] = React.useState(false);
+  const excerpt = (e) => {
+    if (e.is_encrypted) return tr("widget.journal.locked");
+    const text = htmlToPlainText(redactWhispers(e.content || "")).replace(/\s+/g, " ").trim();
+    return text.length > 140 ? `${text.slice(0, 140)}…` : text;
+  };
   return (
     <Section label={tr("widget.journal.label")}
       action={<span className="flex items-center gap-3">
         <TextAction onClick={() => navigate("/journals?import=1")}>{tr("widget.journal.import")}</TextAction>
-        <TextAction onClick={() => navigate(newPath)}>{tr("widget.journal.new")}</TextAction>
+        <TextAction onClick={() => setComposing(true)}>{tr("widget.journal.new")}</TextAction>
       </span>}>
       {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
       {list.map((e) => (
-        <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
-          right={fmtTime(journalEntryDate(e))}
-          onClick={() => navigate(`/journals?id=${e.id}`)} />
+        <div key={e.id}>
+          <Row primary={e.title || tr("widget.journal.untitled")}
+            right={fmtTime(journalEntryDate(e))}
+            onClick={() => navigate(`/journals?id=${e.id}`)} />
+          {mode === "expanded" && (
+            <p className="text-xs text-muted-foreground line-clamp-2 pb-1">{excerpt(e)}</p>
+          )}
+        </div>
       ))}
+      {composing && (
+        <JournalEditorModal
+          isOpen
+          onClose={() => setComposing(false)}
+          alters={api?.alters || []}
+          // On an alter's profile a new entry starts signed by them.
+          currentAlterId={scope?.type === "alter" ? scope.id : undefined}
+        />
+      )}
     </Section>
   );
 }
@@ -1297,23 +1327,83 @@ function TasksWidget({ settings }) {
   );
 }
 
-function SleepWidget() {
+// Sleep (v0.322.0): last night or the night in progress, with the Sleep
+// page's own start / wake button on the same card. Expanded adds the last
+// seven nights as bars. `show: "controls"` keeps the button-only card.
+function SleepWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const mode = useWidgetMode();
   const sleeps = useList("sleep", "Sleep");
-  const last = [...sleeps].filter((s) => s.wake_time)
-    .sort((a, b) => new Date(b.wake_time) - new Date(a.wake_time))[0];
+  const [busy, setBusy] = React.useState(false);
+  const [ending, setEnding] = React.useState(null);
+  const finished = [...sleeps].filter((s) => s.bedtime && s.wake_time)
+    .sort((a, b) => new Date(b.wake_time) - new Date(a.wake_time));
+  const last = finished[0];
   const active = sleeps.find((s) => s.bedtime && !s.wake_time);
-  const hours = last ? ((new Date(last.wake_time) - new Date(last.bedtime)) / 3600000) : 0;
+  const hoursOf = (s) => (new Date(s.wake_time) - new Date(s.bedtime)) / 3600000;
+  const controlsOnly = settings?.show === "controls";
+  const act = async () => {
+    if (busy) return;
+    // Waking up opens the full entry, exactly like the Sleep page.
+    if (active) { setEnding(active); return; }
+    setBusy(true);
+    try {
+      await startSleep();
+      qc.invalidateQueries({ queryKey: ["sleep"] });
+    } catch (e) { toast.error(e?.message || "Couldn't start sleep."); }
+    finally { setBusy(false); }
+  };
+  const button = (
+    <button type="button" onClick={act} disabled={busy}
+      className="w-full h-9 text-sm font-medium border text-center disabled:opacity-50 flex-shrink-0"
+      style={{
+        borderRadius: "var(--v2-radius, 8px)",
+        borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
+        color: "var(--v2-accent)",
+      }}>
+      {active ? tr("widget.sleepCtl.wake") : tr("widget.sleepCtl.start")}
+    </button>
+  );
+  const nights = mode === "expanded" ? finished.slice(0, 7).reverse() : [];
+  const maxH = Math.max(8, ...nights.map(hoursOf));
   return (
     <Section label={tr("widget.sleep.label")}
-      action={<TextAction onClick={() => navigate("/sleep")}>{tr("widget.status.log")}</TextAction>}>
-      {active && <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.sleep.inProgress")} right={fmtTime(active.bedtime)} onClick={() => navigate("/sleep")} />}
-      {!active && last && (
-        <Row primary={tr("widget.sleep.lastNight", { hours: hours.toFixed(1) })}
+      action={<TextAction onClick={() => navigate("/sleep")}>{tr("widget.today.open")}</TextAction>}>
+      {active && <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.sleep.inProgress")} right={`${fmtTime(active.bedtime)} · ${fmtElapsed(active.bedtime)}`} onClick={() => navigate("/sleep")} />}
+      {!active && !controlsOnly && last && (
+        <Row primary={tr("widget.sleep.lastNight", { hours: hoursOf(last).toFixed(1) })}
           right={fmtTime(last.wake_time)} onClick={() => navigate("/sleep")} />
       )}
-      {!active && !last && <Muted>{tr("widget.sleep.empty")}</Muted>}
+      {!active && !controlsOnly && !last && <Muted>{tr("widget.sleep.empty")}</Muted>}
+      {!active && controlsOnly && <Muted>{tr("widget.sleepCtl.awake")}</Muted>}
+      {mode !== "minimal" && button}
+      {nights.length > 1 && (
+        <div className="flex items-end gap-1 h-12 pt-1" aria-label={tr("widget.sleep.week")}>
+          {nights.map((s) => {
+            const h = hoursOf(s);
+            return (
+              <div key={s.id} className="flex-1 flex flex-col items-center justify-end gap-0.5 min-w-0" title={`${h.toFixed(1)}h`}>
+                <div className="w-full rounded-t-sm" style={{ height: `${Math.max(6, (h / maxH) * 36)}px`, background: "var(--v2-accent)", opacity: 0.8 }} />
+                <span className="text-[0.5625em] text-muted-foreground">{new Date(s.wake_time).toLocaleDateString([], { weekday: "narrow" })}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <SleepEndModal
+        isOpen={!!ending}
+        sleep={ending}
+        onClose={() => setEnding(null)}
+        onSave={() => {
+          setEnding(null);
+          qc.invalidateQueries({ queryKey: ["sleep"] });
+          qc.invalidateQueries({ queryKey: ["activities"] });
+          qc.invalidateQueries({ queryKey: ["journalEntries"] });
+          toast.success("✅ Sleep logged!");
+        }}
+      />
     </Section>
   );
 }
@@ -1349,26 +1439,122 @@ function BulletinsWidget({ settings }) {
   );
 }
 
+// Reminders: what's waiting, answered right here (v0.322.0). Each row has
+// the inbox's own answers — Done, Snooze (the reminder's snooze options),
+// Dismiss — through src/lib/reminderInstanceActions.js, so the widget
+// and the Reminders page mean the same thing by them. Expanded shows the
+// inbox's full cards. Snoozed ones can come back with Unsnooze.
 function RemindersWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const mode = useWidgetMode();
   const instances = useList("reminderInstances", "ReminderInstance");
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
+  const reminders = useList("reminders", "Reminder");
+  const alters = useList("alters", "Alter");
+  // (`Map` is the lucide icon in this file, so a plain object index.)
+  const byReminder = React.useMemo(() => Object.fromEntries(reminders.map((r) => [r.id, r])), [reminders]);
+  const limit = rowsForMode(mode, parseInt(settings?.limit, 10) || 6);
+  const showSnoozed = settings?.showSnoozed !== false;
   const now = Date.now();
-  const next = instances
-    .filter((i) => i.status !== "acted" && i.status !== "dismissed" && i.scheduled_for)
-    .filter((i) => new Date(i.scheduled_for).getTime() > now - 12 * 3600000)
-    .sort((a, b) => new Date(a.scheduled_for) - new Date(b.scheduled_for))
+  const open = instances
+    .filter((i) => isOpenReminderInstance(i) && i.scheduled_for)
+    .filter((i) => showSnoozed || i.status !== "snoozed")
+    // Upcoming ones only within the next day, so the list is what's near.
+    .filter((i) => i.status !== "pending" || new Date(i.scheduled_for).getTime() < now + 24 * 3600000)
+    .sort((a, b) => new Date(a.snoozed_until || a.fired_at || a.scheduled_for) - new Date(b.snoozed_until || b.fired_at || b.scheduled_for))
     .slice(0, limit);
+  const refresh = () => qc.invalidateQueries({ queryKey: REMINDER_INSTANCES_QUERY_KEY });
+  const run = async (fn, msg) => {
+    try { await fn(); refresh(); if (msg) toast.success(msg); }
+    catch (e) { toast.error(e?.message || tr("widget.reminders.failed")); }
+  };
+  const titleOf = (i) => byReminder[i.reminder_id]?.title || i.title || tr("widget.reminders.item");
+  const when = (i) => {
+    if (i.status === "snoozed" && i.snoozed_until) return tr("widget.reminders.snoozedUntil", { time: fmtTime(i.snoozed_until) });
+    const t = new Date(i.fired_at || i.scheduled_for).getTime();
+    return t < now ? tr("widget.reminders.ago", { time: formatDistanceToNowStrict(new Date(t)) }) : fmtTime(i.scheduled_for);
+  };
+
+  if (mode === "minimal") {
+    return (
+      <Section label={tr("widget.reminders.label")}
+        action={<TextAction onClick={() => navigate("/reminders")}>{open.length ? String(open.length) : tr("widget.today.open")}</TextAction>}>
+        {open.length === 0 && <Muted>{tr("widget.reminders.empty")}</Muted>}
+        {open.map((i) => (
+          <Row key={i.id} primary={titleOf(i)} right={when(i)}
+            onClick={() => run(() => (i.status === "snoozed" ? unsnoozeReminder(i) : markReminderDone(i)), i.status === "snoozed" ? null : tr("widget.reminders.done"))} />
+        ))}
+      </Section>
+    );
+  }
+
+  if (mode === "expanded") {
+    return (
+      <Section label={tr("widget.reminders.label")}
+        action={<TextAction onClick={() => navigate("/reminders")}>{tr("widget.today.open")}</TextAction>}>
+        {open.length === 0 && <Muted>{tr("widget.reminders.empty")}</Muted>}
+        {open.map((i) => {
+          const r = byReminder[i.reminder_id];
+          if (!r) return <Row key={i.id} primary={titleOf(i)} right={when(i)} onClick={() => navigate("/reminders")} />;
+          return (
+            <ReminderInstanceCard key={i.id} instance={i} reminder={r}
+              alter={alters.find((a) => a.id === (i.alter_id || r.alter_id)) || null}
+              // Inline actions open their screen on the Reminders page.
+              onAction={() => navigate("/reminders")}
+              onDone={() => run(() => markReminderDone(i), tr("widget.reminders.done"))}
+              onSnooze={(opt) => run(() => snoozeReminder(i, opt), tr("widget.reminders.snoozed", { label: formatSnoozeLabel(opt) }))}
+              onDismiss={() => run(() => dismissReminder(i))}
+              onUnsnooze={() => run(() => unsnoozeReminder(i))} />
+          );
+        })}
+      </Section>
+    );
+  }
+
+  const iconBtn = "p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 flex-shrink-0";
   return (
     <Section label={tr("widget.reminders.label")}
       action={<TextAction onClick={() => navigate("/reminders")}>{tr("widget.today.open")}</TextAction>}>
-      {next.length === 0 && <Muted>{tr("widget.reminders.empty")}</Muted>}
-      {next.map((i) => (
-        <Row key={i.id} left={<Bell className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
-          primary={i.title || tr("widget.reminders.item")} right={fmtTime(i.scheduled_for)}
-          onClick={() => navigate("/reminders")} />
-      ))}
+      {open.length === 0 && <Muted>{tr("widget.reminders.empty")}</Muted>}
+      {open.map((i) => {
+        const r = byReminder[i.reminder_id];
+        const snoozeOptions = r?.snooze_options?.length ? r.snooze_options : DEFAULT_SNOOZE_OPTIONS;
+        const snoozed = i.status === "snoozed";
+        return (
+          <div key={i.id} className="flex items-center gap-1 min-h-[32px]">
+            <button type="button" onClick={() => navigate(`/reminders?highlight=${i.id}`)}
+              className="flex-1 min-w-0 flex items-center gap-2 text-left">
+              <Bell className="w-3.5 h-3.5 flex-shrink-0" style={{ color: snoozed ? undefined : "var(--v2-accent)" }} />
+              <span className="text-sm truncate min-w-0">{titleOf(i)}</span>
+              <span className="ml-auto text-xs text-muted-foreground flex-shrink-0 tabular-nums">{when(i)}</span>
+            </button>
+            {snoozed ? (
+              <button type="button" className={iconBtn} aria-label={tr("widget.reminders.unsnooze")} title={tr("widget.reminders.unsnooze")}
+                onClick={() => run(() => unsnoozeReminder(i))}><Bell className="w-3.5 h-3.5" /></button>
+            ) : (
+              <>
+                <button type="button" className={iconBtn} aria-label={tr("widget.reminders.markDone")} title={tr("widget.reminders.markDone")}
+                  onClick={() => run(() => markReminderDone(i), tr("widget.reminders.done"))}><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className={iconBtn} aria-label={tr("widget.reminders.snooze")} title={tr("widget.reminders.snooze")}><Timer className="w-3.5 h-3.5" /></button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {snoozeOptions.map((opt, idx) => (
+                      <DropdownMenuItem key={idx} onClick={() => run(() => snoozeReminder(i, opt), tr("widget.reminders.snoozed", { label: formatSnoozeLabel(opt) }))}>
+                        {formatSnoozeLabel(opt)}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+            <button type="button" className={iconBtn} aria-label={tr("widget.reminders.dismiss")} title={tr("widget.reminders.dismiss")}
+              onClick={() => run(() => dismissReminder(i))}><X className="w-3.5 h-3.5" /></button>
+          </div>
+        );
+      })}
     </Section>
   );
 }
@@ -1787,69 +1973,6 @@ function BulletinBoardWidget({ api, settings, updateSettings }) {
 }
 
 
-// ── Sleep controls ─────────────────────────────────────────────────
-// Start sleeping / wake up, right on the page — running the SAME flow the
-// Sleep page runs, not a shortcut version of it.
-//
-// Ending used to just stamp wake_time straight onto the record. That
-// skipped everything the Sleep page's End modal does: quality, notes,
-// interruptions, whether you dreamed, saving a dream to the journal, and
-// the linked Sleep activity that mirrors the record into the tracker. So a
-// night ended from the widget was a bare pair of timestamps, and the
-// details were gone with no way to add them.
-function SleepControlWidget() {
-  const tr = useT();
-  const qc = useQueryClient();
-  const sleeps = useList("sleep", "Sleep");
-  const [busy, setBusy] = React.useState(false);
-  const [ending, setEnding] = React.useState(null);
-  const active = sleeps.find((x) => x.bedtime && !x.wake_time);
-
-  const act = async () => {
-    if (busy) return;
-    // Waking up opens the full entry, exactly like the Sleep page.
-    if (active) { setEnding(active); return; }
-    setBusy(true);
-    try {
-      await startSleep();
-      qc.invalidateQueries({ queryKey: ["sleep"] });
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <Section label={tr("widget.sleep.label")}>
-      {active
-        ? <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.sleepCtl.sleeping")} right={fmtElapsed(active.bedtime)} />
-        : <Muted>{tr("widget.sleepCtl.awake")}</Muted>}
-      <button type="button" onClick={act} disabled={busy}
-        className="w-full h-9 text-sm font-medium border text-center disabled:opacity-50"
-        style={{
-          borderRadius: "var(--v2-radius, 8px)",
-          borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
-          color: "var(--v2-accent)",
-        }}>
-        {active ? tr("widget.sleepCtl.wake") : tr("widget.sleepCtl.start")}
-      </button>
-      {/* Same modal the Sleep page uses — it owns the writes (dream journal
-          entry, linked activity), so there's one place that knows how a
-          night is finished. It portals to the body, so the v2 board's
-          transform can't strand it. */}
-      <SleepEndModal
-        isOpen={!!ending}
-        sleep={ending}
-        onClose={() => setEnding(null)}
-        onSave={() => {
-          setEnding(null);
-          qc.invalidateQueries({ queryKey: ["sleep"] });
-          qc.invalidateQueries({ queryKey: ["activities"] });
-          qc.invalidateQueries({ queryKey: ["journalEntries"] });
-          toast.success("✅ Sleep logged!");
-        }}
-      />
-    </Section>
-  );
-}
-
 // ── Breathing ──────────────────────────────────────────────────────
 // The guided breathing display itself, scaled to whatever size the widget
 // is. autoRun loops it whenever it's on screen; otherwise the circle is a
@@ -1972,27 +2095,60 @@ function PlansWidget({ settings }) {
 }
 
 // ── Recent activities ──────────────────────────────────────────────
+// Recent activities (v0.322.0): the last things logged, each with "Log
+// again" — a new entry of the same activity ending now, through the
+// planner's own createActivityEntry (never an update of the old row).
 function RecentActivitiesWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const mode = useWidgetMode();
   const activities = useList("activities", "Activity");
-  // 0 / empty = everyone. The widget scrolls, so a cap is a choice — not
-  // something the widget quietly imposes (it used to stop at six).
+  const [busyId, setBusyId] = React.useState(null);
   const capRaw = parseInt(settings?.limit, 10);
   const limit = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
   const done = activities
     .filter((a) => ["logged", "done", "partial"].includes(a.status) && a.timestamp)
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, limit);
+  const again = async (a) => {
+    if (busyId) return;
+    setBusyId(a.id);
+    try {
+      const minutes = a.actual_duration_minutes || a.duration_minutes || null;
+      const start = minutes ? new Date(Date.now() - minutes * 60000) : new Date();
+      const res = await createActivityEntry({
+        mode: ENTRY_MODES.DONE, name: a.activity_name,
+        categoryIds: a.activity_category_ids || (a.category_id ? [a.category_id] : []),
+        minutes, start, tagColor: a.tag_color || "", contactIds: a.contact_ids || [],
+      });
+      if (res) {
+        qc.invalidateQueries({ queryKey: ["activities"] });
+        toast.success(tr("widget.recentActs.loggedAgain", { name: a.activity_name }));
+      }
+    } catch (e) { toast.error(e?.message || tr("widget.recentActs.failed")); }
+    finally { setBusyId(null); }
+  };
   return (
     <Section label={tr("widget.recentActs.label")}
       action={<TextAction onClick={() => navigate("/planner")}>{tr("widget.today.open")}</TextAction>}>
       {done.length === 0 && <Muted>{tr("widget.recentActs.empty")}</Muted>}
       {done.map((a) => (
-        <Row key={a.id} primary={a.activity_name}
-          secondary={a.duration_minutes ? `${a.actual_duration_minutes || a.duration_minutes}m` : undefined}
-          right={fmtTime(a.timestamp)}
-          onClick={() => navigate(`/planner?activityId=${a.id}`)} />
+        <div key={a.id} className="flex items-center gap-1">
+          <div className="flex-1 min-w-0">
+            <Row primary={a.activity_name}
+              secondary={a.duration_minutes ? `${a.actual_duration_minutes || a.duration_minutes}m` : undefined}
+              right={fmtTime(a.timestamp)}
+              onClick={() => navigate(`/planner?activityId=${a.id}`)} />
+          </div>
+          {mode !== "minimal" && (
+            <button type="button" onClick={() => again(a)} disabled={!!busyId}
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 flex-shrink-0 disabled:opacity-50"
+              aria-label={tr("widget.recentActs.again")} title={tr("widget.recentActs.again")}>
+              <History className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       ))}
     </Section>
   );
@@ -2095,26 +2251,80 @@ function QuickLinksWidget({ settings, mode, api }) {
 }
 
 // ── Polls ──────────────────────────────────────────────────────────
+// One poll's options as bars you can TAP to vote (v0.322.0): the vote
+// goes through castPollVote, the Polls page's own path, cast for whoever
+// is in front right now (the page keeps its voter picker). Shared by the
+// Polls list (a tapped poll unfolds into this) and the results widget.
+function PollOptionBars({ poll, compact = false }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const [busy, setBusy] = React.useState(false);
+  const counts = pollCounts(poll);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const vote = async (idx) => {
+    if (busy || poll.is_closed) return;
+    setBusy(true);
+    try {
+      await castPollVote(poll, idx, await currentFrontVoterIds());
+      qc.invalidateQueries({ queryKey: ["polls"] });
+    } catch (e) { toast.error(e?.message || tr("widget.polls.voteFailed")); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className={compact ? "space-y-1" : "space-y-1.5"}>
+      {(poll.options || []).map((opt, i) => {
+        const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+        return (
+          <button key={i} type="button" onClick={() => vote(i)} disabled={busy || !!poll.is_closed}
+            className="block w-full text-left disabled:opacity-60 rounded-md hover:bg-muted/30 px-1 -mx-1"
+            aria-label={tr("widget.polls.voteFor", { option: opt })}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="truncate">{opt}</span>
+              <span className="text-muted-foreground tabular-nums flex-shrink-0 ml-2">{counts[i]} · {pct}%</span>
+            </div>
+            <div className="h-1.5 mt-0.5 rounded-full bg-muted/50 overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--v2-accent)" }} />
+            </div>
+          </button>
+        );
+      })}
+      {poll.is_closed && <Muted>{tr("widget.polls.closed")}</Muted>}
+    </div>
+  );
+}
+
+// Latest polls; tap one and its options unfold so you can vote right
+// here (minimal keeps the plain list and opens the Polls page).
 function PollsWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const mode = useWidgetMode();
   const polls = useList("polls", "Poll");
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
+  const limit = rowsForMode(mode, parseInt(settings?.limit, 10) || 4);
   const list = [...polls]
     .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
     .slice(0, limit);
-  const votes = (p) => Object.values(p.votes || {}).reduce((n, v) => n + (Array.isArray(v) ? v.length : 1), 0);
+  const [openId, setOpenId] = React.useState(null);
+  const votes = (p) => pollCounts(p).reduce((n, c) => n + c, 0);
+  const expandedAll = mode === "expanded";
   return (
     <Section label={tr("widget.polls.label")}
       action={<TextAction onClick={() => navigate("/polls")}>{tr("widget.today.open")}</TextAction>}>
       {list.length === 0 && <Muted>{tr("widget.polls.empty")}</Muted>}
-      {list.map((p) => (
-        <Row key={p.id}
-          left={<Vote className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
-          primary={p.question}
-          right={tr("widget.polls.votes", { count: votes(p) })}
-          onClick={() => navigate("/polls")} />
-      ))}
+      {list.map((p) => {
+        const unfolded = expandedAll || openId === p.id;
+        return (
+          <div key={p.id}>
+            <Row left={<Vote className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+              primary={p.question}
+              right={tr("widget.polls.votes", { count: votes(p) })}
+              onClick={() => (mode === "minimal" ? navigate("/polls") : setOpenId((cur) => (cur === p.id ? null : p.id)))} />
+            {unfolded && mode !== "minimal" && (
+              <div className="pl-5 pb-1"><PollOptionBars poll={p} compact /></div>
+            )}
+          </div>
+        );
+      })}
     </Section>
   );
 }
@@ -2161,15 +2371,9 @@ function ChatChannelWidget({ settings, updateSettings, api }) {
 // ── Poll results ───────────────────────────────────────────────────
 function PollResultsWidget({ settings, updateSettings }) {
   const tr = useT();
-  const navigate = useNavigate();
   const polls = useList("polls", "Poll");
   const sorted = [...polls].sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
   const poll = sorted.find((p) => p.id === settings?.pollId) || sorted[0] || null;
-  const counts = (poll?.options || []).map((_, i) => {
-    const v = poll?.votes?.[String(i)];
-    return Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
-  });
-  const total = counts.reduce((a, b) => a + b, 0);
   return (
     <Section
       label={tr("widget.pollResults.label")}
@@ -2187,23 +2391,11 @@ function PollResultsWidget({ settings, updateSettings }) {
     >
       {!poll && <Muted>{tr("widget.polls.empty")}</Muted>}
       {poll && (
-        <button type="button" onClick={() => navigate("/polls")} className="text-left w-full space-y-1.5">
+        <div className="space-y-1.5">
           <p className="text-sm font-medium">{poll.question}</p>
-          {(poll.options || []).map((opt, i) => {
-            const pct = total ? Math.round((counts[i] / total) * 100) : 0;
-            return (
-              <div key={i}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="truncate">{opt}</span>
-                  <span className="text-muted-foreground tabular-nums flex-shrink-0 ml-2">{counts[i]} · {pct}%</span>
-                </div>
-                <div className="h-1.5 mt-0.5 rounded-full bg-muted/50 overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--v2-accent)" }} />
-                </div>
-              </div>
-            );
-          })}
-        </button>
+          {/* Tap an option to vote — the same path as the Polls page. */}
+          <PollOptionBars poll={poll} />
+        </div>
       )}
     </Section>
   );
@@ -2872,7 +3064,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   checkin_log: {
-    label: "Check-in log", description: "Your check-ins as they came in \u2014 feelings, and symptoms too from normal upwards.",
+    label: "Check-in log", description: "Your check-ins as they came in \u2014 feelings, and symptoms too from normal upwards. Tap a feeling to edit it right here.",
     icon: History, category: "checkin",
     render: ({ mode, settings }) => <CheckInLogWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
@@ -2918,7 +3110,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   learn_modules: {
-    label: "Learn", description: "The learning modules with your progress \u2014 tap one to pick up where you left off.",
+    label: "Learn", description: "The learning modules with your progress \u2014 tap one and the next topic opens right here.",
     icon: GraduationCap, category: "support",
     render: ({ mode, settings }) => <LearnWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
@@ -3089,10 +3281,10 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   journal: {
-    label: "Journal", description: "Your most recent entries, and a button to start a new one. On a profile, that {{alter}}'s entries.",
+    label: "Journal", description: "Your most recent entries; New opens the editor right here. Expanded shows each entry's first lines. On a profile, that {{alter}}'s entries.",
     icon: BookOpen, category: "journals", subjects: ["home", "alter", "group", "location"],
-    render: ({ settings }) => <JournalWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings, api }) => <JournalWidget settings={settings} api={api} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       SCOPE_FIELD,
       { key: "coAuthored", type: "toggle", label: "Include entries they co-wrote", default: true },
@@ -3191,23 +3383,23 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   goals: {
-    label: "Goals", description: "Goals you're working on, with steps done and the next step.",
+    label: "Goals", description: "Goals you're working on, with steps done and the next step as a checkbox you can tick right here. Expanded lists every open step.",
     icon: Target, category: "needs",
     render: sized(({ settings }) => <GoalsWidget settings={settings} />),
-    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 5 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   sleep: {
-    label: "Sleep", description: "Last night's sleep or the one in progress — or one-tap start / wake controls.",
+    label: "Sleep", description: "Last night's sleep or the night in progress, with the start / wake button right there. Expanded adds the last seven nights as bars.",
     icon: Moon, category: "sleep",
-    render: sized(({ settings }) => (settings?.show === "controls" ? <SleepControlWidget /> : <SleepWidget />)),
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <SleepWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "show", type: "select", label: "Show", default: "summary",
         options: [
-          { value: "summary", label: "Last night / in progress" },
-          { value: "controls", label: "Start / wake controls" },
+          { value: "summary", label: "Last night + start / wake" },
+          { value: "controls", label: "Start / wake only" },
         ] },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
@@ -3215,11 +3407,14 @@ export const V2_WIDGETS = {
 
 
   reminders: {
-    label: "Reminders", description: "What's coming up from your reminders.",
+    label: "Reminders", description: "What's waiting from your reminders, answered right here: Done, Snooze or Dismiss on each row. Minimal is the list (tap = done); expanded shows the inbox's full cards.",
     icon: Bell, category: "reminders",
     render: sized(({ settings }) => <RemindersWidget settings={settings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
+      { key: "showSnoozed", type: "toggle", label: "Show snoozed reminders", default: true },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
 
@@ -3406,10 +3601,10 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
   recent_activities: {
-    label: "Recent activities", description: "The most recently logged activities, with durations.",
+    label: "Recent activities", description: "The most recently logged activities, with durations — and a Log again button that logs the same thing now.",
     icon: BarChart2, category: "activities",
     render: sized(({ settings }) => <RecentActivitiesWidget settings={settings} />),
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -3425,13 +3620,13 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   polls: {
-    label: "Polls", description: "The latest polls and their votes — or one poll's results as bars, or a button for a new poll.",
+    label: "Polls", description: "The latest polls — tap one to unfold its options and vote right here (expanded shows them all open) — or one poll's results as bars you can tap, or a button for a new poll.",
     icon: Vote, category: "bulletins",
     render: sized(({ settings, updateSettings, api }) => (
       settings?.show === "results" ? <PollResultsWidget settings={settings} updateSettings={updateSettings} />
         : settings?.show === "new" ? <PollComposerWidget api={api} />
           : <PollsWidget settings={settings} />)),
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "show", type: "select", label: "Show", default: "list",
         options: [

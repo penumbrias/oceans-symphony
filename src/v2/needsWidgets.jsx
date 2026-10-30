@@ -20,7 +20,7 @@ import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel, createWish } from "@/lib/wishes";
 import { usesNewProfile } from "@/lib/profileBoard";
 import {
-  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress,
+  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress, toggleStep,
 } from "@/lib/goals";
 
 const useList = (key, entity) =>
@@ -152,15 +152,21 @@ export function WishesWidget({ settings }) {
   );
 }
 
+// Goals (v0.322.0): each goal's next step with a checkbox that ticks it
+// through the Goals page's own toggleStep (a to-do step ticks its to-do,
+// a plan step resolves the plan). Expanded lists every open step.
 export function GoalsWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const mode = useWidgetMode();
   const goals = useList(GOALS_QUERY_KEY, "Goal");
   const steps = useList(GOAL_STEPS_QUERY_KEY, "GoalStep");
   const tasks = useList("tasks", "Task");
   const activities = useList("activities", "Activity");
   const templates = useList("dailyTaskTemplates", "DailyTaskTemplate");
   const progress = useList("dailyProgress", "DailyProgress");
+  const [busyId, setBusyId] = useState(null);
   const ctx = useMemo(() => ({ tasks, activities, templates, progress, now: new Date() }), [tasks, activities, templates, progress]);
   const rows = useMemo(() => goals
     // Top-level goals only: sections live inside their page.
@@ -170,18 +176,42 @@ export function GoalsWidget({ settings }) {
     .map((g) => {
       const mine = stepsForGoal(steps, g.id).filter((s) => s.kind !== "text" && s.kind !== "link");
       const { done, total } = goalProgress(mine, ctx);
-      const next = mine.find((s) => { const st = stepState(s, ctx); return !st.done && !st.ongoing; });
-      return { goal: g, done, total, next };
+      const open = mine.map((s) => ({ step: s, state: stepState(s, ctx) })).filter((x) => !x.state.done && !x.state.ongoing);
+      return { goal: g, done, total, next: open[0] || null, open };
     }), [goals, steps, ctx, settings]);
+  const tick = async (step, state) => {
+    if (busyId) return;
+    setBusyId(step.id);
+    try {
+      await toggleStep(step, state);
+      qc.invalidateQueries({ queryKey: GOAL_STEPS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    } catch (e) { toast.error(e?.message || tr("widget.goals.failed")); }
+    finally { setBusyId(null); }
+  };
+  const StepCheck = ({ step, state }) => (
+    <button type="button" onClick={() => tick(step, state)} disabled={!!busyId}
+      className="flex items-center gap-2 text-left w-full min-h-[28px] pl-5 disabled:opacity-50 hover:bg-muted/30 rounded-md -mx-1 px-1"
+      aria-label={tr("widget.goals.tick", { step: step.title })}>
+      <span className="w-3.5 h-3.5 rounded-[4px] border flex-shrink-0" style={{ borderColor: "var(--v2-accent)" }} />
+      <span className="text-xs truncate min-w-0">{step.title}</span>
+    </button>
+  );
   return (
     <Section label={tr("widget.goals.label")}
       action={<TextAction onClick={() => navigate("/goals?new=1")}>{tr("widget.goals.new")}</TextAction>}>
       {rows.length === 0 && <Muted>{tr("widget.goals.empty")}</Muted>}
       {rows.map((r) => (
-        <Row key={r.goal.id} left={<Target className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
-          primary={r.goal.title} secondary={r.next?.title}
-          right={r.total > 0 ? `${r.done}/${r.total}` : tr("widget.goals.ongoing")}
-          onClick={() => navigate(`/goals?page=${r.goal.id}`)} />
+        <div key={r.goal.id}>
+          <Row left={<Target className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+            primary={r.goal.title}
+            secondary={mode === "minimal" ? r.next?.step.title : undefined}
+            right={r.total > 0 ? `${r.done}/${r.total}` : tr("widget.goals.ongoing")}
+            onClick={() => navigate(`/goals?page=${r.goal.id}`)} />
+          {mode === "normal" && r.next && <StepCheck step={r.next.step} state={r.next.state} />}
+          {mode === "expanded" && r.open.map((x) => <StepCheck key={x.step.id} step={x.step} state={x.state} />)}
+        </div>
       ))}
     </Section>
   );

@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "Reminders widget: answer each reminder right there — Done, Snooze (your snooze options) or Dismiss. Expanded shows the inbox's full cards." },
+      { type: "feature", text: "Polls widget: tap a poll to unfold its options and vote on the spot; the results widget's bars can be tapped to vote too." },
+      { type: "improve", text: "Sleep widget: the start / wake button sits on the same card as last night, and expanded shows the last seven nights as bars." },
+      { type: "improve", text: "Goals widget: the next step has a checkbox you can tick right there; expanded lists every open step." },
+      { type: "improve", text: "Recent activities widget: a Log again button logs the same activity now." },
+      { type: "improve", text: "Journal widget: New opens the editor on the page, and expanded shows each entry's first lines. Check-in log widget: tap a feeling to edit it there. Learn widget: tap a module and the next topic opens in a sheet." },
       { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
       { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],
