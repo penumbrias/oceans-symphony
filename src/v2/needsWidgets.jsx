@@ -190,8 +190,8 @@ export function GoalsWidget({ settings }) {
     } catch (e) { toast.error(e?.message || tr("widget.goals.failed")); }
     finally { setBusyId(null); }
   };
-  const StepCheck = ({ step, state }) => (
-    <button type="button" onClick={() => tick(step, state)} disabled={!!busyId}
+  const stepCheck = (step, state) => (
+    <button key={step.id} type="button" onClick={() => tick(step, state)} disabled={!!busyId}
       className="flex items-center gap-2 text-left w-full min-h-[28px] pl-5 disabled:opacity-50 hover:bg-muted/30 rounded-md -mx-1 px-1"
       aria-label={tr("widget.goals.tick", { step: step.title })}>
       <span className="w-3.5 h-3.5 rounded-[4px] border flex-shrink-0" style={{ borderColor: "var(--v2-accent)" }} />
@@ -209,8 +209,8 @@ export function GoalsWidget({ settings }) {
             secondary={mode === "minimal" ? r.next?.step.title : undefined}
             right={r.total > 0 ? `${r.done}/${r.total}` : tr("widget.goals.ongoing")}
             onClick={() => navigate(`/goals?page=${r.goal.id}`)} />
-          {mode === "normal" && r.next && <StepCheck step={r.next.step} state={r.next.state} />}
-          {mode === "expanded" && r.open.map((x) => <StepCheck key={x.step.id} step={x.step} state={x.state} />)}
+          {mode === "normal" && r.next && stepCheck(r.next.step, r.next.state)}
+          {mode === "expanded" && r.open.map((x) => stepCheck(x.step, x.state))}
         </div>
       ))}
     </Section>
