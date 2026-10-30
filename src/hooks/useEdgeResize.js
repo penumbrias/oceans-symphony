@@ -20,7 +20,9 @@ const HOLD_MS = 150;
 const SLOP_PX = 10;
 const ROW_PX = 80;
 
-export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, rowPx = ROW_PX }) {
+// `step` is the size unit a drag moves in: 1 (whole cells, snapping on) or
+// a fraction of a cell (snapping off — see snapStepFor in experimentalHome).
+export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, rowPx = ROW_PX, step = 1 }) {
   const [preview, setPreview] = useState(null); // {cols, rows} | null
   const [active, setActive] = useState(false);
   const stateRef = useRef(null); // { pointerId, axis, phase, startX, startY, startSpan, pitch, timer }
@@ -75,11 +77,16 @@ export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, row
     e.preventDefault();
     const clampC = (v) => Math.max(min?.cols ?? 1, Math.min(Math.min(max?.cols ?? 12, gridCols), v));
     const clampR = (v) => Math.max(min?.rows ?? 1, Math.min(max?.rows ?? 8, v));
+    // Whole cells keep the old feel (a little bias so a drag just short of
+    // the next line still gets there); finer steps round plainly.
+    const snap = (units) => (step >= 1
+      ? Math.round(units + Math.sign(units) * 0.15)
+      : Math.round(units / step) * step);
     setPreview({
-      cols: s.axis.includes("x") ? clampC(s.startSpan.cols + Math.round(dx / s.pitch + Math.sign(dx) * 0.15)) : s.startSpan.cols,
-      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + Math.round(dy / rowPx + Math.sign(dy) * 0.15)) : s.startSpan.rows,
+      cols: s.axis.includes("x") ? clampC(s.startSpan.cols + snap(dx / s.pitch)) : s.startSpan.cols,
+      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + snap(dy / rowPx)) : s.startSpan.rows,
     });
-  }, [gridCols, min, max, clear, rowPx]);
+  }, [gridCols, min, max, clear, rowPx, step]);
 
   const onPointerEnd = useCallback((e) => {
     const s = stateRef.current;

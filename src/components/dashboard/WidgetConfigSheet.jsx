@@ -662,6 +662,7 @@ export default function WidgetConfigSheet({
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
   onRestoreSnapshot, // (instanceId, { mode, settings }, { keepCurrent }) → put the widget back how it was (Undo / Redo after closing)
   onLayer = null,    // (instanceId, "front" | "forward" | "backward" | "back") → layer order; null where widgets can't overlap
+  boardSnap = true,  // the app-wide "snap to grid" choice this widget follows unless it has its own
 }) {
   const open = !!widget && !!def;
   // Everything in this sheet applies live and is saved as it happens, so
@@ -1340,6 +1341,16 @@ export default function WidgetConfigSheet({
                   <SliderRow label="Rotate" value={settings.boxRotate} fallback={0}
                     min={-180} max={180} step={1} unit="°"
                     onChange={(v) => set({ boxRotate: v })} onClear={() => set({ boxRotate: "" })} />
+                  {/* Snap to grid (v0.322.x): this widget's own choice beats
+                      the edit bar's Snap button; × goes back to following it. */}
+                  <ChoiceRow label="Snap to grid"
+                    hint={typeof settings.snap === "boolean"
+                      ? (settings.snap ? "Moves and sizes in whole grid steps" : "Moves and sizes in small steps, between the grid lines")
+                      : `Same as the Snap button (${boardSnap ? "on" : "off"})`}
+                    value={settings.snap === true || (settings.snap !== false && boardSnap) ? "on" : "off"}
+                    own={typeof settings.snap === "boolean"} onClear={() => set({ snap: "" })}
+                    onChange={(v) => set({ snap: v === "on" })}
+                    options={[{ value: "on", label: "On" }, { value: "off", label: "Off" }]} />
                 </Group>
               )}
               {resetFooter("shape", "Reset shape")}

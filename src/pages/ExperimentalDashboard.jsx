@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home, Palette,
+  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home, Palette, Magnet,
 } from "lucide-react";
 import { openProfileLook } from "@/lib/lookSubject";
 import {
@@ -45,6 +45,7 @@ import {
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
+  flowOrder, flowRepack, flowMove, snapStepFor, isWhole,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
@@ -156,7 +157,30 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null }) {
+// Where a widget sits on a free page's grid. Whole cells are plain grid
+// lines; a widget placed or sized between them (snapping off) spans the
+// cells it touches and is positioned exactly inside that area — the area
+// is its containing block, so the maths stays in grid units at any width.
+function offGridArea({ x, y, c, r }, rowPx, gapCss) {
+  if (isWhole(x) && isWhole(y) && isWhole(c) && isWhole(r)) {
+    return { gridColumn: `${Math.round(x) + 1} / span ${Math.round(c)}`, gridRow: `${Math.round(y) + 1} / span ${Math.round(r)}`, height: "100%" };
+  }
+  const x0 = Math.floor(x + 1e-6);
+  const n = Math.max(1, Math.ceil(x + c - 1e-6) - x0);
+  const y0 = Math.floor(y + 1e-6);
+  const m = Math.max(1, Math.ceil(y + r - 1e-6) - y0);
+  return {
+    gridColumn: `${x0 + 1} / span ${n}`,
+    gridRow: `${y0 + 1} / span ${m}`,
+    position: "absolute",
+    left: `calc((100% + ${gapCss}) * ${(x - x0) / n})`,
+    width: `calc((100% + ${gapCss}) * ${c / n} - ${gapCss})`,
+    top: `calc((${rowPx}px + ${gapCss}) * ${y - y0})`,
+    height: `calc((${rowPx}px + ${gapCss}) * ${r} - ${gapCss})`,
+  };
+}
+
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", flowFlex = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -216,7 +240,10 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     min: def.minSpan,
     max: { ...(def.maxSpan || {}), rows: Math.round((def.maxSpan?.rows ?? 8) * (80 / rowPx)) },
     rowPx,
-    onCommit: (next) => onSpan(widget.instanceId, next, { manual: true }),
+    step,
+    // Only a change of HEIGHT pins the height — a width-only resize keeps
+    // the widget sizing to its content, as before it was touched.
+    onCommit: (next) => onSpan(widget.instanceId, next, { manual: next.rows !== spanRows }),
   });
   const shownCols = resize.preview?.cols ?? spanCols;
   const shownRows = resize.preview?.rows ?? spanRows;
@@ -240,6 +267,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
     enabled: free && editMode && !a11yStack,
+    step,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
     onBeside: onBeside ? (b) => onBeside(widget.instanceId, b) : null,
@@ -304,8 +332,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     ? {}
     : free
       ? {
-          gridColumn: `${cell.x + 1} / span ${shownCols}`,
-          gridRow: `${cell.y + 1} / span ${shownRows}`,
+          ...offGridArea({ x: cell.x, y: cell.y, c: shownCols, r: shownRows }, rowPx, gapCss),
           transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
           zIndex: move.dragging ? 45 : zLayer || undefined,
           opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
@@ -313,10 +340,14 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // than its rows paints straight over its neighbour — which is the
           // overlap you see even when the coordinates are fine.
           overflow: "hidden",
-          height: "100%",
         }
       : {
-        gridColumn: `span ${shownCols}`,
+        // A width between grid lines can't be a grid span, so a flow page
+        // holding one lays out as a wrapping row of exact widths instead
+        // (same widths and gaps for everything else).
+        ...(flowFlex
+          ? { flex: "0 0 auto", width: `calc((100% + ${gapCss}) * ${shownCols / gridCols} - ${gapCss})` }
+          : { gridColumn: `span ${shownCols}` }),
         // Rows are a real height once they mean something: a widget you have
         // sized yourself (or made taller than one row, or are resizing right
         // now) gets exactly that height and scrolls inside it. Untouched
@@ -324,7 +355,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // never resized suddenly becomes a 80px letterbox.
         height: fixedHeight ? shownRows * rowPx + (shownRows - 1) * 12 : undefined,
         overflowY: fixedHeight ? "auto" : undefined,
-        minHeight: fixedHeight ? undefined : flowView ? 0 : 56,
+        minHeight: fixedHeight ? undefined : emptyHint ? 44 : flowView ? 0 : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
@@ -340,8 +371,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     {free && move.drag && !move.drag.beside && (
       <div aria-hidden="true" className="rounded-xl border-2 border-dashed pointer-events-none"
         style={{
-          gridColumn: `${move.drag.target.x + 1} / span ${shownCols}`,
-          gridRow: `${move.drag.target.y + 1} / span ${shownRows}`,
+          ...offGridArea({ x: move.drag.target.x, y: move.drag.target.y, c: shownCols, r: shownRows }, rowPx, gapCss),
           // The canvas aligns items to the top, which left this empty box
           // zero-height (a bare line) — fill the cells it stands for.
           alignSelf: "stretch",
@@ -420,6 +450,13 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
                 className="px-1 h-full text-muted-foreground hover:text-foreground"><ArrowDown className="w-3 h-3" /></button>
             </span>
           )}
+        </div>
+      )}
+      {editMode && emptyHint && (
+        // Nothing to show right now: a light outline and its name, so it
+        // can be found, moved or removed — the page around it doesn't move.
+        <div data-empty-hint="" className="absolute inset-0 z-20 rounded-xl border border-dashed border-border/70 flex items-center pl-3 pr-9 pointer-events-none">
+          <span className="text-[0.6875rem] text-muted-foreground truncate">{widget.settings?.label || defLabel} · empty right now</span>
         </div>
       )}
       <div
@@ -535,8 +572,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             userSelect: "none",
             // No name tag and no extra padding while editing (v0.288.0,
             // owner): the widget looks the same in and out of edit mode, so
-            // what you adjust is what you get.
-            minHeight: 56,
+            // what you adjust is what you get. A flow page keeps each widget
+            // its own height too (v0.322.x), or every short one grew.
+            ...(flowView ? null : { minHeight: 56 }),
           } : null),
         }}
       >
@@ -1109,6 +1147,12 @@ export default function ExperimentalDashboard({
             settings: opts.manual ? { ...w.settings, autoFit: false } : w.settings,
           }
         : w));
+      if (flowView) {
+        // Flow page: a new size changes how the column wraps, not where
+        // anything is in the order — re-seat in the same order.
+        const byId = new Map(flowRepack(flowOrder(next), gridCols).map((w) => [w.instanceId, w]));
+        return next.map((w) => byId.get(w.instanceId) || w);
+      }
       return pageIsFree ? resolveOverlaps(next, gridCols, instanceId) : next;
     });
   const handleMode = (instanceId, mode) =>
@@ -1408,6 +1452,9 @@ export default function ExperimentalDashboard({
     setDraggingId(null);
     if (over?.id === TRASH_ID) { handleRemove(active.id); return; }
     if (!over || active.id === over.id) return;
+    // A flow page's order IS its positions: move it in that order and
+    // re-seat everything the way the column lays it out.
+    if (flowView) { updatePageWidgets((ws) => flowMove(ws, gridCols, active.id, over.id)); return; }
     updatePageWidgets((ws) => {
       const from = ws.findIndex((w) => w.instanceId === active.id);
       const to = ws.findIndex((w) => w.instanceId === over.id);
@@ -1512,7 +1559,15 @@ export default function ExperimentalDashboard({
   const freeMode = page.layoutMode === "free" && !a11yStack;
   // A page with overlapping widgets keeps its exact placement when viewed:
   // flowing it would stack what was meant to sit on top.
-  const flowView = viewFlow && freeMode && !editMode && !page.widgets.some(isLayered);
+  // Edit mode shows the SAME column (v0.322.x): editing used to switch to a
+  // fixed grid with every empty widget back in, which rearranged the whole
+  // page and made decorating it guesswork (owner report). Now what you
+  // arrange is what you see; empty widgets get a light dashed outline.
+  const flowView = viewFlow && freeMode && !page.widgets.some(isLayered);
+  // A width between grid lines can't be a grid span — such a page lays its
+  // column out as a wrapping row of exact widths instead.
+  const flowFlex = flowView && page.widgets.some((w) => !isWhole(w.span?.cols || 1));
+  const canvasGap = home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem";
 
   // One pass, per page and width: give every widget the rows its content
   // actually needs, then untangle. Done centrally and written once —
@@ -1571,7 +1626,9 @@ export default function ExperimentalDashboard({
     // Re-running on the editMode flip re-attaches them to the LIVE grid
     // and recomputes, so the collapse comes back after "Save & close"
     // (it silently stayed off before).
-    if (!freeMode || editMode || !grid || typeof ResizeObserver === "undefined") {
+    // A flow page keeps tracking in edit mode too: empties there stay in
+    // place with a hint instead of the whole page re-laying itself out.
+    if (!freeMode || (editMode && !flowView) || !grid || typeof ResizeObserver === "undefined") {
       setEmptyIds((cur) => (cur.size ? new Set() : cur));
       return undefined;
     }
@@ -1607,7 +1664,7 @@ export default function ExperimentalDashboard({
     mo.observe(grid, { childList: true, subtree: true, characterData: true });
     queue();
     return () => { ro.disconnect(); mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [freeMode, editMode, page.id, widgets.length]);
+  }, [freeMode, editMode, flowView, page.id, widgets.length]);
   // View mode collapses those empty cells and lets everything below slide
   // up — display-only (stored positions untouched), and edit mode shows
   // every cell so empties can still be found, moved or removed. Collapsed
@@ -1617,24 +1674,42 @@ export default function ExperimentalDashboard({
     // placement stacks them with natural heights); empties ride along
     // zero-sized so they stay measurable and pop back in with content.
     if (flowView) {
-      return [...widgets]
-        .sort((a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0))
-        .map((w) => (emptyIds.has(w.instanceId) ? { ...w, __collapsed: true } : w));
+      // Editing: an empty widget keeps its place, outlined, so it can be
+      // found, moved or removed without anything else shifting.
+      return flowOrder(widgets)
+        .map((w) => (emptyIds.has(w.instanceId) ? (editMode ? { ...w, __empty: true } : { ...w, __collapsed: true }) : w));
     }
     if (!freeMode || editMode || emptyIds.size === 0) return widgets;
     const visible = compactVertically(widgets.filter((w) => !emptyIds.has(w.instanceId)), gridCols);
     const byId = new Map(visible.map((w) => [w.instanceId, w]));
     return widgets.map((w) => byId.get(w.instanceId) || { ...w, __collapsed: true });
   }, [widgets, emptyIds, freeMode, editMode, gridCols, flowView]);
+  // The app-wide "snap to grid" choice (v0.322.x). On (the default), moves
+  // and resizes land on whole grid cells; off, they step by a quarter of a
+  // cell. A widget's own choice (its options → Shape → Arrange) beats it.
+  const boardSnap = settingsRow?.board_snap !== false;
+  const toggleBoardSnap = async () => {
+    const next = !boardSnap;
+    try {
+      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { board_snap: next });
+      else await base44.entities.SystemSettings.create({ board_snap: next });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(next ? "Snap to grid is on" : "Snap to grid is off — widgets move and size in small steps");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't change snapping");
+    }
+  };
   const placedWidgets = displayWidgets.filter((w) => !w.__collapsed);
   // Enough rows to hold everything plus room to move things down into.
   // Shared empty rows at the top get folded away (see SortableWidget). In
   // edit mode they stay, so a deliberate gap can still be dragged into.
   const topRowOffset = freeMode && !editMode && placedWidgets.length
-    ? Math.min(...placedWidgets.map((w) => w.pos?.y || 0))
+    // Whole rows only, so widgets on grid lines stay on them.
+    ? Math.floor(Math.min(...placedWidgets.map((w) => w.pos?.y || 0)))
     : 0;
   const freeRows = freeMode && placedWidgets.length
-    ? Math.max(6, ...placedWidgets.map((w) => (w.pos?.y || 0) - topRowOffset + (w.span?.rows || 1))) + (editMode ? 4 : 0)
+    // ceil: a widget between grid lines still needs its whole last row.
+    ? Math.ceil(Math.max(6, ...placedWidgets.map((w) => (w.pos?.y || 0) - topRowOffset + (w.span?.rows || 1)))) + (editMode ? 4 : 0)
     : freeMode ? 6 : 0;
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
@@ -1823,9 +1898,12 @@ export default function ExperimentalDashboard({
       style={{
         ...(showAsMax ? { maxWidth: showAsMax, marginLeft: "auto", marginRight: "auto", width: "100%" } : null),
         ...(a11yStack ? null : {
-        display: "grid",
-        gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
-        gap: home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem",
+        ...(flowFlex
+          ? { display: "flex", flexWrap: "wrap" }
+          : { display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }),
+        // Containing block for widgets placed between grid lines.
+        position: "relative",
+        gap: canvasGap,
         // Flow view: widgets sharing a row are as tall as the tallest one,
         // so their boxes line up and "Down" alignment has room to work.
         alignItems: flowView ? "stretch" : "start",
@@ -1842,8 +1920,7 @@ export default function ExperimentalDashboard({
         <div aria-hidden="true" className="pointer-events-none"
           data-drop-ghost={dragGhost.beside ? "beside" : "cell"}
           style={{
-            gridColumn: `${ghostCell.x + 1} / span ${Math.min(ghostCell.cols, gridCols)}`,
-            gridRow: `${ghostCell.y + 1} / span ${ghostCell.rows}`,
+            ...offGridArea({ x: ghostCell.x, y: ghostCell.y, c: Math.min(ghostCell.cols, gridCols), r: ghostCell.rows }, rowPx, canvasGap),
             alignSelf: "stretch",
             border: "2px dashed var(--v2-accent)",
             borderRadius: "var(--v2-radius, 12px)",
@@ -1887,6 +1964,10 @@ export default function ExperimentalDashboard({
           onBeside={handleBeside}
           onLayer={freeMode && !flowView ? handleLayer : null}
           userStyles={userStyles}
+          emptyHint={!!w.__empty}
+          step={snapStepFor(w, boardSnap)}
+          gapCss={canvasGap}
+          flowFlex={flowFlex}
         />
       ))}
     </div>
@@ -2340,7 +2421,7 @@ export default function ExperimentalDashboard({
           onDragCancel={() => setDraggingId(null)}
           onDragEnd={handleDragEnd}>
           <TrashZone active={!!draggingId} />
-          <SortableContext items={widgets.map((w) => w.instanceId)} strategy={rectSortingStrategy}>
+          <SortableContext items={(flowView ? displayWidgets : widgets).map((w) => w.instanceId)} strategy={rectSortingStrategy}>
             {canvas}
           </SortableContext>
         </DndContext>
@@ -2496,6 +2577,7 @@ export default function ExperimentalDashboard({
         onSettings={handleSettings}
         onResetWidget={handleResetWidget}
         onLayer={freeMode ? handleLayer : null}
+        boardSnap={boardSnap}
         // Undo / Redo from the toast the sheet leaves when it closes with
         // changes: puts that widget back exactly as it was. An Undo first
         // keeps the board as it is now in Recent changes, so the edits
@@ -2673,11 +2755,25 @@ export default function ExperimentalDashboard({
               <CheckSquare className="w-4 h-4" />
               <span className="text-[0.5625rem]">Select</span>
             </button>
+            {/* A flow page has no gaps to close — it's a column. */}
+            {!flowView && (
             <button type="button" aria-label="Close gaps" title="Close gaps" disabled={!pageIsFree}
               onClick={collapseGaps}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
               <ArrowUpToLine className="w-4 h-4" />
               <span className="text-[0.5625rem]">Close gaps</span>
+            </button>
+            )}
+            {/* Snap to grid, for every board (v0.322.x). A widget's own
+                choice in its options (Shape → Arrange) beats this. */}
+            <button type="button" aria-pressed={boardSnap} disabled={!pageIsFree}
+              aria-label={boardSnap ? "Snap to grid is on — turn it off" : "Snap to grid is off — turn it on"}
+              title={boardSnap ? "Snap to grid: on. Tap to move and size widgets in small steps" : "Snap to grid: off. Tap to snap widgets to the grid"}
+              data-snap-toggle=""
+              onClick={toggleBoardSnap}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 disabled:opacity-30 ${boardSnap ? "text-[var(--v2-accent)]" : "text-muted-foreground hover:text-foreground"}`}>
+              <Magnet className="w-4 h-4" />
+              <span className="text-[0.5625rem]">{boardSnap ? "Snap on" : "Snap off"}</span>
             </button>
             {!profileBoard && (
             <button type="button" aria-label="Display options" title="Display options"
