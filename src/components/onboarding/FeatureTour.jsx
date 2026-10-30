@@ -379,6 +379,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: profile(),
     }),
     s("profile", {
+      emoji: "📑", title: "Pages in the bio",
+      body: `A Bio or Field widget can show its text as pages: tabs you swipe between. In its ⚙ → Content, "Add a page" offers ready pages like Backstory, or a blank one. Each page is kept in Info.`,
+      route: profile(),
+    }),
+    s("profile", {
+      emoji: "🔗", title: "Someone else's fields",
+      body: `"Whose info" in a Field widget's options can show another ${t.alter}'s or a group's bio and fields, here or on the home screen.`,
+      route: profile(),
+    }),
+    s("profile", {
       emoji: "💾", title: "Keep or discard",
       body: `Save & close keeps your changes; Discard puts it all back. Save also offers "Use this layout for all", "Use as the default" and "Reset", each asking first.`,
       route: profile(),

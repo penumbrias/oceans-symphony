@@ -44,7 +44,7 @@ export function infoEntriesFor(alter, systemFields = []) {
   const seen = new Set();
   const own = ownListOf(alter)
     .filter((f) => f && f.name && !seen.has(f.name) && seen.add(f.name))
-    .map((f) => ({ id: `own:${f.name}`, label: f.name, kind: f.field_type || "text", own: true }));
+    .map((f) => ({ id: `own:${f.name}`, label: f.name, kind: f.field_type || "text", own: true, ...(f.page ? { page: true } : {}) }));
   return [
     BIO_ENTRY,
     ...BASIC_ENTRIES,
@@ -107,7 +107,11 @@ export async function writeEntry(alterId, entryId, value) {
 
 // A new entry for just this alter, made from a widget. Returns its id. An
 // existing entry with the same name is reused, never duplicated.
-export async function addOwnEntry(alterId, { name, kind = "text", value = "" }) {
+//
+// `page` (v0.322.0) marks an entry made by a Field widget's "Add a page", so
+// "Every other field" leaves it to the widget that shows it as a page; it
+// is still listed with the alter's custom fields in Info.
+export async function addOwnEntry(alterId, { name, kind = "text", value = "", page = false }) {
   const clean = String(name || "").trim();
   if (!alterId || !clean) throw new Error("The custom field needs a name");
   const fresh = (await base44.entities.Alter.get(alterId)) || {};
@@ -118,7 +122,7 @@ export async function addOwnEntry(alterId, { name, kind = "text", value = "" }) 
   const list = [...ownListOf(fresh)];
   const same = list.find((f) => sameName(f?.name, clean));
   if (same) return `own:${same.name}`;
-  list.push({ name: clean, value, field_type: kind });
+  list.push({ name: clean, value, field_type: kind, ...(page ? { page: true } : {}) });
   await base44.entities.Alter.update(alterId, { alter_custom_fields: list });
   return `own:${clean}`;
 }
