@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { deleteAlter, refreshAlter, switchToNewProfile, revertToOldProfile } from "@/lib/alterEntry";
+import { deleteAlter, refreshAlter } from "@/lib/alterEntry";
 import { usesNewProfile } from "@/lib/profileBoard";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
@@ -33,6 +33,7 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 import { Group, TabBar } from "@/components/shared/SettingRows";
 import { useAlterInfoForm } from "./useAlterInfoForm";
 import ProfileConvertRow from "./ProfileConvertRow";
+import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import PageLookRow from "@/components/profile/PageLookRow";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
@@ -68,26 +69,9 @@ export default function AlterInfo({ alter, onOpenClassic }) {
       navigate("/Home");
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
-  // Which profile layout (v0.305.0). Only a flag on the record changes;
-  // both layouts are kept, so either way can be undone.
+  // Which profile layout (v0.305.0): the Profile page group's row.
   const onNew = usesNewProfile(alter);
-  const switchLayout = async (toNew) => {
-    try {
-      await info.flush();
-      await (toNew ? switchToNewProfile(alter.id) : revertToOldProfile(alter.id));
-      refreshAlter(qc, alter.id);
-      toast.success(toNew ? "Now showing the new profile" : "Back to the old profile", {
-        action: { label: "Undo", onClick: async () => {
-          await (toNew ? revertToOldProfile(alter.id) : switchToNewProfile(alter.id));
-          refreshAlter(qc, alter.id);
-        } },
-      });
-    } catch (e) { toast.error(e?.message || "Couldn't change the layout"); }
-  };
   const menu = [
-    onNew
-      ? { label: "Revert to the old profile", onClick: () => switchLayout(false) }
-      : { label: "Use the new profile", onClick: () => switchLayout(true) },
     { label: "Export, merge, sharing…", onClick: () => setOptionsOpen(true) },
     { label: alter.is_archived ? "Unarchive" : "Archive", onClick: archive },
     { label: "Delete…", onClick: remove },
@@ -122,7 +106,10 @@ export default function AlterInfo({ alter, onOpenClassic }) {
             <Group title="Basics" first><BasicsSection alter={alter} info={info} /></Group>
             <Group title="Bio"><BioSection alter={alter} info={info} withRow={false} /></Group>
             <Group title="Profile page">
-              <ProfileConvertRow alter={alter} info={info} />
+              <ProfileLayoutSwitch ownerType="alter" record={alter} noun={t.alter} plural={t.alters} onBefore={info.flush} />
+              {/* Laying a block bio out as widgets belongs to the old
+                  layout; the new profile is widgets already. */}
+              {!onNew && <ProfileConvertRow alter={alter} info={info} />}
               <PageLookRow />
             </Group>
           </>

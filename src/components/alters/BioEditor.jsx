@@ -172,7 +172,7 @@ export default function BioEditor({ value, onChange, label = "Description / Bio"
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground font-medium">{label}</label>
+        {label ? <label className="text-xs text-muted-foreground font-medium">{label}</label> : <span />}
         <div className="flex items-center gap-2">
           <button type="button" onClick={handleUndo} disabled={!canUndo}
             title="Undo"

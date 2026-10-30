@@ -11,6 +11,7 @@ import FolderGroupsSection from "./FolderGroupsSection.jsx";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
+import { headerLookOnCards, setHeaderLookOnCards } from "@/lib/headerLook";
 import { useAlterOrder } from "@/lib/alterOrder";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
@@ -81,9 +82,8 @@ export default function AlterGrid({ alters }) {
   // so the toggle applies system-wide (Dashboard's Currently Fronting
   // widget reads the same mode).
   const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
-  const [headerBg, setHeaderBg] = useState(() => {
-    try { return localStorage.getItem("alter_card_header_bg") === "true"; } catch { return false; }
-  });
+  // The header look on cards (v0.320.0): on unless turned off.
+  const [headerBg, setHeaderBg] = useState(() => headerLookOnCards());
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
   // Listing filter: nested vs flat, plus multi-select group/subsystem
@@ -384,9 +384,10 @@ export default function AlterGrid({ alters }) {
             onClick={() => {
               const next = !headerBg;
               setHeaderBg(next);
-              try { localStorage.setItem("alter_card_header_bg", next ? "true" : "false"); } catch { /* storage off */ }
+              setHeaderLookOnCards(next);
             }}
-            title={headerBg ? "Plain card backgrounds" : `Use each ${terms.alter}'s profile header as their card background`}
+            title={headerBg ? "Plain cards (no header look)" : `Show each ${terms.alter}'s profile header look on their card`}
+            aria-pressed={headerBg}
             className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${headerBg ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
             <ImageIcon className="w-4 h-4" />
           </button>

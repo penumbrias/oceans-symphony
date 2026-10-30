@@ -4,6 +4,7 @@ import { User, Zap } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { useHeaderLook, headerLookOnCards } from "@/lib/headerLook";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -123,13 +124,14 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const lsDim = ls && Number.isFinite(ls.scale) ? Math.round(40 * ls.scale / 100) : 40;
   const lsRing = ls && Number.isFinite(ls.ringW) ? ls.ringW : null;
 
-  // "Header as card background" — the alter's profile header image behind
-  // the whole list card (toggled from the list's toolbar; shared via
-  // localStorage so every list using this card follows).
-  let headerBgOn = false;
-  try { headerBgOn = localStorage.getItem("alter_card_header_bg") === "true"; } catch { /* storage off */ }
-  const headerUrl = headerBgOn ? (alter.custom_fields?.["_header_image"] || "") : "";
-  const resolvedHeader = useResolvedAvatarUrl(headerUrl);
+  // The profile header's look IS the card's look (v0.320.0): header
+  // picture, colour, text colour and font — the same display as the top
+  // of the profile. The list toolbar's picture button turns it off.
+  const hl = useHeaderLook(alter, headerLookOnCards());
+  const cardBg = hl.image
+    ? `linear-gradient(color-mix(in srgb, ${hl.bgColor || "var(--color-surface)"} ${Math.round(100 - hl.imageOpacity * 100)}%, transparent), color-mix(in srgb, ${hl.bgColor || "var(--color-surface)"} ${Math.round(100 - hl.imageOpacity * 100)}%, transparent)), url("${hl.image}")`
+    : "";
+  const nameStyle = { ...(hl.textColor ? { color: hl.textColor } : {}), ...(hl.font ? { fontFamily: hl.font } : {}) };
 
   return (
     <div className="flex items-center gap-2 select-none">
@@ -140,10 +142,8 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{
             borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1,
-            ...(resolvedHeader ? {
-              backgroundImage: `linear-gradient(color-mix(in srgb, var(--color-surface) 62%, transparent), color-mix(in srgb, var(--color-surface) 62%, transparent)), url("${resolvedHeader}")`,
-              backgroundSize: "cover", backgroundPosition: "center",
-            } : {}),
+            ...(hl.bgColor && !hl.image ? { backgroundColor: hl.bgColor } : {}),
+            ...(cardBg ? { backgroundImage: cardBg, backgroundSize: "cover", backgroundPosition: "center" } : {}),
           }}>
           <div
             className={`overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""} ${lsShape ? "" : "rounded-xl"}`}
@@ -167,10 +167,10 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}>
+            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={nameStyle}>
               {alter.emoji ? <span className="mr-1">{alter.emoji}</span> : null}{formatAlter(alter)}
             </p>
-            {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
+            {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={hl.textColor ? { color: hl.textColor, opacity: 0.8 } : undefined}>{alter.pronouns}</p>}
           </div>
           {alter.role && (() => {
             // The role chip sits on bg-card (the surface colour). If the

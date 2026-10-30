@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2, MapPin, BookOpen, Zap, Heart, BarChart3, Network, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
@@ -115,6 +116,10 @@ function AlterProfileInner() {
   // · "classic" = the old pencil form, kept for page style and header
   // options until those move onto the board.
   const [editMode, setEditMode] = useState(false);
+  // Alter info while the page layout is being edited (v0.320.0): the board
+  // keeps its unsaved layout, so the list opens over it instead of in
+  // place of it.
+  const [infoOverlay, setInfoOverlay] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const [resolvedBgImage, setResolvedBgImage] = useState(null);
@@ -408,13 +413,13 @@ function AlterProfileInner() {
                 <Save className="w-3.5 h-3.5" /> Save
               </Button>
             )}
-            {!layoutEditing && (
+            {(
               <Button
                 data-tour="alter-profile-edit-btn"
                 variant={editMode ? "default" : "outline"}
                 size="sm"
                 className="h-9 px-2.5 gap-1.5"
-                onClick={() => setEditMode(e => (e ? false : "info"))}
+                onClick={() => (layoutEditing ? setInfoOverlay(true) : setEditMode(e => (e ? false : "info")))}
                 aria-pressed={!!editMode}
                 title={editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, entries, pictures, groups…`}
               >
@@ -484,6 +489,12 @@ function AlterProfileInner() {
           </div>
         )}
 
+        <Dialog open={layoutEditing && infoOverlay} onOpenChange={setInfoOverlay}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-3" data-alter-info-overlay="">
+            <DialogTitle className="sr-only">{alter.name} · info</DialogTitle>
+            {layoutEditing && infoOverlay && <AlterInfo alter={alter} />}
+          </DialogContent>
+        </Dialog>
         {editMode === "info" ? (
           // The one list where the alter's information is entered (the
           // garden model, v0.294.0); widgets on the board show it.
