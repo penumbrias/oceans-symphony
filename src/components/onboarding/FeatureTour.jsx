@@ -293,6 +293,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alter-add-btn", look: `the highlighted "+ Add ${t.Alter}" button`,
     }),
     s("alters", {
+      emoji: "🪪", title: `The new ${t.alter} sheet`,
+      body: `Info, Custom fields and Links tabs, the same as ${t.Alter} info, and a Profile style row for the look. Nothing about the ${t.alter} is saved until you tap Add.`,
+      route: "/Home", target: ["new-alter-sheet", "alter-add-btn"], look: `the "New ${t.alter}" sheet (open it with Add)`,
+    }),
+    s("alters", {
       emoji: "📥", title: "Import and export",
       body: `Import, beside Add, brings ${t.alters} in from a backup or another plural app. Export makes a shareable document of the ${t.alters} you choose, with names hidden if you like.`,
       route: "/Home", target: "alter-add-btn",
@@ -332,7 +337,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🪪", title: "Info holds everything",
-      body: `Info is everything about this ${t.alter}: name, pronouns, colour, picture, role and bio. It saves as you type, with undo and redo at the top.`,
+      body: `Info is everything about this ${t.alter}: name, pronouns, colour, picture, role and the bio with its full editor. It saves as you type, with undo and redo at the top.`,
       route: profile(), target: onProfile("alter-profile-edit-btn"),
       look: ai ? `the highlighted Info button` : `open a profile and look for Info at the top-right`,
     }),
@@ -346,6 +351,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Custom fields can be short or long text, lists, dates, numbers or yes/no, for one ${t.alter} or everyone. A field's ⋯ renames it, changes its kind, hides it or deletes it.`,
       route: profile("fields"), target: onProfile("alter-profile-tabs"),
       look: `Info → Custom fields, or the Custom fields page`,
+    }),
+    s("profile", {
+      emoji: "🔁", title: "Old or new profile",
+      body: `Profile layout, under "Profile page" in Info, says which profile this ${t.alter} uses and switches it. Both layouts are kept, so you can go back and forth any time.`,
+      route: profile(), target: onProfile(["profile-layout-switch", "alter-profile-edit-btn"]),
     }),
     s("profile", {
       emoji: "🎨", title: "Profile style",

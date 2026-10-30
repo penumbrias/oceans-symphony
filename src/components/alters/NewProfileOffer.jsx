@@ -60,7 +60,7 @@ export default function NewProfileOffer({ alter = null, record = null, ownerType
     ? `One page made of widgets built for locations: what it is, its description, the ${t.alters} placed there and the places inside it. This page's layout is kept, and you can go back any time from Info.`
     : ownerType === "contact"
     ? "About, Relationships, Boundaries, Notes and Options, made of widgets built for contacts. This page's layout is kept, and you can go back any time from Options."
-    : `Seven pages made of widgets built for profiles: Profile, ${t.Fronting}, Messages, Notes, Journal, Wishes and Connections. This page's layout is kept, and you can go back any time from Info's ⋯ menu.`;
+    : `Seven pages made of widgets built for profiles: Profile, ${t.Fronting}, Messages, Notes, Journal, Wishes and Connections. This page's layout is kept, and you can go back any time from Info → Profile page.`;
   return (
     <section aria-labelledby="new-profile-offer-title" data-new-profile-offer=""
       className="mx-2 mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-2">

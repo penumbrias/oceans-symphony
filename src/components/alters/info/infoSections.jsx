@@ -23,12 +23,11 @@ import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
-import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
+import AlterPreferencesEditor, { PrefLevelIconsRow } from "@/components/alters/AlterPreferencesEditor";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { isGardenProfile, usesNewProfile } from "@/lib/profileBoard";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
@@ -40,7 +39,8 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 import { groupNameColor } from "@/lib/contrast";
 import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, smallBtn } from "./entryEditors";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
+import { AlterPictureFramer, PictureFramingRow } from "@/components/v2/pictureFramingFields";
+import { withImageFraming, framedImageStyle, pictureStyle } from "@/lib/imageFraming";
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
 
@@ -118,6 +118,7 @@ function EntryEditForm({ draft, onDraft, onSave, onCancel, everyone }) {
 }
 
 export function StatusChip({ status }) {
+  if (status === "draft") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><AlertCircle className="w-3 h-3" /> Not added yet</span>;
   if (status === "saving") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>;
   if (status === "needs-name") return <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertCircle className="w-3 h-3" /> Saved, except the name: it needs one</span>;
   if (status === "error") return <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="w-3 h-3" /> Not saved</span>;
@@ -284,6 +285,8 @@ export function BasicsSection({ alter, info }) {
       )}
       <ColourRow label="Colour" value={form.color} fallback="#8b5cf6" onChange={(hex) => set("color", hex)} onClear={() => set("color", "")} />
       <AvatarRows alter={alter} value={form.avatar_url} k={k("avatar_url")} onChange={(url) => set("avatar_url", url)}
+        framing={alter ? undefined : form.image_framing?.[form.avatar_url]}
+        onFraming={alter ? undefined : (f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))}
         rotation={form.avatar_rotation_mode} onRotation={(m) => set("avatar_rotation_mode", m)} />
       <Row label="Role">
         <DebouncedText key={k("role")} value={form.role} onCommit={(v) => set("role", v)} maxLength={120} ariaLabel="Role" placeholder="Protector, host…" className={`${inputBase} w-[12rem]`} />
@@ -307,21 +310,24 @@ const ROTATION_OPTIONS = [
 // The Alter info list uses it for the avatar; an Image widget uses it for
 // the profile picture and the pinned bar's picture. Pass `rotation` to
 // offer the avatar's rotation through a pool of pictures.
-export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", rotation, onRotation, role = "avatar", hint, shape = "circle" }) {
+export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", rotation, onRotation, role = "avatar", hint, shape = "circle", framing, onFraming }) {
   const t = useTerms();
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [showUrl, setShowUrl] = useState(false);
   const [poolOpen, setPoolOpen] = useState(false);
   const preview = useResolvedAvatarUrl(value || "");
-  if (!alter) return null;
+  // `alter` may be null for an alter that isn't saved yet (the new-alter
+  // sheet): the picture goes into the library and is filed under the alter
+  // once they exist; the pool (one alter's) is offered only for a saved one.
+  const alterId = alter?.id || null;
   const upload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setBusy(true);
     try {
-      const out = await uploadAlterImage(file, { alterId: alter.id, role });
+      const out = await uploadAlterImage(file, { alterId, role });
       const warn = largeGifWarning(out);
       if (warn) toast.warning(warn);
       onChange(out.url);
@@ -334,13 +340,13 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
       <StackedRow label={label} hint={hint}>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="w-14 h-14 rounded-full overflow-hidden border border-border/60 bg-muted/40 flex items-center justify-center flex-shrink-0">
-            {preview ? <img src={preview} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-muted-foreground" />}
+            {preview ? <img src={preview} alt="" className="w-full h-full object-cover" style={onFraming ? framedImageStyle(framing) : pictureStyle(alter, value)} /> : <User className="w-5 h-5 text-muted-foreground" />}
           </span>
           <button type="button" onClick={() => fileRef.current?.click()} className={btn}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
           </button>
           <AssetButton onPick={onChange} title="Library" label="Library" className={btn}
-            allowFolders ownerAlterId={alter.id} ownerAlterName={alter.name || ""} />
+            allowFolders ownerAlterId={alterId} ownerAlterName={alter?.name || ""} />
           <button type="button" onClick={() => setShowUrl((v) => !v)} aria-expanded={showUrl} className={btn}>
             <Link2 className="w-4 h-4" /> Link
           </button>
@@ -358,10 +364,13 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
         )}
       </StackedRow>
       {/* Where the picture sits in its shape — saved on the alter by the
-          picture, so it shows this way everywhere (v0.322.0). */}
-      <AlterPictureFramer alter={alter} url={value} shape={shape} label="Framing" always={false}
-        hint={rotation && rotation !== "off" ? "This frames the main picture; each rotating picture is framed in the pool" : undefined} />
-      {onRotation && (
+          picture, so it shows this way everywhere (v0.322.0). An alter that
+          isn't saved yet (the new-alter sheet) keeps the frame on the draft. */}
+      {onFraming
+        ? <PictureFramingRow url={value} value={framing} onChange={onFraming} shape={shape} label="Framing" />
+        : <AlterPictureFramer alter={alter} url={value} shape={shape} label="Framing" always={false}
+            hint={rotation && rotation !== "off" ? "This frames the main picture; each rotating picture is framed in the pool" : undefined} />}
+      {onRotation && alterId && (
         <>
           <ChoiceRow label="Rotate through pictures" options={ROTATION_OPTIONS} value={rotation || "off"} onChange={onRotation}
             hint={`Shows a different picture from a pool for this ${t.alter} each time the app opens.`} />
@@ -370,7 +379,7 @@ export function AvatarRows({ alter, value, onChange, k = "", label = "Avatar", r
               <button type="button" onClick={() => setPoolOpen(true)} className={btn}><Images className="w-4 h-4" /> Manage</button>
             </Row>
           )}
-          <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alter.id} role={role} />
+          <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={alterId} role={role} />
         </>
       )}
     </>
@@ -382,8 +391,7 @@ export function BioSection({ alter = null, info, withRow = true }) {
   const { form, set, revision } = info;
   if (!form) return null;
   const editor = (
-    <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)}
-      blocksHint={!alter || isGardenProfile(alter) || usesNewProfile(alter) ? null : "Made of blocks. To move each part around freely, use \"Turn the bio into widgets\" on the Look tab."} />
+    <BioEntry k={revision} value={form.description} onChange={(v) => set("description", v)} />
   );
   return withRow ? <EntryRow name="Bio" kind="richtext">{editor}</EntryRow> : editor;
 }
@@ -601,10 +609,13 @@ export function NewEntryForm({ draft, onDraft, onAdd, onCancel, alterName, block
   );
 }
 
-function GroupChip({ group }) {
+// A group as a chip. Opens the group's page unless `link` is false (a
+// group that isn't joined yet, in the new-alter sheet).
+export function GroupChip({ group, link = true }) {
   const navigate = useNavigate();
   return (
-    <button type="button" onClick={() => navigate(`/group/${group.id}`)} title={`Open ${group.name}`}
+    <button type="button" onClick={link ? () => navigate(`/group/${group.id}`) : undefined} title={link ? `Open ${group.name}` : undefined}
+      disabled={!link}
       className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
       style={{ borderColor: group.color ? `${group.color}55` : "hsl(var(--border))", color: groupNameColor(group.color) || "hsl(var(--foreground))" }}>
       <GroupIcon group={group} className="w-3 h-3" /> {group.name}
@@ -681,6 +692,7 @@ export function PreferencesSection({ info }) {
     <>
       <p className="text-xs text-muted-foreground py-1">How each pronoun set, name or term feels, from hate to love.</p>
       <AlterPreferencesEditor value={form.preferences || []} onChange={(next) => set("preferences", next)} />
+      <PrefLevelIconsRow />
     </>
   );
 }

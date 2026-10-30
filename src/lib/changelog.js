@@ -20,8 +20,16 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
-      { type: "feature", text: "Every picture can now be framed, not only an alter's profile picture: drag and zoom group, contact, location and system pictures, the system banner, profile header and background pictures, and each picture in a rotating pool." },
+      { type: "feature", text: "Every picture can now be framed: drag and zoom group, contact, location and system pictures, the banner, profile header and background pictures, and each picture in a rotating pool." },
       { type: "improve", text: "A picture's framing shows wherever it appears — cards, lists, pickers, headers, maps and widgets." },
+      { type: "improve", text: "The bio in {{Alter}} info (and the Bio widget's options) is the full editor itself — Plain, Simple, Blocks and Raw HTML, templates and import — no small box with a \"Full editor\" button in front of it." },
+      { type: "fix", text: "Typing into the bio from a widget's options sheet no longer fights the sheet's drag gesture." },
+      { type: "improve", text: "Info is reachable while editing the page layout: it opens over the page, so your unsaved layout stays put." },
+      { type: "improve", text: "{{Alter}} cards in lists and on the {{alters}} page now show the profile header's look — its picture, colour, text colour and font. The picture button on the list turns it off." },
+      { type: "improve", text: "Preferences & boundaries: \"hate\" is an angry face now (the broken heart looked like the filled heart), and each level's icon can be any emoji — under Pronouns in {{Alter}} info, shared by every profile." },
+      { type: "fix", text: "Switching between the old and the new profile is a visible Profile layout row in Info → Profile page, both ways, instead of a ⋯ entry — so a reverted profile can always switch back. \"Lay the bio out as widgets\" only shows on the old profile." },
+      { type: "feature", text: "The \"New {{alter}}\" sheet is rebuilt on the {{Alter}} info pieces: Info, Custom fields and Links tabs plus a Profile style page, with undo. Nothing about the {{alter}} is saved until you tap Add." },
+      { type: "fix", text: "Group picker: the hint now uses your own term instead of \"alter\"." },
       { type: "feature", text: "New Scratch pad widget (Add widget → Calm): draw on the particle pad on your page, with Clear and Full screen. Give it its own rules in its options, or follow the Support page." },
       { type: "feature", text: "New Soundscape widget: play or stop the Soundscape from any page, with the visual, countdown and volume. Expanded adds presets and the timer." },
     ],
