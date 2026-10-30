@@ -85,7 +85,11 @@ function GroupRow({ group, depth, isSelected, subgroupDotColors, onToggle, child
   );
 }
 
-export default function GroupPickerModal({ alter, open, onClose }) {
+// Picks the groups and subsystems an alter is in and writes them through
+// setAlterGroups. With `onConfirm(ids)` it only picks (`selectedIds` seeds
+// the selection) and writes nothing — the new-alter sheet uses it for an
+// alter that isn't saved yet (v0.320.0).
+export default function GroupPickerModal({ alter, open, onClose, selectedIds = null, onConfirm = null }) {
   const queryClient = useQueryClient();
   const t = useTerms();
   const [selectedGroupIds, setSelectedGroupIds] = useState(new Set());
@@ -113,14 +117,16 @@ export default function GroupPickerModal({ alter, open, onClose }) {
   // Open showing what's really stored: either representation, either key
   // (the same union every reader uses).
   useEffect(() => {
-    if (!open || !alter || allGroups.length === 0) return;
+    if (!open) return;
+    if (onConfirm) { setSelectedGroupIds(new Set(selectedIds || [])); return; }
+    if (!alter || allGroups.length === 0) return;
     const initialSelected = new Set(
       allGroups
         .filter((g) => isMemberOf(g, alter))
         .map((g) => g.id)
     );
     setSelectedGroupIds(initialSelected);
-  }, [open, alter?.id, allGroups]);
+  }, [open, alter?.id, allGroups, !!onConfirm]);
 
   const toggleGroup = (groupId) => {
     setSelectedGroupIds((prev) => {
@@ -132,6 +138,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
   };
 
   const handleSave = async () => {
+    if (onConfirm) { onConfirm([...selectedGroupIds]); onClose(); return; }
     if (!alter) return;
     setSaving(true);
     try {
@@ -204,7 +211,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Edit Groups — {alter?.name}</DialogTitle>
+          <DialogTitle>{alter?.name ? `Edit Groups — ${alter.name}` : "Groups"}</DialogTitle>
         </DialogHeader>
 
         {/* Groups vs subsystems tabs */}
@@ -226,7 +233,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {tab === "groups" ? "Tap a group to add or remove this alter." : `Tap a ${subTerm} to add or remove this alter as a member.`}
+          {tab === "groups" ? `Tap a group to add or remove this ${t.alter}.` : `Tap a ${subTerm} to add or remove this ${t.alter} as a member.`}
         </p>
 
         <div className="flex-1 overflow-y-auto py-2 space-y-0.5 min-h-0">
@@ -277,7 +284,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
         <div className="pt-3 border-t border-border/50">
           <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Groups
+            {onConfirm ? "Done" : "Save Groups"}
           </Button>
         </div>
       </DialogContent>

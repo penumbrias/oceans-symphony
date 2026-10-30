@@ -138,7 +138,11 @@ function FontRow({ label, value, onChange }) {
   );
 }
 
-export default function ProfileLookTabs({ subject, tab, onTab }) {
+// `onDraft(changes)`: edit a look that isn't stored yet (the new-alter
+// sheet, v0.320.0). Every change goes to the caller's draft instead of the
+// record — the caller passes the draft back as `subject.customFields`. A
+// picture pool belongs to one saved alter, so rotation stays off here too.
+export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null }) {
   const t = useTerms();
   const qc = useQueryClient();
   const { type, id } = subject;
@@ -147,7 +151,8 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
   // use the same tabs; a picture pool belongs to one alter, so rotation
   // stays off here.
   const forDefaults = isLookDefaultsSubject(subject);
-  const pictureOwnerId = isAlter && !forDefaults ? id : null;
+  const draft = typeof onDraft === "function";
+  const pictureOwnerId = isAlter && !forDefaults && !draft ? id : null;
   const subsystemTerm = `sub${t.system}`;
 
   // The draft: the record's look plus edits not yet written. Re-seeded
@@ -173,6 +178,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
     const changes = pending.current;
     pending.current = {};
     if (!Object.keys(changes).length) return;
+    if (draft) { onDraft(changes); return; }
     try {
       await patchProfileLook({ type, id }, changes);
       for (const key of LOOK_QUERY_KEYS[type]?.(id) || []) qc.invalidateQueries({ queryKey: key });
@@ -322,13 +328,13 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
                 <Group title="Background">
                   <PictureRow label="Picture" url={cf[PS.BG_IMAGE] || ""} onPick={(url) => set(PS.BG_IMAGE, url)} onClear={() => clear(PS.BG_IMAGE)}
                     ownerAlterId={pictureOwnerId} ownerAlterName={pictureOwnerId ? ownerName : ""} />
-                  {isAlter && !forDefaults && (
+                  {isAlter && !forDefaults && !draft && (
                     <ChoiceRow label="Rotation" hint="Cycle through a pool of pictures on each app open" value={cf[PS.BG_ROTATION] || "off"}
                       own={!!cf[PS.BG_ROTATION]} onClear={() => clear(PS.BG_ROTATION)}
                       onChange={(v) => set(PS.BG_ROTATION, v)}
                       options={[{ value: "off", label: "Off" }, { value: "random", label: "Random" }, { value: "sequential", label: "In order" }]} />
                   )}
-                  {isAlter && !forDefaults && (cf[PS.BG_ROTATION] || "off") !== "off" && (
+                  {isAlter && !forDefaults && !draft && (cf[PS.BG_ROTATION] || "off") !== "off" && (
                     <Row label="Pool pictures">
                       <button type="button" onClick={() => setPoolOpen(true)}
                         className="h-8 px-3 rounded-lg border border-border/60 text-xs hover:bg-muted/40">Manage…</button>
@@ -390,7 +396,7 @@ export default function ProfileLookTabs({ subject, tab, onTab }) {
           </>
         )}
       </div>
-      {isAlter && !forDefaults && (
+      {isAlter && !forDefaults && !draft && (
         <AlterImagePoolManager open={poolOpen} onClose={() => setPoolOpen(false)} alterId={id} role="background" />
       )}
     </div>
