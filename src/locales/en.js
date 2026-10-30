@@ -248,6 +248,22 @@ export default {
   "widget.sleepCtl.start": "Start sleeping",
   "widget.sleepCtl.wake": "I'm awake",
 
+  "widget.pad.label": "Scratch pad",
+  "widget.pad.clear": "Clear",
+  "widget.pad.full": "Full screen",
+  "widget.pad.tuned": "{name}, tuned",
+  "widget.pad.preview": "Draw here",
+
+  "widget.sound.label": "Soundscape",
+  "widget.sound.play": "Play",
+  "widget.sound.stop": "Stop",
+  "widget.sound.playing": "Playing",
+  "widget.sound.left": "{time} left",
+  "widget.sound.timerSet": "{min} min timer",
+  "widget.sound.idle": "Tap play",
+  "widget.sound.failed": "Sound couldn't start on this device.",
+  "widget.sound.preview": "Sound made from math",
+
   "widget.breathe.label": "Breathing",
   "widget.breathe.start": "Start breathing exercise",
 
