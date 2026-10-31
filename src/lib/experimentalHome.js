@@ -94,6 +94,15 @@ function clampStep(v, min, max, fallback) {
 // Sanitize a stored config against the registry's capabilities. `registry`
 // is passed in (not imported) to keep this module free of JSX imports so
 // it stays testable and cheap to load.
+// Space between widgets (v0.328.0): a board's `grid.gap` and a profile's
+// PS.WIDGET_GAP, in px. Unset falls back to the spacing a board always
+// had: tight for the bare-bones style, roomier for a flowing column.
+export const WIDGET_GAP_MAX = 40;
+export const isWidgetGap = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= WIDGET_GAP_MAX;
+export function defaultWidgetGap({ styleMode, flow }) {
+  return styleMode === "barebones" ? 6 : flow ? 16 : 12;
+}
+
 export function resolveExperimentalHome(stored, registry = {}) {
   const src = stored && typeof stored === "object" ? stored : {};
   // v1 → v2: the grid got twice as dense (phone 2→4 cols etc.) so app icons
@@ -144,6 +153,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
     grid: {
       phoneCols: [4, 5, 6, 8].includes(src.grid?.phoneCols) ? src.grid.phoneCols : 4,
       rowPx: [80, 60, 40].includes(src.grid?.rowPx) ? src.grid.rowPx : 80,
+      // Space between widgets in px (v0.328.0). Unset = the board's own
+      // spacing for its style, so boards nobody touched look as before.
+      ...(isWidgetGap(src.grid?.gap) ? { gap: src.grid.gap } : null),
     },
     drawer: {
       // User-chosen app order for the drawer grid (ids not listed keep

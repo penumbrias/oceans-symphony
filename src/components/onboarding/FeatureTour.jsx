@@ -359,7 +359,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🎨", title: "Profile style",
-      body: `Profile style, under "Profile page" in Info, is this profile's own look: colours, pictures, fonts, what the header shows, and a song that plays when the page opens.`,
+      body: `Profile style, under "Profile page" in Info, is this profile's own look: colours, pictures, fonts, the space between widgets, what the header shows, and a song that plays when the page opens.`,
       route: profile(), target: onProfile("alter-profile-edit-btn"),
     }),
     s("profile", {
