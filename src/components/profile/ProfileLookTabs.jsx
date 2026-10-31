@@ -18,7 +18,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, FileText, Type, Palette, Star as StarIcon } from "lucide-react";
+import { X, FileText, Type, Square, Palette, Star as StarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -34,6 +34,8 @@ import { PS, readProfileBg } from "@/lib/profileStyle";
 import { patchProfileLook, LOOK_QUERY_KEYS, PROFILE_LOOK_KEYS, isLookDefaultsSubject } from "@/lib/lookSubject";
 
 import { PictureFramingRow } from "@/components/shared/PictureFramingRow";
+import WidgetGapRow from "@/components/shared/WidgetGapRow";
+import { isWidgetGap, defaultWidgetGap } from "@/lib/experimentalHome";
 // Body ↔ header pairs: the palette, text, font and background opacity.
 // Pictures are never copied (a banner and a page picture usually differ).
 const SYNC_PAIRS = [
@@ -82,6 +84,7 @@ const WAVE_OPTIONS = [
 const TAB_KEYS = {
   content: [PS.HIDE_HEADER, PS.HEADER_SHOW_GROUPS, PS.HEADER_SHOW_SUBSYSTEMS, PS.HEADER_SHOW_FIELDS, PS.HEADER_SHOW_ALTER_FIELDS, PS.HEADER_SHOW_PRONOUNS, PS.HEADER_CHIP_MODE],
   text: [PS.PAGE_FONT, PS.HEADER_FONT, PS.THEME_TEXT, PS.PAGE_TEXT, PS.THEME_TEXT2, PS.HEADER_TEXT, PS.HEADER_THEME_TEXT2],
+  shape: [PS.WIDGET_GAP],
   colour: [
     PS.BG_COLOR, PS.THEME_SURFACE, PS.THEME_PRIMARY, PS.THEME_SECONDARY, PS.THEME_ACCENT, PS.THEME_MUTED, PS.THEME_WAVE, PS.THEME_BG,
     PS.BG_IMAGE, PS.BG_ROTATION, PS.BG_OPACITY, PS.READABILITY, PS.SONG,
@@ -230,6 +233,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
   const tabs = [
     { id: "content", label: "Content", icon: FileText, dot: TAB_KEYS.content.some((k) => cf[k] !== undefined) },
     { id: "text", label: "Text", icon: Type, dot: TAB_KEYS.text.some((k) => cf[k] !== undefined) },
+    { id: "shape", label: "Shape", icon: Square, dot: TAB_KEYS.shape.some((k) => cf[k] !== undefined) },
     { id: "colour", label: "Colour", icon: Palette, dot: TAB_KEYS.colour.some((k) => cf[k] !== undefined) },
     { id: "styles", label: "Styles", icon: StarIcon },
   ];
@@ -307,6 +311,20 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
               )}
             </div>
             <ResetRow onReset={() => resetKeys(TAB_KEYS.text)} />
+          </>
+        )}
+
+        {tab === "shape" && (
+          <>
+            <Group title="Layout" first>
+              {/* A profile's pages flow as a column, so the fallback is the
+                  column's spacing (ExperimentalDashboard). */}
+              <WidgetGapRow value={isWidgetGap(cf[PS.WIDGET_GAP]) ? cf[PS.WIDGET_GAP] : undefined}
+                fallback={defaultWidgetGap({ flow: true })}
+                hint={forDefaults ? "The gap between widgets on profiles that haven't set their own." : "The gap between the widgets on this profile's pages."}
+                onChange={(v) => (v === undefined ? clear(PS.WIDGET_GAP) : set(PS.WIDGET_GAP, v))} />
+            </Group>
+            <ResetRow onReset={() => resetKeys(TAB_KEYS.shape)} />
           </>
         )}
 

@@ -46,7 +46,9 @@ import {
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
   flowOrder, flowRepack, flowMove, snapStepFor, isWhole,
+  isWidgetGap, defaultWidgetGap,
 } from "@/lib/experimentalHome";
+import WidgetGapRow from "@/components/shared/WidgetGapRow";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -180,7 +182,7 @@ function offGridArea({ x, y, c, r }, rowPx, gapCss) {
   };
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", flowFlex = false }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", gapPx = 12, flowFlex = false }) {
   const holdSel = useRef(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
@@ -264,6 +266,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     // that made vertical drops land at a fraction of the dragged distance
     // (the "very clunky" report).
     rowHeight: rowPx,
+    gap: gapPx,
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
     enabled: free && editMode && !a11yStack,
@@ -698,6 +701,9 @@ export default function ExperimentalDashboard({
   // homescreen is the leftmost "page". Null under full v2 (no page to
   // exit to).
   onExitLeft = null,
+  // A profile's own space between widgets (its Profile style, PS.WIDGET_GAP),
+  // in px. Beats the board's grid.gap; null = the board decides.
+  widgetGap = null,
   // The mirror: the classic home rendered ON this canvas has the widget
   // board as its RIGHT neighbour — swiping LEFT past the last page hands
   // control forward instead of clamping.
@@ -947,7 +953,7 @@ export default function ExperimentalDashboard({
       span: { cols: Math.max(1, Math.round((w.span?.cols || 1) * fx)), rows: Math.max(1, Math.round((w.span?.rows || 1) * fy)) },
       pos: w.pos ? { x: Math.round((w.pos.x || 0) * fx), y: Math.round((w.pos.y || 0) * fy) } : w.pos,
     });
-    persist({ ...boardRef.current.board, grid: { phoneCols: d.cols, rowPx: d.rowPx }, pages: boardRef.current.board.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
+    persist({ ...boardRef.current.board, grid: { ...(home.grid || {}), phoneCols: d.cols, rowPx: d.rowPx }, pages: boardRef.current.board.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
   };
 
   const goToPage = useCallback((idx) => {
@@ -1327,7 +1333,7 @@ export default function ExperimentalDashboard({
       && point.x >= rect.left && point.x <= rect.right
       && point.y >= rect.top && point.y <= rect.bottom;
     if (!inside || !pageIsFree) { handleAddWidget(widgetId); return; }
-    const gap = home.styleMode === "barebones" ? 6 : 12;
+    const gap = gapPx;
     const cw = (rect.width - (gridCols - 1) * gap) / gridCols;
     const col = Math.floor((point.x - rect.left) / (cw + gap));
     const row = Math.floor((point.y - rect.top) / (rowPx + gap));
@@ -1571,7 +1577,13 @@ export default function ExperimentalDashboard({
   // A width between grid lines can't be a grid span — such a page lays its
   // column out as a wrapping row of exact widths instead.
   const flowFlex = flowView && page.widgets.some((w) => !isWhole(w.span?.cols || 1));
-  const canvasGap = home.styleMode === "barebones" ? "0.375rem" : flowView ? "1rem" : "0.75rem";
+  // Space between widgets (v0.328.0): the person's choice when set (a
+  // profile's Profile style, else this board's grid.gap); otherwise the
+  // spacing boards always had, in rem as before.
+  const chosenGap = isWidgetGap(widgetGap) ? widgetGap : isWidgetGap(home.grid?.gap) ? home.grid.gap : null;
+  const fallbackGapPx = defaultWidgetGap({ styleMode: home.styleMode, flow: flowView });
+  const gapPx = chosenGap ?? fallbackGapPx;
+  const canvasGap = chosenGap != null ? `${chosenGap}px` : `${fallbackGapPx / 16}rem`;
 
   // One pass, per page and width: give every widget the rows its content
   // actually needs, then untangle. Done centrally and written once —
@@ -1971,6 +1983,7 @@ export default function ExperimentalDashboard({
           emptyHint={!!w.__empty}
           step={snapStepFor(w, boardSnap)}
           gapCss={canvasGap}
+          gapPx={gapPx}
           flowFlex={flowFlex}
         />
       ))}
@@ -2103,6 +2116,15 @@ export default function ExperimentalDashboard({
             >
               Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label}
             </button>
+            </div>
+            <div className="mt-2" data-board-gap="">
+              <WidgetGapRow value={isWidgetGap(home.grid?.gap) ? home.grid.gap : undefined} fallback={fallbackGapPx}
+                onChange={(gap) => {
+                  const board = boardRef.current.board; // newest board, never the render copy
+                  const grid = { ...(board?.grid || {}) };
+                  if (gap === undefined) delete grid.gap; else grid.gap = gap;
+                  persist({ ...board, grid });
+                }} />
             </div>
 
             {/* Everything else IS the unified edit popup

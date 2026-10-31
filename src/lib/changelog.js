@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "October 31, 2026",
+    changes: [
+      { type: "feature", text: "Choose the space between widgets: on the home screen in edit mode → Display, and on a profile in Profile style → Shape." },
+    ],
+  },
+  {
     date: "October 30, 2026",
+    version: "0.327.0",
     changes: [
       { type: "feature", text: "Coming up widget: pick plans, recurring tasks or both, which recurring tasks, and how many plans or how many days ahead to show." },
       { type: "fix", text: "Widgets you'd already placed keep looking the way they did after an update: older Feelings and Symptom analytics widgets show the full analytics again, and older Reminders widgets their four rows of everything coming up." },

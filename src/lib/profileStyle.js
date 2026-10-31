@@ -79,6 +79,8 @@ export const PS = {
   HEADER_THEME_ACCENT: "_header_theme_accent",
   HEADER_THEME_MUTED: "_header_theme_muted",
   HEADER_THEME_TEXT2: "_header_theme_text2",
+  // Space between the widgets on this profile's pages, in px (v0.328.0).
+  WIDGET_GAP: "_widget_gap",
 };
 
 // Normalised read of the background-related style keys, with the contextual

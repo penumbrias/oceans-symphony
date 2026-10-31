@@ -28,6 +28,8 @@ import { BoardSubjectContext } from "@/lib/boardSubject";
 import { profileBoardStore, profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
 import { seedProfileBoard, withAddedProfilePages, profilePageId, tabOfPageId, DEFAULT_OWNER_ID, pickProfileBoardRows, layoutForCopy } from "@/lib/profileBoard";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
+import { PS } from "@/lib/profileStyle";
 
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
@@ -127,6 +129,10 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
   const registry = useMemo(() => profileRegistryFor(ownerType, V2_WIDGETS), [ownerType]);
   const subject = useMemo(() => (recordId ? { type: ownerType, id: recordId } : null), [ownerType, recordId]);
   const boardApi = useMemo(() => api || {}, [api]);
+  // Space between widgets is part of the profile's look (Profile style →
+  // Shape), so the defaults for new profiles cover it too.
+  const lookDefaults = useLookDefaults(ownerType);
+  const widgetGap = withLookDefaults(record?.custom_fields, lookDefaults)[PS.WIDGET_GAP];
   if (!boardStore || !boardRowsFetched || !defaultRowsFetched) return null;
   return (
     <BoardSubjectContext.Provider value={subject}>
@@ -141,6 +147,7 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
         initialPageId={page.initialPageId}
         onPageChange={page.onPageChange}
         pageStrip="tabs"
+        widgetGap={typeof widgetGap === "number" ? widgetGap : null}
         pageIcons={pageIcons}
         pageStripProps={tourId ? { "data-tour": tourId } : null}
       />
