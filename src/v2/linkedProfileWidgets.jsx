@@ -22,80 +22,24 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { boxStyle } from "@/v2/primitives";
-import { StackedRow } from "@/components/shared/SettingRows";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
-import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import GroupSelect from "@/components/groups/GroupSelect";
-import { contactDisplayName } from "@/lib/contacts";
+import { WhoseRow, LINK_KEYS, showsOther } from "@/components/v2/WhosePicker";
 import { GARDEN_ALTER_WIDGETS } from "@/v2/gardenProfileWidgets";
 import { GARDEN_CONNECTION_WIDGETS } from "@/v2/gardenConnectionWidgets";
 import { GARDEN_GROUP_WIDGETS } from "@/v2/gardenGroupWidgets";
 import { GARDEN_CONTACT_WIDGETS } from "@/v2/gardenContactWidgets";
 import { GARDEN_LOCATION_WIDGETS } from "@/v2/gardenLocationWidgets";
 
-export const LINK_KEYS = { alter: "alterId", group: "groupId", contact: "contactId", location: "locationId" };
+export { LINK_KEYS };
 const TYPE_LABEL = { alter: "{{Alter}}", group: "Group", contact: "Contact", location: "Location" };
-const WHICH = { alter: "Whose", group: "Which group", contact: "Which contact", location: "Which location" };
-const CHOOSE = { alter: "Choose an {{alter}}…", group: "Choose a group…", contact: "Choose a contact…", location: "Choose a location…" };
 
 // The menu group each type's widgets are listed under (widgetMenuGroups.js).
 export const linkedCategory = (type) => `linked_${type}`;
 
-function AlterLink({ value, onChange }) {
-  const t = useTerms();
-  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  return (
-    <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={value || null}
-      onChange={(id) => onChange(id || "")} terms={t} showNone={false} zIndex={120}
-      placeholder={applyTerms(CHOOSE.alter, t)} />
-  );
-}
-
-function GroupLink({ value, onChange }) {
-  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  return <GroupSelect groups={groups} value={value || ""} onChange={(id) => onChange(id || "")} placeholder={CHOOSE.group} zIndex={120} />;
-}
-
-function ContactLink({ value, onChange }) {
-  const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
-  const options = useMemo(() => contacts
-    .filter((c) => !c.is_archived || c.id === value)
-    .map((c) => ({ id: c.id, label: contactDisplayName(c) || "Contact", color: c.color }))
-    .sort((a, b) => a.label.localeCompare(b.label)), [contacts, value]);
-  return <SearchableSelect value={value || null} onChange={(id) => onChange(id || "")} options={options}
-    placeholder={CHOOSE.contact} searchPlaceholder="Search contacts…" />;
-}
-
-// Locations sit on maps and layers; each one says where, and they're listed
-// map by map so two "Bedroom"s on different maps are told apart.
-function LocationLink({ value, onChange }) {
-  const { data: locations = [] } = useQuery({ queryKey: ["innerWorldLocations"], queryFn: () => base44.entities.InnerWorldLocation.list() });
-  const { data: maps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => base44.entities.InnerWorldMap.list() });
-  const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => base44.entities.InnerWorldLayer.list() });
-  const options = useMemo(() => {
-    const mapName = (id) => maps.find((m) => m.id === id)?.name || "";
-    const layerName = (id) => layers.find((l) => l.id === id)?.name || "";
-    return locations
-      .map((l) => ({ id: l.id, label: l.name || "Location", color: l.color, sublabel: [mapName(l.map_id), layerName(l.layer_id)].filter(Boolean).join(" · ") }))
-      .sort((a, b) => a.sublabel.localeCompare(b.sublabel) || a.label.localeCompare(b.label));
-  }, [locations, maps, layers]);
-  return <SearchableSelect value={value || null} onChange={(id) => onChange(id || "")} options={options}
-    placeholder={CHOOSE.location} searchPlaceholder="Search locations…" />;
-}
-
-const PICKERS = { alter: AlterLink, group: GroupLink, contact: ContactLink, location: LocationLink };
-
-// The widget's first option row: whose it is.
-function linkField(type) {
-  const key = LINK_KEYS[type];
-  const Picker = PICKERS[type];
+// The widget's first option row: whose it is. `ownProfile` on its own kind
+// of profile, where it can also show the page it sits on.
+function linkField(type, ownProfile = false) {
   function LinkRow({ settings, set }) {
-    const t = useTerms();
-    return (
-      <StackedRow label={applyTerms(WHICH[type], t)}>
-        <Picker value={settings?.[key] || ""} onChange={(id) => set({ [key]: id })} />
-      </StackedRow>
-    );
+    return <WhoseRow type={type} settings={settings} set={set} ownProfile={ownProfile} />;
   }
   return { key: `_link_${type}`, type: "component", label: "", Component: LinkRow };
 }
@@ -141,6 +85,26 @@ export function linkedWidget(type, def) {
     render: (props) => <LinkedBody type={type} def={def} props={props} />,
   };
 }
+
+// The same widget on its own kind of profile (v0.328.1): it shows the page
+// it sits on unless its options say "Another …" — then the one picked
+// there. The alter widgets read that through useInfoAlter; the others are
+// handed the picked record as their subject, or keep the page's.
+export function ownProfileWidget(type, def) {
+  const key = LINK_KEYS[type];
+  return {
+    ...def,
+    configFields: [linkField(type, true), ...(def.configFields || [])],
+    ...(type === "alter" ? {} : {
+      boardSubjectFor: (settings) => (showsOther(settings) && settings?.[key]
+        ? { type, id: settings[key], linked: true }
+        : undefined),
+    }),
+  };
+}
+
+export const ownProfileWidgets = (type, defs) =>
+  Object.fromEntries(Object.entries(defs).map(([id, def]) => [id, ownProfileWidget(type, def)]));
 
 const GARDEN_BY_TYPE = {
   alter: { ...GARDEN_ALTER_WIDGETS, ...GARDEN_CONNECTION_WIDGETS },

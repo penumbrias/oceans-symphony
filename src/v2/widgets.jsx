@@ -3467,10 +3467,10 @@ export const V2_WIDGETS = {
     render: ({ settings }) => <MediaWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
-      // Pictures that belong to an {{alter}} (v0.300.0): on an alter's
-      // profile, or on the home screen for the {{alter}} chosen here.
+      // Pictures that belong to an {{alter}} (v0.300.0): that profile's on
+      // an alter's profile, or the {{alter}} chosen here anywhere else
+      // (every board since v0.328.1).
       { key: "source", type: "select", label: "Shows", default: "items",
-        showIf: (s, ctx) => !ctx?.subject || ["home", "alter"].includes(ctx.subject.type) || ALTER_PICTURE_SOURCES.includes(s?.source),
         options: [
           { value: "items", label: "What I pick" },
           { value: "avatar", label: "Profile picture" },

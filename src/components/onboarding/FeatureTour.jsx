@@ -384,8 +384,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: profile(),
     }),
     s("profile", {
-      emoji: "🔗", title: "Someone else's fields",
-      body: `"Whose info" in a Field widget's options can show another ${t.alter}'s or a group's bio and fields, here or on the home screen.`,
+      emoji: "🔗", title: "Someone else's widgets",
+      body: `Most widgets here can show someone else: in a widget's options, "Whose" → "Another ${t.alter}". A Field widget's "Whose info" can also pick a group.`,
       route: profile(),
     }),
     s("profile", {
