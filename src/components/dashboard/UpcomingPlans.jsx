@@ -1,24 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Settings as SettingsIcon } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import RecurringTasksDue, { useRecurringTasksDue } from "@/components/tasks/RecurringTasksDue";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { activityDate } from "@/lib/dateUtils";
 import {
   getActiveLimit,
-  getLimitMode,
-  setLimitMode,
-  getLimitCount,
-  setLimitCount,
-  getLimitWindowId,
-  setLimitWindowId,
   MODE_COUNT,
   MODE_WINDOW,
   WINDOW_MODE_HARD_CAP,
@@ -33,29 +23,33 @@ import {
  * Settings → Appearance surfaces list is gone (v0.319.0).
  *
  * Props:
- *   placement   — which copy this is; each keeps its own count / window
- *                 (upcomingPlansLimit.js scope) behind its inline cog.
+ *   placement   — which copy this is; the scope of its older saved
+ *                 count / window (upcomingPlansLimit.js).
  *   limit       — max items to show. Pass an explicit number to force a
  *                 cap (e.g. the alter panel uses 3 to stay compact).
- *   limitConfig — { mode: "count", count } or { mode: "window", windowId }
- *                 from the hosting widget's own options; when given, the
- *                 inline cog is hidden (the widget's Content tab owns it).
+ *   limitConfig — { mode: "count", count } or { mode: "window", windowMs |
+ *                 windowId } from the hosting widget's own options
+ *                 (comingUpOptions.jsx).
  *   filterByAlterId — optional; when set, only plans assigned to this alter
  *                     show. Used by the per-alter panel.
  *   showRecurring — also list today's recurring tasks (every kind, with
  *                   entry) under the plans. Off for the per-alter panel.
+ *   showPlans   — list the plans at all (off = only recurring tasks).
+ *   showOverdue — keep scheduled plans whose time has passed but that
+ *                 haven't been marked yet.
+ *   recurringKinds / recurringShowDone — which recurring tasks (see
+ *                 RecurringTasksDue), and whether finished ones stay.
  *   title       — heading text. Default "📅 Coming up".
  */
-export default function UpcomingPlans({ placement, limit, limitConfig: limitOverride = null, filterByAlterId = null, showRecurring = true, title = "📅 Coming up" }) {
+export default function UpcomingPlans({
+  placement, limit, limitConfig: limitOverride = null, filterByAlterId = null,
+  showRecurring = true, showPlans = true, showOverdue = true,
+  recurringKinds = "all", recurringShowDone = true, title = "📅 Coming up",
+}) {
   const navigate = useNavigate();
-  const [showSettings, setShowSettings] = useState(false);
 
-  // Surfaces that pass an explicit numeric `limit` (e.g. the alter panel
-  // forces 3) or get their limit from the hosting widget's options are
-  // ignoring the inline preference, so the cog shouldn't appear there.
-  const allowInlineSettings = typeof limit !== "number" && !limitOverride;
   const recurringOn = showRecurring && !filterByAlterId && typeof limit !== "number";
-  const { rows: recurringRows } = useRecurringTasksDue({ enabled: recurringOn });
+  const { rows: recurringRows } = useRecurringTasksDue({ enabled: recurringOn, kinds: recurringKinds, showDone: recurringShowDone });
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],
@@ -66,35 +60,35 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  // Track the user's limit preference; re-read when the storage key changes
-  // (e.g. when the setting is edited in Settings). The window-event
-  // listener fires on cross-tab updates; we also re-read on mount.
-  // Each panel keeps its OWN limit config, keyed by its placement, so two
-  // dashboard panels can show different things (e.g. "today" up top, "this
-  // week" lower down). Falls back to the global Settings default until the
-  // panel is individually configured via its cog.
-  const [storedLimit, setStoredLimit] = useState(() => getActiveLimit(placement));
-  useEffect(() => {
-    const reread = () => setStoredLimit(getActiveLimit(placement));
-    reread();
-    window.addEventListener("storage", reread);
-    window.addEventListener("upcoming-plans-limit-changed", reread);
-    return () => {
-      window.removeEventListener("storage", reread);
-      window.removeEventListener("upcoming-plans-limit-changed", reread);
-    };
-  }, [placement]);
+  // The count / window now lives in each widget's options (v0.327.0,
+  // comingUpOptions.jsx); the panel's old cog is gone. A caller without
+  // options still gets this placement's saved preference.
+  const storedLimit = useMemo(() => getActiveLimit(placement), [placement]);
   // The hosting widget's own options win over the stored preference.
+  // A window may come as a number of milliseconds (the widget's "how far
+  // ahead" slider) or as one of the older fixed window ids.
   const limitConfig = limitOverride
     ? (limitOverride.mode === MODE_WINDOW
-      ? (() => { const opt = WINDOW_OPTIONS.find((w) => w.id === limitOverride.windowId) || WINDOW_OPTIONS[3]; return { mode: MODE_WINDOW, windowMs: opt.ms, windowId: opt.id, windowLabel: opt.label }; })()
+      ? (Number(limitOverride.windowMs) > 0
+        ? { mode: MODE_WINDOW, windowMs: Number(limitOverride.windowMs), windowLabel: limitOverride.windowLabel || "" }
+        : (() => { const opt = WINDOW_OPTIONS.find((w) => w.id === limitOverride.windowId) || WINDOW_OPTIONS[3]; return { mode: MODE_WINDOW, windowMs: opt.ms, windowId: opt.id, windowLabel: opt.label }; })())
       : { mode: MODE_COUNT, count: Math.min(COUNT_MAX, Math.max(COUNT_MIN, Number(limitOverride.count) || 5)) })
     : storedLimit;
 
   // Filter for assigned alter if needed
-  const visibleActivities = filterByAlterId
-    ? activities.filter(a => (a.assigned_alter_ids || []).includes(filterByAlterId))
-    : activities;
+  // Overdue = still scheduled but its time has passed (an untimed day plan
+  // only once its day is over). Hidden when the widget says so.
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const isOverdue = (a) => {
+    if (a?.timestamp) return new Date(a.timestamp).getTime() <= Date.now();
+    const d = activityDate(a);
+    return !!d && d.getTime() < todayStart.getTime();
+  };
+  const visibleActivities = !showPlans ? [] : activities.filter((a) => {
+    if (filterByAlterId && !(a.assigned_alter_ids || []).includes(filterByAlterId)) return false;
+    if (!showOverdue && statusFor(a) === ACTIVITY_STATUSES.SCHEDULED && isOverdue(a)) return false;
+    return true;
+  });
 
   // Decide the limit + any pre-filter to apply.
   //
@@ -111,7 +105,8 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
     const cutoff = Date.now() + limitConfig.windowMs;
     prefilteredActivities = visibleActivities.filter(a => {
       if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
-      const ts = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+      // Timed plans by their time; untimed day plans by their day.
+      const ts = a?.timestamp ? new Date(a.timestamp).getTime() : (activityDate(a)?.getTime() || 0);
       return ts > 0 && ts <= cutoff;
     });
     effectiveLimit = WINDOW_MODE_HARD_CAP;
@@ -126,8 +121,11 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
   // PlannedActivitiesList actually renders — otherwise a future plan
   // already marked done/skipped/cancelled would show the header with an
   // empty list under it (and eat window-mode slots).
+  // An overdue plan counts too when it's shown (the widget's option), so
+  // a list of only overdue plans isn't hidden.
   const upcomingCount = prefilteredActivities.filter(a => {
     if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
+    if (limitOverride && showOverdue && isOverdue(a)) return true;
     const ts = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     return ts > now;
   }).length;
@@ -139,22 +137,8 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
       <div className="flex items-center justify-between px-1 mb-1.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Calendar className="w-3 h-3" /> {title}
-          {allowInlineSettings && limitConfig.mode === MODE_WINDOW && (
-            <span className="normal-case font-normal text-muted-foreground/60">· {limitConfig.windowLabel}</span>
-          )}
         </p>
         <div className="flex items-center gap-3">
-          {allowInlineSettings && (
-            <button
-              type="button"
-              onClick={() => setShowSettings(true)}
-              aria-label="Upcoming plans settings"
-              title="Adjust how many plans show"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <SettingsIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
           <button
             type="button"
             onClick={() => navigate("/planner")}
@@ -171,130 +155,7 @@ export default function UpcomingPlans({ placement, limit, limitConfig: limitOver
           onClick={(activity) => navigate(activity?.id ? `/planner?activityId=${activity.id}` : "/planner")}
         />
       )}
-      {hasRecurring && <div className="px-1"><RecurringTasksDue /></div>}
-      {allowInlineSettings && (
-        <UpcomingPlansSettingsDialog
-          open={showSettings}
-          scope={placement}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
+      {hasRecurring && <div className="px-1"><RecurringTasksDue kinds={recurringKinds} showDone={recurringShowDone} /></div>}
     </div>
-  );
-}
-
-// Inline settings dialog — mirrors the pattern used by
-// PinnedDailyTasksWidget so users can adjust how many upcoming plans
-// surface without navigating to Settings → Appearance.
-function UpcomingPlansSettingsDialog({ open, scope, onClose }) {
-  const [mode, setMode] = useState(MODE_COUNT);
-  const [count, setCount] = useState(5);
-  const [windowId, setWindowId] = useState(WINDOW_OPTIONS[0].id);
-
-  useEffect(() => {
-    if (!open) return;
-    // Reload current values every time the dialog opens so the form
-    // doesn't carry over a half-edited draft from a previous open.
-    setMode(getLimitMode(scope));
-    setCount(getLimitCount(scope));
-    setWindowId(getLimitWindowId(scope));
-  }, [open, scope]);
-
-  const handleSave = () => {
-    // Write to THIS panel's scope only — other panels keep their own config.
-    setLimitMode(mode, scope);
-    if (mode === MODE_COUNT) setLimitCount(count, scope);
-    else setLimitWindowId(windowId, scope);
-    // Every UpcomingPlans instance listens and re-reads its own scope.
-    window.dispatchEvent(new Event("upcoming-plans-limit-changed"));
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Upcoming plans settings</DialogTitle>
-          <DialogDescription>
-            Choose whether to show a fixed number of plans or everything inside a time window.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="upcoming-plans-mode"
-                value={MODE_COUNT}
-                checked={mode === MODE_COUNT}
-                onChange={() => setMode(MODE_COUNT)}
-                className="mt-1"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Show next N plans</p>
-                <p className="text-xs text-muted-foreground">A fixed cap regardless of how far out they are.</p>
-                {mode === MODE_COUNT && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={COUNT_MIN}
-                      max={COUNT_MAX}
-                      value={count}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw === "") { setCount(""); return; }
-                        const n = parseInt(raw, 10);
-                        if (Number.isFinite(n)) setCount(n);
-                      }}
-                      onBlur={() => {
-                        const n = parseInt(count, 10);
-                        if (!Number.isFinite(n)) setCount(COUNT_MIN);
-                        else setCount(Math.max(COUNT_MIN, Math.min(COUNT_MAX, n)));
-                      }}
-                      className="w-20 h-8 text-sm"
-                    />
-                    <span className="text-xs text-muted-foreground">plans ({COUNT_MIN}–{COUNT_MAX})</span>
-                  </div>
-                )}
-              </div>
-            </label>
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="upcoming-plans-mode"
-                value={MODE_WINDOW}
-                checked={mode === MODE_WINDOW}
-                onChange={() => setMode(MODE_WINDOW)}
-                className="mt-1"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Show plans in a time window</p>
-                <p className="text-xs text-muted-foreground">Everything coming up inside this range (capped at {WINDOW_MODE_HARD_CAP}).</p>
-                {mode === MODE_WINDOW && (
-                  <select
-                    value={windowId}
-                    onChange={(e) => setWindowId(e.target.value)}
-                    className="mt-2 w-full h-8 text-sm rounded-md border border-border bg-background px-2"
-                  >
-                    {WINDOW_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>{opt.label}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={handleSave}>Save</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

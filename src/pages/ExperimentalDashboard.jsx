@@ -85,7 +85,7 @@ import { keepLayoutRestorePoint } from "@/lib/localDb";
 import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { BoardFieldContext } from "@/lib/boardWriter";
-import { foldedSettings } from "@/lib/widgetFold";
+import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -615,7 +615,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           <WidgetSubject def={def} settings={widget.settings}>
           {def.render({
             mode,
-            settings: foldedSettings(def, widget.settings),
+            settings: foldedSettings(def, widget.settings, widget.instanceId),
             instanceId: widget.instanceId,
             api,
             updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
@@ -1272,6 +1272,10 @@ export default function ExperimentalDashboard({
     const src = widgets.find((w) => w.instanceId === instanceId);
     if (!src) return;
     const copy = JSON.parse(JSON.stringify(src));
+    // The copy is new, so it would lose the old defaults the original
+    // keeps (pastDefaults) — write them into the copy so it matches.
+    const past = pastDefaultsFor(registry[src.widgetId], src.instanceId);
+    if (past) copy.settings = { ...past, ...(copy.settings || {}) };
     copy.instanceId = newInstanceId();
     delete copy.pos;
     updatePageWidgets((ws) => {

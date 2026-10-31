@@ -766,7 +766,7 @@ export default function WidgetConfigSheet({
     try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
   };
   // A folded widget's options show what it renders with (widgetFold.js).
-  const settings = foldedSettings(def, widget?.settings);
+  const settings = foldedSettings(def, widget?.settings, widget?.instanceId);
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const [iconPickerOpen, setIconPickerOpen] = React.useState(false);
   const fontOptions = useFontOptions({ inheritLabel: "App font" });
@@ -903,7 +903,11 @@ export default function WidgetConfigSheet({
     if (f.type === "quickActionsManager") {
       return <div key={f.key} className="py-1.5"><QuickActionsManagerField label={applyTerms(f.label, t)} /></div>;
     }
-    const val = settings[f.key] ?? f.default ?? "";
+    // `defaultFrom(settings)`: what the widget really does while this
+    // option is unset (e.g. an older saved preference), shown greyed and
+    // dashed instead of a made-up default.
+    const inheritedVal = typeof f.defaultFrom === "function" ? f.defaultFrom(settings) : undefined;
+    const val = settings[f.key] ?? inheritedVal ?? f.default ?? "";
     const commit = (v) => set({ [f.key]: v });
     const label = applyTerms(f.label, t);
     if (f.type === "toggle") {
@@ -913,6 +917,13 @@ export default function WidgetConfigSheet({
       // A number with a range is a slider (owner, v0.288.0: "row height
       // should be a slider, the stepper is unintuitive"); the box beside it
       // still takes a typed value.
+      if (typeof f.defaultFrom === "function") {
+        return (
+          <SliderRow key={f.key} label={label} hint={f.help} value={settings[f.key]} fallback={inheritedVal ?? f.default ?? f.min ?? 0}
+            min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} unit={f.unit || ""} onChange={commit}
+            onClear={() => commit("")} />
+        );
+      }
       return (
         <SliderRow key={f.key} label={label} hint={f.help} value={val} fallback={f.default ?? f.min ?? 0}
           min={f.min ?? 0} max={f.max ?? 99} step={f.step ?? 1} unit={f.unit || ""} onChange={commit} />
@@ -926,8 +937,11 @@ export default function WidgetConfigSheet({
       );
     }
     if (f.type === "select") {
+      const inheritedChoice = typeof f.defaultFrom === "function";
       return (
         <ChoiceRow key={f.key} label={label} hint={f.help} value={val} onChange={commit}
+          own={inheritedChoice ? (settings[f.key] !== undefined && settings[f.key] !== "") : undefined}
+          onClear={inheritedChoice ? () => commit("") : undefined}
           options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
       );
     }

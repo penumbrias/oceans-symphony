@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 30, 2026",
     changes: [
+      { type: "feature", text: "Coming up widget: pick plans, recurring tasks or both, which recurring tasks, and how many plans or how many days ahead to show." },
+      { type: "fix", text: "Widgets you'd already placed keep looking the way they did after an update: older Feelings and Symptom analytics widgets show the full analytics again, and older Reminders widgets their four rows of everything coming up." },
       { type: "improve", text: "Editing a profile page (or the home screen) no longer rearranges it: the page keeps looking exactly as it does, and widgets with nothing to show get a light dashed outline." },
       { type: "feature", text: "Snap to grid can be turned off with Snap in the edit bar, so widgets move and size in small steps — or just for one widget in its options → Shape → Arrange." },
       { type: "feature", text: "The Bio and Field widgets can show their text as pages: tabs you swipe between. \"Add a page\" in the widget's options offers ready pages like Backstory or Likes & dislikes, saved in Info." },

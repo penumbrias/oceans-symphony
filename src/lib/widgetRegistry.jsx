@@ -44,7 +44,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 
-import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
+import { ComingUpPanel, comingUpPlanFields, recurringTaskFields } from "@/components/dashboard/comingUpOptions";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
@@ -597,17 +597,27 @@ export const WIDGET_REGISTRY = {
   upcoming_top: {
     label: "Upcoming plans", description: "Scheduled activities coming up.",
     icon: CalendarDays, category: "tracking",
-    render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_top" }),
+    render: ({ mode, settings }) => (mode === "minimal"
+      ? <MinimalShell icon={CalendarDays} label="Upcoming plans" />
+      : <ComingUpPanel settings={settings} scope="home_top" />),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
+    // What it lists, how many / how far ahead (v0.327.0) — the options
+    // the panel's cog used to hold, which an unset widget still follows.
+    configFields: [...comingUpPlanFields({ scope: "home_top" }), ...recurringTaskFields()],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   upcoming_bottom: {
     label: "Upcoming plans (secondary)", description: "A second upcoming-plans surface.",
     icon: CalendarDays, category: "tracking",
-    render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_bottom" }),
+    render: ({ mode, settings }) => (mode === "minimal"
+      ? <MinimalShell icon={CalendarDays} label="Upcoming plans" />
+      : <ComingUpPanel settings={settings} scope="home_bottom" />),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
+    // What it lists, how many / how far ahead (v0.327.0) — the options
+    // the panel's cog used to hold, which an unset widget still follows.
+    configFields: [...comingUpPlanFields({ scope: "home_bottom" }), ...recurringTaskFields()],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   pinned_daily_tasks: {

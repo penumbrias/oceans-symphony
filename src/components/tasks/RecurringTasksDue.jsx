@@ -25,19 +25,31 @@ import { Row } from "@/v2/primitives";
 
 const ALL_FREQS = ["daily", "weekly", "monthly", "yearly"];
 
+// Which kinds a surface lists (v0.327.0, the Coming up widget's option):
+// "all", "once" (plain tick-off tasks) or "counted" (targets, tallies and
+// step lists).
+export function matchesTaskKind(t, kinds = "all") {
+  if (kinds === "once") return !isCountedTask(t);
+  if (kinds === "counted") return isCountedTask(t);
+  return true;
+}
+
 // The rows a surface needs: templates due today (all frequencies), done
-// ones last. Shared by the list below and the classic panel's gate.
-export function useRecurringTasksDue({ frequencies = ALL_FREQS, enabled = true } = {}) {
+// ones last (or left out with showDone: false). Shared by the list below
+// and the classic panel's gate.
+export function useRecurringTasksDue({ frequencies = ALL_FREQS, enabled = true, kinds = "all", showDone = true } = {}) {
   const { data: templates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list(), enabled });
   const { data: progress = [] } = useQuery({ queryKey: ["dailyProgress"], queryFn: () => base44.entities.DailyProgress.list(), enabled });
   const ticks = useTaskTicks();
   const rows = useMemo(() => {
     const due = templates
-      .filter((t) => t.is_active !== false && t.mode !== "AUTO" && frequencies.includes(t.frequency || "daily") && isTaskDueOn(t))
-      .map((t) => ({ template: t, done: isTemplateDoneNow(t, progress) }));
+      .filter((t) => t.is_active !== false && t.mode !== "AUTO" && frequencies.includes(t.frequency || "daily") && isTaskDueOn(t)
+        && matchesTaskKind(t, kinds))
+      .map((t) => ({ template: t, done: isTemplateDoneNow(t, progress) }))
+      .filter((r) => showDone || !r.done);
     due.sort((a, b) => (a.done === b.done ? ((a.template.sort_order ?? 0) - (b.template.sort_order ?? 0)) : (a.done ? 1 : -1)));
     return due;
-  }, [templates, progress, frequencies]);
+  }, [templates, progress, frequencies, kinds, showDone]);
   return { rows, templates, ticks };
 }
 
@@ -94,10 +106,10 @@ export function RecurringTaskRow({ task: t, done, ticks, templates, secondary, r
   );
 }
 
-export default function RecurringTasksDue({ frequencies = ALL_FREQS, limit = 0, compact = false, heading }) {
+export default function RecurringTasksDue({ frequencies = ALL_FREQS, limit = 0, compact = false, heading, kinds = "all", showDone = true }) {
   const tr = useT();
   const navigate = useNavigate();
-  const { rows, templates, ticks } = useRecurringTasksDue({ frequencies });
+  const { rows, templates, ticks } = useRecurringTasksDue({ frequencies, kinds, showDone });
   if (!rows.length) return null;
   const shown = limit > 0 ? rows.slice(0, limit) : rows;
   const multi = new Set(shown.map((r) => r.template.frequency || "daily")).size > 1;

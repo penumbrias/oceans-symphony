@@ -1253,6 +1253,8 @@ fails on bracketed rem text, look fields read off `settings`, and grey/white
 text classes in the widget files (mark real content, like initials on a
 member's colour, with a `contract-ok` comment).
 
+**Changing a widget's default: keep placed widgets as they were (v0.327.0).** Never change what an already-placed widget shows by changing a fallback, a field `default`, or what a display mode draws. Add the new behaviour as an option whose default is the new look, then list the old look in the definition's `pastDefaults: [{ before: <ms the change ships>, settings: {…} }]` — `foldedSettings` (`src/lib/widgetFold.js`) gives it to every instance placed before that time (read from the `w_<time36>_` instance id) for any key it never set; duplicates copy it. A field whose real fallback comes from elsewhere (an older saved preference) takes `defaultFrom(settings)` so the options sheet shows the true value greyed. Tests: `node scripts/test-widget-past-defaults.mjs`.
+
 **Retiring a duplicate widget: fold it, never delete its id (v0.280.0).** Boards in the wild hold every id ever shipped. Point the old id at the kept widget with `foldWidget(keptDef, mapSettings)` from `src/lib/widgetFold.js` — the placed copy keeps its spot and saved settings, renders the kept widget set up like the old one (`mapSettings`), and leaves the add-widget list. The board data is never rewritten, so older app versions still show the original. The canvas and the options sheet read settings through `foldedSettings(def, saved)`.
 
 ### Nested / hierarchical pickers — never a flat `<select>`

@@ -137,3 +137,48 @@ export function getActiveLimit(scope) {
   }
   return { mode, count: getLimitCount(scope) };
 }
+
+// ── The Coming up widget's own options (v0.327.0) ────────────────────
+// "How far ahead" is a number of days on a slider (it used to be a fixed
+// list of windows). The widget's saved keys:
+//   upcomingMode  "count" | "window"
+//   upcomingCount 3–25            (count mode)
+//   upcomingDays  1–DAYS_MAX      (window mode; new)
+//   upcomingWindow WINDOW_OPTIONS id (window mode; older widgets)
+// Anything the widget never set falls back to what it showed before:
+// with no mode chosen, this browser's stored Coming up preference (the
+// panel's old cog); with a mode chosen, the defaults that applied then.
+export const DAYS_MIN = 1;
+export const DAYS_MAX = 365;
+const DEFAULT_DAYS = 14;
+const isSetValue = (v) => v !== undefined && v !== null && v !== "";
+
+export function resolveWidgetLimit(settings, scope = "widget") {
+  const s = settings || {};
+  const stored = isSetValue(s.upcomingMode) ? null : getActiveLimit(scope);
+  const mode = isSetValue(s.upcomingMode)
+    ? (s.upcomingMode === MODE_WINDOW ? MODE_WINDOW : MODE_COUNT)
+    : stored.mode;
+  const countRaw = parseInt(s.upcomingCount, 10);
+  const count = Number.isFinite(countRaw)
+    ? Math.min(COUNT_MAX, Math.max(COUNT_MIN, countRaw))
+    : (stored?.mode === MODE_COUNT ? stored.count : (stored ? getLimitCount(scope) : DEFAULT_COUNT));
+  const daysRaw = parseInt(s.upcomingDays, 10);
+  let days;
+  if (Number.isFinite(daysRaw)) days = Math.min(DAYS_MAX, Math.max(DAYS_MIN, daysRaw));
+  else {
+    const win = WINDOW_OPTIONS.find((w) => w.id === s.upcomingWindow)
+      || (stored ? WINDOW_OPTIONS.find((w) => w.id === getLimitWindowId(scope)) : null);
+    days = win ? Math.round(win.ms / DAY_MS) : DEFAULT_DAYS;
+  }
+  return { mode, count, days };
+}
+
+// The same, in the shape UpcomingPlans takes.
+export function widgetLimitConfig(settings, scope = "widget") {
+  const { mode, count, days } = resolveWidgetLimit(settings, scope);
+  if (mode === MODE_WINDOW) {
+    return { mode, windowMs: days * DAY_MS, windowLabel: days === 1 ? "next day" : `next ${days} days` };
+  }
+  return { mode, count };
+}

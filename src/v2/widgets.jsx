@@ -82,9 +82,8 @@ import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
-import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import RecurringTasksDue from "@/components/tasks/RecurringTasksDue";
-import { WINDOW_OPTIONS, DEFAULT_WINDOW_ID, DEFAULT_COUNT, COUNT_MIN, COUNT_MAX } from "@/lib/upcomingPlansLimit";
+import { ComingUpPanel, comingUpPlanFields, recurringTaskFields, recurringKindsOf, recurringShowDoneOf } from "@/components/dashboard/comingUpOptions";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -123,7 +122,7 @@ import {
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
-import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS } from "@/v2/lookbackWidgets";
+import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS, LOOKBACK_PAST_DEFAULTS } from "@/v2/lookbackWidgets";
 import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
 import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
@@ -552,29 +551,20 @@ function TodayViews({ settings }) {
   if (show === "todos") return <TasksWidget settings={settings} />;
   if (show === "plans") return <PlansWidget settings={settings} />;
   if (show === "upcoming") {
-    // The count / time window is this widget's own option (Content tab) —
-    // it used to live under Settings → Appearance → Upcoming plans. Until
-    // the person sets it there, the value saved through the panel's own
-    // cog still applies (nothing they chose is silently dropped).
-    let limitConfig;
-    if (settings?.upcomingMode) {
-      const mode = settings.upcomingMode === "window" ? "window" : "count";
-      const windowId = WINDOW_OPTIONS.some((w) => w.id === settings?.upcomingWindow) ? settings.upcomingWindow : DEFAULT_WINDOW_ID;
-      const count = Math.min(COUNT_MAX, Math.max(COUNT_MIN, parseInt(settings?.upcomingCount, 10) || DEFAULT_COUNT));
-      limitConfig = mode === "window" ? { mode, windowId } : { mode, count };
-    }
+    // What the panel lists, how many and how far ahead are this widget's
+    // own options (Content tab, v0.327.0). Anything never set there keeps
+    // what the widget showed before — including the value saved through
+    // the panel's old cog — so nothing a person chose is silently dropped.
     return (
       <Section>
-        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"}
-          limitConfig={limitConfig}
-          showRecurring={recurring} />
+        <ComingUpPanel settings={settings} title={settings?.label || "Coming up"} />
       </Section>
     );
   }
-  return <TodayWidget recurring={recurring} />;
+  return <TodayWidget recurring={recurring} recurringKinds={recurringKindsOf(settings)} recurringShowDone={recurringShowDoneOf(settings)} />;
 }
 
-function TodayWidget({ recurring = true }) {
+function TodayWidget({ recurring = true, recurringKinds = "all", recurringShowDone = true }) {
   const tr = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -692,7 +682,7 @@ function TodayWidget({ recurring = true }) {
       )}
       {/* Today's recurring tasks — every kind (once, target, tally, steps),
           each with its own entry, so the day's plan is the whole day. */}
-      {recurring && <RecurringTasksDue />}
+      {recurring && <RecurringTasksDue kinds={recurringKinds} showDone={recurringShowDone} />}
     </Section>
   );
 }
@@ -1445,6 +1435,7 @@ function BulletinsWidget({ settings }) {
 // Dismiss — through src/lib/reminderInstanceActions.js, so the widget
 // and the Reminders page mean the same thing by them. Expanded shows the
 // inbox's full cards. Snoozed ones can come back with Unsnooze.
+const REMINDER_AHEAD = { day: 24 * 3600000, "3days": 3 * 24 * 3600000, week: 7 * 24 * 3600000, any: null };
 function RemindersWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
@@ -1457,12 +1448,14 @@ function RemindersWidget({ settings }) {
   const byReminder = React.useMemo(() => Object.fromEntries(reminders.map((r) => [r.id, r])), [reminders]);
   const limit = rowsForMode(mode, parseInt(settings?.limit, 10) || 6);
   const showSnoozed = settings?.showSnoozed !== false;
+  const aheadMs = REMINDER_AHEAD[settings?.ahead] === undefined ? REMINDER_AHEAD.day : REMINDER_AHEAD[settings.ahead];
   const now = Date.now();
   const open = instances
     .filter((i) => isOpenReminderInstance(i) && i.scheduled_for)
     .filter((i) => showSnoozed || i.status !== "snoozed")
-    // Upcoming ones only within the next day, so the list is what's near.
-    .filter((i) => i.status !== "pending" || new Date(i.scheduled_for).getTime() < now + 24 * 3600000)
+    // Upcoming ones only within the chosen look-ahead (a day unless set),
+    // so the list is what's near.
+    .filter((i) => i.status !== "pending" || aheadMs == null || new Date(i.scheduled_for).getTime() < now + aheadMs)
     .sort((a, b) => new Date(a.snoozed_until || a.fired_at || a.scheduled_for) - new Date(b.snoozed_until || b.fired_at || b.scheduled_for))
     .slice(0, limit);
   const refresh = () => qc.invalidateQueries({ queryKey: REMINDER_INSTANCES_QUERY_KEY });
@@ -3124,22 +3117,16 @@ export const V2_WIDGETS = {
           { value: "today", label: "Today's schedule" },
           { value: "todos", label: "Open to-dos" },
           { value: "plans", label: "Plans over the coming days" },
-          { value: "upcoming", label: "Coming up panel (with its own reminder window)" },
+          { value: "upcoming", label: "Coming up: plans and recurring tasks" },
         ] },
       { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7,
         showIf: (st) => st?.show === "plans" },
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8,
         showIf: (st) => st?.show === "plans" || st?.show === "todos" },
-      { key: "upcomingMode", type: "select", label: "Show plans", default: "count",
-        options: [{ value: "count", label: "The next few" }, { value: "window", label: "Inside a time window" }],
-        showIf: (st) => st?.show === "upcoming" },
-      { key: "upcomingCount", type: "number", label: "How many", min: COUNT_MIN, max: COUNT_MAX, default: DEFAULT_COUNT,
-        showIf: (st) => st?.show === "upcoming" && (st?.upcomingMode || "count") === "count" },
-      { key: "upcomingWindow", type: "select", label: "Time window", default: DEFAULT_WINDOW_ID,
-        options: WINDOW_OPTIONS.map((w) => ({ value: w.id, label: w.label })),
-        showIf: (st) => st?.show === "upcoming" && st?.upcomingMode === "window" },
-      { key: "recurring", type: "toggle", label: "Recurring tasks due today", default: true,
-        showIf: (st) => !st?.show || st?.show === "today" || st?.show === "upcoming" },
+      // The Coming up panel's options, then the recurring tasks (also for
+      // Today's schedule) — one shared list (comingUpOptions.jsx).
+      ...comingUpPlanFields({ when: (st) => st?.show === "upcoming" }),
+      ...recurringTaskFields({ when: (st) => !st?.show || st?.show === "today" || st?.show === "upcoming" }),
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -3190,6 +3177,7 @@ export const V2_WIDGETS = {
     render: sized(({ settings }) => <FeelingsLookbackWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [SCOPE_FIELD, ...LOOKBACK_FIELDS],
+    pastDefaults: LOOKBACK_PAST_DEFAULTS,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   symptom_analytics: {
@@ -3198,6 +3186,7 @@ export const V2_WIDGETS = {
     render: sized(({ settings }) => <SymptomsLookbackWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [SCOPE_FIELD, ...LOOKBACK_FIELDS],
+    pastDefaults: LOOKBACK_PAST_DEFAULTS,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   capture: {
@@ -3380,8 +3369,18 @@ export const V2_WIDGETS = {
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
+      { key: "ahead", type: "select", label: "Coming up within", default: "day",
+        options: [
+          { value: "day", label: "A day" },
+          { value: "3days", label: "3 days" },
+          { value: "week", label: "A week" },
+          { value: "any", label: "Any time" },
+        ] },
       { key: "showSnoozed", type: "toggle", label: "Show snoozed reminders", default: true },
     ],
+    // Placed before v0.323.0: four rows, and every upcoming reminder (how
+    // the widget was then) — those keep it.
+    pastDefaults: [{ before: Date.parse("2026-10-30T22:30:33Z"), settings: { limit: 4, ahead: "any" } }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
 
