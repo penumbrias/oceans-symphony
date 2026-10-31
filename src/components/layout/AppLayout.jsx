@@ -33,7 +33,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
-import { ALL_PAGES, DEFAULT_CONFIG, applySidebarConfig } from "@/utils/navigationConfig";
+import { ALL_PAGES, normalizeNavConfig, applySidebarConfig } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
 import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -343,7 +343,7 @@ const { data: mentionLogs = [] } = useQuery({
 });
 
 const navConfig = useMemo(() => {
-  return pickPrimarySystemSettings(systemSettings)?.navigation_config || DEFAULT_CONFIG;
+  return normalizeNavConfig(pickPrimarySystemSettings(systemSettings)?.navigation_config);
 }, [systemSettings]);
 
 // System banner — a full-bleed image behind the top of the page on the

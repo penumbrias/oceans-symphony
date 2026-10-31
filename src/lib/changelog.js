@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 31, 2026",
     changes: [
+      { type: "fix", text: "Fixed the app opening to an error screen (\"dashboardGrid is not iterable\") after the bottom bar was customised. The error screen now also has a way into Settings." },
       { type: "feature", text: "Choose the space between widgets: on the home screen in edit mode → Display, and on a profile in Profile style → Shape." },
     ],
   },

@@ -12,7 +12,7 @@ import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
-import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { normalizeNavConfig } from "@/utils/navigationConfig";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export default function Home() {
@@ -41,7 +41,7 @@ export default function Home() {
   const archivedAlters = alters.filter((a) => a.is_archived);
 
   const navConfig = useMemo(() => {
-    return systemSettings?.navigation_config || DEFAULT_CONFIG;
+    return normalizeNavConfig(systemSettings?.navigation_config);
   }, [systemSettings]);
 
   if (altersLoading) {

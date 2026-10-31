@@ -142,3 +142,23 @@ export function applySidebarConfig(groups, sidebarCfg) {
 export function orderSidebarGroups(groups, sidebarCfg) {
   return applySidebarConfig(groups, { order: sidebarCfg?.order || [] });
 }
+
+// ── Reading navigation_config safely ──────────────────────────────────
+// A stored navigation_config can be partial: editors that change one list
+// (e.g. the bottom bar) write `{ ...navConfig, bottomBar }` onto a row
+// that had no config yet, and older versions / imports can hold other
+// shapes. Every reader goes through this so a missing or non-array list
+// falls back to the default instead of crashing the screen
+// ("x.dashboardGrid is not iterable"). It never writes — the stored
+// value is left as it is, so nothing the person set is lost.
+const NAV_LIST_KEYS = ["topBar", "bottomBar", "dashboardGrid", "dashboardGridRemoved"];
+export function normalizeNavConfig(raw) {
+  const base = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const out = { ...base };
+  for (const key of NAV_LIST_KEYS) {
+    const v = base[key];
+    out[key] = Array.isArray(v) ? v.filter((id) => typeof id === "string") : DEFAULT_CONFIG[key];
+  }
+  if (out.sidebar != null && (typeof out.sidebar !== "object" || Array.isArray(out.sidebar))) out.sidebar = {};
+  return out;
+}
