@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "October 31, 2026",
     changes: [
+      { type: "fix", text: "Fixed a profile page breaking when you opened the options of an Image widget showing a profile picture, pinned bar picture or someone's Pictures." },
+      { type: "feature", text: "Profile widgets can show another profile: in a widget's options, pick \"Another {{alter}}\" (or group, contact, location) under Whose. Image widgets can show any {{alter}}'s pictures on any page." },
       { type: "fix", text: "Fixed the app opening to an error screen (\"dashboardGrid is not iterable\") after the bottom bar was customised. The error screen now also has a way into Settings." },
       { type: "feature", text: "Choose the space between widgets: on the home screen in edit mode → Display, and on a profile in Profile style → Shape." },
     ],

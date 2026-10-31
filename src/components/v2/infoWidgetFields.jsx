@@ -22,6 +22,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
 import { useInfoAlter, useInfoRecord, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL } from "@/v2/infoWidgets";
 import { useBoardSubject } from "@/lib/boardSubject";
+import { WhoseRow as RecordWhoseRow } from "@/components/v2/WhosePicker";
 import GroupSelect from "@/components/groups/GroupSelect";
 import { standardPagesFor } from "@/lib/infoPages";
 import { addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
@@ -87,6 +88,15 @@ function WhoseRow({ settings, set, info }) {
       )}
     </>
   );
+}
+
+// Whose pictures an Image widget shows: on an {{alter}}'s profile "This
+// {{alter}}" or another one; anywhere else, the {{alter}} picked here.
+// (v0.328.1 — this used to borrow the Field widget's row above, which needs
+// its info and crashed the options, and with them the whole profile.)
+function AlterWhoseRow({ settings, set }) {
+  const subject = useBoardSubject();
+  return <RecordWhoseRow type="alter" settings={settings} set={set} ownProfile={subject?.type === "alter" && !subject.linked} />;
 }
 
 // "Add a page" (v0.322.0): the standard pages for an alter or a group, or a
@@ -365,7 +375,7 @@ export function PicturesSourceField({ settings, set }) {
   };
   return (
     <div>
-      <WhoseRow settings={settings} set={set} />
+      <AlterWhoseRow settings={settings} set={set} />
       {alter && (
         <>
           <p className="text-xs text-muted-foreground pt-1">This shows {formatAlter(alter)}'s Pictures. Pictures added here are saved to their info.</p>
@@ -403,7 +413,7 @@ export function AlterPictureField({ settings, set }) {
   });
   return (
     <div className="space-y-1">
-      <WhoseRow settings={settings} set={set} />
+      <AlterWhoseRow settings={settings} set={set} />
       {alter && (bar ? (
         <AvatarRows alter={alter} value={barPictureOverride(pickPrimarySystemSettings(settingsRows), alter.id)} k={`bar:${alter.id}`} onChange={setBar}
           label="Pinned bar picture" hint={`What the pinned ${t.alters} bar shows for ${formatAlter(alter)}. Without one, it shows the profile picture.`} />

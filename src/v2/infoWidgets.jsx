@@ -34,22 +34,28 @@ import { framedImageStyle, framingFor } from "@/lib/imageFraming";
 import { PICTURE_ROLE } from "@/lib/alterImageUpload";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { barPictureFor } from "@/lib/barPicture";
+import { showsOther } from "@/components/v2/WhosePicker";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
 // Whose info: the profile's alter, or the one picked in the widget's
-// options on the home screen. Same query key and reader as the profile page.
+// options — on the home screen and other boards always, on an alter's
+// profile when its options say "Another {{alter}}" (v0.328.1). Same query
+// key and reader as the profile page.
 export function useInfoAlter(settings) {
   const subject = useBoardSubject();
-  const id = subject?.type === "alter" ? subject.id : (settings?.alterId || null);
+  const onAlterPage = subject?.type === "alter";
+  const picked = settings?.alterId || null;
+  const id = onAlterPage && !(showsOther(settings) && picked) ? subject.id : picked;
   const { data = null } = useQuery({
     queryKey: ["alter", id],
     queryFn: async () => (await base44.entities.Alter.list()).find((a) => String(a.id) === String(id)) || null,
     enabled: !!id,
     staleTime: 0,
   });
-  return { alterId: id, alter: id ? data : null, onProfile: subject?.type === "alter" };
+  // onProfile: it shows the page it sits on (not another alter's).
+  return { alterId: id, alter: id ? data : null, onProfile: onAlterPage && String(id) === String(subject.id) };
 }
 
 export const useSystemFields = () => useQuery({

@@ -29,9 +29,16 @@ const SECTIONS = {
   answers: ({ info }) => <AnswersSection info={info} />,
 };
 
+// One form per alter: when the widget is pointed at someone else, the
+// editor starts over for them (keyed on the id), so the previous alter's
+// draft can never be compared against — or saved onto — the new one.
 function InfoSectionEditor({ settings, section }) {
-  const t = useTerms();
   const { alter } = useInfoAlter(settings);
+  return <AlterSectionEditor key={alter?.id || "none"} alter={alter} section={section} />;
+}
+
+function AlterSectionEditor({ alter, section }) {
+  const t = useTerms();
   const info = useAlterInfoForm(alter);
   if (!alter || !info.form) return null;
   const Section = SECTIONS[section];
