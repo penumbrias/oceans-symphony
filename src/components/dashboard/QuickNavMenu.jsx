@@ -6,7 +6,7 @@ import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { DEFAULT_CONFIG, normalizeNavConfig } from "@/utils/navigationConfig";
 import GlobalSearch from "./GlobalSearch";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -182,7 +182,7 @@ export default function QuickNavMenu() {
   });
 
   const navConfig = useMemo(() => {
-    return pickPrimarySystemSettings(systemSettingsData)?.navigation_config || DEFAULT_CONFIG;
+    return normalizeNavConfig(pickPrimarySystemSettings(systemSettingsData)?.navigation_config);
   }, [systemSettingsData]);
 
   const modNavV = useModPagesVersion();

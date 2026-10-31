@@ -220,6 +220,15 @@ const AuthenticatedApp = () => {
                 >
                   Go to home screen
                 </button>
+                {location.pathname !== "/settings" && (
+                  <button
+                    type="button"
+                    onClick={() => { reset(); navigate("/settings"); }}
+                    className="w-full py-2.5 rounded-xl border border-border text-foreground"
+                  >
+                    Open Settings (backups, bug report)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => window.location.reload()}

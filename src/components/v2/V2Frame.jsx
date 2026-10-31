@@ -43,7 +43,7 @@ import { isDesktop } from "@/lib/platform";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
-import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, normalizeNavConfig } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
@@ -579,7 +579,7 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
 // their tabs up twice.
 function useNavItems(settingsRow) {
   const terms = useTerms();
-  const navConfig = settingsRow?.navigation_config || DEFAULT_CONFIG;
+  const navConfig = normalizeNavConfig(settingsRow?.navigation_config);
   const modNavV = useModPagesVersion();
   const termMap = useMemo(() => ({
     alters: terms.Alters,
