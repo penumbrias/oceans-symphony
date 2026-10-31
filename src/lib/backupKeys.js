@@ -118,6 +118,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_grounding_btn_pos",
   "symphony_quick_support_ring_v1",
   "symphony_soundscape_v1",
+  "symphony_nature_sounds_v1",
   "symphony_scratchpad_v1",
   "symphony_insights_muted_kinds_v1",
   "symphony_infer_presence_from_authorship",

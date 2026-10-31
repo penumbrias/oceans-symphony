@@ -14,6 +14,10 @@ import QuickSupportRing from "@/components/grounding/QuickSupportRing";
 import SoundscapeView from "@/components/grounding/soundscape/SoundscapeView";
 import SoundscapeMiniBar from "@/components/grounding/soundscape/SoundscapeMiniBar";
 import ScratchPadView from "@/components/grounding/scratchpad/ScratchPadView";
+import NatureSoundsView from "@/components/grounding/nature/NatureSoundsView";
+import NatureMiniBar from "@/components/grounding/nature/NatureMiniBar";
+import { stopNature } from "@/lib/natureSounds/naturePlayer";
+import { readNaturePrefs } from "@/lib/natureSounds/naturePrefs";
 import { stopSoundscape } from "@/lib/soundscape/engine";
 import { stopDistractionFree, isFocusQuiet } from "@/lib/soundscape/focusMode";
 import { readSoundscapePrefs } from "@/lib/soundscape/soundscapePrefs";
@@ -76,9 +80,10 @@ export default function Grounding({ initialPath = null }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // ?view=soundscape opens the Soundscape directly (the "playing" pill
-  // shown on other pages links here); ?view=scratchpad the Scratch pad
+  // shown on other pages links here); ?view=nature Nature sounds;
+  // ?view=scratchpad the Scratch pad
   // (the widgets' "Open" links).
-  const [path, setPath] = useState(initialPath || (["soundscape", "scratchpad"].includes(searchParams.get("view")) ? searchParams.get("view") : "entry"));
+  const [path, setPath] = useState(initialPath || (["soundscape", "nature", "scratchpad"].includes(searchParams.get("view")) ? searchParams.get("view") : "entry"));
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
   // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
   const deepLinkTopicId = searchParams.get("topic");
@@ -104,6 +109,7 @@ export default function Grounding({ initialPath = null }) {
   // keep it playing around the app.
   useEffect(() => () => {
     if (!readSoundscapePrefs().keepPlaying) stopSoundscape();
+    if (!readNaturePrefs().keepPlaying) stopNature();
     if (isFocusQuiet()) stopDistractionFree();
   }, []);
   const [seenTechniqueIds, setSeenTechniqueIds] = useState([]);
@@ -302,12 +308,27 @@ export default function Grounding({ initialPath = null }) {
   const wrap = (node) => (
     <>
       {path !== "soundscape" && <SoundscapeMiniBar onOpen={() => setPath("soundscape")} />}
+      <NatureMiniBar onOpen={() => setPath("nature")} />
       {node}
     </>
   );
 
   if (path === "soundscape") {
-    return <SoundscapeView onBack={() => setPath("entry")} />;
+    return (
+      <>
+        <NatureMiniBar onOpen={() => setPath("nature")} />
+        <SoundscapeView onBack={() => setPath("entry")} />
+      </>
+    );
+  }
+
+  if (path === "nature") {
+    return (
+      <>
+        <SoundscapeMiniBar onOpen={() => setPath("soundscape")} />
+        <NatureSoundsView onBack={() => setPath("entry")} />
+      </>
+    );
   }
 
   // The scratch pad keeps the Soundscape bar, so a sound can play on
@@ -651,6 +672,18 @@ export default function Grounding({ initialPath = null }) {
             <div>
               <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Soundscape</p>
               <p className="text-xs text-muted-foreground mt-0.5">Brown noise, rain, wind and tones you can shape and watch</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
+          </button>
+
+          <button
+            data-tour="grounding-nature"
+            onClick={() => setPath("nature")}
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
+          >
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Nature sounds</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Rain, storms, waves, birds and forests recorded around the world</p>
             </div>
             <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>
