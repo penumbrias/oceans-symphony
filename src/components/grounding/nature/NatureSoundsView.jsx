@@ -59,7 +59,7 @@ function NowPlaying({ player, prefs, offline, list }) {
   const fav = sound && prefs.favorites.includes(sound.id);
   const active = !!player.id;
   const duration = player.duration || sound?.seconds || 0;
-  const small = "flex-1 min-w-0 flex flex-col items-center gap-0.5 py-2 rounded-lg text-[0.6875rem] text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-40";
+  const small = "flex-1 min-w-0 flex flex-col items-center gap-0.5 py-2 rounded-lg text-[0.6875rem] hover:text-foreground hover:bg-muted/50 disabled:opacity-40";
   return (
     <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
       <div className="flex items-start gap-2">
@@ -110,13 +110,13 @@ function NowPlaying({ player, prefs, offline, list }) {
 
       <div className="flex gap-1 border-t border-border/40 pt-2">
         <button type="button" onClick={() => writeNaturePrefs({ shuffle: !prefs.shuffle })} aria-pressed={prefs.shuffle}
-          className={`${small} ${prefs.shuffle ? "text-primary" : ""}`}>
+          className={`${small} ${prefs.shuffle ? "text-primary" : "text-muted-foreground"}`}>
           <Shuffle className="w-4 h-4" /> Shuffle
         </button>
-        <button type="button" onClick={() => playRandomNature(list)} disabled={!list.length} className={small}>
+        <button type="button" onClick={() => playRandomNature(list)} disabled={!list.length} className={`${small} text-muted-foreground`}>
           <Dices className="w-4 h-4" /> Any sound
         </button>
-        <button type="button" onClick={jumpToRandomPoint} disabled={!active} className={small}>
+        <button type="button" onClick={jumpToRandomPoint} disabled={!active} className={`${small} text-muted-foreground`}>
           <Sparkles className="w-4 h-4" /> Random spot
         </button>
       </div>
