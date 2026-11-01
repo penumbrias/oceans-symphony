@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "October 31, 2026",
     changes: [
+      { type: "feature", text: "Nature sounds in Quick Support: over 70 recordings of rain, storms, waves, birds and forests. Favourite, filter, shuffle or jump to a random spot; they stream, so the app stays small." },
       { type: "fix", text: "Fixed a profile page breaking when you opened the options of an Image widget showing a profile picture, pinned bar picture or someone's Pictures." },
       { type: "feature", text: "Profile widgets can show another profile: in a widget's options, pick \"Another {{alter}}\" (or group, contact, location) under Whose. Image widgets can show any {{alter}}'s pictures on any page." },
       { type: "fix", text: "Fixed the app opening to an error screen (\"dashboardGrid is not iterable\") after the bottom bar was customised. The error screen now also has a way into Settings." },

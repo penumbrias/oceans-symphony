@@ -876,6 +876,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/grounding", target: "grounding-soundscape",
     }),
     s("grounding", {
+      emoji: "🌿", title: "Nature sounds",
+      body: `Rain, storms, waves, birdsong and forests recorded around the world. They stream when you play them, so they add nothing to the app's size.`,
+      route: "/grounding", target: "grounding-nature", look: `the highlighted "Nature sounds" button`,
+    }),
+    s("grounding", {
+      emoji: "🎲", title: "Favourites and shuffle",
+      body: `Heart the sounds you like, filter by tag, shuffle, or jump to a random spot in a long recording. On the phone app you can save a sound to play offline.`,
+      route: "/grounding", target: "grounding-nature",
+    }),
+    s("grounding", {
       emoji: "✨", title: "Scratch pad",
       body: `A particle sandbox. Press and drag to draw particles; when you let go, a ruleset decides what they do.`,
       route: "/grounding", target: "grounding-scratchpad", look: `the highlighted "Scratch pad" button`,
