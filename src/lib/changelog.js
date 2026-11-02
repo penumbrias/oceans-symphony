@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "Nature sounds: saving a sound to your phone works again." },
+      { type: "fix", text: "Nature sounds no longer stop after a while with a connection error; they pick up from the same spot, and Try again resumes instead of starting over." },
       { type: "improve", text: "\"Space between widgets\" now lives in Display options → Shape when you edit a home screen." },
       { type: "fix", text: "Bulletin comments and replies: the writing box is full width and grows as you type, like the post box, instead of a thin one-line strip." },
       { type: "fix", text: "Pinned {{alters}} widget no longer says \"This widget couldn't show\" on profiles and widget pages." },
