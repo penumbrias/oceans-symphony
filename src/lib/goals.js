@@ -20,10 +20,9 @@
 // would come straight back from another device). Old weekly ActivityGoal
 // records are never touched — carrying them over only adds goals.
 
-import { differenceInCalendarDays, startOfWeek, endOfWeek } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
 import { base44 } from "@/api/base44Client";
-import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
-import { indexById, getAncestorIds } from "@/lib/categoryTreeUtils";
+import { goalWeekWindow, countActivityTimes, activityMinutesThisWeek } from "@/lib/goalCounting";
 import { isTemplateDoneNow } from "@/lib/dailyTaskSystem";
 import { createTask } from "@/lib/taskCreate";
 import { setTaskCompleted } from "@/lib/linkedCompletion";
@@ -58,15 +57,11 @@ export function stepsForGoal(steps = [], goalId) {
       || String(a.created_date || "").localeCompare(String(b.created_date || "")));
 }
 
-function weekWindow(now) {
-  const start = startOfWeek(now);
-  return { start, end: endOfWeek(start) };
-}
-
-// Minutes spent this week on a rhythm step's activity (or habit).
-export function rhythmMinutes(step, { activities = [], symptomSessions = [], now = new Date() } = {}) {
-  const { start, end } = weekWindow(now);
+// Minutes spent this week on a rhythm step's activity (or habit). The
+// week follows the person's "week starts on" setting (goalCounting.js).
+export function rhythmMinutes(step, { activities = [], categories = [], symptomSessions = [], now = new Date() } = {}) {
   if (step.habit_id) {
+    const { start, end } = goalWeekWindow(now);
     return (symptomSessions || []).reduce((sum, s) => {
       if (s.symptom_id !== step.habit_id || !s.start_time) return sum;
       const st = new Date(s.start_time);
@@ -75,38 +70,17 @@ export function rhythmMinutes(step, { activities = [], symptomSessions = [], now
       return sum + Math.max(0, Math.round((en - st) / 60000));
     }, 0);
   }
-  if (!step.category_id) return 0;
-  return (activities || []).reduce((sum, a) => {
-    if (!(a.activity_category_ids || []).includes(step.category_id)) return sum;
-    const ts = a.timestamp ? new Date(a.timestamp) : null;
-    if (!ts || ts < start || ts > end) return sum;
-    return sum + countableMinutes(a);
-  }, 0);
+  return activityMinutesThisWeek(step.category_id, { activities, categories, now });
 }
 
 // Where a step stands right now. Linked steps read their twin, so ticking
 // the to-do on the To-Do page (or doing the plan) ticks the step too.
 //   { done, ongoing, missing, linked, current, target }
-const HAPPENED = new Set([ACTIVITY_STATUSES.LOGGED, ACTIVITY_STATUSES.DONE, ACTIVITY_STATUSES.PARTIAL]);
 
 // Times an activity (or anything nested under it) actually happened —
 // since the point was added, or this week.
 export function activityCount(step, { activities = [], categories = [], now = new Date() } = {}) {
-  if (!step?.category_id) return 0;
-  const byId = indexById(categories);
-  const from = step.count_period === "week"
-    ? startOfWeek(now)
-    : (step.created_date ? new Date(step.created_date) : new Date(0));
-  let n = 0;
-  for (const a of activities || []) {
-    if (!a?.timestamp || !HAPPENED.has(statusFor(a))) continue;
-    const ts = new Date(a.timestamp);
-    if (ts < from || ts > now) continue;
-    const hit = (a.activity_category_ids || []).some((cid) =>
-      cid === step.category_id || getAncestorIds(cid, byId).includes(step.category_id));
-    if (hit) n += 1;
-  }
-  return n;
+  return countActivityTimes(step, { activities, categories, now });
 }
 
 export function stepState(step, ctx = {}) {

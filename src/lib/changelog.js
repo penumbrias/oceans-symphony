@@ -26,6 +26,7 @@ export const CHANGELOG = [
       { type: "improve", text: "Year calendar: tapping a day opens that month. Plan times far away read as years, months and days." },
       { type: "fix", text: "A repeating plan can no longer be longer than the time before it repeats, and the colour tag's Use and Save buttons no longer squash." },
       { type: "feature", text: "Mods: save an installed mod as its .osmod file, to keep it or share it." },
+      { type: "fix", text: "Goals now count activities done earlier in the week: the week follows your \"week starts on\" setting, and entries saved with just a typed name or as \"some time that day\" count too." },
       { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
       { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },
       { type: "improve", text: "Tempo & pitch: changing them separately sounds much less robotic and no longer gets quieter." },

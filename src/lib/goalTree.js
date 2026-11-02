@@ -26,7 +26,7 @@
 // categoryTreeUtils.js). A parent that's gone, or that loops, makes the page
 // top level instead of hiding it.
 
-import { startOfWeek } from "date-fns";
+import { goalWeekWindow, activityWhen } from "@/lib/goalCounting";
 import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { createTask, deleteTask } from "@/lib/taskCreate";
@@ -226,13 +226,13 @@ const HAPPENED = new Set([ACTIVITY_STATUSES.LOGGED, ACTIVITY_STATUSES.DONE, ACTI
 // Minutes logged on a page (and every page inside it): this week and ever.
 export function pageMinutes(pageIds, activities, now = new Date()) {
   const ids = new Set(pageIds);
-  const weekStart = startOfWeek(now);
+  const weekStart = goalWeekWindow(now).start;
   let week = 0, total = 0;
   for (const a of activities || []) {
     if (!a?.goal_id || !ids.has(a.goal_id) || !HAPPENED.has(statusFor(a))) continue;
     const m = countableMinutes(a);
     total += m;
-    const ts = a.timestamp ? new Date(a.timestamp) : null;
+    const ts = activityWhen(a);
     if (ts && ts >= weekStart && ts <= now) week += m;
   }
   return { week: Math.round(week), total: Math.round(total) };
