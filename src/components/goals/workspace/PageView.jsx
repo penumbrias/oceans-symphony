@@ -21,6 +21,9 @@ import BoardView from "./BoardView";
 import MapView from "./MapView";
 import ActivityStrip from "./ActivityStrip";
 import MovePageDialog from "./MovePageDialog";
+import TagEditor, { TagChips } from "./TagEditor";
+import { SectionStyleSub, ChildStyleSub } from "./SectionStyleMenu";
+import { sectionHeading, pageWordCount, formatWords } from "@/lib/goalWriting";
 import { prepareNote, recordNote, NoteText } from "./ItemRow";
 import { useWorkspace } from "./WorkspaceContext";
 
@@ -119,12 +122,15 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
   const [title, setTitle] = useState(page.title || "");
   const [moving, setMoving] = useState(false);
   const [noteEditing, setNoteEditing] = useState(false);
-  useEffect(() => { setNoteEditing(false); }, [page.id]);
+  const [tagging, setTagging] = useState(false);
+  useEffect(() => { setNoteEditing(false); setTagging(false); }, [page.id]);
   useEffect(() => { setTitle(page.title || ""); }, [page.id, page.title]);
   const crumbs = ancestorsOf(index, page.id).reverse();
   const { done, total } = useSubtreeProgress(page.id);
   const view = page.view && VIEWS.some((v) => v.id === page.view) ? page.view : "outline";
   const isTop = !index.parent.get(page.id);
+  const heading = sectionHeading(index, page);
+  const words = heading || page.child_section_style ? pageWordCount(index, steps, page.id) : 0;
 
   const saveTitle = () => {
     const v = title.trim();
@@ -158,6 +164,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
       </nav>
 
       <header className="space-y-2">
+        {heading && <p className="text-xs font-semibold uppercase tracking-wide text-primary/80 pl-11">{heading}</p>}
         <div className="flex items-start gap-2">
           <button type="button" aria-label="Choose an icon" title="Icon"
             onClick={async () => {
@@ -186,6 +193,9 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
                 {page.pinned ? "Unpin from the sidebar" : "Pin to the sidebar"}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => (body ? openGoalNoteEditor(page.id) : setNoteEditing(true))}>{page.why ? "Edit the page note" : "Add a page note"}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTagging(true)}>Tags…</DropdownMenuItem>
+              {!isTop && <SectionStyleSub page={page} />}
+              <ChildStyleSub page={page} />
               <DropdownMenuItem onSelect={() => setMoving(true)}>Move to…</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onSelect={remove}>Delete</DropdownMenuItem>
@@ -214,6 +224,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
               className="bg-transparent border border-border/60 rounded px-1 py-0.5 text-xs" />
           </label>
           {total > 0 && <span className="text-xs text-muted-foreground tabular-nums">{done} of {total} done</span>}
+          {words > 0 && <span className="text-xs text-muted-foreground tabular-nums">{formatWords(words)}</span>}
           {page.pinned && <Pin className="w-3 h-3 text-muted-foreground" aria-label="Pinned" />}
           <span className="flex-1" />
           <div role="tablist" aria-label="View" className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
@@ -226,6 +237,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
             ))}
           </div>
         </div>
+        <TagChips page={page} onAdd={() => setTagging(true)} />
         {total > 0 && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
             <div className="h-full bg-primary transition-all" style={{ width: `${(done / total) * 100}%` }} />
@@ -246,6 +258,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
         </>
       )}
 
+      {tagging && <TagEditor open page={page} onClose={() => setTagging(false)} />}
       {moving && (
         <MovePageDialog open title={`Move "${page.title || "page"}" to…`} movingPageId={page.id} allowTop
           currentId={index.parent.get(page.id) || null} onClose={() => setMoving(false)}

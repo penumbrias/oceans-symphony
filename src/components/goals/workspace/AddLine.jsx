@@ -9,6 +9,7 @@ import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { useTerms } from "@/lib/useTerms";
 import { addItem, addTodoItem, createPage, pageEntries, orderAfter, flattenPages } from "@/lib/goalTree";
+import { sectionStyleOf, sectionStyleMeta, countWords, formatWords } from "@/lib/goalWriting";
 import { prepareNote, recordNote } from "./ItemRow";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
 
@@ -37,7 +38,10 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
   const { index, steps, run, busy, alters, ctx } = ws;
   const t = useTerms();
   const [openForm, setOpenForm] = useState(!compact);
-  const [kind, setKindState] = useState(readKind);
+  // Inside a chapter, part or scene the add row starts on writing.
+  const writing = !!sectionStyleOf(page);
+  const childStyle = sectionStyleMeta(page?.child_section_style);
+  const [kind, setKindState] = useState(() => (writing ? "text" : readKind()));
   const [text, setText] = useState("");
   const [label, setLabel] = useState("");
   const [target, setTarget] = useState(null);
@@ -45,7 +49,8 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
   const [count, setCount] = useState("3");
   const [period, setPeriod] = useState("week");
   const setKind = (k) => { setKindState(k); writeKind(k); };
-  const shownKinds = kinds ? KINDS.filter((k) => kinds.includes(k.id)) : KINDS;
+  const shownKinds = (kinds ? KINDS.filter((k) => kinds.includes(k.id)) : KINDS)
+    .map((k) => (k.id === "section" && childStyle ? { ...k, label: childStyle.label } : k));
 
   const pageOptions = useMemo(() => flattenPages(index).filter((r) => r.page.id !== pageId)
     .map((r) => ({ id: r.page.id, label: `${r.page.icon ? `${r.page.icon} ` : ""}${r.page.title || "Untitled"}`, _depth: r.depth })), [index, pageId]);
@@ -81,7 +86,7 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
       return;
     }
     if (!v) return;
-    if (k === "section") await createPage({ title: v, parent_id: pageId, order, status: null });
+    if (k === "section") await createPage({ title: v, parent_id: pageId, order, status: null, ...(childStyle ? { section_style: childStyle.id } : {}) });
     else if (k === "todo") await addTodoItem(pageId, v, order);
     else if (k === "check") await addItem(pageId, { kind: "check", title: v }, order);
     else if (k === "text") {
@@ -114,17 +119,19 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
       {kind === "text" && (
         <div className="space-y-1.5">
           <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
-            placeholder="Write a note… [[Page title]] links a page" className="min-h-[60px] text-sm" />
-          <div className="flex justify-end gap-2">
+            placeholder={writing ? "Write… [[Page title]] links a page" : "Write a note… [[Page title]] links a page"}
+            className={writing ? "min-h-[180px] text-sm leading-relaxed" : "min-h-[60px] text-sm"} />
+          <div className="flex justify-end items-center gap-2">
+            {writing && <span className="text-xs text-muted-foreground tabular-nums mr-auto" aria-live="polite">{formatWords(countWords(text))}</span>}
             {compact && <Button size="sm" variant="ghost" onClick={() => setOpenForm(false)}>Close</Button>}
-            <Button size="sm" disabled={busy || !text.trim()} onClick={save}>Add note</Button>
+            <Button size="sm" disabled={busy || !text.trim()} onClick={save}>{writing ? "Add" : "Add note"}</Button>
           </div>
         </div>
       )}
       {(kind === "todo" || kind === "check" || kind === "section") && (
         <div className="flex gap-2">
           <input className={inputCls} value={text} onChange={(e) => setText(e.target.value)} aria-label="New line"
-            placeholder={kind === "section" ? "New section…" : kind === "todo" ? "New to-do (goes on your To-Do list)…" : "New checkbox (stays on this page)…"}
+            placeholder={kind === "section" ? `New ${childStyle ? childStyle.label.toLowerCase() : "section"}…` : kind === "todo" ? "New to-do (goes on your To-Do list)…" : "New checkbox (stays on this page)…"}
             onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape" && compact) setOpenForm(false); }} />
           <Button size="sm" variant="outline" disabled={busy || !text.trim()} onClick={save} aria-label="Add"><Plus className="w-4 h-4" /></Button>
         </div>

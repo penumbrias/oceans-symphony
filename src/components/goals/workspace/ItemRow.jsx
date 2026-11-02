@@ -23,6 +23,9 @@ import {
   pageEntries, orderAfter, splitWikiLinks, findPageByTitle, movePage, deletePage, descendantIds,
 } from "@/lib/goalTree";
 import MovePageDialog from "./MovePageDialog";
+import TagEditor from "./TagEditor";
+import { SectionStyleSub } from "./SectionStyleMenu";
+import { countWords, formatWords, sectionStyleOf } from "@/lib/goalWriting";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
 
 // Runs the app's writing pipeline over a note before it's saved.
@@ -66,15 +69,16 @@ export function NoteText({ body, className = "" }) {
   );
 }
 
-function NoteEditor({ initial, onCancel, onSave, saving }) {
+function NoteEditor({ initial, onCancel, onSave, saving, writing = false }) {
   const { alters } = useWorkspace();
   const [text, setText] = useState(initial || "");
   return (
     <div className="space-y-1.5 w-full">
       <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts autoFocus
         placeholder="Write a note… [[Page title]] links a page"
-        className="min-h-[70px] text-sm" />
-      <div className="flex gap-2 justify-end">
+        className={writing ? "min-h-[220px] text-sm leading-relaxed" : "min-h-[70px] text-sm"} />
+      <div className="flex gap-2 justify-end items-center">
+        {writing && <span className="text-xs text-muted-foreground tabular-nums mr-auto" aria-live="polite">{formatWords(countWords(text))}</span>}
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button size="sm" disabled={saving || !text.trim()} onClick={() => onSave(text)}>Save</Button>
       </div>
@@ -87,6 +91,7 @@ export function EntryMenu({ entry, pageId, label }) {
   const ws = useWorkspace();
   const { index, steps, run, open } = ws;
   const [moving, setMoving] = useState(false);
+  const [tagging, setTagging] = useState(false);
   const isPage = entry.type === "page";
   const rec = entry.rec;
   const kind = rec.kind || "check";
@@ -121,6 +126,8 @@ export function EntryMenu({ entry, pageId, label }) {
               if (v && v.trim()) run(() => base44.entities.Goal.update(rec.id, { title: v.trim() }));
             }}>Rename</DropdownMenuItem>
           )}
+          {isPage && <DropdownMenuItem onSelect={() => setTagging(true)}>Tags…</DropdownMenuItem>}
+          {isPage && <SectionStyleSub page={rec} />}
           <DropdownMenuItem onSelect={() => run(() => nudgeEntry(index, steps, pageId, entry, -1))}>Move up</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => run(() => nudgeEntry(index, steps, pageId, entry, 1))}>Move down</DropdownMenuItem>
           {pageId && (
@@ -156,6 +163,7 @@ export function EntryMenu({ entry, pageId, label }) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {tagging && <TagEditor open page={index.byId.get(rec.id) || rec} onClose={() => setTagging(false)} />}
       {moving && (
         <MovePageDialog open title={isPage ? `Move "${rec.title || "section"}" to…` : "Move this line to…"}
           movingPageId={isPage ? rec.id : null} allowTop={isPage}
@@ -176,6 +184,7 @@ export function EntryMenu({ entry, pageId, label }) {
 }
 
 export default function ItemRow({ item, pageId, page }) {
+  const writing = !!sectionStyleOf(page);
   const ws = useWorkspace();
   const { ctx, busy, run, goals, alters, open } = ws;
   const t = useTerms();
@@ -210,7 +219,7 @@ export default function ItemRow({ item, pageId, page }) {
     return (
       <li className="flex items-start gap-2 group" data-highlight-id={item.id}>
         {editing ? (
-          <NoteEditor initial={item.body} saving={busy} onCancel={() => setEditing(false)}
+          <NoteEditor initial={item.body} saving={busy} writing={writing} onCancel={() => setEditing(false)}
             onSave={(text) => run(async () => {
               const prepared = await prepareNote(text.trim(), { alters, terms: t });
               if (!prepared) return;
@@ -220,7 +229,8 @@ export default function ItemRow({ item, pageId, page }) {
             })} />
         ) : (
           <>
-            <button type="button" onClick={() => setEditing(true)} className="flex-1 min-w-0 text-left text-sm text-foreground/90 whitespace-pre-wrap break-words">
+            <button type="button" onClick={() => setEditing(true)}
+              className={`flex-1 min-w-0 text-left text-foreground/90 whitespace-pre-wrap break-words ${writing ? "text-[0.95em] leading-relaxed" : "text-sm"}`}>
               <NoteText body={item.body} />
             </button>
             <EntryMenu entry={entry} pageId={pageId} label="this note" />

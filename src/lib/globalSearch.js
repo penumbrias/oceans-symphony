@@ -673,7 +673,7 @@ export function buildGoalRecords({ items = [], steps = [], alters = [] }) {
         : [g.for_everyone ? "Everyone" : ownerNames.join(", "), status].filter(Boolean).join(" · "),
       path: `/goals?page=${g.id}`,
       searchableText: joinNonEmpty([
-        g.title, stripHtml(g.why), stripHtml(g.impact), ...ownerNames, ...(stepTitles.get(g.id) || []), dateSearchBlob(g.created_date),
+        g.title, stripHtml(g.why), stripHtml(g.impact), ...ownerNames, ...(Array.isArray(g.tags) ? g.tags.map((t) => `#${String(t).replace(/^#+/, "")}`) : []), ...(stepTitles.get(g.id) || []), dateSearchBlob(g.created_date),
       ]).toLowerCase(),
       sortDate: g.created_date,
     };

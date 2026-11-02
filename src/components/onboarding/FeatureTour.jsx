@@ -721,6 +721,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
+      emoji: "📖", title: "Chapters", experimental: true,
+      body: `Writing a story? A section's ⋯ menu can make it a chapter, part or scene. It's numbered for you, opens with room to write and counts its words.`,
+      route: "/goals", target: "goals-page",
+    }),
+    s("activities", {
+      emoji: "🏷️", title: "Tag pages", experimental: true,
+      body: `Tag any page or section, like #plot or a character's name. Tap a tag to see every page that has it, or search #tag in Pages.`,
+      route: "/goals", target: "goals-page",
+    }),
+    s("activities", {
       emoji: "🤝", title: "Needs", experimental: true,
       body: `Needs is one place for what everyone wants. Balance shows how long it's been since each ${t.alter} got something they enjoy, need or wished for, longest first.`,
       route: "/needs", target: "needs-page", look: `the Needs page`,

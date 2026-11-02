@@ -1,9 +1,10 @@
 // The sidebar: every page as a tree that folds, a search box, pinned pages
 // first and finished goals in their own group at the bottom.
 import React, { useMemo, useState } from "react";
-import { ChevronRight, ChevronDown, Plus, Search } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Search, X } from "lucide-react";
 import { rootPages, childPages, ancestorsOf, flattenPages, createPage, orderAfter, MAX_PAGE_DEPTH } from "@/lib/goalTree";
 import { isOpenGoal } from "@/lib/goals";
+import { allPageTags, pageHasTag, pageTags, sectionHeading } from "@/lib/goalWriting";
 import { promptText } from "@/components/shared/ConfirmDialog";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
 
@@ -40,7 +41,7 @@ function Node({ page, depth, currentId, expanded, toggle, onOpen, seen }) {
 }
 
 export default function PageTree({ currentId, onOpen }) {
-  const { index, run, busy } = useWorkspace();
+  const { index, goals, run, busy, tag, showTag } = useWorkspace();
   const [q, setQ] = useState("");
   const [manual, setManual] = useState(() => new Map()); // id → open?
   const [showFinished, setShowFinished] = useState(false);
@@ -56,8 +57,15 @@ export default function PageTree({ currentId, onOpen }) {
   const pinned = useMemo(() => flattenPages(index).map((r) => r.page).filter((p) => p.pinned), [index]);
   const openRoots = roots.filter((p) => isOpenGoal(p));
   const finished = roots.filter((p) => !isOpenGoal(p));
+  const tags = useMemo(() => allPageTags(goals), [goals]);
+  // Search matches titles and tags ("#plot" matches only tags).
   const want = q.trim().toLowerCase();
-  const hits = want ? flattenPages(index).filter((r) => String(r.page.title || "").toLowerCase().includes(want)) : [];
+  const tagOnly = want.startsWith("#");
+  const wantTag = want.replace(/^#+/, "");
+  const hits = tag
+    ? flattenPages(index).filter((r) => pageHasTag(r.page, tag))
+    : want ? flattenPages(index).filter((r) => (!tagOnly && String(r.page.title || "").toLowerCase().includes(want))
+      || (wantTag && pageTags(r.page).some((t) => t.toLowerCase().includes(wantTag)))) : [];
 
   const addPage = async () => {
     const v = await promptText({ title: "New goal", placeholder: "What's it called?" });
@@ -82,16 +90,37 @@ export default function PageTree({ currentId, onOpen }) {
       </div>
       <div className="relative">
         <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input className={`${inputCls} pl-8 py-1.5`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pages" aria-label="Search pages" />
+        <input className={`${inputCls} pl-8 py-1.5`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pages and #tags" aria-label="Search pages" />
       </div>
-      {want ? (
+      {tags.length > 0 && !want && (
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Tags">
+          {tags.map(({ tag: t, count }) => {
+            const on = !!tag && t.toLowerCase() === tag.toLowerCase();
+            return (
+              <button key={t} type="button" aria-pressed={on} onClick={() => showTag(on ? null : t)}
+                className={`text-[0.7rem] px-1.5 py-0.5 rounded-full max-w-[9rem] truncate ${on ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground hover:text-foreground"}`}>
+                #{t} <span className="opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {want || tag ? (
         <ul className="space-y-0.5">
+          {tag && !want && (
+            <li className="flex items-center gap-1 px-1 pb-1">
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground flex-1 truncate">Tagged #{tag}</span>
+              <button type="button" onClick={() => showTag(null)} aria-label="Show every page" className="p-0.5 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+            </li>
+          )}
           {hits.map(({ page }) => {
             const path = ancestorsOf(index, page.id).reverse().map((p) => p.title || "Untitled").join(" › ");
+            const heading = sectionHeading(index, page);
             return (
               <li key={page.id}>
-                <button type="button" onClick={() => { onOpen(page.id); setQ(""); }} className="w-full text-left rounded-md px-2 py-1 hover:bg-muted/40">
-                  <span className="block text-sm truncate">{page.icon ? `${page.icon} ` : ""}{page.title || "Untitled"}</span>
+                <button type="button" onClick={() => { onOpen(page.id); setQ(""); }}
+                  className={`w-full text-left rounded-md px-2 py-1 ${page.id === currentId ? "bg-primary/10 text-primary" : "hover:bg-muted/40"}`}>
+                  <span className="block text-sm truncate">{page.icon ? `${page.icon} ` : ""}{heading ? `${heading}: ` : ""}{page.title || "Untitled"}</span>
                   {path && <span className="block text-xs text-muted-foreground truncate">{path}</span>}
                 </button>
               </li>
