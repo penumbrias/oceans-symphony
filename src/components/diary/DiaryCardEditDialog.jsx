@@ -23,6 +23,7 @@ import DiarySection from "@/components/diary/DiarySection";
 import { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 
 export { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
+import { clockPattern } from "@/lib/timeFormat";
 
 export async function deleteDiaryCardWithConfirm(card, queryClient) {
   if (!card?.id) return false;
@@ -73,7 +74,7 @@ export default function DiaryCardEditDialog({ card, onClose }) {
   };
 
   const when = card?.date ? format(new Date(`${card.date}T12:00:00`), "EEEE, MMM d") : "";
-  const time = card?.created_date ? format(new Date(card.created_date), "h:mm a") : "";
+  const time = card?.created_date ? format(new Date(card.created_date), clockPattern("h:mm a")) : "";
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !saving) onClose?.(); }}>

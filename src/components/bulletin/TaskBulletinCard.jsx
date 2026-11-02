@@ -8,6 +8,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
+import { clockPattern } from "@/lib/timeFormat";
 
 function parseTaskBulletin(content) {
   const match = content.match(/^\[task:([^:\]]+)(:done)?\]\s*(.*)/s);
@@ -52,7 +53,7 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
 
 const rawDate = bulletin.created_date || bulletin.timestamp;
 const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z") : new Date();
-const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
+const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
   // Prefer the live Task's completion; the `:done` marker baked into the
   // bulletin content is only a fallback for an orphaned bulletin whose Task
   // was deleted.

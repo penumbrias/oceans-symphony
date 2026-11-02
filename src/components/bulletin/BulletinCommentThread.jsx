@@ -23,6 +23,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
+import { clockPattern } from "@/lib/timeFormat";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -508,7 +509,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const reactions = comment.reactions || {};
   const rawDate = comment.created_date || comment.timestamp;
   const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z") : new Date();
-  const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
+  const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
   // Authors are FIXED to whatever was saved on the comment at post time
   // (current front or signposts). Never fall back to the live
   // frontingAlterIds — the comment shouldn't appear to switch authors

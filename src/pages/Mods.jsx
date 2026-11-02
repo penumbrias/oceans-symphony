@@ -17,7 +17,7 @@ import { useTerms } from "@/lib/useTerms";
 import { parseModFile, MOD_PERMISSIONS, applyModTerms, ModFormatError } from "@/lib/mods/modPackage";
 import {
   useMods, installMod, setModEnabled, setModPermissions, uninstallMod,
-  exportModData, deleteModData, MODS_QUERY_KEY,
+  exportModPackage, exportModData, deleteModData, MODS_QUERY_KEY,
 } from "@/lib/mods/modStore";
 import { modPagePath } from "@/lib/mods/registry";
 import { BUILTIN_MODS, loadBuiltinMod } from "@/lib/mods/builtinMods";
@@ -168,6 +168,11 @@ function ModCard({ mod, dataCount, terms, refresh }) {
         {mod.homepage && (
           <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => openExternalUrl(mod.homepage)}>
             <ExternalLink className="w-3.5 h-3.5" /> About
+          </Button>
+        )}
+        {mod.source !== "builtin" && (
+          <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => run(() => exportModPackage(mod))}>
+            <Download className="w-3.5 h-3.5" /> Save the mod file
           </Button>
         )}
         {dataCount > 0 && (

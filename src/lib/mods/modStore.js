@@ -13,6 +13,7 @@ import { localEntities } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { builtinUpdateFor, loadBuiltinMod } from "@/lib/mods/builtinMods";
+import { MOD_FORMAT, MOD_FORMAT_VERSION } from "@/lib/mods/modPackage";
 
 export const MODS_QUERY_KEY = ["mods"];
 
@@ -95,18 +96,41 @@ export async function listModData(modId) {
   return localEntities.ModData.filter({ mod_id: modId });
 }
 
-async function saveJsonCopy(obj, filename) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+async function saveJsonCopy(obj, filename, { mimeType = "application/json", title = "Mod data copy", dialogTitle = "Save mod data" } = {}) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: mimeType });
   const { isNative } = await import("@/lib/platform");
   if (isNative()) {
     try {
       const { saveBlobToPublicDownloads } = await import("@/lib/nativeMediaStoreSave");
-      const res = await saveBlobToPublicDownloads({ blob, filename, mimeType: "application/json", subdir: "Oceans Symphony" });
+      const res = await saveBlobToPublicDownloads({ blob, filename, mimeType, subdir: "Oceans Symphony" });
       if (res?.result === "filesystem") return { result: "downloaded" };
     } catch { /* fall through to the share chain */ }
   }
   const { shareFile } = await import("@/lib/shareFile");
-  return shareFile({ blob, filename, title: "Mod data copy", dialogTitle: "Save mod data", prefer: "download" });
+  return shareFile({ blob, filename, title, dialogTitle, prefer: "download" });
+}
+
+// Saves the mod ITSELF as a .osmod file (the same file you install from), so a
+// mod that was imported and later lost can be installed again or shared.
+// Rebuilt from the installed copy: manifest + code. (From ShineSpark330's
+// Apeiron Zetta fork.)
+export async function exportModPackage(mod) {
+  const pkg = {
+    format: MOD_FORMAT,
+    formatVersion: MOD_FORMAT_VERSION,
+    id: mod.mod_id,
+    name: mod.name,
+    version: mod.version || "1.0.0",
+    author: mod.author || "",
+    description: mod.description || "",
+    ...(mod.homepage ? { homepage: mod.homepage } : {}),
+    permissions: mod.permissions || [],
+    pages: mod.pages || [],
+    code: mod.code || "",
+  };
+  return saveJsonCopy(pkg, `${mod.mod_id}-${pkg.version}.osmod`, {
+    mimeType: "application/octet-stream", title: "Mod", dialogTitle: "Save mod",
+  });
 }
 
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");

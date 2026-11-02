@@ -21,6 +21,7 @@ import TermsSettings from "@/components/settings/TermsSettings";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { V2LanguageSection } from "@/components/settings/V2DisplaySettings";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
+import ClockFormatRow from "@/components/settings/ClockFormatRow";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
 import { NewUiToggle, HomeOpensOnRow } from "@/components/settings/DashboardLayoutSettings";
 import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeaturesSettings";
@@ -105,8 +106,9 @@ export function buildSettingsGroups(ctx) {
       pages: [
         { id: "language", label: "Language", hint: "The language the app speaks", icon: Languages,
           keywords: "language locale translation english", render: () => <V2LanguageSection /> },
-        { id: "timezone", label: "Timezone", hint: "Which clock reminders and days follow", icon: Clock,
-          keywords: "timezone time zone clock travel", render: () => <TimezoneSettings /> },
+        { id: "timezone", label: "Time & clock", hint: "12 or 24-hour clock, and which timezone days follow", icon: Clock,
+          keywords: "timezone time zone clock travel 12 24 hour military am pm",
+          render: () => (<div className="space-y-4"><ClockFormatRow /><TimezoneSettings /></div>) },
         { id: "alter-labels", label: `${t.Alter} labels in lists`, hint: "Name, alias or both", icon: Tag,
           keywords: `${t.alter} label name alias lists pickers dropdowns`, render: () => <AlterLabelSettings embedded /> },
         { id: "home-screen", label: "Home screen", hint: "The new home screen and which page greets you", icon: LayoutGrid,

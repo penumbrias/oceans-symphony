@@ -15,6 +15,7 @@
 // "starting" a plan and finishing it completes that very plan.
 
 import { base44 } from "@/api/base44Client";
+import { clockOpts } from "@/lib/timeFormat";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isNative } from "@/lib/platform";
 import { toast } from "sonner";
@@ -120,7 +121,7 @@ async function scheduleActiveEndReminder(session, { atMs = null } = {}) {
     const endMs = atMs || plannedEndMsFor(session, plan);
     if (!endMs || endMs <= Date.now()) return;
     const name = plan?.activity_name || session.name || "Activity";
-    const timeLabel = new Date(endMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const timeLabel = new Date(endMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() });
     const title = atMs ? `Checking in on ${name}` : `${name} was scheduled to end at ${timeLabel}`;
     const body = "Is it done, still going, or did something change?";
     if (isNative()) {

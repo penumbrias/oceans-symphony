@@ -20,13 +20,19 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Choose a 12-hour or 24-hour clock in Settings → Time & clock." },
+      { type: "feature", text: "Contacts: edit a relationship to change who it's with, its type, whether you've met and its notes." },
+      { type: "fix", text: "Month and year calendars: colour-tagged plans show their colour, untagged days use their activity's colour, and each event is a dot." },
+      { type: "improve", text: "Year calendar: tapping a day opens that month. Plan times far away read as years, months and days." },
+      { type: "fix", text: "A repeating plan can no longer be longer than the time before it repeats, and the colour tag's Use and Save buttons no longer squash." },
+      { type: "feature", text: "Mods: save an installed mod as its .osmod file, to keep it or share it." },
       { type: "fix", text: "Goals now count activities done earlier in the week: the week follows your \"week starts on\" setting, and entries saved with just a typed name or as \"some time that day\" count too." },
       { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
       { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },
       { type: "improve", text: "Tempo & pitch: changing them separately sounds much less robotic and no longer gets quieter." },
       { type: "improve", text: "Song widget: an \"Automatic\" song can carry on around the app, a new \"Play on every page\" option, and changing the volume no longer restarts it." },
       { type: "fix", text: "Android: the bottom bar no longer stays stuck halfway up after closing or switching the keyboard." },
-      { type: "improve", text: "Thank you to ShineSpark330, whose Apeiron Zetta fork brought today's audio and keyboard fixes." },
+      { type: "improve", text: "Thank you to ShineSpark330, whose Apeiron Zetta fork brought today's audio, keyboard, clock, calendar, contact and mod changes." },
     ],
   },
   {

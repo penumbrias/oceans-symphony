@@ -16,6 +16,7 @@
 // widgetLabel() through the user's own terminology.
 
 import React from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useAlterHoldRail } from "@/components/alters/AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
 import { useNavigate } from "react-router-dom";
@@ -134,7 +135,7 @@ import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
 import { pictureStyle } from "@/lib/imageFraming";
-const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
 // midnight, which is the day before west of Greenwich, so read it as local
 // noon; full timestamps from older builds pass through.

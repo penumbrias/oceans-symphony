@@ -2,6 +2,7 @@
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
 import { format, differenceInMinutes, parseISO } from "date-fns";
+import { clockPattern } from "@/lib/timeFormat";
 import { effectiveSeverity, isContextItem, deriveDirection } from "./trackingModel";
 import {
   computeSymptomBaseline,
@@ -64,7 +65,7 @@ function fmtDate(str) {
 }
 
 function fmtDateTime(str) {
-  try { return format(parseISO(str), "MMM d, yyyy h:mm a"); } catch { return str || ""; }
+  try { return format(parseISO(str), clockPattern("MMM d, yyyy h:mm a")); } catch { return str || ""; }
 }
 
 // Who a check-in belongs to: its own alter_id (System Meeting rows), else
@@ -685,8 +686,8 @@ export function buildSleepSection({ dateFrom, dateTo, sleepLogs = [] }) {
       : null;
     return {
       date: fmtDate(start),
-      bedtime: start ? format(new Date(start), "h:mm a") : null,
-      wakeTime: end ? format(new Date(end), "h:mm a") : null,
+      bedtime: start ? format(new Date(start), clockPattern("h:mm a")) : null,
+      wakeTime: end ? format(new Date(end), clockPattern("h:mm a")) : null,
       duration: durStr,
       quality: s.quality != null ? s.quality : null,
       isInterrupted: !!s.is_interrupted,

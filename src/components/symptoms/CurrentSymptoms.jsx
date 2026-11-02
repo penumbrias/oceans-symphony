@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { clockPattern } from "@/lib/timeFormat";
 
 function SeverityDots({ severity }) {
   return (
@@ -176,7 +177,7 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
           >
             <Clock className="w-3.5 h-3.5" />
             Edit start time
-            <span className="text-xs text-muted-foreground">({format(new Date(sess.start_time), "MMM d, h:mm a")})</span>
+            <span className="text-xs text-muted-foreground">({format(new Date(sess.start_time), clockPattern("MMM d, h:mm a"))})</span>
           </button>
         )}
 

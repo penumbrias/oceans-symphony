@@ -28,6 +28,7 @@ const validDate = (v) => {
 };
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { clockPattern } from "@/lib/timeFormat";
 
 
 // Press-and-hold / tap menu for one running activity — mirrors the active
@@ -136,7 +137,7 @@ export function ActivityActionMenu({ activity, onClose }) {
           <button type="button" onClick={() => setEditingStart(true)}
             className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground hover:bg-muted transition-colors">
             <Clock className="w-3.5 h-3.5" /> Edit start time
-            {validDate(activity.startTime) && <span className="text-xs text-muted-foreground">({format(validDate(activity.startTime), "MMM d, h:mm a")})</span>}
+            {validDate(activity.startTime) && <span className="text-xs text-muted-foreground">({format(validDate(activity.startTime), clockPattern("MMM d, h:mm a"))})</span>}
           </button>
         )}
 
