@@ -6,6 +6,7 @@
 
 import { isNative } from "@/lib/platform";
 import { natureSoundUrl } from "./catalog";
+import { isOwnSoundId, mySoundSrc, mySoundsLoaded, listMySounds } from "./ownSounds";
 
 const DIR = "nature-sounds";
 const fileFor = (id) => `${DIR}/ns-${id}.mp3`;
@@ -87,6 +88,13 @@ export async function removeSavedNatureSound(id) {
 // Where the player should load a sound from: the saved copy when there is
 // one, else the hosted file.
 export async function natureSoundSrc(id) {
+  // Your own sounds live in the app's file store.
+  if (isOwnSoundId(id)) {
+    if (!mySoundsLoaded()) await listMySounds();
+    const src = await mySoundSrc(id);
+    if (!src) throw new Error("This sound's file isn't on this device any more.");
+    return src;
+  }
   if (canSaveNatureSounds() && saved?.has(id)) {
     try {
       const { Capacitor } = await import("@capacitor/core");

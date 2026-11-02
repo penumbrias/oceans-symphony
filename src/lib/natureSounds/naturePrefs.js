@@ -4,6 +4,7 @@
 // read back is checked, so an edited or old value can't break the screen.
 
 import { NATURE_TAGS, natureSoundById } from "./catalog";
+import { isOwnSoundId } from "./ownSoundIds";
 
 export const NATURE_PREFS_KEY = "symphony_nature_sounds_v1";
 export const SORTS = ["name", "place", "short", "long"];
@@ -19,7 +20,10 @@ const DEFAULTS = {
   volume: 80,
   keepPlaying: true,
   lastId: null,
+  addQuality: "balanced", // size chosen last when adding your own sound
 };
+
+const QUALITY_IDS = ["original", "high", "balanced", "small"];
 
 const listeners = new Set();
 let cache = null;
@@ -40,7 +44,10 @@ export function readNaturePrefs() {
     shuffle: !!raw.shuffle,
     volume: Number.isFinite(vol) ? Math.round(Math.min(100, Math.max(0, vol))) : DEFAULTS.volume,
     keepPlaying: raw.keepPlaying !== false,
-    lastId: typeof raw.lastId === "string" && natureSoundById(raw.lastId) ? raw.lastId : null,
+    addQuality: QUALITY_IDS.includes(raw.addQuality) ? raw.addQuality : DEFAULTS.addQuality,
+    // Your own sounds load after this is first read, so their ids are
+    // kept as they are; the player skips one that's gone.
+    lastId: typeof raw.lastId === "string" && (natureSoundById(raw.lastId) || isOwnSoundId(raw.lastId)) ? raw.lastId : null,
   };
   return cache;
 }

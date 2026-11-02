@@ -75,6 +75,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_autobackup_name_v1",
   // Auto-backup file format (json / compact / zip).
   "symphony_autobackup_format_v1",
+  "symphony_autobackup_nature_sounds_v1",
   "symphony_autobackup_last_at",
   "symphony_backup_health_v1",
   "grocery_lock_on_close_v1",

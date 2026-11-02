@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Play, Pause, SkipBack, SkipForward, Shuffle, Dices, Sparkles, Heart, Download, Check, Trash2, Search, Loader2, ScrollText,
+  Play, Pause, SkipBack, SkipForward, Shuffle, Dices, Sparkles, Heart, Download, Check, Trash2, Search, Loader2, ScrollText, Music,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Group, SwitchRow, ChoiceRow, StackedRow, Chips, SliderRow, LinkRow } from "@/components/shared/SettingRows";
@@ -11,8 +11,10 @@ import {
   setNatureQueue, setNatureVolume,
 } from "@/lib/natureSounds/naturePlayer";
 import { canSaveNatureSounds, saveNatureSound, removeSavedNatureSound } from "@/lib/natureSounds/natureOffline";
-import { useNatureState, useNaturePrefs, useNatureOffline, fmtLength } from "./natureHooks";
+import { isOwnSoundId } from "@/lib/natureSounds/ownSounds";
+import { useNatureState, useNaturePrefs, useNatureOffline, useMySounds, fmtLength } from "./natureHooks";
 import NatureCreditsPage from "./NatureCreditsPage";
+import MySoundsPage from "./MySoundsPage";
 
 // Quick Support → Nature sounds: field recordings streamed from the
 // project's release (nothing extra in the app download), with favourites,
@@ -27,7 +29,8 @@ const SORT_OPTIONS = [
 ];
 
 function SaveButton({ id, offline }) {
-  if (!canSaveNatureSounds()) return null;
+  // Your own sounds are already on the device.
+  if (!canSaveNatureSounds() || isOwnSoundId(id)) return null;
   const pct = offline.progress[id];
   const isSaved = offline.saved?.has(id);
   const save = () => saveNatureSound(id).then(
@@ -56,6 +59,7 @@ function SaveButton({ id, offline }) {
 
 function NowPlaying({ player, prefs, offline, list }) {
   const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
+  const yours = sound && isOwnSoundId(sound.id);
   const fav = sound && prefs.favorites.includes(sound.id);
   const active = !!player.id;
   const duration = player.duration || sound?.seconds || 0;
@@ -65,7 +69,7 @@ function NowPlaying({ player, prefs, offline, list }) {
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">{sound ? sound.title : "Pick a sound"}</p>
-          {sound && <p className="text-xs text-muted-foreground truncate">{[sound.place, sound.by].filter(Boolean).join(" · ")}</p>}
+          {sound && <p className="text-xs text-muted-foreground truncate">{yours ? "Your sound" : [sound.place, sound.by].filter(Boolean).join(" · ")}</p>}
         </div>
         {sound && (
           <>
@@ -138,7 +142,7 @@ function SoundRow({ sound, current, playing, fav, offline }) {
         <span className="flex-1 min-w-0">
           <span className={`text-sm block truncate ${current ? "text-primary font-medium" : "text-foreground"}`}>{sound.title}</span>
           <span className="text-[0.6875rem] text-muted-foreground block truncate">
-            {[sound.place, fmtLength(sound.seconds)].filter(Boolean).join(" · ")}
+            {[sound.own ? "Yours" : sound.place, sound.seconds ? fmtLength(sound.seconds) : ""].filter(Boolean).join(" · ")}
             {isSaved && <Check className="inline w-3 h-3 ml-1 -mt-0.5" aria-label="Saved on this device" />}
           </span>
         </span>
@@ -158,10 +162,11 @@ export default function NatureSoundsView({ onBack }) {
   const offline = useNatureOffline();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState("main");
+  const mine = useMySounds();
 
   const list = useMemo(
-    () => filterSounds(NATURE_SOUNDS, { ...prefs, query }),
-    [prefs, query],
+    () => filterSounds([...mine, ...NATURE_SOUNDS], { ...prefs, query }),
+    [prefs, query, mine],
   );
   const ids = useMemo(() => list.map((s) => s.id), [list]);
   useEffect(() => { setNatureQueue(ids); }, [ids]);
@@ -171,6 +176,7 @@ export default function NatureSoundsView({ onBack }) {
   }, [page]);
 
   if (page === "credits") return <NatureCreditsPage onBack={() => setPage("main")} />;
+  if (page === "yours") return <MySoundsPage onBack={() => setPage("main")} />;
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4" data-tour="grounding-nature-view">
@@ -188,7 +194,13 @@ export default function NatureSoundsView({ onBack }) {
       </div>
 
       <div className="px-1">
-        <Group title={`Sounds · ${list.length}`} first>
+        <Group title="Yours" first>
+          <div data-tour="grounding-nature-add">
+            <LinkRow label="Your sounds" hint="Add recordings from your device or Assets" icon={Music}
+              value={mine.length ? `${mine.length} added` : undefined} onClick={() => setPage("yours")} />
+          </div>
+        </Group>
+        <Group title={`Sounds · ${list.length}`}>
           <div role="search" className="relative my-1.5">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
