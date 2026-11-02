@@ -12,6 +12,7 @@ import { runningForPage, startPageActivity, stopPageActivity } from "@/lib/goalA
 import {
   pageMinutes, formatMinutes, descendantIds, updatePage, planningCategoryFor, addPlanningCategory, setPlanningCategory,
 } from "@/lib/goalTree";
+import { pageWordsWritten, formatWords } from "@/lib/goalWriting";
 import { useWorkspace, chipCls } from "./WorkspaceContext";
 
 function useActiveSessions() {
@@ -49,7 +50,9 @@ export default function ActivityStrip({ page, bare = false }) {
   const planning = planningCategoryFor(settings, categories);
   const linked = (page.activity_category_ids || []).map((id) => catById.get(id)).filter(Boolean)
     .filter((c) => c.id !== planning?.id);
-  const time = pageMinutes([page.id, ...descendantIds(index, page.id)], ctx.activities, new Date());
+  const pageIds = [page.id, ...descendantIds(index, page.id)];
+  const time = pageMinutes(pageIds, ctx.activities, new Date());
+  const written = pageWordsWritten(pageIds, ctx.activities, new Date());
   const runningHere = sessions.filter((a) => a?.extra?.goal_id === page.id);
 
   // The page itself, worked on like an activity (no activity picked).
@@ -60,7 +63,8 @@ export default function ActivityStrip({ page, bare = false }) {
     run(async () => {
       if (running) {
         const res = await stopPageActivity(running);
-        if (res) toast.success(`■ ${res.name}: ${formatMinutes(res.minutes)} logged on this page`);
+        const w = Number(res?.record?.words_written) || 0;
+        if (res) toast.success(`■ ${res.name}: ${formatMinutes(res.minutes)} logged on this page${w > 0 ? `, ${formatWords(w)} written` : ""}`);
       } else {
         await startPageActivity(page, cat.self ? null : cat);
         toast.success(`▶ ${cat.name} started`);
@@ -130,7 +134,8 @@ export default function ActivityStrip({ page, bare = false }) {
       )}
       <p className="text-xs text-muted-foreground tabular-nums">
         {time.total > 0
-          ? `${formatMinutes(time.week)} logged on this page this week · ${formatMinutes(time.total)} in all`
+          ? `${formatMinutes(time.week)} logged on this page this week · ${formatMinutes(time.total)} in all${
+            written.week > 0 ? ` · ${formatWords(written.week)} written this week` : ""}${written.today > 0 ? ` (${written.today.toLocaleString()} today)` : ""}`
           : "Work on it times the page itself; Planning and the activities you add here count too. It all adds up on this page."}
       </p>
     </div>

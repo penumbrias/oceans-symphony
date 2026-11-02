@@ -8,6 +8,10 @@
 // A page can carry `child_section_style`, the style its NEW sections take,
 // so a story page makes chapters without asking each time.
 //
+// Any page or section can carry `word_target` (a whole number of words it
+// is aiming for), and a session started from a page records the words it
+// added as `words_written` on its logged Activity (goalActivities.js).
+//
 // Any page or section can carry `tags` (strings, no leading "#"). The
 // sidebar lists every tag and filters to the pages that have it.
 //
@@ -15,6 +19,7 @@
 // check it. Walks reuse goalTree's cycle-guarded index.
 
 import { childPages, descendantIds, liveSteps } from "@/lib/goalTree";
+import { goalWeekWindow, activityWhen } from "@/lib/goalCounting";
 import { normalizeTag } from "@/lib/journalDate";
 
 export const SECTION_STYLES = [
@@ -80,6 +85,35 @@ export function pageWordCount(index, steps, pageId) {
 
 export function formatWords(n) {
   return `${Number(n || 0).toLocaleString()} ${n === 1 ? "word" : "words"}`;
+}
+
+export function wordTargetOf(page) {
+  const n = Math.round(Number(page?.word_target));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// "1,240 of 3,000 words" (or just the count when there's no target).
+export function wordProgressLabel(words, target) {
+  return target ? `${Number(words || 0).toLocaleString()} of ${formatWords(target)}` : formatWords(words);
+}
+
+// Words added in sessions on these pages: today, this week and ever.
+export function pageWordsWritten(pageIds, activities, now = new Date(), weekStartsOn) {
+  const ids = new Set(pageIds);
+  const weekStart = goalWeekWindow(now, weekStartsOn).start;
+  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+  let today = 0, week = 0, total = 0, sessions = 0;
+  for (const a of activities || []) {
+    if (!a?.goal_id || !ids.has(a.goal_id) || a.trashed_at) continue;
+    const w = Math.round(Number(a.words_written));
+    if (!Number.isFinite(w) || w <= 0) continue;
+    sessions += 1;
+    total += w;
+    const when = activityWhen(a);
+    if (when && when >= weekStart && when <= now) week += w;
+    if (when && when >= dayStart && when <= now) today += w;
+  }
+  return { today, week, total, sessions };
 }
 
 // ── Tags ────────────────────────────────────────────────────────────

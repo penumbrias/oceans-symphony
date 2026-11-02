@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Target, ChevronRight, Repeat, Menu } from "lucide-react";
+import { Plus, Target, ChevronRight, Repeat, Menu, BookOpen } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -18,6 +18,7 @@ import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, uncarriedWeeklyGoals, carryOverWeeklyGoals, goalFromWish, goalStatusLabel,
 } from "@/lib/goals";
 import { indexPages, rootPages, createPage, orderAfter } from "@/lib/goalTree";
+import { createStoryPage } from "@/lib/goalStarters";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
 import { WorkspaceProvider, useWorkspace, inputCls } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
@@ -77,6 +78,12 @@ function Home({ focusNew, toCarry, onCarry, carrying }) {
     if (made?.id) { setTitle(""); open(made.id); }
   };
 
+  // A story: chapters, plus sections for characters, places and lore.
+  const addStory = async () => {
+    const made = await run(() => createStoryPage({ title: title.trim() || "My story", order: orderAfter(roots.map((rec) => ({ rec }))) }));
+    if (made?.id) { setTitle(""); open(made.id); }
+  };
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-3xl font-semibold text-foreground">Goals</h1>
@@ -85,6 +92,10 @@ function Home({ focusNew, toCarry, onCarry, carrying }) {
           placeholder="Start a new goal, a project, a story…" onKeyDown={(e) => { if (e.key === "Enter") add(); }} className={inputCls} />
         <Button size="sm" className="gap-1" disabled={busy || !title.trim()} onClick={add}><Plus className="w-4 h-4" /> Add</Button>
       </div>
+      <button type="button" onClick={addStory} disabled={busy} data-tour="goals-story-btn"
+        className="text-xs text-primary hover:underline flex items-center gap-1 -mt-2 disabled:opacity-50">
+        <BookOpen className="w-3.5 h-3.5" /> {title.trim() ? `Start "${title.trim()}" as a story` : "Start a story"}: chapters, characters, places
+      </button>
 
       {toCarry.length > 0 && !hideCarry && (
         <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">

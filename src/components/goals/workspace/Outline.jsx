@@ -8,7 +8,7 @@ import { stepState } from "@/lib/goals";
 import ItemRow, { EntryMenu } from "./ItemRow";
 import AddLine from "./AddLine";
 import { TagChips } from "./TagEditor";
-import { sectionHeading, pageWordCount, formatWords } from "@/lib/goalWriting";
+import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "@/lib/goalWriting";
 import { useWorkspace } from "./WorkspaceContext";
 
 const MAX_INLINE_DEPTH = 6;
@@ -36,9 +36,10 @@ function SectionBlock({ section, parentId, depth }) {
   const collapsed = !!section.collapsed || depth >= MAX_INLINE_DEPTH;
   // A chapter, part or scene: its number above the title, words written.
   const heading = sectionHeading(index, section);
-  const words = heading ? pageWordCount(index, steps, section.id) : 0;
+  const target = wordTargetOf(section);
+  const words = heading || target ? pageWordCount(index, steps, section.id) : 0;
   const summary = [
-    heading && words ? formatWords(words) : null,
+    (heading && words) || target ? wordProgressLabel(words, target) : null,
     total ? `${done} of ${total} done` : null,
     !heading && !total && notes ? `${notes} ${notes === 1 ? "note" : "notes"}` : null,
     sections ? `${sections} ${sections === 1 ? "section" : "sections"}` : null,
