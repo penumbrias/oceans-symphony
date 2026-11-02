@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Draw instead of type: the brush on the text toolbar opens a drawing pad. Ink drawings sit in your text like writing; Picture drawings add colour and go in as an image." },
       { type: "improve", text: "Needs is now made of widgets, like a profile page: move, resize or add them with the grid button, and put the same widgets on your home screen." },
       { type: "feature", text: "New Add a wish widget: a wish goes to whoever is {{fronting}} when you tap Add, or pick the whole {{system}} or other {{alters}}." },
       { type: "feature", text: "New Taking turns widget: open turn agreements with Kept and Let go right there; expanded makes new ones." },
