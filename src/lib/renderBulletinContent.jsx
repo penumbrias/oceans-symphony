@@ -4,6 +4,8 @@ import { effectiveAlias } from "@/lib/alterLabel";
 import { safeInternalRoute } from "@/lib/safeRoute";
 import MediaAttachment from "@/components/shared/MediaAttachment";
 import { ZoomableImage } from "@/components/shared/ImageViewer";
+import InkDrawing from "@/components/shared/InkDrawing";
+import { isInkImageClass } from "@/lib/inkDrawing";
 
 // Tags allowed in bulletin/comment content. The base set keeps simple
 // posts minimal; the rich set (used when a post was written in the
@@ -195,6 +197,11 @@ function nodeToReact(node, key, renderText) {
     const safe = /^(\/local-image\/|https?:|data:image\/)/i.test(src);
     if (!safe) return null;
     const styleObj = cssStringToStyleObject(node.getAttribute("style")) || {};
+    // An ink drawing from the drawing pad sits in the line in the text's
+    // colour, like a word — not a picture to zoom.
+    if (isInkImageClass(node.getAttribute("class"))) {
+      return <InkDrawing key={key} src={src} alt={node.getAttribute("alt") || "Drawing"} style={styleObj} />;
+    }
     return (
       // Tap to zoom (and pick a viewing quality). Rendered content only —
       // the editors never go through here, so editing stays untouched.
