@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Goals now earn XP for your Tasks level: ticking points, doing tracked activities and reaching a goal. Turn it off in Tasks → Edit." },
       { type: "fix", text: "Goals now count activities done earlier in the week: the week follows your \"week starts on\" setting, and entries saved with just a typed name or as \"some time that day\" count too." },
       { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
       { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },

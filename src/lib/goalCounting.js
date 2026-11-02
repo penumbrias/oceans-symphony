@@ -106,3 +106,18 @@ export function activityMinutesThisWeek(categoryId, { activities = [], categorie
     return sum + countableMinutes(a);
   }, 0);
 }
+
+// Every entry a counted point counts, with when it happened — since `from`.
+export function countedEntries(step, { activities = [], categories = [], from = new Date(0), now = new Date() } = {}) {
+  if (!step?.category_id) return [];
+  const names = categoryNameIndex(categories);
+  const hits = matcher(step.category_id, categories, { nested: true });
+  const out = [];
+  for (const a of activities || []) {
+    if (!a || !HAPPENED.has(statusFor(a))) continue;
+    const when = activityWhen(a);
+    if (!when || when < from || when > now) continue;
+    if (activityCategoryIds(a, names).some(hits)) out.push({ activity: a, when });
+  }
+  return out.sort((x, y) => x.when - y.when);
+}
