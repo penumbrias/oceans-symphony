@@ -6,6 +6,14 @@
 // height, icon size) live in UI & text with the rest of the look.
 // Writes SystemSettings.pinned_alters_config — the same record the
 // gallery reads and the classic Alters page's pinned dialog writes.
+//
+// Rows come from SettingRows (docs/inspector-design-guide.md) so the panel
+// sits flat in both inspectors that host it: Display options → Bars →
+// pinned bar, and the Pinned widget's Content tab (v0.333.0).
+//   parts="all"  — everything (the bar, the classic Pinned widget)
+//   parts="pins" — only who is pinned and their order (the board's Pinned
+//                  widget, which draws its own avatars)
+//   sizes        — also the icon size (the widget has no Bars tab for it)
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,19 +28,8 @@ import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
 import { setBarPicture } from "@/lib/barPicture";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-
-function Pills({ value, options, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map(([v, label]) => (
-        <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}
-          className={`text-xs px-2.5 py-1 rounded-full border ${value === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { setAlterFields, refreshAlter } from "@/lib/alterEntry";
+import { Row, StackedRow, Group, SwitchRow, ChoiceRow, SliderRow } from "@/components/shared/SettingRows";
 
 // Shape swatches — the shape itself is the label.
 function ShapeRow({ value, onChange, exclude = "" }) {
@@ -53,10 +50,6 @@ function ShapeRow({ value, onChange, exclude = "" }) {
   );
 }
 
-function Head({ children }) {
-  return <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">{children}</label>;
-}
-
 function OrderRow({ alter, label, avatarOverride, onUp, onDown, first, last, onPickAvatar, onClearAvatar }) {
   const avatar = useResolvedAvatarUrl(avatarOverride || alter.avatar_url);
   return (
@@ -68,10 +61,10 @@ function OrderRow({ alter, label, avatarOverride, onUp, onDown, first, last, onP
       </div>
       <span className="flex-1 min-w-0 text-sm truncate">{label}</span>
       {/* Bar-only avatar: pick from (or upload into) this alter's own asset folder. */}
-      <button type="button" onClick={onPickAvatar} aria-label={`Bar avatar for ${label}`} title="Bar avatar (this bar only)"
+      {onPickAvatar && <button type="button" onClick={onPickAvatar} aria-label={`Bar avatar for ${label}`} title="Bar avatar (this bar only)"
         className={`w-7 h-7 flex items-center justify-center rounded-lg border ${avatarOverride ? "border-primary/60 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
         <Images className="w-3.5 h-3.5" />
-      </button>
+      </button>}
       {avatarOverride && (
         <button type="button" onClick={onClearAvatar} aria-label={`Use ${label}'s profile avatar`} title="Back to the profile avatar"
           className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-destructive">
@@ -90,7 +83,7 @@ function OrderRow({ alter, label, avatarOverride, onUp, onDown, first, last, onP
   );
 }
 
-export default function PinnedAltersConfigPanel() {
+export default function PinnedAltersConfigPanel({ parts = "all", sizes = false }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const qc = useQueryClient();
@@ -104,10 +97,14 @@ export default function PinnedAltersConfigPanel() {
   const [levelsOpen, setLevelsOpen] = useState(false);
   const [avatarFor, setAvatarFor] = useState(null); // alter id
 
+  // A fresh read before each write, so a quick second change (or the bar
+  // editor open on another screen) never writes over the first.
   const persist = async (patch) => {
-    if (!settings?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settings.id, { pinned_alters_config: { ...config, ...patch } });
+      const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || settings;
+      if (!fresh?.id) return;
+      const current = (fresh.pinned_alters_config && typeof fresh.pinned_alters_config === "object") ? fresh.pinned_alters_config : {};
+      await base44.entities.SystemSettings.update(fresh.id, { pinned_alters_config: { ...current, ...patch } });
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch { toast.error("Couldn't save pinned settings"); }
   };
@@ -120,8 +117,8 @@ export default function PinnedAltersConfigPanel() {
   };
   const setPinned = async (id, val) => {
     try {
-      await base44.entities.Alter.update(id, { is_pinned: val });
-      qc.invalidateQueries({ queryKey: ["alters"] });
+      await setAlterFields(id, { is_pinned: val });
+      refreshAlter(qc, id);
     } catch { toast.error("Couldn't update pin"); }
   };
 
@@ -143,7 +140,7 @@ export default function PinnedAltersConfigPanel() {
     persist({ order: ids });
   };
   const candidates = live
-    .filter((a) => (formatAlter(a) || a.name || "").toLowerCase().includes(search.toLowerCase()))
+    .filter((a) => `${formatAlter(a) || ""} ${a.name || ""} ${a.alias || ""}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (pinnedSet.has(a.id) ? 0 : 1) - (pinnedSet.has(b.id) ? 0 : 1) || (a.name || "").localeCompare(b.name || ""));
 
   const labelMode = ["name", "alias", "off"].includes(config.labelMode) ? config.labelMode : "auto";
@@ -154,110 +151,106 @@ export default function PinnedAltersConfigPanel() {
   const frontingShape = typeof config.frontingShape === "string" ? config.frontingShape : "square";
   const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
   const avatarAlter = avatarFor ? live.find((a) => a.id === avatarFor) : null;
+  const showAvatars = display !== "names";
+  const showNames = display !== "avatars";
+  const setShown = (avatars, names) => {
+    // At least one stays on — switching off the last is a no-op.
+    if (!avatars && !names) return;
+    persist({ display: avatars && names ? "both" : avatars ? "avatars" : "names" });
+  };
+  const all = parts !== "pins";
 
   return (
-    <div className="space-y-4">
-      {/* Pins + order */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <Head>{`Pinned ${terms.alters}`}</Head>
-          <button type="button" onClick={() => setPinsOpen((v) => !v)} aria-expanded={pinsOpen}
-            className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+    <div>
+      {/* Who is pinned, and in what order */}
+      <Group title={`Pinned ${terms.alters}`} first>
+        <Row label={pinsOpen ? `Pick ${terms.alters} to pin` : `${pinned.length} pinned`}
+          hint={pinsOpen ? "Tap to pin or unpin" : (pinned.length > 1 ? "Arrows change the order" : undefined)}>
+          <button type="button" onClick={() => { setPinsOpen((v) => !v); setSearch(""); }} aria-expanded={pinsOpen}
+            className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
             {pinsOpen ? "Done" : "Add / remove"}
           </button>
-        </div>
+        </Row>
         {pinsOpen ? (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 py-1.5">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
-                className="w-full pl-8 pr-2 h-8 text-sm rounded-lg border border-border bg-background" />
+                className="w-full pl-8 pr-2 h-9 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div className="max-h-56 overflow-y-auto space-y-1 overscroll-contain">
               {candidates.length === 0
                 ? <p className="text-xs text-muted-foreground text-center py-3">No matches.</p>
-                : candidates.map((a) => <PinPickerRow key={a.id} alter={a} pinned={pinnedSet.has(a.id)} onToggle={setPinned} />)}
+                : candidates.map((a) => <PinPickerRow key={a.id} alter={a} label={formatAlter(a)} pinned={pinnedSet.has(a.id)} onToggle={setPinned} />)}
             </div>
           </div>
         ) : pinned.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nothing pinned yet.</p>
+          <p className="text-xs text-muted-foreground py-1.5">{`Nothing pinned yet — tap Add / remove, or press and hold an ${terms.alter} anywhere and pick Pin.`}</p>
         ) : (
-          <div className="space-y-1 max-h-64 overflow-y-auto overscroll-contain pr-0.5">
+          <div className="space-y-1 max-h-64 overflow-y-auto overscroll-contain pr-0.5 py-1.5">
             {pinned.map((a, i) => (
-              <OrderRow key={a.id} alter={a} label={formatAlter(a)} avatarOverride={pinnedAvatars[a.id]}
+              <OrderRow key={a.id} alter={a} label={formatAlter(a)} avatarOverride={all ? pinnedAvatars[a.id] : undefined}
                 first={i === 0} last={i === pinned.length - 1}
                 onUp={() => move(i, -1)} onDown={() => move(i, 1)}
-                onPickAvatar={() => setAvatarFor(a.id)}
+                onPickAvatar={all ? () => setAvatarFor(a.id) : null}
                 onClearAvatar={() => pickBarPicture(a.id, "")} />
             ))}
           </div>
         )}
-      </div>
+      </Group>
 
-      <div>
-        <Head>Display</Head>
-        <div className="flex items-center gap-4">
-          {[["avatars", "Avatars", display !== "names"], ["names", "Names", display !== "avatars"]].map(([id, label, on]) => (
-            <label key={id} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={on}
-                onChange={(e) => {
-                  // At least one stays on — unticking the last is a no-op.
-                  const avatars = id === "avatars" ? e.target.checked : display !== "names";
-                  const names = id === "names" ? e.target.checked : display !== "avatars";
-                  if (!avatars && !names) return;
-                  persist({ display: avatars && names ? "both" : avatars ? "avatars" : "names" });
-                }}
-                className="w-4 h-4 rounded" /> {label}
-            </label>
-          ))}
-        </div>
-      </div>
-      {display !== "avatars" && (
-        <div>
-          <Head>Name shown</Head>
-          <Pills value={labelMode === "off" ? "auto" : labelMode} onChange={(v) => persist({ labelMode: v })}
-            options={[["auto", "App setting"], ["name", "Name"], ["alias", "Alias"]]} />
-        </div>
+      {all && (
+        <Group title="What each one shows">
+          <SwitchRow label="Pictures" checked={showAvatars} onChange={(on) => setShown(on, showNames)} />
+          <SwitchRow label="Names" checked={showNames} onChange={(on) => setShown(showAvatars, on)} />
+          {showNames && (
+            <ChoiceRow label="Name shown" value={labelMode === "off" ? "auto" : labelMode}
+              onChange={(v) => persist({ labelMode: v })}
+              options={[{ value: "auto", label: "App setting" }, { value: "name", label: "Name" }, { value: "alias", label: "Alias" }]} />
+          )}
+          {sizes && showAvatars && (
+            <SliderRow label="Icon size" value={config.chipSize} fallback={48} min={14} max={88} step={2}
+              onChange={(v) => persist({ chipSize: Math.round(v) })}
+              onClear={() => persist({ chipSize: undefined })} />
+          )}
+          {showAvatars && (
+            <StackedRow label="Icon shape">
+              <ShapeRow value={iconShape} onChange={(v) => persist({ iconShape: v })} />
+            </StackedRow>
+          )}
+        </Group>
       )}
-      {display !== "names" && (
-        <div>
-          <Head>Icon shape</Head>
-          <ShapeRow value={iconShape} onChange={(v) => persist({ iconShape: v })} />
-        </div>
+
+      {all && (
+        <Group title={`When ${terms.fronting}`}>
+          <ChoiceRow label="Stands out by" value={emphasis} onChange={(v) => persist({ frontingEmphasis: v })}
+            options={[{ value: "grow", label: "Bigger" }, { value: "shape", label: "Shape" }, { value: "ring", label: "Thick ring" }, { value: "none", label: "No change" }]} />
+          {emphasis === "shape" && showAvatars && (
+            <StackedRow label={`Shape while ${terms.fronting}`}>
+              <ShapeRow value={frontingShape} onChange={(v) => persist({ frontingShape: v })} exclude={iconShape} />
+            </StackedRow>
+          )}
+          {emphasis === "grow" && (
+            <SliderRow label="How much bigger" value={frontingScale} fallback={133} min={100} max={200} step={5} unit="%"
+              onChange={(v) => persist({ frontingScale: Math.round(v) })} />
+          )}
+          {/* Front levels — the catalogue the hold-rail uses, right here
+              (one editor everywhere — Settings, the guide, and here). */}
+          <Row label={`${terms.Front} levels`} hint="What holding a picture offers">
+            <button type="button" onClick={() => setLevelsOpen((v) => !v)} aria-expanded={levelsOpen}
+              className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ListOrdered className="w-3.5 h-3.5" /> {levelsOpen ? "Hide" : "Edit"}
+            </button>
+          </Row>
+          {levelsOpen && <div className="py-2"><FrontLevelsSettings /></div>}
+        </Group>
       )}
-      <div>
-        <Head>{`When ${terms.fronting}`}</Head>
-        <Pills value={emphasis} onChange={(v) => persist({ frontingEmphasis: v })}
-          options={[["grow", "Bigger"], ["shape", "Different shape"], ["ring", "Thick ring"], ["none", "No change"]]} />
-        {emphasis === "shape" && display !== "names" && (
-          <div className="mt-2">
-            <ShapeRow value={frontingShape} onChange={(v) => persist({ frontingShape: v })} exclude={iconShape} />
-          </div>
-        )}
-        {emphasis === "grow" && (
-          <label className="block mt-2 text-xs text-muted-foreground">
-            <span className="flex items-center justify-between"><span>How much bigger</span><span className="tabular-nums">{frontingScale}%</span></span>
-            <input type="range" min={100} max={200} step={5} value={frontingScale}
-              onChange={(e) => persist({ frontingScale: Number(e.target.value) })} className="w-full accent-primary" />
-          </label>
-        )}
-      </div>
 
-      {/* Per-level styling moved INTO the Front-levels section below (one
-          editor everywhere — Settings, the guide, and here). */}
-      {/* Front levels — the catalogue the hold-rail uses, right here. */}
-      <div>
-        <button type="button" onClick={() => setLevelsOpen((v) => !v)} aria-expanded={levelsOpen}
-          className="w-full flex items-center justify-between text-sm px-3 h-9 rounded-lg border border-border/50 hover:bg-muted/30">
-          <span className="flex items-center gap-2"><ListOrdered className="w-4 h-4" /> {terms.Front} levels</span>
-          <ChevronDown className={`w-4 h-4 transition-transform ${levelsOpen ? "rotate-180" : ""}`} />
-        </button>
-        {levelsOpen && <div className="mt-2"><FrontLevelsSettings /></div>}
-      </div>
-
-      <AssetPickerModal open={!!avatarFor} onClose={() => setAvatarFor(null)}
-        ownerAlterId={avatarAlter?.id || null} ownerAlterName={avatarAlter?.name || ""} allowFolders
-        onSelect={(url) => { if (avatarFor) pickBarPicture(avatarFor, url); setAvatarFor(null); }} />
+      {all && (
+        <AssetPickerModal open={!!avatarFor} onClose={() => setAvatarFor(null)}
+          ownerAlterId={avatarAlter?.id || null} ownerAlterName={avatarAlter?.name || ""} allowFolders
+          onSelect={(url) => { if (avatarFor) pickBarPicture(avatarFor, url); setAvatarFor(null); }} />
+      )}
     </div>
   );
 }

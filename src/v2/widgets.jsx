@@ -119,7 +119,7 @@ import {
 import {
   TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
   ChatChannelsWidget, GroundingWidget, LearnWidget,
-  InnerMapWidget, InnerLocationsWidget,
+  InnerMapWidget, InnerMapViewField, InnerLocationsWidget,
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
@@ -2513,7 +2513,20 @@ function PinnedAltersWidget({ api, settings }) {
   const t = useTerms();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
-  const alters = (api?.alters || []).filter((a) => a.is_pinned && !a.is_archived);
+  // The pinned order set in this widget's options (shared with the bar);
+  // pins not yet ordered follow alphabetically.
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const savedOrder = pickPrimarySystemSettings(settingsList)?.pinned_alters_config?.order;
+  const alters = React.useMemo(() => {
+    const idx = new Map((Array.isArray(savedOrder) ? savedOrder : []).map((id, i) => [id, i]));
+    return (api?.alters || []).filter((a) => a.is_pinned && !a.is_archived).sort((a, b) => {
+      const ia = idx.has(a.id) ? idx.get(a.id) : Infinity, ib = idx.has(b.id) ? idx.get(b.id) : Infinity;
+      return ia !== ib ? ia - ib : (a.name || "").localeCompare(b.name || "");
+    });
+  }, [api?.alters, savedOrder]);
   const { data: sessions = [] } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
@@ -3065,6 +3078,11 @@ export const V2_WIDGETS = {
     icon: Hash, category: "chat",
     render: ({ mode, settings }) => <ChatChannelsWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      // Empty = every channel (how the widget always worked).
+      { key: "channelIds", type: "dynamicMulti", source: "chatChannels", label: "Channels shown",
+        help: "Pick none to show every channel" },
+    ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   grounding_techniques: {
@@ -3283,6 +3301,7 @@ export const V2_WIDGETS = {
       { key: "mapId", type: "dynamicSelect", source: "innerMaps", label: "Map", emptyLabel: "First map" },
       { key: "layerId", type: "dynamicSelect", source: "innerLayers", label: "Layer", emptyLabel: "All visible layers" },
       { key: "soloLayer", type: "toggle", label: "Show only that layer", default: false },
+      { key: "view", type: "component", Component: InnerMapViewField },
     ],
     defaultSpan: { cols: 8, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
@@ -3539,6 +3558,8 @@ export const V2_WIDGETS = {
     render: sized(({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />),
     supportsModes: ["normal"], supportsMultiInstance: false,
     configFields: [
+      // Who is pinned and in what order — the same pinned list as the bar.
+      { key: "_pinnedAlters", type: "pinnedAlters", parts: "pins", grouped: true },
       { key: "showNames", type: "toggle", label: "Show names", default: true },
       { key: "iconSize", type: "number", label: "Avatar size (0 = fit the widget)", min: 0, max: 160, default: 0 },
     ],

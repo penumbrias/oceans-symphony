@@ -288,7 +288,15 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   // Name + show/hide for the widget's heading (Section reads it).
   const chromeHide = !!widget.settings?.hideLabel;
   const chromeLabel = typeof widget.settings?.label === "string" ? widget.settings.label : "";
-  const chrome = React.useMemo(() => ({ hideLabel: chromeHide, label: chromeLabel }), [chromeHide, chromeLabel]);
+  // `openOptions`: a widget's own cog opens THIS widget's options (the
+  // inspector, on Content) — one editor per widget, never a second menu.
+  const openOptionsRef = React.useRef(null);
+  openOptionsRef.current = onConfigure ? () => onConfigure(widget.instanceId) : null;
+  const hasOpenOptions = !!onConfigure;
+  const chrome = React.useMemo(() => ({
+    hideLabel: chromeHide, label: chromeLabel,
+    openOptions: hasOpenOptions ? () => openOptionsRef.current?.() : null,
+  }), [chromeHide, chromeLabel, hasOpenOptions]);
   // Content alignment within the widget's box (owner request 2026-08-06):
   // centered by default so a short widget never leaves all its blank space
   // at the bottom; "safe" falls back to top when the content overflows so

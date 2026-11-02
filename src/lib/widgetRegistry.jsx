@@ -50,7 +50,7 @@ import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import DashboardPins from "@/components/dashboard/DashboardPins";
-import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
+import PinnedDailyTasksWidget, { PinnedTasksOptions } from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import CurrentActivities from "@/components/activities/CurrentActivities";
 import CurrentContacts from "@/components/contacts/CurrentContacts";
@@ -518,6 +518,10 @@ export const WIDGET_REGISTRY = {
     render: simple("Pinned {{alters}}", Pin, PinnedAltersGallery),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
+    // Who is pinned, their order, names, icon size and shape, how a
+    // {{fronter}} stands out — what the gallery's cog used to send to
+    // Display options. Shared with the pinned bar (one pinned list).
+    configFields: [{ key: "_pinnedAlters", type: "pinnedAlters", sizes: true, grouped: true }],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   status_note: {
@@ -627,6 +631,8 @@ export const WIDGET_REGISTRY = {
     render: simple("Daily tasks", ListTodo, PinnedDailyTasksWidget),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
+    // Which tasks, their order, list height — what the card's cog dialog held.
+    configFields: [{ key: "_pinnedTasks", type: "component", Component: PinnedTasksOptions, grouped: true }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   dashboard_pins: {

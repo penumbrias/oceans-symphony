@@ -45,6 +45,7 @@ import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { RecurringTaskRow } from "@/components/tasks/RecurringTasksDue";
 import { isCountedTask, taskCountState, countLabel } from "@/lib/taskCounts";
 import { checkInIsDistress } from "@/lib/emotionDistress";
+import { Row as SettingRow } from "@/components/shared/SettingRows";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -392,9 +393,15 @@ export function ChatChannelsWidget({ mode = "normal", settings }) {
     return out;
   }, [messages]);
 
+  // The channels picked in the widget's options; none picked = every one.
+  const pickedIds = Array.isArray(settings?.channelIds) ? settings.channelIds : [];
+  const pickedKey = pickedIds.join(",");
   const list = useMemo(
-    () => [...channels].sort((a, b) => (lastByChannel[b.id] || 0) - (lastByChannel[a.id] || 0)),
-    [channels, lastByChannel],
+    () => [...channels]
+      .filter((c) => !pickedIds.length || pickedIds.includes(c.id))
+      .sort((a, b) => (lastByChannel[b.id] || 0) - (lastByChannel[a.id] || 0)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [channels, lastByChannel, pickedKey],
   );
 
   const open = (c) => navigate(visible(c) ? `/chat?channel=${c.id}` : "/chat");
@@ -630,6 +637,24 @@ export function InnerMapWidget({ settings, updateSettings }) {
         </div>
       )}
     </Section>
+  );
+}
+
+// The inner map widget's starting view, on its Content tab: what it opens
+// on now, and the way back to the whole map. The view itself is picked on
+// the map (pan and zoom, then "Set view" on the widget).
+export function InnerMapViewField({ settings, set }) {
+  const saved = settings?.view && typeof settings.view === "object";
+  return (
+    <SettingRow label="Opens on" hint={saved ? "The view you set on the widget" : "Move the map on the widget, then tap Set view"}>
+      <span className="text-xs text-muted-foreground">{saved ? "Your view" : "Whole map"}</span>
+      {saved && (
+        <button type="button" onClick={() => set({ view: "" })}
+          className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+          Whole map
+        </button>
+      )}
+    </SettingRow>
   );
 }
 

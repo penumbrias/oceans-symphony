@@ -885,7 +885,7 @@ export default function WidgetConfigSheet({
 
   // One of the widget's own fields (configFields), as a row.
   const renderOwnField = (f) => {
-    if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
+    if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} parts={f.parts || "all"} sizes={!!f.sizes} />;
     // A widget's own editor (v0.295.0) — e.g. the Info widget's entries,
     // which edit the alter's info itself. Gets the live settings and the
     // same patch writer every row uses.
@@ -1180,9 +1180,16 @@ export default function WidgetConfigSheet({
                     onPick={(o) => set({ iconName: o.iconName || "" })} />
                 </Row>
               )}
-              {hasOwnFields && (
-                <Group title="What it shows">
-                  {ownFields.map((f, i) => {
+              {hasOwnFields && (() => {
+                // A field marked `grouped` brings its own Group headings
+                // (the pinned list), so it sits beside — not inside — the
+                // "What it shows" group.
+                const lead = ownFields.filter((f) => f.grouped);
+                const rest = ownFields.filter((f) => !f.grouped);
+                return (<>
+                {lead.map((f) => <div key={f.key} className="pt-4">{renderOwnField(f)}</div>)}
+                {rest.length > 0 && <Group title={lead.length ? "On this widget" : "What it shows"}>
+                  {rest.map((f, i, ownFields) => {
                     // showIf: a field only appears when it means something
                     // for the current settings — the cure for option-soup.
                     if (typeof f.showIf === "function" && !f.showIf(settings, showIfCtx)) return null;
@@ -1194,8 +1201,9 @@ export default function WidgetConfigSheet({
                     const field = renderOwnField(f);
                     return head ? <React.Fragment key={f.key}>{head}{field}</React.Fragment> : field;
                   })}
-                </Group>
-              )}
+                </Group>}
+                </>);
+              })()}
             </div>
           )}
 
