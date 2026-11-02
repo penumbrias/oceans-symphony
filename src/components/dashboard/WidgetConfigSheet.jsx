@@ -24,7 +24,7 @@
 
 import React from "react";
 import { DebouncedText, RichTextField } from "@/components/shared/DebouncedFields";
-import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, Palette, Copy, Star, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Plus, MoreHorizontal, ListChecks } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, Palette, Copy, Star, ChevronLeft, ArrowUpToLine, ArrowDownToLine, Type, Move, Square, Code2, Plus, MoreHorizontal, ListChecks } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { useBoardSubject } from "@/lib/boardSubject";
@@ -58,7 +58,7 @@ import {
 } from "@/lib/widgetLook";
 // The one row grammar every edit menu shares (v0.287.0).
 import {
-  Row, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, ColourRow, TabBar,
+  Row, LinkRow, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, ColourRow, TabBar,
 } from "@/components/shared/SettingRows";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -725,8 +725,12 @@ export default function WidgetConfigSheet({
   // Text: which kind of text the rows edit — body or headings. One set of
   // controls on screen at a time, so a heading edit can't land on the body.
   const [textKind, setTextKind] = React.useState("body");
-  // Styles: which catalogue is showing (Page style / Ready-made / Yours / Themes).
-  const [styleTab, setStyleTab] = React.useState("builtin");
+  // Styles: which list page is open (null = the Styles tab's own rows;
+  // "builtin" / "mine" / "themes" = a drill-in page). A page, not pills:
+  // the old pill switcher showed "Page style" whenever the widget had no
+  // style of its own, so the other lists could never be opened.
+  const [stylePage, setStylePage] = React.useState(null);
+  React.useEffect(() => { setStylePage(null); }, [widget?.instanceId, tab]);
   const [naming, setNaming] = React.useState(false);
   const [applyOpen, setApplyOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
@@ -833,6 +837,13 @@ export default function WidgetConfigSheet({
     : effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
+  // The saved style this widget uses, if any, and what the Styles tab
+  // says it is using.
+  const savedStyle = userStyleId(settings.style) ? userStyles.find((x) => x.id === userStyleId(settings.style)) : null;
+  const currentStyleLabel = !settings.style
+    ? `Page style (${pageStyleLabel})`
+    : styleOverride ? (HOME_STYLES.find((h) => h.id === styleOverride)?.label || styleOverride)
+    : savedStyle ? savedStyle.label : "Saved style";
   const ownFields = (def.configFields || []).filter((f) => f.section !== "ui");
   const uiFields = (def.configFields || []).filter((f) => f.section === "ui" && f.type === "range");
   const uiFieldKeys = uiFields.map((f) => f.key);
@@ -1441,20 +1452,20 @@ export default function WidgetConfigSheet({
           {/* ── Styles: ready-made and saved looks, saving, copying, CSS ── */}
           {tab === "styles" && (
             <div className="space-y-2 pt-1">
-              <Segmented label="Which styles" value={!settings.style ? "page" : styleTab}
-                onChange={(v) => { if (v === "page") set({ style: "" }); else setStyleTab(v); }}
-                options={[
-                  { value: "page", label: "Page style" },
-                  { value: "builtin", label: "Ready-made" },
-                  { value: "mine", label: `Yours${userStyles.length ? ` (${userStyles.length})` : ""}` },
-                  ...(themeLookEntries.length ? [{ value: "themes", label: "Themes" }] : []),
-                ]} />
-              {!settings.style ? (
-                <p className="text-xs text-muted-foreground px-1">
-                  This widget follows the page's style, currently “{pageStyleLabel}”. Pick one of the other lists to give it a style of its own; your own tweaks in Text, Shape and Colour sit on top either way.
-                </p>
-              ) : styleTab === "builtin" ? (
+              {stylePage ? (
+                <>
+                  {/* A drill-in page: back to the Styles rows, then the list. */}
+                  <button type="button" onClick={() => setStylePage(null)}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground min-h-[36px] -ml-1 px-1">
+                    <ChevronLeft className="w-4 h-4" /> Styles
+                  </button>
+                  <p className="text-sm font-semibold px-1">
+                    {stylePage === "builtin" ? "Ready-made styles" : stylePage === "mine" ? "Your styles" : "Themes"}
+                  </p>
+                  {stylePage === "builtin" ? (
                 <div className="space-y-1">
+                  {styleButton(!settings.style, () => set({ style: "" }), "Follow the page style",
+                    `Currently “${pageStyleLabel}”`)}
                   {HOME_STYLES.map((s) => (
                     <button key={s.id} type="button" onClick={() => set({ style: s.id })}
                       className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
@@ -1465,10 +1476,10 @@ export default function WidgetConfigSheet({
                     </button>
                   ))}
                 </div>
-              ) : styleTab === "mine" ? (
+                  ) : stylePage === "mine" ? (
                 <div className="space-y-1">
                   {userStyles.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No saved styles yet. Save this widget's look below to reuse it anywhere.</p>
+                    <p className="text-xs text-muted-foreground">No saved styles yet. Go back and use “Save as a style…” to reuse this widget's look anywhere.</p>
                   )}
                   {userStyles.map((st) => {
                     const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
@@ -1519,7 +1530,7 @@ export default function WidgetConfigSheet({
                     );
                   })}
                 </div>
-              ) : (
+                  ) : (
                 <div className="space-y-1">
                   <p className="text-[0.6875rem] text-muted-foreground">Copies a theme's colours and font onto this widget, so you can still tweak them after.</p>
                   {themeLookEntries.map(({ name, preset, mine }) => (
@@ -1535,7 +1546,26 @@ export default function WidgetConfigSheet({
                     </button>
                   ))}
                 </div>
-              )}
+                  )}
+                </>
+              ) : (
+              <>
+              <Group title="Style" first>
+                <Row label="Using" hint="Your own tweaks in Text, Shape and Colour sit on top"
+                  own={!!settings.style} onClear={() => set({ style: "" })}>
+                  <span className={`text-xs truncate ${settings.style ? "" : "text-muted-foreground"}`}>{currentStyleLabel}</span>
+                </Row>
+                <LinkRow label="Ready-made styles" icon={Palette}
+                  value={styleOverride ? HOME_STYLES.find((h) => h.id === styleOverride)?.label : ""}
+                  onClick={() => setStylePage("builtin")} />
+                <LinkRow label="Your styles" icon={Star}
+                  value={savedStyle ? savedStyle.label : (userStyles.length ? String(userStyles.length) : "")}
+                  onClick={() => setStylePage("mine")} />
+                {themeLookEntries.length > 0 && (
+                  <LinkRow label="Themes" hint="Copy a theme's colours and font" icon={Palette}
+                    onClick={() => setStylePage("themes")} />
+                )}
+              </Group>
 
               <Group title="This look">
                 {/* Save: the ticks are the look's parts. Untick some and
@@ -1593,6 +1623,8 @@ export default function WidgetConfigSheet({
                   </p>
                 </Disclosure>
               </Group>
+              </>
+              )}
             </div>
           )}
         </div>
