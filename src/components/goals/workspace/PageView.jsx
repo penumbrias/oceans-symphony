@@ -2,7 +2,8 @@
 // activity strip, the page's note, its lines and sections (as an outline,
 // a board or a map), and its connections.
 import React, { useEffect, useState } from "react";
-import { MoreHorizontal, ListTree, Columns3, Network, Pin, Link2 } from "lucide-react";
+import { MoreHorizontal, ListTree, Columns3, Network, Pin, Link2, LayoutGrid } from "lucide-react";
+import { openGoalNoteEditor } from "@/lib/goalNoteEvents";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -29,12 +30,20 @@ const VIEWS = [
   { id: "map", label: "Map", Icon: Network },
 ];
 
-function PageNote({ page, editing, setEditing }) {
+export function PageNote({ page, editing, setEditing, emptyPrompt = false }) {
   const { alters, run, busy } = useWorkspace();
   const t = useTerms();
   const [text, setText] = useState(page.why || "");
   useEffect(() => { if (editing) setText(page.why || ""); }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!page.why && !editing) return null;
+  if (!page.why && !editing) {
+    if (!emptyPrompt) return null;
+    return (
+      <button type="button" onClick={() => { setText(""); setEditing(true); }}
+        className="block w-full text-left text-sm text-muted-foreground hover:text-foreground">
+        Add a note about this page…
+      </button>
+    );
+  }
   if (editing) {
     return (
       <div className="space-y-1.5">
@@ -66,10 +75,12 @@ function PageNote({ page, editing, setEditing }) {
   );
 }
 
-function Connections({ page }) {
+export function Connections({ page, emptyText = null, bare = false }) {
   const { goals, steps, open } = useWorkspace();
   const { outgoing, incoming } = connectionsOf(page.id, goals, steps);
-  if (!outgoing.length && !incoming.length) return null;
+  if (!outgoing.length && !incoming.length) {
+    return emptyText ? <p className="text-xs text-muted-foreground">{emptyText}</p> : null;
+  }
   const chip = (c, dir) => (
     <button key={`${dir}-${c.page.id}-${c.label}`} type="button" onClick={() => open(c.page.id)}
       className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1 max-w-full">
@@ -80,6 +91,14 @@ function Connections({ page }) {
       </span>
     </button>
   );
+  if (bare) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {outgoing.map((c) => chip(c, "out"))}
+        {incoming.map((c) => chip(c, "in"))}
+      </div>
+    );
+  }
   return (
     <div className="pt-3 border-t border-border/40 space-y-1.5">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connections</p>
@@ -91,7 +110,10 @@ function Connections({ page }) {
   );
 }
 
-export default function PageView({ page }) {
+// The page's own chrome — where it is, its title, status and options —
+// above `body`: the page's widget board (Goals.jsx). Without a body it
+// draws the classic page (strip, note, lines, connections).
+export default function PageView({ page, body = null, onEditLayout = null, layoutEditing = false }) {
   const ws = useWorkspace();
   const { index, steps, run, busy, open } = ws;
   const [title, setTitle] = useState(page.title || "");
@@ -148,6 +170,13 @@ export default function PageView({ page }) {
           <input value={title} onChange={(e) => setTitle(e.target.value)} onBlur={saveTitle} aria-label="Page title"
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
             className="flex-1 min-w-0 bg-transparent font-display text-2xl font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 rounded px-1" />
+          {onEditLayout && !layoutEditing && (
+            <button type="button" onClick={onEditLayout} aria-label="Edit page" data-tour="goals-layout-btn"
+              title="Edit page — move, resize and add widgets, like pictures and videos"
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground mt-1">
+              <LayoutGrid className="w-5 h-5" />
+            </button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Page options" className="p-1.5 rounded text-muted-foreground hover:text-foreground mt-1"><MoreHorizontal className="w-5 h-5" /></button>
@@ -156,7 +185,7 @@ export default function PageView({ page }) {
               <DropdownMenuItem onSelect={() => run(() => updatePage(page.id, { pinned: !page.pinned }))}>
                 {page.pinned ? "Unpin from the sidebar" : "Pin to the sidebar"}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setNoteEditing(true)}>{page.why ? "Edit the page note" : "Add a page note"}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => (body ? openGoalNoteEditor(page.id) : setNoteEditing(true))}>{page.why ? "Edit the page note" : "Add a page note"}</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setMoving(true)}>Move to…</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onSelect={remove}>Delete</DropdownMenuItem>
@@ -204,14 +233,18 @@ export default function PageView({ page }) {
         )}
       </header>
 
-      <ActivityStrip page={page} />
-      <PageNote page={page} editing={noteEditing} setEditing={setNoteEditing} />
+      {body || (
+        <>
+          <ActivityStrip page={page} />
+          <PageNote page={page} editing={noteEditing} setEditing={setNoteEditing} />
 
-      {view === "outline" && <EntryList pageId={page.id} page={page} />}
-      {view === "board" && <BoardView page={page} />}
-      {view === "map" && <MapView page={page} />}
+          {view === "outline" && <EntryList pageId={page.id} page={page} />}
+          {view === "board" && <BoardView page={page} />}
+          {view === "map" && <MapView page={page} />}
 
-      <Connections page={page} />
+          <Connections page={page} />
+        </>
+      )}
 
       {moving && (
         <MovePageDialog open title={`Move "${page.title || "page"}" to…`} movingPageId={page.id} allowTop

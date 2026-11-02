@@ -43,6 +43,13 @@ const WIDGET_FILES = [
   "src/components/tasks/RecurringTasksDue.jsx",
   "src/v2/notices.jsx",
   "src/lib/widgetRegistry.jsx",
+  "src/v2/goalPageWidgets.jsx",
+  "src/components/goals/workspace/ActivityStrip.jsx",
+  "src/components/goals/workspace/Outline.jsx",
+  "src/components/goals/workspace/ItemRow.jsx",
+  "src/components/goals/workspace/AddLine.jsx",
+  "src/components/goals/workspace/BoardView.jsx",
+  "src/components/goals/workspace/MapView.jsx",
 ];
 
 const lookSrc = readFileSync(join(root, "src/lib/widgetLook.js"), "utf8");

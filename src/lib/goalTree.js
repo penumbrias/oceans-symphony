@@ -27,6 +27,8 @@
 // top level instead of hiding it.
 
 import { goalWeekWindow, activityWhen } from "@/lib/goalCounting";
+import { trashProfileBoards } from "@/lib/boardStore";
+import { PAGE_BOARD_OWNER_TYPE } from "@/lib/profileBoard";
 import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { createTask, deleteTask } from "@/lib/taskCreate";
@@ -323,6 +325,10 @@ export async function deleteItem(item, { withTask = false } = {}) {
 
 // A page goes to the trash with every section inside it, all their lines,
 // and the to-dos made on them — one batch, so a restore brings it all back.
+// A goal page's widget board is a ProfileBoard row owned by this page id
+// (owner_type "page", PageBoardCanvas) — created on its first layout edit.
+export const goalBoardPageId = (goalId) => `goal:${goalId}`;
+
 export async function deletePage(index, steps, id) {
   const ids = [id, ...descendantIds(index, id)];
   const set = new Set(ids);
@@ -335,6 +341,8 @@ export async function deletePage(index, steps, id) {
     if (lines.length) await base44.entities.GoalStep.bulkDelete(lines.map((s) => s.id));
     for (const tid of taskIds) await deleteTask(tid);
     await base44.entities.Goal.bulkDelete(ids);
+    // Their layouts go to the trash with them, so a restore brings both back.
+    for (const gid of ids) await trashProfileBoards(PAGE_BOARD_OWNER_TYPE, goalBoardPageId(gid));
   });
   return ids.length;
 }
