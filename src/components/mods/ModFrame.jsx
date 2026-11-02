@@ -93,6 +93,11 @@ export default function ModFrame({ mod, pageId }) {
             const value = await handleModCall(modRef.current, String(method), args, {
               toast: (text) => toast(text),
               confirm: (opts) => confirm(opts),
+              // Only reached after the person said yes (broker.js asks first).
+              saveFile: async (name, blob) => {
+                const { shareFile } = await import("@/lib/shareFile");
+                return (await shareFile({ blob, filename: name, title: name, dialogTitle: "Save file", prefer: "download" }))?.result || "failed";
+              },
               openPage: (id) => navigate(modPagePath(modRef.current.mod_id, id)),
             });
             remember(value);
