@@ -55,6 +55,7 @@ import {
   RECURRENCE_BRANCHES, RECURRENCE_INTERVALS, maxOccurrences, clampOccurrenceCount,
   membersForBranch, deleteSeries, applyEditToSeries,
 } from "@/lib/recurrenceUtils";
+import { maxLengthMinutes } from "@/lib/recurrenceIntervals";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { categoryIdOf } from "@/lib/planner/rollup";
@@ -595,6 +596,12 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     if (!create || savingRef.current) return;
     const catIds = item.activity_category_ids || [];
     if (!(item.activity_name || "").trim() && !catIds.length) return;
+    // A repeating plan can't be longer than the gap before it repeats
+    // (a weekly plan at most a week), or its occurrences would overlap.
+    if (mode === ENTRY_MODES.PLAN && recur.interval !== "none" && Number(minutes) > maxLengthMinutes(recur.interval)) {
+      toast.error("A repeating plan can't be longer than the time before it repeats.");
+      return;
+    }
     savingRef.current = true; setSaving(true);
     try {
       const res = await createActivityEntry({

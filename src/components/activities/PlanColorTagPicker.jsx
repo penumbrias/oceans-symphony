@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Check, X, Plus } from "lucide-react";
 import {
   PLAN_TAG_PRESETS, normalizeHex, readSavedTagColors, saveTagColor, deleteSavedTagColor,
@@ -27,7 +28,10 @@ export default function PlanColorTagPicker({ value, onChange }) {
       {removable && (
         <button
           type="button"
-          onClick={() => setSaved(deleteSavedTagColor(hex))}
+          onClick={async () => {
+            if (!(await confirm({ title: "Delete this saved color?", body: `${hex} will be removed from your saved colors. Plans already using it keep their color.`, confirmLabel: "Delete", destructive: true }))) return;
+            setSaved(deleteSavedTagColor(hex));
+          }}
           aria-label={`Delete saved color ${hex}`}
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-background border border-border text-muted-foreground flex items-center justify-center"
         >
@@ -62,13 +66,13 @@ export default function PlanColorTagPicker({ value, onChange }) {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="color"
           value={current || "#8b5cf6"}
           onChange={(e) => pick(e.target.value)}
           aria-label="Pick any color"
-          className="w-9 h-9 rounded-lg border border-input bg-background p-0.5"
+          className="w-9 h-9 shrink-0 rounded-lg border border-input bg-background p-0.5"
         />
         <input
           type="text"
@@ -78,14 +82,14 @@ export default function PlanColorTagPicker({ value, onChange }) {
           placeholder={current || "#hex"}
           maxLength={7}
           aria-label="Hex color"
-          className="flex-1 h-9 px-3 rounded-lg border border-input bg-background text-sm"
+          className="flex-1 min-w-[5rem] h-9 px-3 rounded-lg border border-input bg-background text-sm"
         />
-        <button type="button" onClick={applyHex} className="h-9 px-2.5 rounded-lg border border-border/60 text-xs">Use</button>
+        <button type="button" onClick={applyHex} className="h-9 shrink-0 whitespace-nowrap px-2.5 rounded-lg border border-border/60 text-xs">Use</button>
         <button
           type="button"
           disabled={!current}
           onClick={() => setSaved(saveTagColor(current))}
-          className="h-9 px-2.5 rounded-lg border border-border/60 text-xs inline-flex items-center gap-1 disabled:opacity-40"
+          className="h-9 shrink-0 whitespace-nowrap px-2.5 rounded-lg border border-border/60 text-xs inline-flex items-center gap-1 disabled:opacity-40"
         >
           <Plus className="w-3 h-3" /> Save
         </button>

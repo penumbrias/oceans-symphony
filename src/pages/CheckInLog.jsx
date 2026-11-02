@@ -70,6 +70,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { clockPattern } from "@/lib/timeFormat";
 
 // User-controllable filter for what shows in the Check-In Log. Stored in
 // localStorage so the choice persists across sessions. All toggles default
@@ -261,7 +262,7 @@ function activityPillText(act) {
 
 function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, onEdit, onEditDiary, onDeleteDiary, display = DEFAULT_DISPLAY }) {
   const ts = parseISO(checkIn.timestamp);
-  const timeStr = format(ts, "h:mm a");
+  const timeStr = format(ts, clockPattern("h:mm a"));
   const emotions = checkIn.emotions || [];
   const fronters = (checkIn.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   // Inline note editor — lets the user fix typos in the quick check-in
@@ -939,7 +940,7 @@ function DiaryCardEntry({ card, onEditDiary, onDeleteDiary }) {
 }
 
 function StandaloneEntry({ timestamp, children, actions }) {
-  const timeStr = format(new Date(timestamp), "h:mm a");
+  const timeStr = format(new Date(timestamp), clockPattern("h:mm a"));
   return (
     <div className="px-4 py-2.5 hover:bg-muted/10">
       <div className="flex items-center justify-between gap-2 mb-1.5">

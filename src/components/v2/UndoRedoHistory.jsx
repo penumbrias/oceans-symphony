@@ -13,6 +13,7 @@
 // durable log (lookHistory keeps the durable preset snapshots).
 
 import React, { useEffect, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Undo2, Redo2 } from "lucide-react";
@@ -99,7 +100,7 @@ function diffLabel(prev, next) {
   return [...new Set(parts)].slice(0, 3).join(" · ") || "Change";
 }
 
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 
 // The exact key-paths a change touched (two levels deep) — the identity
 // used to COALESCE a continuous adjustment. Dragging a slider 0→100

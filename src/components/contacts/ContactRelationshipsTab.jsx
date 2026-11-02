@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Users, User, Network, Check } from "lucide-react";
+import { Plus, Trash2, Users, User, Network, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useTerms } from "@/lib/useTerms";
@@ -48,6 +48,7 @@ export default function ContactRelationshipsTab({ contact }) {
   const { data: types = [] } = useQuery({ queryKey: ["contactRelationshipTypes"], queryFn: () => fetchActiveContactRelationshipTypes(base44.entities) });
 
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null); // id of the relationship being edited, or null when adding
   const [targetType, setTargetType] = useState("system");
   const [targetId, setTargetId] = useState(null);
   const [relType, setRelType] = useState("");
@@ -68,8 +69,20 @@ export default function ContactRelationshipsTab({ contact }) {
   const typeColor = (label) => types.find((x) => x.label === label)?.color || "#94a3b8";
 
   const resetForm = () => {
-    setAdding(false); setTargetType("system"); setTargetId(null);
+    setAdding(false); setEditingId(null); setTargetType("system"); setTargetId(null);
     setRelType(""); setHasMet(false); setNotes("");
+  };
+
+  // Open the form filled in with an existing relationship, to change who it is
+  // with (system / alter / group), the type, "met" and the notes.
+  const startEdit = (r) => {
+    setEditingId(r.id);
+    setTargetType(r.target_type || "system");
+    setTargetId(r.target_id || null);
+    setRelType(r.relationship_type || "");
+    setHasMet(!!r.has_met);
+    setNotes(r.notes || "");
+    setAdding(true);
   };
 
   const canSave = relType.trim() && (targetType === "system" || targetId);
@@ -85,17 +98,33 @@ export default function ContactRelationshipsTab({ contact }) {
     if (prepared === null) return; // user backed out of the whisper warning
     setSaving(true);
     try {
-      const row = await base44.entities.ContactRelationship.create({
-        contact_id: contactId,
+      const fields = {
         target_type: targetType,
         target_id: targetType === "system" ? null : targetId,
         relationship_type: label,
         has_met: !!hasMet,
         notes: prepared.content,
-        author_alter_ids: prepared.authorIds,
-        created_date: new Date().toISOString(),
-      });
-      await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: row.id, sourceLabel: "Contact relationship note", navigatePath: `/contacts/${contactId}` });
+      };
+      let row;
+      if (editingId) {
+        const before = rels.find((x) => x.id === editingId);
+        // Keep the original signer unless this edit names a new one.
+        const authorIds = prepared.authorIds && prepared.authorIds.length ? prepared.authorIds : before?.author_alter_ids;
+        row = await base44.entities.ContactRelationship.update(editingId, { ...fields, ...(authorIds ? { author_alter_ids: authorIds } : {}) });
+        row = row || { id: editingId };
+        // Only notify / log again when the note text actually changed.
+        if ((before?.notes || "") !== (prepared.content || "")) {
+          await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: editingId, sourceLabel: "Contact relationship note", navigatePath: `/contacts/${contactId}` });
+        }
+      } else {
+        row = await base44.entities.ContactRelationship.create({
+          contact_id: contactId,
+          ...fields,
+          author_alter_ids: prepared.authorIds,
+          created_date: new Date().toISOString(),
+        });
+        await recordAuthoredText({ ...prepared, alters, sourceType: "contact", sourceId: row.id, sourceLabel: "Contact relationship note", navigatePath: `/contacts/${contactId}` });
+      }
       // A typed-in type that isn't in the catalogue gets added, so it becomes a
       // reusable suggestion next time (and shows up in the manager to edit).
       if (label && !types.some((x) => (x.label || "").toLowerCase() === label.toLowerCase())) {
@@ -105,8 +134,9 @@ export default function ContactRelationshipsTab({ contact }) {
         } catch { /* non-fatal — the relationship still saved */ }
       }
       queryClient.invalidateQueries({ queryKey: ["contactRelationships", contactId] });
+      const wasEditing = !!editingId;
       resetForm();
-      toast.success("Relationship added");
+      toast.success(wasEditing ? "Relationship updated" : "Relationship added");
     } catch (err) {
       toast.error(err?.message || "Couldn't save");
     } finally {
@@ -158,6 +188,7 @@ export default function ContactRelationshipsTab({ contact }) {
 
       {adding && (
         <div className="rounded-xl border border-border/60 bg-card p-3 space-y-3">
+          {editingId && <p className="text-sm font-medium">Edit relationship</p>}
           {/* Who is on the other side */}
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Relationship with</label>
@@ -229,7 +260,7 @@ export default function ContactRelationshipsTab({ contact }) {
           <div className="flex items-center justify-end gap-2 pt-1">
             <Button size="sm" variant="ghost" onClick={resetForm}>Cancel</Button>
             <Button size="sm" onClick={save} disabled={!canSave || saving} className="gap-1.5">
-              <Check className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
+              <Check className="w-4 h-4" /> {saving ? "Saving…" : editingId ? "Save changes" : "Save"}
             </Button>
           </div>
         </div>
@@ -253,9 +284,14 @@ export default function ContactRelationshipsTab({ contact }) {
                   </div>
                   {r.notes && <p className="text-sm whitespace-pre-wrap mt-1.5 text-muted-foreground">{r.notes}</p>}
                 </div>
-                <button type="button" onClick={() => remove(r.id)} aria-label="Delete relationship" className="text-muted-foreground hover:text-destructive flex-shrink-0">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button type="button" onClick={() => startEdit(r)} aria-label="Edit relationship" className="text-muted-foreground hover:text-foreground">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button type="button" onClick={() => remove(r.id)} aria-label="Delete relationship" className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

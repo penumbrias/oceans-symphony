@@ -13,6 +13,7 @@ import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
+import { clockPattern } from "@/lib/timeFormat";
 
 function processSignposts(html, altersById) {
   if (!html || !altersById) return html;
@@ -142,7 +143,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
             <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
             <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
               <span className="text-xs text-muted-foreground">
-                {format(journalDisplayDate(entry), "MMMM d, yyyy · h:mm a")}
+                {format(journalDisplayDate(entry), clockPattern("MMMM d, yyyy · h:mm a"))}
               </span>
               {author && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">

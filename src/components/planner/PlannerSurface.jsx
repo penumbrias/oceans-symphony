@@ -8,6 +8,7 @@
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
 import React, { useEffect, useMemo, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, addWeeks, addMonths, addYears, startOfWeek, format } from "date-fns";
@@ -95,6 +96,8 @@ export default function PlannerSurface({
   onOpenedActivity = null,
   // Deep link: start on this date (the Planner page passes ?date=).
   initialAnchor = null,
+  // Deep link: open on this zoom (day / week / month / year).
+  initialView = null,
 }) {
   const t = useTerms();
   const tr = useT();
@@ -113,6 +116,7 @@ export default function PlannerSurface({
   // year as the overview calendars the tracker had. Starts from the
   // tracker's own remembered choice so nobody's view resets.
   const [view, setViewState] = useState(() => {
+    if (initialView && VIEWS.includes(initialView)) return initialView;
     const v = lsGet("symphony_planner_view_v1", null) ?? lsGet("symphony_act_view_mode", "week");
     return VIEWS.includes(v) ? v : "week";
   });
@@ -627,7 +631,7 @@ export default function PlannerSurface({
             activities={activitiesWithTasks}
             weekStartsOn={prefs.weekStartsOn}
             onMonthClick={(d) => { setAnchor(d); setView("month"); }}
-            onDayClick={(d) => { setAnchor(d); setView("day"); }}
+            onDayClick={(d) => { setAnchor(d); setView("month"); }}
           />
         ) : (
         <WeekCanvas
@@ -685,7 +689,7 @@ export default function PlannerSurface({
               {new Date(bandInfo.band.session.start_time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               {" — "}
               {bandInfo.band.session.end_time
-                ? new Date(bandInfo.band.session.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                ? new Date(bandInfo.band.session.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() })
                 : tr("planner.stillFronting")}
             </p>
             <div className="flex gap-2 mt-2">

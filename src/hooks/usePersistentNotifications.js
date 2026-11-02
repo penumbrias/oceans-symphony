@@ -19,6 +19,7 @@
 // state cancels the notification rather than displaying "nothing active".
 
 import { useEffect, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -247,7 +248,7 @@ export default function usePersistentNotifications() {
     if (!native) return;
     if (!prefs.activity || (activeActivities.length === 0 && !activeSleep)) { syncPersistentNotification("activity", { enabled: false }); return; }
     const sinceOf = (iso) => {
-      try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+      try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() }); }
       catch { return ""; }
     };
     const lines = activeActivities.map((a) => { const s = sinceOf(a.startTime); return `${a.name}${s ? ` · since ${s}` : ""}`; });

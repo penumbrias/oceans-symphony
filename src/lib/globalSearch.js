@@ -815,7 +815,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["terms", "Terminology", `Words, terms, pronouns, ${Alter}, headmates, parts, ${fronting}`],
     ["systems", Systems, `Multiple ${Systems}, switching between ${Systems}`],
     ["language", "Language", "Language, locale, translation"],
-    ["timezone", "Timezone", "Timezone, time zone, clock"],
+    ["timezone", "Time & clock", "Timezone, time zone, clock, 12-hour, 24-hour"],
     ["alter-labels", `${Alter} labels in lists`, "Name, alias, labels, pickers"],
     ["home-screen", "Home screen", "New UI, home screen, widgets, board, home opens on"],
     ["experimental", "Experimental features", "Experimental, beta, labs, needs, goals, mods"],

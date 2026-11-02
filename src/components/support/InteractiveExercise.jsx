@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, ChevronDown, ChevronUp, History } from "lucide-react";
 import { format } from "date-fns";
+import { clockPattern } from "@/lib/timeFormat";
 
 export default function InteractiveExercise({ exerciseId, exerciseTitle, fields = [], onSaved }) {
   const queryClient = useQueryClient();
@@ -215,7 +216,7 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
 
         {latestEntry && (
           <p className="text-xs text-muted-foreground">
-            Last saved {format(new Date(latestEntry.updated_date || latestEntry.created_date), "MMM d, yyyy 'at' h:mm a")}
+            Last saved {format(new Date(latestEntry.updated_date || latestEntry.created_date), clockPattern("MMM d, yyyy 'at' h:mm a"))}
           </p>
         )}
       </div>

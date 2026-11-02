@@ -5,6 +5,7 @@
 // Nothing is written until Save; the bars show the result as it will be.
 
 import { useEffect, useMemo, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ const UNKNOWN = "__unknown";
 const toInput = (iso) => toLocalDatetimeValue(iso);
 const fromInput = (v) => localDatetimeToISO(v) ?? undefined;
 const dayTitle = (key) => new Date(dayStart(key)).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "");
+const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...clockOpts() }) : "");
 
 export default function FrontConflictTimeline({ onClose, onSaved }) {
   const t = useTerms();
