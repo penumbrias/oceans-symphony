@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Draw instead of type: the brush on the text toolbar opens a drawing pad. Ink drawings sit in your text like writing; Picture drawings add colour and go in as an image." },
       { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
       { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },
       { type: "improve", text: "Tempo & pitch: changing them separately sounds much less robotic and no longer gets quieter." },

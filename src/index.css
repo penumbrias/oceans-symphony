@@ -1098,3 +1098,12 @@ html[data-home-edit] .media-embed { pointer-events: none; }
   .hover-reveal { opacity: 0; }
   .group:hover .hover-reveal, .group:focus-within .hover-reveal, .hover-reveal:focus-visible { opacity: 1; }
 }
+
+/* Drawing pad (v0.332.0). An ink drawing is black on nothing; where it is
+   shown as a plain <img> (the editors, bios) it follows the theme so it
+   reads like the text around it. The rich renderer draws it in the exact
+   text colour instead (InkDrawing.jsx). */
+img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 0; }
+.dark img.ink-drawing { filter: invert(1); }
+/* The pad's colour pop-ups open from swatches at the right edge. */
+.drawing-pad [data-color-picker-popover] { left: auto !important; right: 0; }

@@ -511,7 +511,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("journals", {
       emoji: "🧰", title: "The toolbar",
-      body: `The toolbar formats text and adds pictures, links to pages in the app, @ mentions, -signposts and ~commands. The eraser turns text back to plain.`,
+      body: `The toolbar formats text and adds pictures, drawings, links to pages in the app, @ mentions, -signposts and ~commands. The brush opens a drawing pad; the eraser turns text back to plain.`,
       route: "/journals", target: "journals-new-entry",
     }),
     s("journals", {
