@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Goals: \"Start a story\" makes a page with chapters, characters, places and lore. Set a word target, and \"Work on it\" counts the words each session adds." },
       { type: "feature", text: "Goals for writing: a section can be a chapter, part or scene, numbered with a word count. Tag pages and sections, then tap a tag to see them all." },
       { type: "feature", text: "Goals: \"Work on it\" times the goal itself like an activity, no activity needed. The time shows on your timeline and adds up on the page." },
       { type: "feature", text: "Goal pages are made of widgets now: tap the grid button on a page to move or resize them, or add pictures, GIFs and videos with the Image widget." },

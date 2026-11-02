@@ -726,6 +726,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
+      emoji: "✍️", title: "Write a story", experimental: true,
+      body: `"Start a story" makes a page with a first chapter and sections for characters, places and lore. Give it a word target from its ⋯ menu.`,
+      route: "/goals", target: ["goals-story-btn", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "⏱️", title: "Writing sessions", experimental: true,
+      body: `Tap "Work on it" while you write. When you stop, the words you added are counted, and the page shows what you wrote today and this week.`,
+      route: "/goals", target: "goals-page",
+    }),
+    s("activities", {
       emoji: "🏷️", title: "Tag pages", experimental: true,
       body: `Tag any page or section, like #plot or a character's name. Tap a tag to see every page that has it, or search #tag in Pages.`,
       route: "/goals", target: "goals-page",

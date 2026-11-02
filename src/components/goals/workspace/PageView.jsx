@@ -23,7 +23,7 @@ import ActivityStrip from "./ActivityStrip";
 import MovePageDialog from "./MovePageDialog";
 import TagEditor, { TagChips } from "./TagEditor";
 import { SectionStyleSub, ChildStyleSub } from "./SectionStyleMenu";
-import { sectionHeading, pageWordCount, formatWords } from "@/lib/goalWriting";
+import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "@/lib/goalWriting";
 import { prepareNote, recordNote, NoteText } from "./ItemRow";
 import { useWorkspace } from "./WorkspaceContext";
 
@@ -130,7 +130,18 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
   const view = page.view && VIEWS.some((v) => v.id === page.view) ? page.view : "outline";
   const isTop = !index.parent.get(page.id);
   const heading = sectionHeading(index, page);
-  const words = heading || page.child_section_style ? pageWordCount(index, steps, page.id) : 0;
+  const wordTarget = wordTargetOf(page);
+  const words = heading || page.child_section_style || wordTarget ? pageWordCount(index, steps, page.id) : 0;
+
+  const setWordTarget = async () => {
+    const v = await promptText({
+      title: "Word target", body: "How many words is this page aiming for? Leave it empty for none.",
+      defaultValue: wordTarget ? String(wordTarget) : "", placeholder: "e.g. 50000",
+    });
+    if (v === null) return;
+    const n = Math.round(Number(String(v).replace(/[^\d]/g, "")));
+    run(() => updatePage(page.id, { word_target: Number.isFinite(n) && n > 0 ? n : null }));
+  };
 
   const saveTitle = () => {
     const v = title.trim();
@@ -194,6 +205,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => (body ? openGoalNoteEditor(page.id) : setNoteEditing(true))}>{page.why ? "Edit the page note" : "Add a page note"}</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setTagging(true)}>Tags…</DropdownMenuItem>
+              <DropdownMenuItem onSelect={setWordTarget}>{wordTarget ? "Change the word target" : "Set a word target"}</DropdownMenuItem>
               {!isTop && <SectionStyleSub page={page} />}
               <ChildStyleSub page={page} />
               <DropdownMenuItem onSelect={() => setMoving(true)}>Move to…</DropdownMenuItem>
@@ -224,7 +236,10 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
               className="bg-transparent border border-border/60 rounded px-1 py-0.5 text-xs" />
           </label>
           {total > 0 && <span className="text-xs text-muted-foreground tabular-nums">{done} of {total} done</span>}
-          {words > 0 && <span className="text-xs text-muted-foreground tabular-nums">{formatWords(words)}</span>}
+          {(words > 0 || wordTarget) && (
+            <button type="button" onClick={setWordTarget} title="Word target"
+              className="text-xs text-muted-foreground hover:text-foreground tabular-nums">{wordProgressLabel(words, wordTarget)}</button>
+          )}
           {page.pinned && <Pin className="w-3 h-3 text-muted-foreground" aria-label="Pinned" />}
           <span className="flex-1" />
           <div role="tablist" aria-label="View" className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
@@ -237,6 +252,12 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
             ))}
           </div>
         </div>
+        {wordTarget && (
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-label="Words written"
+            aria-valuemin={0} aria-valuemax={wordTarget} aria-valuenow={Math.min(words, wordTarget)}>
+            <div className="h-full bg-primary/60 transition-all" style={{ width: `${Math.min(100, (words / wordTarget) * 100)}%` }} />
+          </div>
+        )}
         <TagChips page={page} onAdd={() => setTagging(true)} />
         {total > 0 && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">

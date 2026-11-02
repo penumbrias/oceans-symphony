@@ -89,4 +89,21 @@ test("tags are kept once, without #, whatever their case", () => {
   assert.ok(!W.pageHasTag(index.byId.get("n1"), "plot"));
 });
 
+test("words written in page sessions add up by day, week and in all", () => {
+  const now = new Date("2026-11-04T18:00:00"); // a Wednesday
+  const acts = [
+    { goal_id: "c1", timestamp: "2026-11-04T09:00:00", words_written: 300 },
+    { goal_id: "s1", timestamp: "2026-11-02T09:00:00", words_written: 200 },
+    { goal_id: "c2", timestamp: "2026-10-20T09:00:00", words_written: 1000 },
+    { goal_id: "c1", timestamp: "2026-11-04T10:00:00", words_written: 0 },
+    { goal_id: "elsewhere", timestamp: "2026-11-04T10:00:00", words_written: 50 },
+    { goal_id: "c1", timestamp: "2026-11-04T11:00:00", words_written: 40, trashed_at: "x" },
+  ];
+  const ids = ["book", "c1", "n1", "c2", "s1"];
+  assert.deepEqual(W.pageWordsWritten(ids, acts, now, 1), { today: 300, week: 500, total: 1500, sessions: 3 });
+  assert.equal(W.wordTargetOf({ word_target: "3000" }), 3000);
+  assert.equal(W.wordTargetOf({ word_target: 0 }), null);
+  assert.equal(W.wordProgressLabel(1240, 3000), "1,240 of 3,000 words");
+});
+
 console.log(`\n${passed} passed`);

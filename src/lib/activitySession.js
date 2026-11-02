@@ -314,6 +314,14 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
     // `extra` carries what the shared editor collected beyond the session
     // basics (every picked activity, location, color tag, linked to-do).
     const extra = active.extra && typeof active.extra === "object" ? active.extra : {};
+    // Started from a Goals page: the words the page gained while it ran.
+    let wordsWritten = null;
+    if (extra.goal_id && extra.goal_words_at_start !== undefined) {
+      try {
+        const { wordsWrittenFor } = await import("@/lib/goalActivities");
+        wordsWritten = await wordsWrittenFor(extra);
+      } catch { /* the session still logs */ }
+    }
     record = await base44.entities.Activity.create({
       timestamp: start.toISOString(),
       activity_name: active.name || "Activity",
@@ -325,6 +333,7 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       ...(extra.task_id ? { task_id: extra.task_id } : {}),
       // Started from a Goals page: the page totals this time.
       ...(extra.goal_id ? { goal_id: extra.goal_id } : {}),
+      ...(Number.isFinite(wordsWritten) ? { words_written: wordsWritten } : {}),
       ...(active.color ? { color: active.color } : {}),
       duration_minutes: minutes,
       fronting_alter_ids: alterIds,
