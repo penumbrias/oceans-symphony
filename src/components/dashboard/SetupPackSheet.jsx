@@ -13,7 +13,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import {
   buildPack, buildLayoutType, buildWidgetStylesType, buildUiThemeType,
-  parsePack, summarizePack, packLooksSafe, buildApplyPatch, layoutHasLook, applyAppTheme,
+  parsePack, summarizePack, preparePackForImport, buildApplyPatch, layoutHasLook, applyAppTheme,
   encodePackCompact, decodePackText, savePackFile,
   describeUiTheme, filterUiThemeParts, THEME_PARTS, THEME_PART_LABELS,
   buildRestorePoint, formatShareMessage,
@@ -343,10 +343,20 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     } catch { toast.error("Couldn't copy — use Download instead"); }
   };
 
+  // Picture links from the sender's device can't work here — they're
+  // taken out and the person is told, rather than the whole pack refused.
+  const noteRemovedPictures = (n) => {
+    if (!n) return;
+    toast.message(`${n} picture link${n === 1 ? "" : "s"} from the other device left out`, {
+      description: "Pictures only travel in a .zip shared with \"Include images\" ticked.",
+    });
+  };
   const readText = async (text) => {
     try {
-      const p = parsePack(await decodePackText(text));
-      if (!packLooksSafe(p)) { toast.error("This pack contains personal-looking data — refusing to import it."); return; }
+      const ready = preparePackForImport(parsePack(await decodePackText(text)));
+      if (ready.error) { toast.error(ready.error); return; }
+      const p = ready.pack;
+      noteRemovedPictures(ready.removedPictures);
       setImported(p);
       setImportedImages(null);
       setApply({ layout: !!p.types.layout, widgetStyles: !!p.types.widgetStyles, uiTheme: !!p.types.uiTheme });
@@ -359,8 +369,12 @@ export default function SetupPackSheet({ open, onClose, home, currentPageId = nu
     // A .zip carries the pictures alongside the pack.
     if (/\.zip$/i.test(f.name) || f.type === "application/zip") {
       try {
-        const { pack, images } = await parsePackZip(await f.arrayBuffer());
-        if (!packLooksSafe(pack)) { toast.error("This pack contains personal-looking data — refusing to import it."); return; }
+        const parsed = await parsePackZip(await f.arrayBuffer());
+        const ready = preparePackForImport(parsed.pack);
+        if (ready.error) { toast.error(ready.error); return; }
+        const { pack } = ready;
+        const { images } = parsed;
+        noteRemovedPictures(ready.removedPictures);
         setImported(pack);
         setImportedImages(images);
         setApply({ layout: !!pack.types.layout, widgetStyles: !!pack.types.widgetStyles, uiTheme: !!pack.types.uiTheme });
