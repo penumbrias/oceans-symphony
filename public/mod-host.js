@@ -117,11 +117,22 @@
         // "downloaded", "shared", "cancelled" or "failed".
         saveFile: function (name, data, mime) { return call("ui.saveFile", [String(name), data, String(mime || "")]); },
       },
+      // Needs "pictures:save". The app shows the person the picture and asks
+      // every time. pictures.save({ name, data: pngBlob, alter_id }) resolves
+      // to "saved" or "cancelled".
+      pictures: {
+        save: function (opts) {
+          var o = opts || {};
+          return call("pictures.save", [{ name: String(o.name || ""), data: o.data, alter_id: o.alter_id == null ? null : String(o.alter_id) }]);
+        },
+      },
+      // The app window's height in CSS pixels (0 if unknown).
+      viewportHeight: Number(init.viewportHeight) || 0,
       // Called after this mod's data changes from anywhere (another page of
       // the same mod, a sync from another device, an undo).
       onDataChange: function (fn) { if (typeof fn === "function") changeListeners.push(fn); },
     };
-    Object.freeze(api.data); Object.freeze(api.appData); Object.freeze(api.alters); Object.freeze(api.fronting); Object.freeze(api.ui);
+    Object.freeze(api.data); Object.freeze(api.appData); Object.freeze(api.alters); Object.freeze(api.fronting); Object.freeze(api.ui); Object.freeze(api.pictures);
     Object.freeze(api);
 
     // Theme variables from the app, so mod UI matches the person's colours.

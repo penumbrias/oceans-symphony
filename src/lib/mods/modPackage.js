@@ -43,6 +43,12 @@ export const MOD_PERMISSIONS = {
     label: "Save files to your device",
     detail: "It can offer to save a file (an export, say). The app asks you every time, showing the file's name and size.",
   },
+  // Adds a picture the mod made to Assets (a drawing, say), optionally as one
+  // {{alter}}'s picture. Never silent: the app asks every time (broker.js).
+  "pictures:save": {
+    label: "Save pictures to your Assets",
+    detail: "It can offer to add a picture it made to your Assets, and say which {{alter}} made it. The app asks you every time, showing the picture.",
+  },
 };
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{1,47}$/;

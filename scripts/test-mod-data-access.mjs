@@ -57,6 +57,10 @@ t("dataScopes are kept only with data:read, and only known kinds", () => {
   assert.deepEqual(b.dataScopes, []);
 });
 
+t("pictures:save is a known permission", () => {
+  assert.deepEqual(parseModFile(file({ permissions: ["pictures:save"] })).permissions, ["pictures:save"]);
+});
+
 t("files:save is a known permission", () => {
   assert.deepEqual(parseModFile(file({ permissions: ["files:save"] })).permissions, ["files:save"]);
 });
