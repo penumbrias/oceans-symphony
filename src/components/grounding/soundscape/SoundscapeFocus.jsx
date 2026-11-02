@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, BellOff, SlidersHorizontal } from "lucide-react";
+import { X, BellOff, SlidersHorizontal, Sparkles, Leaf, Square, Play, Eraser } from "lucide-react";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { startSoundscape, stopSoundscape, getSoundscapeState } from "@/lib/soundscape/engine";
 import { startDistractionFree, stopDistractionFree } from "@/lib/soundscape/focusMode";
 import SoundscapeVisualizer from "./SoundscapeVisualizer";
-import { getNatureState } from "@/lib/natureSounds/naturePlayer";
-import { readScratchpadPrefs } from "@/lib/scratchpad/scratchpadPrefs";
+import { getNatureState, stopNature } from "@/lib/natureSounds/naturePlayer";
+import { natureSoundById } from "@/lib/natureSounds/catalog";
+import { useNatureState } from "@/components/grounding/nature/natureHooks";
+import NatureFocusPanel from "@/components/grounding/nature/NatureFocusPanel";
+import RecordingShaper from "@/components/grounding/nature/RecordingShaper";
+import { ParticleSettings } from "@/components/grounding/scratchpad/ScratchPadView";
+import { LinkRow } from "@/components/shared/SettingRows";
 import ScratchPadCanvas from "@/components/grounding/scratchpad/ScratchPadCanvas";
 import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
 import { FocusSettingsSheet, SheetSection } from "@/components/grounding/focusControls";
@@ -20,7 +25,16 @@ import { VisualPicker, VolumeRow, SoundPresetGrid, SoundShaperPanel, TimerRow, B
 // sheet over the running focus with the sound, the visual, the breathing
 // guide and the timer, changed live.
 
-export default function SoundscapeFocus({ ctl, onExit }) {
+const SHEET_TITLES = {
+  main: "Focus settings",
+  math: "Made from math",
+  recording: "A recording",
+  shape: "Shape the sound",
+  particles: "Particle settings",
+};
+
+// pad: the Particles visual's settings (useScratchpad), shared with the page.
+export default function SoundscapeFocus({ ctl, pad, onExit }) {
   const { prefs } = ctl;
   const { params, timer, focus, visual, starSpeed, fractal } = prefs;
   const state = useSoundscapeState();
@@ -29,6 +43,15 @@ export default function SoundscapeFocus({ ctl, onExit }) {
   const [notice, setNotice] = useState(null);
   const [size, setSize] = useState(() => Math.min(window.innerWidth, window.innerHeight));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The sheet's drill-in pages: main | math | recording | shape | particles.
+  const [sheetPage, setSheetPage] = useState("main");
+  const closeSheet = () => { setSettingsOpen(false); setSheetPage("main"); };
+  const nature = useNatureState();
+  const recording = natureSoundById(nature.id);
+  const padRef = useRef(null);
+  const toggleMath = () => (state.playing
+    ? stopSoundscape()
+    : startSoundscape(params, { minutes: timer }).catch((e) => setNotice(e?.message || "Sound couldn't start on this device.")));
   const hideTimer = useRef(null);
   const wasPlaying = useRef(false);
   const fractalClock = useRef(0);
@@ -103,8 +126,8 @@ export default function SoundscapeFocus({ ctl, onExit }) {
     >
       {focus.mode !== "breathing" && (
         <div className="absolute inset-0">
-          {visual === "particles" ? (
-            <ParticlesStage />
+          {visual === "particles" && pad ? (
+            <ParticlesStage pad={pad} padRef={padRef} />
           ) : (
             <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} fractal={fractal} clockRef={fractalClock} />
           )}
@@ -145,10 +168,19 @@ export default function SoundscapeFocus({ ctl, onExit }) {
           </p>
         )}
         <div className="flex gap-2" style={{ pointerEvents: shown && !settingsOpen ? "auto" : "none" }}>
-          {state.playing && (
+          {visual === "particles" && pad && focus.mode !== "breathing" && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); stopSoundscape(); }}
+              onClick={(e) => { e.stopPropagation(); padRef.current?.clear(); }}
+              className="flex items-center gap-1.5 rounded-full bg-card/80 border border-border/60 px-4 py-1.5 text-sm text-foreground"
+            >
+              <Eraser className="w-4 h-4" /> Clear
+            </button>
+          )}
+          {(state.playing || nature.playing) && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); stopSoundscape(); stopNature(); }}
               className="rounded-full bg-card/80 border border-border/60 px-4 py-1.5 text-sm text-foreground"
             >
               Stop sound
@@ -165,27 +197,49 @@ export default function SoundscapeFocus({ ctl, onExit }) {
       </div>
 
       {settingsOpen && (
-        <FocusSettingsSheet title="Focus settings" onClose={() => setSettingsOpen(false)}>
-          <SheetSection title="Guided breathing"><BreathingControls ctl={ctl} /></SheetSection>
-          <SheetSection title="Sound">
-            <VolumeRow ctl={ctl} />
-            <details>
-              <summary className="cursor-pointer text-xs font-medium text-foreground select-none">
-                Sound · <span className="text-primary">{ctl.basePreset.emoji} {ctl.basePreset.name}</span>
-              </summary>
-              <div className="mt-3"><SoundPresetGrid ctl={ctl} canEdit={false} /></div>
-            </details>
-            <details>
-              <summary className="cursor-pointer text-xs font-medium text-foreground select-none">
-                Shape the sound{ctl.changed ? " · changed" : ""}
-              </summary>
-              <div className="mt-3"><SoundShaperPanel ctl={ctl} canEdit={false} /></div>
-            </details>
-          </SheetSection>
-          {focus.mode !== "breathing" && (
-            <SheetSection title="Visual"><VisualPicker ctl={ctl} fractalClock={fractalClock} /></SheetSection>
+        <FocusSettingsSheet title={SHEET_TITLES[sheetPage] || "Focus settings"} onClose={closeSheet}
+          onBack={sheetPage !== "main" ? () => setSheetPage(sheetPage === "shape" ? "recording" : "main") : undefined}>
+          {sheetPage === "math" && (
+            <SheetSection>
+              <VolumeRow ctl={ctl} />
+              <SoundPresetGrid ctl={ctl} canEdit={false} />
+              <SoundShaperPanel ctl={ctl} canEdit={false} />
+            </SheetSection>
           )}
-          <SheetSection title="Timer"><TimerRow ctl={ctl} /></SheetSection>
+          {sheetPage === "recording" && (
+            <SheetSection><NatureFocusPanel onShape={() => setSheetPage("shape")} /></SheetSection>
+          )}
+          {sheetPage === "shape" && <SheetSection><RecordingShaper /></SheetSection>}
+          {sheetPage === "particles" && pad && <SheetSection><ParticleSettings pad={pad} /></SheetSection>}
+          {sheetPage === "main" && (
+            <>
+              <SheetSection title="Guided breathing"><BreathingControls ctl={ctl} /></SheetSection>
+              <SheetSection title="Sounds">
+                <div>
+                  <LinkRow label="Made from math" icon={Sparkles}
+                    hint={`${ctl.basePreset.emoji} ${ctl.basePreset.name}`}
+                    value={state.playing ? "Playing" : undefined} onClick={() => setSheetPage("math")} />
+                  <LinkRow label="A recording" icon={Leaf}
+                    hint={recording ? recording.title : "Nature sounds or your own"}
+                    value={nature.playing ? "Playing" : recording ? "Paused" : undefined} onClick={() => setSheetPage("recording")} />
+                </div>
+                <button type="button" onClick={toggleMath}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-border/60 py-2 text-sm font-medium text-foreground hover:bg-muted/40">
+                  {state.playing ? <><Square className="w-3.5 h-3.5" /> Stop the math sound</> : <><Play className="w-3.5 h-3.5" /> Play {ctl.basePreset.name}</>}
+                </button>
+              </SheetSection>
+              {focus.mode !== "breathing" && (
+                <SheetSection title="Visual">
+                  <VisualPicker ctl={ctl} fractalClock={fractalClock} />
+                  {visual === "particles" && pad && (
+                    <LinkRow label="Particle settings" hint="Ruleset, tilt, colour and the rules themselves" icon={SlidersHorizontal}
+                      onClick={() => setSheetPage("particles")} />
+                  )}
+                </SheetSection>
+              )}
+              <SheetSection title="Timer"><TimerRow ctl={ctl} /></SheetSection>
+            </>
+          )}
         </FocusSettingsSheet>
       )}
     </div>,
@@ -193,12 +247,12 @@ export default function SoundscapeFocus({ ctl, onExit }) {
   );
 }
 
-// The Particles visual in focus: the scratch pad's own settings.
-function ParticlesStage() {
-  const [pad] = useState(readScratchpadPrefs);
+// The Particles visual in focus, drawn with the page's live settings.
+function ParticlesStage({ pad, padRef }) {
+  const p = pad.prefs;
   return (
     <div className="absolute inset-0 bg-black">
-      <ScratchPadCanvas rules={pad.rules} color={pad.color} trails={pad.trails} tilt={pad.tilt} tiltStrength={pad.tiltStrength} />
+      <ScratchPadCanvas ref={padRef} rules={p.rules} color={p.color} trails={p.trails} tilt={p.tilt} tiltStrength={p.tiltStrength} />
     </div>
   );
 }

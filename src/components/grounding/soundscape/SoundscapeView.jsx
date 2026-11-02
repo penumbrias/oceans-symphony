@@ -12,7 +12,7 @@ import { natureSoundById } from "@/lib/natureSounds/catalog";
 import { toggleNature, stopNature } from "@/lib/natureSounds/naturePlayer";
 import { writeNaturePrefs } from "@/lib/natureSounds/naturePrefs";
 import ScratchPadCanvas from "@/components/grounding/scratchpad/ScratchPadCanvas";
-import { useScratchpad, ParticleSettings, ScratchPadFocus } from "@/components/grounding/scratchpad/ScratchPadView";
+import { useScratchpad, ParticleSettings } from "@/components/grounding/scratchpad/ScratchPadView";
 import { requestTiltPermission } from "@/lib/scratchpad/tilt";
 import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
 import {
@@ -161,9 +161,7 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
   };
 
   if (focusOpen) {
-    // Particles have their own full screen (with their settings sheet).
-    if (particles) return <ScratchPadFocus pad={pad} onExit={() => setFocusOpen(false)} />;
-    return <SoundscapeFocus ctl={ctl} onExit={() => setFocusOpen(false)} />;
+    return <SoundscapeFocus ctl={ctl} pad={pad} onExit={() => setFocusOpen(false)} />;
   }
 
   if (page === "nature" || page === "yours") {

@@ -134,7 +134,7 @@ function NowPlaying({ player, prefs, offline, list }) {
 
 // The shaping page's compact player: the name, the save button (shaping a
 // streamed sound needs it saved) and play/pause.
-function NowPlayingStrip({ player, prefs, offline }) {
+export function NowPlayingStrip({ player, prefs, offline }) {
   const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
   if (!sound) return null;
   return (
@@ -152,7 +152,7 @@ function NowPlayingStrip({ player, prefs, offline }) {
   );
 }
 
-function SoundRow({ sound, current, playing, fav, offline }) {
+export function SoundRow({ sound, current, playing, fav, offline }) {
   const isSaved = offline.saved?.has(sound.id);
   return (
     <div className="flex items-center gap-1 border-b border-border/30 last:border-b-0">
