@@ -27,6 +27,7 @@ import { isNative } from "@/lib/platform";
 import PersistentStorageStatus from "./PersistentStorageStatus";
 import BackupFileOptions from "./BackupFileOptions";
 import BackupCopyOptions from "./BackupCopyOptions";
+import { clockPattern } from "@/lib/timeFormat";
 
 const NATIVE = isNative();
 
@@ -52,7 +53,7 @@ function BackupHealthLine() {
         <ul className="mt-1 space-y-0.5 text-muted-foreground">
           {h.events.slice(0, 5).map((e, i) => (
             <li key={i}>
-              {(() => { try { return format_(new Date(e.at), "MMM d, h:mm a"); } catch { return e.at; } })()} · {e.kind} · {e.ok ? "ok" : "failed"}{e.detail ? ` · ${e.detail}` : ""}
+              {(() => { try { return format_(new Date(e.at), clockPattern("MMM d, h:mm a")); } catch { return e.at; } })()} · {e.kind} · {e.ok ? "ok" : "failed"}{e.detail ? ` · ${e.detail}` : ""}
             </li>
           ))}
         </ul>
@@ -132,7 +133,7 @@ export default function AutoBackupSettings() {
   };
 
   const lastLabel = lastAt
-    ? (() => { try { return format_(new Date(lastAt), "MMM d, yyyy 'at' h:mm a"); } catch { return lastAt; } })()
+    ? (() => { try { return format_(new Date(lastAt), clockPattern("MMM d, yyyy 'at' h:mm a")); } catch { return lastAt; } })()
     : "never";
 
   const formatHelp = {

@@ -4,6 +4,7 @@ import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { journalDisplayDate, normalizeTag } from "@/lib/journalDate";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
+import { clockPattern } from "@/lib/timeFormat";
 
 export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
   const systemIdentity = useSystemIdentity();
@@ -48,7 +49,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
         </div>
       </div>
       <p className="text-xs text-muted-foreground mb-2 flex items-center flex-wrap gap-1">
-        {format(journalDisplayDate(entry), "MMM d, yyyy · h:mm a")}
+        {format(journalDisplayDate(entry), clockPattern("MMM d, yyyy · h:mm a"))}
         {author && <span className="ml-1.5">· by {author.name}</span>}
         {!author && isSystemAttributed && (
           <span className="ml-1.5">· by {systemIdentity.name}</span>

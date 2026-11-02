@@ -11,6 +11,7 @@ import SleepLogModal from "@/components/sleep/SleepLogModal";
 import SleepEditModal from "@/components/sleep/SleepEditModal";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import { startSleep } from "@/lib/sleepEntry";
+import { clockPattern } from "@/lib/timeFormat";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
@@ -232,7 +233,7 @@ export default function SleepTracker() {
                     End sleep
                   </Button>
                   <p className="text-[0.6875rem] text-center text-muted-foreground">
-                    In progress since {safeDate(inProgressSleep.bedtime, "h:mm a")}
+                    In progress since {safeDate(inProgressSleep.bedtime, clockPattern("h:mm a"))}
                     {" · "}
                     <button
                       type="button"
@@ -297,9 +298,9 @@ export default function SleepTracker() {
                             {safeDate(sleep.date || sleep.bedtime, "EEEE, MMMM d")}
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
-                            {safeDate(sleep.bedtime, "h:mm a")} -{" "}
+                            {safeDate(sleep.bedtime, clockPattern("h:mm a"))} -{" "}
                             {sleep.wake_time
-                              ? safeDate(sleep.wake_time, "h:mm a")
+                              ? safeDate(sleep.wake_time, clockPattern("h:mm a"))
                               : <span className="italic text-primary">in progress</span>}
                           </div>
                           <div className="text-sm mt-2 flex gap-4">

@@ -19,6 +19,14 @@ export function maxOccurrences(interval) {
   return interval === "yearly" ? 100 : 52;
 }
 
+// A repeating plan can't be longer than the gap before it repeats — a yearly
+// one tops out at a year, a monthly one at 31 days, and so on.
+const MAX_LENGTH_DAYS = { daily: 1, weekly: 7, biweekly: 14, monthly: 31, yearly: 365 };
+export function maxLengthMinutes(interval) {
+  const d = MAX_LENGTH_DAYS[interval];
+  return d ? d * 1440 : Infinity;
+}
+
 export function clampOccurrenceCount(interval, n) {
   const v = Number.isFinite(n) ? Math.floor(n) : 1;
   return Math.max(1, Math.min(maxOccurrences(interval), v));

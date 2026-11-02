@@ -22,6 +22,7 @@
 // alterThemeLinks).
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2, Download, Upload, Type, Square, PanelTop, Palette, Star as StarIcon, Loader2, Trash2 } from "lucide-react";
@@ -1829,7 +1830,7 @@ function StylesTab({ v2 }) {
                 <button key={h.ts} type="button" onClick={() => restoreEntry(h)}
                   className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-border/30 text-left text-xs hover:bg-muted/30">
                   <span className="truncate">{tr("editSheet.beforeLabel", { name: h.label })}</span>
-                  <span className="text-muted-foreground flex-shrink-0">{new Date(h.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="text-muted-foreground flex-shrink-0">{new Date(h.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() })}</span>
                 </button>
               ))}
             </div>
