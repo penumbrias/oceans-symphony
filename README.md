@@ -48,4 +48,4 @@ Support: [https://app.base44.com/support](https://app.base44.com/support)
 
 ## Thanks
 
-- **[ShineSpark330](https://github.com/ShineSpark330)**, for their forks ([ShineSpark330/OS](https://github.com/ShineSpark330/OS) and [ShineSpark330/AZ](https://github.com/ShineSpark330/AZ), "Apeiron Zetta"). Their Reformation lineage event, many bug fixes, and the Android audio, keyboard, clock, calendar and contact changes were brought into this app from v0.266.0 on.
+- **[ShineSpark330](https://github.com/ShineSpark330)**, for their forks ([ShineSpark330/OS](https://github.com/ShineSpark330/OS) and [ShineSpark330/AZ](https://github.com/ShineSpark330/AZ), "Apeiron Zetta"). Brought into this app from v0.266.0 on: their Reformation lineage event and many bug fixes; the Android audio fixes (songs and videos resume after a call or alarm, keep playing on low memory, and "Play inside the app only"), the pitch shifter and the keyboard fix; the 12/24 hour clock and time spans; calendar colour fixes; editing contact relationships; and, for mods, saving a mod as a .osmod file and the design of mod data access (`data:read`) and file saving (`files:save`).
