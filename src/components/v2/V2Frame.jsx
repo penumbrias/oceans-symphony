@@ -16,6 +16,7 @@
 // CUSTOMIZATION: nothing visual is hardcoded — sizes/colors read --v2-*
 // tokens from uiV2.js, edited live in Display options.
 
+import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -263,6 +264,17 @@ export function QuickNoteSheet({ open, onClose }) {
   const { data: qnAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  // "New board post" opens the same New post popup the Boards page uses,
+  // right here — no trip to the board first.
+  const [postOpen, setPostOpen] = useState(false);
+  const { data: qnFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+    enabled: open || postOpen,
+  });
+  const qnFrontingIds = [...new Set(qnFront.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean))];
+  const qnPrimary = qnFront.find((s) => (s.alter_id || s.primary_alter_id) && s.is_primary);
+  const qnAuthorId = qnPrimary ? (qnPrimary.alter_id || qnPrimary.primary_alter_id) : (qnFrontingIds[0] || null);
 
   const saveStatus = async () => {
     const text = note.trim();
@@ -283,6 +295,7 @@ export function QuickNoteSheet({ open, onClose }) {
   };
 
   return (
+    <>
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DrawerContent {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
@@ -306,13 +319,21 @@ export function QuickNoteSheet({ open, onClose }) {
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/50 text-left text-sm hover:border-primary/50">
             <BookOpen className="w-4 h-4 text-muted-foreground" /> {t("note.newJournal")}
           </button>
-          <button type="button" onClick={() => { onClose(); navigate("/bulletins"); }}
+          <button type="button" onClick={() => { onClose(); setPostOpen(true); }}
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/50 text-left text-sm hover:border-primary/50">
             <Megaphone className="w-4 h-4 text-muted-foreground" /> {t("note.newPost")}
           </button>
         </div>
       </DrawerContent>
     </Drawer>
+    <BulletinComposerModal
+      open={postOpen}
+      onClose={() => setPostOpen(false)}
+      alters={qnAlters}
+      authorAlterId={qnAuthorId}
+      frontingAlterIds={qnFrontingIds}
+    />
+    </>
   );
 }
 
