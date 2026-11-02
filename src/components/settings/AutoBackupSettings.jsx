@@ -21,6 +21,9 @@ import {
   setAutoBackupFormat,
   runAutoBackupNow,
   describeBackupFolder,
+  NATURE_SOUNDS_CHOICES,
+  getAutoBackupNatureSounds,
+  setAutoBackupNatureSounds,
 } from "@/lib/autoBackup";
 import { reconcileNativeBackupReminder } from "@/lib/nativeBackupScheduler";
 import { isNative } from "@/lib/platform";
@@ -72,6 +75,7 @@ export default function AutoBackupSettings() {
   const [format, setFormatState] = useState(BACKUP_FORMATS.JSON);
   const [destination, setDestinationState] = useState(BACKUP_DESTINATIONS.ASK);
   const [lastAt, setLastAt] = useState(null);
+  const [nature, setNature] = useState(getAutoBackupNatureSounds);
   const [running, setRunning] = useState(false);
   // Bumped by BackupFileOptions so the destination copy re-reads the folder.
   const [, setOptionsNonce] = useState(0);
@@ -123,7 +127,7 @@ export default function AutoBackupSettings() {
   const handleRunNow = async () => {
     setRunning(true);
     try {
-      await runAutoBackupNow();
+      await runAutoBackupNow({ natureChoice: true });
       setLastAt(getAutoBackupLastAt());
     } catch (e) {
       toast.error(e?.message || "Backup failed");
@@ -193,6 +197,24 @@ export default function AutoBackupSettings() {
           onPick={pickFormat}
         />
         <p className="text-[0.6875rem] text-muted-foreground">{formatHelp}</p>
+      </Row>
+
+      {/* Sounds people added to Nature sounds can be big; some would
+          rather keep them out of every automatic backup. */}
+      <Row label="Your nature sounds">
+        <Chips
+          options={[
+            { value: NATURE_SOUNDS_CHOICES.INCLUDE, label: "Include" },
+            { value: NATURE_SOUNDS_CHOICES.LEAVE, label: "Leave out" },
+          ]}
+          value={nature}
+          onPick={(v) => { setNature(v); setAutoBackupNatureSounds(v); }}
+        />
+        <p className="text-[0.6875rem] text-muted-foreground">
+          {nature === NATURE_SOUNDS_CHOICES.LEAVE
+            ? "Sounds you added to Nature sounds stay out of automatic backups, so they only live on this device. Export → Everything (.zip) still saves them."
+            : "Sounds you added to Nature sounds are backed up with everything else."}
+        </p>
       </Row>
 
       {/* WHERE */}

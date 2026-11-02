@@ -7,6 +7,7 @@
 import { natureSoundById } from "./catalog";
 import { natureSoundSrc } from "./natureOffline";
 import { readNaturePrefs, writeNaturePrefs } from "./naturePrefs";
+import { isOwnSoundId, listMySounds } from "./ownSounds";
 
 const FADE_MS = 1200;
 // A random point never lands this close to the end, so it doesn't jump
@@ -122,10 +123,14 @@ function el() {
   audio.addEventListener("ended", () => { nextNature(); });
   audio.addEventListener("error", () => {
     if (!state.id) return;
-    if (wantPlaying) { recover(); return; }
+    // A file of your own isn't on the network: retrying won't help.
+    if (wantPlaying && !isOwnSoundId(state.id)) { recover(); return; }
+    wantPlaying = false;
     setState({
       loading: false, playing: false,
-      error: navigator.onLine === false
+      error: isOwnSoundId(state.id)
+        ? "This file couldn't play on this device."
+        : navigator.onLine === false
         ? "You're offline. Connect to play this sound."
         : "This sound couldn't load. Check your connection and try again.",
     });
@@ -162,7 +167,9 @@ function mediaSession(sound) {
 // at: "start" | "random" | a time in seconds. resuming: a recovery after a
 // drop (keeps the try count and the spot on screen).
 export async function playNature(id, { at = "start", resuming = false } = {}) {
-  const sound = natureSoundById(id);
+  let sound = natureSoundById(id);
+  // Your own sounds are read from the database the first time they're needed.
+  if (!sound && isOwnSoundId(id)) { await listMySounds(); sound = natureSoundById(id); }
   if (!sound) return;
   const my = ++token;
   const a = el();
@@ -193,9 +200,9 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
   } catch (e) {
     if (my !== token || e?.name === "AbortError") return;
     // A load that failed on the network is the error listener's to retry.
-    if (a.error) { recover(); return; }
+    if (a.error && !isOwnSoundId(id)) { recover(); return; }
     wantPlaying = false;
-    setState({ loading: false, playing: false, error: "This sound couldn't start on this device." });
+    setState({ loading: false, playing: false, error: isOwnSoundId(id) && e?.message ? e.message : "This sound couldn't start on this device." });
   }
 }
 

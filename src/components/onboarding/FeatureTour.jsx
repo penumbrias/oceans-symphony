@@ -926,6 +926,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/grounding", target: "grounding-nature",
     }),
     s("grounding", {
+      emoji: "🎙️", title: "Your own sounds",
+      body: `Add recordings from your device or your Assets under "Your sounds". Keep the file as it is, or make it smaller to save space in backups.`,
+      route: "/grounding?view=nature", target: ["grounding-nature-add", "grounding-nature"],
+    }),
+    s("grounding", {
       emoji: "✨", title: "Scratch pad",
       body: `A particle sandbox. Press and drag to draw particles; when you let go, a ruleset decides what they do.`,
       route: "/grounding", target: "grounding-scratchpad", look: `the highlighted "Scratch pad" button`,

@@ -76,7 +76,7 @@ export default function BackupHealthNotice({ variant = "classic", className = ""
   const backupNow = async () => {
     setBusy(true);
     try {
-      await runAutoBackupNow({ silent: false });
+      await runAutoBackupNow({ silent: false, natureChoice: true });
     } catch (e) {
       toast.error(e?.message || "Backup failed");
     } finally { setBusy(false); force((x) => x + 1); }
