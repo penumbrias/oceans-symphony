@@ -148,6 +148,11 @@ mood chart, an export to another format. `data:read` gives a **read-only
 copy** of whole kinds of records. Mods work like apps from a store here: the
 app provides this, and the person decides with every risk spelled out.
 
+`data:read` and `files:save` were designed by
+[ShineSpark330](https://github.com/ShineSpark330) in their
+[Apeiron Zetta fork](https://github.com/ShineSpark330/AZ). This app keeps
+their API shape, so a mod written for Apeiron Zetta runs here too.
+
 List what you want in the manifest, beside the permission:
 
 ```json
