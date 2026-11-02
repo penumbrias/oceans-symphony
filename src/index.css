@@ -972,6 +972,14 @@ body > .fixed { pointer-events: auto; }
    Note: a grid-shaped widget (the month calendar) shrinks to its natural
    width when centred. That is what centring a block does; "Fill" is the
    way back. */
+/* Classic cards (paintBox) are their own height: the body is a flex
+   column, and a card with overflow:hidden (What's new) was squeezed to the
+   cell and clipped its own expanded list. Kept at full size, the cell
+   scrolls instead. */
+[data-widget-content][data-widget-box] > [data-widget-body] > * {
+  flex-shrink: 0;
+}
+
 [data-widget-content][data-halign="center"] [data-widget-box] > *,
 [data-widget-content][data-halign="center"][data-widget-box] > * {
   width: fit-content;
