@@ -75,7 +75,7 @@ export default function Settings() {
   const handleBackupNow = async () => {
     if (backingUp) return;
     setBackingUp(true);
-    try { await runAutoBackupNow(); }
+    try { await runAutoBackupNow({ natureChoice: true }); }
     catch (e) { toast.error(e?.message || "Backup failed"); }
     finally { setBackingUp(false); }
   };
