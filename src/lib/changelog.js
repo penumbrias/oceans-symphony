@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 2, 2026",
+    changes: [
+      { type: "fix", text: "Goals now count activities done earlier in the week: the week follows your \"week starts on\" setting, and entries saved with just a typed name or as \"some time that day\" count too." },
+    ],
+  },
+  {
     date: "October 31, 2026",
+    version: "0.330.0",
     changes: [
       { type: "feature", text: "Nature sounds in Quick Support: over 70 recordings of rain, storms, waves, birds and forests. Favourite, filter, shuffle or jump to a random spot; they stream, so the app stays small." },
       { type: "fix", text: "Fixed a profile page breaking when you opened the options of an Image widget showing a profile picture, pinned bar picture or someone's Pictures." },
