@@ -202,6 +202,25 @@ The app asks the person **every time**, naming your mod, the file and its
 size, so only call this when they've just asked for a file (pressed your
 Export button). Up to 100 MB.
 
+### Saving pictures to Assets (`pictures:save`)
+
+```js
+const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+const result = await symphony.pictures.save({ name: "Sea at night", data: blob, alter_id: someAlterId });
+// "saved" or "cancelled"
+```
+
+For a mod that makes pictures (the Scratchboard does). The app shows the
+person the picture, its name and who it's credited to, and asks **every
+time**. A saved picture is stored like any uploaded one (backed up, kept in
+the app's private files), filed under **Drawings** in Assets, or in that
+alter's Pictures when `alter_id` is given (you need `alters:read` to
+offer the choice). PNG, JPEG or WebP, up to 15 MB. It always adds a new
+picture; it can't change or remove one.
+
+`symphony.viewportHeight` is the app window's height, handy for fitting a
+canvas on screen.
+
 ### Interface helpers
 
 ```js
@@ -226,7 +245,8 @@ People keep their whole system's history in this app, so mods are walled off:
 - **No changing anything outside its own data.** Mods can read core data
   with permission (and, with `data:read`, whole kinds of records the person
   allowed), but can't create, change or delete alters, fronts, journals or
-  anything else the app owns.
+  anything else the app owns. The one addition is `pictures:save`, which adds
+  a new picture to Assets after the person has seen it and said yes.
 - **No saving files behind the person's back.** `files:save` always asks.
 - **No background running.** A mod's code only runs while one of its pages is
   open.

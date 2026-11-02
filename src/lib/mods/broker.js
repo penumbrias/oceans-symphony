@@ -13,9 +13,14 @@
 //     kinds of records the person ticked on the consent sheet, cleaned by
 //     modDataAccess.sanitizeForMod (whispers masked, locked journals locked);
 //   • "files:save" never saves on its own: the app asks the person first.
+//   • "pictures:save" adds a picture to Assets (optionally as one alter's
+//     picture) only after the person saw it and said yes, every time. It
+//     creates a NEW picture; it never changes or replaces an existing one.
 
 import { localEntities } from "@/api/base44Client";
 import { isReadableEntity, sanitizeForMod } from "@/lib/mods/modDataAccess";
+import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { addAlterPicture } from "@/lib/alterImageUpload";
 
 const COLLECTION_RE = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
 const FIELD_RE = /^[A-Za-z][A-Za-z0-9_]{0,59}$/;
@@ -81,6 +86,8 @@ function requirePermission(mod, perm) {
 const APPDATA_PAGE_MAX = 500;
 const APPDATA_MAX_BYTES = 4 * 1024 * 1024;
 const MAX_SAVE_BYTES = 100 * 1024 * 1024;
+const MAX_PICTURE_BYTES = 15 * 1024 * 1024;
+const PICTURE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 // Every appData call re-checks: switching the mod off or taking access away
 // on its card stops reads at once.
@@ -214,7 +221,47 @@ export async function handleModCall(mod, method, args, ui) {
     const mime = String(a[2] || "").slice(0, 100);
     return (await ui?.saveFile?.(name, mime ? new Blob([a[1]], { type: mime }) : a[1])) || "failed";
   }
+  if (method === "pictures.save") return savePicture(mod, a[0], ui);
   const handler = Object.prototype.hasOwnProperty.call(HANDLERS, method) ? HANDLERS[method] : null;
   if (!handler) throw new ModCallError(`Unknown call "${method}".`);
   return handler(mod, a);
+}
+
+// symphony.pictures.save({ name, data: Blob, alter_id? }) → "saved" | "cancelled".
+// The person sees the picture, its name and who it's credited to, and says
+// yes every time. The picture is stored like an uploaded one (backed up,
+// copied to the app's private files) and filed under Drawings, or in that
+// alter's Pictures when one is named.
+async function savePicture(mod, opts, ui) {
+  requirePermission(mod, "pictures:save");
+  const o = opts && typeof opts === "object" ? opts : {};
+  const blob = o.data;
+  if (typeof Blob === "undefined" || !(blob instanceof Blob)) throw new ModCallError("pictures.save needs the picture (a Blob).");
+  const type = String(blob.type || "").toLowerCase();
+  if (!PICTURE_TYPES.has(type)) throw new ModCallError("Pictures must be PNG, JPEG or WebP.");
+  if (!blob.size) throw new ModCallError("That picture is empty.");
+  if (blob.size > MAX_PICTURE_BYTES) throw new ModCallError("That picture is too big (over 15 MB).");
+  const name = String(o.name || "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 80) || `Drawing ${new Date().toLocaleDateString()}`;
+
+  let alter = null;
+  if (o.alter_id != null && o.alter_id !== "") {
+    alter = await localEntities.Alter.get(String(o.alter_id)).catch(() => null);
+    if (!alter || alter.trashed_at) throw new ModCallError("The one you picked to credit couldn't be found.");
+  }
+  const who = alter ? (alter.name || alter.alias || "") : "";
+  const modName = String(mod.name || "this mod").slice(0, 60);
+  const ok = await ui?.confirm?.({
+    title: `Save a picture from ${modName}?`,
+    body: `"${name}" (${fmtBytes(blob.size)}) goes into your Assets${who ? `, in ${who}'s pictures` : ""}. Only say yes if you asked it to.`,
+    confirmLabel: "Save picture",
+    image: blob,
+  });
+  if (!ok) return "cancelled";
+
+  const id = `drawing-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await saveLocalImage(id, new Blob([blob], { type }), type);
+  const url = createLocalImageUrl(id);
+  const res = await addAlterPicture({ alterId: alter ? alter.id : null, url, name });
+  if (!res?.asset) throw new ModCallError("The picture was stored but couldn't be added to Assets.");
+  return "saved";
 }

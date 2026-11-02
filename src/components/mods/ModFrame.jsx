@@ -79,6 +79,8 @@ export default function ModFrame({ mod, pageId }) {
           terms: termsRef.current,
           cssVars: readThemeVars(),
           dark: document.documentElement.classList.contains("dark"),
+          // How tall the app's window is, so a mod can fit a canvas on screen.
+          viewportHeight: window.innerHeight || 0,
         });
       } else if (msg.type === "symphony:height") {
         const h = Number(msg.height);
@@ -92,7 +94,12 @@ export default function ModFrame({ mod, pageId }) {
           try {
             const value = await handleModCall(modRef.current, String(method), args, {
               toast: (text) => toast(text),
-              confirm: (opts) => confirm(opts),
+              // A picture to show in the question (pictures.save) goes in as
+              // a short-lived blob URL, never as anything the mod controls.
+              confirm: async ({ image, ...opts }) => {
+                const imageUrl = image instanceof Blob ? URL.createObjectURL(image) : null;
+                try { return await confirm({ ...opts, imageUrl }); } finally { if (imageUrl) setTimeout(() => URL.revokeObjectURL(imageUrl), 1000); }
+              },
               // Only reached after the person said yes (broker.js asks first).
               saveFile: async (name, blob) => {
                 const { shareFile } = await import("@/lib/shareFile");
