@@ -5,7 +5,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Puzzle, Upload, ShieldCheck, Trash2, Download, ExternalLink, Library, Plus } from "lucide-react";
+import { Puzzle, Upload, ShieldCheck, Trash2, Download, ExternalLink, Library, Plus, Eye, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -17,15 +17,20 @@ import { useTerms } from "@/lib/useTerms";
 import { parseModFile, MOD_PERMISSIONS, applyModTerms, ModFormatError } from "@/lib/mods/modPackage";
 import {
   useMods, installMod, setModEnabled, setModPermissions, uninstallMod,
-  exportModPackage, exportModData, deleteModData, MODS_QUERY_KEY,
+  exportModPackage, exportModData, deleteModData, grantDataAccess, revokeDataAccess, MODS_QUERY_KEY,
 } from "@/lib/mods/modStore";
+import { READABLE_DATA, DATA_ACCESS_RISKS, isReadableEntity } from "@/lib/mods/modDataAccess";
+import { formatDistanceToNow } from "date-fns";
 import { modPagePath } from "@/lib/mods/registry";
 import { BUILTIN_MODS, loadBuiltinMod } from "@/lib/mods/builtinMods";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 
+// Heavy permissions (data:read) are never a tick: see DataAccessPanel.
+const isHeavy = (perm) => !!MOD_PERMISSIONS[perm]?.heavy;
+
 function PermissionRow({ perm, checked, onChange, terms }) {
   const meta = MOD_PERMISSIONS[perm];
-  if (!meta) return null;
+  if (!meta || meta.heavy) return null;
   return (
     <label className="flex items-start gap-2.5 py-1.5 cursor-pointer">
       <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} className="mt-0.5" />
@@ -78,6 +83,17 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
               <PermissionRow key={p} perm={p} terms={terms} checked={granted.has(p)} onChange={(on) => toggle(p, on)} />
             ))}
           </div>
+          {pending.permissions.includes("data:read") && (
+            <div className="rounded-xl border border-amber-500/50 bg-amber-500/5 p-3 space-y-1">
+              <p className="font-medium flex items-center gap-1.5"><Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" /> It also asks to read your records</p>
+              <p className="text-xs text-muted-foreground">
+                {(pending.dataScopes || []).length
+                  ? `It wants: ${pending.dataScopes.map((k) => applyModTerms(READABLE_DATA[k].label, terms)).join(", ")}.`
+                  : "It doesn't say which records, so this can't be allowed."}
+                {" "}Installing doesn't allow this. Afterwards, its card shows exactly what that would mean and you decide, one kind of record at a time.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             {pending.source === "builtin"
               ? "This mod comes with the app. Like every mod, it runs walled off from the rest of the app with no internet access, and can't change or delete anything outside its own data."
@@ -87,6 +103,108 @@ function InstallDialog({ pending, existing, onClose, onInstalled, terms }) {
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button onClick={doInstall} disabled={busy}>{existing ? "Update" : pending.source === "builtin" ? "Add" : "Install"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// "Read your records" on a mod's card: what it may read now, when it last
+// did, and the way to allow, change or take it away.
+function DataAccessPanel({ mod, terms, refresh }) {
+  const [asking, setAsking] = useState(false);
+  const fill = (t) => applyModTerms(t, terms);
+  const allowed = (mod.granted_permissions || []).includes("data:read");
+  const scopes = (mod.data_scopes || []).filter(isReadableEntity);
+  const requested = (mod.requested_data_scopes || []).filter(isReadableEntity);
+  const revoke = async () => {
+    try { await revokeDataAccess(mod); toast.success(`${mod.name} can't read your records any more`); refresh(); }
+    catch (e) { toast.error(e?.message || "Couldn't take that away"); }
+  };
+  return (
+    <div className="rounded-xl border border-amber-500/50 bg-amber-500/5 p-3 space-y-2">
+      <p className="text-sm font-medium flex items-center gap-1.5"><Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Read your records</p>
+      {allowed ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Allowed to read: {scopes.map((k) => fill(READABLE_DATA[k].label)).join(", ") || "nothing"}.
+            {" "}{mod.data_last_read_at ? `Last read ${formatDistanceToNow(new Date(mod.data_last_read_at), { addSuffix: true })}.` : "Hasn't read anything yet."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => setAsking(true)}>Change</Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={revoke}>Take away access</Button>
+          </div>
+        </>
+      ) : requested.length ? (
+        <>
+          <p className="text-xs text-muted-foreground">Not allowed. It asks for: {requested.map((k) => fill(READABLE_DATA[k].label)).join(", ")}.</p>
+          <Button size="sm" variant="outline" onClick={() => setAsking(true)}>Read what this means</Button>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground">Not allowed. It doesn't say which records it wants, so it can't be allowed. Ask its maker to list them.</p>
+      )}
+      {asking && <DataConsentDialog mod={mod} terms={terms} onClose={() => setAsking(false)} onDone={() => { setAsking(false); refresh(); }} />}
+    </div>
+  );
+}
+
+// The informed yes. Nothing is ticked for the person, every risk is shown
+// in full, and Allow stays off until they've ticked what to share and said
+// they understand.
+function DataConsentDialog({ mod, terms, onClose, onDone }) {
+  const fill = (t) => applyModTerms(t, terms);
+  const requested = (mod.requested_data_scopes || []).filter(isReadableEntity);
+  const [picked, setPicked] = useState(() => new Set((mod.data_scopes || []).filter((k) => requested.includes(k))));
+  const [understood, setUnderstood] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const toggle = (k, on) => setPicked((s) => { const n = new Set(s); on ? n.add(k) : n.delete(k); return n; });
+  const allow = async () => {
+    setBusy(true);
+    try {
+      await grantDataAccess(mod, [...picked]);
+      toast.success(`${mod.name} can read what you ticked`);
+      onDone();
+    } catch (e) { toast.error(e?.message || "Couldn't allow that"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Eye className="w-5 h-5 text-amber-600 dark:text-amber-400" /> Let {mod.name} read your records?</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Made by {mod.author || "someone who didn't give a name"}, not by this app.
+            {" "}Read-only: it can't change or delete anything.
+          </p>
+          <div className="rounded-xl border border-amber-500/50 bg-amber-500/5 p-3 space-y-2">
+            <p className="font-medium flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" /> What this means</p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs">
+              {DATA_ACCESS_RISKS.map((r) => <li key={r}>{fill(r)}</li>)}
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium">What it may read</p>
+            <p className="text-xs text-muted-foreground mb-1">Nothing is ticked for you. Tick only what you're happy to share.</p>
+            {requested.map((k) => (
+              <label key={k} className="flex items-start gap-2.5 py-1.5 cursor-pointer">
+                <Checkbox checked={picked.has(k)} onCheckedChange={(v) => toggle(k, !!v)} className="mt-0.5" />
+                <span>
+                  <span className="text-sm font-medium block">{fill(READABLE_DATA[k].label)}</span>
+                  <span className="text-xs text-muted-foreground block">{fill(READABLE_DATA[k].detail)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <label className="flex items-start gap-2.5 py-1.5 cursor-pointer rounded-xl border border-border/60 px-3">
+            <Checkbox checked={understood} onCheckedChange={(v) => setUnderstood(!!v)} className="mt-0.5" />
+            <span className="text-sm">I've read this. I trust {mod.name}'s maker with what I ticked.</span>
+          </label>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button onClick={allow} disabled={busy || !understood || !picked.size}>Allow</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -151,7 +269,8 @@ function ModCard({ mod, dataCount, terms, refresh }) {
           ))}
         </div>
       )}
-      {(mod.permissions || []).length > 0 && (
+      {(mod.permissions || []).includes("data:read") && <DataAccessPanel mod={mod} terms={terms} refresh={refresh} />}
+      {(mod.permissions || []).some((p) => !isHeavy(p)) && (
         <div className="rounded-xl border border-border/50 px-3 py-1.5">
           {mod.permissions.map((p) => (
             <PermissionRow

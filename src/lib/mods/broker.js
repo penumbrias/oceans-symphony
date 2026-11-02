@@ -8,9 +8,14 @@
 //   • it never writes anything else — no core record can be changed or
 //     deleted through this file;
 //   • reading core data needs the matching permission the person granted,
-//     and returns a small copy with only the fields that permission names.
+//     and returns a small copy with only the fields that permission names;
+//   • "data:read" (symphony.appData) hands out read-only copies of only the
+//     kinds of records the person ticked on the consent sheet, cleaned by
+//     modDataAccess.sanitizeForMod (whispers masked, locked journals locked);
+//   • "files:save" never saves on its own: the app asks the person first.
 
 import { localEntities } from "@/api/base44Client";
+import { isReadableEntity, sanitizeForMod } from "@/lib/mods/modDataAccess";
 
 const COLLECTION_RE = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
 const FIELD_RE = /^[A-Za-z][A-Za-z0-9_]{0,59}$/;
@@ -73,7 +78,48 @@ function requirePermission(mod, perm) {
   }
 }
 
+const APPDATA_PAGE_MAX = 500;
+const APPDATA_MAX_BYTES = 4 * 1024 * 1024;
+const MAX_SAVE_BYTES = 100 * 1024 * 1024;
+
+// Every appData call re-checks: switching the mod off or taking access away
+// on its card stops reads at once.
+function allowedScopes(mod) {
+  requirePermission(mod, "data:read");
+  return (mod.data_scopes || []).filter(isReadableEntity);
+}
+
+// "Last read your records" on the mod's card. At most one write a minute.
+const lastNoted = new Map();
+function noteDataRead(mod) {
+  const now = Date.now();
+  if (now - (lastNoted.get(mod.id) || 0) < 60000) return;
+  lastNoted.set(mod.id, now);
+  localEntities.ModPackage.update(mod.id, { data_last_read_at: new Date(now).toISOString() }).catch(() => {});
+}
+
+const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} bytes`);
+
 const HANDLERS = {
+  async "appData.collections"(mod) {
+    return allowedScopes(mod);
+  },
+  async "appData.list"(mod, [entity, opts]) {
+    if (typeof entity !== "string") throw new ModCallError("Say which records to read.");
+    if (!allowedScopes(mod).includes(entity)) {
+      throw new ModCallError(`This mod wasn't allowed to read "${entity.slice(0, 40)}".`);
+    }
+    const o = opts && typeof opts === "object" ? opts : {};
+    const offset = Math.max(0, Math.floor(Number(o.offset) || 0));
+    const limit = Math.min(APPDATA_PAGE_MAX, Math.max(1, Math.floor(Number(o.limit) || 100)));
+    const rows = await localEntities[entity].list();
+    const page = rows.slice(offset, offset + limit).map((r) => sanitizeForMod(entity, r));
+    let json;
+    try { json = JSON.stringify(page); } catch { throw new ModCallError("Those records couldn't be read."); }
+    if (json.length > APPDATA_MAX_BYTES) throw new ModCallError("That page is too big. Ask for fewer records at a time.");
+    noteDataRead(mod);
+    return { total: rows.length, offset, records: JSON.parse(json) };
+  },
   async "data.list"(mod, [collection, where]) {
     checkCollection(collection);
     const rows = await localEntities.ModData.filter({ mod_id: mod.mod_id, collection }, "created_date");
@@ -152,6 +198,21 @@ export async function handleModCall(mod, method, args, ui) {
     if (!page) throw new ModCallError("This mod has no such page.");
     ui?.openPage?.(page.id);
     return true;
+  }
+  if (method === "ui.saveFile") {
+    requirePermission(mod, "files:save");
+    const name = String(a[0] || "file").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").slice(0, 120) || "file";
+    if (typeof Blob === "undefined" || !(a[1] instanceof Blob)) throw new ModCallError("saveFile needs file data (a Blob).");
+    if (a[1].size > MAX_SAVE_BYTES) throw new ModCallError("That file is too big to save (over 100 MB).");
+    // Never silent: the person sees who wants to save what, every time.
+    const ok = await ui?.confirm?.({
+      title: `Save a file from ${String(mod.name || "this mod").slice(0, 60)}?`,
+      body: `It wants to save "${name}" (${fmtBytes(a[1].size)}) to your device. Only say yes if you asked it to.`,
+      confirmLabel: "Save",
+    });
+    if (!ok) return "cancelled";
+    const mime = String(a[2] || "").slice(0, 100);
+    return (await ui?.saveFile?.(name, mime ? new Blob([a[1]], { type: mime }) : a[1])) || "failed";
   }
   const handler = Object.prototype.hasOwnProperty.call(HANDLERS, method) ? HANDLERS[method] : null;
   if (!handler) throw new ModCallError(`Unknown call "${method}".`);
