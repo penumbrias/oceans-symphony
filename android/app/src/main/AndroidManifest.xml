@@ -27,6 +27,14 @@
                  src/lib/nativeQuickActions.js. -->
         </activity>
 
+        <!-- Quiet foreground service held while sound is playing, so Android
+             doesn't end the app (and the music) under low memory. See
+             MediaKeepAliveService.java. -->
+        <service
+            android:name=".MediaKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -76,6 +84,12 @@
          alarms-only for the session (the person grants access once in
          the phone's settings; SystemSettingsPlugin.startFocusDnd). -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <!-- Foreground service of the "media playback" kind: held while a song,
+         audio or video is playing so the phone leaves the app alone under
+         memory pressure (MediaKeepAliveService). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- Legacy storage write — only requested on Android 9 and below.
          Android 10+ uses MediaStore.Downloads (handled by

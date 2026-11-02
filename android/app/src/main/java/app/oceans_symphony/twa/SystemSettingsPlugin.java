@@ -10,6 +10,8 @@ import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
 
@@ -103,7 +105,7 @@ public class SystemSettingsPlugin extends Plugin {
     public void otherAudioPlaying(PluginCall call) {
         AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         JSObject r = new JSObject();
-        r.put("playing", am != null && am.isMusicActive());
+        r.put("playing", soundActive(am));
         call.resolve(r);
     }
 
@@ -189,6 +191,120 @@ public class SystemSettingsPlugin extends Plugin {
         } catch (Exception ignored) {
             // Nothing else to do; the phone's own DND switch still works.
         }
+    }
+
+    /**
+     * While sound is playing, run a quiet foreground service so Android doesn't
+     * end the app (and the sound) when memory is low. Never throws: if the phone
+     * won't allow it right now, the sound just plays as it always did.
+     */
+    @PluginMethod
+    public void startMediaKeepAlive(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent i = new Intent(ctx, MediaKeepAliveService.class);
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i); else ctx.startService(i);
+        } catch (Exception e) {
+            // not allowed right now — carry on without it
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopMediaKeepAlive(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            ctx.stopService(new Intent(ctx, MediaKeepAliveService.class));
+        } catch (Exception e) {
+            // already stopped
+        }
+        call.resolve();
+    }
+
+    /**
+     * Music or video playing in another app, OR an alarm, a ringtone or a call.
+     * isMusicActive() alone only sees the music stream, so an alarm going off
+     * paused the song (the phone takes the audio focus) and nothing ever noticed
+     * to carry it on afterwards.
+     */
+    private boolean soundActive(AudioManager am) {
+        if (am == null) return false;
+        try {
+            if (am.isMusicActive()) return true;
+            int mode = am.getMode();
+            if (mode == AudioManager.MODE_IN_CALL
+                || mode == AudioManager.MODE_RINGTONE
+                || mode == AudioManager.MODE_IN_COMMUNICATION) return true;
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                java.util.List<android.media.AudioPlaybackConfiguration> configs = am.getActivePlaybackConfigurations();
+                if (configs != null) {
+                    for (android.media.AudioPlaybackConfiguration c : configs) {
+                        android.media.AudioAttributes attrs = c.getAudioAttributes();
+                        if (attrs == null) continue;
+                        int usage = attrs.getUsage();
+                        if (usage == android.media.AudioAttributes.USAGE_ALARM
+                            || usage == android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE
+                            || usage == android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION
+                            || usage == android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING) return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ── Waiting for other apps' audio to stop ───────────────────────────
+    // The "Automatic. Play when no music is playing." song uses this to
+    // start (or carry on) once another app — Facebook, the Gallery, a music
+    // player — has gone quiet, including while this app is in the
+    // background. It only LOOKS: it never asks for audio focus itself (a
+    // second request from this app would knock the web view's own off).
+    // Fires "otherAudioQuiet" after the phone reports no sound for ~1 s,
+    // so the gap between two tracks doesn't count as quiet (it used to wait
+    // about 2 s, which made a song feel slow to come back).
+    private Handler quietHandler;
+    private Runnable quietPoll;
+    private int quietCount = 0;
+
+    private void stopQuietWatch() {
+        if (quietHandler != null && quietPoll != null) quietHandler.removeCallbacks(quietPoll);
+        quietPoll = null;
+    }
+
+    @PluginMethod
+    public void watchOtherAudio(PluginCall call) {
+        stopQuietWatch();
+        quietCount = 0;
+        if (quietHandler == null) quietHandler = new Handler(Looper.getMainLooper());
+        quietPoll = new Runnable() {
+            @Override
+            public void run() {
+                AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+                if (soundActive(am)) quietCount = 0; else quietCount++;
+                if (quietCount >= 4) {
+                    quietPoll = null;
+                    notifyListeners("otherAudioQuiet", new JSObject());
+                } else {
+                    quietHandler.postDelayed(this, 250);
+                }
+            }
+        };
+        quietHandler.postDelayed(quietPoll, 250);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopWatchingOtherAudio(PluginCall call) {
+        stopQuietWatch();
+        call.resolve();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        stopQuietWatch();
+        super.handleOnDestroy();
     }
 
     @PluginMethod

@@ -11,6 +11,9 @@ const LS_HEADING_FONT  = "symphony_a11y_headingFont";
 // column reflow, larger targets, wrap-don't-truncate, condensed chrome), gated
 // in CSS by `html.a11y-mode`. Independent of the text-size slider.
 const LS_A11Y_MODE     = "symphony_a11y_mode";
+// "Play inside the app only": when on, sound stops as soon as the app is left
+// (Home / Recents) instead of carrying on in the background. Off by default.
+const LS_PLAY_INSIDE   = "symphony_a11y_playInsideOnly";
 
 const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3", "a11y-text-xl4", "a11y-text-xl5"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
@@ -237,6 +240,7 @@ export function getAccessibilitySettings() {
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
     fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
     headingFont: localStorage.getItem(LS_HEADING_FONT) || "default",
+    playInsideOnly: localStorage.getItem(LS_PLAY_INSIDE) === "true",
   };
 }
 
@@ -245,6 +249,13 @@ export function getAccessibilitySettings() {
 // localStorage rather than on SystemSettings.
 export const A11Y_CHANGED_EVENT = "a11y-changed";
 const announce = () => { try { window.dispatchEvent(new Event(A11Y_CHANGED_EVENT)); } catch { /* SSR / no window */ } };
+export function isPlayInsideOnly() {
+  try { return localStorage.getItem(LS_PLAY_INSIDE) === "true"; } catch { return false; }
+}
+
+export function setAccessibilityPlayInsideOnly(enabled) {
+  localStorage.setItem(LS_PLAY_INSIDE, String(enabled));
+}
 
 export function setAccessibilityHeadingFont(value) {
   if (!value || value === "default") {

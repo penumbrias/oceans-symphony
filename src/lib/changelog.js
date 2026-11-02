@@ -18,7 +18,19 @@
 
 export const CHANGELOG = [
   {
+    date: "November 2, 2026",
+    changes: [
+      { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
+      { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },
+      { type: "improve", text: "Tempo & pitch: changing them separately sounds much less robotic and no longer gets quieter." },
+      { type: "improve", text: "Song widget: an \"Automatic\" song can carry on around the app, a new \"Play on every page\" option, and changing the volume no longer restarts it." },
+      { type: "fix", text: "Android: the bottom bar no longer stays stuck halfway up after closing or switching the keyboard." },
+      { type: "improve", text: "Thank you to ShineSpark330, whose Apeiron Zetta fork brought today's audio and keyboard fixes." },
+    ],
+  },
+  {
     date: "October 31, 2026",
+    version: "0.330.0",
     changes: [
       { type: "feature", text: "Nature sounds in Quick Support: over 70 recordings of rain, storms, waves, birds and forests. Favourite, filter, shuffle or jump to a random spot; they stream, so the app stays small." },
       { type: "fix", text: "Fixed a profile page breaking when you opened the options of an Image widget showing a profile picture, pinned bar picture or someone's Pictures." },

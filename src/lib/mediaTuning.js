@@ -6,18 +6,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // stay the original (CLAUDE.md "Original Quality Invariant"). Changing tempo or
 // pitch only changes how the element is played right now.
 //
-//  • Tempo  → the element's own playbackRate with preservesPitch ON, so the
-//             speed changes and the voice / notes stay where they are.
-//  • Pitch  → a small Web Audio delay-line pitch shifter between the element
-//             and the speakers. It is created only the first time a pitch other
-//             than 0 is asked for, so plain playback never goes through Web
-//             Audio at all (no background-playback or latency surprises).
+//  • Tempo  → the element's own playbackRate. With the pitch worklet ready the
+//             browser's built-in pitch correction is OFF (it sounds robotic on
+//             phones) and the worklet puts the pitch back instead.
+//  • Pitch  → public/pitch-shifter-worklet.js (WSOLA time-stretch + resample,
+//             an AudioWorklet) between the element and the speakers, set to
+//             pitch ÷ tempo so tempo and pitch each end up exactly as asked.
+//             Until it has loaded — or where AudioWorklet isn't available —
+//             the older delay-line shifter and the browser's pitch correction
+//             are used. The graph is created only the first time a tempo or
+//             pitch change is asked for, so plain playback never goes through
+//             Web Audio at all (no background-playback or latency surprises).
 //  • Link   → tempo and pitch move together, exactly like a normal speed
 //             change on a tape: preservesPitch OFF and the shifter bypassed.
 //
-// The shifter is the classic two-tap crossfaded modulated delay ("Jungle").
-// It is good for a few semitones either way and gets a little chorus-y towards
-// the ends of the range — that is the trade for not needing a native library.
+// The fallback shifter is the classic two-tap crossfaded modulated delay
+// ("Jungle"): fine for a few semitones, a little chorus-y towards the ends.
 
 export const TEMPO_MIN = 0.5;
 export const TEMPO_MAX = 2;
@@ -117,7 +121,26 @@ function makeShifter(ctx) {
 }
 
 // One engine per media element: element → (dry | shifter) → speakers.
-function makeEngine(el) {
+const WORKLET_URL = "/pitch-shifter-worklet.js";
+
+// The phone's own tempo change (pitch kept) comes out quieter than a plain
+// speed change on most real music — the overlapped slices it joins add up to
+// less than the original, about 1–2 dB on noisy or busy sound. Nothing in the
+// page can see the original level, so this is a fixed make-up (+2 dB) while
+// that tempo change is on. The pitch shifter measures and matches its own level.
+const STRETCH_MAKEUP = 1.26;
+
+// Bends anything near full scale so the make-up can't clip.
+function makeLimiterCurve() {
+  const n = 1024, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1, a = Math.abs(x);
+    c[i] = a <= 0.9 ? x : Math.sign(x) * (0.9 + 0.1 * Math.tanh((a - 0.9) / 0.1));
+  }
+  return c;
+}
+
+function makeEngine(el, onReady) {
   const Ctor = typeof window !== "undefined" ? (window.AudioContext || window.webkitAudioContext) : null;
   if (!Ctor) throw new Error("Web Audio isn't available");
   const ctx = new Ctor();
@@ -126,11 +149,16 @@ function makeEngine(el) {
   const wet = ctx.createGain();
   wet.gain.value = 0;
   const shifter = makeShifter(ctx);
+  const makeup = ctx.createGain();
+  const limiter = ctx.createWaveShaper();
+  limiter.curve = makeLimiterCurve();
   source.connect(dry);
-  dry.connect(ctx.destination);
+  dry.connect(makeup);
   source.connect(shifter.input);
   shifter.output.connect(wet);
-  wet.connect(ctx.destination);
+  wet.connect(makeup);
+  makeup.connect(limiter);
+  limiter.connect(ctx.destination);
 
   // Once an element is routed through a context it is silent while that
   // context is suspended — wake it whenever playback starts.
@@ -139,21 +167,50 @@ function makeEngine(el) {
   wake();
 
   let armedAt = ctx.currentTime + 0.15; // let the shifter's first window fill before it is heard
-  return {
+  let node = null;       // the pitch worklet, once loaded
+  let closed = false;
+  let lastRatio = 1;
+  const engine = {
     el,
+    get workletReady() { return !!node; },
+    // Level lift for the phone's own tempo change (see STRETCH_MAKEUP).
+    setMakeup(gain) { makeup.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); },
     setRatio(ratio) {
+      lastRatio = ratio;
       const shifted = Math.abs(ratio - 1) > 0.001;
-      if (shifted) shifter.setRatio(ratio);
+      if (node) { if (shifted) node.parameters.get("ratio").value = ratio; }
+      else if (shifted) shifter.setRatio(ratio);
       const at = Math.max(ctx.currentTime, armedAt);
       dry.gain.setTargetAtTime(shifted ? 0 : 1, at, 0.02);
       wet.gain.setTargetAtTime(shifted ? 1 : 0, at, 0.02);
     },
     close() {
+      closed = true;
       el.removeEventListener("play", wake);
       shifter.stop();
+      try { node?.disconnect(); } catch { /* already gone */ }
       try { ctx.close(); } catch { /* already closed */ }
     },
   };
+  // Load the proper pitch shifter in the background and swap it in.
+  if (ctx.audioWorklet && typeof AudioWorkletNode !== "undefined") {
+    ctx.audioWorklet.addModule(WORKLET_URL).then(() => {
+      if (closed) return;
+      const n = new AudioWorkletNode(ctx, "pitch-shifter", {
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+        channelCount: 2, channelCountMode: "explicit",
+      });
+      source.connect(n);
+      n.connect(wet);
+      try { source.disconnect(shifter.input); } catch { /* not connected */ }
+      shifter.stop();
+      node = n;
+      armedAt = ctx.currentTime + 0.15;
+      engine.setRatio(lastRatio);
+      onReady?.();
+    }).catch(() => { /* keep the older shifter */ });
+  }
+  return engine;
 }
 
 // ── hook ─────────────────────────────────────────────────────────────────────
@@ -198,26 +255,40 @@ export function useMediaTuning(mediaRef, resetKey) {
     if (!el) return undefined;
     const apply = () => {
       const cur = el;
+      // Published on the element so that, when the app is left and a video's
+      // sound carries on through Web Audio (mediaExclusive.js), it plays with
+      // the same tempo and pitch.
+      cur.__tuning = { tempo, semitones, linked };
       if (Math.abs(cur.playbackRate - tempo) > 0.001) cur.playbackRate = tempo;
       if (linked) {
         setPreservesPitch(cur, false);      // speed and pitch move together
         engineRef.current?.setRatio(1);
+        engineRef.current?.setMakeup(1);
         return;
       }
-      setPreservesPitch(cur, true);         // tempo alone keeps the pitch
+      setPreservesPitch(cur, true);         // fallback: the browser keeps the pitch for tempo alone
       const ratio = semitonesToRatio(semitones);
       // The player was rebuilt (another file) — the old routing belongs to the old element.
       if (engineRef.current && engineRef.current.el !== cur) { engineRef.current.close(); engineRef.current = null; }
-      if (!engineRef.current && Math.abs(semitones) > 0.001) {
-        try { engineRef.current = makeEngine(cur); } catch { setPitchSupported(false); return; }
+      const needsShift = Math.abs(semitones) > 0.001 || Math.abs(tempo - 1) > 0.001;
+      if (!engineRef.current && needsShift) {
+        try { engineRef.current = makeEngine(cur, rebind); } catch { setPitchSupported(false); return; }
       }
+      // Tempo is the player's own speed change with the pitch KEPT (the phone's
+      // pitch correction); the shifter then moves the pitch to exactly what
+      // was asked. This used to switch the pitch correction OFF and divide the
+      // shifter's ratio by the tempo — which only works if the phone really
+      // honours that switch. When it doesn't, the pitch came out lower by the
+      // whole tempo ratio ("unlinked pitch gets lower"). Keeping the pitch is
+      // right either way.
       engineRef.current?.setRatio(ratio);
+      engineRef.current?.setMakeup(Math.abs(tempo - 1) > 0.001 ? STRETCH_MAKEUP : 1);
     };
     apply();
     // The element resets its rate when a new source loads.
     el.addEventListener("loadedmetadata", apply);
     return () => el.removeEventListener("loadedmetadata", apply);
-  }, [mediaRef, tempo, semitones, linked, elTick]);
+  }, [mediaRef, tempo, semitones, linked, elTick, rebind]);
 
   // Tear the audio graph down with the player.
   useEffect(() => () => { engineRef.current?.close(); engineRef.current = null; }, []);
