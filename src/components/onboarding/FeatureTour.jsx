@@ -711,6 +711,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
+      emoji: "🖼️", title: "Lay out a goal page", experimental: true,
+      body: `Each goal page is made of widgets. Open a page and tap the grid button to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
+      route: "/goals", target: ["goals-layout-btn", "goals-page"],
+    }),
+    s("activities", {
       emoji: "🤝", title: "Needs", experimental: true,
       body: `Needs is one place for what everyone wants. Balance shows how long it's been since each ${t.alter} got something they enjoy, need or wished for, longest first.`,
       route: "/needs", target: "needs-page", look: `the Needs page`,

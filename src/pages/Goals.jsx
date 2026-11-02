@@ -21,6 +21,11 @@ import { indexPages, rootPages, createPage, orderAfter } from "@/lib/goalTree";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
 import { WorkspaceProvider, useWorkspace, inputCls } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
+import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
+import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
+import { V2_WIDGETS } from "@/v2/widgets";
+import { GOAL_PAGE_WIDGETS, GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
+import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 import { useSubtreeProgress } from "@/components/goals/workspace/Outline";
 
@@ -120,6 +125,23 @@ function Home({ focusNew, toCarry, onCarry, carrying }) {
         </div>
       )}
     </div>
+  );
+}
+
+// A goal page: its header, then its widget board (v0.338.0). The board is
+// the standard four widgets until the first Edit page; Media, Text and the
+// rest can go beside them.
+const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...GOAL_PAGE_WIDGETS };
+function GoalPage({ page }) {
+  const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
+  return (
+    <PageView page={page} onEditLayout={openPageLayoutEditor} layoutEditing={boardPage.layoutEditing}
+      body={(
+        <GoalPageContext.Provider value={page}>
+          <PageBoardCanvas pageId={goalBoardPageId(page.id)} pages={GOAL_PAGE_PAGES} page={boardPage}
+            registry={GOAL_PAGE_REGISTRY} />
+        </GoalPageContext.Provider>
+      )} />
   );
 }
 
@@ -230,7 +252,7 @@ export default function Goals() {
                 <Menu className="w-4 h-4" /> Pages
               </button>
             </div>
-            {page ? <PageView key={page.id} page={page} /> : (
+            {page ? <GoalPage key={page.id} page={page} /> : (
               <>
                 {pageId && isFetched && <p className="text-sm text-muted-foreground">That page isn't here any more. It may be in the trash.</p>}
                 <Home focusNew={focusNew} toCarry={toCarry} onCarry={carry} carrying={carrying} />

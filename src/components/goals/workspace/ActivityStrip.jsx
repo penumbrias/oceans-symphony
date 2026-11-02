@@ -34,7 +34,8 @@ const indentOption = (o) => (
   </span>
 );
 
-export default function ActivityStrip({ page }) {
+// `bare`: inside a widget, whose box is the frame (one box per widget).
+export default function ActivityStrip({ page, bare = false }) {
   const { index, ctx, run, busy, settings } = useWorkspace();
   const sessions = useActiveSessions();
   const [adding, setAdding] = useState(false);
@@ -86,7 +87,7 @@ export default function ActivityStrip({ page }) {
   };
 
   return (
-    <div className="rounded-xl bg-primary/5 border border-primary/15 p-2.5 space-y-2">
+    <div className={bare ? "space-y-2" : "rounded-xl bg-primary/5 border border-primary/15 p-2.5 space-y-2"}>
       <div className="flex flex-wrap items-center gap-1.5">
         {planning ? btn(planning, true) : (
           <button type="button" className={chipCls} disabled={busy} onClick={() => setChoosingPlanning(true)}>

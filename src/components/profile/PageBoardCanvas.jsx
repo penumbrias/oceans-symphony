@@ -26,7 +26,7 @@ export const PAGE_BOARD_EVENT_PREFIX = "os-profile";
 const NO_API = {};
 export const openPageLayoutEditor = () => window.dispatchEvent(new CustomEvent(`${PAGE_BOARD_EVENT_PREFIX}-edit-home`));
 
-export default function PageBoardCanvas({ pageId, pages, page, tourId = null, pageIcons = null }) {
+export default function PageBoardCanvas({ pageId, pages, page, tourId = null, pageIcons = null, registry = V2_WIDGETS }) {
   const queryClient = useQueryClient();
   const { data: settingsRows = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -60,7 +60,7 @@ export default function PageBoardCanvas({ pageId, pages, page, tourId = null, pa
     <ExperimentalDashboard
       settingsRow={settingsRow}
       api={NO_API}
-      registry={V2_WIDGETS}
+      registry={registry}
       boardStore={boardStore}
       eventPrefix={PAGE_BOARD_EVENT_PREFIX}
       viewFlow
