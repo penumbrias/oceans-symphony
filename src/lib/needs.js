@@ -122,6 +122,22 @@ export async function planSecondHalf(turn, when, categories = []) {
   return plan;
 }
 
+// Plan one balance item (something an alter enjoys, needs or wished for)
+// for that alter. A wish item carries wish_id, so doing it stamps the wish.
+export function planBalanceItem(item, alter, when, categories = []) {
+  const cat = (categories || []).find((c) => c.id === item.categoryId);
+  return base44.entities.Activity.create({
+    timestamp: when.toISOString(),
+    activity_name: item.title,
+    activity_category_ids: item.categoryId ? [item.categoryId] : [],
+    ...(cat?.color ? { color: cat.color } : {}),
+    fronting_alter_ids: [alter.id],
+    is_planned: true,
+    status: "scheduled",
+    ...(item.wish ? { wish_id: item.wish.id } : {}),
+  });
+}
+
 export function setTurnStatus(turn, status) {
   return base44.entities.TurnAgreement.update(turn.id, { status, status_changed_at: new Date().toISOString() });
 }

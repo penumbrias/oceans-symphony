@@ -1,26 +1,19 @@
 // An alter's Wishlist (System Needs, phase 2): their wishes plus the ones
-// that belong to everyone. Quick add is a title and a kind; everything
-// else is optional and lives in the shared WishEditor.
+// that belong to everyone. Quick add is the shared WishQuickAdd (starting
+// on this alter); everything else is optional and lives in WishEditor.
 
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Plus, Heart, ChevronDown } from "lucide-react";
+import { Heart, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
 import WishCard from "@/components/wishes/WishCard";
-import { useTerms } from "@/lib/useTerms";
-import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
-import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, wishesForAlter, sortWishes, createWish } from "@/lib/wishes";
+import { WISHES_QUERY_KEY, isOpenWish, wishesForAlter, sortWishes } from "@/lib/wishes";
+import WishQuickAdd from "@/components/needs/WishQuickAdd";
+import { whosePicked } from "@/components/needs/WhoseChoice";
 
 export default function WishlistTab({ alter, alters = [] }) {
-  const t = useTerms();
-  const formatAlter = useAlterLabel();
   const qc = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [kind, setKind] = useState("item");
-  const [adding, setAdding] = useState(false);
   const [showFinished, setShowFinished] = useState(false);
 
   const { data: wishes = [], isFetched } = useQuery({
@@ -39,46 +32,10 @@ export default function WishlistTab({ alter, alters = [] }) {
 
   const refresh = () => qc.invalidateQueries({ queryKey: WISHES_QUERY_KEY });
 
-  const add = async () => {
-    const text = title.trim();
-    if (!text) return;
-    setAdding(true);
-    try {
-      await createWish({ title: text, kind, ownerIds: [alter.id] });
-      setTitle("");
-      refresh();
-    } catch (e) {
-      toast.error(e?.message || "Couldn't save that.");
-    } finally {
-      setAdding(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      <div data-tour="alter-wishlist-add" className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
-        <div className="flex gap-2">
-          <input
-            className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
-            value={title} onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-            placeholder={`Something ${formatAlter(alter) || `this ${t.alter}`} wishes for…`}
-            aria-label="New wish"
-          />
-          <Button size="sm" onClick={add} disabled={adding || !title.trim()}>
-            <Plus className="w-4 h-4 mr-1" /> Add
-          </Button>
-        </div>
-        <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-1.5">
-          {WISH_KINDS.map((k) => (
-            <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} onClick={() => setKind(k.id)}
-              className={`text-xs px-2.5 py-1 rounded-full border ${
-                kind === k.id ? "border-primary text-primary bg-primary/10" : "border-border/60 text-muted-foreground hover:text-foreground"
-              }`}>
-              {k.emoji} {k.label}
-            </button>
-          ))}
-        </div>
+      <div data-tour="alter-wishlist-add" className="rounded-xl border border-border/50 bg-muted/10 p-3">
+        <WishQuickAdd initialWhose={whosePicked([alter.id])} />
       </div>
 
       {openWishes.length === 0 && (

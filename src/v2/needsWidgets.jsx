@@ -4,6 +4,7 @@
 // Needs and Goals pages use, so the numbers always agree.
 
 import React, { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,9 +16,14 @@ import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import { Section, Row, Muted, TextAction, Dot, useWidgetMode } from "@/v2/primitives";
-import { buildBalance, ALTER_ACTIVITY_LINKS_QUERY_KEY } from "@/lib/needs";
+import { buildBalance, ALTER_ACTIVITY_LINKS_QUERY_KEY, TURNS_QUERY_KEY, turnState } from "@/lib/needs";
+import NeedsBalance from "@/components/needs/NeedsBalance";
+import NeedsTurns, { TurnCard, sortTurns } from "@/components/needs/NeedsTurns";
+import WishQuickAdd from "@/components/needs/WishQuickAdd";
+import { whosePicked } from "@/components/needs/WhoseChoice";
+import WishCard from "@/components/wishes/WishCard";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
-import { WISHES_QUERY_KEY, WISH_KINDS, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel, createWish } from "@/lib/wishes";
+import { WISHES_QUERY_KEY, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel } from "@/lib/wishes";
 import { usesNewProfile } from "@/lib/profileBoard";
 import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress, toggleStep,
@@ -41,10 +47,21 @@ export function NeedsBalanceWidget({ settings }) {
   const activities = useList("activities", "Activity");
   const categories = useList("activityCategories", "ActivityCategory");
   const linkTypes = useList(LINK_TYPES_QUERY_KEY, "ActivityLinkType");
-  const rows = useMemo(
-    () => buildBalance({ alters, links, wishes, activities, categories, linkTypes }).slice(0, limitOf(settings, 5)),
-    [alters, links, wishes, activities, categories, linkTypes, settings],
+  const mode = useWidgetMode();
+  const all = useMemo(
+    () => buildBalance({ alters, links, wishes, activities, categories, linkTypes }),
+    [alters, links, wishes, activities, categories, linkTypes],
   );
+  const rows = useMemo(() => all.slice(0, limitOf(settings, 5)), [all, settings]);
+  // Expanded (v0.331.0) is the whole balance with Plan it on every item —
+  // what the Needs page's Balance page shows.
+  if (mode === "expanded") {
+    return (
+      <Section label={tr("widget.needs.label")}>
+        <NeedsBalance rows={all} alters={alters} categories={categories} />
+      </Section>
+    );
+  }
   return (
     <Section label={tr("widget.needs.label")}
       action={<TextAction onClick={() => navigate("/needs")}>{tr("widget.today.open")}</TextAction>}>
@@ -64,49 +81,13 @@ export function NeedsBalanceWidget({ settings }) {
 
 // On a profile: that alter's (or the group's members') wishes. On the
 // alter's OWN profile their private wishes show too — private wishes never
-// leave it. `show` picks open, finished or both; Expanded on an alter's
-// profile adds a quick add.
-function WishQuickAdd({ alterId }) {
-  const qc = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [kind, setKind] = useState("item");
-  const [busy, setBusy] = useState(false);
-  const add = async () => {
-    if (!title.trim()) return;
-    setBusy(true);
-    try {
-      await createWish({ title, kind, ownerIds: [alterId] });
-      setTitle("");
-      qc.invalidateQueries({ queryKey: WISHES_QUERY_KEY });
-    } catch (e) { toast.error(e?.message || "Couldn't save that."); } finally { setBusy(false); }
-  };
-  return (
-    <div data-own-hold="" className="space-y-[0.4em] mb-[0.5em]">
-      <div className="flex gap-[0.4em]">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-          placeholder="Something wished for…" aria-label="New wish"
-          className="flex-1 min-w-0 h-11 px-3 rounded-lg border text-[0.875em]"
-          style={{ borderColor: "color-mix(in srgb, currentColor 20%, transparent)", background: "transparent" }} />
-        <button type="button" onClick={add} disabled={busy || !title.trim()} className="h-11 px-4 rounded-lg text-[0.8125em] font-medium disabled:opacity-40"
-          style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>Add</button>
-      </div>
-      <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-[0.3em]">
-        {WISH_KINDS.map((k) => (
-          <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} onClick={() => setKind(k.id)}
-            className="min-h-[2.25em] px-[0.7em] rounded-full border text-[0.8125em]"
-            style={kind === k.id
-              ? { borderColor: "var(--v2-accent)", background: "color-mix(in srgb, var(--v2-accent) 14%, transparent)" }
-              : { borderColor: "color-mix(in srgb, currentColor 20%, transparent)" }}>
-            <span aria-hidden="true">{k.emoji}</span> {k.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
+// leave it. `show` picks open, finished or both. Expanded (v0.331.0) shows
+// each wish's full card with its actions (`view: "cards"`; widgets placed
+// before then keep the rows, `view: "list"`), and on an alter's profile
+// starts with the quick add.
 export function WishesWidget({ settings }) {
   const tr = useT();
+  const qc = useQueryClient();
   const navigate = useNavigate();
   const mode = useWidgetMode();
   const formatAlter = useAlterLabel();
@@ -121,22 +102,57 @@ export function WishesWidget({ settings }) {
   // (v0.305.0) has no separate tab, so it opens on the Needs page.
   const ownOnClassic = ownAlterId && !usesNewProfile(alterById.get(ownAlterId));
   const wishPath = (id) => (ownOnClassic ? `/alter/${ownAlterId}?tab=wishlist&highlight=${id}` : `/needs?tab=wishes&highlight=${id}`);
-  const list = useMemo(() => {
-    const pool = (wishes || []).filter((w) => {
+  const categories = useList("activityCategories", "ActivityCategory");
+  const cards = mode === "expanded" && (settings?.view || "cards") === "cards";
+  const [showFinished, setShowFinished] = useState(false);
+  const pool = useMemo(() => {
+    return (wishes || []).filter((w) => {
       if (!w) return false;
       const owners = w.owner_alter_ids || [];
       if (w.is_private && !(ownAlterId && owners.includes(ownAlterId))) return false;
       if (scopeIds && !owners.some((id) => scopeIds.includes(id))) return false;
-      if (show === "finished") return !isOpenWish(w);
-      if (show === "both") return true;
-      return isOpenWish(w);
+      return true;
     });
-    return sortWishes(pool).slice(0, limitOf(settings, 6));
-  }, [wishes, settings, scopeIds, ownAlterId, show]);
+  }, [wishes, scopeIds, ownAlterId]);
+  const list = useMemo(() => sortWishes(pool.filter((w) => (
+    show === "finished" ? !isOpenWish(w) : show === "both" ? true : isOpenWish(w)
+  ))).slice(0, limitOf(settings, 6)), [pool, show, settings]);
+  const quickAdd = mode === "expanded" && ownAlterId
+    ? <div className="mb-[0.6em]"><WishQuickAdd initialWhose={whosePicked([ownAlterId])} /></div>
+    : null;
+  if (cards) {
+    // The full cards: every matching wish (no row limit), and with "Both",
+    // the done and let-go ones folded under the open ones.
+    const sorted = sortWishes(pool);
+    const openOnes = show === "finished" ? [] : sorted.filter(isOpenWish);
+    const doneOnes = show === "open" ? [] : sorted.filter((w) => !isOpenWish(w));
+    const foldDone = show === "both";
+    const card = (w) => (
+      <WishCard key={w.id} wish={w} alters={alters} categories={categories} alterById={alterById} flat showOwners
+        onChanged={() => qc.invalidateQueries({ queryKey: WISHES_QUERY_KEY })} />
+    );
+    return (
+      <Section label={tr("widget.wishes.label")}>
+        {quickAdd}
+        {openOnes.length === 0 && (show !== "finished" || doneOnes.length === 0) && <Muted>{tr("widget.wishes.empty")}</Muted>}
+        <div>{openOnes.map(card)}</div>
+        {doneOnes.length > 0 && (foldDone ? (
+          <div className="mt-[0.4em]">
+            <button type="button" onClick={() => setShowFinished((v) => !v)} aria-expanded={showFinished}
+              className="min-h-[2.75em] text-[0.75em] opacity-70 hover:opacity-100 flex items-center gap-[0.3em]">
+              <ChevronDown className={`w-[1.2em] h-[1.2em] transition-transform ${showFinished ? "rotate-180" : ""}`} />
+              Done and let go ({doneOnes.length})
+            </button>
+            {showFinished && <div>{doneOnes.map(card)}</div>}
+          </div>
+        ) : <div>{doneOnes.map(card)}</div>)}
+      </Section>
+    );
+  }
   return (
     <Section label={tr("widget.wishes.label")}
       action={<TextAction onClick={() => navigate("/needs?tab=wishes")}>{tr("widget.today.open")}</TextAction>}>
-      {mode === "expanded" && ownAlterId && <WishQuickAdd alterId={ownAlterId} />}
+      {quickAdd}
       {list.length === 0 && <Muted>{tr("widget.wishes.empty")}</Muted>}
       {list.map((w) => {
         const owner = w.for_everyone ? tr("widget.wishes.everyone")
@@ -213,6 +229,54 @@ export function GoalsWidget({ settings }) {
           {mode === "expanded" && r.open.map((x) => stepCheck(x.step, x.state))}
         </div>
       ))}
+    </Section>
+  );
+}
+
+// Add a wish (v0.331.0): the quick add on its own. Whose defaults to who's
+// in front when Add is tapped; "Whole system" or picked alters instead.
+// On an alter's profile it starts on that alter.
+export function WishAddWidget({ settings }) {
+  const tr = useT();
+  const scope = useWidgetScope(settings);
+  const ownAlterId = scope?.type === "alter" ? scope.id : null;
+  const initial = ownAlterId ? whosePicked([ownAlterId]) : null;
+  return (
+    <Section label={tr("widget.wishAdd.label")}>
+      <WishQuickAdd key={ownAlterId || "home"} initialWhose={initial} showKinds={settings?.kinds !== false} />
+    </Section>
+  );
+}
+
+// Turns (v0.331.0): open turn agreements, with Kept / Let go right there.
+// Expanded is the whole Turns page: the new-agreement form, planning the
+// second turn, notes, and the kept / let-go ones folded away.
+export function TurnsWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const mode = useWidgetMode();
+  const alters = useList("alters", "Alter");
+  const turns = useList(TURNS_QUERY_KEY, "TurnAgreement");
+  const activities = useList("activities", "Activity");
+  const categories = useList("activityCategories", "ActivityCategory");
+  if (mode === "expanded") {
+    return (
+      <Section label={tr("widget.turns.label")}>
+        <NeedsTurns alters={alters} turns={turns} activities={activities} categories={categories} />
+      </Section>
+    );
+  }
+  const open = sortTurns(turns).filter((x) => turnState(x, activities) === "open").slice(0, limitOf(settings, 4));
+  return (
+    <Section label={tr("widget.turns.label")}
+      action={<TextAction onClick={() => navigate("/needs?tab=turns")}>{tr("widget.today.open")}</TextAction>}>
+      {open.length === 0 && <Muted>{tr("widget.turns.empty")}</Muted>}
+      {mode === "minimal"
+        ? open.map((x) => (
+          <Row key={x.id} primary={x.first_title} secondary={tr("widget.turns.then", { what: x.second_title })}
+            onClick={() => navigate(`/needs?tab=turns&highlight=${x.id}`)} />
+        ))
+        : <div>{open.map((x) => <TurnCard key={x.id} turn={x} alters={alters} activities={activities} categories={categories} compact />)}</div>}
     </Section>
   );
 }

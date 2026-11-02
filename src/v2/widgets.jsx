@@ -35,7 +35,7 @@ import { Square,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music, X
 , Map, MapPin,
-  HeartHandshake, Target, Image as ImageIcon,
+  HeartHandshake, Target, Image as ImageIcon, ArrowLeftRight, Gift,
 } from "lucide-react";
 import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
 import { LINKED_PROFILE_WIDGETS } from "@/v2/linkedProfileWidgets";
@@ -124,7 +124,7 @@ import {
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
 import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS, LOOKBACK_PAST_DEFAULTS } from "@/v2/lookbackWidgets";
-import { NeedsBalanceWidget, WishesWidget, GoalsWidget } from "@/v2/needsWidgets";
+import { NeedsBalanceWidget, WishesWidget, GoalsWidget, WishAddWidget, TurnsWidget } from "@/v2/needsWidgets";
 import { startSleep } from "@/lib/sleepEntry";
 import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
 import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";
@@ -3319,15 +3319,15 @@ export const V2_WIDGETS = {
   },
 
   needs_balance: {
-    label: "Needs balance", description: "Which {{alters}} have waited longest for something they enjoy, need or wished for.",
+    label: "Needs balance", description: "Which {{alters}} have waited longest for something they enjoy, need or wished for. Expanded shows everyone, with Plan it on each.",
     icon: HeartHandshake, category: "needs",
     render: sized(({ settings }) => <NeedsBalanceWidget settings={settings} />),
-    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many {{alters}}", min: 1, max: 20, default: 5 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   wishes: {
-    label: "Wishes", description: "Everyone's open wishes, longest waiting first. Private wishes show only on their own {{alter}}'s profile, where Expanded adds a quick add.",
+    label: "Wishes", description: "Everyone's open wishes, longest waiting first. Expanded shows each wish's card, to plan it, mark it done or edit it. Private wishes show only on their own {{alter}}'s profile, where Expanded adds a quick add.",
     icon: Heart, category: "needs", subjects: ["home", "alter", "group", "location"],
     render: sized(({ settings }) => <WishesWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
@@ -3335,9 +3335,29 @@ export const V2_WIDGETS = {
       SCOPE_FIELD,
       { key: "show", type: "select", label: "Shows", default: "open",
         options: [{ value: "open", label: "Open wishes" }, { value: "finished", label: "Done and let go" }, { value: "both", label: "Both" }] },
-      { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 },
+      { key: "view", type: "select", label: "Expanded shows", default: "cards",
+        options: [{ value: "cards", label: "Each wish's card" }, { value: "list", label: "Rows" }] },
+      { key: "limit", type: "number", label: "How many rows to show", min: 1, max: 30, default: 6 },
     ],
+    // Placed before v0.331.0: Expanded was rows — those keep them.
+    pastDefaults: [{ before: Date.parse("2026-11-02T01:30:00Z"), settings: { view: "list" } }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  wish_add: {
+    label: "Add a wish", description: "Write down a wish in one go: what it is, its kind, and whose. Whose starts as whoever is {{fronting}} when you tap Add; pick the whole {{system}} or other {{alters}} instead.",
+    icon: Gift, category: "needs", subjects: ["home", "alter"],
+    render: sized(({ settings }) => <WishAddWidget settings={settings} />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "kinds", type: "toggle", label: "Show the kinds (item, activity…)", default: true }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  turns: {
+    label: "Taking turns", description: "Open turn agreements — who goes first, who's next — with Kept and Let go right here. Expanded is the whole Turns page: make a new agreement and plan the second turn.",
+    icon: ArrowLeftRight, category: "needs",
+    render: sized(({ settings }) => <TurnsWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 4 }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
   },
   goals: {
     label: "Goals", description: "Goals you're working on, with steps done and the next step as a checkbox you can tick right here. Expanded lists every open step.",
