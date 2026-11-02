@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "New Scratchboard mod (Mods → library): a small drawing space with raster and vector layers, a lasso, fill bucket and brushes you shape yourself. Save drawings to Assets and credit the {{alter}} who made them." },
+      { type: "fix", text: "Mods' saved data is no longer changed by the app's start-up picture clean-up." },
       { type: "feature", text: "Nature sounds: add your own recordings from your device or Assets, kept as they are or made smaller. They're in Assets and backups, and Auto-backup can leave them out." },
       { type: "fix", text: "Nature sounds: saving a sound to your phone works again." },
       { type: "fix", text: "Nature sounds no longer stop after a while with a connection error; they pick up from the same spot, and Try again resumes instead of starting over." },

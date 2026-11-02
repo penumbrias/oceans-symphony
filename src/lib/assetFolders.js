@@ -29,6 +29,7 @@ export const DEFAULT_PREFIX_FOLDERS = {
   block: "Bio blocks",
   asset: "Library uploads",
   song: "Songs Audio",
+  drawing: "Drawings",
   nature: "Nature sounds",
   // Videos, audio and other files — uploaded into Assets or attached in chat
   // (chatfile-) — are filed by their TYPE into Videos / Audio / Others (see
@@ -41,7 +42,7 @@ export const PREFIX_LABELS = {
   avatar: "Alter avatars", fixed: "Repaired images", header: "Headers & banners", bg: "Backgrounds",
   bioimg: "Images in bios", bulletinimg: "Bulletin images", chatimg: "Chat images", commentimg: "Comment images",
   group: "Group images", system: "System avatar & banner", contact: "Contact pictures", location: "Inner-world backgrounds",
-  block: "Bio block images", asset: "Library uploads", song: "Songs (song widgets & profile songs)", nature: "Your nature sounds",
+  block: "Bio block images", asset: "Library uploads", song: "Songs (song widgets & profile songs)", nature: "Your nature sounds", drawing: "Drawings (from mods)",
   file: "Files (uploads)", chatfile: "Files (from chat)", migrated: "Imported (moved into the store)",
 };
 export const ROLE_LABELS = { avatar: "Avatars", header: "Banners", background: "Backgrounds" };

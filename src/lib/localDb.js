@@ -2219,6 +2219,7 @@ function applyMigratedFields(entityName, recordId, record, patch) {
   }
 }
 
+const MIGRATE_SKIP_ENTITIES = new Set(["ModData", "ModPackage"]);
 export async function migrateBase64AvatarsToLocal() {
   const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
@@ -2226,6 +2227,10 @@ export async function migrateBase64AvatarsToLocal() {
   let migrated = 0;
   for (const [entityName, collection] of Object.entries(db)) {
     if (isReservedDbKey(entityName)) continue;
+    // A mod's records are its own opaque data (docs/mods.md): a string that
+    // starts with "data:" there may be one piece of a larger value, and
+    // swapping it for a picture link would corrupt it. Never touch them.
+    if (MIGRATE_SKIP_ENTITIES.has(entityName)) continue;
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
@@ -2286,7 +2291,7 @@ export async function migrateHttpImagesToLocal(onProgress, { keyFilter = null } 
   };
 
   for (const [entityName, collection] of Object.entries(db)) {
-    if (isReservedDbKey(entityName)) continue;
+    if (isReservedDbKey(entityName) || MIGRATE_SKIP_ENTITIES.has(entityName)) continue;
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;

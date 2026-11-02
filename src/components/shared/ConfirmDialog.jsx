@@ -96,6 +96,10 @@ export function ConfirmRoot() {
           <AlertDialogTitle>{o.title || "Are you sure?"}</AlertDialogTitle>
           {o.body ? <AlertDialogDescription>{o.body}</AlertDialogDescription> : null}
         </AlertDialogHeader>
+        {/* A picture the question is about (a mod asking to save one). */}
+        {o.imageUrl ? (
+          <img src={o.imageUrl} alt="" className="max-h-56 max-w-full mx-auto rounded-lg border border-border object-contain bg-white" />
+        ) : null}
         {o.input && (
           <input
             autoFocus

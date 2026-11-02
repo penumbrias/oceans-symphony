@@ -1,0 +1,13 @@
+{
+  "format": "oceans-symphony-mod",
+  "formatVersion": 1,
+  "id": "scratchboard",
+  "name": "Scratchboard",
+  "version": "1.0.0",
+  "author": "Oceans Symphony",
+  "description": "A small drawing space with layers, a lasso, a fill bucket and brushes you shape yourself. Save drawings to your Assets and credit whoever made them.",
+  "permissions": ["alters:read", "fronting:read", "pictures:save", "files:save"],
+  "pages": [
+    { "id": "board", "title": "Scratchboard" }
+  ]
+}
