@@ -17,6 +17,7 @@
 // tokens from uiV2.js, edited live in Display options.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -158,7 +159,7 @@ function useClock() {
     const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 }
 
 // ── Display options ────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { clockPattern } from "@/lib/timeFormat";
 
 function parseJsonSafe(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
@@ -205,13 +206,13 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-muted-foreground">Started</p>
-              <p className="font-medium">{format(start, "h:mm a")}</p>
+              <p className="font-medium">{format(start, clockPattern("h:mm a"))}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ended</p>
               <p className="font-medium">{
                 end
-                  ? format(end, "h:mm a")
+                  ? format(end, clockPattern("h:mm a"))
                   : (isLive
                       ? <span className="text-primary italic">Active</span>
                       : <span className="text-muted-foreground italic">— (no end time)</span>)
@@ -231,7 +232,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
                 <ul className="space-y-0.5">
                   {popSpans.map((sp, i) => (
                     <li key={i} className="flex items-baseline gap-2">
-                      <span className="text-xs text-muted-foreground tabular-nums w-16 flex-shrink-0">{format(new Date(sp.startMs), "h:mm a")}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums w-16 flex-shrink-0">{format(new Date(sp.startMs), clockPattern("h:mm a"))}</span>
                       <span className="font-medium">{spanLabel(sp.level)}</span>
                     </li>
                   ))}
@@ -403,7 +404,7 @@ const handleSave = async () => {
           <div className="py-1 border-t border-border/40">
             <p className="text-xs text-muted-foreground mb-1">
               {editLastChange
-                ? `${terms.Fronting} level since ${format(parseDate(editLastChange.timestamp), "h:mm a")} (earlier parts keep their level)`
+                ? `${terms.Fronting} level since ${format(parseDate(editLastChange.timestamp), clockPattern("h:mm a"))} (earlier parts keep their level)`
                 : `${terms.Fronting} level during this session`}
             </p>
             <SearchableSelect

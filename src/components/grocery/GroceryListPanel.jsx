@@ -52,6 +52,7 @@ import {
   removeUnlockedFavorite,
   updateUnlockedList,
 } from "@/lib/localUnlockedGrocery";
+import { clockPattern } from "@/lib/timeFormat";
 
 const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
 const ACTIVE_LIST_KEY = "grocery_active_list_v1";
@@ -295,7 +296,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
   // available-when-locked option, no item rows.
   const [wantFreshNote, setWantFreshNote] = useState(false);
   const createQuickNote = async (unlocked = lockedMode) => {
-    const name = `Note — ${format(new Date(), "MMM d, h:mm a")}`;
+    const name = `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`;
     let created = null;
     if (unlocked || lockedMode) {
       created = createUnlockedList(name, { list_type: "note" });
@@ -1339,7 +1340,7 @@ function NotePad({ list, canAttach, onSave }) {
   };
 
   const insertStamp = () => {
-    append(`— ${format(new Date(), "MMM d, yyyy · h:mm a")} —\n`);
+    append(`— ${format(new Date(), clockPattern("MMM d, yyyy · h:mm a"))} —\n`);
     taRef.current?.focus();
   };
 
@@ -1438,7 +1439,7 @@ function NotePad({ list, canAttach, onSave }) {
           )}
         </div>
         <span className="text-[11px] text-neutral-400 flex-shrink-0" role="status">
-          {dirty ? "Saving…" : savedAt ? `Saved ${format(savedAt, "h:mm a")}` : "Auto-saves"}
+          {dirty ? "Saving…" : savedAt ? `Saved ${format(savedAt, clockPattern("h:mm a"))}` : "Auto-saves"}
         </span>
       </div>
 

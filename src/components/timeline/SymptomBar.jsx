@@ -1,6 +1,7 @@
 import React, { useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { X } from "lucide-react";
+import { clockPattern } from "@/lib/timeFormat";
 
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
@@ -53,8 +54,8 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   const touchFiredRef = useRef(false);
   const pressStart = useRef({ x: 0, y: 0, moved: false });
 
-  const startStr = session?.start_time ? format(new Date(session.start_time), "h:mmaaa") : null;
-  const endStr = session?.end_time ? format(new Date(session.end_time), "h:mmaaa") : null;
+  const startStr = session?.start_time ? format(new Date(session.start_time), clockPattern("h:mmaaa")) : null;
+  const endStr = session?.end_time ? format(new Date(session.end_time), clockPattern("h:mmaaa")) : null;
 
   const startPress = (e) => {
     e.stopPropagation();
@@ -189,7 +190,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
               {snapshots.map((snap, i) => (
                 <div key={i} className="flex items-center gap-1">
                   <span style={{ fontSize: 7, color, opacity: 0.7 }}>
-                    {format(new Date(snap.timestamp), "h:mmaaa")}
+                    {format(new Date(snap.timestamp), clockPattern("h:mmaaa"))}
                   </span>
                   <span style={{ fontSize: 7, color, fontWeight: "bold" }}>
                     {"●".repeat(snap.severity)}{"○".repeat(5 - snap.severity)}
@@ -210,8 +211,8 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
 function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [], onEdit }) {
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
-  const startStr = session?.start_time ? format(new Date(session.start_time), "h:mm aaa") : null;
-  const endStr = session?.end_time ? format(new Date(session.end_time), "h:mm aaa") : null;
+  const startStr = session?.start_time ? format(new Date(session.start_time), clockPattern("h:mm aaa")) : null;
+  const endStr = session?.end_time ? format(new Date(session.end_time), clockPattern("h:mm aaa")) : null;
 
   const duration = () => {
     const start = new Date(session?.start_time);
@@ -294,7 +295,7 @@ function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [], onEdit
               {snapshots.map((snap, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(snap.timestamp), "h:mm aaa")}
+                    {format(new Date(snap.timestamp), clockPattern("h:mm aaa"))}
                   </span>
                   <div className="flex items-center gap-2">
                     <span style={{ color, fontSize: 14 }}>

@@ -10,6 +10,7 @@
 // stored system name.
 
 import React from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { ChevronsUpDown } from "lucide-react";
 
 export const HEADER_PARTS = ["name", "date", "time"];
@@ -28,7 +29,7 @@ export default function SystemHeaderCard({ mode = "normal", api, settings = {} }
   const textOf = {
     name,
     date: now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }),
-    time: now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    time: now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() }),
   };
   const [head, ...rest] = parts;
 

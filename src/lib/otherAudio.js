@@ -26,3 +26,42 @@ export async function isOtherAudioPlaying() {
     return false;
   }
 }
+
+// Resolves once other apps' audio has gone quiet (about 2 s of silence), even
+// while this app is in the background. Android only; on an older native build
+// without the method it re-checks every few seconds instead. One watch is shared.
+let quietWatch = null;
+export function waitForOtherAudioQuiet() {
+  if (!SystemSettings) return Promise.resolve();
+  if (quietWatch) return quietWatch;
+  quietWatch = new Promise((resolve) => {
+    let handle = null;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      quietWatch = null;
+      try { handle?.remove?.(); } catch { /* already removed */ }
+      resolve();
+    };
+    SystemSettings.addListener("otherAudioQuiet", finish)
+      .then((h) => { handle = h; if (done) { try { h.remove(); } catch { /* gone */ } } })
+      .catch(() => {});
+    SystemSettings.watchOtherAudio().catch(() => setTimeout(finish, 5000));
+  });
+  return quietWatch;
+}
+
+// While sound is playing, ask Android to keep the app alive with a quiet
+// foreground service (see MediaKeepAliveService.java), so low memory doesn't
+// end the app — and the sound — in the background. Android only; harmless
+// elsewhere and on an older native build without the method.
+let keepAliveOn = false;
+export function setMediaKeepAlive(on) {
+  if (!SystemSettings || keepAliveOn === on) return;
+  keepAliveOn = on;
+  try {
+    const p = on ? SystemSettings.startMediaKeepAlive() : SystemSettings.stopMediaKeepAlive();
+    if (p && p.catch) p.catch(() => {});
+  } catch { /* older native build */ }
+}

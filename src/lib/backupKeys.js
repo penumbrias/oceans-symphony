@@ -23,6 +23,7 @@
 //     device restoring it would aim at the same cloud file
 
 export const BACKUP_LS_KEYS = [
+  "symphony_time_format_v1",
   "symphony_experimental_features_v1",
   "symphony_goals_last_line_kind",
   "symphony_newui_banner_dismissed_v1",
@@ -41,6 +42,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_a11y_highContrast",
   "symphony_a11y_largeTouch",
   "symphony_a11y_navHeight",
+  "symphony_a11y_playInsideOnly",
   "alter_hide_grouped",
   "alter_grid_cols",
   "alter_display_mode",

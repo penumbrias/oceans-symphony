@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { clockPattern } from "@/lib/timeFormat";
 
 const CATEGORY_DEFAULT_ACTIONS = {
   check_in: { label: "Check In", action_type: "open_check_in" },
@@ -110,7 +111,7 @@ export default function ReminderInstanceCard({ instance, reminder, alter, onActi
           {isSnoozed && instance.snoozed_until && (
             <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              Snoozed until {format(new Date(instance.snoozed_until), "MMM d, h:mm a")}
+              Snoozed until {format(new Date(instance.snoozed_until), clockPattern("MMM d, h:mm a"))}
             </p>
           )}
           {!isSnoozed && displayTime && (

@@ -95,6 +95,21 @@ const quiet = "border-border/50 text-muted-foreground hover:text-foreground";
 const lit = "text-[var(--v2-accent)] border-[var(--v2-accent)]";
 const field = "w-full h-9 px-2 rounded-lg border border-input bg-background text-sm";
 
+// A small segmented track (same look as the For / Until switch): picks
+// which reference point the "Set" shortcut uses, never looks like a chip.
+function Track({ label, value, onChange, options }) {
+  return (
+    <span role="radiogroup" aria-label={label} className="inline-flex rounded-lg bg-muted/60 p-0.5 gap-0.5">
+      {options.map(([id, text]) => (
+        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)}
+          className={`text-[0.6875em] px-2 py-0.5 rounded-md whitespace-nowrap ${
+            value === id ? "bg-background shadow-sm text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+          }`}>{text}</button>
+      ))}
+    </span>
+  );
+}
+
 export default function ActivityWhenField({
   start,
   minutes,
@@ -103,8 +118,8 @@ export default function ActivityWhenField({
   // which shortcuts make sense.
   mode = "done",
   allowNoLength = true,
-  prevEnd = null,          // { end: Date, name } — "After the last one"
-  lastAdded = null,        // { end: Date, name, id } — "After the one just added"
+  prevEnd = null,          // { start, end, name, id } — "last on the timeline"
+  lastAdded = null,        // { start, end, name, id } — "last logged"
   excludeId = null,        // the entry being edited (kept out of "Line up with…")
   entryName = "",          // drawn on the "Line up with…" canvas
   weekStartsOn = 1,
@@ -173,16 +188,31 @@ export default function ActivityWhenField({
     if (b >= end) b = dateEdit ? new Date(end.getTime() - 5 * 60000) : new Date(b.getTime() - 86400000);
     emit(b, Math.max(1, Math.round((end - b) / 60000)));
   };
-  const endedNow = () => {
-    const n = new Date(); n.setSeconds(0, 0);
-    const len = hasLength ? mins : 30;
-    emit(new Date(n.getTime() - len * 60000), len);
-  };
-  // "Now" puts whichever time is anchored at now — from the end that's
-  // the same as "Ended now".
+  // "Now" puts whichever time is anchored at now: the Starts/Ends switch
+  // above already says which, so there is no separate "Ended now" (owner
+  // ask, 2026-11-02).
   const startNow = () => { const n = new Date(); n.setSeconds(0, 0); placeAnchor(n); };
-  const afterLast = () => { if (prevEnd?.end) emit(new Date(prevEnd.end), hasLength ? mins : minutes ?? null); };
-  const afterAdded = () => { if (lastAdded?.end) emit(new Date(lastAdded.end), hasLength ? mins : minutes ?? null); };
+  // "[Before / After] [last logged / last on the timeline]" + Set: one
+  // control for both reference points (owner sketch, 2026-11-02). "Last
+  // logged" is the entry added most recently; "last on the timeline" is the
+  // one that ended most recently. A running timer can only start after one.
+  const refs = [
+    lastAdded?.end ? { id: "added", label: tr("when.refAdded"), ref: lastAdded } : null,
+    prevEnd?.end && prevEnd.id !== lastAdded?.id ? { id: "latest", label: tr("when.refLatest"), ref: prevEnd } : null,
+  ].filter(Boolean);
+  const [relPick, setRel] = React.useState("after");
+  const [refId, setRefId] = React.useState(null);
+  const refPick = refs.find((r) => r.id === refId) || refs[0] || null;
+  const canBefore = mode !== "now" && !!refPick?.ref?.start;
+  const rel = canBefore ? relPick : "after";
+  const relTarget = (() => {
+    if (!refPick) return null;
+    const r = refPick.ref;
+    if (rel === "after") return { start: new Date(r.end), minutes: hasLength ? mins : minutes ?? null };
+    const len = hasLength ? mins : minutes ?? null;
+    return { start: new Date(new Date(r.start).getTime() - (Number(len) || 0) * 60000), minutes: len };
+  })();
+  const applyRel = () => { if (relTarget) emit(relTarget.start, relTarget.minutes); };
   const [lineUpOpen, setLineUpOpen] = React.useState(false);
   // A running activity: "started 20 minutes ago" puts the start that far
   // before now.
@@ -325,22 +355,29 @@ export default function ActivityWhenField({
             className={`mt-1 ${field}`} />
         </div>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {mode !== "plan" && (
-          <button type="button" onClick={startNow} className={`${chip} ${quiet}`}>{tr("planner.startedNow")}</button>
+          <button type="button" onClick={startNow} className={`${chip} ${quiet}`}
+            title={byEnd ? tr("planner.endTime") : tr("planner.startsAt")}>{tr("planner.startedNow")}</button>
         )}
-        {mode === "done" && !byEnd && (
-          <button type="button" onClick={endedNow} className={`${chip} ${quiet}`}>{tr("planner.endedNow")}</button>
-        )}
-        {prevEnd?.end && mode !== "plan" && (
-          <button type="button" onClick={afterLast}
-            title={`${new Date(prevEnd.end).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} — ${prevEnd.name || ""}`}
-            className={`${chip} ${quiet} truncate max-w-[60%]`}>{tr("planner.afterLast")}</button>
-        )}
-        {lastAdded?.end && (mode === "plan" || lastAdded.id !== prevEnd?.id) && (
-          <button type="button" onClick={afterAdded}
-            title={`${new Date(lastAdded.end).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} — ${lastAdded.name || ""}`}
-            className={`${chip} ${quiet} truncate max-w-[60%]`}>{tr("when.afterAdded")}</button>
+        {refPick && (
+          <span className="inline-flex flex-wrap items-center gap-1">
+            {canBefore ? (
+              <Track label={tr("when.relWhich")} value={rel} onChange={setRel}
+                options={[["before", tr("when.relBefore")], ["after", tr("when.relAfter")]]} />
+            ) : (
+              <span className="text-[0.6875em] text-muted-foreground">{tr("when.relAfter")}</span>
+            )}
+            {refs.length > 1 ? (
+              <Track label={tr("when.refWhich")} value={refPick.id} onChange={setRefId}
+                options={refs.map((r) => [r.id, r.label])} />
+            ) : (
+              <span className="text-[0.6875em] text-muted-foreground">{refPick.label}</span>
+            )}
+            <button type="button" onClick={applyRel}
+              title={relTarget ? `${timeStr(relTarget.start)} — ${refPick.ref.name || ""}` : undefined}
+              className={`${chip} ${lit}`}>{tr("when.relSet")}</button>
+          </span>
         )}
         {mode !== "now" && (
           <button type="button" onClick={() => setLineUpOpen(true)}
@@ -349,6 +386,13 @@ export default function ActivityWhenField({
           </button>
         )}
       </div>
+      {refPick && relTarget && (
+        <p className="text-[0.6875em] text-muted-foreground -mt-1 truncate">
+          {rel === "after"
+            ? tr("when.relHintAfter", { time: timeStr(relTarget.start), name: refPick.ref.name || "—" })
+            : tr("when.relHintBefore", { time: timeStr(new Date(refPick.ref.start)), name: refPick.ref.name || "—" })}
+        </p>
+      )}
       {timed ? lengthRow : (
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">{tr("when.startedAgo")}</p>

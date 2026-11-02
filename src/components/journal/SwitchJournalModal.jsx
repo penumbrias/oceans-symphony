@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useQuery } from "@tanstack/react-query";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { clockPattern } from "@/lib/timeFormat";
 
 const SYMPTOMS = [
   { key: "anxiety", label: "Anxiety / worry" },
@@ -129,7 +130,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
       const content = buildContent({ trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms, notes: cleanNotes });
       const entry = await base44.entities.JournalEntry.create({
         title,
-        content: `## ${title} (${format(now, "MMMM d, yyyy · h:mm a")})\n\n${content}`,
+        content: `## ${title} (${format(now, clockPattern("MMMM d, yyyy · h:mm a"))})\n\n${content}`,
         entry_type: "switch_log",
         tags: ["switch"],
         author_alter_id: prepared.authorIds[0] || authorAlterId || "",
