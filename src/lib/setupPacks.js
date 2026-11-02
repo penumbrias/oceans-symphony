@@ -79,6 +79,62 @@ function scrubLocalRefs(value, imageRefs = null) {
   return value;
 }
 
+// Picture references can also sit INSIDE a longer string — a look's
+// custom CSS (`background: url(/local-image/…)`), a text widget's rich
+// HTML (`<img src="local-image://…">`), an inline data:image. The
+// whole-value checks above never saw those, so they rode out in packs
+// and the import check (rightly) refused the whole thing — the "this pack
+// contains personal-looking data" report on a plain layout share.
+const EMBEDDED_URL_RE = /url\(\s*(['"]?)\s*(?:local-image:\/\/|\/local-image\/|folder:\/\/|data:image\/)[^)]*\)/gi;
+const EMBEDDED_REF_RE = /(?:local-image:\/\/|\/local-image\/|folder:\/\/)[^"'\s)<>]+|data:image\/[^"'\s)<>]+/gi;
+const hasEmbeddedRef = (v) => typeof v === "string" && /local-image:\/\/|\/local-image\/|folder:\/\/|data:image\//i.test(v);
+
+// Rewrites one string: with imageRefs a device picture becomes a
+// pack-image://N reference (it travels in the .zip); otherwise every
+// picture reference is taken out (`url(...)` becomes `none`, a bare
+// reference becomes empty). Returns { value, removed }.
+function scrubEmbeddedString(str, imageRefs = null) {
+  let removed = 0;
+  const swap = (ref) => {
+    const mapped = packImageRef(ref, imageRefs);
+    if (mapped) return mapped;
+    removed += 1;
+    return null;
+  };
+  let value = str.replace(EMBEDDED_URL_RE, (whole) => {
+    const inner = whole.replace(/^url\(\s*['"]?\s*/i, "").replace(/\s*['"]?\s*\)$/, "");
+    const mapped = swap(inner);
+    return mapped ? `url("${mapped}")` : "none";
+  });
+  value = value.replace(EMBEDDED_REF_RE, (ref) => swap(ref) || "");
+  return { value, removed };
+}
+
+// Last pass over anything a pack carries: whole-value AND embedded
+// picture references, at any depth. Counts what had to be left out.
+export function scrubPackValue(value, imageRefs = null, dropped = null) {
+  if (isPackImageRef(value)) return value;
+  if (typeof value === "string") {
+    const mapped = packImageRef(value, imageRefs);
+    if (mapped) return mapped;
+    if (isLocalRef(value)) { if (dropped) dropped.images += 1; return undefined; }
+    if (!hasEmbeddedRef(value)) return value;
+    const { value: clean, removed } = scrubEmbeddedString(value, imageRefs);
+    if (dropped) dropped.images += removed;
+    return clean;
+  }
+  if (Array.isArray(value)) return value.map((v) => scrubPackValue(v, imageRefs, dropped)).filter((v) => v !== undefined);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const c = scrubPackValue(v, imageRefs, dropped);
+      if (c !== undefined) out[k] = c;
+    }
+    return out;
+  }
+  return value;
+}
+
 // Per-widget appearance keys (colours, fonts, borders…) plus the saved-style
 // reference. A LAYOUT export carries them only when the user opts in — "my
 // widget layout export included colours I never asked to share" (owner).
@@ -99,18 +155,15 @@ function sanitizeSettings(settings = {}, { includeLook = false, widgetId = null,
     if (mappedImg) { out[k] = mappedImg; continue; }
     if (isLocalRef(v)) { if (dropped) dropped.images += 1; continue; }
     if (v && typeof v === "object") continue; // nested structures are where ids hide
-    out[k] = v;
+    out[k] = scrubPackValue(v, imageRefs, dropped);
   }
   return out;
 }
 
-function sanitizeLook(look = {}) {
-  const out = {};
-  for (const [k, v] of Object.entries(look)) {
-    if (isLocalRef(v)) continue;
-    out[k] = v;
-  }
-  return out;
+function sanitizeLook(look = {}, imageRefs = null, dropped = null) {
+  // Deep: a saved style's background layers and custom CSS nest their
+  // pictures (top-level-only let them through).
+  return scrubPackValue(look || {}, imageRefs, dropped) || {};
 }
 
 // ── Builders ───────────────────────────────────────────────────────
@@ -133,7 +186,6 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [], im
   const wallpaperRef = packImageRef(home?.wallpaper?.url, imageRefs);
   if (!wallpaperRef && (isLocalRef(home?.wallpaper?.url) || home?.wallpaper?.folder)) dropped.images += 1;
   const out = { pages, grid: home?.grid || null };
-  if (dropped.images) out.omittedImages = dropped.images;
   // Appearance is only real if the styles it references travel too: a
   // widget styled via a saved style ("user:<id>") carries just the ref —
   // bundle the referenced definitions so layout+appearance is
@@ -145,7 +197,7 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [], im
       if (typeof st === "string" && st.startsWith("user:")) refIds.add(st.slice(5));
     }
     const bundled = (userStyles || []).filter((st) => refIds.has(st.id))
-      .map((st) => ({ id: st.id, label: st.label, look: sanitizeLook(st.look || {}) }));
+      .map((st) => ({ id: st.id, label: st.label, look: sanitizeLook(st.look || {}, imageRefs, dropped) }));
     if (bundled.length) out.styles = bundled;
   }
   // Board-level surface: the page background (gradient layers — image
@@ -154,20 +206,17 @@ export function buildLayoutType(home, { includeLook = false, userStyles = [], im
   // ground (owner screenshots).
   if (includeLook) {
     const rawLook = { styleMode: home?.styleMode || null, background: home?.background || null };
-    const rawStr = JSON.stringify(rawLook) || "";
-    const scrubbed = scrubLocalRefs(rawLook, imageRefs);
-    // Only count what actually got dropped — anything mapped into the
-    // archive is travelling, not missing.
-    const stillMissing = (JSON.stringify(scrubbed) || "").match(/local-image:\/\/|\/local-image\/|folder:\/\//g) || [];
-    const before = (rawStr.match(/local-image:\/\/|\/local-image\/|folder:\/\/|data:image/g) || []).length;
-    const omitted = imageRefs ? stillMissing.length : before;
-    if (omitted) { dropped.images += omitted; }
-    out.look = scrubbed;
+    // Counts only what got left out — anything mapped into the archive
+    // is travelling, not missing.
+    out.look = scrubPackValue(rawLook, imageRefs, dropped);
     // The wallpaper only travels with the pictures.
     if (wallpaperRef) out.wallpaper = { url: wallpaperRef };
-    if (dropped.images) out.omittedImages = dropped.images; else delete out.omittedImages;
   }
-  return out;
+  // Final sweep: grid and anything a builder above passed through.
+  const swept = scrubPackValue({ ...out, omittedImages: undefined }, imageRefs, dropped);
+  delete swept.omittedImages;
+  if (dropped.images) swept.omittedImages = dropped.images;
+  return swept;
 }
 
 export function buildWidgetStylesType(userStyles = []) {
@@ -191,7 +240,7 @@ export function buildUiThemeType(uiV2Raw = {}, appTheme = null, { imageRefs = nu
   }
   if (clone.barLooks) {
     for (const [barId, look] of Object.entries(clone.barLooks)) {
-      clone.barLooks[barId] = sanitizeLook(look || {});
+      clone.barLooks[barId] = sanitizeLook(look || {}, imageRefs);
     }
   }
   delete clone.activeDockPos;
@@ -219,7 +268,9 @@ export function buildUiThemeType(uiV2Raw = {}, appTheme = null, { imageRefs = nu
       headingFont: a11y.headingFont || null,
     });
   }
-  return clone;
+  // Anything else in ui_v2 that holds a picture (page looks, nested
+  // backgrounds, CSS) — mapped into the zip or left out, never leaked.
+  return scrubPackValue(clone, imageRefs);
 }
 
 export function buildPack({ title, layout = null, widgetStyles = null, uiTheme = null }) {
@@ -260,11 +311,52 @@ export function summarizePack(pack) {
 }
 
 // Safety re-check on IMPORT too — a hand-edited pack could smuggle refs.
+// Two kinds of finding:
+//   account  — a friends-identity key (userId / secret). Never imported.
+//   pictures — a reference to a picture on the SENDER's device (or an
+//              inline picture). Meaningless here, so the importer takes
+//              them out and says so, instead of refusing the whole layout.
+// pack-image://N is archive-relative and names no device or account.
+const ACCOUNT_KEYS = new Set(["secret", "userId"]);
+export function findPackPersonalRefs(pack) {
+  const found = { account: [], pictures: 0 };
+  const walk = (v, path) => {
+    if (typeof v === "string") {
+      if (isPackImageRef(v)) return;
+      if (isLocalRef(v)) { found.pictures += 1; return; }
+      if (hasEmbeddedRef(v)) found.pictures += (v.match(EMBEDDED_URL_RE) || []).length + (v.replace(EMBEDDED_URL_RE, "").match(EMBEDDED_REF_RE) || []).length || 1;
+      return;
+    }
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return; }
+    if (v && typeof v === "object") {
+      for (const [k, x] of Object.entries(v)) {
+        if (ACCOUNT_KEYS.has(k)) found.account.push(path ? `${path}.${k}` : k);
+        walk(x, path ? `${path}.${k}` : k);
+      }
+    }
+  };
+  walk(pack?.types || {}, "");
+  return found;
+}
+
 export function packLooksSafe(pack) {
-  // pack-image://N is archive-relative and names no device or account —
-  // unlike local-image:// (this device's store) or an inline data:image.
-  const raw = JSON.stringify(pack.types || {}).split(PACK_IMAGE_PREFIX).join("");
-  return !/local-image:\/\/|\/local-image\/|data:image|"secret"|"userId"/.test(raw);
+  const f = findPackPersonalRefs(pack);
+  return !f.account.length && !f.pictures;
+}
+
+// What the import sheet does with a pack before showing it: refuse an
+// account identity outright (with what was found), and take out any
+// device picture references. Returns { pack, removedPictures } or
+// { error }.
+export function preparePackForImport(pack) {
+  const f = findPackPersonalRefs(pack);
+  if (f.account.length) {
+    return { error: `This pack carries account details (${f.account.slice(0, 3).join(", ")}), so it wasn't imported. Ask for a fresh share.` };
+  }
+  if (!f.pictures) return { pack, removedPictures: 0 };
+  const dropped = { images: 0 };
+  const types = scrubPackValue(pack.types || {}, null, dropped);
+  return { pack: { ...pack, types }, removedPictures: dropped.images || f.pictures };
 }
 
 // ── Applying a pack ────────────────────────────────────────────────
@@ -775,6 +867,10 @@ export async function rehostPackImages(images) {
 // Swap pack-image:// references for the freshly saved local ones.
 export function applyImageMap(value, map) {
   if (isPackImageRef(value)) return map[value] || "";
+  // A picture inside CSS or rich text arrives as pack-image://N mid-string.
+  if (typeof value === "string" && value.includes(PACK_IMAGE_PREFIX)) {
+    return value.replace(/pack-image:\/\/\d+/g, (ref) => map[ref] || "");
+  }
   if (Array.isArray(value)) return value.map((v) => applyImageMap(v, map));
   if (value && typeof value === "object") {
     const out = {};
