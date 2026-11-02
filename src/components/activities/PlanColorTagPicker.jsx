@@ -1,99 +1,67 @@
 import React, { useState } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
-import { Check, X, Plus } from "lucide-react";
+import { Check } from "lucide-react";
+import { ColourRow } from "@/components/shared/SettingRows";
+import { useT } from "@/lib/i18n";
 import {
   PLAN_TAG_PRESETS, normalizeHex, readSavedTagColors, saveTagColor, deleteSavedTagColor,
 } from "@/lib/planTagColor";
 
-// Color tag for a plan — separate from the activity's own color. Presets,
-// your saved colors (tap × to remove one), and any hex via the field or the
-// system color picker.
-export default function PlanColorTagPicker({ value, onChange }) {
+// Color tag for a plan — separate from the activity's own color.
+//
+// One colour, one control (owner report, 2026-11-02): the row is the shared
+// ColourRow, so the swatch opens the app's one ColorPicker (wheel + hex
+// field) and an unset tag shows dashed with no ×, like every other colour
+// setting. It used to hand-roll its own picker — a bare system colour input,
+// a second hex box with "Use", and a tiny × on every saved swatch that
+// removed it on one tap. Presets and the person's saved colours stay as
+// one-tap swatches below; saving or forgetting one lives in the picker.
+export default function PlanColorTagPicker({ value, onChange, hint }) {
+  const tr = useT();
   const [saved, setSaved] = useState(() => readSavedTagColors());
-  const [hexDraft, setHexDraft] = useState("");
   const current = normalizeHex(value || "");
+  const isSaved = !!current && saved.includes(current);
 
   const pick = (hex) => onChange(normalizeHex(hex));
-  const Swatch = ({ hex, removable }) => (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => pick(hex)}
-        aria-label={`Color ${hex}`}
-        className={`w-7 h-7 rounded-full border flex items-center justify-center ${current === hex ? "ring-2 ring-offset-1 ring-primary" : "border-border/60"}`}
-        style={{ backgroundColor: hex }}
-      >
-        {current === hex ? <Check className="w-3.5 h-3.5 text-white mix-blend-difference" /> : null}
-      </button>
-      {removable && (
-        <button
-          type="button"
-          onClick={async () => {
-            if (!(await confirm({ title: "Delete this saved color?", body: `${hex} will be removed from your saved colors. Plans already using it keep their color.`, confirmLabel: "Delete", destructive: true }))) return;
-            setSaved(deleteSavedTagColor(hex));
-          }}
-          aria-label={`Delete saved color ${hex}`}
-          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-background border border-border text-muted-foreground flex items-center justify-center"
-        >
-          <X className="w-2.5 h-2.5" />
-        </button>
-      )}
-    </span>
+  const Swatch = ({ hex }) => (
+    <button
+      type="button"
+      onClick={() => pick(hex)}
+      aria-label={tr("tagColor.swatch", { hex })}
+      aria-pressed={current === hex}
+      className={`w-8 h-8 rounded-full border flex items-center justify-center ${
+        current === hex ? "ring-2 ring-offset-1 ring-offset-background ring-[var(--v2-accent)]" : "border-border/60"
+      }`}
+      style={{ backgroundColor: hex }}
+    >
+      {current === hex ? <Check className="w-3.5 h-3.5 text-white mix-blend-difference" /> : null}
+    </button>
   );
-
-  const applyHex = () => {
-    const h = normalizeHex(hexDraft);
-    if (h) { pick(h); setHexDraft(""); }
-  };
 
   return (
     <div className="space-y-2">
+      <ColourRow
+        label={tr("planner.colorTag")}
+        hint={hint}
+        value={current}
+        fallback="#8b5cf6"
+        onChange={pick}
+        onClear={current ? () => onChange(null) : undefined}
+        extraAction={current ? {
+          label: isSaved ? tr("tagColor.forget") : tr("tagColor.save"),
+          onClick: () => setSaved(isSaved ? deleteSavedTagColor(current) : saveTagColor(current)),
+        } : undefined}
+      />
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className={`h-7 px-2.5 rounded-full border text-xs ${!current ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
-        >
-          None
-        </button>
         {PLAN_TAG_PRESETS.map((h) => <Swatch key={h} hex={h} />)}
       </div>
       {saved.length > 0 && (
         <div>
-          <p className="text-[0.6875rem] text-muted-foreground mb-1">Saved colors</p>
+          <p className="text-[0.6875rem] text-muted-foreground mb-1">{tr("tagColor.saved")}</p>
           <div className="flex flex-wrap items-center gap-2">
-            {saved.map((h) => <Swatch key={h} hex={h} removable />)}
+            {saved.map((h) => <Swatch key={h} hex={h} />)}
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="color"
-          value={current || "#8b5cf6"}
-          onChange={(e) => pick(e.target.value)}
-          aria-label="Pick any color"
-          className="w-9 h-9 shrink-0 rounded-lg border border-input bg-background p-0.5"
-        />
-        <input
-          type="text"
-          value={hexDraft}
-          onChange={(e) => setHexDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyHex(); } }}
-          placeholder={current || "#hex"}
-          maxLength={7}
-          aria-label="Hex color"
-          className="flex-1 min-w-[5rem] h-9 px-3 rounded-lg border border-input bg-background text-sm"
-        />
-        <button type="button" onClick={applyHex} className="h-9 shrink-0 whitespace-nowrap px-2.5 rounded-lg border border-border/60 text-xs">Use</button>
-        <button
-          type="button"
-          disabled={!current}
-          onClick={() => setSaved(saveTagColor(current))}
-          className="h-9 shrink-0 whitespace-nowrap px-2.5 rounded-lg border border-border/60 text-xs inline-flex items-center gap-1 disabled:opacity-40"
-        >
-          <Plus className="w-3 h-3" /> Save
-        </button>
-      </div>
     </div>
   );
 }

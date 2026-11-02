@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "New activity: starting several activities at once now starts a timer for each one, and the button says \"Start activity\"." },
+      { type: "improve", text: "New activity: the title is its own optional field, \"What is it?\" is where you pick activities, and Who stays closed until you open it." },
+      { type: "improve", text: "New activity: the time shortcuts are now Now, Before/After the last one + Set, and Line up with. The to-do section can make a new to-do." },
+      { type: "fix", text: "The colour tag uses the app's normal colour picker, and saved colours can no longer be deleted by one stray tap." },
       { type: "feature", text: "Choose a 12-hour or 24-hour clock in Settings → Time & clock." },
       { type: "feature", text: "Contacts: edit a relationship to change who it's with, its type, whether you've met and its notes." },
       { type: "fix", text: "Month and year calendars: colour-tagged plans show their colour, untagged days use their activity's colour, and each event is a dot." },
