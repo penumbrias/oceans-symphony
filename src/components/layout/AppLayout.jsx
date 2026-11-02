@@ -28,6 +28,7 @@ import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav, { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import GlobalPullToRefresh from "@/components/layout/GlobalPullToRefresh";
 import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
+import GlobalSongHost from "@/components/alters/GlobalSongHost";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: only pulled into the bundle for the users who need it (existing
@@ -1237,6 +1238,8 @@ const handleNotifClick = (mentionLog) => {
         </div>
       )}
 
+      {/* The Song widget's "play on every page" track. */}
+      <GlobalSongHost />
       <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {/* System switcher sheet — ONE host for every chrome trigger (top-bar
           name, sidebar app icon). */}

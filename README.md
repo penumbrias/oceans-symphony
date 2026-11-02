@@ -48,4 +48,4 @@ Support: [https://app.base44.com/support](https://app.base44.com/support)
 
 ## Thanks
 
-- **[ShineSpark330](https://github.com/ShineSpark330)**, for their fork ([ShineSpark330/OS](https://github.com/ShineSpark330/OS)). Its Reformation lineage event and many bug fixes were brought into this app from v0.266.0 on.
+- **[ShineSpark330](https://github.com/ShineSpark330)**, for their forks ([ShineSpark330/OS](https://github.com/ShineSpark330/OS) and [ShineSpark330/AZ](https://github.com/ShineSpark330/AZ), "Apeiron Zetta"). Their Reformation lineage event, many bug fixes, and the Android audio and keyboard fixes were brought into this app from v0.266.0 on.
