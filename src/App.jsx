@@ -298,8 +298,8 @@ const AuthenticatedApp = () => {
         <Route path="/friends" element={<FriendsPage />} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
         <Route path="/planner" element={<PlannerPage />} />
-        <Route path="/goals" element={<ExperimentalGate name="Goals"><GoalsPage /></ExperimentalGate>} />
-        <Route path="/needs" element={<ExperimentalGate name="Needs"><NeedsPage /></ExperimentalGate>} />
+        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/needs" element={<NeedsPage />} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
         <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />

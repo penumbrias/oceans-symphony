@@ -36,7 +36,6 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
-import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
@@ -548,8 +547,6 @@ const termMap = useMemo(() => ({
 
 // Bumps when mod pages join or leave ALL_PAGES (src/lib/mods/registry.js).
 const modPagesVersion = useModPagesVersion();
-// Needs (and its interrupt note) is experimental — hidden until switched on.
-const experimentalFeaturesOn = useExperimentalOn();
 const navItems = useMemo(() => {
   return (navConfig.topBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
@@ -1253,7 +1250,7 @@ const handleNotifClick = (mentionLog) => {
           is redundant — but if the user hides quick actions entirely, the
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
-      {experimentalFeaturesOn && <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>}
+      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
       <GroceryListPanel />
       <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
       {/* Devices that disagree about who's fronting — the person picks. */}

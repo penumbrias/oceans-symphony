@@ -1,14 +1,14 @@
 // "Experimental features" switch (Settings → About & help).
 //
-// Needs, Goals and Mods are still settling, so they stay out of sight until
-// a person turns this on. Off hides every way in: the pages leave ALL_PAGES
+// Mods are still settling, so they stay out of sight until a person turns
+// this on. (Needs, Goals and wishes left the switch in v0.344.0 and are
+// always shown.) Off hides every way in: the pages leave ALL_PAGES
 // (bars, dashboard grid, quick actions, Navigation settings all read it
 // live), the hard-coded nav catalogues filter them, their widgets leave the
 // picker, their tour steps are skipped, search drops their results, and the
 // routes show a small "turn it on" card instead of the page.
 //
-// Hiding never touches data: goals, wishes, turn agreements and installed
-// mods stay in the database, backups and sync. Turning the switch back on
+// Hiding never touches data: installed mods stay in the database, backups and sync. Turning the switch back on
 // brings everything back exactly as it was.
 //
 // A per-device preference, kept durable by BACKUP_LS_KEYS (backupKeys.js).
@@ -17,8 +17,8 @@ import { useSyncExternalStore } from "react";
 
 export const EXPERIMENTAL_FEATURES_KEY = "symphony_experimental_features_v1";
 
-export const EXPERIMENTAL_PAGE_IDS = ["needs", "goals", "mods"];
-const EXPERIMENTAL_PATH_PREFIXES = ["/needs", "/goals", "/mods", "/mod/"];
+export const EXPERIMENTAL_PAGE_IDS = ["mods"];
+const EXPERIMENTAL_PATH_PREFIXES = ["/mods", "/mod/"];
 
 const listeners = new Set();
 

@@ -384,7 +384,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     mods,
 ]);
 
-  // Results that open Needs, Goals or Mods stay out while those are hidden.
+  // Results that open Mods stay out while those are hidden.
   const experimentalFeaturesOn = useExperimentalOn();
   const searchResults = useMemo(() => {
     const hits = searchIndex(index, query, 80);

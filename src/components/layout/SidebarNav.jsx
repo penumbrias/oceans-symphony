@@ -12,7 +12,7 @@ import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Act
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
-// Experimental pages (Needs, Goals, Mods) drop out while that switch is off.
+// Experimental pages (Mods) drop out while that switch is off.
 export function buildSidebarGroups(altersLabel, systemLabel) {
   return allSidebarGroups(altersLabel, systemLabel)
     .map((g) => ({ ...g, items: withoutHiddenExperimental(g.items) }))
