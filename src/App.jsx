@@ -71,9 +71,12 @@ import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
 // combined screen (StorageModeSetup renders the welcome copy above the storage
 // choice in "setup" mode).
 import { initAccessibility } from '@/lib/useAccessibility';
+import { initPlayInsideOnly } from '@/lib/playInsideOnly';
 
 // Apply saved accessibility settings before first render
 initAccessibility();
+// "Play inside the app only": stop sound when the app is left (if turned on).
+initPlayInsideOnly();
 // …and again if the on-device preferences mirror restores keys that a
 // localStorage wipe took (fires from initLocalDb once the DB is readable).
 // ThemeContext listens for its own re-read event from the same restore.

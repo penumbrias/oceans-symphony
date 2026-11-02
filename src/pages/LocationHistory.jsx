@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { clockPattern } from "@/lib/timeFormat";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { localEntities } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -308,7 +309,7 @@ export default function LocationHistory() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">{loc.name || cat.label}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(loc.timestamp), "h:mm a")}
+                              {format(new Date(loc.timestamp), clockPattern("h:mm a"))}
                               {loc.source === "gps" && (
                                 <span className="ml-2 text-green-500">📍 GPS</span>
                               )}

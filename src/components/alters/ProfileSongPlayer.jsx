@@ -8,8 +8,9 @@
 // • Autoplay honours the global toggle (SystemSettings.profile_songs_enabled,
 //   default ON). When the platform's autoplay policy blocks sound (web
 //   before first interaction), a ▶ chip appears instead — one tap starts it.
-// • While playing, a floating mini-player (title · pause/stop) sits above
-//   the bottom nav. Navigation away unmounts and stops the audio.
+// • No pop-up player: a song on a page just plays in the background (only the
+//   Song widget, `inline`, shows controls). Navigation away unmounts and stops
+//   the audio.
 
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isOtherAudioPlaying } from "@/lib/otherAudio";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { registerPageSong, saveSongTime, takeSongTime, songAutomatic, setLastAutoSong } from "@/lib/songPresence";
 
 // `song` lets any surface drive this (group/location profiles, the v2 home
 // board); `alter` stays supported so existing callers are untouched.
@@ -30,7 +32,7 @@ const fmtTime = (s) => {
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 };
 
-export default function ProfileSongPlayer({ alter, song: songProp, inline = false }) {
+export default function ProfileSongPlayer({ alter, song: songProp, inline = false, everywhere = false }) {
   const song = songProp || alter?.profile_song;
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -43,6 +45,27 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   const resolved = useResolvedAvatarUrl(song?.ref || null);
 
   const audioRef = useRef(null);
+  // Where the song was (and whether it was going) when its <audio> was last
+  // rebuilt, so a rebuild — a changed setting, the file's address being
+  // re-resolved — picks up in the same spot instead of dropping out and
+  // starting over from 0:00.
+  const carryRef = useRef(null);
+  const volRef = useRef(null);
+  // A song on a page (widget, profile, background) tells the app-wide song to
+  // step aside while it's on screen. The app-wide copy itself doesn't.
+  const hasRef = !!song?.ref;
+  useEffect(() => (everywhere || !hasRef ? undefined : registerPageSong()), [everywhere, hasRef]);
+  // "Automatic. Play when no music is playing." — starts on its own, gives way
+  // to other sound and picks back up when it stops. A song set to play on
+  // every page behaves the same, so it's already going when you arrive.
+  // (Declared before first use below.)
+  const automatic = songAutomatic(song);
+  // Songs set to play everywhere keep their place when moving between the
+  // widget page and the rest of the app.
+  const keepPlace = everywhere || song?.everywhere === true || (inline && automatic);
+  // The automatic widget song on the page you opened last is the one that
+  // carries on when you leave the widget pages.
+  useEffect(() => { if (inline && !everywhere && song?.automatic === true && song?.everywhere !== true && song?.ref) setLastAutoSong(song); }, [inline, everywhere, automatic, song]);
   const [state, setState] = useState("idle"); // idle | blocked | playing | paused | dismissed | error
   // Bumping this rebuilds the <audio> element from scratch. A load that
   // failed once (revoked blob URL, transient read error) is not forever —
@@ -52,11 +75,11 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   // Volume rides WITH the song, so a quiet track and a loud one can sit on
   // two different pages without the user re-adjusting their device each time.
   const volume = Number.isFinite(Number(song?.volume)) ? Math.max(0, Math.min(100, Number(song.volume))) : 100;
-  const autoplay = song?.autoplay !== false;
+  const autoplay = automatic || song?.everywhere === true;
   // "Play when there's no sound playing": the song gives way to any other
   // audio / video (one sound at a time) and picks back up once that stops —
   // unless the person paused the song themselves.
-  const playWhenIdle = song?.playWhenIdle === true;
+  const playWhenIdle = autoplay;
   const userPaused = useRef(false);
   const endedRef = useRef(false);
   const [looping, setLooping] = useState(song?.loop !== false);
@@ -68,12 +91,24 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
 
   useEffect(() => {
     if (!enabled || !song?.ref || !resolved) return undefined;
-    const el = new Audio(resolved);
+    const el = new Audio();
+    el.preload = "auto";
+    el.src = resolved;
     el.loop = looping;
-    el.volume = volume / 100;
+    el.volume = (volRef.current ?? volume) / 100;
     audioRef.current = el;
     let cancelled = false;
-    setTime(0); setDur(0);
+    const carried = carryRef.current && carryRef.current.ref === song.ref ? carryRef.current : null;
+    carryRef.current = null;
+    setTime(carried ? carried.t : 0); setDur(0);
+    if (carried || keepPlace) {
+      const resumeAt = carried ? carried.t : takeSongTime(song.ref);
+      if (resumeAt > 0) {
+        el.addEventListener("loadedmetadata", () => {
+          try { if (Number.isFinite(el.duration) && resumeAt < el.duration - 1) el.currentTime = resumeAt; } catch { /* not seekable yet */ }
+        }, { once: true });
+      }
+    }
     const unregister = registerMedia(el);
     const onPlayEv = () => { if (!cancelled) { endedRef.current = false; setState("playing"); } };
     const onPauseEv = () => { if (!cancelled && !el.ended) setState((st) => (st === "dismissed" || st === "error" ? st : "paused")); };
@@ -100,7 +135,10 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     // shows the same play control the blocked case does, without trying.
     // Someone's music is already playing: starting would stop it (Android
     // hands the audio to whoever played last), so wait for a tap.
-    if (!autoplay) {
+    if (carried?.playing) {
+      // It was sounding when it was rebuilt — carry straight on, no waiting.
+      el.play().then(() => { if (!cancelled) setState("playing"); }).catch(() => { if (!cancelled) setState(el.error ? "error" : "blocked"); });
+    } else if (!autoplay) {
       setState("paused");
     } else if (playWhenIdle && isOtherPlaying(el)) {
       // Something else is already playing — wait for quiet instead of talking over it.
@@ -130,15 +168,40 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
       el.removeEventListener("durationchange", onDur);
       el.removeEventListener("loadedmetadata", onDur);
       el.removeEventListener("error", onError);
+      if (keepPlace) saveSongTime(song.ref, el.currentTime);
+      carryRef.current = el.error ? null : { ref: song.ref, t: el.currentTime, playing: !el.paused && !el.ended && !userPaused.current };
       el.pause();
       el.src = "";
       audioRef.current = null;
     };
-  }, [enabled, song?.ref, resolved, volume, autoplay, playWhenIdle, loadNonce]);
+    // Volume is NOT a dependency: changing it must never rebuild the song
+    // (that cut the sound off and sent it back to 0:00). It's applied live below.
+  }, [enabled, song?.ref, resolved, autoplay, playWhenIdle, keepPlace, loadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    volRef.current = volume;
+    if (audioRef.current) audioRef.current.volume = volume / 100;
+  }, [volume]);
 
   useEffect(() => { if (audioRef.current) audioRef.current.loop = looping; }, [looping]);
 
-  if (!enabled || !song?.ref || state === "dismissed") return null;
+  // Songs on pages, profiles and backgrounds have no pop-up player any more —
+  // they just play. If the platform refuses to start sound until you touch the
+  // screen (web autoplay policy), the first touch starts it instead.
+  useEffect(() => {
+    if (inline || state !== "blocked") return undefined;
+    const go = () => {
+      const el = audioRef.current;
+      if (!el || userPaused.current) return;
+      el.play().then(() => setState("playing")).catch(() => { /* still blocked — wait for the next touch */ });
+    };
+    window.addEventListener("pointerdown", go, { once: true });
+    return () => window.removeEventListener("pointerdown", go);
+  }, [inline, state]);
+
+  // No pop-up player anywhere: only the Song widget (inline) shows controls.
+  // Every other song just plays quietly in the background.
+  if (!inline || !enabled || !song?.ref || state === "dismissed") return null;
 
   const title = song.title || alter?.name ? (song.title || `${alter?.name}'s song`) : "Song";
   const toggle = () => {
@@ -166,6 +229,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   };
   const changeVolume = (v) => {
     setLiveVolume(v);
+    volRef.current = v;
     if (audioRef.current) audioRef.current.volume = v / 100;
   };
 

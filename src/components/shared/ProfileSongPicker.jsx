@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { keptSongTitle, titleFromRef, meaningfulAssetName } from "@/lib/songTitle";
+import { songAutomatic } from "@/lib/songPresence";
 
 // A new pick names itself after the song (file name, library name, the
 // link's file name) unless the user typed a title of their own. titleAuto
@@ -33,7 +34,7 @@ function withTitle(value, ref, autoTitle) {
   };
 }
 
-export default function ProfileSongPicker({ value, onChange, subjectLabel = "page" }) {
+export default function ProfileSongPicker({ value, onChange, subjectLabel = "page", allowEverywhere = false }) {
   // null | "checking" | "ok" | "bad" — result of probing a pasted URL.
   const [urlState, setUrlState] = React.useState(null);
   const checkUrl = React.useCallback((url) => {
@@ -200,15 +201,27 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
               onCheckedChange={(v) => onChange({ ...value, loop: !!v })} />
           </label>
           <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>Start on its own</span>
-            <Switch checked={value.autoplay !== false}
-              onCheckedChange={(v) => onChange({ ...value, autoplay: !!v })} />
+            <span>Automatic. Play when no music is playing.</span>
+            <Switch checked={songAutomatic(value)}
+              onCheckedChange={(v) => onChange({
+                ...value, automatic: !!v, autoplay: !!v, playWhenIdle: !!v,
+                ...(v ? { everywhere: false } : {}),
+              })} />
           </label>
-          <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>Play when there's no sound playing</span>
-            <Switch checked={value.playWhenIdle === true}
-              onCheckedChange={(v) => onChange({ ...value, playWhenIdle: !!v })} />
-          </label>
+          {allowEverywhere && (
+            <div className="space-y-0.5">
+              <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span>Play on every page of the app</span>
+                <Switch checked={value.everywhere === true} disabled={value.automatic === true}
+                  onCheckedChange={(v) => onChange({ ...value, everywhere: !!v })} />
+              </label>
+              <p className="text-[0.6875rem] text-muted-foreground">
+                {value.automatic === true
+                  ? "Turn Automatic off to use this. An automatic song already carries on from the widget page you opened last."
+                  : "A page with its own song keeps it, and chat videos and audio pause this one until they stop."}
+              </p>
+            </div>
+          )}
           {/* Volume is saved with the SONG, so a loud track and a quiet one
               can live on two pages without re-adjusting the device each time. */}
           <div className="space-y-1">

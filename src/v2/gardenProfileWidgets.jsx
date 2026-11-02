@@ -14,6 +14,7 @@
 //     itself while the layout is being edited.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -285,7 +286,7 @@ export function formatSpan(ms) {
 const startOf = (s) => new Date(s.start_time).getTime();
 const endOf = (s, now) => (s.end_time ? new Date(s.end_time).getTime() : (s.is_active ? now : startOf(s)));
 const dayLabel = (ms) => new Date(ms).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-const timeLabel = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const timeLabel = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...clockOpts() });
 
 export function frontingStats(sessions, { days = 30, now = Date.now() } = {}) {
   const from = days ? now - days * DAY : -Infinity;

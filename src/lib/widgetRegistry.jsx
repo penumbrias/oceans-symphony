@@ -20,6 +20,7 @@
 // widget re-implementing Dashboard's plumbing.
 
 import React from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Heart, Zap, Pin, Sparkles, Clock,
@@ -795,13 +796,13 @@ function ClockWidget({ mode }) {
   if (mode === "minimal") {
     return (
       <div className="flex items-center justify-center h-full rounded-xl border border-border/40 bg-card/50 px-2 py-1.5 text-sm font-medium tabular-nums">
-        {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() })}
       </div>
     );
   }
   return (
     <div className="flex flex-col items-center justify-center h-full rounded-xl border border-border/40 bg-card/50 px-3 py-2">
-      <span className="text-xl font-semibold tabular-nums">{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      <span className="text-xl font-semibold tabular-nums">{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() })}</span>
       <span className="text-xs text-muted-foreground">{now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</span>
       {mode === "expanded" && (
         <span className="text-[0.6875em] text-muted-foreground mt-0.5">{now.toLocaleDateString([], { year: "numeric" })}</span>

@@ -677,7 +677,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🔗", title: "Line it up",
-      body: `"After the last one" starts where your last activity ended. "Line up with…" lets you tap another activity to start after it, end before it, or start with it.`,
+      body: `"Now" sets the start (or end) to now. Before / After + Set places it next to the last one logged or the last on the timeline. "Line up with…" lets you tap any other activity.`,
       route: "/planner", target: "planner",
     }),
     s("activities", {
