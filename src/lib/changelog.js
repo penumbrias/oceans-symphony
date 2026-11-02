@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "Soundscape focused mode: Particles no longer traps you, its settings are a page inside Focus settings, and you can pick a nature sound or your own from there too." },
       { type: "improve", text: "Goals, Needs and wishes are out of Experimental features: they now show for everyone. Only Mods still need the switch." },
       { type: "improve", text: "Widget options → Text: body and heading settings now show together under their own headings, no more switching between them." },
       { type: "fix", text: "Widget options → Styles: Ready-made, Your styles and Themes open again; each is now its own page with a back button." },

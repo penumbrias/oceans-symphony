@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, ChevronLeft } from "lucide-react";
 
 // Small pieces the Quick Support tools share between their own screen and
 // their full-screen focus view, so a setting looks and works the same in
@@ -50,7 +50,8 @@ export function SheetSection({ title, children }) {
 // bottom, scrolls on its own, and keeps taps from reaching the drawing or
 // the visual underneath. The view keeps running behind it, so every change
 // is seen straight away.
-export function FocusSettingsSheet({ title, onClose, children }) {
+// onBack: a drill-in page inside the sheet shows a back button by its title.
+export function FocusSettingsSheet({ title, onClose, onBack, children }) {
   const stop = (e) => e.stopPropagation();
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-end" onClick={stop} onPointerDown={stop}>
@@ -63,7 +64,15 @@ export function FocusSettingsSheet({ title, onClose, children }) {
       >
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/40">
           <span className="w-10 h-1 rounded-full bg-muted-foreground/30 absolute left-1/2 -translate-x-1/2 top-1.5" aria-hidden />
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <div className="flex items-center gap-1 min-w-0">
+            {onBack && (
+              <button type="button" onClick={onBack} aria-label="Back"
+                className="-ml-2 h-9 w-9 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            <h2 className="text-sm font-semibold text-foreground truncate">{title}</h2>
+          </div>
           <button type="button" onClick={onClose} aria-label="Done"
             className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">
             <X className="w-3.5 h-3.5" /> Done
