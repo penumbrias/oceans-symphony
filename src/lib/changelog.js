@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "Sharing a home screen layout works again: picture links that can't travel are left out instead of the import refusing the whole pack, and it now says what was taken out." },
       { type: "feature", text: "New Scratchboard mod (Mods → library): a small drawing space with raster and vector layers, a lasso, fill bucket and brushes you shape yourself. Save drawings to Assets and credit the {{alter}} who made them." },
       { type: "fix", text: "Mods' saved data is no longer changed by the app's start-up picture clean-up." },
       { type: "feature", text: "Nature sounds: add your own recordings from your device or Assets, kept as they are or made smaller. They're in Assets and backups, and Auto-backup can leave them out." },
