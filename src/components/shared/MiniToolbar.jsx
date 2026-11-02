@@ -6,8 +6,9 @@ import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
   CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff, Eraser,
-  ImagePlus, Images,
+  ImagePlus, Images, Brush,
 } from "lucide-react";
+import DrawingPad from "@/components/shared/DrawingPad";
 import InternalLinkPicker from "@/components/shared/InternalLinkPicker";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { useQuery } from "@tanstack/react-query";
@@ -126,6 +127,7 @@ export function useTextareaInsert(ref, value, onChange) {
 // `icons` renders the ACTUAL toolbar lucide glyphs so the guide matches the
 // buttons; `glyph` is used for the text/emoji buttons (which already match).
 const MORE_HELP = [
+  { icons: [Brush], d: "Draw — ink that sits in your text, or a picture in colour" },
   { icons: [Heading1, Heading2, Heading3], d: "Headings (largest → smallest)" },
   { icons: [List, ListOrdered], d: "Bullet list / numbered list" },
   { icons: [Quote], d: "Block quote" },
@@ -320,6 +322,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const [showLinkPrompt, setShowLinkPrompt] = useState(false);
   const [showMentionCompose, setShowMentionCompose] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showDraw, setShowDraw] = useState(false);
   // Which toggle commands are active for the current selection, so the
   // matching toolbar buttons light up (bold on → Bold button highlighted).
   // Only meaningful on a live contentEditable host (onCommand present); the
@@ -441,7 +444,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPicker(true);
   };
 
-  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose);
+  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose || showDraw);
   useEffect(() => {
     onModalChange?.(anyModalOpen);
      
@@ -449,6 +452,18 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // If the host unmounts the toolbar anyway, don't leave it thinking a
   // modal is still up.
   useEffect(() => () => onModalChange?.(false), []);  
+
+  // The drawing pad: put the finished drawing where the caret was.
+  const openDraw = () => {
+    saveSel();
+    setShowDraw(true);
+  };
+  const insertDrawing = (html) => {
+    restoreSel();
+    if (onCommand) onCommand("insertHTML", html);
+    else onInsert(html, "");
+    savedSelection.current = null;
+  };
 
   const openWebLink = () => {
     saveSel();
@@ -565,6 +580,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
             <ImagePlus className="w-3.5 h-3.5" />
           </button>
         )}
+        <button type="button" title="Draw" aria-label="Draw"
+          onMouseDown={e => e.preventDefault()} onClick={openDraw}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+          <Brush className="w-3.5 h-3.5" />
+        </button>
         <button type="button" title="Mentions & commands" aria-label="Insert mentions, signposts or commands"
           onMouseDown={e => e.preventDefault()} onClick={() => { saveSel(); setShowMentionCompose(true); }}
           className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
@@ -737,6 +757,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           under its pointerdown-preventDefault (which exists to keep the
           editor focused), so none of their inputs could ever take focus. */}
       {showHelp && createPortal(<HelpPopup onClose={() => setShowHelp(false)} />, document.body)}
+      {showDraw && <DrawingPad onInsert={insertDrawing} onClose={() => setShowDraw(false)} />}
       {showLinkPrompt && createPortal(
         <LinkPromptModal
           onApply={applyLink}
