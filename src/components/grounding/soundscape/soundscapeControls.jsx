@@ -8,6 +8,7 @@ import { setParams as engineSetParams, setTimer as engineSetTimer, getSoundscape
 import { readSoundscapePrefs, writeSoundscapePrefs, TIMER_OPTIONS } from "@/lib/soundscape/soundscapePrefs";
 import { FRACTAL_PRESETS } from "@/lib/soundscape/fractals";
 import { Chips, Row } from "@/components/grounding/focusControls";
+import { SliderRow } from "@/components/shared/SettingRows";
 import SoundShaper from "./SoundShaper";
 import FractalPanel from "./FractalPanel";
 
@@ -135,10 +136,8 @@ export function VolumeRow({ ctl, compact = false }) {
   );
   if (compact) return slider;
   return (
-    <Row label="Volume" value={`${Math.round(p.volume * 100)}%`}>
-      {slider}
-      <p className="text-[0.6875rem] text-muted-foreground">Start low, especially with headphones. It fades in and out gently.</p>
-    </Row>
+    <SliderRow label="Volume" hint="Start low, especially with headphones. It fades in and out gently."
+      value={Math.round(p.volume * 100)} min={0} max={100} unit="%" onChange={(v) => setP({ volume: Math.round(v) / 100 })} />
   );
 }
 

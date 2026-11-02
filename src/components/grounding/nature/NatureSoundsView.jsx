@@ -132,6 +132,26 @@ function NowPlaying({ player, prefs, offline, list }) {
   );
 }
 
+// The shaping page's compact player: the name, the save button (shaping a
+// streamed sound needs it saved) and play/pause.
+function NowPlayingStrip({ player, prefs, offline }) {
+  const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
+  if (!sound) return null;
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-card pl-3 pr-1 py-1">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{sound.title}</p>
+        <p className="text-[0.6875rem] text-muted-foreground truncate">{player.loading ? "Loading…" : player.playing ? "Playing" : "Paused"}</p>
+      </div>
+      <SaveButton id={sound.id} offline={offline} />
+      <button type="button" onClick={() => toggleNature()} aria-label={player.playing ? "Pause" : "Play"}
+        className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground">
+        {player.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : player.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+    </div>
+  );
+}
+
 function SoundRow({ sound, current, playing, fav, offline }) {
   const isSaved = offline.saved?.has(sound.id);
   return (
@@ -162,7 +182,7 @@ function SoundRow({ sound, current, playing, fav, offline }) {
 // A drill-in page inside Nature sounds, with its own back link.
 function SubPage({ title, onBack, children }) {
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-4" data-tour="grounding-nature-view">
+    <div className="max-w-lg mx-auto p-4 pb-24 space-y-4" data-tour="grounding-nature-view">
       <div>
         <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
           ← Back to Nature sounds
@@ -198,14 +218,14 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
   if (page === "shape") {
     return (
       <SubPage title="Shape the sound" onBack={() => setPage("main")}>
-        <NowPlaying player={player} prefs={prefs} offline={offline} list={ids} />
+        <NowPlayingStrip player={player} prefs={prefs} offline={offline} />
         <RecordingShaper />
       </SubPage>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-4" data-tour="grounding-nature-view">
+    <div className="max-w-lg mx-auto p-4 pb-24 space-y-4" data-tour="grounding-nature-view">
       <div>
         <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
           ← {backLabel}
@@ -257,8 +277,6 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
         </Group>
 
         <Group title="More">
-          <SwitchRow label="Keep playing around the app" checked={prefs.keepPlaying}
-            onChange={(v) => writeNaturePrefs({ keepPlaying: v })} />
           <LinkRow label="Credits" icon={ScrollText} value={`${NATURE_SOUNDS.length} recordings`} onClick={() => setPage("credits")} />
         </Group>
       </div>

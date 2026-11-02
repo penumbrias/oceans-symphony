@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Square, Maximize2, ShieldCheck, Plus, Sparkles, Leaf, Music, Eraser, SlidersHorizontal, ChevronRight } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { startSoundscape, stopSoundscape } from "@/lib/soundscape/engine";
 import { canBlockSystemNotifications, getDndStatus, openDndAccessSettings } from "@/lib/soundscape/focusMode";
 import { PREVIEW_HEIGHT } from "@/lib/soundscape/soundscapePrefs";
 import SoundscapeVisualizer from "./SoundscapeVisualizer";
 import SoundscapeFocus from "./SoundscapeFocus";
-import { Group, LinkRow } from "@/components/shared/SettingRows";
+import { Group, LinkRow, SwitchRow } from "@/components/shared/SettingRows";
 import NatureSoundsView from "@/components/grounding/nature/NatureSoundsView";
 import { useNatureState, useMySounds } from "@/components/grounding/nature/natureHooks";
 import { natureSoundById } from "@/lib/natureSounds/catalog";
@@ -173,7 +172,7 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
 
   if (page === "math") {
     return (
-      <div className="max-w-lg mx-auto p-4 space-y-5" data-tour="grounding-soundscape-view">
+      <div className="max-w-lg mx-auto p-4 pb-24 space-y-5" data-tour="grounding-soundscape-view">
         <PageHeader onBack={() => setPage("main")} title="Made from math" subtitle="Noise and tones generated on this device. Shape them like a synth." />
         <button type="button" onClick={toggleMath}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
@@ -205,7 +204,7 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
 
   if (page === "add") {
     return (
-      <div className="max-w-lg mx-auto p-4 space-y-4" data-tour="grounding-soundscape-view">
+      <div className="max-w-lg mx-auto p-4 pb-24 space-y-4" data-tour="grounding-soundscape-view">
         <PageHeader onBack={() => setPage("main")} title="Add a sound"
           subtitle="One sound made from math and one recording can play together, and the visuals follow both." />
         <div className="px-1">
@@ -224,7 +223,7 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
 
   if (page === "particles") {
     return (
-      <div className="max-w-lg mx-auto p-4 space-y-5" data-tour="grounding-soundscape-view">
+      <div className="max-w-lg mx-auto p-4 pb-24 space-y-5" data-tour="grounding-soundscape-view">
         <PageHeader onBack={() => setPage("main")} title="Particles" subtitle="Draw a line, let go, and watch a few simple rules move it." />
         <ParticleSettings pad={pad} />
       </div>
@@ -235,7 +234,7 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
   const anyPlaying = playing.playing || nature.playing;
 
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-5" data-tour="grounding-soundscape-view">
+    <div className="max-w-lg mx-auto p-4 pb-24 space-y-5" data-tour="grounding-soundscape-view">
       <PageHeader onBack={onBack} back="Back to Quick Support" title="Soundscape"
         subtitle="Sound made from math, recorded outdoors or your own. Layer it, shape it, watch it." />
 
@@ -276,8 +275,8 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
             onOpen={() => setPage("math")} onToggle={toggleMath} />
           </div>
           <div data-tour="grounding-soundscape-recording">
-          <LayerRow icon={Leaf} title={recording ? recording.title : "A recording"}
-            detail={recording ? (nature.loading ? "Loading…" : nature.playing ? "Playing" : "Paused") : "Nature sounds or your own"}
+          <LayerRow icon={Leaf} title="A recording"
+            detail={recording ? `${recording.title} · ${nature.loading ? "Loading…" : nature.playing ? "Playing" : "Paused"}` : "Nature sounds or your own"}
             active={!!recording} playing={nature.playing}
             onOpen={() => setPage("nature")} onToggle={recording ? () => toggleNature() : undefined} onStop={stopNature} />
           </div>
@@ -289,39 +288,24 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
       {error && <p className="text-xs text-destructive">{error}</p>}
       {nature.error && <p className="text-xs text-destructive">{nature.error}</p>}
 
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={anyPlaying ? stopAll : play}
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
-          {anyPlaying ? <><Square className="w-4 h-4" /> Stop everything</> : <><Play className="w-4 h-4" /> Play {basePreset.name}</>}
-        </button>
-        <button type="button" onClick={openFocus}
-          className="flex items-center gap-1.5 rounded-xl border border-primary/40 text-primary px-4 py-3 text-sm font-medium hover:bg-primary/10">
-          <Maximize2 className="w-4 h-4" /> Focus
-        </button>
-      </div>
+      <button type="button" onClick={anyPlaying ? stopAll : play}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-medium">
+        {anyPlaying ? <><Square className="w-4 h-4" /> Stop everything</> : <><Play className="w-4 h-4" /> Play {basePreset.name}</>}
+      </button>
 
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-xs">
-          <span className="font-medium text-foreground block">Keep playing around the app</span>
-          <span className="text-muted-foreground">Leave Quick Support and the sound carries on, with a small bar to stop it.</span>
-        </span>
-        <Switch checked={prefs.keepPlaying} onCheckedChange={(v) => { save({ ...prefs, keepPlaying: v }); writeNaturePrefs({ keepPlaying: v }); }} aria-label="Keep playing around the app" />
-      </label>
+      <div className="px-1">
+        <SwitchRow label="Keep playing around the app" hint="Leave Quick Support and the sound carries on, with a small bar to stop it."
+          checked={prefs.keepPlaying} onChange={(v) => { save({ ...prefs, keepPlaying: v }); writeNaturePrefs({ keepPlaying: v }); }} />
+      </div>
 
       <div className="rounded-xl border border-border/60 bg-card p-3 space-y-3">
         <p className="text-sm font-medium text-foreground">Focused mode</p>
         <BreathingControls ctl={ctl} />
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-xs">
-            <span className="font-medium text-foreground block">Distraction-free</span>
-            <span className="text-muted-foreground">
-              {canBlockSystemNotifications()
-                ? "Turns on Do Not Disturb (alarms only) while you're in focus, and back off after."
-                : "Holds this app's pop-ups until you're done. Other apps' notifications can't be blocked from here, so use your device's own Do Not Disturb or Focus for those."}
-            </span>
-          </span>
-          <Switch checked={prefs.focus.distractionFree} onCheckedChange={(v) => setFocus({ distractionFree: v })} aria-label="Distraction-free" />
-        </label>
+        <SwitchRow label="Distraction-free"
+          hint={canBlockSystemNotifications()
+            ? "Turns on Do Not Disturb (alarms only) while you're in focus, and back off after."
+            : "Holds this app's pop-ups until you're done. Other apps' notifications can't be blocked from here, so use your device's own Do Not Disturb or Focus for those."}
+          checked={prefs.focus.distractionFree} onChange={(v) => setFocus({ distractionFree: v })} />
         {prefs.focus.distractionFree && dnd.supported && !dnd.accessGranted && (
           <div className="rounded-lg bg-muted/50 p-2.5 space-y-2">
             <p className="text-[0.6875rem] text-muted-foreground">
@@ -331,8 +315,8 @@ export default function SoundscapeView({ onBack, initialPage = "main" }) {
           </div>
         )}
         <button type="button" onClick={openFocus}
-          className="w-full rounded-xl bg-primary/10 border border-primary/30 text-primary py-2.5 text-sm font-medium hover:bg-primary/15">
-          Start focused mode
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-primary/10 border border-primary/30 text-primary py-2.5 text-sm font-medium hover:bg-primary/15">
+          <Maximize2 className="w-4 h-4" /> Start focused mode
         </button>
       </div>
 
