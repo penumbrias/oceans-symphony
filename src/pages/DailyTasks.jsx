@@ -32,6 +32,8 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import LevelBar from "@/components/tasks/LevelBar";
+import { useGoalXp } from "@/lib/useGoalXp";
+import { sumXp } from "@/lib/goalXp";
 import TaskCard from "@/components/tasks/TaskCard";
 import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import PeriodReview from "@/components/tasks/PeriodReview";
@@ -452,10 +454,13 @@ export default function DailyTasks() {
 
   const possibleXP = useMemo(() => totalPossiblePoints(templates), [templates]);
 
+  // Goals earn XP too (derived, never stored — see src/lib/goalXp.js).
+  const goalXp = useGoalXp();
+
   // Total XP across all periods
   const totalXP = useMemo(
-    () => allProgress.reduce((sum, p) => sum + (p.xp_earned || 0), 0),
-    [allProgress]
+    () => allProgress.reduce((sum, p) => sum + (p.xp_earned || 0), 0) + sumXp(goalXp.events),
+    [allProgress, goalXp.events]
   );
 
   // ──────────────────────────────────────────────────────────────────────
@@ -812,6 +817,7 @@ export default function DailyTasks() {
           periodLabel={periodLabel}
           streak={streak}
           bestStreak={bestStreak}
+          goalXP={goalXp.on ? sumXp(goalXp.events) : null}
         />
       </div>
 

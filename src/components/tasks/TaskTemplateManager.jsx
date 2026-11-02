@@ -6,6 +6,7 @@ import { taskActivityConfig } from "@/lib/dailyTaskActivity";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, WEEKDAY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
+import GoalsXpSwitch from "@/components/goals/GoalsXpSwitch";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -615,6 +616,8 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
           <X className="w-5 h-5" />
         </button>
       </div>
+
+      <GoalsXpSwitch />
 
       {FREQUENCY_ORDER.map((freq) => {
         const section = grouped[freq];

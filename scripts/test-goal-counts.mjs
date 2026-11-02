@@ -91,4 +91,43 @@ test("weekly minutes use the same week and the typed-name fallback", () => {
   assert.equal(activityMinutesThisWeek("draw", { activities: acts, categories, now }), 40);
 });
 
+const { goalXpEvents, sumXp, goalsEarnXp, GOAL_XP } = await import("../src/lib/goalXp.js");
+
+test("goals earn XP unless switched off", () => {
+  assert.equal(goalsEarnXp({}), true);
+  assert.equal(goalsEarnXp({ goals_earn_xp: false }), false);
+});
+
+test("a weekly tracker earns XP per time, up to its target each week, from when it was added", () => {
+  const s = { id: "s1", goal_id: "g1", ...step, target_count: 2, created_date: new Date(2026, 9, 20).toISOString() };
+  const acts = [
+    { activity_category_ids: ["draw"], timestamp: new Date(2026, 9, 18, 9).toISOString(), status: "logged" }, // before the point
+    { activity_category_ids: ["draw"], timestamp: new Date(2026, 9, 21, 9).toISOString(), status: "logged" },
+    { activity_category_ids: ["draw"], timestamp: new Date(2026, 9, 22, 9).toISOString(), status: "logged" },
+    { activity_category_ids: ["draw"], timestamp: new Date(2026, 9, 23, 9).toISOString(), status: "logged" }, // over target
+    { activity_name: "Drawing", timestamp: thursday, status: "logged" }, // next week
+  ];
+  const ev = goalXpEvents({ goals: [{ id: "g1" }], steps: [s], activities: acts, categories, now });
+  assert.equal(ev.length, 3);
+  assert.equal(sumXp(ev), 3 * GOAL_XP.activity);
+  assert.equal(sumXp(ev, { from: "2026-10-26", to: "2026-11-01" }), GOAL_XP.activity);
+});
+
+test("ticks, done to-dos and a reached goal earn XP; removed points and gone goals don't", () => {
+  const ev = goalXpEvents({
+    goals: [{ id: "g1", status: "done", status_changed_at: "2026-10-30T10:00:00" }],
+    steps: [
+      { id: "a", goal_id: "g1", kind: "check", done_at: "2026-10-29T10:00:00" },
+      { id: "b", goal_id: "g1", kind: "check" },
+      { id: "c", goal_id: "g1", kind: "todo", ref_id: "t1" },
+      { id: "d", goal_id: "g1", kind: "check", done_at: "2026-10-29T10:00:00", removed_at: "2026-10-30" },
+      { id: "e", goal_id: "gone", kind: "check", done_at: "2026-10-29T10:00:00" },
+    ],
+    tasks: [{ id: "t1", completed: true, completed_date: "2026-10-28T10:00:00" }],
+    now,
+  });
+  assert.equal(sumXp(ev), GOAL_XP.reached + 2 * GOAL_XP.tick);
+  assert.deepEqual(ev.map((e) => e.date).sort(), ["2026-10-28", "2026-10-29", "2026-10-30"]);
+});
+
 console.log(`\n${passed} passed`);

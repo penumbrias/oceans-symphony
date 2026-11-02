@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Goals now earn XP for your Tasks level: ticking points, doing tracked activities and reaching a goal. Turn it off in Tasks → Edit." },
       { type: "fix", text: "Quick note's \"New board post\" now opens the New post popup straight away instead of sending you to the Boards page." },
       { type: "improve", text: "Picking a board for a new post is now a menu with submenus for group, subsystem and {{alter}} boards, and you can post to an {{alter}}'s own board from it." },
       { type: "feature", text: "Draw instead of type: the brush on the text toolbar opens a drawing pad. Ink drawings sit in your text like writing; Picture drawings add colour and go in as an image." },

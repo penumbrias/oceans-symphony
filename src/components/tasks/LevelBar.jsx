@@ -11,6 +11,8 @@ export default function LevelBar({
   todayPossibleXP,
   streak,
   bestStreak,
+  // XP earned on Goals (null when goals don't earn XP) — part of totalXP.
+  goalXP = null,
 }) {
   const { level, xpIntoLevel, xpForNextLevel } = getLevelFromTotalXP(totalXP);
   const pct = Math.min(100, Math.round((xpIntoLevel / xpForNextLevel) * 100));
@@ -48,6 +50,9 @@ export default function LevelBar({
         <span>{xpForNextLevel - xpIntoLevel} XP to next level</span>
         <span>🔥 {streak} day streak · Best {bestStreak}</span>
       </div>
+      {goalXP > 0 && (
+        <p className="text-xs text-muted-foreground">Includes {goalXP} XP from goals.</p>
+      )}
     </div>
   );
 }
