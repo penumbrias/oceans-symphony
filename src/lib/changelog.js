@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "improve", text: "Needs is now made of widgets, like a profile page: move, resize or add them with the grid button, and put the same widgets on your home screen." },
+      { type: "feature", text: "New Add a wish widget: a wish goes to whoever is {{fronting}} when you tap Add, or pick the whole {{system}} or other {{alters}}." },
+      { type: "feature", text: "New Taking turns widget: open turn agreements with Kept and Let go right there; expanded makes new ones." },
+      { type: "fix", text: "Needs: choosing whose wish or whose turn it is now uses the usual searchable {{alter}} picker." },
       { type: "feature", text: "Mods can ask to read your records (journals, check-ins and more). Nothing is shared until you read what it means and tick each kind yourself on the mod's card." },
       { type: "feature", text: "Mods can offer to save files to your device; the app asks you every time." },
       { type: "fix", text: "New activity: starting several activities at once now starts a timer for each one, and the button says \"Start activity\"." },

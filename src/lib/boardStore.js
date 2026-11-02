@@ -31,7 +31,7 @@
 
 import { base44, localEntities } from "@/api/base44Client";
 import { stampBoardChanges } from "@/lib/boardStamp";
-import { pickProfileBoardRows, isProfileOwnerType, layoutOwnerIds } from "@/lib/profileBoard";
+import { pickProfileBoardRows, isBoardOwnerType, layoutOwnerIds } from "@/lib/profileBoard";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const isBoardStore = (x) => !!x && typeof x === "object" && typeof x.write === "function" && typeof x.update === "function";
@@ -92,7 +92,7 @@ export function settingsBoardStore({ settingsRow, field, qc }) {
 export const profileBoardQueryKey = (ownerType, ownerId) => ["profileBoard", ownerType, String(ownerId)];
 
 export async function listProfileBoardRows(ownerType, ownerId) {
-  if (!isProfileOwnerType(ownerType) || !ownerId) return [];
+  if (!isBoardOwnerType(ownerType) || !ownerId) return [];
   try {
     return await localEntities.ProfileBoard.filter({ owner_type: ownerType, owner_id: ownerId });
   } catch { return []; }
@@ -112,7 +112,7 @@ export async function trashProfileBoards(ownerType, ownerId) {
 
 // `rows` is what the query holds now (may be empty: no layout saved yet).
 export function profileBoardStore({ ownerType, ownerId, rows, qc }) {
-  if (!isProfileOwnerType(ownerType)) throw new Error(`Not a profile type: ${ownerType}`);
+  if (!isBoardOwnerType(ownerType)) throw new Error(`Not a board owner type: ${ownerType}`);
   const queryKey = profileBoardQueryKey(ownerType, ownerId);
   const picked = pickProfileBoardRows(rows);
   const writeRaw = async (next, { machine = false } = {}) => {

@@ -21,9 +21,11 @@ import {
 } from "@/lib/wishes";
 import { format } from "date-fns";
 
-const small = "text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-40";
+const small = "text-xs min-h-[2.25em] px-[0.75em] rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-40";
 
-export default function WishCard({ wish, alters, categories, alterById, onChanged, showOwners = false }) {
+// `flat` (v0.331.0): a divided row instead of a bordered card, for inside a
+// widget's own box (no box in a box).
+export default function WishCard({ wish, alters, categories, alterById, onChanged, showOwners = false, flat = false }) {
   const experimentalFeaturesOn = useExperimentalOn();
   const t = useTerms();
   const formatAlter = useAlterLabel();
@@ -45,7 +47,7 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
 
   if (editing) {
     return (
-      <div data-highlight-id={wish.id} className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+      <div data-highlight-id={wish.id} className={flat ? "py-3 border-b border-border/30 last:border-b-0" : "rounded-xl border border-primary/30 bg-primary/5 p-4"}>
         <WishEditor wish={wish} alters={alters} onCancel={() => setEditing(false)}
           onDone={() => { setEditing(false); onChanged(); }} />
       </div>
@@ -54,7 +56,9 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
 
   return (
     <div data-highlight-id={wish.id}
-      className={`rounded-xl border p-4 space-y-2 ${open ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-75"}`}>
+      className={flat
+        ? `py-3 space-y-2 border-b border-border/30 last:border-b-0 ${open ? "" : "opacity-75"}`
+        : `rounded-xl border p-4 space-y-2 ${open ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-75"}`}>
       <div className="flex items-start gap-2">
         <span className="text-lg leading-none mt-0.5" aria-hidden="true">{kind.emoji}</span>
         <div className="flex-1 min-w-0">
@@ -72,7 +76,7 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
             {wish.price != null && wish.price !== "" && <span>· {wish.price}</span>}
           </div>
         </div>
-        <span className="text-[0.6875rem] text-muted-foreground flex-shrink-0 whitespace-nowrap">{wishAgeLabel(wish)}</span>
+        <span className="text-[0.6875em] text-muted-foreground flex-shrink-0 whitespace-nowrap">{wishAgeLabel(wish)}</span>
       </div>
 
       {wish.driving && (
@@ -96,7 +100,7 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
           onPick={(when) => run(async () => { await planWish(wish, when, { categories }); setPlanning(false); }, "Planned")} />
       )}
 
-      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/30">
+      <div className={`flex flex-wrap gap-1.5 pt-1 ${flat ? "" : "border-t border-border/30"}`}>
         {canPlan && (
           <button type="button" disabled={busy} onClick={() => setPlanning((p) => !p)} className={small}>
             <CalendarPlus className="w-3.5 h-3.5" /> Plan it
@@ -136,10 +140,10 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
           </button>
         )}
         <span className="flex-1" />
-        <button type="button" onClick={() => setEditing(true)} aria-label={`Edit ${wish.title}`} className="p-1 text-muted-foreground hover:text-foreground">
+        <button type="button" onClick={() => setEditing(true)} aria-label={`Edit ${wish.title}`} className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button type="button" aria-label={`Delete ${wish.title}`} className="p-1 text-muted-foreground hover:text-destructive"
+        <button type="button" aria-label={`Delete ${wish.title}`} className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive"
           onClick={async () => {
             const ok = await confirm({
               title: "Delete this wish?",
