@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { journalEntryDate } from "@/lib/journalDate";
+import { clockPattern } from "@/lib/timeFormat";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -236,7 +237,7 @@ export default function DailyTallyPanel({
               {daySymptomSessions.map(ss => {
                 const sym = symptomMap[ss.symptom_id];
                 const name = sym?.name || sym?.label || "Symptom";
-                const sub = ss.end_time ? `ended ${format(parseDate(ss.end_time), "h:mm a")}` : "ongoing";
+                const sub = ss.end_time ? `ended ${format(parseDate(ss.end_time), clockPattern("h:mm a"))}` : "ongoing";
                 return (
                   <p key={ss.id} className="text-xs text-foreground">
                     {name} <span className="text-muted-foreground">· {sub}</span>

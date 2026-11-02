@@ -23,6 +23,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { effectiveSeverity, formatSeverityForSymptom } from "@/lib/trackingModel";
 import { journalEntryDate } from "@/lib/journalDate";
+import { clockPattern } from "@/lib/timeFormat";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
@@ -1633,7 +1634,7 @@ export default function InfiniteTimeline({
                           activity looked ~15min short of its real end. The label is
                           centred on that line. */}
                       <div className="flex-shrink-0 text-xs text-muted-foreground pl-1 text-left" style={{ width: LABEL_WIDTH, transform: "translateY(-50%)" }}>
-                        {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
+                        {format(new Date(dayStart.getTime() + h * 3600000), clockPattern("h a"))}
                       </div>
                       <div className="flex-1 border-t border-border/30" />
                     </div>
@@ -1971,7 +1972,7 @@ export default function InfiniteTimeline({
               const durLabel = durMin >= 60 ? `${Math.round((durMin / 60) * 10) / 10}h` : `${durMin}m`;
               return (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {format(start, "h:mm a")}{end ? ` – ${format(end, "h:mm a")}` : ""}{durMin > 0 ? ` · ${durLabel}` : ""}
+                  {format(start, clockPattern("h:mm a"))}{end ? ` – ${format(end, clockPattern("h:mm a"))}` : ""}{durMin > 0 ? ` · ${durLabel}` : ""}
                 </p>
               );
             })()}

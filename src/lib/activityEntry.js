@@ -107,28 +107,46 @@ export async function createActivityEntry(draft, { alters = [], terms } = {}) {
   if (mode === ENTRY_MODES.NOW) {
     // A timer is something happening now: a start in the future becomes now.
     const startAt = start.getTime() > Date.now() ? new Date() : start;
-    const item = addActiveActivity({
-      categoryId: categoryIds[0] || null,
-      name,
-      color: cat?.color || null,
-      startTime: startAt.toISOString(),
-      alterIds,
-      contactIds: draft.contactIds || [],
-      notes: noteText,
-      extra: {
-        activity_category_ids: categoryIds,
-        ...(location ? { location } : {}),
-        ...(tag ? { tag_color: tag } : {}),
-        ...(draft.taskId ? { task_id: draft.taskId } : {}),
-      },
-    });
+    // Several activities started together each get their own timer, so each
+    // shows as running, can be ended on its own and is logged as its own
+    // entry (owner report, 2026-11-02: starting two only recorded one).
+    const cats = categoryIds.map((id) => (draft.categories || []).find((c) => c.id === id) || { id });
+    const typed = (draft.name || "").trim();
+    const typedIsOwn = !!typed && !cats.some((c) => (c.name || "").toLowerCase() === typed.toLowerCase());
+    const runs = cats.length > 1
+      ? cats.map((c) => ({
+        categoryIds: [c.id],
+        color: c.color || null,
+        name: typedIsOwn ? `${typed} · ${c.name || "Activity"}` : (c.name || typed || "Activity"),
+      }))
+      : [{ categoryIds, color: cat?.color || null, name }];
+    let firstSession = null;
+    for (const run of runs) {
+      const item = addActiveActivity({
+        categoryId: run.categoryIds[0] || null,
+        name: run.name,
+        color: run.color,
+        startTime: startAt.toISOString(),
+        alterIds,
+        contactIds: draft.contactIds || [],
+        notes: noteText,
+        extra: {
+          activity_category_ids: run.categoryIds,
+          ...(location ? { location } : {}),
+          ...(tag ? { tag_color: tag } : {}),
+          // One to-do, one timer: it is done when the first of them ends.
+          ...(draft.taskId && !firstSession ? { task_id: draft.taskId } : {}),
+        },
+      });
+      if (!firstSession) firstSession = item;
+    }
     if (draft.recordFronting && alterIds.length) {
       await recordFrontingFor(alterIds, startAt, new Date(), { stillFronting: true });
     }
     if (prepared) {
       await recordAuthoredText({ ...prepared, alters, sourceType: "activity", sourceId: "", sourceLabel: "Activity note", navigatePath: "/planner" });
     }
-    return { mode, count: 1, firstId: null, sessionId: item?.id || null };
+    return { mode, count: runs.length, firstId: null, sessionId: firstSession?.id || null };
   }
 
   const record = {

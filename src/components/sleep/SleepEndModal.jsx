@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { ZapOff, Cloud, AlarmClock, BookOpen, X } from "lucide-react";
 import { endSleep } from "@/lib/sleepEntry";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { clockPattern } from "@/lib/timeFormat";
 
 // Finalize an in-progress sleep record. Mirrors the fields of
 // SleepLogModal but starts from an existing Sleep entity with
@@ -242,7 +243,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         <DialogHeader>
           <DialogTitle>End sleep log</DialogTitle>
           <DialogDescription>
-            Started{bedtimeDate ? ` ${liveDurationLabel} ago — at ${format(bedtimeDate, "EEE h:mm a")}` : ""}.
+            Started{bedtimeDate ? ` ${liveDurationLabel} ago — at ${format(bedtimeDate, clockPattern("EEE h:mm a"))}` : ""}.
           </DialogDescription>
         </DialogHeader>
 

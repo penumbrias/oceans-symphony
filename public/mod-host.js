@@ -101,17 +101,27 @@
       fronting: {
         current: function () { return call("fronting.current", []); },
       },
+      // Needs "data:read" and the person's yes on the mod's card.
+      // appData.collections() -> ["JournalEntry", …] the kinds you may read
+      // appData.list("JournalEntry", { offset: 0, limit: 100 }) -> { total, offset, records }
+      appData: {
+        collections: function () { return call("appData.collections", []); },
+        list: function (entity, opts) { return call("appData.list", [String(entity), opts || {}]); },
+      },
       ui: {
         toast: function (text) { return call("ui.toast", [String(text)]); },
         openPage: function (pageId) { return call("ui.openPage", [String(pageId)]); },
         // Resolves true/false. symphony.ui.confirm("Remove this?", "It goes to…", { confirmLabel: "Remove", destructive: true })
         confirm: function (title, body, opts) { return call("ui.confirm", [String(title || ""), String(body || ""), opts || {}]); },
+        // Needs "files:save". The app asks the person every time; resolves to
+        // "downloaded", "shared", "cancelled" or "failed".
+        saveFile: function (name, data, mime) { return call("ui.saveFile", [String(name), data, String(mime || "")]); },
       },
       // Called after this mod's data changes from anywhere (another page of
       // the same mod, a sync from another device, an undo).
       onDataChange: function (fn) { if (typeof fn === "function") changeListeners.push(fn); },
     };
-    Object.freeze(api.data); Object.freeze(api.alters); Object.freeze(api.fronting); Object.freeze(api.ui);
+    Object.freeze(api.data); Object.freeze(api.appData); Object.freeze(api.alters); Object.freeze(api.fronting); Object.freeze(api.ui);
     Object.freeze(api);
 
     // Theme variables from the app, so mod UI matches the person's colours.

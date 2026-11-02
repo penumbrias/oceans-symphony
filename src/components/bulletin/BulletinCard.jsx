@@ -10,6 +10,7 @@ import BulletinActionMenu from "./BulletinActionMenu";
 import { useTerms } from "@/lib/useTerms";
 import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
+import { clockPattern } from "@/lib/timeFormat";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -62,7 +63,7 @@ const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "
 // Absolute (Mmm d at h:mm a) + relative — therapists / users wanted
 // the exact day and time, not just "N days ago". The relative form
 // still helps gauge recency at a glance.
-const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
+const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
 
   // Normalize `currentAlterId` to an empty string when there's no active
   // fronter so reacting / voting still works system-wide. Without this the

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-// An ink drawing from the drawing pad, shown in the line like a word (v0.332.0).
+// An ink drawing from the drawing pad, shown in the line like a word (v0.335.0).
 // The saved picture is black on nothing; here it is used as a mask over the
 // text colour, so it takes whatever colour the words around it have (dark
 // on a light theme, light on a dark one, coloured inside coloured text).

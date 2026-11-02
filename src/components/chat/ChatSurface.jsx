@@ -64,6 +64,7 @@ import AttachFileDialog from "@/components/shared/AttachFileDialog";
 import { mediaPlaceholderHtml, formatBytes, saveAssetToDevice } from "@/lib/assetFiles";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
+import { clockPattern } from "@/lib/timeFormat";
 
 // ── Shared System-Chat surface ───────────────────────────────────────────────
 //
@@ -279,7 +280,7 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
               whisper{whisperNames ? <> →&nbsp;<span className="font-medium not-italic">{whisperNames}</span></> : null}
             </span>
           )}
-          <span className="text-[0.6875rem] text-muted-foreground">{format(new Date(msg.timestamp), "h:mm a")}</span>
+          <span className="text-[0.6875rem] text-muted-foreground">{format(new Date(msg.timestamp), clockPattern("h:mm a"))}</span>
           {msg.edited_at && !isDeleted && (
             <span className="text-[0.6875rem] text-muted-foreground/70 italic">edited</span>
           )}

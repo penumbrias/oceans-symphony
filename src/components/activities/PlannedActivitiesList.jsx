@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { format, isToday, isThisWeek, isThisMonth, isThisYear, formatDistanceToNow } from "date-fns";
+import { formatSpan } from "@/lib/formatSpan";
+import { format, isToday, isThisWeek, isThisMonth, isThisYear } from "date-fns";
 import { Calendar, Clock, Users, MapPin, Zap } from "lucide-react";
 import { activityDate } from "@/lib/dateUtils";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { clockPattern } from "@/lib/timeFormat";
 
 /**
  * Future-planned activities, grouped by horizon. Used on the Activity
@@ -270,10 +272,10 @@ function ActivityRow({ activity, altersById, onClick, compact, showPastStatus })
         )}
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
           <Clock className="w-3 h-3" />
-          {format(ts, "EEE, MMM d · h:mm a")}
+          {format(ts, clockPattern("EEE, MMM d · h:mm a"))}
           {showPastStatus
-            ? <span className="opacity-70">· {formatDistanceToNow(ts, { addSuffix: true })}</span>
-            : <span className="opacity-70">· in {formatDistanceToNow(ts)}</span>}
+            ? <span className="opacity-70">· {ts.getTime() > Date.now() ? "in " : ""}{formatSpan(ts.getTime() - Date.now())}{ts.getTime() > Date.now() ? "" : " ago"}</span>
+            : <span className="opacity-70">· in {formatSpan(ts.getTime() - Date.now())}</span>}
         </p>
       </div>
       {assigned.length > 0 && (

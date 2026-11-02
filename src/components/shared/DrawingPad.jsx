@@ -7,7 +7,7 @@ import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { paintStrokes, renderDrawing, drawingHtml, hasInk } from "@/lib/inkDrawing";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 
-// The drawing pad behind the mini toolbar's brush button (v0.332.0): a
+// The drawing pad behind the mini toolbar's brush button (v0.335.0): a
 // quick place to draw instead of type — for anyone who'd rather not use
 // words. Two modes:
 //   Ink      black & white; goes into the text like a word, in the text's

@@ -55,7 +55,7 @@ const BY_ID = {
   write: ["journal", "notebook", "journal_book", "chat_channel", "chat_channels", "bulletin_board", "polls"],
   alters: [
     "alters_list", "pinned_alters", "system_identity", "system_header",
-    "needs_balance", "wishes", "inner_map", "inner_locations",
+    "needs_balance", "wishes", "wish_add", "turns", "inner_map", "inner_locations",
   ],
   calm: ["grounding_techniques", "breathing", "scratch_pad", "soundscape", "learn_modules", "song"],
   lookback: ["emotion_analytics", "symptom_analytics", "checkin_log", "fronting_leaders", "insight_spotlight"],

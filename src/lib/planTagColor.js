@@ -88,3 +88,32 @@ export function textOn(hex) {
   const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
   return lum > 0.6 ? "#111827" : "#ffffff";
 }
+
+// Colour a dot should use for an event: its own colour, else its plan colour
+// tag. null → the caller shows its faint theme dot.
+export function eventDotColor(a) {
+  return a?.color || tagColorOf(a) || null;
+}
+
+// A soft see-through fill of any CSS colour (hex, hsl, var…), `pct` = 0-100.
+export function softFill(color, pct = 40) {
+  if (!color) return undefined;
+  const h = normalizeHex(color);
+  if (h) {
+    const a = Math.round((Math.max(0, Math.min(100, pct)) / 100) * 255).toString(16).padStart(2, "0");
+    return `${h}${a}`;
+  }
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+}
+
+// Colour for a day that has NO plan colour tag: the colour of what took the
+// most time that day, else the highest-priority event that has a colour. This
+// is what tints older entries (made before colour tags existed) like a tagged
+// day, in both the month and year calendars and their widgets.
+export function dayActivityColor(list, minutesOf) {
+  const items = (list || []).filter((a) => a?.color);
+  if (!items.length) return null;
+  const mins = (a) => (typeof minutesOf === "function" ? minutesOf(a) || 0 : 0);
+  items.sort((x, y) => mins(y) - mins(x) || tagRank(x) - tagRank(y) || new Date(x.timestamp) - new Date(y.timestamp));
+  return items[0].color;
+}

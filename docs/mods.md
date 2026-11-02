@@ -141,8 +141,61 @@ them: `os-card`, `os-button` (add `secondary` for an outline button,
 `symphony.permissions` lists what was granted. A call without permission
 rejects with an error; check first and show a friendly message.
 
-More read permissions (journals, history, custom fields…) will be added over
-time. Ask for what you need in the Oceans Symphony repo.
+### Reading the person's records (`data:read`, the heavy one)
+
+Some mods need more than names and the current front: a journal search, a
+mood chart, an export to another format. `data:read` gives a **read-only
+copy** of whole kinds of records. Mods work like apps from a store here: the
+app provides this, and the person decides with every risk spelled out.
+
+List what you want in the manifest, beside the permission:
+
+```json
+"permissions": ["data:read"],
+"dataScopes": ["JournalEntry", "EmotionCheckIn"]
+```
+
+The kinds you can ask for (`READABLE_DATA` in
+`src/lib/mods/modDataAccess.js`): `Alter`, `FrontingSession`, `JournalEntry`,
+`EmotionCheckIn`, `SymptomCheckIn`, `Activity`, `Task`, `StatusNote`,
+`Location`, `Sleep`, `SystemChangeEvent`, `Group`, `AlterNote`. Anything
+else is dropped.
+
+```js
+await symphony.appData.collections();   // the kinds the person allowed, e.g. ["JournalEntry"]
+const { total, offset, records } = await symphony.appData.list("JournalEntry", { offset: 0, limit: 100 });
+```
+
+How the person is asked:
+
+- Installing never allows it. The mod's card shows a "Read your records" panel;
+  the person opens a sheet that says plainly what it means (it sees
+  everything in those records; nobody checks what a mod does; it can't send
+  anything off the device, but it can show it or save it to a file), ticks
+  each kind themselves (nothing is pre-ticked) and confirms they trust you.
+- They can change or take it away at any time, and the card shows when your
+  mod last read anything.
+- An update that asks for **more** kinds of records than before loses the
+  permission until the person says yes again.
+
+What you get is cleaned first: whispers are masked, locked journal entries
+come with `content: null, locked: true`, fields that start with `_` and
+anything named like a secret are left out, and trashed records never appear.
+Pages hold up to 500 records and 4 MB; ask for less if a page is too big.
+
+**Ask for as little as you can.** Every kind you list is one more thing the
+person has to trust you with, and the sheet says so.
+
+### Saving files (`files:save`)
+
+```js
+const result = await symphony.ui.saveFile("moods.csv", new Blob([csv], { type: "text/csv" }), "text/csv");
+// "downloaded", "shared", "cancelled" or "failed"
+```
+
+The app asks the person **every time**, naming your mod, the file and its
+size, so only call this when they've just asked for a file (pressed your
+Export button). Up to 100 MB.
 
 ### Interface helpers
 
@@ -165,9 +218,11 @@ People keep their whole system's history in this app, so mods are walled off:
 - **No network.** `fetch`, XHR, WebSockets, WebRTC, remote images, fonts and
   scripts are all blocked. A mod can't send anything off the device. Bundle
   every asset into `main.js` (images as `data:` URLs).
-- **No changing anything outside its own data.** Mods can read some core data
-  with permission, but can't create, change or delete alters, fronts,
-  journals or anything else the app owns.
+- **No changing anything outside its own data.** Mods can read core data
+  with permission (and, with `data:read`, whole kinds of records the person
+  allowed), but can't create, change or delete alters, fronts, journals or
+  anything else the app owns.
+- **No saving files behind the person's back.** `files:save` always asks.
 - **No background running.** A mod's code only runs while one of its pages is
   open.
 - No `localStorage`/`indexedDB` (use `symphony.data`), no popups, no
@@ -281,6 +336,8 @@ It's reviewed like any other change to the app, against this checklist:
 - [ ] Works with every permission refused, and on a phone-sized screen in
       light and dark mode.
 - [ ] Has an empty state that tells a first-time user what to do.
+- [ ] Doesn't ask for `data:read` unless the mod can't exist without it, and
+      then only for the kinds of records it actually reads.
 - [ ] A changelog entry in `src/lib/changelog.js` naming the new mod.
 
 Library mods update along with the app: when a new app version ships a

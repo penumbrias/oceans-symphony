@@ -5,7 +5,8 @@
 // merged into it, and /activities redirects here (see ActivitiesRedirect).
 //
 // Deep links: `?activityId=<id>` (or the older `?highlight=<id>`) opens
-// that entry's details; `?date=YYYY-MM-DD` starts on that day's week. The
+// that entry's details; `?date=YYYY-MM-DD` starts on that day's week (add `&view=month`
+// or day / year to open on that zoom). The
 // params are consumed once and stripped so a refresh or back-nav doesn't
 // reopen the sheet.
 
@@ -24,15 +25,20 @@ export default function Planner() {
   const [openId, setOpenId] = useState(null);
   // Read once on mount — the surface owns the anchor after that.
   const [initialAnchor] = useState(() => parseDay(params.get("date")));
+  const [initialView] = useState(() => {
+    const v = params.get("view");
+    return ["day", "week", "month", "year"].includes(v) ? v : null;
+  });
 
   useEffect(() => {
     const id = params.get("activityId") || params.get("highlight");
-    if (!id && !params.has("date")) return;
+    if (!id && !params.has("date") && !params.has("view")) return;
     if (id) setOpenId(id);
     const next = new URLSearchParams(params);
     next.delete("activityId");
     next.delete("highlight");
     next.delete("date");
+    next.delete("view");
     setParams(next, { replace: true });
   }, [params, setParams]);
 
@@ -41,6 +47,7 @@ export default function Planner() {
       dayCount={7}
       chrome
       initialAnchor={initialAnchor}
+      initialView={initialView}
       openActivityId={openId}
       onOpenedActivity={() => setOpenId(null)}
     />

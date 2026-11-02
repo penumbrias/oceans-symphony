@@ -1,4 +1,4 @@
-// The scratch pad's drawing model (v0.332.0) — pure helpers shared by the
+// The scratch pad's drawing model (v0.335.0) — pure helpers shared by the
 // DrawingPad sheet and its test. A drawing is a list of strokes kept in the
 // pad's own CSS pixels:
 //
