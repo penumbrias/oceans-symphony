@@ -2521,9 +2521,11 @@ function PinnedAltersWidget({ api, settings }) {
   });
   const savedOrder = pickPrimarySystemSettings(settingsList)?.pinned_alters_config?.order;
   const alters = React.useMemo(() => {
-    const idx = new Map((Array.isArray(savedOrder) ? savedOrder : []).map((id, i) => [id, i]));
+    // (`Map` is the lucide icon in this file, so a plain object index.)
+    const idx = Object.create(null);
+    (Array.isArray(savedOrder) ? savedOrder : []).forEach((id, i) => { idx[id] = i; });
     return (api?.alters || []).filter((a) => a.is_pinned && !a.is_archived).sort((a, b) => {
-      const ia = idx.has(a.id) ? idx.get(a.id) : Infinity, ib = idx.has(b.id) ? idx.get(b.id) : Infinity;
+      const ia = idx[a.id] ?? Infinity, ib = idx[b.id] ?? Infinity;
       return ia !== ib ? ia - ib : (a.name || "").localeCompare(b.name || "");
     });
   }, [api?.alters, savedOrder]);
