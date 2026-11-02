@@ -52,6 +52,11 @@ export async function saveNatureSound(id) {
       progress = { ...progress, [id]: Math.min(1, p.bytes / p.contentLength) };
       emit();
     });
+    // The download writes straight into the folder without making it (its
+    // `recursive` option does nothing on Android), so make it first.
+    try {
+      await Filesystem.mkdir({ path: DIR, directory: Directory.Data, recursive: true });
+    } catch { /* already there */ }
     // Download beside the final name, then rename: a cut-off download
     // never looks like a saved sound.
     await Filesystem.downloadFile({
