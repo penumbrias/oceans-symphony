@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Dices, Sparkles, Heart, Download, Check, Trash2, Search, Loader2, ScrollText, Music,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Group, SwitchRow, ChoiceRow, StackedRow, Chips, SliderRow, LinkRow } from "@/components/shared/SettingRows";
@@ -15,8 +16,10 @@ import { isOwnSoundId } from "@/lib/natureSounds/ownSounds";
 import { useNatureState, useNaturePrefs, useNatureOffline, useMySounds, fmtLength } from "./natureHooks";
 import NatureCreditsPage from "./NatureCreditsPage";
 import MySoundsPage from "./MySoundsPage";
+import RecordingShaper from "./RecordingShaper";
+import { isDefaultShape } from "@/lib/natureSounds/recordingShape";
 
-// Quick Support → Nature sounds: field recordings streamed from the
+// Soundscape → Nature sounds (the recording layer): field recordings streamed from the
 // project's release (nothing extra in the app download), with favourites,
 // tags, shuffle and a jump to a random spot. The installed apps can keep a
 // sound on the device to play offline.
@@ -129,6 +132,26 @@ function NowPlaying({ player, prefs, offline, list }) {
   );
 }
 
+// The shaping page's compact player: the name, the save button (shaping a
+// streamed sound needs it saved) and play/pause.
+function NowPlayingStrip({ player, prefs, offline }) {
+  const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
+  if (!sound) return null;
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-card pl-3 pr-1 py-1">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{sound.title}</p>
+        <p className="text-[0.6875rem] text-muted-foreground truncate">{player.loading ? "Loading…" : player.playing ? "Playing" : "Paused"}</p>
+      </div>
+      <SaveButton id={sound.id} offline={offline} />
+      <button type="button" onClick={() => toggleNature()} aria-label={player.playing ? "Pause" : "Play"}
+        className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground">
+        {player.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : player.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+    </div>
+  );
+}
+
 function SoundRow({ sound, current, playing, fav, offline }) {
   const isSaved = offline.saved?.has(sound.id);
   return (
@@ -156,12 +179,27 @@ function SoundRow({ sound, current, playing, fav, offline }) {
   );
 }
 
-export default function NatureSoundsView({ onBack }) {
+// A drill-in page inside Nature sounds, with its own back link.
+function SubPage({ title, onBack, children }) {
+  return (
+    <div className="max-w-lg mx-auto p-4 pb-24 space-y-4" data-tour="grounding-nature-view">
+      <div>
+        <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
+          ← Back to Nature sounds
+        </button>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export default function NatureSoundsView({ onBack, backLabel = "Back to Soundscape", initialPage = "main" }) {
   const player = useNatureState();
   const prefs = useNaturePrefs();
   const offline = useNatureOffline();
   const [query, setQuery] = useState("");
-  const [page, setPage] = useState("main");
+  const [page, setPage] = useState(initialPage);
   const mine = useMySounds();
 
   const list = useMemo(
@@ -177,12 +215,20 @@ export default function NatureSoundsView({ onBack }) {
 
   if (page === "credits") return <NatureCreditsPage onBack={() => setPage("main")} />;
   if (page === "yours") return <MySoundsPage onBack={() => setPage("main")} />;
+  if (page === "shape") {
+    return (
+      <SubPage title="Shape the sound" onBack={() => setPage("main")}>
+        <NowPlayingStrip player={player} prefs={prefs} offline={offline} />
+        <RecordingShaper />
+      </SubPage>
+    );
+  }
 
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-4" data-tour="grounding-nature-view">
+    <div className="max-w-lg mx-auto p-4 pb-24 space-y-4" data-tour="grounding-nature-view">
       <div>
         <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
-          ← Back to Quick Support
+          ← {backLabel}
         </button>
         <h2 className="text-lg font-semibold text-foreground">Nature sounds</h2>
       </div>
@@ -191,6 +237,10 @@ export default function NatureSoundsView({ onBack }) {
 
       <div className="px-1">
         <SliderRow label="Volume" value={prefs.volume} min={0} max={100} unit="%" onChange={(v) => setNatureVolume(Math.round(v))} />
+        <div data-tour="grounding-nature-shape">
+          <LinkRow label="Shape the sound" hint="Low and high cut, movement, space and speed" icon={SlidersHorizontal}
+            value={isDefaultShape(prefs.shape) ? "As recorded" : "Shaped"} onClick={() => setPage("shape")} />
+        </div>
       </div>
 
       <div className="px-1">
@@ -227,8 +277,6 @@ export default function NatureSoundsView({ onBack }) {
         </Group>
 
         <Group title="More">
-          <SwitchRow label="Keep playing around the app" checked={prefs.keepPlaying}
-            onChange={(v) => writeNaturePrefs({ keepPlaying: v })} />
           <LinkRow label="Credits" icon={ScrollText} value={`${NATURE_SOUNDS.length} recordings`} onClick={() => setPage("credits")} />
         </Group>
       </div>

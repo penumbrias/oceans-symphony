@@ -9,7 +9,7 @@ import { clampParams, presetById, DEFAULT_PRESET_ID } from "./soundMath";
 import { clampFractal, DEFAULT_FRACTAL } from "./fractals";
 
 export const SOUNDSCAPE_PREFS_KEY = "symphony_soundscape_v1";
-export const VISUALS = ["calm", "layers", "stars", "fractal", "detailed"];
+export const VISUALS = ["calm", "layers", "stars", "fractal", "detailed", "particles"];
 export const FOCUS_MODES = ["visuals", "both", "breathing"];
 export const TIMER_OPTIONS = [null, 5, 10, 15, 20, 30, 45, 60, 90];
 // The visual's preview window height on the Soundscape screen (px).

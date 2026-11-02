@@ -1,13 +1,31 @@
-// Nature sounds — the player. One <audio> element for the whole app, so a
-// recording keeps playing while someone moves around (and alongside a
-// Soundscape, which is a separate Web Audio engine). A plain media element
-// streams and seeks a hosted file without needing the host's permission,
-// which a fetch would.
+// Nature sounds — the player. One recording at a time for the whole app, so
+// it keeps playing while someone moves around, alongside a Soundscape.
+// A media element streams and seeks a hosted file without needing the
+// host's permission, which a fetch would.
+//
+// Two elements, one in use at a time:
+//   • plain  — plays straight to the speakers. Used for a file the page
+//              isn't allowed to read (a host without CORS headers).
+//   • routed — goes through the shared sound bus (src/lib/audio/soundBus.js)
+//              with its own shaping chain, so "Shape the sound" (low/high
+//              cut, movement, space) and the visuals work on it:
+//              element → low cut → high cut → movement ┬→ dry ┬→ level → bus
+//                                                       └→ room┘
+// An element can never be un-routed, which is why there are two: a file
+// that can't be read would play silence through the routed one.
+// Speed works on either.
 
 import { natureSoundById } from "./catalog";
 import { natureSoundSrc } from "./natureOffline";
 import { readNaturePrefs, writeNaturePrefs } from "./naturePrefs";
 import { isOwnSoundId, listMySounds } from "./ownSounds";
+import { clampShape, makeRoomImpulse } from "./recordingShape";
+import { motionValue } from "@/lib/soundscape/soundMath";
+import {
+  canRouteSrc, isLocalSrc, getAudioContext, createLayer, attachElement, holdBus, releaseBus,
+} from "@/lib/audio/soundBus";
+
+const BUS_KEY = "nature";
 
 const FADE_MS = 1200;
 // A random point never lands this close to the end, so it doesn't jump
@@ -15,18 +33,26 @@ const FADE_MS = 1200;
 const END_MARGIN = 30;
 
 const listeners = new Set();
-let state = { id: null, playing: false, loading: false, error: null, position: 0, duration: 0 };
+// shapeable: the current sound goes through the sound bus, so the shaping
+// knobs and the live visual work on it.
+let state = { id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false };
 const emit = () => { for (const fn of listeners) { try { fn(state); } catch { /* listener */ } } };
 const setState = (patch) => { state = { ...state, ...patch }; emit(); };
 export const subscribeNature = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 export const getNatureState = () => state;
+// A recording is sounding through the sound bus (the visuals can see it).
+export const isRecordingLive = () => state.playing && state.shapeable;
 
 // The list the person is looking at, in its order — next / previous /
 // shuffle walk this. Set by the screen.
 let queue = [];
 export const setNatureQueue = (ids) => { queue = Array.isArray(ids) ? ids : []; };
 
-let audio = null;
+let audio = null; // the element in use
+let plainEl = null;
+let routedEl = null;
+let chain = null; // the routed element's shaping chain
+let motionTimer = null;
 let fadeTimer = null;
 let token = 0; // ignores a load that a newer one replaced
 
@@ -83,24 +109,133 @@ function recover() {
 
 const targetVolume = () => readNaturePrefs().volume / 100;
 
+// The level the person hears: the routed chain's level gain (iPhones ignore
+// an element's own volume), else the element's volume.
+const isRouted = (a = audio) => !!a && a === routedEl && !!chain;
+function getLevel() {
+  if (isRouted()) return chain.level.gain.value;
+  return audio ? audio.volume : 0;
+}
+function setLevel(v) {
+  const x = Math.max(0, Math.min(1, v));
+  if (isRouted()) {
+    const g = chain.level.gain;
+    g.cancelScheduledValues(0);
+    g.value = x;
+  } else if (audio) {
+    audio.volume = x;
+  }
+}
+
 function fadeTo(to, ms, done) {
   clearInterval(fadeTimer);
-  const el = audio;
-  if (!el) return;
-  const from = el.volume;
+  if (!audio) return;
+  const from = getLevel();
   const t0 = Date.now();
   fadeTimer = setInterval(() => {
     const k = Math.min(1, (Date.now() - t0) / ms);
-    el.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+    setLevel(from + (to - from) * k);
     if (k >= 1) { clearInterval(fadeTimer); done?.(); }
   }, 40);
 }
 
-function el() {
-  if (audio) return audio;
-  audio = new Audio();
+// ── shaping ────────────────────────────────────────────────────────────────
+
+function buildChain() {
+  if (chain) return chain;
+  const c = getAudioContext();
+  const input = c.createGain();
+  const lowCut = c.createBiquadFilter();
+  lowCut.type = "highpass";
+  lowCut.Q.value = 0.5;
+  const highCut = c.createBiquadFilter();
+  highCut.type = "lowpass";
+  highCut.Q.value = 0.5;
+  const motion = c.createGain();
+  const dry = c.createGain();
+  const room = c.createConvolver();
+  room.buffer = makeRoomImpulse(c);
+  const wet = c.createGain();
+  wet.gain.value = 0;
+  const level = createLayer(); // → the bus
+  level.gain.value = 0;
+  input.connect(lowCut).connect(highCut).connect(motion);
+  motion.connect(dry).connect(level);
+  motion.connect(room).connect(wet).connect(level);
+  chain = { input, lowCut, highCut, motion, dry, wet, level };
+  return chain;
+}
+
+const ramp = (param, v, tc = 0.12) => {
+  const c = getAudioContext();
+  param.cancelScheduledValues(c.currentTime);
+  param.setTargetAtTime(v, c.currentTime, tc);
+};
+
+let shapeT0 = 0;
+function applyMotion() {
+  if (!chain) return;
+  const sh = clampShape(readNaturePrefs().shape);
+  const c = getAudioContext();
+  const m = motionValue(sh.motion, c.currentTime - shapeT0, sh.motionSpeed, sh.motionAmount);
+  ramp(chain.motion.gain, m, 0.25);
+  // Like the Soundscape: a swell pulling back is muffled as well as quieter.
+  const top = sh.highCut * (sh.motion === "constant" ? 1 : 0.35 + 0.65 * m);
+  ramp(chain.highCut.frequency, Math.max(sh.lowCut * 2, Math.min(20000, top)), 0.25);
+}
+
+// Apply the saved shape to whatever is playing (speed to either element,
+// the rest to the routed chain).
+export function applyRecordingShape() {
+  const sh = clampShape(readNaturePrefs().shape);
+  for (const a of [plainEl, routedEl]) {
+    if (!a) continue;
+    if ("preservesPitch" in a) a.preservesPitch = sh.keepPitch;
+    if ("webkitPreservesPitch" in a) a.webkitPreservesPitch = sh.keepPitch;
+    if (Math.abs(a.playbackRate - sh.speed) > 0.001) a.playbackRate = sh.speed;
+  }
+  if (!chain) return;
+  ramp(chain.lowCut.frequency, sh.lowCut);
+  ramp(chain.highCut.frequency, sh.highCut);
+  // Equal-ish power: the room comes up as the direct sound eases back a touch.
+  ramp(chain.wet.gain, sh.space * 1.4, 0.2);
+  ramp(chain.dry.gain, 1 - sh.space * 0.5, 0.2);
+  clearInterval(motionTimer);
+  motionTimer = null;
+  if (sh.motion === "constant") { ramp(chain.motion.gain, 1); return; }
+  if (!shapeT0) shapeT0 = getAudioContext().currentTime;
+  applyMotion();
+  motionTimer = setInterval(applyMotion, 200);
+}
+
+// The element for a file: routed when the page can read it, else plain.
+// Switching elements stops the other one so two never play at once.
+function pickElement(routable, src) {
+  const want = routable ? (routedEl ||= makeEl()) : (plainEl ||= makeEl());
+  if (audio && audio !== want) {
+    const old = audio;
+    try { old.pause(); old.removeAttribute("src"); old.load(); } catch { /* gone */ }
+  }
+  audio = want;
+  if (routable) {
+    // A remote host that passed the CORS check must be asked for it, or the
+    // routed element plays silence.
+    const cors = isLocalSrc(src) ? null : "anonymous";
+    if (want.crossOrigin !== cors) {
+      if (cors) want.crossOrigin = cors; else want.removeAttribute("crossorigin");
+    }
+    attachElement(want, buildChain().input);
+    want.volume = 1;
+  }
+  return want;
+}
+
+function makeEl() {
+  const audio = new Audio();
   audio.preload = "metadata";
+  const mine = () => audio === currentEl();
   audio.addEventListener("timeupdate", () => {
+    if (!mine()) return;
     const t = audio.currentTime || 0;
     // A minute of good playback since the last recovery earns the tries back.
     if (retries && !audio.paused && t > lastPos + 60) retries = 0;
@@ -108,21 +243,30 @@ function el() {
     setState({ position: t });
   });
   audio.addEventListener("durationchange", () => {
+    if (!mine()) return;
     if (Number.isFinite(audio.duration)) setState({ duration: audio.duration });
   });
   audio.addEventListener("waiting", () => {
+    if (!mine()) return;
     setState({ loading: true });
     clearTimeout(stallTimer);
     if (wantPlaying) stallTimer = setTimeout(() => { stallTimer = null; if (wantPlaying && state.id) { retryTimer = null; recover(); } }, STALL_MS);
   });
   audio.addEventListener("playing", () => {
+    if (!mine()) return;
     clearTimeout(stallTimer); stallTimer = null;
+    if (isRouted(audio)) holdBus(BUS_KEY);
     setState({ loading: false, playing: true, error: null });
   });
-  audio.addEventListener("pause", () => { clearTimeout(stallTimer); stallTimer = null; setState({ playing: false }); });
-  audio.addEventListener("ended", () => { nextNature(); });
+  audio.addEventListener("pause", () => {
+    if (!mine()) return;
+    clearTimeout(stallTimer); stallTimer = null;
+    releaseBus(BUS_KEY);
+    setState({ playing: false });
+  });
+  audio.addEventListener("ended", () => { if (mine()) nextNature(); });
   audio.addEventListener("error", () => {
-    if (!state.id) return;
+    if (!mine() || !state.id) return;
     // A file of your own isn't on the network: retrying won't help.
     if (wantPlaying && !isOwnSoundId(state.id)) { recover(); return; }
     wantPlaying = false;
@@ -136,6 +280,14 @@ function el() {
     });
   });
   return audio;
+}
+
+// The element in use (a function, so listeners made before a switch read it fresh).
+const currentEl = () => audio;
+
+// An element to call play/pause on before any sound is loaded.
+function el() {
+  return audio || (plainEl ||= makeEl()) && (audio = plainEl);
 }
 
 function waitForDuration(a) {
@@ -186,21 +338,28 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
   mediaSession(sound);
   try {
     a.pause();
-    a.src = await natureSoundSrc(id);
+    const src = await natureSoundSrc(id);
     if (my !== token) return;
-    a.volume = 0;
+    const routable = await canRouteSrc(src);
+    if (my !== token) return;
+    let b = a;
+    try { b = pickElement(routable, src); } catch { b = pickElement(false, src); }
+    b.src = src;
+    setState({ shapeable: isRouted(b) });
+    applyRecordingShape();
+    setLevel(0);
     if (at !== "start" && !(typeof at === "number" && at <= 0)) {
-      const d = await waitForDuration(a);
+      const d = await waitForDuration(b);
       if (my !== token) return;
-      a.currentTime = at === "random" ? randomTime(d) : Math.max(0, Math.min(Number(at) || 0, d || Number(at) || 0));
+      b.currentTime = at === "random" ? randomTime(d) : Math.max(0, Math.min(Number(at) || 0, d || Number(at) || 0));
     }
-    await a.play();
+    await b.play();
     if (my !== token) return;
     fadeTo(targetVolume(), resuming ? 600 : FADE_MS);
   } catch (e) {
     if (my !== token || e?.name === "AbortError") return;
     // A load that failed on the network is the error listener's to retry.
-    if (a.error && !isOwnSoundId(id)) { recover(); return; }
+    if (audio?.error && !isOwnSoundId(id)) { recover(); return; }
     wantPlaying = false;
     setState({ loading: false, playing: false, error: isOwnSoundId(id) && e?.message ? e.message : "This sound couldn't start on this device." });
   }
@@ -223,7 +382,7 @@ export function toggleNature(force) {
       return;
     }
     wantPlaying = true;
-    a.volume = 0;
+    setLevel(0);
     a.play().then(() => fadeTo(targetVolume(), FADE_MS)).catch(() => {
       playNature(state.id, { at: state.position || lastPos || "start" });
     });
@@ -241,9 +400,11 @@ export function stopNature() {
   retries = 0;
   if (audio) {
     const a = audio;
-    fadeTo(0, 600, () => { a.pause(); a.removeAttribute("src"); a.load(); });
+    fadeTo(0, 600, () => { a.pause(); a.removeAttribute("src"); a.load(); releaseBus(BUS_KEY); });
   }
-  setState({ id: null, playing: false, loading: false, error: null, position: 0, duration: 0 });
+  clearInterval(motionTimer);
+  motionTimer = null;
+  setState({ id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false });
 }
 
 export function seekNature(seconds) {
@@ -289,5 +450,16 @@ export function prevNature() {
 
 export function setNatureVolume(v) {
   writeNaturePrefs({ volume: v });
-  if (audio && state.playing) { clearInterval(fadeTimer); audio.volume = targetVolume(); }
+  if (audio && state.playing) { clearInterval(fadeTimer); setLevel(targetVolume()); }
 }
+
+// Change the recording's shape (any subset of recordingShape's fields) and
+// hear it right away.
+export function setRecordingShape(patch) {
+  const prev = readNaturePrefs().shape;
+  writeNaturePrefs({ shape: clampShape(patch === null ? null : { ...prev, ...patch }) });
+  applyRecordingShape();
+}
+
+// Test hook: the routed chain's nodes (null until a routed sound has played).
+export const recordingChainForTests = () => chain;

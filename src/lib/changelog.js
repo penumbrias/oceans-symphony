@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Soundscape, Nature sounds and the Scratch pad are now one Soundscape: play a sound made from math and a recording together, and the visuals follow both." },
+      { type: "feature", text: "Shape the sound now works on recordings too: low and high cut, movement, a soft room and speed. Saved and your own sounds can be fully shaped." },
       { type: "fix", text: "Sharing a home screen layout works again: picture links that can't travel are left out instead of the import refusing the whole pack, and it now says what was taken out." },
       { type: "feature", text: "New Scratchboard mod (Mods → library): a small drawing space with raster and vector layers, a lasso, fill bucket and brushes you shape yourself. Save drawings to Assets and credit the {{alter}} who made them." },
       { type: "fix", text: "Mods' saved data is no longer changed by the app's start-up picture clean-up." },

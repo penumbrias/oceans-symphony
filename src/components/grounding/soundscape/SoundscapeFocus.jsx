@@ -5,6 +5,9 @@ import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { startSoundscape, stopSoundscape, getSoundscapeState } from "@/lib/soundscape/engine";
 import { startDistractionFree, stopDistractionFree } from "@/lib/soundscape/focusMode";
 import SoundscapeVisualizer from "./SoundscapeVisualizer";
+import { getNatureState } from "@/lib/natureSounds/naturePlayer";
+import { readScratchpadPrefs } from "@/lib/scratchpad/scratchpadPrefs";
+import ScratchPadCanvas from "@/components/grounding/scratchpad/ScratchPadCanvas";
 import { useSoundscapeState, useRemaining, fmtClock } from "./soundscapeHooks";
 import { FocusSettingsSheet, SheetSection } from "@/components/grounding/focusControls";
 import { VisualPicker, VolumeRow, SoundPresetGrid, SoundShaperPanel, TimerRow, BreathingControls } from "./soundscapeControls";
@@ -47,7 +50,9 @@ export default function SoundscapeFocus({ ctl, onExit }) {
     let wakeLock = null;
     let cancelled = false;
     poke();
-    if (!getSoundscapeState().playing) {
+    // Starts the generated sound only when nothing is playing yet: a
+    // recording on its own is left to play as it is.
+    if (!getSoundscapeState().playing && !getNatureState().playing) {
       startSoundscape(params, { minutes: timer }).catch((e) => setNotice(e?.message || "Sound couldn't start on this device."));
     }
     if (distractionFree) {
@@ -98,7 +103,11 @@ export default function SoundscapeFocus({ ctl, onExit }) {
     >
       {focus.mode !== "breathing" && (
         <div className="absolute inset-0">
-          <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} fractal={fractal} clockRef={fractalClock} />
+          {visual === "particles" ? (
+            <ParticlesStage />
+          ) : (
+            <SoundscapeVisualizer params={params} variant="radial" detail={visual} starSpeed={starSpeed} fractal={fractal} clockRef={fractalClock} />
+          )}
         </div>
       )}
       {focus.mode !== "visuals" && (
@@ -181,5 +190,15 @@ export default function SoundscapeFocus({ ctl, onExit }) {
       )}
     </div>,
     document.body,
+  );
+}
+
+// The Particles visual in focus: the scratch pad's own settings.
+function ParticlesStage() {
+  const [pad] = useState(readScratchpadPrefs);
+  return (
+    <div className="absolute inset-0 bg-black">
+      <ScratchPadCanvas rules={pad.rules} color={pad.color} trails={pad.trails} tilt={pad.tilt} tiltStrength={pad.tiltStrength} />
+    </div>
   );
 }

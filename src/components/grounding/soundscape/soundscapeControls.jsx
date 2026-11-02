@@ -8,6 +8,7 @@ import { setParams as engineSetParams, setTimer as engineSetTimer, getSoundscape
 import { readSoundscapePrefs, writeSoundscapePrefs, TIMER_OPTIONS } from "@/lib/soundscape/soundscapePrefs";
 import { FRACTAL_PRESETS } from "@/lib/soundscape/fractals";
 import { Chips, Row } from "@/components/grounding/focusControls";
+import { SliderRow } from "@/components/shared/SettingRows";
 import SoundShaper from "./SoundShaper";
 import FractalPanel from "./FractalPanel";
 
@@ -21,6 +22,7 @@ export const VISUAL_OPTIONS = [
   { value: "stars", label: "Stars" },
   { value: "fractal", label: "Fractal" },
   { value: "detailed", label: "Detailed" },
+  { value: "particles", label: "Particles" },
 ];
 const VISUAL_HELP = {
   calm: "The shape of the sound, breathing slowly with it.",
@@ -28,6 +30,7 @@ const VISUAL_HELP = {
   stars: "Flying through a starfield.",
   fractal: "Shapes drawn from repeating one equation. Choose the algorithm, the numbers or write your own under Fractal settings.",
   detailed: "The live sound, frequency by frequency. Busier than the others.",
+  particles: "Draw a line of particles with your finger, let go, and watch a few simple rules move it.",
 };
 const STAR_SPEED_OPTIONS = [
   { value: "drift", label: "Drift" },
@@ -133,10 +136,8 @@ export function VolumeRow({ ctl, compact = false }) {
   );
   if (compact) return slider;
   return (
-    <Row label="Volume" value={`${Math.round(p.volume * 100)}%`}>
-      {slider}
-      <p className="text-[0.6875rem] text-muted-foreground">Start low, especially with headphones. It fades in and out gently.</p>
-    </Row>
+    <SliderRow label="Volume" hint="Start low, especially with headphones. It fades in and out gently."
+      value={Math.round(p.volume * 100)} min={0} max={100} unit="%" onChange={(v) => setP({ volume: Math.round(v) / 100 })} />
   );
 }
 

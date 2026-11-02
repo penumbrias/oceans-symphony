@@ -4,16 +4,18 @@
 // Graph:
 //   noise loop → noiseGain → highpass → lowpass → motionGain ┐
 //   tone L/R oscillators → toneGain (stereo merge) ──────────┴→ master
-//   master → limiter (compressor) → ceiling → analyser → speakers
+//   master → the sound bus (limiter → ceiling → analyser → speakers)
 //
 // Safety: every parameter goes through clampParams; every change ramps
 // (setTargetAtTime) so nothing jumps; master gain tops out at MAX_GAIN;
-// the limiter squashes any peak; start and stop fade.
+// the bus's limiter squashes any peak; start and stop fade. The context,
+// limiter and analyser are shared with recordings (src/lib/audio/soundBus.js).
 
+import { getAudioContext, createLayer, getBusAnalyser, holdBus, releaseBus } from "@/lib/audio/soundBus";
 import { clampParams, makeLoop, motionValue, windDownValue, rainShape, rainKey } from "./soundMath";
 
 const MAX_GAIN = 1.0;
-const CEILING = 0.9;
+const BUS_KEY = "soundscape";
 const FADE_IN = 3;
 const END_FADE = 20; // seconds of fade at the end of a timed session
 const RAMP = 0.12;
@@ -40,11 +42,7 @@ const MAX_CACHED = 6;
 let fading = false;
 
 function getCtx() {
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw new Error("This device can't make generated sound.");
-    ctx = new AC();
-  }
+  ctx = getAudioContext();
   return ctx;
 }
 
@@ -70,20 +68,10 @@ function loopBuffer(p) {
 
 function build() {
   const c = getCtx();
-  const master = c.createGain();
+  // This sound's own layer on the bus: fades, volume and the timer's
+  // closing fade all happen here, before the shared limiter.
+  const master = createLayer();
   master.gain.value = 0;
-  const limiter = c.createDynamicsCompressor();
-  limiter.threshold.value = -9;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.002;
-  limiter.release.value = 0.25;
-  const ceiling = c.createGain();
-  ceiling.gain.value = CEILING;
-  const analyser = c.createAnalyser();
-  analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.85;
-  master.connect(limiter).connect(ceiling).connect(analyser).connect(c.destination);
 
   const noiseGain = c.createGain();
   const highpass = c.createBiquadFilter();
@@ -104,7 +92,7 @@ function build() {
   toneR.connect(merger, 0, 1);
   merger.connect(toneGain).connect(master);
 
-  nodes = { master, limiter, analyser, noiseGain, highpass, lowpass, motionGain, toneGain, toneL, toneR, noiseSrc: null, noiseColor: null, oscL: null, oscR: null };
+  nodes = { master, noiseGain, highpass, lowpass, motionGain, toneGain, toneL, toneR, noiseSrc: null, noiseColor: null, oscL: null, oscR: null };
 }
 
 function ramp(param, value, tc = RAMP) {
@@ -207,7 +195,7 @@ export function setParams(next) {
   return params;
 }
 
-export function getAnalyser() { return nodes?.analyser || null; }
+export function getAnalyser() { return nodes ? getBusAnalyser() : null; }
 
 // Current "presence" (0..1) for the visualiser.
 export function currentMotion() {
@@ -217,7 +205,7 @@ export function currentMotion() {
 
 export async function startSoundscape(p, { minutes = null, onEnd = null } = {}) {
   const c = getCtx();
-  if (c.state === "suspended") await c.resume();
+  await holdBus(BUS_KEY);
   clearTimeout(stopTimer);
   if (!nodes) build();
   params = clampParams(p);
@@ -271,7 +259,7 @@ export function stopSoundscape({ fade = 1.5 } = {}) {
   fading = false;
   clearInterval(motionTimer);
   motionTimer = null;
-  if (!nodes || !ctx || !state.playing) { setState({ playing: false, endsAt: null, startedAt: null, duration: null }); return; }
+  if (!nodes || !ctx || !state.playing) { releaseBus(BUS_KEY); setState({ playing: false, endsAt: null, startedAt: null, duration: null }); return; }
   const c = ctx;
   nodes.master.gain.cancelScheduledValues(c.currentTime);
   nodes.master.gain.setValueAtTime(nodes.master.gain.value, c.currentTime);
@@ -285,7 +273,7 @@ export function stopSoundscape({ fade = 1.5 } = {}) {
     try { old.noiseSrc?.stop(); } catch { /* stopped */ }
     try { old.oscL?.stop(); old.oscR?.stop(); } catch { /* stopped */ }
     try { old.master.disconnect(); } catch { /* gone */ }
-    if (nodes === old) nodes = null;
+    if (nodes === old) { nodes = null; releaseBus(BUS_KEY); }
   }, fade * 1000 + 100);
   try { cb?.(); } catch { /* listener */ }
 }

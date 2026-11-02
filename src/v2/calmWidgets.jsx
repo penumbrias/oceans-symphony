@@ -156,7 +156,7 @@ function ScratchPadWidget({ settings, updateSettings, instanceId, mode = "normal
 
 // ── Soundscape ─────────────────────────────────────────────────────────
 
-const SOUND_VISUAL_OPTIONS = [{ value: FOLLOW, label: "As on the Support page" }, ...VISUAL_OPTIONS];
+const SOUND_VISUAL_OPTIONS = [{ value: FOLLOW, label: "As on the Support page" }, ...VISUAL_OPTIONS.filter((o) => o.value !== "particles")];
 
 function SoundscapeWidget({ settings, instanceId, mode = "normal" }) {
   const tr = useT();
@@ -171,7 +171,9 @@ function SoundscapeWidget({ settings, instanceId, mode = "normal" }) {
   // Library previews don't count as "on screen" for the floating pill.
   useSoundscapeWidgetMounted(!preview);
 
-  const visual = settings?.visual || prefs.visual;
+  // Particles need a finger on the page; the widget's window draws the calm view instead.
+  const picked = settings?.visual || prefs.visual;
+  const visual = picked === "particles" ? "calm" : picked;
   const showVolume = settings?.showVolume !== false;
   const showTimer = settings?.showTimer !== false && mode === "expanded";
 

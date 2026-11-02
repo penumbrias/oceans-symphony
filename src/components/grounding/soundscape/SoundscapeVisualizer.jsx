@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
-import { getAnalyser, currentMotion, getSoundscapeState } from "@/lib/soundscape/engine";
+import { currentMotion, getSoundscapeState } from "@/lib/soundscape/engine";
+import { getBusAnalyser } from "@/lib/audio/soundBus";
+import { isRecordingLive } from "@/lib/natureSounds/naturePlayer";
 import { motionValue, rainCenterHz } from "@/lib/soundscape/soundMath";
 import { createStars, drawStars, createFractal, drawFractal } from "./spaceVisuals";
 
@@ -224,7 +226,13 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
       g.clearRect(0, 0, w, h);
 
       const p = paramsRef.current;
-      const analyser = getSoundscapeState().playing ? getAnalyser() : null;
+      // Everything playing goes through the one sound bus. With only a
+      // recording on (no generated sound to predict a shape from), the calm
+      // views draw the live sound instead, smoothed even more slowly.
+      const generated = getSoundscapeState().playing;
+      const recording = isRecordingLive();
+      const analyser = generated || recording ? getBusAnalyser() : null;
+      const liveOnly = recording && !generated;
 
       // The predicted shape, normalised: 1 = loudest point, 0 = 54 dB below.
       const shape = new Float32Array(N);
@@ -245,7 +253,7 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
         for (let k = 0; k < wave.length; k++) ss += wave[k] * wave[k];
         const db = 10 * Math.log10(ss / wave.length + 1e-12);
         target = Math.max(0, Math.min(1, (db + 50) / 35));
-        if (detail === "detailed") {
+        if (detail === "detailed" || liveOnly) {
           analyser.getFloatFrequencyData(freq);
           const sr = analyser.context?.sampleRate || 48000;
           const live = new Float32Array(N);
@@ -260,15 +268,15 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
           livePeak = livePeak == null ? lp : livePeak + (lp - livePeak) * 0.02;
           for (let i = 0; i < N; i++) {
             const v = Math.max(0, Math.min(1, (live[i] - livePeak + 60) / 60));
-            shown[i] += (v - shown[i]) * 0.08;
+            shown[i] += (v - shown[i]) * (detail === "detailed" ? 0.08 : 0.03);
           }
         }
       }
       level += (target - level) * 0.02;
-      const m = analyser ? currentMotion() : 1;
+      const m = generated ? currentMotion() : 1;
       // How "present" the sound is right now: slow by construction.
       const presence = analyser ? 0.55 + 0.45 * level * m : 1;
-      const useLive = detail === "detailed" && analyser;
+      const useLive = (detail === "detailed" && analyser) || liveOnly;
       const vals = useLive ? shown : shape;
 
       const dt = Math.min(0.1, prevNow ? (now - prevNow) / 1000 : 0);
@@ -290,7 +298,7 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
         drawFractal(g, w, h, fractal, fractalT, hue, { ...fs, zoom }, due);
         return;
       }
-      if (detail === "layers") {
+      if (detail === "layers" && !liveOnly) {
         drawLayers(g, w, h, p, now / 1000, variant, colors, presence, reduce);
         return;
       }
@@ -336,7 +344,7 @@ export default function SoundscapeVisualizer({ params, variant = "spectrum", det
       g.strokeStyle = colors.line;
       g.lineWidth = 2;
       g.stroke();
-      if (useLive) {
+      if (useLive && generated) {
         // The predicted shape as a dashed guide over the live sound.
         g.beginPath();
         for (let i = 0; i < N; i++) {
