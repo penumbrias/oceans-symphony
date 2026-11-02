@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "The Pinned {{alters}} widget's cog now opens that widget's own options, where you pick who's pinned, their order and how they look." },
+      { type: "improve", text: "Widget options: Content now holds each widget's own settings. Pinned tasks moved there from their cog, Chat channels can show just the channels you pick, and the Inner world map shows which view it opens on." },
       { type: "feature", text: "Goals now earn XP for your Tasks level: ticking points, doing tracked activities and reaching a goal. Turn it off in Tasks → Edit." },
       { type: "fix", text: "Quick note's \"New board post\" now opens the New post popup straight away instead of sending you to the Boards page." },
       { type: "improve", text: "Picking a board for a new post is now a menu with submenus for group, subsystem and {{alter}} boards, and you can post to an {{alter}}'s own board from it." },

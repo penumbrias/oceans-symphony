@@ -13,6 +13,7 @@ import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/ho
 import { shapeLayerStyles } from "@/lib/avatarShapes";
 import { alterPictureStyle } from "@/lib/imageFraming";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useWidgetChrome } from "@/v2/primitives";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -106,6 +107,11 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   const levelStyles = (config.levelStyles && typeof config.levelStyles === "object") ? config.levelStyles : {};
 
   const pinnedSettingsLabel = `Pinned ${emptyTerms.alters} settings`;
+  // On a home screen the gallery is a widget: its cog opens that widget's
+  // own options (pins, order, names, sizes on Content), not Display
+  // options. Everywhere else it stays the pinned bar's editor.
+  const widgetOptions = useWidgetChrome().openOptions || null;
+  const openSettings = () => (widgetOptions ? widgetOptions() : openBarsEditor("alters"));
 
   const pinnedRaw = alters.filter((a) => a.is_pinned && !a.is_archived);
   // Custom order first (ids in saved order), then any not-yet-ordered pins
@@ -124,10 +130,16 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   // here. Headerless mounts (the home-board strip) get the hint; the
   // profile-page mount keeps its old hidden behavior via showHeader.
   if (pinned.length === 0) {
-    if (!showHeader) {
+    if (!showHeader || widgetOptions) {
       return (
         <div className="flex items-center gap-2 py-1.5 px-2 text-xs text-muted-foreground">
           <span className="flex-1 min-w-0">{emptyHint}</span>
+          {widgetOptions && (
+            <button type="button" onClick={widgetOptions} aria-label={pinnedSettingsLabel} title={pinnedSettingsLabel}
+              className="text-muted-foreground hover:text-foreground p-0.5 flex-shrink-0">
+              <SettingsIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       );
     }
@@ -152,9 +164,10 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
             <Pin className="w-3 h-3 fill-primary text-primary" /> Pinned
           </p>
           <div className="flex-1 h-px bg-border/50" />
-          {/* The ONE pinned editor: Display options → Bars → pinned bar
-              (pins, order, names, size — shared with the bar). */}
-          <button type="button" onClick={() => openBarsEditor("alters")} aria-label={pinnedSettingsLabel} title={pinnedSettingsLabel} className="text-muted-foreground hover:text-foreground p-0.5">
+          {/* The ONE pinned editor for where this gallery sits: the widget's
+              own options on a home screen, Display options → Bars → pinned
+              bar elsewhere (pins, order, names, size — shared with the bar). */}
+          <button type="button" onClick={openSettings} aria-label={pinnedSettingsLabel} title={pinnedSettingsLabel} className="text-muted-foreground hover:text-foreground p-0.5">
             <SettingsIcon className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -213,7 +226,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
 // BESIDE it rather than behind it.
 // One searchable row in the "Add alters" picker — its own component so the
 // avatar can resolve via the hook (can't call hooks in a map).
-export function PinPickerRow({ alter, pinned, onToggle }) {
+export function PinPickerRow({ alter, label, pinned, onToggle }) {
   const avatar = useResolvedAvatarUrl(alter.avatar_url);
   return (
     <button
@@ -231,7 +244,7 @@ export function PinPickerRow({ alter, pinned, onToggle }) {
           <span className="text-xs font-semibold text-foreground">{(alter.name || "?").charAt(0).toUpperCase()}</span>
         )}
       </div>
-      <span className="flex-1 min-w-0 text-sm truncate">{alter.name}</span>
+      <span className="flex-1 min-w-0 text-sm truncate">{label || alter.name}</span>
       <Pin className={`w-4 h-4 flex-shrink-0 ${pinned ? "fill-primary text-primary" : "text-muted-foreground"}`} />
     </button>
   );

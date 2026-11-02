@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { isCountedTask } from "@/lib/taskCounts";
@@ -7,10 +7,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from "@/components/ui/dialog";
+import { Row, StackedRow, Group, SwitchRow, ChoiceRow, SliderRow, Chips } from "@/components/shared/SettingRows";
+import { useWidgetChrome } from "@/v2/primitives";
 import { Settings as SettingsIcon, CheckCircle2, Circle, ChevronUp, ChevronDown, Sparkles, ExternalLink,
 } from "lucide-react";
 import {
@@ -49,7 +47,9 @@ export default function PinnedDailyTasksWidget() {
   const queryClient = useQueryClient();
   const prefsJson = usePinnedPrefs();
   const prefs = useMemo(() => JSON.parse(prefsJson), [prefsJson]);
-  const [showSettings, setShowSettings] = useState(false);
+  // The cog opens this widget's own options (Content tab). Outside a
+  // board (a library preview) there is nothing to open, so no cog.
+  const openOptions = useWidgetChrome().openOptions || null;
 
   // refetchOnMount "always": the widget used to serve a stale (sometimes
   // empty) cache until the Recurring-tasks page happened to refetch the
@@ -196,15 +196,17 @@ export default function PinnedDailyTasksWidget() {
           <Sparkles className="w-3 h-3" /> Pinned tasks
         </p>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowSettings(true)}
-            aria-label="Pinned tasks settings"
-            title="Configure pinned tasks"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <SettingsIcon className="w-3.5 h-3.5" />
-          </button>
+          {openOptions && (
+            <button
+              type="button"
+              onClick={openOptions}
+              aria-label="Pinned tasks settings"
+              title="Configure pinned tasks"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <SettingsIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
           <Link to="/tasks" className="text-xs text-muted-foreground hover:text-foreground">
             See all
           </Link>
@@ -214,7 +216,7 @@ export default function PinnedDailyTasksWidget() {
       {visibleTasks.length === 0 ? (
         <EmptyState
           mode={prefs.mode}
-          onConfigure={() => setShowSettings(true)}
+          onConfigure={openOptions}
         />
       ) : (
         <div
@@ -234,12 +236,6 @@ export default function PinnedDailyTasksWidget() {
         </div>
       )}
 
-      <SettingsDialog
-        open={showSettings}
-        onClose={() => setShowSettings(false)}
-        templates={activeTemplates}
-        terms={terms}
-      />
     </div>
   );
 }
@@ -315,272 +311,134 @@ function EmptyState({ mode, onConfigure }) {
           ? "No tasks pinned yet — pick which ones should appear here."
           : "All caught up! Nothing to show."}
       </p>
-      <Button variant="outline" size="sm" onClick={onConfigure}>
-        <SettingsIcon className="w-3.5 h-3.5 mr-1" /> Configure
-      </Button>
+      {onConfigure && (
+        <Button variant="outline" size="sm" onClick={onConfigure}>
+          <SettingsIcon className="w-3.5 h-3.5 mr-1" /> Configure
+        </Button>
+      )}
     </div>
   );
 }
 
-function SettingsDialog({ open, onClose, templates, terms }) {
-  const [draft, setDraft] = useState(loadPrefs);
-
-  // Reset draft from storage every time the dialog opens, so an
-  // unsaved tweak from a prior session doesn't bleed in.
-  useEffect(() => {
-    if (open) setDraft(loadPrefs());
-  }, [open]);
-
-  const handleSave = () => {
-    savePrefs(draft);
-    onClose();
+// The widget's options, live (v0.333.0): lives on the Content tab of the
+// widget's options sheet. Each change saves at once, like every other row
+// there — the old Save/Cancel dialog behind the cog is gone.
+export function PinnedTasksOptions() {
+  const terms = useTerms();
+  const prefsJson = usePinnedPrefs();
+  const prefs = useMemo(() => JSON.parse(prefsJson), [prefsJson]);
+  const { data: templates = [] } = useQuery({
+    queryKey: ["dailyTaskTemplates"],
+    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+  });
+  const active = templates.filter((t) => t.is_active !== false);
+  const [picking, setPicking] = useState(false);
+  const [search, setSearch] = useState("");
+  // Read fresh from storage on every change so two quick taps both land.
+  const update = (fn) => savePrefs(fn(loadPrefs()));
+  const moveIn = (arr, i, dir) => {
+    const next = [...arr]; const j = i + dir;
+    if (j < 0 || j >= next.length) return next;
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
   };
-
-  const movePriority = (freq, dir) => {
-    setDraft((d) => {
-      const order = [...d.priorityOrder];
-      const i = order.indexOf(freq);
-      if (i === -1) return d;
-      const j = i + dir;
-      if (j < 0 || j >= order.length) return d;
-      [order[i], order[j]] = [order[j], order[i]];
-      return { ...d, priorityOrder: order };
-    });
-  };
-
-  const toggleFreq = (freq) => {
-    setDraft((d) => {
-      const set = new Set(d.enabledFrequencies);
-      if (set.has(freq)) set.delete(freq);
-      else set.add(freq);
-      return { ...d, enabledFrequencies: [...set] };
-    });
-  };
-
-  const togglePicked = (id) => {
-    setDraft((d) => {
-      const picked = d.pickedIds.includes(id)
-        ? d.pickedIds.filter((x) => x !== id)
-        : [...d.pickedIds, id];
-      return { ...d, pickedIds: picked };
-    });
-  };
-
-  const movePicked = (id, dir) => {
-    setDraft((d) => {
-      const arr = [...d.pickedIds];
-      const i = arr.indexOf(id);
-      if (i === -1) return d;
-      const j = i + dir;
-      if (j < 0 || j >= arr.length) return d;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-      return { ...d, pickedIds: arr };
-    });
-  };
-
+  const freqLabel = (f) => FREQUENCY_LABELS?.[f] || f;
+  const arrows = (i, len, onMove, name) => (
+    <>
+      <button type="button" onClick={() => onMove(-1)} disabled={i === 0} aria-label={`Move ${name} up`}
+        className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground disabled:opacity-30">
+        <ChevronUp className="w-3.5 h-3.5" />
+      </button>
+      <button type="button" onClick={() => onMove(1)} disabled={i === len - 1} aria-label={`Move ${name} down`}
+        className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground disabled:opacity-30">
+        <ChevronDown className="w-3.5 h-3.5" />
+      </button>
+    </>
+  );
+  const matches = active.filter((t) => applyTerms(t.title || "", terms).toLowerCase().includes(search.toLowerCase()));
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Pinned tasks settings</DialogTitle>
-          <DialogDescription>
-            Choose what appears in the Pinned tasks card on the dashboard.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Mode */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Pick mode</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={draft.mode === "auto" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setDraft((d) => ({ ...d, mode: "auto" }))}
-              >
-                Auto by frequency
-              </Button>
-              <Button
-                type="button"
-                variant={draft.mode === "manual" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setDraft((d) => ({ ...d, mode: "manual" }))}
-              >
-                Hand-pick
-              </Button>
-            </div>
-          </div>
-
-          {/* Height */}
-          <div className="space-y-2">
-            <Label htmlFor="pinned-height" className="text-sm font-medium">
-              List height: {draft.maxHeight}px
-            </Label>
-            <input
-              id="pinned-height"
-              type="range"
-              min={140}
-              max={800}
-              step={10}
-              value={draft.maxHeight}
-              onChange={(e) => setDraft((d) => ({ ...d, maxHeight: Number(e.target.value) }))}
-              className="w-full accent-primary"
-            />
-            <p className="text-xs text-muted-foreground">
-              Tasks beyond this height scroll inside the card.
-            </p>
-          </div>
-
-          {draft.mode === "auto" && (
-            <div className="space-y-3 border-t border-border/50 pt-3">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Which frequencies to include</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {FREQUENCIES.map((f) => {
-                    const on = draft.enabledFrequencies.includes(f);
+    <div>
+      <Group title="Which tasks" first>
+        <ChoiceRow label="Pick" value={prefs.mode}
+          onChange={(v) => update((d) => ({ ...d, mode: v }))}
+          options={[{ value: "auto", label: "By how often" }, { value: "manual", label: "Hand-pick" }]} />
+        {prefs.mode === "auto" && (
+          <>
+            <StackedRow label="Include">
+              <Chips multiple label="Include" value={prefs.enabledFrequencies}
+                onChange={(next) => update((d) => ({ ...d, enabledFrequencies: next }))}
+                options={FREQUENCIES.map((f) => ({ value: f, label: freqLabel(f) }))} />
+            </StackedRow>
+            <StackedRow label="Shown first" hint="Top of the list shows first">
+              <div className="space-y-1">
+                {prefs.priorityOrder.map((f, i) => (
+                  <div key={f} className="flex items-center gap-2 px-2 py-1 rounded-lg border border-border/40">
+                    <span className="text-xs text-muted-foreground tabular-nums w-4">{i + 1}.</span>
+                    <span className="text-sm flex-1">{freqLabel(f)}</span>
+                    {arrows(i, prefs.priorityOrder.length,
+                      (dir) => update((d) => ({ ...d, priorityOrder: moveIn(d.priorityOrder, i, dir) })), freqLabel(f))}
+                  </div>
+                ))}
+              </div>
+            </StackedRow>
+            <SwitchRow label="Hide tasks once they're done" checked={prefs.hideCompleted}
+              onChange={(on) => update((d) => ({ ...d, hideCompleted: on }))} />
+          </>
+        )}
+        {prefs.mode === "manual" && (
+          <>
+            <Row label={picking ? "Tap to add or take off" : `${prefs.pickedIds.length} picked`}
+              hint={!picking && prefs.pickedIds.length > 1 ? "Arrows change the order" : undefined}>
+              <button type="button" onClick={() => { setPicking((v) => !v); setSearch(""); }} aria-expanded={picking}
+                className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                {picking ? "Done" : "Add / remove"}
+              </button>
+            </Row>
+            {picking ? (
+              <div className="space-y-1.5 py-1.5">
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks…"
+                  className="w-full px-3 h-9 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring" />
+                <div className="max-h-56 overflow-y-auto overscroll-contain space-y-1">
+                  {active.length === 0 && <p className="text-xs text-muted-foreground p-2">No recurring tasks yet. Add some on the Recurring tasks page.</p>}
+                  {matches.map((t) => {
+                    const on = prefs.pickedIds.includes(t.id);
                     return (
-                      <button
-                        type="button"
-                        key={f}
-                        onClick={() => toggleFreq(f)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
-                          on
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card text-muted-foreground border-border hover:text-foreground"
-                        }`}
-                      >
-                        {f}
+                      <button key={t.id} type="button" aria-pressed={on}
+                        onClick={() => update((d) => ({ ...d, pickedIds: on ? d.pickedIds.filter((x) => x !== t.id) : [...d.pickedIds, t.id] }))}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border text-left ${on ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-muted/30"}`}>
+                        {on ? <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /> : <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                        <span className="text-sm flex-1 truncate">{applyTerms(t.title, terms)}</span>
+                        <span className="text-[0.65rem] text-muted-foreground">{freqLabel(t.frequency || "daily")}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Priority order</Label>
-                <p className="text-xs text-muted-foreground">
-                  Top of the list = highest priority. Tasks of higher-priority
-                  frequencies render first; completed ones {draft.hideCompleted ? "drop out" : "sink to the bottom"}.
-                </p>
-                <div className="space-y-1">
-                  {draft.priorityOrder.map((f, i) => (
-                    <div key={f} className="flex items-center gap-2 px-2 py-1 rounded-md border border-border/50 bg-card">
-                      <span className="text-xs text-muted-foreground tabular-nums w-4">{i + 1}.</span>
-                      <span className="text-sm flex-1 capitalize">{f}</span>
-                      <Button
-                        type="button" variant="ghost" size="icon" className="h-6 w-6"
-                        onClick={() => movePriority(f, -1)}
-                        disabled={i === 0}
-                        aria-label={`Move ${f} up`}
-                      >
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        type="button" variant="ghost" size="icon" className="h-6 w-6"
-                        onClick={() => movePriority(f, 1)}
-                        disabled={i === draft.priorityOrder.length - 1}
-                        aria-label={`Move ${f} down`}
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </Button>
+            ) : (
+              <div className="space-y-1 py-1.5">
+                {prefs.pickedIds.length === 0 && <p className="text-xs text-muted-foreground">Nothing picked yet.</p>}
+                {prefs.pickedIds.map((id, i) => {
+                  const t = active.find((x) => x.id === id);
+                  if (!t) return null;
+                  const name = applyTerms(t.title, terms);
+                  return (
+                    <div key={id} className="flex items-center gap-2 px-2 py-1 rounded-lg border border-border/40">
+                      <span className="text-sm flex-1 truncate">{name}</span>
+                      {arrows(i, prefs.pickedIds.length,
+                        (dir) => update((d) => ({ ...d, pickedIds: moveIn(d.pickedIds, i, dir) })), name)}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={draft.hideCompleted}
-                  onChange={(e) => setDraft((d) => ({ ...d, hideCompleted: e.target.checked }))}
-                  className="w-4 h-4 accent-primary"
-                />
-                <span className="text-sm">Hide completed tasks</span>
-              </label>
-            </div>
-          )}
-
-          {draft.mode === "manual" && (
-            <div className="space-y-3 border-t border-border/50 pt-3">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Pick tasks to show</Label>
-                <p className="text-xs text-muted-foreground">
-                  Order is the on-screen order. Use ↑/↓ to rearrange.
-                </p>
-                {draft.pickedIds.length > 0 && (
-                  <div className="space-y-1">
-                    {draft.pickedIds.map((id, i) => {
-                      const t = templates.find((x) => x.id === id);
-                      if (!t) return null;
-                      return (
-                        <div key={id} className="flex items-center gap-2 px-2 py-1 rounded-md border border-border/50 bg-card">
-                          <span className="text-xs text-muted-foreground tabular-nums w-4">{i + 1}.</span>
-                          <span className="text-sm flex-1 truncate">{applyTerms(t.title, terms)}</span>
-                          <span className="text-[0.65rem] uppercase text-muted-foreground capitalize">{t.frequency || "daily"}</span>
-                          <Button
-                            type="button" variant="ghost" size="icon" className="h-6 w-6"
-                            onClick={() => movePicked(id, -1)} disabled={i === 0}
-                            aria-label="Move up"
-                          >
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            type="button" variant="ghost" size="icon" className="h-6 w-6"
-                            onClick={() => movePicked(id, 1)} disabled={i === draft.pickedIds.length - 1}
-                            aria-label="Move down"
-                          >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            type="button" variant="ghost" size="sm" className="h-6 text-xs text-destructive"
-                            onClick={() => togglePicked(id)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Available tasks</Label>
-                <div className="max-h-56 overflow-y-auto border border-border/50 rounded-md p-1 space-y-0.5">
-                  {templates.length === 0 && (
-                    <p className="text-xs text-muted-foreground p-2">
-                      No task templates yet. Add some on the Daily Tasks page.
-                    </p>
-                  )}
-                  {templates.map((t) => {
-                    const picked = draft.pickedIds.includes(t.id);
-                    return (
-                      <label key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/30 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={picked}
-                          onChange={() => togglePicked(t.id)}
-                          className="w-4 h-4 accent-primary"
-                        />
-                        <span className="text-sm flex-1 truncate">{applyTerms(t.title, terms)}</span>
-                        <span className="text-[0.65rem] uppercase text-muted-foreground capitalize">{t.frequency || "daily"}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+            )}
+          </>
+        )}
+      </Group>
+      <Group title="Size">
+        <SliderRow label="List height" hint="Taller lists scroll inside the widget" value={prefs.maxHeight}
+          fallback={DEFAULT_PREFS.maxHeight} min={140} max={800} step={10}
+          onChange={(v) => update((d) => ({ ...d, maxHeight: Math.round(v) }))} />
+      </Group>
+    </div>
   );
 }
