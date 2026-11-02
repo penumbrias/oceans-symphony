@@ -7,6 +7,8 @@ import { pageEntries, liveSteps, descendantIds, updatePage } from "@/lib/goalTre
 import { stepState } from "@/lib/goals";
 import ItemRow, { EntryMenu } from "./ItemRow";
 import AddLine from "./AddLine";
+import { TagChips } from "./TagEditor";
+import { sectionHeading, pageWordCount, formatWords } from "@/lib/goalWriting";
 import { useWorkspace } from "./WorkspaceContext";
 
 const MAX_INLINE_DEPTH = 6;
@@ -29,16 +31,23 @@ export function useSubtreeProgress(pageId) {
 }
 
 function SectionBlock({ section, parentId, depth }) {
-  const { open, run } = useWorkspace();
+  const { open, run, index, steps } = useWorkspace();
   const { done, total, notes, sections } = useSubtreeProgress(section.id);
   const collapsed = !!section.collapsed || depth >= MAX_INLINE_DEPTH;
+  // A chapter, part or scene: its number above the title, words written.
+  const heading = sectionHeading(index, section);
+  const words = heading ? pageWordCount(index, steps, section.id) : 0;
   const summary = [
+    heading && words ? formatWords(words) : null,
     total ? `${done} of ${total} done` : null,
-    !total && notes ? `${notes} ${notes === 1 ? "note" : "notes"}` : null,
+    !heading && !total && notes ? `${notes} ${notes === 1 ? "note" : "notes"}` : null,
     sections ? `${sections} ${sections === 1 ? "section" : "sections"}` : null,
   ].filter(Boolean).join(" · ");
   return (
-    <li className="space-y-1.5" data-highlight-id={section.id}>
+    <li className={`space-y-1.5 ${heading && depth === 0 ? "pt-2" : ""}`} data-highlight-id={section.id}>
+      {heading && (
+        <p className="ml-6 text-[0.7em] font-semibold uppercase tracking-wide text-primary/80">{heading}</p>
+      )}
       <div className="flex items-center gap-1">
         <button type="button" aria-label={collapsed ? `Show ${section.title}` : `Fold ${section.title}`} aria-expanded={!collapsed}
           disabled={depth >= MAX_INLINE_DEPTH}
@@ -51,10 +60,11 @@ function SectionBlock({ section, parentId, depth }) {
           {section.icon && <span className="mr-1" aria-hidden="true">{section.icon}</span>}
           {section.title || "Untitled"}
         </button>
-        {summary && collapsed && <span className="text-xs text-muted-foreground truncate">· {summary}</span>}
+        {summary && (collapsed || heading) && <span className="text-xs text-muted-foreground truncate">· {summary}</span>}
         <span className="flex-1" />
         <EntryMenu entry={{ type: "page", rec: section }} pageId={parentId} label={section.title || "section"} />
       </div>
+      <TagChips page={section} className="ml-6" />
       {!collapsed && (
         <div className="pl-4 border-l-2 border-border/50 ml-2">
           <EntryList pageId={section.id} page={section} depth={depth + 1} compactAdd />

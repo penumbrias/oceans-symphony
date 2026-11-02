@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Goals for writing: a section can be a chapter, part or scene, numbered with a word count. Tag pages and sections, then tap a tag to see them all." },
       { type: "feature", text: "Goals: \"Work on it\" times the goal itself like an activity, no activity needed. The time shows on your timeline and adds up on the page." },
       { type: "feature", text: "Goal pages are made of widgets now: tap the grid button on a page to move or resize them, or add pictures, GIFs and videos with the Image widget." },
       { type: "fix", text: "The Pinned {{alters}} widget's cog now opens that widget's own options, where you pick who's pinned, their order and how they look." },

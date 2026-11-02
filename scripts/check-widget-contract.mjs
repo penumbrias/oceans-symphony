@@ -50,6 +50,7 @@ const WIDGET_FILES = [
   "src/components/goals/workspace/AddLine.jsx",
   "src/components/goals/workspace/BoardView.jsx",
   "src/components/goals/workspace/MapView.jsx",
+  "src/components/goals/workspace/TagEditor.jsx",
 ];
 
 const lookSrc = readFileSync(join(root, "src/lib/widgetLook.js"), "utf8");

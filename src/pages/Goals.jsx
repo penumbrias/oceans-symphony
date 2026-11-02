@@ -153,6 +153,15 @@ export default function Goals() {
   const madeFromWish = useRef(false);
   const [carrying, setCarrying] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
+  // The sidebar's tag filter: tapping a #tag anywhere lists its pages there
+  // (on a phone the pages sheet opens to show them).
+  const [tag, setTag] = useState(null);
+  const showTag = useCallback((t) => {
+    setTag(t || null);
+    let wide = false;
+    try { wide = window.matchMedia("(min-width: 768px)").matches; } catch { /* phone */ }
+    if (t && !wide) setTreeOpen(true);
+  }, []);
   const pageId = params.get("page") || params.get("highlight") || null;
 
   const { data: goals = [], isFetched } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: list("Goal") });
@@ -236,7 +245,7 @@ export default function Goals() {
     }
   };
 
-  const value = { goals, steps, index, ctx, alters, settings, refresh, open, isFetched };
+  const value = { goals, steps, index, ctx, alters, settings, refresh, open, isFetched, tag, showTag };
 
   return (
     <WorkspaceProvider value={value}>
