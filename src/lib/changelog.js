@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Mods can ask to read your records (journals, check-ins and more). Nothing is shared until you read what it means and tick each kind yourself on the mod's card." },
+      { type: "feature", text: "Mods can offer to save files to your device; the app asks you every time." },
       { type: "fix", text: "New activity: starting several activities at once now starts a timer for each one, and the button says \"Start activity\"." },
       { type: "improve", text: "New activity: the title is its own optional field, \"What is it?\" is where you pick activities, and Who stays closed until you open it." },
       { type: "improve", text: "New activity: the time shortcuts are now Now, Before/After the last one + Set, and Line up with. The to-do section can make a new to-do." },
