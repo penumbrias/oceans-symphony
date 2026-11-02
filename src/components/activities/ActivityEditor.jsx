@@ -30,7 +30,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek } from "date-fns";
 import { toast } from "sonner";
-import { CheckSquare, ChevronLeft, FolderTree, MapPin, Pause, Play, Repeat } from "lucide-react";
+import { CheckSquare, ChevronLeft, FolderTree, MapPin, Pause, Play, Plus, Repeat } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +45,7 @@ import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { createTask } from "@/lib/taskCreate";
 import { createActivityEntry, defaultModeFor, ENTRY_MODES } from "@/lib/activityEntry";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import {
@@ -283,7 +284,7 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
       if (!best || String(made) > String(best.made)) best = { a, len, made };
     }
     if (!best) return null;
-    return { end: new Date(new Date(best.a.timestamp).getTime() + best.len * 60000), name: best.a.activity_name || "", id: best.a.id };
+    return { start: new Date(best.a.timestamp), end: new Date(new Date(best.a.timestamp).getTime() + best.len * 60000), name: best.a.activity_name || "", id: best.a.id };
   }, [activities, entry, item.id]);
 
   // ── Member list (searchable, fronters first, optional group view) ──
@@ -555,6 +556,22 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     setTodoPickerOpen(false); setTodoQuery("");
   };
   const linkedTask = item.task_id ? tasks.find((x) => x.id === item.task_id) : null;
+  // Nothing in the list fits → the typed words become a new to-do, linked
+  // straight away (owner ask, 2026-11-02).
+  const newTodoTitle = todoQuery.trim();
+  const canMakeTodo = !!newTodoTitle && !openTasks.some((x) => (x.title || "").trim().toLowerCase() === newTodoTitle.toLowerCase());
+  const makingTodo = useRef(false);
+  const makeTodo = async () => {
+    if (!canMakeTodo || makingTodo.current) return;
+    makingTodo.current = true;
+    try {
+      const task = await createTask({ title: newTodoTitle });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      linkTodo(task);
+      toast.success(tr("planner.newTodoMade"));
+    } catch (e) { toast.error(e?.message || "Failed"); }
+    finally { makingTodo.current = false; }
+  };
 
   // ── Closing ────────────────────────────────────────────────────────
   const editorDirty = () => {
@@ -628,7 +645,7 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
       }
       if (item.task_id) qc.invalidateQueries({ queryKey: ["tasks"] });
       const name = (item.activity_name || "").trim() || categories.find((c) => c.id === catIds[0])?.name || "";
-      toast.success(res.mode === ENTRY_MODES.NOW ? tr("planner.startedNew", { name })
+      toast.success(res.mode === ENTRY_MODES.NOW ? (res.count > 1 ? tr("planner.startedMany", { count: res.count }) : tr("planner.startedNew", { name }))
         : res.count > 1 ? tr("planner.createdCount", { count: res.count })
         : res.mode === ENTRY_MODES.PLAN ? tr("planner.planned") : tr("planner.logged"));
       onSaved?.(res);
@@ -655,14 +672,19 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     reminder: extra.reminder_offset_minutes != null,
     critical: !!extra.is_critical,
   };
-  const isOpen = (k) => open[k] ?? has[k];
+  // A new entry fills Who from the fronting history, but that guess
+  // doesn't open the list on its own: the chip shows how many it holds and
+  // the sheet starts uncluttered (owner ask, 2026-11-02).
+  const autoOpen = { ...has, who: has.who && !(create && !(request?.alterIds || []).length) };
+  const isOpen = (k) => open[k] ?? autoOpen[k];
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !isOpen(k) }));
 
   const weekStart = startOfWeek(start, { weekStartsOn });
   const startsLater = start.getTime() > Date.now() + 60000;
   const dayPassed = format(start, "yyyy-MM-dd") < format(new Date(), "yyyy-MM-dd");
   const canSave = !!((item.activity_name || "").trim() || (item.activity_category_ids || []).length);
-  const saveLabel = mode === ENTRY_MODES.NOW ? tr("planner.startIt")
+  const startCount = (item.activity_category_ids || []).length;
+  const saveLabel = mode === ENTRY_MODES.NOW ? (startCount > 1 ? tr("planner.startItMany", { count: startCount }) : tr("planner.startIt"))
     : mode === ENTRY_MODES.PLAN ? tr("planner.planIt") + (extraDays.length ? ` ×${extraDays.length + 1}` : "")
     : tr("planner.logIt");
 
@@ -930,7 +952,8 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
         {/* DETAILS — every optional field, the same in every door. */}
         <SectionLabel>{tr("planner.details")}</SectionLabel>
         <div className="flex flex-wrap gap-1.5">
-          <DetailChip open={isOpen("who")} has={has.who} onToggle={() => toggle("who")} label={tr("planner.who")} />
+          <DetailChip open={isOpen("who")} has={has.who} onToggle={() => toggle("who")}
+            label={(item.fronting_alter_ids || []).length && !isOpen("who") ? `${tr("planner.who")} · ${(item.fronting_alter_ids || []).length}` : tr("planner.who")} />
           <DetailChip open={isOpen("with")} has={has.with} onToggle={() => toggle("with")} label={tr("planner.with")} />
           <DetailChip open={isOpen("notes")} has={has.notes} onToggle={() => toggle("notes")} label={tr("planner.notes")} />
           <DetailChip open={isOpen("todo")} has={has.todo} onToggle={() => toggle("todo")} label={tr("planner.todoLabel")} />
@@ -1040,11 +1063,19 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
               <>
                 <input value={todoQuery} onChange={(e) => { setTodoQuery(e.target.value); setTodoPickerOpen(true); }}
                   onFocus={() => setTodoPickerOpen(true)}
-                  placeholder={tr("planner.linkTodo")} aria-label={tr("planner.linkTodo")}
+                  onKeyDown={(e) => { if (e.key === "Enter" && canMakeTodo && !todoCandidates.length) { e.preventDefault(); makeTodo(); } }}
+                  placeholder={tr("planner.todoSearchOrNew")} aria-label={tr("planner.linkTodo")}
                   className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs" />
                 {todoPickerOpen && (
                   <div className="max-h-32 overflow-y-auto overscroll-contain space-y-0.5">
-                    {todoCandidates.length === 0 && <p className="text-[0.6875em] text-muted-foreground px-1 py-1">{tr("planner.noTasks")}</p>}
+                    {todoCandidates.length === 0 && !canMakeTodo && <p className="text-[0.6875em] text-muted-foreground px-1 py-1">{tr("planner.noTasks")}</p>}
+                    {canMakeTodo && (
+                      <button type="button" onClick={makeTodo}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border border-dashed border-[var(--v2-accent)] text-left text-xs text-[var(--v2-accent)]">
+                        <Plus className="w-3 h-3 flex-shrink-0" />
+                        <span className="flex-1 truncate">{tr("planner.newTodo", { title: newTodoTitle })}</span>
+                      </button>
+                    )}
                     {todoCandidates.map((x) => (
                       <button key={x.id} type="button" onClick={() => linkTodo(x)}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40 text-left text-xs hover:bg-muted/30">
@@ -1076,8 +1107,7 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
         )}
         {isOpen("tag") && (
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{tr("planner.colorTagHint")}</p>
-            <PlanColorTagPicker value={item.tag_color || null} onChange={saveTagColorDebounced} />
+            <PlanColorTagPicker value={item.tag_color || null} onChange={saveTagColorDebounced} hint={tr("planner.colorTagHint")} />
           </div>
         )}
         {create && mode === ENTRY_MODES.PLAN && !untimed && isOpen("repeat") && (

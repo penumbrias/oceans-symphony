@@ -20,7 +20,7 @@ export function previousActivityEnd(activities, { before = new Date(), excludeId
     if (Number.isNaN(start.getTime())) continue;
     const end = new Date(start.getTime() + mins * 60000);
     if (end > ref) continue;
-    if (!best || end > best.end) best = { end, name: a.activity_name || "", id: a.id };
+    if (!best || end > best.end) best = { start, end, name: a.activity_name || "", id: a.id };
   }
-  return best; // { end: Date, name, id } | null
+  return best; // { start: Date, end: Date, name, id } | null
 }
