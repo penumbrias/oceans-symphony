@@ -309,7 +309,7 @@
 					"@executable_path/Frameworks",
 				);
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				MARKETING_VERSION = 0.338.0;
+				MARKETING_VERSION = 0.338.1;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "app.oceans-symphony.ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -333,7 +333,7 @@
 					"@executable_path/Frameworks",
 				);
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				MARKETING_VERSION = 0.338.0;
+				MARKETING_VERSION = 0.338.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "app.oceans-symphony.ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "feature", text: "Goals: \"Work on it\" times the goal itself like an activity, no activity needed. The time shows on your timeline and adds up on the page." },
       { type: "feature", text: "Goal pages are made of widgets now: tap the grid button on a page to move or resize them, or add pictures, GIFs and videos with the Image widget." },
       { type: "fix", text: "The Pinned {{alters}} widget's cog now opens that widget's own options, where you pick who's pinned, their order and how they look." },
       { type: "improve", text: "Widget options: Content now holds each widget's own settings. Pinned tasks moved there from their cog, Chat channels can show just the channels you pick, and the Inner world map shows which view it opens on." },
