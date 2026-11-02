@@ -52,6 +52,9 @@ export default function ActivityStrip({ page, bare = false }) {
   const time = pageMinutes([page.id, ...descendantIds(index, page.id)], ctx.activities, new Date());
   const runningHere = sessions.filter((a) => a?.extra?.goal_id === page.id);
 
+  // The page itself, worked on like an activity (no activity picked).
+  const self = { id: null, name: page.title || "this page", self: true };
+
   const toggle = (cat) => {
     const running = runningForPage(page.id, cat.id, sessions);
     run(async () => {
@@ -59,7 +62,7 @@ export default function ActivityStrip({ page, bare = false }) {
         const res = await stopPageActivity(running);
         if (res) toast.success(`■ ${res.name}: ${formatMinutes(res.minutes)} logged on this page`);
       } else {
-        await startPageActivity(page, cat);
+        await startPageActivity(page, cat.self ? null : cat);
         toast.success(`▶ ${cat.name} started`);
       }
     });
@@ -69,15 +72,15 @@ export default function ActivityStrip({ page, bare = false }) {
     const running = runningForPage(page.id, cat.id, sessions);
     const mins = running ? Math.max(0, Math.round((Date.now() - new Date(running.startTime)) / 60000)) : 0;
     return (
-      <span key={cat.id} className="inline-flex items-center">
+      <span key={cat.id || "self"} className="inline-flex items-center">
         <button type="button" disabled={busy} onClick={() => toggle(cat)} aria-pressed={!!running}
           className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 disabled:opacity-50 ${
             running ? "bg-primary text-primary-foreground border-primary" : "border-primary/40 text-primary hover:bg-primary/10"}`}>
           {running ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-          {isPlanning ? "Planning" : cat.name}
+          {isPlanning ? "Planning" : cat.self ? "Work on it" : cat.name}
           {running && <span className="tabular-nums">· {formatMinutes(mins)}</span>}
         </button>
-        {!isPlanning && !running && (
+        {!isPlanning && !cat.self && !running && (
           <button type="button" aria-label={`Take ${cat.name} off this page`} disabled={busy}
             onClick={() => run(() => updatePage(page.id, { activity_category_ids: (page.activity_category_ids || []).filter((id) => id !== cat.id) }))}
             className="p-0.5 text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
@@ -89,6 +92,7 @@ export default function ActivityStrip({ page, bare = false }) {
   return (
     <div className={bare ? "space-y-2" : "rounded-xl bg-primary/5 border border-primary/15 p-2.5 space-y-2"}>
       <div className="flex flex-wrap items-center gap-1.5">
+        {btn(self)}
         {planning ? btn(planning, true) : (
           <button type="button" className={chipCls} disabled={busy} onClick={() => setChoosingPlanning(true)}>
             <Play className="w-3 h-3" /> Planning
@@ -127,7 +131,7 @@ export default function ActivityStrip({ page, bare = false }) {
       <p className="text-xs text-muted-foreground tabular-nums">
         {time.total > 0
           ? `${formatMinutes(time.week)} logged on this page this week · ${formatMinutes(time.total)} in all`
-          : "Time you log from here adds up on this page."}
+          : "Work on it times the page itself; Planning and the activities you add here count too. It all adds up on this page."}
       </p>
     </div>
   );
