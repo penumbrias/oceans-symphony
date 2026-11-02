@@ -628,7 +628,7 @@ export function ActivityYearWidget({ mode = "normal", settings }) {
           activities={activities}
           weekStartsOn={weekStartsOn}
           onMonthClick={interactive ? (d) => setAnchor(d) : undefined}
-          onDayClick={interactive ? modals.setZoomedDate : undefined}
+          onDayClick={interactive ? (d) => navigate(`/planner?date=${format(d, "yyyy-MM-dd")}&view=month`) : undefined}
           onRangeSelect={interactive ? modals.openPlanRange : undefined}
         />
       </div>

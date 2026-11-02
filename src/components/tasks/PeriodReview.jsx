@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useCallback } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { Check, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatPeriodKey, getRecentPeriodKeys, getPeriodKey } from "@/lib/dailyTaskSystem";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -263,7 +264,7 @@ function formatCompletionDate(frequency, key, record, taskId) {
   // For daily tasks the day is already on the column header — show the time.
   if (frequency === "daily") {
     if (perTask) {
-      const timeStr = new Date(perTask).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      const timeStr = new Date(perTask).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...clockOpts() });
       return `✓ Completed at ${timeStr}`;
     }
     // No per-task time: do NOT fall back to the record's shared last-write time

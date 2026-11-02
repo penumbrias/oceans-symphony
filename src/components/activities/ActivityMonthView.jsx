@@ -6,7 +6,10 @@ import {
 import { countableMinutes, statusFor, visualForStatus } from "@/lib/activityStatus";
 import { datesForDay } from "@/lib/importantDates";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
-import { dayTagColor, taggedPlansForDay } from "@/lib/planTagColor";
+import { dayTagColor, taggedPlansForDay, eventDotColor, dayActivityColor, softFill } from "@/lib/planTagColor";
+
+// Events without a colour get this faint theme-based dot.
+const NO_COLOR_DOT = "hsl(var(--primary) / 0.4)";
 
 /**
  * Calendar-grid view of a single month. Each day cell shows colored bars or
@@ -79,6 +82,10 @@ export default function ActivityMonthView({
           // (time → daily → weekly → monthly → yearly).
           const tag = inMonth ? dayTagColor(list) : null;
           const tagNames = taggedPlansForDay(list).map((a) => a.activity_name || "Plan").join(", ");
+          // No colour tag → older entries still tint the day in their
+          // activity's colour, the same way a tagged day is filled.
+          const actColor = inMonth && !tag ? dayActivityColor(list, countableMinutes) : null;
+          const fillColor = tag || actColor;
 
           return (
             <button
@@ -90,16 +97,18 @@ export default function ActivityMonthView({
               className={`relative text-left border-b border-r border-border/40 p-1.5 min-h-[72px] transition-colors hover:bg-accent/40 ${inMonth ? "" : "bg-muted/20"} ${drag.inRange(d) ? "ring-2 ring-inset ring-primary/70" : ""}`}
               style={{
                 ...(intensity > 0 ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.18})` } : null),
-                ...(tag ? { backgroundColor: `${tag}66`, boxShadow: `inset 0 0 0 1.5px ${tag}` } : null),
+                ...(fillColor ? { backgroundColor: softFill(fillColor, 40), boxShadow: `inset 0 0 0 1.5px ${fillColor}` } : null),
                 ...(drag.dragging ? { touchAction: "none" } : null),
               }}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-semibold tabular-nums ${inMonth ? "text-foreground" : "text-muted-foreground/50"} ${today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 inline-flex items-center justify-center" : ""}`}>
+              {/* Day number on its own line with the hours under it, so a two-digit
+                  day never gets squeezed into wrapping ("1 / 0"). */}
+              <div className="flex flex-col items-start mb-1 leading-tight">
+                <span className={`whitespace-nowrap text-xs font-semibold tabular-nums ${inMonth ? "text-foreground" : "text-muted-foreground/50"} ${today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 inline-flex items-center justify-center" : ""}`}>
                   {format(d, "d")}
                 </span>
                 {totalMin > 0 && (
-                  <span className="text-[0.5625rem] text-muted-foreground tabular-nums">
+                  <span className="whitespace-nowrap text-[0.5625rem] text-muted-foreground tabular-nums">
                     {totalMin >= 60 ? `${(totalMin / 60).toFixed(1)}h` : `${totalMin}m`}
                   </span>
                 )}
@@ -107,16 +116,25 @@ export default function ActivityMonthView({
               <div className="flex flex-wrap gap-0.5">
                 {list.slice(0, 6).map(a => {
                   const v = visualForStatus(statusFor(a));
-                  const baseColor = a.color || "hsl(var(--primary))";
+                  // No colour of its own → a faint theme colour (same soft tint
+                  // the heat-map uses), so every event still shows a dot.
+                  // A colour tag counts too, so a tagged plan never shows a
+                  // faded theme dot.
+                  const ownColor = eventDotColor(a);
+                  const baseColor = ownColor || NO_COLOR_DOT;
                   return (
                     <span
                       key={a.id}
                       onClick={(e) => { e.stopPropagation(); onActivityClick?.(a); }}
-                      className="inline-block w-1.5 h-1.5 rounded-full cursor-pointer"
+                      className="inline-block w-2.5 h-2.5 rounded-full cursor-pointer"
                       style={{
-                        backgroundColor: v.dashed ? "transparent" : baseColor,
-                        border: v.dashed ? `1px dashed ${baseColor}` : undefined,
-                        opacity: v.fillOpacity,
+                        // Planned events are filled in too (they used to be a
+                        // faint dashed ring that was hard to see).
+                        backgroundColor: baseColor,
+                        // The faint fallback is already see-through, so it
+                        // isn't faded a second time.
+                        opacity: !ownColor || v.dashed ? 1 : v.fillOpacity,
+                        boxShadow: "0 0 0 1px hsl(var(--background) / 0.7)",
                       }}
                       title={a.activity_name}
                     />

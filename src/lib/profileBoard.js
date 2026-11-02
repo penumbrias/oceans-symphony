@@ -24,6 +24,13 @@ export const PROFILE_OWNER_TYPES = ["alter", "group", "contact", "location"];
 
 export const isProfileOwnerType = (t) => PROFILE_OWNER_TYPES.includes(t);
 
+// A page of the app laid out as a widget board (v0.331.0, the Needs page):
+// a ProfileBoard row with owner_type "page" and the page's id as owner_id.
+// Not a profile — no record, no subject, no bulk layouts — but the same
+// row, store, sync and backup.
+export const PAGE_BOARD_OWNER_TYPE = "page";
+export const isBoardOwnerType = (t) => isProfileOwnerType(t) || t === PAGE_BOARD_OWNER_TYPE;
+
 // A default layout for a profile type (v0.292.0) is a ProfileBoard row
 // whose owner is this id. A profile with no row of its own renders the
 // default when one exists, else the seed; its own row is created on the
@@ -240,6 +247,12 @@ export function seedProfileBoard(record, ownerType = "alter") {
     : ownerType === "alter" && isGardenProfile(record)
       ? GARDEN_ALTER_PROFILE_PAGES
       : PROFILE_PAGES[ownerType] || ALTER_PROFILE_PAGES;
+  return seedBoardFromPages(pages);
+}
+
+// The seeded board for a list of pages ({ tab, label, widgets }) — what a
+// profile or an app page shows until the person's first layout edit.
+export function seedBoardFromPages(pages) {
   let y;
   return {
     version: 2,

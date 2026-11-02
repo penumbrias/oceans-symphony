@@ -677,7 +677,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🔗", title: "Line it up",
-      body: `"After the last one" starts where your last activity ended. "Line up with…" lets you tap another activity to start after it, end before it, or start with it.`,
+      body: `"Now" sets the start (or end) to now. Before / After + Set places it next to the last one logged or the last on the timeline. "Line up with…" lets you tap any other activity.`,
       route: "/planner", target: "planner",
     }),
     s("activities", {
@@ -716,9 +716,19 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/needs", target: "needs-page", look: `the Needs page`,
     }),
     s("activities", {
+      emoji: "💗", title: "Wishes", experimental: true,
+      body: `The Wishes page starts with a quick add: write the wish and it's for whoever is ${t.fronting}, or pick the whole ${t.system} or other ${t.alters}. Every shared wish's card is below it.`,
+      route: "/needs?tab=wishes", target: ["needs-tabs", "needs-page"],
+    }),
+    s("activities", {
       emoji: "🔄", title: "Taking turns", experimental: true,
-      body: `Wishes lists everyone's shared wishes. Turns helps when ${t.alters} want different things: agree who goes first, and the second turn goes in the planner.`,
-      route: "/needs", target: "needs-page",
+      body: `Turns helps when ${t.alters} want different things: agree who goes first, and the second turn goes in the planner.`,
+      route: "/needs?tab=turns", target: ["needs-tabs", "needs-page"],
+    }),
+    s("activities", {
+      emoji: "🧩", title: "Lay out Needs your way", experimental: true,
+      body: `Needs is made of widgets. The grid button moves, resizes and adds them, and the same widgets can go on your home screen.`,
+      route: "/needs", target: ["needs-layout-btn", "needs-page"],
     }),
 
     // ─── POLLS ──────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@
 // NOT backed up — same rationale as PushSubscription / FriendIdentity.
 
 import { useEffect, useRef, useState } from "react";
+import { clockOpts } from "@/lib/timeFormat";
 import { useQuery } from "@tanstack/react-query";
 import { isNative } from "@/lib/platform";
 import { isPreviewActive } from "@/lib/previewMode";
@@ -139,9 +140,9 @@ function bodyFor(plan) {
   const when = plan.timestamp ? new Date(plan.timestamp) : null;
   if (!when) return plan.activity_name || "";
   const offset = plan.reminder_offset_minutes ?? readPlanRemindersDefaultOffset();
-  if (offset >= 1440) return `Tomorrow at ${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-  if (offset >= 60) return `Starts in ${Math.round(offset / 60)} hour${offset >= 120 ? "s" : ""} (${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`;
-  return `Starts in ${offset} minutes (${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`;
+  if (offset >= 1440) return `Tomorrow at ${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() })}`;
+  if (offset >= 60) return `Starts in ${Math.round(offset / 60)} hour${offset >= 120 ? "s" : ""} (${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() })})`;
+  return `Starts in ${offset} minutes (${when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() })})`;
 }
 
 // The one shape every native plan reminder is scheduled with. Both the

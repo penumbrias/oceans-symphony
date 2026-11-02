@@ -1090,7 +1090,10 @@ export default function ExperimentalDashboard({
   // confirms first; the boards they replace are kept in Recent changes by
   // the entity layer (profileBoardBulk.js).
   const ownerNoun = () => ({ alter: t.alters, group: "groups", contact: "contacts", location: "locations" }[boardStore?.ownerType] || "profiles");
-  const ownerNounOne = () => ({ alter: t.alter, group: "group", contact: "contact", location: "location" }[boardStore?.ownerType] || "profile");
+  const ownerNounOne = () => ({ alter: t.alter, group: "group", contact: "contact", location: "location", page: "page" }[boardStore?.ownerType] || "profile");
+  // An app page laid out as a board (the Needs page) has one layout of its
+  // own: no "for all" or default layouts to copy it to.
+  const pageBoard = boardStore?.ownerType === "page";
   const runBulk = async (fn, done) => {
     setSaveMenuOpen(false);
     try {
@@ -1129,7 +1132,7 @@ export default function ExperimentalDashboard({
   const resetThisLayout = async () => {
     const ok = await confirm({
       title: "Reset this layout?",
-      body: `This ${ownerNounOne()}'s page goes back to the default layout (or the standard one when there is no default). The layout it replaces goes to the trash, where Recent changes can bring it back.`,
+      body: `${pageBoard ? "This page goes back to its standard layout." : `This ${ownerNounOne()}'s page goes back to the default layout (or the standard one when there is no default).`} The layout it replaces goes to the trash, where Recent changes can bring it back.`,
       confirmLabel: "Reset layout",
       destructive: true,
     });
@@ -2834,10 +2837,12 @@ export default function ExperimentalDashboard({
                   <button type="button" onClick={exitDiscard}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Discard changes</button>
                   {profileBoard && (<>
+                  {!pageBoard && (<>
                   <button type="button" onClick={useLayoutForAll}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use this layout for all {ownerNoun()}…</button>
                   <button type="button" onClick={useAsDefaultLayout}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use as the default layout…</button>
+                  </>)}
                   <button type="button" onClick={resetThisLayout}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Reset this layout…</button>
                   </>)}

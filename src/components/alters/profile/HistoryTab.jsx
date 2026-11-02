@@ -7,6 +7,7 @@ import { Clock, GitMerge } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
 import SessionActionPopover from "@/components/fronting/SessionActionPopover";
+import { clockPattern } from "@/lib/timeFormat";
 
 const inheritStorageKey = (alterId) => `symphony_alter_inherit_history_v1_${alterId}`;
 
@@ -181,10 +182,10 @@ export default function HistoryTab({ alterId }) {
               </div>
             )}
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>{format(start, "dd/MM/yyyy")}<br />{format(start, "h:mm a")}</span>
+              <span>{format(start, "dd/MM/yyyy")}<br />{format(start, clockPattern("h:mm a"))}</span>
               {end && (
                 <span className="text-right">
-                  {format(end, "dd/MM/yyyy")}<br />{format(end, "h:mm a")}
+                  {format(end, "dd/MM/yyyy")}<br />{format(end, clockPattern("h:mm a"))}
                 </span>
               )}
             </div>

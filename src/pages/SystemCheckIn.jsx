@@ -1,4 +1,5 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
+import { clockOpts } from "@/lib/timeFormat";
 import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import React, { useState, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -466,7 +467,7 @@ export default function SystemCheckInPage() {
                           <span className="font-semibold" style={{ color: authorList[0]?.color || undefined }}>
                             {label}
                           </span>
-                          <span className="text-muted-foreground text-xs"> · {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                          <span className="text-muted-foreground text-xs"> · {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", ...clockOpts() })}</span>
                           <div className={`wysiwyg-content whitespace-pre-wrap break-words ${m.deleted_at ? "italic text-muted-foreground" : "text-foreground"}`}>
                             {m.deleted_at ? "[message deleted]" : renderRichContent(m.text, { terms })}
                           </div>
