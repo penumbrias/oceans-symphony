@@ -24,6 +24,7 @@ export const CHANGELOG = [
       { type: "improve", text: "New activity: the title is its own optional field, \"What is it?\" is where you pick activities, and Who stays closed until you open it." },
       { type: "improve", text: "New activity: the time shortcuts are now Now, Before/After the last one + Set, and Line up with. The to-do section can make a new to-do." },
       { type: "fix", text: "The colour tag uses the app's normal colour picker, and saved colours can no longer be deleted by one stray tap." },
+      { type: "fix", text: "Goals now count activities done earlier in the week: the week follows your \"week starts on\" setting, and entries saved with just a typed name or as \"some time that day\" count too." },
       { type: "feature", text: "Accessibility: new \"Play inside the app only\" option stops songs, audio and videos as soon as you leave the app." },
       { type: "fix", text: "Android: songs and audio now come back after a call, alarm or ringtone, and keep playing when the phone is low on memory (a quiet \"Playing\" notification shows)." },
       { type: "improve", text: "Tempo & pitch: changing them separately sounds much less robotic and no longer gets quieter." },
