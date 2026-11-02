@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo, useLayoutEffect } from "react";
+import React, { useState, useRef, useMemo } from "react";
+import useAutoGrowTextarea from "@/hooks/useAutoGrowTextarea";
 import useFormDraft from "@/hooks/useFormDraft";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -88,14 +89,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // The writing box grows with what's written (up to about half the
   // screen, then it scrolls) — a fixed three-line strip read as a thin
   // sliver on a phone (owner report, twice).
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const cap = Math.round(window.innerHeight * 0.5);
-    el.style.height = `${Math.min(cap, Math.max(el.scrollHeight + 2, 128))}px`;
-    el.style.overflowY = el.scrollHeight + 2 > cap ? "auto" : "hidden";
-  }, [content]);
+  useAutoGrowTextarea(textareaRef, content, { min: 128, maxScreen: 0.5 });
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   // Image waiting in the preview/size dialog before it lands in the post.

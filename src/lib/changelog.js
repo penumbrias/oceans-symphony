@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "fix", text: "Bulletin comments and replies: the writing box is full width and grows as you type, like the post box, instead of a thin one-line strip." },
       { type: "fix", text: "Pinned {{alters}} widget no longer says \"This widget couldn't show\" on profiles and widget pages." },
       { type: "fix", text: "What's new opens again in a widget sized by hand; its list scrolls inside the widget." },
       { type: "feature", text: "Goals: \"Start a story\" makes a page with chapters, characters, places and lore. Set a word target, and \"Work on it\" counts the words each session adds." },

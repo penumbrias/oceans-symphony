@@ -24,6 +24,7 @@ import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 import { clockPattern } from "@/lib/timeFormat";
+import useAutoGrowTextarea from "@/hooks/useAutoGrowTextarea";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -63,6 +64,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   // Image waiting in the preview/size dialog before it lands in the comment.
   const [pendingImage, setPendingImage] = useState(null);
   const insertHtml = useTextareaInsert(inputRef, text, setText);
+  // Grows with what's written, then scrolls — same as the post box.
+  useAutoGrowTextarea(inputRef, text, { min: richMode ? 112 : 72, maxScreen: 0.4 });
   const handleImage = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -294,64 +297,31 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   };
 
   return (
-    <div className="relative">
-      <div className="relative flex gap-2 items-end">
-        {richMode ? (
-          <MentionTextarea
-            ref={inputRef}
-            alters={alters}
-            signposts
-            className="flex-1 min-h-[56px] max-h-40 px-3 py-2 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={parentCommentId ? "Reply… @ mention, -name to sign, /w @name [secret]" : "Add a comment… @ mention, -name to sign, /w @name [secret]"}
-            value={text}
-            onChange={setText}
-            onKeyDown={handleKeyDown}
-          />
-        ) : (
-          <MentionTextarea
-            ref={inputRef}
-            alters={alters}
-            signposts
-            rows={1}
-            className="flex-1 min-h-[32px] px-3 py-1.5 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={parentCommentId ? "Reply… @ mention, -name, /w @name [secret] (Cmd+Enter)" : "Add a comment… @ mention, -name, /w @name [secret] (Cmd+Enter)"}
-            value={text}
-            onChange={setText}
-            onKeyDown={handleKeyDown}
-          />
-        )}
-        <button
-          type="button"
-          onClick={toggleRich}
-          title={richMode ? "Switch to plain comment" : "Fancy formatting + image/GIF"}
-          aria-pressed={richMode}
-          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setWhisperOn((v) => !v)}
-          title="Whisper — only chosen recipients can read it"
-          aria-pressed={whisperOn}
-          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
-        >
-          <Lock className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={saving || !text.trim()}
-          className="text-xs px-3 h-8 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 font-medium flex-shrink-0"
-        >
-          {saving ? "..." : parentCommentId ? "Reply" : "Post"}
-        </button>
+    // w-full: inside a widget whose content is aligned Left/Center/Right the
+    // rows lay out shrink-to-fit — the same squeeze the post box had.
+    <div className="relative w-full">
+      {/* The writing box gets its own full-width row and grows as you type,
+          like the post box. It used to share a row with three buttons and
+          sit at one line, which read as a thin strip on a phone. */}
+      <div className="relative w-full">
+        <MentionTextarea
+          ref={inputRef}
+          alters={alters}
+          signposts
+          rows={2}
+          className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          placeholder={parentCommentId ? "Write a reply… @ to mention, -name to sign, /w @name [secret] to whisper" : "Write a comment… @ to mention, -name to sign, /w @name [secret] to whisper"}
+          value={text}
+          onChange={setText}
+          onKeyDown={handleKeyDown}
+        />
 
         {/* Mention / sign-as-author menu — anchored DIRECTLY under the text
             entry. It used to sit after the toolbar + whisper blocks in flow
             (absolute with no top), which dropped it way below the composer
             (owner screenshot). */}
         {showMenu && (filteredAlters.length > 0 || systemSignpostMatches) && (
-          <div className="absolute top-full z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
+          <div className="absolute top-full z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
             <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
               {menuMode === "mention" ? `Mention ${terms.alter}…` : "Sign as author…"}
             </div>
@@ -376,6 +346,58 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
             ))}
           </div>
         )}
+      </div>
+
+      {richMode && (
+        <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
+          <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
+            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => imageInputRef.current?.click()}
+              className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+            </button>
+            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
+          </div>
+          <MiniToolbar onInsert={insertHtml} float="keyboard" />
+          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
+        {pendingImage && (
+          <ImageInsertPreview url={pendingImage}
+            onInsert={(html) => insertHtml(html, "")}
+            onClose={() => setPendingImage(null)} />
+        )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 mt-1.5">
+        <button
+          type="button"
+          onClick={toggleRich}
+          title={richMode ? "Switch to plain comment" : "Fancy formatting + image/GIF"}
+          aria-pressed={richMode}
+          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setWhisperOn((v) => !v)}
+          title="Whisper — only chosen recipients can read it"
+          aria-pressed={whisperOn}
+          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
+        >
+          <Lock className="w-3.5 h-3.5" />
+        </button>
+        <span className="flex-1" />
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={saving || !text.trim()}
+          className="text-xs px-3 h-8 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 font-medium flex-shrink-0"
+        >
+          {saving ? "..." : parentCommentId ? "Reply" : "Post"}
+        </button>
       </div>
 
       {whisperOn && (
@@ -438,28 +460,6 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       )}
 
       <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} label="Signed by" />
-
-      {richMode && (
-        <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
-          <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
-            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => imageInputRef.current?.click()}
-              className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
-            </button>
-            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
-            <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
-          </div>
-          <MiniToolbar onInsert={insertHtml} float="keyboard" />
-          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
-        {pendingImage && (
-          <ImageInsertPreview url={pendingImage}
-            onInsert={(html) => insertHtml(html, "")}
-            onClose={() => setPendingImage(null)} />
-        )}
-        </div>
-      )}
     </div>
   );
 }
@@ -472,6 +472,9 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const [childrenCollapsed, setChildrenCollapsed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.content || "");
+  const editRef = React.useRef(null);
+  // Editing a comment uses the same growing box as writing one.
+  useAutoGrowTextarea(editRef, editing ? draft : null, { min: 72, maxScreen: 0.4 });
 
   const saveEdit = async () => {
     if (!draft.trim()) return;
@@ -584,13 +587,14 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
         {editing ? (
           <div className="mt-1 space-y-1.5">
             <MentionTextarea
+              ref={editRef}
               value={draft}
               onChange={setDraft}
               alters={alters}
               signposts
               rows={3}
               autoFocus
-              className="w-full text-xs p-2 rounded-lg border border-input bg-background resize-y"
+              className="w-full text-sm px-3 py-2 rounded-lg border border-input bg-background resize-none"
             />
             <div className="flex items-center gap-1.5">
               <button onClick={saveEdit} disabled={!draft.trim()}
