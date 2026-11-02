@@ -7,26 +7,23 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, X, Lock } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { SearchableSelect, SearchableMultiSelect } from "@/components/shared/SearchableSelect";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { Chips, SwitchRow } from "@/components/shared/SettingRows";
+import WhoseChoice, { whosePicked, whoseEveryone, WHOSE_PICK } from "@/components/needs/WhoseChoice";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { useTerms } from "@/lib/useTerms";
-import { useAlterLabel } from "@/lib/useAlterLabel";
 import { WISH_KINDS, WISH_STATUSES, WISH_PRIORITIES } from "@/lib/wishes";
 
-const chip = (on) => `text-xs px-2.5 py-1 rounded-full border ${
-  on ? "border-primary text-primary bg-primary/10" : "border-border/60 text-muted-foreground hover:text-foreground"
-}`;
 const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
 const PRIORITY_LABEL = { low: "Someday", normal: "Normal", high: "Important" };
 
 export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
   const t = useTerms();
-  const formatAlter = useAlterLabel();
   const [form, setForm] = useState(() => ({
     title: wish.title || "",
     kind: wish.kind || "item",
@@ -53,11 +50,13 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
     () => flattenCategoryTree(categories).map((c) => ({ id: c.id, label: c.name, color: c.color, _depth: c._depth })),
     [categories],
   );
-  const alterOptions = useMemo(
-    () => (alters || []).filter((a) => !a.is_archived || form.owner_alter_ids.includes(a.id))
-      .map((a) => ({ id: a.id, label: formatAlter(a), color: a.color, avatar_url: a.avatar_url || a.image_url })),
-    [alters, formatAlter, form.owner_alter_ids],
-  );
+  // Whose: the whole system, or picked alters (the standard picker).
+  const whose = form.for_everyone || !form.owner_alter_ids.length ? whoseEveryone() : whosePicked(form.owner_alter_ids);
+  const setWhose = (v) => setForm((p) => ({
+    ...p,
+    for_everyone: v.mode !== WHOSE_PICK,
+    owner_alter_ids: v.mode === WHOSE_PICK ? v.ids : [],
+  }));
 
   const save = async () => {
     if (!form.title.trim()) return;
@@ -113,31 +112,10 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
       <input className={inputCls} value={form.title} onChange={(e) => set("title", e.target.value)}
         aria-label="Wish" placeholder="What's wished for?" autoFocus />
 
-      <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-1.5">
-        {WISH_KINDS.map((k) => (
-          <button key={k.id} type="button" role="radio" aria-checked={form.kind === k.id}
-            onClick={() => set("kind", k.id)} className={chip(form.kind === k.id)}>
-            {k.emoji} {k.label}
-          </button>
-        ))}
-      </div>
+      <Chips label="Kind" options={WISH_KINDS.map((k) => ({ value: k.id, label: `${k.emoji} ${k.label}` }))}
+        value={form.kind} onChange={(v) => set("kind", v)} />
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Whose wish</label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={form.for_everyone} onChange={(e) => set("for_everyone", e.target.checked)} className="rounded" />
-          Everyone in the {t.system}
-        </label>
-        {!form.for_everyone && (
-          <SearchableMultiSelect
-            value={form.owner_alter_ids}
-            onChange={(next) => set("owner_alter_ids", next || [])}
-            options={alterOptions}
-            placeholder={`Pick ${t.alters}`}
-            searchPlaceholder={`Search ${t.alters}…`}
-          />
-        )}
-      </div>
+      <WhoseChoice value={whose} onChange={setWhose} label="Whose wish" allowFront={false} />
 
       {form.kind === "item" && (
         <div className="flex gap-2">
@@ -180,29 +158,18 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
           placeholder="What having it, or not having it, does…" className="min-h-[60px] text-sm" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted-foreground mr-1">Priority</span>
-        {WISH_PRIORITIES.map((p) => (
-          <button key={p} type="button" aria-pressed={form.priority === p} onClick={() => set("priority", p)} className={chip(form.priority === p)}>
-            {PRIORITY_LABEL[p]}
-          </button>
-        ))}
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground">Priority</p>
+        <Chips label="Priority" options={WISH_PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))}
+          value={form.priority} onChange={(v) => set("priority", v)} />
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted-foreground mr-1">Status</span>
-        {WISH_STATUSES.map((s) => (
-          <button key={s.id} type="button" aria-pressed={form.status === s.id} onClick={() => set("status", s.id)} className={chip(form.status === s.id)}>
-            {s.label}
-          </button>
-        ))}
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground">Status</p>
+        <Chips label="Status" options={WISH_STATUSES.map((x) => ({ value: x.id, label: x.label }))}
+          value={form.status} onChange={(v) => set("status", v)} />
       </div>
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" checked={form.is_private} onChange={(e) => set("is_private", e.target.checked)} className="rounded mt-0.5" />
-        <span>
-          <span className="flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Private</span>
-          <span className="block text-xs text-muted-foreground">Only shows on its own {t.alter}'s profile, not in search or shared views.</span>
-        </span>
-      </label>
+      <SwitchRow label="🔒 Private" hint={`Only shows on its own ${t.alter}'s profile, not in search or shared views.`}
+        checked={form.is_private} onChange={(v) => set("is_private", v)} />
 
       <div className="flex gap-2 justify-end">
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}><X className="w-3.5 h-3.5 mr-1" /> Cancel</Button>
