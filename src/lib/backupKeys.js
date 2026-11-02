@@ -41,6 +41,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_a11y_highContrast",
   "symphony_a11y_largeTouch",
   "symphony_a11y_navHeight",
+  "symphony_a11y_playInsideOnly",
   "alter_hide_grouped",
   "alter_grid_cols",
   "alter_display_mode",

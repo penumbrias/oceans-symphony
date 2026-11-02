@@ -998,7 +998,7 @@ export default function WidgetConfigSheet({
         {f.type === "links" && <LinksField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} />}
         {f.type === "group" && <GroupField value={val || ""} onChange={(v) => commit(v || "")} />}
         {f.type === "apps" && <AppListField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} terms={t} />}
-        {f.type === "song" && <ProfileSongPicker value={val || null} onChange={(v) => commit(v)} subjectLabel="page" />}
+        {f.type === "song" && <ProfileSongPicker value={val || null} onChange={(v) => commit(v)} subjectLabel="page" allowEverywhere />}
       </StackedRow>
     );
   };
