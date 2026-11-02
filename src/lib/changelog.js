@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 2, 2026",
     changes: [
+      { type: "improve", text: "Widget options → Text: body and heading settings now show together under their own headings, no more switching between them." },
       { type: "fix", text: "Widget options → Styles: Ready-made, Your styles and Themes open again; each is now its own page with a back button." },
       { type: "feature", text: "Soundscape, Nature sounds and the Scratch pad are now one Soundscape: play a sound made from math and a recording together, and the visuals follow both." },
       { type: "feature", text: "Shape the sound now works on recordings too: low and high cut, movement, a soft room and speed. Saved and your own sounds can be fully shaped." },

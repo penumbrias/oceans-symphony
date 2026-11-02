@@ -722,9 +722,6 @@ export default function WidgetConfigSheet({
   // Each tab starts at its top — the one scroller is shared.
   const panelRef = React.useRef(null);
   React.useEffect(() => { if (panelRef.current) panelRef.current.scrollTop = 0; }, [tab]);
-  // Text: which kind of text the rows edit — body or headings. One set of
-  // controls on screen at a time, so a heading edit can't land on the body.
-  const [textKind, setTextKind] = React.useState("body");
   // Styles: which list page is open (null = the Styles tab's own rows;
   // "builtin" / "mine" / "themes" = a drill-in page). A page, not pills:
   // the old pill switcher showed "Page style" whenever the widget had no
@@ -1232,12 +1229,9 @@ export default function WidgetConfigSheet({
                   Body text in this widget
                 </p>
               </div>
-              <div className="py-2">
-                <Segmented label="Which text" value={textKind} onChange={setTextKind}
-                  options={[{ value: "body", label: "Body" }, { value: "headings", label: "Headings" }]} />
-              </div>
-              {textKind === "body" ? (
-                <div>
+              {/* Body and headings each get their own titled group, so a
+                  heading edit can't land on the body — no pill switcher. */}
+              <Group title="Body text">
                   <Row label="Font" own={own("font")} onClear={() => setText({ font: "" })}>
                     <span className="w-[10rem] max-w-full">
                       <SearchableSelect
@@ -1262,9 +1256,8 @@ export default function WidgetConfigSheet({
                     onChange={(v) => setText({ textColor: v })}
                     opacity={{ value: settings.textOpacity, onChange: (v) => setAlpha("textColor", "textOpacity", v, live.textColor || "#e5e7eb") }}
                     onClear={() => set({ textColor: "", textOpacity: "" })} />
-                </div>
-              ) : (
-                <div>
+              </Group>
+              <Group title="Headings">
                   <Row label="Font" own={own("headerFont")} onClear={() => setText({ headerFont: "" })}>
                     <span className="w-[10rem] max-w-full">
                       <SearchableSelect
@@ -1291,8 +1284,7 @@ export default function WidgetConfigSheet({
                   <p className="text-[0.6875rem] text-muted-foreground pt-2">
                     Headings are the widget's titles. They follow the body font until you pick one of their own, and body styles don't change them.
                   </p>
-                </div>
-              )}
+              </Group>
               {resetFooter("text", "Reset text")}
             </div>
           )}
