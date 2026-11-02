@@ -3,7 +3,6 @@
 // an alter's Wishlist tab and the Needs page.
 
 import React, { useState } from "react";
-import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -26,7 +25,6 @@ const small = "text-xs min-h-[2.25em] px-[0.75em] rounded-full border border-bor
 // `flat` (v0.331.0): a divided row instead of a bordered card, for inside a
 // widget's own box (no box in a box).
 export default function WishCard({ wish, alters, categories, alterById, onChanged, showOwners = false, flat = false }) {
-  const experimentalFeaturesOn = useExperimentalOn();
   const t = useTerms();
   const formatAlter = useAlterLabel();
   const navigate = useNavigate();
@@ -106,7 +104,7 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
             <CalendarPlus className="w-3.5 h-3.5" /> Plan it
           </button>
         )}
-        {open && wish.kind === "goal" && experimentalFeaturesOn && (
+        {open && wish.kind === "goal" && (
           <button type="button" disabled={busy} className={small} onClick={() => navigate(`/goals?fromWish=${wish.id}`)}>
             <Target className="w-3.5 h-3.5" /> Make it a goal
           </button>

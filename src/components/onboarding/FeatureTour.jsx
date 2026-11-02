@@ -696,67 +696,67 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/activities", target: "activities-manage", look: `tap an activity, then Details`,
     }),
     s("activities", {
-      emoji: "🎯", title: "Goals", experimental: true,
+      emoji: "🎯", title: "Goals",
       body: `Goals works like a notebook. Start a goal, a project or a story, then fill its page with sections, and sections inside those, as deep as you like.`,
       route: "/goals", target: "goals-page", look: `the Goals page`,
     }),
     s("activities", {
-      emoji: "📄", title: "What a page holds", experimental: true,
+      emoji: "📄", title: "What a page holds",
       body: `Notes, to-dos (round, and also on your to-do list), checkboxes (square, page only), links and activity trackers. Type [[a page's title]] in a note to link to it.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "🗺️", title: "Board and map", experimental: true,
+      emoji: "🗺️", title: "Board and map",
       body: `Switch a page to Board to see its sections as columns, or Map to see how everything connects. The Pages menu shows the whole tree.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "🖼️", title: "Lay out a goal page", experimental: true,
+      emoji: "🖼️", title: "Lay out a goal page",
       body: `Each goal page is made of widgets. Open a page and tap the grid button to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {
-      emoji: "⏱️", title: "Work on a goal", experimental: true,
+      emoji: "⏱️", title: "Work on a goal",
       body: `On a goal page, "Work on it" times the goal itself like an activity. Tap it again to stop; the time shows on your timeline and adds up on the page.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "📖", title: "Chapters", experimental: true,
+      emoji: "📖", title: "Chapters",
       body: `Writing a story? A section's ⋯ menu can make it a chapter, part or scene. It's numbered for you, opens with room to write and counts its words.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "✍️", title: "Write a story", experimental: true,
+      emoji: "✍️", title: "Write a story",
       body: `"Start a story" makes a page with a first chapter and sections for characters, places and lore. Give it a word target from its ⋯ menu.`,
       route: "/goals", target: ["goals-story-btn", "goals-page"],
     }),
     s("activities", {
-      emoji: "⏱️", title: "Writing sessions", experimental: true,
+      emoji: "⏱️", title: "Writing sessions",
       body: `Tap "Work on it" while you write. When you stop, the words you added are counted, and the page shows what you wrote today and this week.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "🏷️", title: "Tag pages", experimental: true,
+      emoji: "🏷️", title: "Tag pages",
       body: `Tag any page or section, like #plot or a character's name. Tap a tag to see every page that has it, or search #tag in Pages.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
-      emoji: "🤝", title: "Needs", experimental: true,
+      emoji: "🤝", title: "Needs",
       body: `Needs is one place for what everyone wants. Balance shows how long it's been since each ${t.alter} got something they enjoy, need or wished for, longest first.`,
       route: "/needs", target: "needs-page", look: `the Needs page`,
     }),
     s("activities", {
-      emoji: "💗", title: "Wishes", experimental: true,
+      emoji: "💗", title: "Wishes",
       body: `The Wishes page starts with a quick add: write the wish and it's for whoever is ${t.fronting}, or pick the whole ${t.system} or other ${t.alters}. Every shared wish's card is below it.`,
       route: "/needs?tab=wishes", target: ["needs-tabs", "needs-page"],
     }),
     s("activities", {
-      emoji: "🔄", title: "Taking turns", experimental: true,
+      emoji: "🔄", title: "Taking turns",
       body: `Turns helps when ${t.alters} want different things: agree who goes first, and the second turn goes in the planner.`,
       route: "/needs?tab=turns", target: ["needs-tabs", "needs-page"],
     }),
     s("activities", {
-      emoji: "🧩", title: "Lay out Needs your way", experimental: true,
+      emoji: "🧩", title: "Lay out Needs your way",
       body: `Needs is made of widgets. The grid button moves, resizes and adds them, and the same widgets can go on your home screen.`,
       route: "/needs", target: ["needs-layout-btn", "needs-page"],
     }),
@@ -1138,7 +1138,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🧪", title: "Experimental features",
-      body: `Needs, Goals and Mods are still settling, so they stay hidden until you switch on Experimental features, under General. Switching it off only hides them.`,
+      body: `Mods are still settling, so they stay hidden until you switch on Experimental features, under General. Switching it off only hides them.`,
       route: "/settings", target: "settings-experimental", look: `the Experimental features row, under General`,
     }),
     s("settings", {
@@ -1325,7 +1325,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
       .filter((st) => !(uiV2On && st.classicOnly))
       // Desktop-only controls (the update button) aren't on screen elsewhere.
       .filter((st) => !(st.desktopOnly && !isDesktop()))
-      // Needs, Goals and Mods stay out of the tour until experimental
+      // Mods stay out of the tour until experimental
       // features are switched on.
       .filter((st) => !(st.experimental && !experimentalOn));
     if (!restrictToRoute) return all;

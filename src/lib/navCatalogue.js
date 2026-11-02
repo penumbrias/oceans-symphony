@@ -18,7 +18,7 @@ import { withoutHiddenExperimental } from "@/lib/experimentalFeatures";
 // their dependencies so a newly installed mod shows up straight away.
 const modPages = () => ALL_PAGES.filter((p) => p.isMod);
 
-// Experimental pages (Needs, Goals, Mods) drop out while that switch is off.
+// Experimental pages (Mods) drop out while that switch is off.
 export function buildNavGroups(altersLabel, systemLabel) {
   const out = {};
   for (const [group, items] of Object.entries(allNavGroups(altersLabel, systemLabel))) {

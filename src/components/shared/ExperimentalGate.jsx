@@ -4,7 +4,7 @@ import { FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExperimentalOn, setExperimentalOn } from "@/lib/experimentalFeatures";
 
-// Wraps the route of an experimental page (Needs, Goals, Mods). A link,
+// Wraps the route of an experimental page (Mods). A link,
 // notification or search result that lands here while the switch is off
 // gets a short explanation and a way to turn it on, not a blank page.
 export default function ExperimentalGate({ name, children }) {

@@ -20,7 +20,6 @@ import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
-import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { WIDGET_REGISTRY, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
 import { groupWidgetEntries, widgetEntryMatches } from "@/lib/widgetMenuGroups";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -292,7 +291,6 @@ export default function AppDrawer({
 
   const modNavV = useModPagesVersion();
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
-  const experimentalFeaturesOn = useExperimentalOn();
   const appById = useMemo(() => new Map(apps.map((a) => [a.id, a])), [apps]);
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -320,16 +318,15 @@ export default function AppDrawer({
   }, [placedWidgetIds]);
 
   // The add-widget list, grouped by what each widget is for, versions of
-  // one thing folded into one entry (widgetMenuGroups.js). Needs & goals
-  // widgets are experimental — left out until switched on.
+  // one thing folded into one entry (widgetMenuGroups.js).
   const entryLabel = (e) => (e.family?.label ? applyTerms(e.family.label, t) : widgetLabel(e.def, t));
   const placedFor = (e) => (e.variants || [e]).reduce((n, v) => n + (placedCount.get(v.id) || 0), 0);
   const widgetQuery = widgetSearch.trim().toLowerCase();
   const widgetGroups = useMemo(() => {
     const entries = Object.entries(registry).filter(([, d]) =>
-      d && !d.hiddenFromDrawer && (d.category !== "needs" || experimentalFeaturesOn));
+      d && !d.hiddenFromDrawer);
     return groupWidgetEntries(entries, entryLabel);
-  }, [registry, experimentalFeaturesOn, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [registry, t]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownWidgetGroups = useMemo(() => {
     if (widgetQuery) {
       const matches = (e) => widgetEntryMatches(e, widgetQuery, (d) => widgetLabel(d, t), (d) => widgetDescription(d, t))
