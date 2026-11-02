@@ -12,6 +12,8 @@
 // The code never runs in the app's page — only inside the sandboxed mod
 // frame (public/mod-host.html).
 
+import { isReadableEntity } from "./modDataAccess.js";
+
 export const MOD_FORMAT = "oceans-symphony-mod";
 export const MOD_FORMAT_VERSION = 1;
 export const MAX_MOD_CODE_BYTES = 2 * 1024 * 1024;
@@ -28,6 +30,18 @@ export const MOD_PERMISSIONS = {
   "fronting:read": {
     label: "See who is {{fronting}}",
     detail: "Which {{alters}} are {{fronting}} right now and since when (not your history).",
+  },
+  // The heavy one. Never a tick at install: the person allows it later on the
+  // mod's card, after reading every risk, per kind of record
+  // (modDataAccess.js READABLE_DATA, which `dataScopes` in the file names).
+  "data:read": {
+    label: "Read your records",
+    detail: "A read-only copy of the kinds of records it lists (journals, check-ins, history…). You choose which, after reading what that means.",
+    heavy: true,
+  },
+  "files:save": {
+    label: "Save files to your device",
+    detail: "It can offer to save a file (an export, say). The app asks you every time, showing the file's name and size.",
   },
 };
 
@@ -86,6 +100,11 @@ export function parseModFile(text) {
     description: str(raw.description, 500),
     homepage: /^https:\/\//i.test(str(raw.homepage, 300)) ? str(raw.homepage, 300) : "",
     permissions,
+    // Which kinds of records a data:read mod wants (READABLE_DATA keys).
+    // Anything the app doesn't offer is dropped; the person still decides.
+    dataScopes: permissions.includes("data:read")
+      ? [...new Set((Array.isArray(raw.dataScopes) ? raw.dataScopes : []).filter(isReadableEntity))]
+      : [],
     pages,
     code,
   };

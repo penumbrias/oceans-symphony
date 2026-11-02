@@ -31,7 +31,18 @@ export async function findMod(modId) {
 // person ticked. Installing a mod that's already here updates it in place:
 // its data is untouched, and it stays on or off as it was.
 export async function installMod(parsed, grantedPermissions) {
-  const granted = (grantedPermissions || []).filter((p) => parsed.permissions.includes(p));
+  const existing = await findMod(parsed.mod_id);
+  // "data:read" is never granted by a tick at install: the person allows it
+  // on the mod's card after reading the risks (grantDataAccess). An update
+  // keeps it only if it was already allowed AND the update doesn't ask for
+  // more kinds of records than before — anything new needs a fresh yes.
+  const requested = parsed.dataScopes || [];
+  const scopesGrew = requested.some((x) => !(existing?.requested_data_scopes || existing?.data_scopes || []).includes(x));
+  const keepData = !!existing && (existing.granted_permissions || []).includes("data:read")
+    && parsed.permissions.includes("data:read") && !scopesGrew;
+  const granted = (grantedPermissions || [])
+    .filter((p) => parsed.permissions.includes(p) && p !== "data:read")
+    .concat(keepData ? ["data:read"] : []);
   const fields = {
     mod_id: parsed.mod_id,
     name: parsed.name,
@@ -41,13 +52,14 @@ export async function installMod(parsed, grantedPermissions) {
     homepage: parsed.homepage,
     permissions: parsed.permissions,
     granted_permissions: granted,
+    requested_data_scopes: requested,
+    data_scopes: keepData ? (existing.data_scopes || []).filter((x) => requested.includes(x)) : [],
     pages: parsed.pages,
     code: parsed.code,
     // "builtin" = from the app's mod library (updates arrive with the app);
     // "file" = installed from a shared .osmod file.
     source: parsed.source === "builtin" ? "builtin" : "file",
   };
-  const existing = await findMod(parsed.mod_id);
   if (existing) return localEntities.ModPackage.update(existing.id, fields);
   return localEntities.ModPackage.create({ ...fields, enabled: true, installed_at: new Date().toISOString() });
 }
@@ -81,8 +93,35 @@ export function setModEnabled(mod, enabled) {
 }
 
 export function setModPermissions(mod, granted) {
+  // data:read can be taken away here but only given through grantDataAccess.
+  const hadData = (mod.granted_permissions || []).includes("data:read");
+  const next = (granted || []).filter((p) => (mod.permissions || []).includes(p) && p !== "data:read");
+  if (hadData && (granted || []).includes("data:read")) next.push("data:read");
   return localEntities.ModPackage.update(mod.id, {
-    granted_permissions: (granted || []).filter((p) => (mod.permissions || []).includes(p)),
+    granted_permissions: next,
+    ...(hadData && !next.includes("data:read") ? { data_scopes: [] } : {}),
+  });
+}
+
+// The person's informed yes to "read your records", for the kinds they
+// ticked on the consent sheet (Mods page). Only kinds the mod asked for.
+export function grantDataAccess(mod, scopes) {
+  const wanted = (scopes || []).filter((x) => (mod.requested_data_scopes || []).includes(x));
+  if (!(mod.permissions || []).includes("data:read")) throw new Error("This mod doesn't ask to read your records.");
+  if (!wanted.length) throw new Error("Tick at least one kind of record, or cancel.");
+  const granted = new Set(mod.granted_permissions || []);
+  granted.add("data:read");
+  return localEntities.ModPackage.update(mod.id, {
+    granted_permissions: [...granted],
+    data_scopes: wanted,
+    data_consent_at: new Date().toISOString(),
+  });
+}
+
+export function revokeDataAccess(mod) {
+  return localEntities.ModPackage.update(mod.id, {
+    granted_permissions: (mod.granted_permissions || []).filter((p) => p !== "data:read"),
+    data_scopes: [],
   });
 }
 
