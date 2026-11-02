@@ -60,6 +60,7 @@ import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeT
 import { boxStyle } from "@/v2/primitives";
 import { applyHomePresetToBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { writeBoard, writeSettingsWithBoards, useBoardField } from "@/lib/boardWriter";
+import WidgetGapRow, { useBoardGap } from "@/components/shared/WidgetGapRow";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions, useExtraFontsInstalled } from "@/lib/useFontOptions";
 import {
@@ -366,9 +367,18 @@ function ShapeTab({ v2 }) {
   }, []);
   const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
   const alignDef = tokenById.alignX;
+  // Opened on a home board: that board's space between widgets.
+  const boardGap = useBoardGap();
   return (
     <div>
-      <Group title={tr("editSheet.groupLayout")} first>
+      {boardGap && (
+        <Group title={tr("editSheet.groupWidgets")} first>
+          <div data-board-gap="">
+            <WidgetGapRow value={boardGap.value} fallback={boardGap.fallback} onChange={boardGap.onChange} />
+          </div>
+        </Group>
+      )}
+      <Group title={tr("editSheet.groupLayout")} first={!boardGap}>
         <TokenSliderRow v2={v2} id="contentW" hint={tr("editSheet.contentWidthHint")} />
         <ChoiceRow label={alignDef.label} value={v2.uiV2.tokens.alignX ?? "center"}
           onChange={(val) => v2.setToken("alignX", val)}
@@ -407,6 +417,7 @@ function ShapeTab({ v2 }) {
         for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
         await v2.write({ tokens: next });
         if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
+        if (boardGap?.value !== undefined) boardGap.onChange(undefined);
         refresh();
       }} />
     </div>

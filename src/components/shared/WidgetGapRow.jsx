@@ -1,11 +1,18 @@
-// "Space between widgets" (v0.328.0) — one slider row, used by the home
-// screen panel (a board's grid.gap) and Profile style (a profile's
-// PS.WIDGET_GAP). The write waits until the drag settles, so dragging
+// "Space between widgets" (v0.328.0) — one slider row, used by Display
+// options → Shape on a board (a board's grid.gap, v0.340.3) and Profile
+// style → Shape (a profile's PS.WIDGET_GAP). The write waits until the drag settles, so dragging
 // doesn't save once per step. `value` undefined = the board's own spacing
 // (`fallback`), shown greyed with the × hidden.
 import React, { useEffect, useRef, useState } from "react";
 import { SliderRow } from "@/components/shared/SettingRows";
 import { WIDGET_GAP_MAX } from "@/lib/experimentalHome";
+
+// The board canvas hands Display options the board it was opened on:
+// { value, fallback, onChange } for that board's grid.gap. Null when
+// Display options isn't open on a home board (a page elsewhere, or a
+// profile, whose spacing is Profile style's) — then there's no row.
+export const BoardGapContext = React.createContext(null);
+export const useBoardGap = () => React.useContext(BoardGapContext);
 
 export default function WidgetGapRow({ value, fallback, onChange, hint = "The gap between the widgets on this board." }) {
   const [draft, setDraft] = useState(value);

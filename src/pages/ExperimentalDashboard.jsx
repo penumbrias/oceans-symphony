@@ -48,7 +48,7 @@ import {
   flowOrder, flowRepack, flowMove, snapStepFor, isWhole,
   isWidgetGap, defaultWidgetGap,
 } from "@/lib/experimentalHome";
-import WidgetGapRow from "@/components/shared/WidgetGapRow";
+import { BoardGapContext } from "@/components/shared/WidgetGapRow";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -1595,6 +1595,21 @@ export default function ExperimentalDashboard({
   const fallbackGapPx = defaultWidgetGap({ styleMode: home.styleMode, flow: flowView });
   const gapPx = chosenGap ?? fallbackGapPx;
   const canvasGap = chosenGap != null ? `${chosenGap}px` : `${fallbackGapPx / 16}rem`;
+  // This board's "Space between widgets", for Display options → Shape. A
+  // profile's spacing is its Profile style's (PS.WIDGET_GAP) — one door.
+  const boardGapValue = isWidgetGap(home.grid?.gap) ? home.grid.gap : undefined;
+  const boardGap = useMemo(() => (profileBoard ? null : {
+    value: boardGapValue,
+    fallback: fallbackGapPx,
+    onChange: (gap) => {
+      const board = boardRef.current.board; // newest board, never the render copy
+      const grid = { ...(board?.grid || {}) };
+      if (gap === undefined) delete grid.gap; else grid.gap = gap;
+      persist({ ...board, grid });
+    },
+  // persist reads boardRef, so a stale closure still writes the newest board.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [profileBoard, boardGapValue, fallbackGapPx]);
 
   // One pass, per page and width: give every widget the rows its content
   // actually needs, then untangle. Done centrally and written once —
@@ -2128,15 +2143,6 @@ export default function ExperimentalDashboard({
               Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label}
             </button>
             </div>
-            <div className="mt-2" data-board-gap="">
-              <WidgetGapRow value={isWidgetGap(home.grid?.gap) ? home.grid.gap : undefined} fallback={fallbackGapPx}
-                onChange={(gap) => {
-                  const board = boardRef.current.board; // newest board, never the render copy
-                  const grid = { ...(board?.grid || {}) };
-                  if (gap === undefined) delete grid.gap; else grid.gap = gap;
-                  persist({ ...board, grid });
-                }} />
-            </div>
 
             {/* Everything else IS the unified edit popup
                 (docs/v2-edit-menu-spec.md) — the same sections as Display
@@ -2148,7 +2154,9 @@ export default function ExperimentalDashboard({
               {homeSettingsOpen && (
                 <React.Suspense key={homeSettingsNonce} fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
                   <BoardFieldContext.Provider value={boardStore || settingsField}>
-                    <UiEditSheetBody />
+                    <BoardGapContext.Provider value={boardGap}>
+                      <UiEditSheetBody />
+                    </BoardGapContext.Provider>
                   </BoardFieldContext.Provider>
                 </React.Suspense>
               )}
