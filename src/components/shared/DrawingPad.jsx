@@ -193,6 +193,7 @@ export default function DrawingPad({ onInsert, onClose }) {
   const iconBtn = "h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-40";
 
   return createPortal(
+    // ui-ok: a full-screen drawing page, not a sheet over something it edits
     <div role="dialog" aria-modal="true" aria-label="Draw"
       className="drawing-pad fixed inset-0 z-[225] bg-black/50 flex items-stretch sm:items-center justify-center">
       <div className="bg-background w-full sm:max-w-2xl sm:h-[92vh] sm:rounded-2xl sm:border sm:border-border flex flex-col overflow-hidden"
