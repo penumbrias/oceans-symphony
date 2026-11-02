@@ -7,6 +7,8 @@
 // sound: encode it to 96 kbps CBR stereo MP3 named ns-<freesound id>.mp3,
 // upload it to the NATURE_RELEASE_TAG release, then add its row here.
 
+import { mySoundById } from "./ownSounds";
+
 export const NATURE_RELEASE_TAG = "nature-sounds-v1";
 const BASE = `https://github.com/penumbrias/oceans-symphony/releases/download/${NATURE_RELEASE_TAG}`;
 
@@ -20,7 +22,7 @@ export const LICENCES = {
 
 // Tag ids in the order the filter shows them.
 export const NATURE_TAGS = [
-  ["rain", "Rain"], ["thunder", "Thunder"], ["waves", "Waves"], ["water", "Water"],
+  ["yours", "Yours"], ["rain", "Rain"], ["thunder", "Thunder"], ["waves", "Waves"], ["water", "Water"],
   ["birds", "Birds"], ["dawn", "Dawn"], ["night", "Night"], ["forest", "Forest"],
   ["wind", "Wind"], ["frogs", "Frogs"], ["insects", "Insects"], ["animals", "Animals"],
   ["leaves", "Leaves"], ["winter", "Winter"], ["city", "Town"], ["calm", "Calm"],
@@ -107,4 +109,5 @@ export const NATURE_SOUNDS = [
 
 ];
 
-export const natureSoundById = (id) => NATURE_SOUNDS.find((s) => s.id === id) || null;
+// Built-in sounds, then the person's own (ownSounds.js — "own-…" ids).
+export const natureSoundById = (id) => NATURE_SOUNDS.find((s) => s.id === id) || mySoundById(id);

@@ -21,7 +21,8 @@
 
 import { getFullDbDump, isReservedDbKey } from "@/lib/localDb";
 import { stripDeviceBound, stripUnsharedSecrets } from "@/lib/backupPolicy";
-import { getAllLocalImages, measureLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, measureLocalImages, listLocalImageIds } from "@/lib/localImageStorage";
+import { isOwnSoundFileId } from "@/lib/natureSounds/ownSoundIds";
 import { loadBackupSkip } from "@/lib/backupSkip";
 import { getAllLocalFonts, measureLocalFonts } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
@@ -102,6 +103,23 @@ export function getAutoBackupFormat() {
     if (Object.values(BACKUP_FORMATS).includes(v)) return v;
   } catch { /* non-fatal */ }
   return BACKUP_FORMATS.JSON;
+}
+
+// Your own nature sounds (lib/natureSounds/ownSounds.js) in automatic
+// backups: "include" (default — back up more, not less) or "leave". Only
+// the scheduled backup and its Back up now honour it; safety copies and
+// manual exports (Everything .zip included) always carry them.
+const NATURE_SOUNDS_KEY = "symphony_autobackup_nature_sounds_v1";
+export const NATURE_SOUNDS_CHOICES = { INCLUDE: "include", LEAVE: "leave" };
+export function getAutoBackupNatureSounds() {
+  try { return localStorage.getItem(NATURE_SOUNDS_KEY) === "leave" ? "leave" : "include"; }
+  catch { return "include"; }
+}
+export function setAutoBackupNatureSounds(v) {
+  try {
+    if (v === "leave") localStorage.setItem(NATURE_SOUNDS_KEY, "leave");
+    else localStorage.removeItem(NATURE_SOUNDS_KEY);
+  } catch { /* non-fatal */ }
 }
 
 export function setAutoBackupFormat(format) {
@@ -386,7 +404,9 @@ function stripReserved(dump) {
 // mediaInZip: the files travel next to this data as real files in a zip
 // (the Everything format), so none are read into the payload and the size
 // limit doesn't apply. Fonts still ride inside the data.
-export async function buildFullBackupPayload({ allSystems = "best", mediaInZip = false } = {}) {
+// leaveOutNatureSounds: the person's "Your nature sounds" choice — files
+// added through Nature sounds stay out (only for the scheduled backup).
+export async function buildFullBackupPayload({ allSystems = "best", mediaInZip = false, leaveOutNatureSounds = false } = {}) {
   // Device-bound entities (friends credential + E2E private key, push
   // registration) must never ride in a general backup — see backupPolicy.
   // Manual exports already stripped them; auto-backups did NOT until
@@ -436,6 +456,12 @@ export async function buildFullBackupPayload({ allSystems = "best", mediaInZip =
     const marks = await loadBackupSkip();
     skipIds = new Set([...marks].filter((k) => k.startsWith("i:")).map((k) => k.slice(2)));
   } catch { skipIds = null; }
+  if (leaveOutNatureSounds && allSystems !== "required") {
+    try {
+      const own = (await listLocalImageIds()).filter(isOwnSoundFileId);
+      if (own.length) skipIds = new Set([...(skipIds || []), ...own]);
+    } catch { /* can't list them → they're backed up */ }
+  }
   let mediaMeasure = null;
   let imagesUnread = false;
   if (!mediaInZip) {
@@ -536,7 +562,9 @@ export async function buildFullBackupPayload({ allSystems = "best", mediaInZip =
 // land (cancelled / failed) but the off-device copy did.
 // format: one of BACKUP_FORMATS; defaults to the user's Auto-backup choice.
 // Safety copies taken before a risky step pass "json" explicitly.
-export async function runAutoBackupNow({ silent = false, allSystems = "best", format = getAutoBackupFormat() } = {}) {
+// natureChoice: honour the "Your nature sounds" choice (the scheduled
+// backup and its own Back up now buttons pass true; safety copies don't).
+export async function runAutoBackupNow({ silent = false, allSystems = "best", format = getAutoBackupFormat(), natureChoice = false } = {}) {
   const kind = silent ? "auto" : "manual";
   if (!Object.values(BACKUP_FORMATS).includes(format)) format = BACKUP_FORMATS.JSON;
   const isZip = format === BACKUP_FORMATS.ZIP;
@@ -554,7 +582,10 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best", fo
   }
   let payload;
   try {
-    payload = await buildFullBackupPayload({ allSystems, mediaInZip: isZip });
+    payload = await buildFullBackupPayload({
+      allSystems, mediaInZip: isZip,
+      leaveOutNatureSounds: natureChoice && getAutoBackupNatureSounds() === NATURE_SOUNDS_CHOICES.LEAVE,
+    });
   } catch (e) {
     recordBackupAttempt({ kind, ok: false, detail: e?.message || String(e) });
     throw e;
@@ -765,7 +796,7 @@ export async function runAutoBackupIfDue() {
     // Native: write straight to Documents (silent, no chooser). Web:
     // existing Web Share / anchor download path. Both routes are
     // baked into runAutoBackupNow now — no preferNative flag.
-    await runAutoBackupNow({ silent: true });
+    await runAutoBackupNow({ silent: true, natureChoice: true });
     return true;
   } catch (e) {
     // The delivery step already recorded its own failure; a throw from
