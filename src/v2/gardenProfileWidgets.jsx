@@ -23,7 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { mentionPreview, mentionPreviewText } from "@/lib/whisperRedact";
-import { inboxKey, refreshInbox, refreshBoard, sendInboxMessage, editInboxMessage, setInboxMessagePinned, setInboxMessageRead, postBoardMessage, deleteAlterMessage } from "@/lib/alterMessages";
+import { inboxKey, refreshInbox, refreshBoard, sendInboxMessage, editInboxMessage, setInboxMessagePinned, setInboxMessageRead, deleteAlterMessage } from "@/lib/alterMessages";
 import { useAlterBoardFeed, BOARD_KINDS, boardKindMatches, boardItemMatchesSearch } from "@/hooks/useAlterBoardFeed";
 import { base44 } from "@/api/base44Client";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -31,6 +31,7 @@ import { useAlterFrontSessions } from "@/hooks/useAlterFrontSessions";
 import { parseSessionNote } from "@/lib/perAlterSessionEntries";
 import SessionActionPopover from "@/components/fronting/SessionActionPopover";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import AlterBoardComposer from "@/components/bulletin/AlterBoardComposer";
 import RichText from "@/components/shared/RichText";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { isLogCommandError } from "@/lib/authoredText";
@@ -772,31 +773,7 @@ function boardKindText(item) {
 }
 
 function BoardComposer({ alterId, alters }) {
-  const t = useTerms();
-  const qc = useQueryClient();
-  const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const post = async () => {
-    if (!text.trim()) return;
-    setSaving(true);
-    try {
-      const msg = await postBoardMessage({ alterId, text, alters, terms: t });
-      if (msg === null) return;
-      refreshBoard(qc, alterId);
-      setText("");
-    } catch (e) {
-      toast.error(isLogCommandError(e) ? e.message : "Couldn't post the message");
-    } finally { setSaving(false); }
-  };
-  return (
-    <div data-own-hold="" className="space-y-[0.4em]">
-      <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts
-        placeholder="Post to this board… @ to mention, /w @name [secret] to whisper" className="min-h-[70px] text-sm" />
-      <div className="flex justify-end">
-        <button type="button" onClick={post} disabled={saving || !text.trim()} className={`${textBtnCls} px-4 disabled:opacity-40`} style={accentBtn}>Post</button>
-      </div>
-    </div>
-  );
+  return <AlterBoardComposer alterId={alterId} alters={alters} buttonClassName={`${textBtnCls} px-4`} buttonStyle={accentBtn} />;
 }
 
 export function BoardFeedWidget({ settings, mode = "normal" }) {
