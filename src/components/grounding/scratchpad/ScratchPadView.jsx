@@ -167,6 +167,31 @@ function ResetButton({ pad }) {
   );
 }
 
+// Every particle setting, for the Soundscape's Particles visual page.
+export function ParticleSettings({ pad }) {
+  const { changed } = pad;
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2" data-tour="grounding-scratchpad-rules">
+        <p className="text-xs font-medium text-foreground">Ruleset</p>
+        <RulesetPicker pad={pad} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-foreground">Tilt the phone</p>
+        <TiltControls pad={pad} />
+      </div>
+      <div className="space-y-4 rounded-xl border border-border/60 bg-card p-3">
+        <p className="text-sm font-medium text-foreground">Tune the rules{changed ? " · changed" : ""}</p>
+        <RuleSliders pad={pad} />
+        <div className="border-t border-border/40 pt-3 space-y-3">
+          <LookControls pad={pad} />
+        </div>
+        <ResetButton pad={pad} />
+      </div>
+    </div>
+  );
+}
+
 const pillClass = "flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-sm text-white backdrop-blur";
 
 // Full screen. `pad` is the hook above, or the widget's adapter with the

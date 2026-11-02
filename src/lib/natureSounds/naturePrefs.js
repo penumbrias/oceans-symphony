@@ -5,6 +5,7 @@
 
 import { NATURE_TAGS, natureSoundById } from "./catalog";
 import { isOwnSoundId } from "./ownSoundIds";
+import { clampShape, DEFAULT_SHAPE } from "./recordingShape";
 
 export const NATURE_PREFS_KEY = "symphony_nature_sounds_v1";
 export const SORTS = ["name", "place", "short", "long"];
@@ -21,6 +22,7 @@ const DEFAULTS = {
   keepPlaying: true,
   lastId: null,
   addQuality: "balanced", // size chosen last when adding your own sound
+  shape: DEFAULT_SHAPE, // "Shape the sound" for recordings (recordingShape.js)
 };
 
 const QUALITY_IDS = ["original", "high", "balanced", "small"];
@@ -45,6 +47,7 @@ export function readNaturePrefs() {
     volume: Number.isFinite(vol) ? Math.round(Math.min(100, Math.max(0, vol))) : DEFAULTS.volume,
     keepPlaying: raw.keepPlaying !== false,
     addQuality: QUALITY_IDS.includes(raw.addQuality) ? raw.addQuality : DEFAULTS.addQuality,
+    shape: clampShape(raw.shape),
     // Your own sounds load after this is first read, so their ids are
     // kept as they are; the player skips one that's gone.
     lastId: typeof raw.lastId === "string" && (natureSoundById(raw.lastId) || isOwnSoundId(raw.lastId)) ? raw.lastId : null,

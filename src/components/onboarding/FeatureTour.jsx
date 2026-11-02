@@ -902,43 +902,43 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("grounding", {
       emoji: "🎧", title: "Soundscape",
-      body: `Brown noise, rain, wind, waves or soft tones, drawn as they play. It keeps going while you move around the app, with a small bar to stop it.`,
+      body: `Sounds made from math, nature recordings and your own audio, all in one place. It keeps going while you move around the app, with a small bar to stop it.`,
       route: "/grounding", target: "grounding-soundscape", look: `the highlighted "Soundscape" button`,
     }),
     s("grounding", {
-      emoji: "🎛️", title: "Shape the sound",
-      body: `Tune warmth, pitch, a binaural beat, the rain, and whether it stays steady or drifts. Set a timer, and save sounds you like.`,
-      route: "/grounding", target: "grounding-soundscape",
+      emoji: "🎚️", title: "Layer sounds",
+      body: `One sound made from math and one recording can play together. Each has its own row under Playing: tap it for its page, or use "Add a sound".`,
+      route: "/grounding?view=soundscape", target: ["grounding-soundscape-layers", "grounding-soundscape"],
     }),
     s("grounding", {
-      emoji: "🌠", title: "Focus",
-      body: `Focus shows the visual full screen, with a breathing guide if you like. Pick a visual: Calm, Layers, Stars, Fractal or Detailed.`,
-      route: "/grounding", target: "grounding-soundscape",
+      emoji: "🎛️", title: "Shape the sound",
+      body: `Both kinds have a synth-style panel. Made from math: warmth, pitch, a binaural beat and the rain. Recordings: low and high cut, movement, space and speed.`,
+      route: "/grounding?view=soundscape", target: ["grounding-soundscape-math", "grounding-soundscape"],
+    }),
+    s("grounding", {
+      emoji: "🌠", title: "Visuals and Focus",
+      body: `The visual follows whatever is playing: Calm, Layers, Stars, Fractal or Detailed. Focus shows it full screen, with a breathing guide if you like.`,
+      route: "/grounding?view=soundscape", target: ["grounding-soundscape-view", "grounding-soundscape"],
+    }),
+    s("grounding", {
+      emoji: "✨", title: "Particles",
+      body: `Pick Particles as the visual and draw with your finger. When you let go, a ruleset like Whirlpool or Drift decides what the particles do. Tilt the phone and they slide.`,
+      route: "/grounding?view=soundscape", target: ["grounding-soundscape-view", "grounding-soundscape"],
     }),
     s("grounding", {
       emoji: "🌿", title: "Nature sounds",
       body: `Rain, storms, waves, birdsong and forests recorded around the world. They stream when you play them, so they add nothing to the app's size.`,
-      route: "/grounding", target: "grounding-nature", look: `the highlighted "Nature sounds" button`,
+      route: "/grounding?view=soundscape", target: ["grounding-soundscape-recording", "grounding-soundscape"],
     }),
     s("grounding", {
       emoji: "🎲", title: "Favourites and shuffle",
       body: `Heart the sounds you like, filter by tag, shuffle, or jump to a random spot in a long recording. On the phone app you can save a sound to play offline.`,
-      route: "/grounding", target: "grounding-nature",
+      route: "/grounding?view=nature", target: ["grounding-nature-view", "grounding-soundscape"],
     }),
     s("grounding", {
       emoji: "🎙️", title: "Your own sounds",
       body: `Add recordings from your device or your Assets under "Your sounds". Keep the file as it is, or make it smaller to save space in backups.`,
-      route: "/grounding?view=nature", target: ["grounding-nature-add", "grounding-nature"],
-    }),
-    s("grounding", {
-      emoji: "✨", title: "Scratch pad",
-      body: `A particle sandbox. Press and drag to draw particles; when you let go, a ruleset decides what they do.`,
-      route: "/grounding", target: "grounding-scratchpad", look: `the highlighted "Scratch pad" button`,
-    }),
-    s("grounding", {
-      emoji: "🌀", title: "Rulesets",
-      body: `Pick a ruleset like Whirlpool, Drift or Orbit, or tune each rule yourself. Tilt the phone and the particles slide that way. It opens full screen too.`,
-      route: "/grounding", target: "grounding-scratchpad",
+      route: "/grounding?view=nature", target: ["grounding-nature-add", "grounding-nature-view"],
     }),
     s("grounding", {
       emoji: "📚", title: "Learn",

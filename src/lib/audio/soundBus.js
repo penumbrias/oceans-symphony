@@ -121,7 +121,8 @@ export async function canRouteSrc(url) {
     ok = res.ok || res.status === 206;
     try { await res.body?.cancel(); } catch { /* nothing to cancel */ }
   } catch { ok = false; }
-  corsOk.set(origin, ok);
+  // Offline looks the same as "not allowed": only remember a "no" made online.
+  if (ok || typeof navigator === "undefined" || navigator.onLine !== false) corsOk.set(origin, ok);
   return ok;
 }
 

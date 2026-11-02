@@ -21,6 +21,7 @@ export const VISUAL_OPTIONS = [
   { value: "stars", label: "Stars" },
   { value: "fractal", label: "Fractal" },
   { value: "detailed", label: "Detailed" },
+  { value: "particles", label: "Particles" },
 ];
 const VISUAL_HELP = {
   calm: "The shape of the sound, breathing slowly with it.",
@@ -28,6 +29,7 @@ const VISUAL_HELP = {
   stars: "Flying through a starfield.",
   fractal: "Shapes drawn from repeating one equation. Choose the algorithm, the numbers or write your own under Fractal settings.",
   detailed: "The live sound, frequency by frequency. Busier than the others.",
+  particles: "Draw a line of particles with your finger, let go, and watch a few simple rules move it.",
 };
 const STAR_SPEED_OPTIONS = [
   { value: "drift", label: "Drift" },
