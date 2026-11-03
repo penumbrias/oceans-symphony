@@ -114,7 +114,9 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
       if (!cssW) { fit(); if (!cssW) { running = false; return; } }
       const reduce = document.documentElement.classList.contains("a11y-reduce-motion");
       const minGap = reduce ? 1000 / 30 : 1000 / 61;
-      if (lastFrame && now - lastFrame < minGap) { raf = requestAnimationFrame(frame); return; }
+      // Three-quarters of the gap, so a 60 Hz screen's frames that come a
+      // hair early aren't skipped (that halved the rate while drawing).
+      if (lastFrame && now - lastFrame < minGap * 0.75) { raf = requestAnimationFrame(frame); return; }
       const dt = lastFrame ? Math.min(1 / 30, (now - lastFrame) / 1000) : 1 / 60;
       lastFrame = now;
 
@@ -171,8 +173,7 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
     };
     wakeRef.current = wake;
 
-    const toPad = (e) => {
-      const rect = canvas.getBoundingClientRect();
+    const toPad = (e, rect = canvas.getBoundingClientRect()) => {
       return [(e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale];
     };
     // Each finger draws its own line; the pad keeps one live stroke, so
@@ -193,11 +194,17 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
       const s = pointers.get(e.pointerId);
       if (!s) return;
       e.preventDefault();
-      const events = e.getCoalescedEvents?.() || [e];
+      // Every point the finger passed since the last event, so a busy
+      // moment can't turn the path into a straight line. Some WebViews
+      // hand back an EMPTY list (not null), which used to drop the whole
+      // move and draw one straight jump when a later move got through.
+      const list = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : null;
+      const events = list && list.length ? list : [e];
       const prev = pad.stroke;
       pad.stroke = s;
+      const rect = canvas.getBoundingClientRect();
       for (const ev of events) {
-        const [x, y] = toPad(ev);
+        const [x, y] = toPad(ev, rect);
         extendStroke(pad, x, y, ev.timeStamp);
       }
       pad.stroke = prev;
@@ -239,7 +246,12 @@ const ScratchPadCanvas = forwardRef(function ScratchPadCanvas({ rules, color = "
       ref={canvasRef}
       className={`block w-full h-full touch-none select-none ${className}`}
       style={{ touchAction: "none" }}
+      // Drawing owns the touch: no pull-to-refresh (which reloads every
+      // list and froze the stroke), no home page swipe, no swipe-back.
       data-no-panic-taps=""
+      data-own-hold=""
+      data-no-page-swipe=""
+      data-no-swipe-back=""
       role="img"
       aria-label="Scratch pad. Press and drag to draw a line of particles; let go to set them moving."
     />

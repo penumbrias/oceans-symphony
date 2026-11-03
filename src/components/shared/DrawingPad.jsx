@@ -51,6 +51,7 @@ export default function DrawingPad({ onInsert, onClose }) {
   const canvasRef = useRef(null);
   const live = useRef(null);       // the stroke being drawn
   const activeId = useRef(null);   // the one pointer drawing it
+  const liveInk = useRef(null);    // ink colour for the stroke being drawn
   const penSeen = useRef(false);   // palm rejection once a stylus is used
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
 
@@ -115,7 +116,10 @@ export default function DrawingPad({ onInsert, onClose }) {
     if (!c) return;
     const ctx = c.getContext("2d");
     const pts = stroke.points.slice(Math.max(0, from - 1));
-    paintStrokes(ctx, [{ ...stroke, points: pts }], { inkColor: mode === "ink" ? inkColour() : null, scale: sizeRef.current.dpr });
+    // The ink colour is read once per stroke: a style read on every move
+    // made long strokes stutter.
+    if (mode === "ink" && !liveInk.current) liveInk.current = inkColour();
+    paintStrokes(ctx, [{ ...stroke, points: pts }], { inkColor: mode === "ink" ? liveInk.current : null, scale: sizeRef.current.dpr });
   };
 
   const onPointerDown = (e) => {
@@ -124,6 +128,7 @@ export default function DrawingPad({ onInsert, onClose }) {
     if (activeId.current != null) return;
     e.preventDefault();
     activeId.current = e.pointerId;
+    liveInk.current = null;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     live.current = {
       tool,
@@ -138,7 +143,10 @@ export default function DrawingPad({ onInsert, onClose }) {
     if (e.pointerId !== activeId.current || !live.current) return;
     e.preventDefault();
     const from = live.current.points.length;
-    const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+    // React's event has no getCoalescedEvents, so read the browser's own:
+    // every point since the last event, so a busy moment keeps the path.
+    const ne = e.nativeEvent || e;
+    const evs = typeof ne.getCoalescedEvents === "function" ? ne.getCoalescedEvents() : [];
     for (const ev of (evs.length ? evs : [e])) live.current.points.push(pointFrom(ev));
     paintTail(live.current, from);
   };
