@@ -32,6 +32,7 @@ let _show = null;
 //
 //   const name = await promptText({ title: "New folder", placeholder: "Folder name" });
 //   const name = await promptText({ title: "Rename", defaultValue: current });
+//   const pwd  = await promptText({ title: "Password", inputType: "password" });
 export function promptText(opts) {
   const options = typeof opts === "string" ? { title: opts } : (opts || {});
   if (!_show) {
@@ -81,7 +82,8 @@ export function ConfirmRoot() {
     resolveRef.current = null;
     setOptions(null);
     if (!r) return;
-    if (isInput) r(result ? text.trim() : null);
+    // A password is taken exactly as typed (spaces can be part of it).
+    if (isInput) r(result ? (options?.inputType === "password" ? text : text.trim()) : null);
     else r(result);
   };
 
@@ -103,6 +105,7 @@ export function ConfirmRoot() {
         {o.input && (
           <input
             autoFocus
+            type={o.inputType === "password" ? "password" : "text"}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); settle(true); } }}
