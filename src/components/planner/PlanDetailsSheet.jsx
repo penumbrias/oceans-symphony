@@ -13,12 +13,18 @@
 // ActivityEditor itself and starts through the shared startPlanActive, so
 // every door can read, resolve, start and edit the same way (v0.276.2 —
 // this replaced the board's ActivityDetailsModal + lifecycle popover).
+//
+// v0.344.2 (owner, 2026-11-03): laid out like the activity editor — back
+// arrow and name on top, the shared PlanOutcome row first (the same chips,
+// asks and reschedule as the editor's), then the details, then full-width
+// buttons. `onReschedule` is gone: Reschedule offers the same quick times
+// wherever the sheet opens.
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Pencil, Play, Repeat, Zap, CheckSquare, RotateCcw } from "lucide-react";
+import { ChevronLeft, Pencil, Repeat, Zap, CheckSquare, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useT } from "@/lib/i18n";
@@ -26,17 +32,17 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { contactDisplayName } from "@/lib/contacts";
 import { categoryIdOf } from "@/lib/planner/rollup";
-import { resolveOutcome, reschedulePlan, planAnotherGo, startPlanActive } from "@/lib/planner/resolvePlan";
-import ActivityEditor from "@/components/activities/ActivityEditor";
-import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
-import { getActiveActivities, snoozeActiveEndReminder, ACTIVE_END_SNOOZE_MINUTES } from "@/lib/activitySession";
+import ActivityEditor, { SectionLabel } from "@/components/activities/ActivityEditor";
+import PlanOutcome from "@/components/planner/PlanOutcome";
+import { Button } from "@/components/ui/button";
+import { getActiveActivities } from "@/lib/activitySession";
 
 const fmtDur = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
   return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 };
 
-export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = null, onStartNow: onStartNowProp = null, onReschedule = null }) {
+export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = null, onStartNow: onStartNowProp = null }) {
   const tr = useT();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -50,12 +56,6 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(), enabled: !!item,
   });
 
-  // Done / Start ask WHEN first (PlanTimeChoice). Hooks stay above the
-  // early return.
-  // "later" = built-in reschedule (callers without their own onReschedule);
-  // "another" = after a skip / early stop, offer to plan another go.
-  const [ask, setAsk] = useState(null); // "start" | "end" | "later" | "another" | null
-  useEffect(() => { setAsk(null); }, [item?.id]);
   // The built-in editor (when the caller has none). While it's open the
   // details step aside; closing it closes the whole thing, so a caller
   // that unmounts the sheet on close never cuts the editor off mid-edit.
@@ -66,15 +66,6 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
   if (editReq) return <ActivityEditor request={editReq} onClose={() => { setEditReq(null); onClose?.(); }} />;
 
   const onEdit = onEditProp || ((it) => setEditReq({ item: it }));
-  const onStartNow = onStartNowProp || (async (it, startedAt) => {
-    try {
-      await startPlanActive(it, { startedAt: startedAt || new Date(), categories });
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(tr("planner.startedToast"));
-      onClose?.();
-    } catch (e) { toast.error(e?.message || "Failed"); }
-  });
-
   const st = statusFor(item);
   const cat = categories.find((c) => c.id === categoryIdOf(item));
   const color = item.color || cat?.color || "var(--v2-accent)";
@@ -118,32 +109,10 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
     qc.invalidateQueries({ queryKey: ["tasks"] });
     qc.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
-  const resolve = async (status, endedAt = null) => {
-    try {
-      await resolveOutcome(item, status, { endedAt });
-      refresh();
-      // Didn't happen (fully) → offer another go before closing.
-      if (status === "partial" || status === "skipped") setAsk("another");
-      else onClose?.();
-    } catch (e) { toast.error(e?.message || "Failed"); }
-  };
-  const moveLater = async (when) => {
-    try { await reschedulePlan(item, when); refresh(); onClose?.(); }
-    catch (e) { toast.error(e?.message || "Failed"); }
-  };
-  const anotherGo = async (when) => {
-    try { await planAnotherGo(item, when); refresh(); onClose?.(); }
-    catch (e) { toast.error(e?.message || "Failed"); }
-  };
-  const runningSession = getActiveActivities().find((a) => a.planActivityId === item.id) || null;
-  const keepGoing = async () => {
-    if (runningSession) await snoozeActiveEndReminder(runningSession.id);
-    onClose?.();
-  };
 
   const Line = ({ label, children }) => (
     <div className="flex items-baseline gap-2">
-      <span className="text-[0.6875em] uppercase tracking-wide text-muted-foreground w-16 flex-shrink-0">{label}</span>
+      <span className="text-[0.6875rem] text-muted-foreground w-16 flex-shrink-0">{label}</span>
       <span className="text-sm flex-1 min-w-0">{children}</span>
     </div>
   );
@@ -152,154 +121,105 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
       style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab))" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2.5 max-h-full overflow-y-auto overscroll-contain"
+      {/* The editor's shell, so reading/resolving and editing feel like one sheet. */}
+      <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
         style={{ borderRadius: "var(--v2-radius, 16px)" }}>
-        <div className="flex items-start justify-between gap-2">
-          <span className="flex items-center gap-2 min-w-0">
-            <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 20 }} />
-            <span className="text-base font-semibold truncate">{item.activity_name || tr("planner.untitled")}</span>
-          </span>
-          <button type="button" onClick={() => onClose?.()} aria-label={tr("planner.close")}
-            className="p-1 -mr-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
-            <X className="w-4 h-4" />
+        {/* NAME */}
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" onClick={() => onClose?.()} aria-label={tr("planner.close")} title={tr("planner.close")}
+            className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+            <ChevronLeft className="w-4 h-4" />
           </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[0.6875em] px-2 py-0.5 rounded-full border"
+          <span className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: color, minHeight: 16 }} />
+          <h2 className="flex-1 min-w-0 text-sm font-semibold truncate">{item.activity_name || tr("planner.untitled")}</h2>
+          <span className="text-[0.625em] uppercase tracking-wide border rounded-full px-2 py-0.5 flex-shrink-0"
             style={st === "scheduled"
               ? { borderColor: "var(--v2-accent)", color: "var(--v2-accent)" }
               : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-            {tr(`planner.${st}`)}
+            {isRunning ? tr("planner.inProgress") : tr(`planner.${st}`)}
           </span>
-          {item.is_critical && (
-            <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-500 flex items-center gap-1">
-              <Zap className="w-3 h-3" />{tr("planner.critical")}
-            </span>
-          )}
-          {item.recurrence_group_id && (
-            <span className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
-              <Repeat className="w-3 h-3" />{tr("planner.series")}
-            </span>
-          )}
         </div>
-
-        <div className="space-y-1 pt-0.5">
-          <Line label={tr("planner.whenLabel")}>
-            {start
-              ? `${format(start, "EEE d MMM")} · ${format(start, "HH:mm")}${end ? `–${format(end, "HH:mm")}` : ""}`
-              : item.planned_date
-                ? `${format(new Date(item.planned_date), "EEE d MMM")} · ${tr("planner.anytime")}`
-                : tr("planner.noTimeSet")}
-          </Line>
-          {mins > 0 && <Line label={tr("planner.durLabel")}>{fmtDur(mins)}</Line>}
-          {cat && (
-            <Line label={tr("planner.whatLabel")}>
-              <span className="inline-flex items-center gap-1.5">
-                {cat.color && <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />}
-                {cat.name}
-              </span>
-            </Line>
-          )}
-          {who.length > 0 && <Line label={tr("planner.who")}>{who.map((a) => formatAlter(a)).join(", ")}</Line>}
-          {company.length > 0 && <Line label={tr("planner.with")}>{company.map((c) => contactDisplayName(c)).join(", ")}</Line>}
-          {item.location && <Line label={tr("planner.location")}>{item.location}</Line>}
-          {feelings.length > 0 && (
-            <Line label={tr("planner.feelings")}>
-              <span className="flex flex-wrap gap-1">
-                {feelings.map((f, i) => (
-                  <span key={`${f}-${i}`} className="text-xs px-2 py-0.5 rounded-full border border-border/50">{f}</span>
-                ))}
-              </span>
-            </Line>
-          )}
-          {task && (
-            <Line label={tr("planner.todoLabel")}>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                <span className={task.completed || task.is_complete ? "line-through text-muted-foreground" : ""}>{task.title}</span>
-              </span>
-            </Line>
-          )}
-          {item.notes && (
-            <div className="pt-1">
-              <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground">{tr("planner.notes")}</p>
-              <p className="text-sm whitespace-pre-wrap break-words">{item.notes}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="pt-1 border-t border-border/40">
-          <p className="text-[0.6875em] uppercase tracking-wide text-muted-foreground mb-1">{tr("planner.outcome")}</p>
-          <div className="flex flex-wrap gap-1">
-            {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
-              ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-              <button key={id} type="button" aria-pressed={st === id || (id === "done" && ask === "end")}
-                onClick={() => (id === "done" ? setAsk(ask === "end" ? null : "end") : resolve(id))}
-                className={`text-xs px-2.5 py-1 rounded-full border ${
-                  st === id || (id === "done" && ask === "end")
-                    ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
-                    : "border-border/50 text-muted-foreground hover:text-foreground"
-                }`}>{label}</button>
-            ))}
-            {(onReschedule || st === "scheduled" || isRunning) && (
-              <button type="button" aria-pressed={ask === "later"}
-                onClick={() => (onReschedule ? onReschedule(item) : setAsk(ask === "later" ? null : "later"))}
-                className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${
-                  ask === "later" ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground hover:text-foreground"
-                }`}>
-                <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
-              </button>
+        {(item.is_critical || item.recurrence_group_id) && (
+          <div className="flex flex-wrap items-center gap-3 -mt-1 text-[0.6875em] text-muted-foreground">
+            {item.is_critical && (
+              <span className="flex items-center gap-1 text-amber-500"><Zap className="w-3 h-3" />{tr("planner.critical")}</span>
             )}
-            {isRunning && (
-              <button type="button" onClick={keepGoing}
-                className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <Play className="w-3 h-3" />{tr("planner.keepGoing", { minutes: ACTIVE_END_SNOOZE_MINUTES })}
-              </button>
-            )}
-          </div>
-          {ask === "end" && (
-            <PlanTimeChoice kind="end" item={item} onPick={(d) => { setAsk(null); resolve("done", d); }} />
-          )}
-          {ask === "later" && (
-            <PlanTimeChoice kind="later" item={item} onPick={(d) => { setAsk(null); moveLater(d); }} />
-          )}
-          {ask === "another" && (
-            <div>
-              <PlanTimeChoice kind="later" item={item} prompt={tr("planner.anotherGo")}
-                onPick={(d) => { setAsk(null); anotherGo(d); }} />
-              <button type="button" onClick={() => onClose?.()}
-                className="mt-1.5 text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
-                {tr("planner.notNow")}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {(onEdit || canLogAgain || (onStartNow && st === "scheduled" && !isRunning)) && (
-          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
-            {onEdit && (
-              <button type="button" onClick={() => onEdit(item)}
-                className="text-xs px-3 py-1.5 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
-                <Pencil className="w-3 h-3" />{tr("planner.edit")}
-              </button>
-            )}
-            {onStartNow && st === "scheduled" && !isRunning && (
-              <button type="button" aria-pressed={ask === "start"} onClick={() => setAsk(ask === "start" ? null : "start")}
-                className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <Play className="w-3 h-3" />{tr("planner.startNow")}
-              </button>
-            )}
-            {canLogAgain && (
-              <button type="button" onClick={logAgain}
-                className="text-xs px-3 py-1.5 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <RotateCcw className="w-3 h-3" />{tr("planner.logAgain")}
-              </button>
+            {item.recurrence_group_id && (
+              <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{tr("planner.series")}</span>
             )}
           </div>
         )}
-        {ask === "start" && (
-          <PlanTimeChoice kind="start" item={item} onPick={(d) => { setAsk(null); onStartNow?.(item, d); }} />
+
+        {/* OUTCOME — the same row the editor shows. */}
+        <div>
+          <SectionLabel>{tr("planner.outcome")}</SectionLabel>
+          <div className="mt-1">
+            <PlanOutcome item={item} categories={categories} onDone={() => onClose?.()}
+              onStartNow={onStartNowProp ? async (it, startedAt) => { await onStartNowProp(it, startedAt); } : null} />
+          </div>
+        </div>
+
+        {/* DETAILS */}
+        <div className="space-y-1">
+          <SectionLabel>{tr("planner.details")}</SectionLabel>
+          <div className="space-y-1 pt-1">
+            <Line label={tr("planner.whenLabel")}>
+              {start
+                ? `${format(start, "EEE d MMM")} · ${format(start, "HH:mm")}${end ? `–${format(end, "HH:mm")}` : ""}`
+                : item.planned_date
+                  ? `${format(new Date(item.planned_date), "EEE d MMM")} · ${tr("planner.anytime")}`
+                  : tr("planner.noTimeSet")}
+            </Line>
+            {mins > 0 && <Line label={tr("planner.durLabel")}>{fmtDur(mins)}</Line>}
+            {cat && (
+              <Line label={tr("planner.whatLabel")}>
+                <span className="inline-flex items-center gap-1.5">
+                  {cat.color && <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />}
+                  {cat.name}
+                </span>
+              </Line>
+            )}
+            {who.length > 0 && <Line label={tr("planner.who")}>{who.map((a) => formatAlter(a)).join(", ")}</Line>}
+            {company.length > 0 && <Line label={tr("planner.with")}>{company.map((c) => contactDisplayName(c)).join(", ")}</Line>}
+            {item.location && <Line label={tr("planner.location")}>{item.location}</Line>}
+            {feelings.length > 0 && (
+              <Line label={tr("planner.feelings")}>
+                <span className="flex flex-wrap gap-1">
+                  {feelings.map((f, i) => (
+                    <span key={`${f}-${i}`} className="text-xs px-2 py-0.5 rounded-full border border-border/50">{f}</span>
+                  ))}
+                </span>
+              </Line>
+            )}
+            {task && (
+              <Line label={tr("planner.todoLabel")}>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className={task.completed || task.is_complete ? "line-through text-muted-foreground" : ""}>{task.title}</span>
+                </span>
+              </Line>
+            )}
+            {item.notes && (
+              <Line label={tr("planner.notes")}>
+                <span className="whitespace-pre-wrap break-words">{item.notes}</span>
+              </Line>
+            )}
+          </div>
+        </div>
+
+        {(onEdit || canLogAgain) && (
+          <div className="flex gap-1.5 pt-1">
+            {onEdit && (
+              <Button variant="outline" className="flex-1 gap-1.5" onClick={() => onEdit(item)}>
+                <Pencil className="w-3.5 h-3.5" />{tr("planner.edit")}
+              </Button>
+            )}
+            {canLogAgain && (
+              <Button variant="outline" className="flex-1 gap-1.5" onClick={logAgain}>
+                <RotateCcw className="w-3.5 h-3.5" />{tr("planner.logAgain")}
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

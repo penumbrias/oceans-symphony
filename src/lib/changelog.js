@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 3, 2026",
+    changes: [
+      { type: "improve", text: "A plan's resolve sheet now looks and works like the activity editor: the same outcome buttons first, and Reschedule offers the same quick times wherever you open it." },
+    ],
+  },
+  {
     date: "November 2, 2026",
+    version: "0.344.1",
     changes: [
       { type: "fix", text: "Soundscape focused mode: Particles no longer traps you, its settings are a page inside Focus settings, and you can pick a nature sound or your own from there too." },
       { type: "improve", text: "Goals, Needs and wishes are out of Experimental features: they now show for everyone. Only Mods still need the switch." },

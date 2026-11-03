@@ -30,7 +30,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek } from "date-fns";
 import { toast } from "sonner";
-import { CheckSquare, ChevronLeft, FolderTree, MapPin, Pause, Play, Plus, Repeat } from "lucide-react";
+import { CheckSquare, ChevronLeft, FolderTree, MapPin, Play, Plus, Repeat } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -41,7 +41,7 @@ import NestedMemberList from "@/components/shared/NestedMemberList";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
 import ActivityWhenField from "@/components/activities/ActivityWhenField";
-import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
+import PlanOutcome from "@/components/planner/PlanOutcome";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
@@ -49,15 +49,13 @@ import { createTask } from "@/lib/taskCreate";
 import { createActivityEntry, defaultModeFor, ENTRY_MODES } from "@/lib/activityEntry";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import {
-  PLAN_REMINDER_OFFSETS, readPlanRemindersEnabled, writePlanRemindersEnabled, cancelPlanReminder,
+  PLAN_REMINDER_OFFSETS, readPlanRemindersEnabled, writePlanRemindersEnabled,
 } from "@/lib/planReminderScheduler";
-import { getActiveActivities, addActiveActivity } from "@/lib/activitySession";
 import {
   RECURRENCE_BRANCHES, RECURRENCE_INTERVALS, maxOccurrences, clampOccurrenceCount,
   membersForBranch, deleteSeries, applyEditToSeries,
 } from "@/lib/recurrenceUtils";
 import { maxLengthMinutes } from "@/lib/recurrenceIntervals";
-import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
@@ -77,7 +75,7 @@ const chipCls = (on) => `text-xs px-2.5 py-1 rounded-full border ${
   on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
 }`;
 
-const SectionLabel = ({ children }) => (
+export const SectionLabel = ({ children }) => (
   <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{children}</p>
 );
 
@@ -160,7 +158,6 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
   const [stillFrontingPick, setStillFrontingPick] = useState(null);
   const [closeAsk, setCloseAsk] = useState(false);
   const [branchAsk, setBranchAsk] = useState(null);
-  const [timeAsk, setTimeAsk] = useState(null);
   const [countReschedule, setCountReschedule] = useState(true);
   const [planRemOn, setPlanRemOn] = useState(() => readPlanRemindersEnabled());
   const [saving, setSaving] = useState(false);
@@ -173,7 +170,7 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
   // Seed from the request each time a new one arrives.
   useEffect(() => {
     if (!request) { setEntry(null); return; }
-    setOpen({}); setCloseAsk(false); setBranchAsk(null); setTimeAsk(null); setCountReschedule(true);
+    setOpen({}); setCloseAsk(false); setBranchAsk(null); setCountReschedule(true);
     setTodoPickerOpen(false); setTodoQuery(""); setRecordFronting(false); setStillFrontingPick(null);
     setRecur({ interval: "none", count: 8 }); setExtraDays([]);
     autoTitleRef.current = "";
@@ -435,44 +432,6 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
       if (!countReschedule || !wasScheduled) toast.success(tr("planner.timeFixed", { when: format(when, "EEE d MMM, HH:mm") }));
       else toast.success(tr("planner.rescheduled", { when: format(when, "EEE d MMM, HH:mm") }));
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
-  };
-
-  // ── Outcomes, start / pause (existing plans) ───────────────────────
-  const alreadyActive = !!entry && !create && getActiveActivities().some((a) => a.planActivityId === item.id);
-  const setOutcome = async (st, endedAt = null) => {
-    try {
-      await resolveOutcome(item, st, { endedAt });
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      qc.invalidateQueries({ queryKey: ["tasks"] });
-      onClose?.();
-    } catch (e) { toast.error(e.message || "Failed"); }
-  };
-  const pauseNow = async () => {
-    const sess = getActiveActivities().find((a) => a.planActivityId === item.id);
-    if (!sess) return;
-    try {
-      const { pauseActiveActivity } = await import("@/lib/activitySession");
-      const res = await pauseActiveActivity(sess.id);
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      if (res) toast.success(`⏸ ${res.name} — ${res.total ?? res.minutes}m saved`);
-      onClose?.();
-    } catch (e) { toast.error(e?.message || "Couldn't pause"); }
-  };
-  const startPlanNow = (startedAt = new Date()) => {
-    const cat = categories.find((c) => c.id === categoryIdOf(item));
-    addActiveActivity({
-      planActivityId: item.id,
-      categoryId: cat?.id || null,
-      name: item.activity_name || cat?.name || "Activity",
-      color: cat?.color || null,
-      startTime: (startedAt instanceof Date ? startedAt : new Date()).toISOString(),
-      alterIds: item.fronting_alter_ids || [],
-      contactIds: item.contact_ids || [],
-      notes: (item.notes || "").trim(),
-    });
-    try { cancelPlanReminder(item.id).catch(() => {}); } catch { /* non-fatal */ }
-    toast.success(tr("planner.startedToast"));
-    onClose?.();
   };
 
   const deleteEntry = async () => {
@@ -793,41 +752,10 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
         {/* OUTCOME — existing plans only: what became of it. */}
         {!create && isPlanLike && (
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
-            <div className="flex flex-wrap gap-1">
-              {item.status === "scheduled" && (alreadyActive ? (
-                <>
-                  <span className={`${chipCls(true)} flex items-center gap-1`}><Play className="w-3 h-3" />{tr("planner.inProgress")}</span>
-                  <button type="button" onClick={pauseNow} className={`${chipCls(false)} flex items-center gap-1`}>
-                    <Pause className="w-3 h-3" />{tr("planner.pause")}
-                  </button>
-                </>
-              ) : (
-                <button type="button" aria-pressed={timeAsk === "start"} onClick={() => setTimeAsk(timeAsk === "start" ? null : "start")}
-                  className={`${chipCls(true)} flex items-center gap-1`}>
-                  <Play className="w-3 h-3" />{tr("planner.startNow")}
-                </button>
-              ))}
-              {[["done", tr("planner.done")], ["partial", tr("planner.partial")], ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-                <button key={id} type="button" aria-pressed={item.status === id || (id === "done" && timeAsk === "end")}
-                  onClick={() => (id === "done" ? setTimeAsk(timeAsk === "end" ? null : "end") : setOutcome(id))}
-                  className={chipCls(item.status === id || (id === "done" && timeAsk === "end"))}>{label}</button>
-              ))}
-              <button type="button"
-                onClick={() => {
-                  const el = dayInputRef.current;
-                  if (!el) return;
-                  el.scrollIntoView({ behavior: "smooth", block: "center" });
-                  try { el.showPicker(); } catch { el.focus(); }
-                }}
-                className={`${chipCls(false)} flex items-center gap-1`}>
-                <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
-              </button>
+            <SectionLabel>{tr("planner.outcome")}</SectionLabel>
+            <div className="mt-1">
+              <PlanOutcome item={item} categories={categories} onDone={() => onClose?.()} />
             </div>
-            {timeAsk && (
-              <PlanTimeChoice kind={timeAsk} item={item}
-                onPick={(d) => { const ask = timeAsk; setTimeAsk(null); if (ask === "start") startPlanNow(d); else setOutcome("done", d); }} />
-            )}
             {item.status === "partial" && (
               <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
                 {tr("planner.actualMin")}
