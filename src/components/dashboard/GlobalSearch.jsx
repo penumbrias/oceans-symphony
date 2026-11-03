@@ -1,3 +1,4 @@
+import { loadStore as loadUnlockedStore } from "@/lib/localUnlockedGrocery";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -48,7 +49,7 @@ const TYPE_ICONS = {
   goal:      "🎯",
   turn:      "🤝",
   reminder:  "⏰",
-  grocery:   "🛒",
+  grocery:   "📝",
   chat:      "💬",
   grounding: "🌱",
   innerworld:"🗺️",
@@ -81,7 +82,7 @@ function getTypeLabels(t) {
     goal:      "Goals",
     turn:      "Turn agreements",
     reminder:  "Reminders",
-    grocery:   "Grocery List",
+    grocery:   "Notes & lists",
     chat:      "Chat Messages",
     grounding: "Grounding",
     innerworld: `${t.System} Map`,
@@ -269,9 +270,15 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryFn: () => safeList(localEntities.SystemChangeEvent),
     staleTime: stale, enabled,
   });
+  // Notes & lists: both stores (the "available when locked" lists too).
   const { data: groceries = [] } = useQuery({
     queryKey: ["searchGroceries"],
-    queryFn: () => safeList(localEntities.GroceryItem),
+    queryFn: async () => [...await safeList(localEntities.GroceryItem), ...loadUnlockedStore().items],
+    staleTime: stale, enabled,
+  });
+  const { data: groceryLists = [] } = useQuery({
+    queryKey: ["searchGroceryLists"],
+    queryFn: async () => [...await safeList(localEntities.GroceryList), ...loadUnlockedStore().lists],
     staleTime: stale, enabled,
   });
   const { data: chatMessages = [] } = useQuery({
@@ -348,7 +355,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     wishes,
     goals, goalSteps, turns,
     reminders,
-    groceries,
+    groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
@@ -375,7 +382,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     wishes,
     goals, goalSteps, turns,
     reminders,
-    groceries,
+    groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
@@ -411,7 +418,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   }, [searchFocused]);
 
   const handleResultClick = (path) => {
-    if (path === "/grocery") {
+    if (path === "/grocery") { // older records
       // The grocery list is an overlay, not a route.
       window.dispatchEvent(new CustomEvent("open-grocery-list"));
       setQuery("");

@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import {
   Check, ListTodo, CalendarPlus, Repeat, CheckSquare, X, Sparkles, Hash, ListChecks, Layers,
 } from "lucide-react";
-import { listLabel, openListInPanel } from "@/lib/noteLists";
+import { listLabel, notesPath } from "@/lib/noteLists";
 import { formatMinutes } from "@/lib/goalTree";
 import StudyDeckButton from "@/components/goals/StudyDeckButton";
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,7 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
               else if (kind === "daily_task") navigate("/tasks");
               else if (kind === "todos") navigate("/todo");
               else if (kind === "activity_count" && step.category_id) navigate(`/activities?category=${step.category_id}`);
-              else if (LIST_STEP_KINDS.has(kind) && state.linkedList) openListInPanel(state.linkedList.id);
+              else if (LIST_STEP_KINDS.has(kind) && state.linkedList) navigate(notesPath(state.linkedList.id));
             }}>
             {linkedTitle}
           </button>

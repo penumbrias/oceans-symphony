@@ -108,8 +108,13 @@ const PANIC_EXPLAINED_KEY = "grocery_panic_explained_v1";
 // re-adds them. Favourites are scoped per-store (so unlocked-list
 // favourites don't bleed across into the encrypted store and vice
 // versa).
-export default function GroceryListPanel({ lockedMode = false }) {
-  const [open, setOpen] = useState(false);
+// `asPage` (v0.347.0): the same lists, notes and decks as an ordinary app
+// page (/notes, pages/Notes.jsx) — the app's own colours (os-themed-lists in
+// index.css), no lock-on-close or quick-tap controls, always open, and
+// `initialListId` picks the list it opens on. One copy of the feature; the
+// overlay stays the plain, neutral cover/quick-jump target.
+export default function GroceryListPanel({ lockedMode = false, asPage = false, initialListId = null }) {
+  const [open, setOpen] = useState(asPage);
   const qc = useQueryClient();
   const inputRef = useRef(null);
   const [text, setText] = useState("");
@@ -152,6 +157,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
   // Multi-list state. activeListId is persisted to localStorage so
   // closing and re-opening returns to the same list.
   const [activeListId, setActiveListIdState] = useState(() => {
+    if (initialListId) return initialListId;
     try { return localStorage.getItem(ACTIVE_LIST_KEY); }
     catch { return null; }
   });
@@ -174,8 +180,11 @@ export default function GroceryListPanel({ lockedMode = false }) {
   const [editingListType, setEditingListType] = useState("shopping");
   const [editingListOwner, setEditingListOwner] = useState(null);
 
+  // The page follows ?list= when it changes (a goal's "Open").
+  useEffect(() => { if (asPage && initialListId) setActiveListIdState(initialListId); }, [asPage, initialListId]);
+
   useEffect(() => {
-    if (!open) { setInteractBlocked(false); return; }
+    if (!open || asPage) { setInteractBlocked(false); return; }
     setInteractBlocked(true);
     const t = setTimeout(() => setInteractBlocked(false), 300);
     return () => clearTimeout(t);
@@ -379,13 +388,15 @@ export default function GroceryListPanel({ lockedMode = false }) {
   };
 
   useEffect(() => {
+    // The page is always open; only the overlay answers open/close events.
+    if (asPage) return undefined;
     const onOpen = (e) => {
       // lockedMode-flagged mount only listens for lockedMode opens
       // (so the post-unlock instance isn't accidentally activated
       // by a pre-unlock event, and vice versa).
       if (!!e?.detail?.lockedMode !== lockedMode) return;
       setOpen(true);
-      // Opened onto one list (a goal's list or deck point).
+      // Opened onto one list.
       if (e?.detail?.listId) setActiveListId(e.detail.listId);
       // First-ever panic-gesture open → surface the explainer.
       if (e?.detail?.source === "panic") {
@@ -412,7 +423,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       window.removeEventListener("close-grocery-list", onClose);
     };
      
-  }, [lockOnClose, encryptionOn, lockedMode]);
+  }, [lockOnClose, encryptionOn, lockedMode, asPage]);
 
   const handleCloseClick = () => {
     if (lockAndReloadIfArmed()) return;
@@ -670,8 +681,10 @@ export default function GroceryListPanel({ lockedMode = false }) {
 
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-[9999] bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex flex-col"
-      style={{
+      className={asPage
+        ? "os-themed-lists flex flex-col max-w-3xl mx-auto w-full"
+        : "fixed left-0 right-0 top-0 z-[9999] bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex flex-col"}
+      style={asPage ? { minHeight: "60vh" } : {
         // The privacy cover must ALWAYS be interactive. If it opens while a
         // bottom sheet (vaul) is up, vaul has pointer-events:none on <body>
         // and this panel inherits it — the user gets trapped behind a
@@ -694,7 +707,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
           aria-haspopup="menu"
           aria-expanded={switcherOpen}
         >
-          <span className="text-2xl">🛒</span>
+          <span className="text-2xl" aria-hidden="true">{activeList ? LIST_TYPES[typeOf(activeList)].emoji : "🛒"}</span>
           <h1 className="text-lg font-semibold tracking-tight truncate">
             {activeList?.name || "Grocery list"}
           </h1>
@@ -712,7 +725,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
           >
             <NotebookPen className="w-5 h-5" />
           </button>
-          {encryptionOn && !lockedMode && (
+          {encryptionOn && !lockedMode && !asPage && (
             <button
               onClick={toggleLockOnClose}
               aria-label={lockOnClose ? "Disable lock on close" : "Enable lock on close"}
@@ -728,7 +741,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
               {lockOnClose ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </button>
           )}
-          <button
+          {!asPage && <button
             onClick={() => setTapsOpen((v) => !v)}
             aria-label="How many taps open this list"
             aria-expanded={tapsOpen}
@@ -740,19 +753,19 @@ export default function GroceryListPanel({ lockedMode = false }) {
             }`}
           >
             <Hand className="w-5 h-5" />
-          </button>
-          <button
+          </button>}
+          {!asPage && <button
             onClick={handleCloseClick}
             aria-label="Close"
             className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
           >
             <X className="w-5 h-5" />
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* List switcher overlay */}
-      {tapsOpen && (
+      {tapsOpen && !asPage && (
         <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 px-3 py-2 space-y-1.5">
           <p className="text-[11px] text-neutral-500">Quick taps anywhere to open this list</p>
           <div className="flex flex-wrap gap-1">

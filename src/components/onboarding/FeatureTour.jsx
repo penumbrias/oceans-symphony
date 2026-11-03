@@ -193,6 +193,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/", look: `the grid icon at the top of the open sidebar`,
     }),
     s("dashboard", {
+      emoji: "📝", title: "Notes & lists",
+      body: `Your notes, lists and flash-card decks also have their own page, in your app's colours, from the sidebar and the dashboard. Goals can count them too.`,
+      route: "/notes", target: "notes-page", look: `the Notes & lists page`,
+    }),
+    s("dashboard", {
       emoji: "🛒", title: "The grocery list",
       body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Quick jump.`,
       route: "/", target: "grocery-list-button",
@@ -742,7 +747,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "📝", title: "Your notes on a goal page",
-      body: `The goal Note widget can show one of your own notes, lists or decks instead. It's the same copy, so editing it there edits it everywhere.`,
+      body: `The goal Note widget can show one of your own notes, and the List and Flash-card deck widgets show a list or deck. It's the same copy, so editing it there edits it everywhere.`,
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {

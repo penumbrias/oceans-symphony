@@ -4,12 +4,14 @@
 import React from "react";
 import { Play, Square } from "lucide-react";
 import { toast } from "sonner";
-import { openListInPanel } from "@/lib/noteLists";
+import { useNavigate } from "react-router-dom";
+import { notesPath } from "@/lib/noteLists";
 import { useActiveSessions } from "@/components/goals/workspace/ActivityStrip";
 import { runningStudyFor, startDeckStudy, stopPageActivity } from "@/lib/goalActivities";
 import { formatMinutes } from "@/lib/goalTree";
 
 export default function StudyDeckButton({ deck, goalId = null, busy = false, run = null, className = "mt-1" }) {
+  const navigate = useNavigate();
   const sessions = useActiveSessions();
   const running = runningStudyFor(deck?.id, sessions);
   if (!deck) return null;
@@ -20,7 +22,7 @@ export default function StudyDeckButton({ deck, goalId = null, busy = false, run
       if (res) toast.success(`■ ${formatMinutes(res.minutes)} of study logged`);
     } else {
       await startDeckStudy(deck, { goalId });
-      openListInPanel(deck.id);
+      navigate(notesPath(deck.id));
     }
   };
   const go = () => (run ? run(act) : act().catch((e) => toast.error(e?.message || "Couldn't start the timer.")));

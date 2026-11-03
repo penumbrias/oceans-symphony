@@ -208,7 +208,7 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
         <div className="space-y-1.5">
           {listOptions.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              {kind === "deck" ? "You don't have a flash-card deck yet. Make one in your lists first." : "You don't have a list yet. Make one in your lists first."}
+              {kind === "deck" ? "You don't have a flash-card deck yet. Make one in Notes & lists first." : "You don't have a list yet. Make one in your lists first."}
             </p>
           ) : (
             <SearchableSelect value={listId} onChange={(id) => setListId(id || null)} options={listOptions}

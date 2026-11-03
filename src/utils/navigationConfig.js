@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle, Target, HeartHandshake } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle, Target, HeartHandshake, NotebookPen } from "lucide-react";
 import { EXPERIMENTAL_PAGE_IDS, experimentalOn, subscribeExperimental } from "@/lib/experimentalFeatures";
 
 export const ALL_PAGES = [
@@ -27,6 +27,7 @@ export const ALL_PAGES = [
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
   { id: "planner", label: "Planner", path: "/planner", icon: CalendarRange },
   { id: "goals", label: "Goals", path: "/goals", icon: Target },
+  { id: "notes", label: "Notes & lists", path: "/notes", icon: NotebookPen },
   { id: "needs", label: "Needs", path: "/needs", icon: HeartHandshake },
   { id: "contacts", label: "Contacts", path: "/contacts", icon: Contact },
   { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
@@ -77,6 +78,7 @@ export const DEFAULT_CONFIG = {
     "journals",
     "tasks",
     "todo",
+    "notes",
     "goals",
     "needs",
     "checkin-log",

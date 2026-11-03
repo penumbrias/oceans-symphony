@@ -7,6 +7,7 @@
 // workspace (WorkspaceContext), so they only exist in a goal page's own
 // registry (GOAL_PAGE_REGISTRY), never in the home library.
 
+import { useNavigate } from "react-router-dom";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Play, StickyNote, ListTree, Link2, ListChecks, Layers, Check, Plus } from "lucide-react";
 import { Section, Muted, TextAction } from "@/v2/primitives";
@@ -14,7 +15,7 @@ import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { StackedRow } from "@/components/shared/SettingRows";
 import StudyDeckButton from "@/components/goals/StudyDeckButton";
 import {
-  useNoteLists, useNoteListWriters, listLabel, listProgress, isNote, isItemList, isDeck, openListInPanel,
+  useNoteLists, useNoteListWriters, listLabel, listProgress, isNote, isItemList, isDeck, notesPath,
   deckStudySessions,
 } from "@/lib/noteLists";
 import { goalWeekWindow } from "@/lib/goalCounting";
@@ -107,6 +108,7 @@ function SharedNote({ list }) {
 }
 
 function GoalNoteWidget({ settings }) {
+  const navigate = useNavigate();
   const page = useGoalPage();
   const ws = useWorkspace();
   const { byId } = useNoteLists();
@@ -114,7 +116,7 @@ function GoalNoteWidget({ settings }) {
     const note = byId.get(settings.noteId);
     return (
       <Section label={note?.name || "Note"}
-        action={note ? <TextAction onClick={() => openListInPanel(note.id)}>Open</TextAction> : undefined}>
+        action={note ? <TextAction onClick={() => navigate(notesPath(note.id))}>Open</TextAction> : undefined}>
         {note ? <SharedNote list={note} /> : <MissingList what="note" />}
       </Section>
     );
@@ -124,6 +126,7 @@ function GoalNoteWidget({ settings }) {
 
 // One of the person's lists, ticked from here.
 function GoalListWidget({ settings }) {
+  const navigate = useNavigate();
   const { byId, items } = useNoteLists();
   const { setChecked, addItem } = useNoteListWriters();
   const [text, setText] = useState("");
@@ -147,7 +150,7 @@ function GoalListWidget({ settings }) {
     </li>
   );
   return (
-    <Section label={listLabel(list)} action={<TextAction onClick={() => openListInPanel(list.id)}>Open</TextAction>}>
+    <Section label={listLabel(list)} action={<TextAction onClick={() => navigate(notesPath(list.id))}>Open</TextAction>}>
       <p className="text-xs opacity-70 tabular-nums">{p.total ? `${p.done} of ${p.total} ticked` : "Nothing on it yet"}</p>
       <ul className="space-y-1 mt-1">{open.map(row)}{done.map(row)}</ul>
       <div className="flex gap-1.5 mt-1.5">
@@ -163,6 +166,7 @@ function GoalListWidget({ settings }) {
 
 // A flash-card deck: how many cards, time studied, and a timer to study it.
 function GoalDeckWidget({ settings }) {
+  const navigate = useNavigate();
   const page = useGoalPage();
   const ws = useWorkspace();
   const { byId, items } = useNoteLists();
@@ -175,7 +179,7 @@ function GoalDeckWidget({ settings }) {
   const week = deckStudySessions(deck.id, acts, { from: goalWeekWindow(now).start, to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
   const all = deckStudySessions(deck.id, acts, { to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
   return (
-    <Section label={listLabel(deck)} action={<TextAction onClick={() => openListInPanel(deck.id)}>Open</TextAction>}>
+    <Section label={listLabel(deck)} action={<TextAction onClick={() => navigate(notesPath(deck.id))}>Open</TextAction>}>
       <p className="text-sm tabular-nums">{cards.length === 1 ? "1 card" : `${cards.length} cards`}</p>
       <p className="text-xs opacity-70 tabular-nums">
         {all > 0 ? `${formatMinutes(week)} studied this week · ${formatMinutes(all)} in all` : "Not studied with the timer yet."}
