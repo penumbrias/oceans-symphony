@@ -52,8 +52,7 @@ import { BoardGapContext } from "@/components/shared/WidgetGapRow";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import { useFrontingIds, useAlterSorter } from "@/lib/alterSort";
-import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { useFrontingIds } from "@/lib/alterSort";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
@@ -80,7 +79,7 @@ import { useRotatingImageUrl } from "@/lib/imageRotation";
 import PageBackground, { resolveBackground } from "@/components/v2/PageBackground";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
-import { SearchableMultiList } from "@/v2/widgets";
+import PageAudienceSheet from "@/components/v2/PageAudienceSheet";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { settingsBoardStore } from "@/lib/boardStore";
 import { keepLayoutRestorePoint } from "@/lib/localDb";
@@ -920,9 +919,6 @@ export default function ExperimentalDashboard({
   // would leave NOTHING, everyone sees everything. Being locked out of your
   // own home screen is the one outcome this must never produce.
   const frontingIds = useFrontingIds();
-  // House ordering for the page-audience list (fronters first, the user's
-  // own arrangement, one-tap sort switch).
-  const audienceSorter = useAlterSorter("pageAudience_sort", { frontingIds });
   const visiblePages = useMemo(() => {
     if (editMode) return home.pages;
     const allowed = home.pages.filter((p) => {
@@ -1273,8 +1269,8 @@ export default function ExperimentalDashboard({
   // Address this page to specific alters (empty = everyone sees it).
   const setPageShowAs = (v) =>
     persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, showAs: v } : p)) });
-  const setPageAudience = (ids) =>
-    persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, visibleTo: ids } : p)) });
+  const setPageAudience = (patch) =>
+    persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, ...patch } : p)) });
   const handleMove = (instanceId, dir) =>
     updatePageWidgets((ws) => {
       const i = ws.findIndex((w) => w.instanceId === instanceId);
@@ -2374,52 +2370,15 @@ export default function ExperimentalDashboard({
         </div>
       )}
 
-      {/* Who this page is for. Soft hiding: the page still exists, is still
-          in your backup, and if the current fronters can't see ANY page the
-          board shows them all rather than nothing. */}
-      {editMode && audienceOpen && (
-        <div className="mx-3 mb-3 p-2 rounded-xl border border-border/50 bg-background/80">
-          <div className="flex items-center gap-1 mb-1.5">
-            {[["only", "Only these"], ["except", "Everyone except"]].map(([m, label]) => (
-              <button key={m} type="button"
-                onClick={() => persist({ ...boardRef.current.board, pages: boardRef.current.board.pages.map((p) => (p.id === page.id ? { ...p, visibleMode: m } : p)) })}
-                className={`text-[0.625rem] px-2 py-1 rounded-full border transition-all ${
-                  (page.visibleMode || "only") === m
-                    ? "border-primary/50 bg-primary/10 text-primary"
-                    : "border-border/50 text-muted-foreground hover:text-foreground"
-                }`}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="text-[0.625rem] text-muted-foreground mb-1.5">
-            {!page.visibleTo?.length
-              ? `Shown to everyone. Pick ${t.alters} below.`
-              : page.visibleMode === "except"
-                ? `Hidden while one of these ${t.alters} is ${t.fronting}.`
-                : `Only shown while one of these ${t.alters} is ${t.fronting}.`}
-          </p>
-          <div className="flex items-center justify-end pb-1">
-            <AlterSortToggle sorter={audienceSorter} showLabel className="text-[0.625rem] py-1" />
-          </div>
-          <SearchableMultiList
-            options={audienceSorter.sort((api?.alters || []).filter((a) => !a.is_archived))
-              .map((a) => ({ id: a.id, label: a.name || "?", color: a.color }))}
-            selectedIds={page.visibleTo || []}
-            searchPlaceholder={`Search ${t.alters}...`}
-            onToggle={(id) => {
-              const cur = page.visibleTo || [];
-              setPageAudience(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
-            }}
-          />
-          {page.visibleTo?.length > 0 && (
-            <button type="button" onClick={() => setPageAudience([])}
-              className="mt-1 text-[0.625rem] text-primary hover:underline">
-              Show this page to everyone
-            </button>
-          )}
-        </div>
-      )}
+      {/* Who this page is for — the standard alter picker in a sheet.
+          Soft hiding: the page still exists and is in your backup. */}
+      <PageAudienceSheet
+        open={editMode && audienceOpen}
+        onClose={() => setAudienceOpen(false)}
+        page={page}
+        pageName={applyTerms(page.label, t) || `Page ${pageIdx + 1}`}
+        onChange={setPageAudience}
+      />
 
       {widgets.length === 0 && (
         <button
