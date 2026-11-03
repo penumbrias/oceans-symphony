@@ -227,8 +227,6 @@ export default function PlannerSurface({
     setDetails(null);
     setEditorReq({ item, day, series, focusDay });
   };
-  // Reschedule from a plan's details: the editor, with the day picker open.
-  const rescheduleFromDetails = (item) => openEditor(item, { focusDay: true });
   // Deep link from anywhere that lists a plan (Today widget, notices,
   // unresolved card): land on its day with its details open.
   useEffect(() => {
@@ -771,7 +769,6 @@ export default function PlannerSurface({
             toast.success(tr("planner.startedToast"));
           } catch (e) { toast.error(e?.message || "Failed"); }
         }}
-        onReschedule={(it) => rescheduleFromDetails(it)}
       />
       <ActivityEditor request={editorReq} onClose={() => setEditorReq(null)} weekStartsOn={prefs.weekStartsOn} />
       {branchAsk && (
