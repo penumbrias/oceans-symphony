@@ -3,10 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { readPanicTapsSetting, DEFAULT_PANIC_TAPS } from "@/components/settings/GroceryPanicTapsSettings";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useNavigate } from "react-router-dom";
+import { fireQuickJump } from "@/lib/quickJump";
 
-// Quick taps anywhere on the screen → open the Grocery List panel as
-// a privacy cover. The panel sits over every other UI in the app so a
-// glance reveals nothing about the system.
+// Quick taps anywhere on the screen → the person's quick jump
+// (src/lib/quickJump.js): the notes & lists panel (the default, and the
+// old privacy cover), a page of their choosing, or a full-screen picture,
+// optionally with a password lock behind it.
 //
 // "Quick" = N pointerdown events within WINDOW_MS, where each one is a
 // real single-finger tap — NOT one of the fingers in a pinch / two-
@@ -30,7 +33,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // throw up the cover mid-edit. Taps on a sheet's blank space still count.
 //
 // The tap count is user-configurable via Settings → Data & Privacy →
-// Quick-tap privacy cover. Setting it to "off" disables the listener
+// Quick jump. Setting it to "off" disables the listener
 // entirely so accidental gestures can't fire on accessibility-heavy
 // touch devices.
 const WINDOW_MS = 500;
@@ -47,7 +50,13 @@ export default function useTripleTapPanic() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const tapsRequired = readPanicTapsSetting(pickPrimarySystemSettings(settingsList));
+  const settings = pickPrimarySystemSettings(settingsList);
+  const tapsRequired = readPanicTapsSetting(settings);
+  const navigate = useNavigate();
+  // The latest settings + navigate, read when the gesture fires (the
+  // listener is only re-bound when the tap count changes).
+  const fireRef = useRef(null);
+  fireRef.current = () => fireQuickJump(settings, navigate);
 
   useEffect(() => {
     if (tapsRequired === "off") return;
@@ -75,9 +84,7 @@ export default function useTripleTapPanic() {
       tapsRef.current = taps;
       if (taps.length >= need) {
         tapsRef.current = [];
-        // source: "panic" lets the panel show its first-time "What's this?"
-        // explainer only when opened via the gesture (not the nav button).
-        window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { source: "panic" } }));
+        fireRef.current?.();
       }
     };
 

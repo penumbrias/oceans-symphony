@@ -115,11 +115,13 @@ function PageHeader({ onBack, back = "Back to Soundscape", title, subtitle }) {
 
 // initialPage: "main" | "math" | "nature" | "add" | "particles" — the
 // older Quick Support doors (?view=nature, ?view=scratchpad) land here.
-export default function SoundscapeView({ onBack, initialPage = "main" }) {
+// initialFocus: open straight into the full-screen visual (the quick
+// jump's "Soundscape, full screen" target, ?view=soundscape&focus=1).
+export default function SoundscapeView({ onBack, initialPage = "main", initialFocus = false }) {
   const ctl = useSoundscapeControls();
   const { prefs, p, save, basePreset, setFocus } = ctl;
   const [page, setPage] = useState(initialPage);
-  const [focusOpen, setFocusOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(!!initialFocus);
   const [dnd, setDnd] = useState({ supported: false, accessGranted: false });
   const [error, setError] = useState(null);
   const fractalClock = useRef(0);

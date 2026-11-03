@@ -317,7 +317,8 @@ export default function Grounding({ initialPath = null }) {
   // sounds and the visuals (Particles included); the older doors open it
   // at the right page.
   if (path === "soundscape" || path === "nature" || path === "scratchpad") {
-    return <SoundscapeView key={path} initialPage={path === "nature" ? "nature" : "main"} onBack={() => setPath("entry")} />;
+    return <SoundscapeView key={path} initialPage={path === "nature" ? "nature" : "main"}
+      initialFocus={path === "soundscape" && searchParams.get("focus") === "1"} onBack={() => setPath("entry")} />;
   }
 
   if (path === "guided" && selectedTechnique) {

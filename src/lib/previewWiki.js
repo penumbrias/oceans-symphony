@@ -231,8 +231,8 @@ const bioGestures = `
       <li><strong>Drag</strong> the grip handle at the left of a block header → reorder blocks. Chevron up/down buttons are the keyboard fallback.</li>
       <li>The pencil icon on the mini-toolbar (✎) wraps selected text in a <code style="font-family:monospace;font-size:0.9em;">&lt;span data-edit="true"&gt;</code> region — that region becomes click-to-edit in Simple mode.</li>
     </ul>`)}
-  ${section("Privacy panic — triple-tap",
-    `Tap the screen <strong>three times within 500 ms</strong>, anywhere, → the Grocery List privacy cover opens over the entire app. Looks like a generic to-do list; the bottom tab bar is fully hidden. Useful when you need to glance away without revealing what app you were using. The gesture is suppressed while you're typing in an input or textarea.`)}
+  ${section("Quick jump — triple-tap",
+    `Tap the screen <strong>three times within 500 ms</strong>, anywhere, → your quick jump. By default that's the notes &amp; lists panel over the entire app. In Settings → Quick jump you can point it at any page or exact spot instead, or a full-screen picture, and change the tap count. Turn on <strong>Lock behind it</strong> (needs a password) and leaving what the jump opened locks the app. The gesture is suppressed while you're typing.`)}
   ${section("Pull-to-refresh (mobile)",
     `Drag down from the top of the page → spinner appears at ~72 px of pull, refreshes when you let go. Resistance increases the further you drag so an over-pull doesn't feel violent.`)}
 `;
@@ -603,7 +603,7 @@ const bioSettings = `
   ${section("Notifications",
     `Status (what's stopping notifications right now, with fixes), Reminders (timezone, quiet hours, snooze, the soft pre-plan banner), Status bar (installed apps), Pop-up messages, Advanced (server delivery and tests) and the Friends &amp; sync server.`)}
   ${section("Data & privacy",
-    `The Privacy &amp; Data Notice (what's stored locally, what can leave), Import, Export &amp; automatic backups, Sync between devices, chat cleanup, Storage &amp; encryption (AES-256-GCM, optional), See your data, Find my data and the Privacy cover.`)}
+    `The Privacy &amp; Data Notice (what's stored locally, what can leave), Import, Export &amp; automatic backups, Sync between devices, chat cleanup, Storage &amp; encryption (AES-256-GCM, optional), See your data, Find my data and Quick jump.`)}
   ${section("About",
     `What's new (the changelog), Tour &amp; onboarding (page tutorials, re-run setup), Preview mode, the bug report form and the medical disclaimer.`)}
   ${tip(`The build version and "alpha" chip are pinned in the top-right of Settings — bump-with-every-changelog by design, so when reporting a bug you can cite the exact build. The Backup button beside them exports, imports or backs up now.`)}

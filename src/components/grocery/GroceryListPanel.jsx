@@ -54,7 +54,8 @@ import {
 } from "@/lib/localUnlockedGrocery";
 import { clockPattern } from "@/lib/timeFormat";
 
-const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
+// The lock is the quick jump's "Lock behind it" (src/lib/quickJump.js).
+import { LOCK_PREF_KEY, writeLockPref } from "@/lib/quickJump";
 const ACTIVE_LIST_KEY = "grocery_active_list_v1";
 // Notes open behaviour: "last" re-opens the note you were on; "fresh"
 // starts a brand-new note whenever the panel opens onto notes.
@@ -135,6 +136,12 @@ export default function GroceryListPanel({ lockedMode = false }) {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
   });
+  // Settings → Quick jump flips the same switch.
+  useEffect(() => {
+    const onChange = (e) => setLockOnClose(!!e?.detail?.on);
+    window.addEventListener("os-quick-jump-lock-changed", onChange);
+    return () => window.removeEventListener("os-quick-jump-lock-changed", onChange);
+  }, []);
   const [explainerOpen, setExplainerOpen] = useState(false);
   const [unlockPromptOpen, setUnlockPromptOpen] = useState(false);
   const [unlockPwd, setUnlockPwd] = useState("");
@@ -412,7 +419,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
 
   const applyLockOnClose = (next) => {
     setLockOnClose(next);
-    try { localStorage.setItem(LOCK_PREF_KEY, next ? "true" : "false"); } catch { /* ignore */ }
+    writeLockPref(next);
     toast.success(next
       ? "Lock-on-close enabled — closing this list will require your password."
       : "Lock-on-close disabled.");

@@ -848,7 +848,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["storage", "Storage & encryption", "Encryption, passphrase, storage mode, delete all data, offline images"],
     ["data-inspector", "See your data", "Data inspector, records, deleted items, trash"],
     ["find-my-data", "Find my data", "Lost data, empty app, recovery, rescue"],
-    ["privacy-cover", "Privacy cover", "Panic hide, grocery list, triple tap"],
+    ["privacy-cover", "Quick jump", "Privacy cover, panic hide, grocery list, triple tap, shortcut, lock"],
     ["whats-new", "What's new", "Changelog, updates, version, release notes"],
     ["tour", "Tour & onboarding", "Feature tour, page tutorials, re-run setup"],
     ["preview", "Preview mode", "Preview mode, example, wiki walkthrough"],

@@ -194,7 +194,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "🛒", title: "The grocery list",
-      body: `The cart icon opens what looks like an ordinary grocery list, and it works as one. It's also a privacy cover: triple-tap anywhere in the app to open it instantly.`,
+      body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
     }),

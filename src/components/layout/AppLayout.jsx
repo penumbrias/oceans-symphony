@@ -11,6 +11,7 @@ import FloatingGroundingButton from "@/components/grounding/FloatingGroundingBut
 import InterruptCheckNote from "@/components/needs/InterruptCheckNote";
 import ActivityPromptsHost from "@/components/activities/ActivityPromptsHost";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import QuickJumpHost from "@/components/quickjump/QuickJumpHost";
 import FrontConflictCard from "@/components/sync/FrontConflictCard";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { recordCrash } from "@/lib/lastCrash";
@@ -218,7 +219,7 @@ export default function AppLayout() {
     return () => window.removeEventListener("os-open-sidebar", open);
   }, []);
   useRemindersScheduler();
-  // Three quick taps anywhere → open Grocery List as a privacy cover.
+  // Quick taps anywhere → the quick jump (lists, a page or a picture).
   useTripleTapPanic();
   // Reconcile any corrupt fronting-session state (duplicates, ghost-active
   // rows, multiple is_primary) once per session, so users who never open
@@ -1252,6 +1253,7 @@ const handleNotifClick = (mentionLog) => {
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
       <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
       <GroceryListPanel />
+      <QuietBoundary name="QuickJumpHost"><QuickJumpHost /></QuietBoundary>
       <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
       {/* Devices that disagree about who's fronting — the person picks. */}
       <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>

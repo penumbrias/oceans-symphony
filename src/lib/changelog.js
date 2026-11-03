@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 3, 2026",
     changes: [
+      { type: "feature", text: "Quick jump: the quick-taps gesture can now open any page, an exact spot or a full-screen picture instead of your lists. Turn on \"Lock behind it\" to need your password once you leave (Settings → Quick jump)." },
       { type: "improve", text: "Widget board: choosing who sees a page now opens a sheet with the usual {{alter}} picker, with search, groups and select all." },
       { type: "fix", text: "Drawing on the Scratch pad (and the drawing pad in text boxes) now follows your finger: no more stalls that ended in a straight line." },
       { type: "improve", text: "A plan's resolve sheet now looks and works like the activity editor: the same outcome buttons first, and Reschedule offers the same quick times wherever you open it." },

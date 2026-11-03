@@ -53,7 +53,7 @@ import DeviceSyncSettings from "@/components/settings/DeviceSyncSettings";
 import ChatCleanupSettings from "@/components/settings/ChatCleanupSettings";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataInspector from "@/components/settings/DataInspector";
-import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
+import QuickJumpSettings from "@/components/settings/QuickJumpSettings";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
@@ -215,8 +215,8 @@ export function buildSettingsGroups(ctx) {
           render: () => <DataInspector /> },
         { id: "find-my-data", label: "Find my data", hint: "Opened to an empty app? Lists every copy on this device and only re-points the app, never deletes", icon: LifeBuoy,
           keywords: "find my data recovery rescue empty wrong system lost data", action: () => ctx.openRescue?.() },
-        { id: "privacy-cover", label: "Privacy cover", hint: "Triple-tap to hide the app behind a grocery list", icon: EyeOff,
-          keywords: "privacy cover panic hide grocery list triple tap", render: () => <GroceryPanicTapsSettings /> },
+        { id: "privacy-cover", label: "Quick jump", hint: "Quick taps open a page, a picture or your lists, with an optional lock", icon: EyeOff,
+          keywords: "quick jump privacy cover panic hide grocery list notes triple tap shortcut lock picture page", render: () => <QuickJumpSettings /> },
       ],
     },
     {
