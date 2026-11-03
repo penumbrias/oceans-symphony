@@ -15,7 +15,7 @@ import {
 import { pageWordsWritten, formatWords } from "@/lib/goalWriting";
 import { useWorkspace, chipCls } from "./WorkspaceContext";
 
-function useActiveSessions() {
+export function useActiveSessions() {
   const [sessions, setSessions] = useState(() => getActiveActivities());
   useEffect(() => {
     const on = () => setSessions(getActiveActivities());

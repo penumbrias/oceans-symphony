@@ -29,6 +29,7 @@ import { GOAL_PAGE_WIDGETS, GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPa
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 import { useSubtreeProgress } from "@/components/goals/workspace/Outline";
+import { useNoteLists } from "@/lib/noteLists";
 
 const list = (entity, ...args) => () => base44.entities[entity].list(...args).catch(() => []);
 
@@ -189,17 +190,19 @@ export default function Goals() {
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const { data: wishes = [] } = useQuery({ queryKey: WISHES_QUERY_KEY, queryFn: list("Wish"), enabled: !!wishId });
   const settings = pickPrimarySystemSettings(settingsList) || null;
+  const notes = useNoteLists();
 
   const index = useMemo(() => indexPages(goals), [goals]);
   const page = pageId ? index.byId.get(pageId) || null : null;
   const ctx = useMemo(() => ({
     tasks, activities, categories, templates, progress, symptomSessions,
     habits: symptoms.filter((s) => s.is_positive), now: new Date(),
-  }), [tasks, activities, categories, templates, progress, symptomSessions, symptoms]);
+    noteLists: notes.lists, noteItems: notes.idbItems, unlockedItems: notes.unlockedItems,
+  }), [tasks, activities, categories, templates, progress, symptomSessions, symptoms, notes]);
   const toCarry = useMemo(() => uncarriedWeeklyGoals(activityGoals, goals), [activityGoals, goals]);
 
   const refresh = useCallback(() => {
-    for (const key of [GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, ["tasks"], ["activities"], ["dailyProgress"], ["activityCategories"], ["systemSettings"], WISHES_QUERY_KEY]) {
+    for (const key of [GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, ["tasks"], ["activities"], ["dailyProgress"], ["activityCategories"], ["systemSettings"], WISHES_QUERY_KEY, ["groceryLists"], ["groceryItems"]]) {
       qc.invalidateQueries({ queryKey: key });
     }
   }, [qc]);

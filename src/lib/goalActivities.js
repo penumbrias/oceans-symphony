@@ -28,7 +28,8 @@ export async function wordsWrittenFor(extra) {
 // categoryId null = the page itself ("Work on it"): a session with no
 // activity, named after the page.
 export function runningForPage(pageId, categoryId, sessions = getActiveActivities()) {
-  return (sessions || []).find((a) => a?.extra?.goal_id === pageId && (a.categoryId || null) === (categoryId || null)) || null;
+  return (sessions || []).find((a) => a?.extra?.goal_id === pageId && !a?.extra?.study_list_id
+    && (a.categoryId || null) === (categoryId || null)) || null;
 }
 
 // Every running session started from this page.
@@ -61,4 +62,27 @@ export async function startPageActivity(page, category) {
 
 export function stopPageActivity(session) {
   return endAndLogActiveActivity(session.id);
+}
+
+// Studying a flash-card deck (v0.346.0): the normal activity timer, named
+// "Study: <deck>", carrying study_list_id so deck-study points count it, and
+// goal_id when it was started from a goal page so the page totals it too.
+export function runningStudyFor(deckId, sessions = getActiveActivities()) {
+  return (sessions || []).find((a) => deckId && a?.extra?.study_list_id === deckId) || null;
+}
+
+export async function startDeckStudy(deck, { goalId = null } = {}) {
+  const already = runningStudyFor(deck?.id);
+  if (already) return already;
+  const alterIds = await defaultAttributionIds().catch(() => []);
+  return addActiveActivity({
+    categoryId: null,
+    name: `Study: ${deck?.name || "flash cards"}`,
+    color: null,
+    startTime: new Date().toISOString(),
+    alterIds: alterIds || [],
+    contactIds: [],
+    notes: "",
+    extra: { activity_category_ids: [], study_list_id: deck.id, ...(goalId ? { goal_id: goalId } : {}) },
+  });
 }

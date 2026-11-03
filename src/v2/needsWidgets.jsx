@@ -25,6 +25,7 @@ import WishCard from "@/components/wishes/WishCard";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel } from "@/lib/wishes";
 import { usesNewProfile } from "@/lib/profileBoard";
+import { useNoteLists } from "@/lib/noteLists";
 import {
   GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress, toggleStep,
 } from "@/lib/goals";
@@ -183,7 +184,11 @@ export function GoalsWidget({ settings }) {
   const templates = useList("dailyTaskTemplates", "DailyTaskTemplate");
   const progress = useList("dailyProgress", "DailyProgress");
   const [busyId, setBusyId] = useState(null);
-  const ctx = useMemo(() => ({ tasks, activities, templates, progress, now: new Date() }), [tasks, activities, templates, progress]);
+  const notes = useNoteLists();
+  const ctx = useMemo(() => ({
+    tasks, activities, templates, progress, now: new Date(),
+    noteLists: notes.lists, noteItems: notes.idbItems, unlockedItems: notes.unlockedItems,
+  }), [tasks, activities, templates, progress, notes]);
   const rows = useMemo(() => goals
     // Top-level goals only: sections live inside their page.
     .filter((g) => !g.parent_id && isOpenGoal(g) && g.status !== "paused")

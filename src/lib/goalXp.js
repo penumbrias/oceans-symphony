@@ -10,12 +10,17 @@
 //   • ticking a checklist point, to-do or plan on a goal page
 //   • each time a tracked activity is done, up to the point's target
 //     (per week for "each week" points), counted from when the point was added
+//   • each item ticked on a "finish this list" point's list, and each card
+//     made for a "make cards" point (up to its target), after it was added
+//   • each study session for a "study this deck" point, until its minutes
+//     are reached (per week for "each week" points)
 //   • reaching a goal
 // The person can turn it off: SystemSettings.goals_earn_xp === false.
 
 import { format } from "date-fns";
 import { countedEntries, goalWeekWindow } from "@/lib/goalCounting";
 import { statusFor } from "@/lib/activityStatus";
+import { itemsForList, deckStudySessions } from "@/lib/noteListModel";
 
 export const GOAL_XP = Object.freeze({ tick: 2, activity: 2, reached: 10 });
 
@@ -31,7 +36,7 @@ const day = (d) => {
  * that earned XP. Removed points and points on goals that are gone earn
  * nothing.
  */
-export function goalXpEvents({ goals = [], steps = [], tasks = [], activities = [], categories = [], now = new Date(), weekStartsOn } = {}) {
+export function goalXpEvents({ goals = [], steps = [], tasks = [], activities = [], categories = [], noteItems = [], unlockedItems = [], now = new Date(), weekStartsOn } = {}) {
   const out = [];
   const goalIds = new Set();
   for (const g of goals || []) {
@@ -62,6 +67,28 @@ export function goalXpEvents({ goals = [], steps = [], tasks = [], activities = 
       const st = a ? statusFor(a) : null;
       if (a && (st === "done" || st === "partial")) push(day(a.timestamp || a.updated_date || now), GOAL_XP.tick, "tick");
       else if (!a && s.done_at) push(day(s.done_at), GOAL_XP.tick, "tick");
+    } else if (kind === "list_done" || kind === "deck_cards") {
+      const from = s.created_date ? new Date(s.created_date) : new Date(0);
+      const items = itemsForList(s.ref_list_id, { idbItems: noteItems, unlockedItems });
+      if (kind === "list_done") {
+        for (const i of items) if (i.checked && i.purchased_at && new Date(i.purchased_at) >= from) push(day(i.purchased_at), GOAL_XP.tick, "tick");
+      } else {
+        const target = Math.max(1, Number(s.target_count) || 1);
+        const made = items.filter((c) => c.created_date && new Date(c.created_date) >= from)
+          .sort((a, b) => String(a.created_date).localeCompare(String(b.created_date)));
+        for (const c of made.slice(0, target)) push(day(c.created_date), GOAL_XP.activity, "activity");
+      }
+    } else if (kind === "deck_study") {
+      const target = Math.max(1, Number(s.target_minutes) || 1);
+      const from = s.created_date ? new Date(s.created_date) : new Date(0);
+      const perWeek = new Map();
+      for (const e of deckStudySessions(s.ref_list_id, activities, { from, to: now })) {
+        const wk = s.count_period === "week" ? goalWeekWindow(e.when, weekStartsOn).start.getTime() : 0;
+        const before = perWeek.get(wk) || 0;
+        if (before >= target) continue;
+        perWeek.set(wk, before + (Number(e.minutes) || 0));
+        push(day(e.when), GOAL_XP.activity, "activity");
+      }
     } else if (kind === "activity_count") {
       const target = Math.max(1, Number(s.target_count) || 1);
       const from = s.created_date ? new Date(s.created_date) : new Date(0);

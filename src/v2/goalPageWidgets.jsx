@@ -7,9 +7,18 @@
 // workspace (WorkspaceContext), so they only exist in a goal page's own
 // registry (GOAL_PAGE_REGISTRY), never in the home library.
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Play, StickyNote, ListTree, Link2 } from "lucide-react";
-import { Section, Muted } from "@/v2/primitives";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Play, StickyNote, ListTree, Link2, ListChecks, Layers, Check, Plus } from "lucide-react";
+import { Section, Muted, TextAction } from "@/v2/primitives";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { StackedRow } from "@/components/shared/SettingRows";
+import StudyDeckButton from "@/components/goals/StudyDeckButton";
+import {
+  useNoteLists, useNoteListWriters, listLabel, listProgress, isNote, isItemList, isDeck, openListInPanel,
+  deckStudySessions,
+} from "@/lib/noteLists";
+import { goalWeekWindow } from "@/lib/goalCounting";
+import { formatMinutes } from "@/lib/goalTree";
 import ActivityStrip from "@/components/goals/workspace/ActivityStrip";
 import { PageNote, Connections } from "@/components/goals/workspace/PageView";
 import { EntryList } from "@/components/goals/workspace/Outline";
@@ -36,9 +45,147 @@ function GoalActivitiesWidget() {
   );
 }
 
-function GoalNoteWidget() {
+// ── The person's own notes, lists and decks ─────────────────────────
+
+// Options row: pick one of the person's notes / lists / decks.
+function listPickerField(key, label, filter, { pageNote = false } = {}) {
+  function ListPicker({ settings, set }) {
+    const { lists } = useNoteLists();
+    const options = useMemo(() => [
+      ...(pageNote ? [{ id: "__page", label: "This goal page's own note" }] : []),
+      ...lists.filter(filter).map((l) => ({ id: l.id, label: listLabel(l) })),
+    ], [lists]);
+    return (
+      <StackedRow label={label}>
+        <SearchableSelect value={settings?.[key] || (pageNote ? "__page" : null)} options={options}
+          placeholder="Choose…" searchPlaceholder="Search…"
+          onChange={(id) => set({ [key]: id && id !== "__page" ? id : null })} />
+      </StackedRow>
+    );
+  }
+  return { key: `_${key}`, type: "component", label: "", Component: ListPicker };
+}
+
+function MissingList({ what }) {
+  return <Muted>{`That ${what} was deleted, or isn't here. Choose another in the widget's options.`}</Muted>;
+}
+
+// A note from the person's notes: the one copy, edited right here.
+function SharedNote({ list }) {
+  const { saveNote } = useNoteListWriters();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(list.note_content || "");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (!editing) setText(list.note_content || ""); }, [list.note_content, editing]);
+  const save = async () => {
+    setSaving(true);
+    try { await saveNote(list, text); setEditing(false); }
+    finally { setSaving(false); }
+  };
+  if (editing) {
+    return (
+      <div className="space-y-1.5">
+        <textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus aria-label={list.name || "Note"}
+          className="w-full min-h-[8em] rounded-md border bg-transparent px-2 py-1.5 text-sm" style={{ borderColor: "var(--v2-accent)" }} />
+        <div className="flex justify-end gap-3">
+          <TextAction onClick={() => { setText(list.note_content || ""); setEditing(false); }}>Cancel</TextAction>
+          <TextAction onClick={saving ? undefined : save}>{saving ? "Saving…" : "Save"}</TextAction>
+        </div>
+      </div>
+    );
+  }
+  const body = String(list.note_content || "").trim();
+  const photos = Array.isArray(list.note_images) ? list.note_images.length : 0;
+  return (
+    <div className="space-y-1">
+      <button type="button" onClick={() => setEditing(true)} className="w-full text-left text-sm whitespace-pre-wrap break-words">
+        {body || <span className="opacity-60">Empty note. Tap to write.</span>}
+      </button>
+      {photos > 0 && <p className="text-xs opacity-70">{photos === 1 ? "1 photo" : `${photos} photos`} on this note</p>}
+    </div>
+  );
+}
+
+function GoalNoteWidget({ settings }) {
   const page = useGoalPage();
   const ws = useWorkspace();
+  const { byId } = useNoteLists();
+  if (settings?.noteId) {
+    const note = byId.get(settings.noteId);
+    return (
+      <Section label={note?.name || "Note"}
+        action={note ? <TextAction onClick={() => openListInPanel(note.id)}>Open</TextAction> : undefined}>
+        {note ? <SharedNote list={note} /> : <MissingList what="note" />}
+      </Section>
+    );
+  }
+  return <PageNoteWidget page={page} ws={ws} />;
+}
+
+// One of the person's lists, ticked from here.
+function GoalListWidget({ settings }) {
+  const { byId, items } = useNoteLists();
+  const { setChecked, addItem } = useNoteListWriters();
+  const [text, setText] = useState("");
+  const list = settings?.listId ? byId.get(settings.listId) : null;
+  if (!settings?.listId) return <Section label="List"><Muted>Choose a list in this widget's options.</Muted></Section>;
+  if (!list) return <Section label="List"><MissingList what="list" /></Section>;
+  const rows = items(list.id);
+  const p = listProgress(rows);
+  const open = rows.filter((i) => !i.checked);
+  const done = rows.filter((i) => i.checked);
+  const add = async () => { const v = text.trim(); if (!v) return; await addItem(list, v); setText(""); };
+  const row = (i) => (
+    <li key={i.id} className="flex items-start gap-2">
+      <button type="button" role="checkbox" aria-checked={!!i.checked} aria-label={i.name}
+        onClick={() => setChecked(list, i, !i.checked)}
+        className="mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0"
+        style={{ borderColor: "var(--v2-accent)", background: i.checked ? "var(--v2-accent)" : "transparent" }}>
+        {i.checked && <Check className="w-3 h-3" />}
+      </button>
+      <span className={`text-sm min-w-0 break-words ${i.checked ? "line-through opacity-60" : ""}`}>{i.name}</span>
+    </li>
+  );
+  return (
+    <Section label={listLabel(list)} action={<TextAction onClick={() => openListInPanel(list.id)}>Open</TextAction>}>
+      <p className="text-xs opacity-70 tabular-nums">{p.total ? `${p.done} of ${p.total} ticked` : "Nothing on it yet"}</p>
+      <ul className="space-y-1 mt-1">{open.map(row)}{done.map(row)}</ul>
+      <div className="flex gap-1.5 mt-1.5">
+        <input value={text} onChange={(e) => setText(e.target.value)} aria-label={`Add to ${list.name || "the list"}`}
+          placeholder="Add…" onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          className="flex-1 min-w-0 rounded-md border bg-transparent px-2 py-1 text-sm" style={{ borderColor: "var(--v2-accent)" }} />
+        <button type="button" onClick={add} aria-label="Add" disabled={!text.trim()}
+          className="p-1.5 rounded-md border disabled:opacity-40" style={{ borderColor: "var(--v2-accent)" }}><Plus className="w-3.5 h-3.5" /></button>
+      </div>
+    </Section>
+  );
+}
+
+// A flash-card deck: how many cards, time studied, and a timer to study it.
+function GoalDeckWidget({ settings }) {
+  const page = useGoalPage();
+  const ws = useWorkspace();
+  const { byId, items } = useNoteLists();
+  const deck = settings?.listId ? byId.get(settings.listId) : null;
+  if (!settings?.listId) return <Section label="Flash cards"><Muted>Choose a deck in this widget's options.</Muted></Section>;
+  if (!deck) return <Section label="Flash cards"><MissingList what="deck" /></Section>;
+  const cards = items(deck.id);
+  const acts = ws?.ctx?.activities || [];
+  const now = new Date();
+  const week = deckStudySessions(deck.id, acts, { from: goalWeekWindow(now).start, to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
+  const all = deckStudySessions(deck.id, acts, { to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
+  return (
+    <Section label={listLabel(deck)} action={<TextAction onClick={() => openListInPanel(deck.id)}>Open</TextAction>}>
+      <p className="text-sm tabular-nums">{cards.length === 1 ? "1 card" : `${cards.length} cards`}</p>
+      <p className="text-xs opacity-70 tabular-nums">
+        {all > 0 ? `${formatMinutes(week)} studied this week · ${formatMinutes(all)} in all` : "Not studied with the timer yet."}
+      </p>
+      <StudyDeckButton deck={deck} goalId={page?.id || null} className="mt-1.5" />
+    </Section>
+  );
+}
+
+function PageNoteWidget({ page, ws }) {
   const [editing, setEditing] = useState(false);
   useEffect(() => { setEditing(false); }, [page?.id]);
   useEffect(() => {
@@ -91,9 +238,24 @@ export const GOAL_PAGE_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: false, configFields: [], ...span,
   },
   goal_note: {
-    label: "Goal note", description: "The page's note: what it's for and what it would change.",
-    icon: StickyNote, category: "needs", render: () => <GoalNoteWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false, configFields: [], ...span,
+    label: "Goal note", description: "The page's note (what it's for and what it would change), or one of your own notes: the same note everywhere, so editing it here edits it in your notes too.",
+    icon: StickyNote, category: "needs", render: ({ settings }) => <GoalNoteWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [listPickerField("noteId", "Which note", isNote, { pageNote: true })], ...span,
+  },
+  goal_list: {
+    label: "List", description: "One of your lists: tick things off and add to it here. It's the same list everywhere.",
+    icon: ListChecks, category: "needs", render: ({ settings }) => <GoalListWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    needsSetup: (settings) => !settings?.listId,
+    configFields: [listPickerField("listId", "Which list", isItemList)], ...span, defaultSpan: { cols: 12, rows: 4 },
+  },
+  goal_deck: {
+    label: "Flash-card deck", description: "One of your flash-card decks: its cards, the time you've studied it, and a timer to study now.",
+    icon: Layers, category: "needs", render: ({ settings }) => <GoalDeckWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    needsSetup: (settings) => !settings?.listId,
+    configFields: [listPickerField("listId", "Which deck", isDeck)], ...span,
   },
   goal_lines: {
     label: "Goal page lines", description: "The page itself: its sections, notes, to-dos, checkboxes, links and trackers, as an outline, a board or a map.",

@@ -36,7 +36,7 @@ import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activitySt
 
 export const MAX_PAGE_DEPTH = 24;
 export const PAGE_VIEWS = ["outline", "board", "map"];
-export const ADDABLE_KINDS = ["text", "todo", "check", "section", "link", "activity_count"];
+export const ADDABLE_KINDS = ["text", "todo", "check", "section", "link", "activity_count", "list_done", "deck_cards", "deck_study"];
 
 const byIdOf = (goals) => {
   const m = new Map();

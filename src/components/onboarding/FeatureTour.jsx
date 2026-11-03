@@ -736,6 +736,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
+      emoji: "🃏", title: "Lists and flash cards in goals",
+      body: `Add a List or Flash cards line to count "finish this list", "make 10 cards" or "study this deck for 20 minutes". "Study now" runs the activity timer.`,
+      route: "/goals", target: "goals-page",
+    }),
+    s("activities", {
+      emoji: "📝", title: "Your notes on a goal page",
+      body: `The goal Note widget can show one of your own notes, lists or decks instead. It's the same copy, so editing it there edits it everywhere.`,
+      route: "/goals", target: ["goals-layout-btn", "goals-page"],
+    }),
+    s("activities", {
       emoji: "🏷️", title: "Tag pages",
       body: `Tag any page or section, like #plot or a character's name. Tap a tag to see every page that has it, or search #tag in Pages.`,
       route: "/goals", target: "goals-page",

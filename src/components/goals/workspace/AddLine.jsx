@@ -12,6 +12,18 @@ import { addItem, addTodoItem, createPage, pageEntries, orderAfter, flattenPages
 import { sectionStyleOf, sectionStyleMeta, countWords, formatWords } from "@/lib/goalWriting";
 import { prepareNote, recordNote } from "./ItemRow";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
+import { isItemList, isDeck, listLabel } from "@/lib/noteLists";
+
+const radio = (value, set, choices, label) => (
+  <div role="radiogroup" aria-label={label} className="flex gap-1 flex-wrap">
+    {choices.map(([id, l]) => (
+      <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => set(id)}
+        className={`text-xs px-2 py-0.5 rounded-full border ${value === id ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"}`}>
+        {l}
+      </button>
+    ))}
+  </div>
+);
 
 const KINDS = [
   { id: "todo", label: "To-do" },
@@ -20,6 +32,8 @@ const KINDS = [
   { id: "section", label: "Section" },
   { id: "link", label: "Link" },
   { id: "activity_count", label: "Tracker" },
+  { id: "list_done", label: "List" },
+  { id: "deck", label: "Flash cards" },
 ];
 const LAST_KIND_KEY = "symphony_goals_last_line_kind";
 const readKind = () => { try { return localStorage.getItem(LAST_KIND_KEY) || "todo"; } catch { return "todo"; } };
@@ -48,12 +62,22 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
   const [categoryId, setCategoryId] = useState(null);
   const [count, setCount] = useState("3");
   const [period, setPeriod] = useState("week");
+  // List / deck points.
+  const [listId, setListId] = useState(null);
+  const [deckGoal, setDeckGoal] = useState("cards"); // cards | study
+  const [cardCount, setCardCount] = useState("10");
+  const [cardPeriod, setCardPeriod] = useState("new");
+  const [studyMins, setStudyMins] = useState("20");
+  const [studyPeriod, setStudyPeriod] = useState("week");
   const setKind = (k) => { setKindState(k); writeKind(k); };
   const shownKinds = (kinds ? KINDS.filter((k) => kinds.includes(k.id)) : KINDS)
     .map((k) => (k.id === "section" && childStyle ? { ...k, label: childStyle.label } : k));
 
   const pageOptions = useMemo(() => flattenPages(index).filter((r) => r.page.id !== pageId)
     .map((r) => ({ id: r.page.id, label: `${r.page.icon ? `${r.page.icon} ` : ""}${r.page.title || "Untitled"}`, _depth: r.depth })), [index, pageId]);
+  const listOptions = useMemo(() => (ctx.noteLists || [])
+    .filter((l) => (kind === "deck" ? isDeck(l) : isItemList(l)))
+    .map((l) => ({ id: l.id, label: listLabel(l) })), [ctx.noteLists, kind]);
   const categoryOptions = useMemo(
     () => flattenCategoryTree(ctx.categories || []).map((c) => ({ id: c.id, label: c.name, color: c.color, _depth: c._depth })),
     [ctx.categories],
@@ -64,6 +88,19 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
     let k = kind;
     let v = text.trim();
     // Typed shortcuts.
+    if (k === "list_done" || k === "deck") {
+      const list = (ctx.noteLists || []).find((l) => l.id === listId);
+      if (!list) return;
+      const base = { ref_list_id: list.id, title: list.name || "List" };
+      if (k === "list_done") await addItem(pageId, { kind: "list_done", ...base }, order);
+      else if (deckGoal === "cards") {
+        await addItem(pageId, { kind: "deck_cards", ...base, target_count: Math.max(1, Math.round(Number(cardCount) || 0)), count_period: cardPeriod === "total" ? "total" : "new" }, order);
+      } else {
+        await addItem(pageId, { kind: "deck_study", ...base, target_minutes: Math.max(1, Math.round(Number(studyMins) || 0)), count_period: studyPeriod === "week" ? "week" : "total" }, order);
+      }
+      setListId(null);
+      return;
+    }
     if (k !== "text" && k !== "link" && k !== "activity_count") {
       if (v.startsWith("# ")) { k = "section"; v = v.slice(2).trim(); }
       else if (v.startsWith("[] ")) { k = "check"; v = v.slice(3).trim(); }
@@ -164,6 +201,43 @@ export default function AddLine({ pageId, page, compact = false, kinds = null })
               ))}
             </div>
             <Button size="sm" variant="outline" disabled={busy || !categoryId} onClick={save} aria-label="Add tracker"><Plus className="w-4 h-4" /></Button>
+          </div>
+        </div>
+      )}
+      {(kind === "list_done" || kind === "deck") && (
+        <div className="space-y-1.5">
+          {listOptions.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {kind === "deck" ? "You don't have a flash-card deck yet. Make one in your lists first." : "You don't have a list yet. Make one in your lists first."}
+            </p>
+          ) : (
+            <SearchableSelect value={listId} onChange={(id) => setListId(id || null)} options={listOptions}
+              placeholder={kind === "deck" ? "Which deck?" : "Which list?"} searchPlaceholder="Search…" />
+          )}
+          {kind === "list_done" && <p className="text-xs text-muted-foreground">Done when everything on the list is ticked.</p>}
+          {kind === "deck" && (
+            <>
+              {radio(deckGoal, setDeckGoal, [["cards", "Make cards"], ["study", "Study it"]], "What counts")}
+              {deckGoal === "cards" ? (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <input className={`${inputCls} w-20`} type="number" min={1} inputMode="numeric" value={cardCount}
+                    onChange={(e) => setCardCount(e.target.value)} aria-label="How many cards" />
+                  <span className="text-xs text-muted-foreground">cards</span>
+                  {radio(cardPeriod, setCardPeriod, [["new", "new from now"], ["total", "in the deck"]], "Counted")}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <input className={`${inputCls} w-20`} type="number" min={1} inputMode="numeric" value={studyMins}
+                    onChange={(e) => setStudyMins(e.target.value)} aria-label="How many minutes" />
+                  <span className="text-xs text-muted-foreground">minutes</span>
+                  {radio(studyPeriod, setStudyPeriod, [["week", "each week"], ["total", "in total"]], "Counted")}
+                </div>
+              )}
+              {deckGoal === "study" && <p className="text-xs text-muted-foreground">"Study now" on the point runs the activity timer, so the time shows on your timeline too.</p>}
+            </>
+          )}
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" disabled={busy || !listId} onClick={save}><Plus className="w-4 h-4 mr-1" /> Add</Button>
           </div>
         </div>
       )}
