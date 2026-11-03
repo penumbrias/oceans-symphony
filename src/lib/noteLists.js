@@ -96,9 +96,5 @@ export function useNoteListWriters() {
   };
 }
 
-// Where the lists panel opens to a given list.
-export const ACTIVE_LIST_KEY = "grocery_active_list_v1";
-export function openListInPanel(listId) {
-  try { if (listId) localStorage.setItem(ACTIVE_LIST_KEY, listId); } catch { /* storage off */ }
-  window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { listId } }));
-}
+// Where a list, note or deck opens: the Notes & lists page.
+export const notesPath = (listId) => (listId ? `/notes?list=${encodeURIComponent(listId)}` : "/notes");

@@ -745,16 +745,33 @@ export function buildPollRecords({ items = [] }) {
   }));
 }
 
-export function buildGroceryRecords({ items = [] }) {
-  return items.map((g) => ({
+// Notes & lists (v0.347.0): every list, note and deck by its name (a note
+// by its text too), and every item or card, opening on the Notes page.
+export function buildGroceryRecords({ items = [], lists = [] }) {
+  const listById = new Map((lists || []).filter(Boolean).map((l) => [l.id, l]));
+  const kindLabel = { note: "Note", flashcards: "Flash cards", wishlist: "Wishlist", checklist: "Checklist" };
+  const listRecords = (lists || []).filter((l) => l && !l.trashed_at).map((l) => ({
     type: "grocery",
-    id: g.id,
-    title: g.name || "Grocery item",
-    subtitle: snippet(g.notes || g.category) || (g.checked ? "Checked" : "Unchecked"),
-    path: `/grocery`,
-    searchableText: joinNonEmpty([g.name, g.notes, g.category]).toLowerCase(),
-    sortDate: g.created_date,
+    id: `list-${l.id}`,
+    title: l.name || "List",
+    subtitle: l.list_type === "note" ? (snippet(l.note_content) || "Note") : (kindLabel[l.list_type] || "List"),
+    path: `/notes?list=${encodeURIComponent(l.id)}`,
+    searchableText: joinNonEmpty([l.name, l.note_content, kindLabel[l.list_type]]).toLowerCase(),
+    sortDate: l.created_date,
   }));
+  const itemRecords = (items || []).filter((g) => g && !g.trashed_at).map((g) => {
+    const list = listById.get(g.list_id);
+    return {
+      type: "grocery",
+      id: g.id,
+      title: g.name || "Item",
+      subtitle: [list?.name, snippet(g.back || g.notes || g.category) || (g.checked ? "Ticked" : null)].filter(Boolean).join(" · "),
+      path: g.list_id ? `/notes?list=${encodeURIComponent(g.list_id)}` : "/notes",
+      searchableText: joinNonEmpty([g.name, g.back, g.notes, g.category, list?.name]).toLowerCase(),
+      sortDate: g.created_date,
+    };
+  });
+  return [...listRecords, ...itemRecords];
 }
 
 // Named items in Assets (pictures, songs, videos, files). Unnamed stored
@@ -915,7 +932,7 @@ export function buildSearchIndex(sources = {}) {
     wishes,
     goals, goalSteps, turns,
     reminders,
-    groceries,
+    groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
     groundingTechniques, innerWorldLocations,
     presences,
@@ -954,7 +971,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildGoalRecords({ items: goals || [], steps: goalSteps || [], alters: alters || [] }));
   records.push(...buildTurnRecords({ items: turns || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
-  records.push(...buildGroceryRecords({ items: groceries || [] }));
+  records.push(...buildGroceryRecords({ items: groceries || [], lists: groceryLists || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [], frontingIds: frontingIds || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));

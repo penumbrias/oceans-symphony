@@ -1115,3 +1115,25 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 .dark img.ink-drawing { filter: invert(1); }
 /* The pad's colour pop-ups open from swatches at the right edge. */
 .drawing-pad [data-color-picker-popover] { left: auto !important; right: 0; }
+
+/* Notes & lists as an app page (v0.347.0). The lists panel is drawn in
+   plain neutral colours so the overlay reads like any list app; on the
+   /notes page the same markup takes the app's own theme. The doubled class
+   outranks `.dark .dark:…` utilities. */
+.os-themed-lists.os-themed-lists { color: hsl(var(--foreground)); }
+.os-themed-lists.os-themed-lists :is(.bg-white, .dark\:bg-neutral-900, .dark\:bg-neutral-950) { background-color: hsl(var(--card)); }
+.os-themed-lists.os-themed-lists :is(.bg-neutral-50, .bg-neutral-100, .dark\:bg-neutral-800, .bg-neutral-50\/60, .dark\:bg-neutral-900\/60, .dark\:bg-neutral-800\/60) { background-color: hsl(var(--muted) / 0.5); }
+.os-themed-lists.os-themed-lists .bg-neutral-200 { background-color: hsl(var(--muted)); }
+.os-themed-lists.os-themed-lists :is(.hover\:bg-neutral-100, .hover\:bg-neutral-50, .dark\:hover\:bg-neutral-800, .dark\:hover\:bg-neutral-900, .dark\:hover\:bg-neutral-800\/60):hover { background-color: hsl(var(--muted)); }
+.os-themed-lists.os-themed-lists :is(.text-neutral-900, .dark\:text-neutral-100, .dark\:text-neutral-300) { color: hsl(var(--foreground)); }
+.os-themed-lists.os-themed-lists :is(.text-neutral-400, .text-neutral-500, .text-neutral-600, .dark\:text-neutral-400, .dark\:text-neutral-500) { color: hsl(var(--muted-foreground)); }
+.os-themed-lists.os-themed-lists :is(.hover\:text-neutral-900, .dark\:hover\:text-neutral-100):hover { color: hsl(var(--foreground)); }
+.os-themed-lists.os-themed-lists :is(.border-neutral-200, .border-neutral-300, .dark\:border-neutral-700, .dark\:border-neutral-800) { border-color: hsl(var(--border)); }
+.os-themed-lists.os-themed-lists :is(.bg-emerald-500) { background-color: hsl(var(--primary)); }
+.os-themed-lists.os-themed-lists :is(.bg-emerald-500).text-white { color: hsl(var(--primary-foreground)); }
+.os-themed-lists.os-themed-lists :is(.hover\:bg-emerald-600):hover { background-color: hsl(var(--primary) / 0.9); }
+.os-themed-lists.os-themed-lists :is(.border-emerald-500) { border-color: hsl(var(--primary)); }
+.os-themed-lists.os-themed-lists :is(.text-emerald-500, .text-emerald-600, .text-emerald-700, .dark\:text-emerald-400) { color: hsl(var(--primary)); }
+.os-themed-lists.os-themed-lists :is(.bg-emerald-500\/10) { background-color: hsl(var(--primary) / 0.1); }
+.os-themed-lists.os-themed-lists :is(.ring-emerald-500\/40) { --tw-ring-color: hsl(var(--primary) / 0.4); }
+.os-themed-lists.os-themed-lists ::placeholder { color: hsl(var(--muted-foreground)); }

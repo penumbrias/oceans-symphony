@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 3, 2026",
     changes: [
+      { type: "feature", text: "Notes & lists is now its own page, in your app's colours, from the sidebar and the dashboard. Search finds your notes, lists and cards, and goals open them there." },
       { type: "feature", text: "Goals can count your lists and flash cards: \"finish this list\", \"make 10 cards\" or \"study this deck for 20 minutes\", with study time on the activity timer." },
       { type: "feature", text: "Goal pages can show one of your own notes (the same copy, edit it anywhere), plus new List and Flash-card deck widgets." },
       { type: "feature", text: "Quick jump: the quick-taps gesture can now open any page, an exact spot or a full-screen picture instead of your lists. Turn on \"Lock behind it\" to need your password once you leave (Settings → Quick jump)." },
