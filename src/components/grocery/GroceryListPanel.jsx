@@ -385,6 +385,8 @@ export default function GroceryListPanel({ lockedMode = false }) {
       // by a pre-unlock event, and vice versa).
       if (!!e?.detail?.lockedMode !== lockedMode) return;
       setOpen(true);
+      // Opened onto one list (a goal's list or deck point).
+      if (e?.detail?.listId) setActiveListId(e.detail.listId);
       // First-ever panic-gesture open → surface the explainer.
       if (e?.detail?.source === "panic") {
         let explained = false;

@@ -333,6 +333,8 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       ...(extra.task_id ? { task_id: extra.task_id } : {}),
       // Started from a Goals page: the page totals this time.
       ...(extra.goal_id ? { goal_id: extra.goal_id } : {}),
+      // Studying a flash-card deck: goals count these minutes (noteLists.js).
+      ...(extra.study_list_id ? { study_list_id: extra.study_list_id } : {}),
       ...(Number.isFinite(wordsWritten) ? { words_written: wordsWritten } : {}),
       ...(active.color ? { color: active.color } : {}),
       duration_minutes: minutes,

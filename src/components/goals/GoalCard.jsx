@@ -7,13 +7,19 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
-  Check, ListTodo, CalendarPlus, Repeat, CheckSquare, X, Sparkles, Hash,
+  Check, ListTodo, CalendarPlus, Repeat, CheckSquare, X, Sparkles, Hash, ListChecks, Layers,
 } from "lucide-react";
+import { listLabel, openListInPanel } from "@/lib/noteLists";
+import { formatMinutes } from "@/lib/goalTree";
+import StudyDeckButton from "@/components/goals/StudyDeckButton";
 import { Button } from "@/components/ui/button";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import { shouldNudge, addSmallerStepBefore, dismissNudge, removeStep, toggleStep, stepToTodo, stepToPlan, SMALLER_EXAMPLES,
+  DERIVED_KINDS,
 } from "@/lib/goals";
+
+const LIST_STEP_KINDS = new Set(["list_done", "deck_cards", "deck_study"]);
 
 const small = "text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-40";
 const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -36,10 +42,16 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
       const cat = ctx.categories.find((c) => c.id === step.category_id);
       return `${cat?.name || step.title} × ${state.target}${step.count_period === "week" ? " a week" : ""}`;
     }
+    if (LIST_STEP_KINDS.has(kind)) {
+      const name = state.linkedList ? listLabel(state.linkedList) : step.title;
+      if (kind === "list_done") return `Finish ${name}`;
+      if (kind === "deck_cards") return `${state.target} ${step.count_period === "total" ? "" : "new "}cards in ${name}`;
+      return `Study ${name} for ${formatMinutes(state.target)}${step.count_period === "week" ? " a week" : ""}`;
+    }
     return step.title;
   })();
   // Points worked out from other records — nothing to tick here.
-  const derived = state.ongoing || kind === "todos" || kind === "activity_count";
+  const derived = state.ongoing || DERIVED_KINDS.has(kind);
 
   const subtitle = (() => {
     if (kind === "todo") return state.missing ? "Its to-do was removed" : "On the to-do list";
@@ -52,6 +64,10 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
     if (kind === "rhythm") return `${state.current} of ${state.target} min this week`;
     if (kind === "todos") return `${state.current} of ${state.target} to-dos done`;
     if (kind === "activity_count") return `${state.current} of ${state.target} times${step.count_period === "week" ? " this week" : " so far"}`;
+    if (LIST_STEP_KINDS.has(kind) && state.missing) return "That list was deleted";
+    if (kind === "list_done") return state.target ? `${state.current} of ${state.target} ticked` : "Nothing on it yet";
+    if (kind === "deck_cards") return `${state.current} of ${state.target} made${step.count_period === "total" ? "" : " since this was added"}`;
+    if (kind === "deck_study") return `${formatMinutes(state.current)} of ${formatMinutes(state.target)}${step.count_period === "week" ? " this week" : " so far"}`;
     return null;
   })();
 
@@ -67,7 +83,9 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
         {derived ? (
           <span className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${state.done ? "bg-primary border-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
             aria-hidden="true">
-            {kind === "rhythm" ? <Repeat className="w-3 h-3" /> : kind === "activity_count" ? <Hash className="w-3 h-3" /> : <CheckSquare className="w-3 h-3" />}
+            {kind === "rhythm" ? <Repeat className="w-3 h-3" /> : kind === "activity_count" ? <Hash className="w-3 h-3" />
+              : kind === "list_done" ? <ListChecks className="w-3 h-3" /> : kind === "deck_cards" || kind === "deck_study" ? <Layers className="w-3 h-3" />
+              : <CheckSquare className="w-3 h-3" />}
           </span>
         ) : (
           <button type="button" role="checkbox" aria-checked={state.done} aria-label={step.title}
@@ -87,6 +105,7 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
               else if (kind === "daily_task") navigate("/tasks");
               else if (kind === "todos") navigate("/todo");
               else if (kind === "activity_count" && step.category_id) navigate(`/activities?category=${step.category_id}`);
+              else if (LIST_STEP_KINDS.has(kind) && state.linkedList) openListInPanel(state.linkedList.id);
             }}>
             {linkedTitle}
           </button>
@@ -98,7 +117,8 @@ export function StepRow({ step, state, steps, goal, ctx, busy, run }) {
               ))}
             </ul>
           )}
-          {(kind === "rhythm" || kind === "activity_count") && state.target > 0 && (
+          {kind === "deck_study" && !state.missing && <StudyDeckButton deck={state.linkedList} goalId={step.goal_id} busy={busy} run={run} />}
+          {(kind === "rhythm" || kind === "activity_count" || LIST_STEP_KINDS.has(kind)) && state.target > 0 && (
             <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, (state.current / state.target) * 100)}%` }} />
             </div>

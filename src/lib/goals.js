@@ -26,6 +26,7 @@ import { goalWeekWindow, countActivityTimes, activityMinutesThisWeek } from "@/l
 import { isTemplateDoneNow } from "@/lib/dailyTaskSystem";
 import { createTask } from "@/lib/taskCreate";
 import { setTaskCompleted } from "@/lib/linkedCompletion";
+import { itemsForList, listProgress, deckCardCount, deckStudyMinutes } from "@/lib/noteListModel";
 
 export const GOALS_QUERY_KEY = ["goals"];
 export const GOAL_STEPS_QUERY_KEY = ["goalSteps"];
@@ -45,7 +46,14 @@ export const isOpenGoal = (g) => !["done", "let_go"].includes(g?.status || "acti
 // since the point was added, or each week (count_period "week").
 // daily_task: an existing daily task that keeps going. rhythm: minutes
 // each week on one activity (what the old weekly goals were).
-export const STEP_KINDS = ["check", "todo", "todos", "activity_count", "plan", "daily_task", "rhythm"];
+// list_done: one of the person's lists (ref_list_id), done when every item
+// on it is ticked. deck_cards: cards in a flash-card deck (target_count;
+// count_period "new" = made since the point was added, "total" = the whole
+// deck). deck_study: minutes studying a deck (target_minutes; "week" or
+// "total"), from study sessions logged with study_list_id (noteLists.js).
+export const STEP_KINDS = ["check", "todo", "todos", "activity_count", "plan", "daily_task", "rhythm", "list_done", "deck_cards", "deck_study"];
+// Points worked out from other records — never ticked by hand.
+export const DERIVED_KINDS = new Set(["todos", "activity_count", "list_done", "deck_cards", "deck_study"]);
 
 // Days an unfinished step sits untouched before it offers to get smaller.
 export const NUDGE_AFTER_DAYS = 7;
@@ -95,6 +103,24 @@ export function stepState(step, ctx = {}) {
     const target = Math.max(1, Number(step.target_count) || 1);
     const current = activityCount(step, ctx);
     return { done: current >= target, ongoing: step.count_period === "week", current, target };
+  }
+  if (kind === "list_done" || kind === "deck_cards") {
+    const list = (ctx.noteLists || []).find((l) => l.id === step.ref_list_id) || null;
+    const items = itemsForList(step.ref_list_id, { idbItems: ctx.noteItems || [], unlockedItems: ctx.unlockedItems || [] });
+    if (kind === "list_done") {
+      const p = listProgress(items);
+      return { done: p.finished, ongoing: false, missing: !list, linkedList: list, current: p.done, target: p.total };
+    }
+    const target = Math.max(1, Number(step.target_count) || 1);
+    const from = step.count_period === "total" ? null : (step.created_date ? new Date(step.created_date) : null);
+    const current = deckCardCount(items, { from });
+    return { done: current >= target, ongoing: false, missing: !list, linkedList: list, current, target };
+  }
+  if (kind === "deck_study") {
+    const list = (ctx.noteLists || []).find((l) => l.id === step.ref_list_id) || null;
+    const target = Math.max(1, Number(step.target_minutes) || 1);
+    const current = deckStudyMinutes(step, activities, now);
+    return { done: current >= target, ongoing: step.count_period === "week", missing: !list, linkedList: list, current, target };
   }
   if (kind === "todo") {
     const task = tasks.find((t) => t.id === step.ref_id);
@@ -189,6 +215,7 @@ export function removeStep(step) {
 // as done through the planner's own resolve path.
 export async function toggleStep(step, state) {
   const kind = step.kind || "check";
+  if (DERIVED_KINDS.has(kind)) return; // counted from the list, deck or activities
   if (kind === "todo" && state?.linked) {
     const completed = !state.linked.completed;
     await setTaskCompleted(state.linked.id, completed);

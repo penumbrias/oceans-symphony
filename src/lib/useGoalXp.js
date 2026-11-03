@@ -7,6 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY } from "@/lib/goals";
 import { goalXpEvents, goalsEarnXp } from "@/lib/goalXp";
+import { useNoteLists } from "@/lib/noteLists";
 
 const list = (entity) => () => base44.entities[entity].list().catch(() => []);
 
@@ -20,9 +21,12 @@ export function useGoalXp() {
   const tasks = q(["tasks"], "Task");
   const activities = q(["activities"], "Activity");
   const categories = q(["activityCategories"], "ActivityCategory");
+  const notes = useNoteLists({ enabled: on });
   const events = useMemo(
-    () => (on ? goalXpEvents({ goals, steps, tasks, activities, categories, now: new Date() }) : []),
-    [on, goals, steps, tasks, activities, categories],
+    () => (on ? goalXpEvents({
+      goals, steps, tasks, activities, categories, noteItems: notes.idbItems, unlockedItems: notes.unlockedItems, now: new Date(),
+    }) : []),
+    [on, goals, steps, tasks, activities, categories, notes],
   );
   return { on, available: true, settings, events };
 }
