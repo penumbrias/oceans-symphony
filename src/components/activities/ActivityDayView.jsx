@@ -18,6 +18,7 @@ import {
   getLocationsForSlot,
 } from "./activityHelpers";
 import { statusFor, visualForStatus, isPastTimeScheduled, countableMinutes, ACTIVITY_STATUSES, STATUS_LABELS } from "@/lib/activityStatus";
+import RichText from "@/components/shared/RichText";
 
 function EmotionPills({ emotions }) {
   if (!emotions || emotions.length === 0) return null;
@@ -170,7 +171,7 @@ function ActivityBlock({ activity, getColor, alters, alterIds, symptomsMap }) {
           <p className="text-white/75 text-xs mt-0.5">{activity.duration_minutes}m</p>
         )}
         {activity.notes && (
-          <p className="text-white/65 text-xs italic mt-1 leading-snug break-words">{activity.notes}</p>
+          <p className="text-white/65 text-xs italic mt-1 leading-snug break-words"><RichText content={activity.notes} /></p>
         )}
         <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
       </div>
@@ -217,7 +218,7 @@ function LoggedPill({ activity, getColor, alters = [], slotAlterIds = [], sympto
         )}
       </div>
       {activity.notes && (
-        <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
+        <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words"><RichText content={activity.notes} /></p>
       )}
       <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
     </div>

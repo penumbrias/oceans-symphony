@@ -464,6 +464,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       </div>
 
       <MentionTextarea
+        toolbar={false}
         ref={textareaRef}
         value={content}
         onChange={setContent}

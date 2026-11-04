@@ -305,6 +305,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           sit at one line, which read as a thin strip on a phone. */}
       <div className="relative w-full">
         <MentionTextarea
+          toolbar={false}
           ref={inputRef}
           alters={alters}
           signposts

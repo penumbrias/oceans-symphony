@@ -16,6 +16,7 @@ import { Loader2, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { clockPattern } from "@/lib/timeFormat";
+import RichText from "@/components/shared/RichText";
 
 function parseJsonSafe(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
@@ -50,7 +51,7 @@ function SessionDetails({ session }) {
       {noteText && (
         <div>
           <p className="text-xs text-muted-foreground mb-1">💬 Note</p>
-          <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{noteText}</p>
+          <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed"><RichText content={noteText} /></p>
         </div>
       )}
       {emotions.length > 0 && (

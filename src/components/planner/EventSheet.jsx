@@ -23,6 +23,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import DetailChip from "@/components/shared/DetailChip";
 import { Segmented } from "@/components/shared/SettingRows";
@@ -236,7 +237,7 @@ export default function EventSheet({ request, onClose, onBack = null }) {
         {existing.notes && (
           <div>
             <SectionLabel>{tr("planner.notes")}</SectionLabel>
-            <p className="text-sm whitespace-pre-wrap break-words mt-1.5">{existing.notes}</p>
+            <p className="text-sm whitespace-pre-wrap break-words mt-1.5"><RichText content={existing.notes} /></p>
           </div>
         )}
         <div className="space-y-1.5">

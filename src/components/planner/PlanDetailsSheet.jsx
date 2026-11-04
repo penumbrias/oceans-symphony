@@ -36,6 +36,7 @@ import ActivityEditor, { SectionLabel } from "@/components/activities/ActivityEd
 import PlanOutcome from "@/components/planner/PlanOutcome";
 import { Button } from "@/components/ui/button";
 import { getActiveActivities } from "@/lib/activitySession";
+import RichText from "@/components/shared/RichText";
 
 const fmtDur = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -201,7 +202,7 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
             )}
             {item.notes && (
               <Line label={tr("planner.notes")}>
-                <span className="whitespace-pre-wrap break-words">{item.notes}</span>
+                <span className="whitespace-pre-wrap break-words"><RichText content={item.notes} /></span>
               </Line>
             )}
           </div>

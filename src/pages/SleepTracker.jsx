@@ -12,6 +12,7 @@ import SleepEditModal from "@/components/sleep/SleepEditModal";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import { startSleep } from "@/lib/sleepEntry";
 import { clockPattern } from "@/lib/timeFormat";
+import RichText from "@/components/shared/RichText";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
@@ -348,7 +349,7 @@ export default function SleepTracker() {
                           )}
                           {sleep.notes && (
                             <p className="text-sm text-muted-foreground mt-2">
-                              {sleep.notes}
+                              <RichText content={sleep.notes} />
                             </p>
                           )}
                         </div>

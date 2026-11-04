@@ -21,7 +21,7 @@ import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
-import { redactWhispers } from "@/lib/whisperRedact";
+import { plainNoteText } from "@/lib/plainNote";
 import { useTerms } from "@/lib/useTerms";
 import { finishCardText, noteSpeaksGrammar } from "@/lib/noteLists";
 
@@ -196,9 +196,7 @@ function CardFace({ text, image, alters, terms }) {
 }
 
 // One line of a card for the list (formatting dropped, whispers hidden).
-const cardLine = (text) => (text === "🖼" ? "" : redactWhispers(text || "")
-  .replace(/<[^>]*>/g, " ").replace(/\|\|([^|]+?)\|\|/g, "▒▒▒").replace(/&nbsp;/g, " ")
-  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim());
+const cardLine = (text) => (text === "🖼" ? "" : plainNoteText(text));
 
 function StudyView({ cards, alters, onExit }) {
   const terms = useTerms();

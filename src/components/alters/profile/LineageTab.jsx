@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import { deleteLineageEvent, LINEAGE_KEY } from "@/lib/lineageEvents";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import RichText from "@/components/shared/RichText";
 
 const TYPE_META = {
   fusion:    { label: "Fusion",    icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20" },
@@ -93,16 +94,16 @@ function EventCard({ event, altersById, onDelete }) {
       </div>
 
       {event.what_changed && (
-        <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> {event.what_changed}</p>
+        <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> <RichText content={event.what_changed} /></p>
       )}
       {event.new_name && (
         <p className="text-xs text-muted-foreground"><span className="font-medium">New name:</span> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</p>
       )}
       {event.cause && (
-        <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> {event.cause}</p>
+        <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> <RichText content={event.cause} /></p>
       )}
       {event.notes && (
-        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{event.notes}</p>
+        <p className="text-xs text-muted-foreground whitespace-pre-wrap"><RichText content={event.notes} /></p>
       )}
     </div>
   );
@@ -287,7 +288,7 @@ export default function LineageTab({ alterId }) {
                   <span className="text-muted-foreground">{label}</span>
                   <span className="text-muted-foreground/60">{arrow}</span>
                   <AlterPill alter={r.other} />
-                  {r.notes && <span className="text-muted-foreground/70 italic ml-1 line-clamp-1">— {r.notes}</span>}
+                  {r.notes && <span className="text-muted-foreground/70 italic ml-1 line-clamp-1">— <RichText content={r.notes} /></span>}
                 </li>
               );
             })}

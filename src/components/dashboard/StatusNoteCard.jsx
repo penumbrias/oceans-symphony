@@ -8,6 +8,7 @@ import { localEntities, base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { isLogCommandError } from "@/lib/authoredText";
 import { saveStatusNote } from "@/lib/checkinEntry";
+import RichText from "@/components/shared/RichText";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -98,7 +99,7 @@ export default function StatusNoteCard() {
           className="w-full text-left px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground flex items-center justify-between gap-2"
         >
           {latestStatusNote
-            ? <span className="truncate">💬 {latestStatusNote.note}</span>
+            ? <span className="truncate">💬 <RichText content={latestStatusNote.note} /></span>
             : <span className="italic">Set a new status...</span>
           }
           <Edit2 className="w-3.5 h-3.5 flex-shrink-0" />

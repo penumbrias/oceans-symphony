@@ -140,6 +140,8 @@ import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import RichText from "@/components/shared/RichText";
+import { plainNoteText } from "@/lib/plainNote";
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
 // midnight, which is the day before west of Greenwich, so read it as local
@@ -322,7 +324,7 @@ function PresenceWidget({ mode, api, settings }) {
               <p className="text-[0.6875em] text-muted-foreground truncate">{bits.join(" · ")}</p>
             )}
             {noteText && (
-              <p className="text-[0.6875em] text-muted-foreground truncate">💬 {noteText}</p>
+              <p className="text-[0.6875em] text-muted-foreground truncate">💬 {plainNoteText(noteText)}</p>
             )}
           </div>
         )}
@@ -424,7 +426,7 @@ function ActiveWidget({ settings }) {
         <Row key={a.id}
           left={<Dot color={a.color || "var(--v2-accent)"} />}
           primary={a.name || tr("widget.active.activity")}
-          secondary={a.notes || undefined}
+          secondary={plainNoteText(a.notes) || undefined}
           right={a.startTime ? fmtElapsed(a.startTime) : undefined}
           onClick={() => setActivityMenu(a)} />
       ))}
@@ -717,7 +719,7 @@ function StatusBannerWidget() {
     () => [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] || null,
     [notes]
   );
-  const text = (latest?.note || "").trim();
+  const text = plainNoteText(latest?.note || "");
   // Slow enough to read, fast enough to feel alive; longer notes get
   // proportionally more time so the pace stays constant.
   const dur = Math.max(8, Math.min(90, Math.round(text.length * 0.45)));
@@ -779,7 +781,7 @@ function StatusCard() {
   return (
     <Section label={tr("widget.status.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.status.log")}</TextAction>}>
       {latest
-        ? <Row primary={latest.note}
+        ? <Row primary={<RichText content={latest.note} />}
             right={sameDay(latest.timestamp, Date.now())
               ? fmtTime(latest.timestamp)
               : `${new Date(latest.timestamp).toLocaleDateString([], { month: "short", day: "numeric" })}, ${fmtTime(latest.timestamp)}`}

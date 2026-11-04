@@ -27,6 +27,7 @@ import { FEELING_EFFECTS, allRelations, relationLabel, clampStrength, toggleFeel
 import RelationTypePicker from "@/components/activities/RelationTypePicker";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import RichText from "@/components/shared/RichText";
 
 const fmtMin = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -273,7 +274,7 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: a?.color || "#8b5cf6" }} />
                     <span className="text-sm truncate flex-1">{a ? formatAlter(a) : `Unknown ${t.alter}`}</span>
                     <StrengthDots value={clampStrength(l.strength)} />
-                    {l.note && <span className="text-xs text-muted-foreground truncate max-w-[40%]">{l.note}</span>}
+                    {l.note && <span className="text-xs text-muted-foreground truncate max-w-[40%]"><RichText content={l.note} /></span>}
                   </button>
                 );
               })}

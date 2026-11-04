@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Circle, ChevronLeft, BookOpen, Loader2 } from "lucide-react";
 import InteractiveExercise from "./InteractiveExercise";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 // CURRICULUM DATA — all topics defined here with stable IDs
 export const CURRICULUM = [
@@ -1032,10 +1033,11 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
       {/* Personal notes */}
       <div className="space-y-2">
         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">My notes on this topic</label>
-        <textarea
+        <MentionTextarea
+          commands={false}
           value={notes}
-          onChange={e => {
-            setNotes(e.target.value);
+          onChange={v => {
+            setNotes(v);
             setNotesSaved(false);
             clearTimeout(autoSaveTimerRef.current);
             autoSaveTimerRef.current = setTimeout(autoSaveNotes, 1500);
