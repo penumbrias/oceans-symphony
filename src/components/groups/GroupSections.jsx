@@ -31,6 +31,7 @@ import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { framedImageStyle, framingFor, framedBackgroundStyle } from "@/lib/imageFraming";
+import RichText from "@/components/shared/RichText";
 
 
 export function getContrastColor(hex) {
@@ -335,7 +336,7 @@ export function GroupNotesTab({ groupId }) {
           {notes.map((n) => (
             <div key={n.id} className="rounded-xl border border-border/40 bg-muted/10 p-3">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm text-foreground whitespace-pre-wrap break-words flex-1">{n.content}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words flex-1"><RichText content={n.content} /></p>
                 <button type="button" onClick={() => del(n.id)} aria-label="Delete note" className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
               {n.created_date && <p className="text-[0.625rem] text-muted-foreground mt-1.5">{new Date(n.created_date).toLocaleString()}</p>}

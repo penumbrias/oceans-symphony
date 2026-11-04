@@ -34,6 +34,7 @@ import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import RichText from "@/components/shared/RichText";
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
@@ -336,7 +337,7 @@ function NoteRow({ note, alters, onDelete, onSave }) {
   return (
     <div className="rounded-lg border border-border/50 bg-card p-2.5">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm whitespace-pre-wrap flex-1">{note.content}</p>
+        <p className="text-sm whitespace-pre-wrap flex-1"><RichText content={note.content} /></p>
         <button type="button" onClick={startEdit} aria-label="Edit note" className="text-muted-foreground hover:text-foreground flex-shrink-0"><Pencil className="w-3.5 h-3.5" /></button>
         <button type="button" onClick={() => onDelete(note.id)} aria-label="Delete note" className="text-muted-foreground hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
       </div>
@@ -350,7 +351,7 @@ function Field({ label, value, empty }) {
     <div>
       <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{label}</h3>
       {value ? (
-        <p className="text-sm whitespace-pre-wrap">{value}</p>
+        <p className="text-sm whitespace-pre-wrap"><RichText content={value} /></p>
       ) : (
         <p className="text-sm text-muted-foreground/70 italic">{empty}</p>
       )}

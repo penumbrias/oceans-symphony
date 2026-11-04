@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, ChevronDown, ChevronUp, History } from "lucide-react";
 import { format } from "date-fns";
 import { clockPattern } from "@/lib/timeFormat";
+import RichText from "@/components/shared/RichText";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 export default function InteractiveExercise({ exerciseId, exerciseTitle, fields = [], onSaved }) {
   const queryClient = useQueryClient();
@@ -150,7 +152,7 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
               {fields.map(f => entry.responses?.[f.id] ? (
                 <div key={f.id}>
                   <p className="text-xs text-muted-foreground">{f.label}</p>
-                  <p className="text-xs text-foreground/80 italic">"{entry.responses[f.id]}"</p>
+                  <p className="text-xs text-foreground/80 italic">"<RichText content={String(entry.responses[f.id])} />"</p>
                 </div>
               ) : null)}
             </div>
@@ -187,9 +189,10 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
               />
             ) : (
-              <textarea
+              <MentionTextarea
+                commands={false}
                 value={responses[field.id] ?? ""}
-                onChange={e => handleChange(field.id, e.target.value)}
+                onChange={v => handleChange(field.id, v)}
                 placeholder={field.placeholder || ""}
                 rows={field.rows || 3}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"

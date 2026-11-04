@@ -20,6 +20,7 @@ import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import RichText from "@/components/shared/RichText";
 
 
 function groupByDay(locations) {
@@ -315,7 +316,7 @@ export default function LocationHistory() {
                               )}
                             </p>
                             {loc.notes && (
-                              <p className="text-xs text-muted-foreground mt-1 italic">{loc.notes}</p>
+                              <p className="text-xs text-muted-foreground mt-1 italic"><RichText content={loc.notes} /></p>
                             )}
                             {loc.latitude != null && loc.longitude != null && (
                               <a

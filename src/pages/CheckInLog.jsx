@@ -27,6 +27,7 @@ import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/li
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import RichText from "@/components/shared/RichText";
+import { plainNoteText } from "@/lib/plainNote";
 
 // Long-press / double-click helper for re-opening a check-in in the
 // Quick Check-In modal so the user can fix mistakes after the fact.
@@ -256,7 +257,8 @@ function activityPillStyle(color) {
   return { background: `${color}1f`, color, borderColor: `${color}59` };
 }
 function activityPillText(act) {
-  const note = act.notes ? ` \u00b7 \u201c${act.notes.length > 40 ? `${act.notes.slice(0, 37)}\u2026` : act.notes}\u201d` : "";
+  const plain = plainNoteText(act.notes);
+  const note = plain ? ` \u00b7 \u201c${plain.length > 40 ? `${plain.slice(0, 37)}\u2026` : plain}\u201d` : "";
   return `${act.activity_name}${act.duration_minutes ? ` \u00b7 ${act.duration_minutes}m` : ""}${note}`;
 }
 
@@ -745,7 +747,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                 for (const e of entries) {
                   if (e.kind === "note") {
                     pills.push({
-                      kind: "note", key: `n-${e.id}`, text: `💬 ${e.payload.text}`,
+                      kind: "note", key: `n-${e.id}`, text: `💬 ${plainNoteText(e.payload.text)}`,
                       moods: moodDots(e.payload?.emotions, stripCustoms, stripCatLabels),
                       trigger: e.trigger,
                     });
@@ -871,7 +873,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       {visibleStatusNotes.length > 0 && (
         <div className="space-y-0.5">
           {visibleStatusNotes.map((sn, i) => (
-            <p key={i} className="text-xs text-foreground/70 italic">💬 {sn.note}</p>
+            <p key={i} className="text-xs text-foreground/70 italic">💬 <RichText content={sn.note} /></p>
           ))}
         </div>
       )}
@@ -1304,7 +1306,7 @@ function StatusNoteEntry({ sn, alters = [] }) {
         </div>
       ) : (
         <div className="flex-1 flex items-start gap-2">
-          <span className="text-sm text-foreground/80 italic flex-1">💬 {sn.note}</span>
+          <span className="text-sm text-foreground/80 italic flex-1">💬 <RichText content={sn.note} /></span>
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <button
               type="button"
@@ -1417,7 +1419,7 @@ function PerAlterEntry({ entry, altersById }) {
                 style={{ backgroundColor: m.color }} />
             ))}
             <TriggerBadge trigger={entry.trigger} />
-            <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
+            <span className="text-sm text-foreground/80 min-w-0">💬 <RichText content={entry.payload.text} /></span>
           </div>
         </StandaloneEntry>
         {editorPortal}

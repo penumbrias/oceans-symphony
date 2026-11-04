@@ -736,7 +736,7 @@ useEffect(() => {
           <div>
             <label className="text-sm font-medium">Mention {terms.alters}</label>
             <p className="text-xs text-muted-foreground mb-1">Tag {terms.alters} to notify them of this entry</p>
-            <MentionTextarea value={mentionNote} onChange={setMentionNote} alters={alters || []} placeholder={`Use @ to mention ${terms.alters}...`} className="h-16" />
+            <MentionTextarea toolbar={false} value={mentionNote} onChange={setMentionNote} alters={alters || []} placeholder={`Use @ to mention ${terms.alters}...`} className="h-16" />
           </div>
         </div>
 

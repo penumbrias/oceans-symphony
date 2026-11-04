@@ -13,6 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { clockPattern } from "@/lib/timeFormat";
+import { plainNoteText } from "@/lib/plainNote";
 
 function SeverityDots({ severity }) {
   return (
@@ -218,7 +219,7 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
             className="w-full flex items-center gap-1.5 py-2 px-1 rounded-lg text-sm font-medium bg-muted/50 text-foreground hover:bg-muted transition-colors text-left"
           >
             <span className="flex-1 min-w-0 truncate">
-              {sess.notes ? sess.notes : <span className="text-muted-foreground font-normal">Add a note…</span>}
+              {sess.notes ? plainNoteText(sess.notes) : <span className="text-muted-foreground font-normal">Add a note…</span>}
             </span>
           </button>
         )}

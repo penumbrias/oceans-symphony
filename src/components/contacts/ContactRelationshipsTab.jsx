@@ -13,6 +13,7 @@ import ContactRelationshipTypeField from "@/components/contacts/ContactRelations
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import RichText from "@/components/shared/RichText";
 
 // Phase 3 — relationships between a contact and the system / individual
 // alters / groups. The relationship TYPE comes from a SEPARATE, editable
@@ -282,7 +283,7 @@ export default function ContactRelationshipsTab({ contact }) {
                     </span>
                     {r.has_met && <span className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">met</span>}
                   </div>
-                  {r.notes && <p className="text-sm whitespace-pre-wrap mt-1.5 text-muted-foreground">{r.notes}</p>}
+                  {r.notes && <p className="text-sm whitespace-pre-wrap mt-1.5 text-muted-foreground"><RichText content={r.notes} /></p>}
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <button type="button" onClick={() => startEdit(r)} aria-label="Edit relationship" className="text-muted-foreground hover:text-foreground">

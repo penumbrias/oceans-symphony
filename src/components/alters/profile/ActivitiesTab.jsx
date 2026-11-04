@@ -5,6 +5,7 @@ import { ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { allRelations, clampStrength, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
+import RichText from "@/components/shared/RichText";
 
 // "Activities" tab on an alter profile — the other side of the Activities
 // page's "Who" links: what this alter enjoys, needs, dislikes, avoids,
@@ -62,7 +63,7 @@ export default function ActivitiesTab({ alter }) {
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c?.color || "#8b5cf6" }} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{c?.name || "Deleted activity"}</span>
-                    {l.note && <span className="block text-xs text-muted-foreground truncate">{l.note}</span>}
+                    {l.note && <span className="block text-xs text-muted-foreground truncate"><RichText content={l.note} /></span>}
                   </span>
                   <span className="text-xs text-muted-foreground tabular-nums">{clampStrength(l.strength)}/5</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />

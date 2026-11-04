@@ -7,6 +7,7 @@ import { MapPin, X, Zap } from "lucide-react";
 import { shouldShowPin, writeDismissal } from "@/lib/criticalPins";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { useNowTick } from "@/lib/useNowTick";
+import RichText from "@/components/shared/RichText";
 
 // Top-of-Dashboard pinned cards for plans the user marked critical /
 // urgent. A card appears whenever any of the plan's selected lead-step
@@ -128,7 +129,7 @@ function CriticalPlanCard({ plan, openStep, onDismiss, onOpen }) {
               : Date.now() - ts.getTime() < 2 * 60_000 ? "now" : `${formatDistanceToNow(ts)} ago`}
           </div>
           {plan.notes && (
-            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.notes}</div>
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2"><RichText content={plan.notes} /></div>
           )}
         </div>
         <button

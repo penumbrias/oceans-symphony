@@ -22,6 +22,7 @@ import Sparkline from "@/components/analytics/primitives/Sparkline";
 import TrendArrow from "@/components/analytics/primitives/TrendArrow";
 import WeekHourHeatmap from "@/components/analytics/primitives/WeekHourHeatmap";
 import UnlockGate from "@/components/analytics/primitives/UnlockGate";
+import RichText from "@/components/shared/RichText";
 
 // Rebuilt Fronting analytics (Phase 2). All numbers come from
 // src/lib/analytics/fronting.js; this file is presentation only.
@@ -325,7 +326,7 @@ function FrontHistoryStrip({ sessions, range, altersById, terms, formatAlter }) 
                   )}
                   {note.length > 0 && (
                     <div className="space-y-1">
-                      {note.map((n, i) => <p key={i} className="leading-relaxed">“{n.text}”</p>)}
+                      {note.map((n, i) => <p key={i} className="leading-relaxed">“<RichText content={n.text} />”</p>)}
                     </div>
                   )}
                   {emotions.length === 0 && symptoms.length === 0 && note.length === 0 && (

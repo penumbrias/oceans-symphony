@@ -14,6 +14,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
+import RichText from "@/components/shared/RichText";
 
 const TYPE_META = {
   fusion:    { label: "Fusion",     icon: GitMerge,  color: "text-violet-500",  bg: "bg-violet-500/10 border-violet-500/20",  dot: "bg-violet-500" },
@@ -120,16 +121,16 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, alt
         ) : (
           <>
             {event.what_changed && (
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> {event.what_changed}</p>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium">What changed:</span> <RichText content={event.what_changed} /></p>
             )}
             {event.new_name && (
               <p className="text-xs text-muted-foreground"><span className="font-medium">New name:</span> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</p>
             )}
             {event.cause && (
-              <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> {event.cause}</p>
+              <p className="text-xs text-muted-foreground"><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> <RichText content={event.cause} /></p>
             )}
             {event.notes && (
-              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{event.notes}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap"><RichText content={event.notes} /></p>
             )}
           </>
         )}

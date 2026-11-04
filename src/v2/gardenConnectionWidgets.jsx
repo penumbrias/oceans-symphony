@@ -29,6 +29,7 @@ import {
   LINEAGE_KEY, LINEAGE_TYPE_LABELS, lineageOf, lineageDateLabel, isLineageTransition, editLineageEvent, deleteLineageEvent,
 } from "@/lib/lineageEvents";
 import { ALTER_RELATIONS, allRelations, clampStrength, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
+import RichText from "@/components/shared/RichText";
 
 const outlineBtn = { borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" };
 const rowCls = "py-[0.45em] border-b border-current/10 last:border-b-0";
@@ -164,7 +165,7 @@ export function RelationshipsWidget({ settings, mode = "normal" }) {
                     <span className="w-[0.6em] h-[0.6em] rounded-full flex-shrink-0" style={{ background: r.color || "currentColor" }} aria-hidden="true" />
                     {relationshipTypeLabel(r)}
                   </span>
-                  {mode === "expanded" && r.notes && <span className="block text-[0.8125em] opacity-80 whitespace-pre-wrap break-words mt-[0.2em]">{r.notes}</span>}
+                  {mode === "expanded" && r.notes && <span className="block text-[0.8125em] opacity-80 whitespace-pre-wrap break-words mt-[0.2em]"><RichText content={r.notes} /></span>}
                 </span>
               </button>
               <button type="button" onClick={() => setEditing(r)} className={iconBtnCls} aria-label={`Edit the relationship with ${formatAlter(r.other)}`}><Pencil className="w-4 h-4" /></button>
@@ -257,10 +258,10 @@ function LineageEventRow({ event, alterMap, alters, detailed, onDelete }) {
           </div>
           {detailed && !editing && (
             <div className="text-[0.8125em] opacity-85 mt-[0.3em] space-y-[0.15em]">
-              {event.what_changed && <p className="whitespace-pre-wrap"><span className="font-medium">What changed:</span> {event.what_changed}</p>}
+              {event.what_changed && <p className="whitespace-pre-wrap"><span className="font-medium">What changed:</span> <RichText content={event.what_changed} /></p>}
               {event.new_name && <p><span className="font-medium">New name:</span> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</p>}
-              {event.cause && <p><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> {event.cause}</p>}
-              {event.notes && <p className="whitespace-pre-wrap">{event.notes}</p>}
+              {event.cause && <p><span className="font-medium">{event.type === "reformation" ? "Trigger:" : "Cause:"}</span> <RichText content={event.cause} /></p>}
+              {event.notes && <p className="whitespace-pre-wrap"><RichText content={event.notes} /></p>}
             </div>
           )}
         </div>
@@ -355,7 +356,7 @@ export function ActivityLinksWidget({ settings, mode = "normal" }) {
                       <span className="w-[0.65em] h-[0.65em] rounded-full flex-shrink-0" style={{ background: c?.color || "var(--v2-accent)" }} aria-hidden="true" />
                       <span className="flex-1 min-w-0">
                         <span className="block truncate">{nameOf(l)}</span>
-                        {mode === "expanded" && l.note && <span className="block text-[0.8125em] opacity-75 break-words">{l.note}</span>}
+                        {mode === "expanded" && l.note && <span className="block text-[0.8125em] opacity-75 break-words"><RichText content={l.note} /></span>}
                       </span>
                       <span className="text-[0.8125em] opacity-70 tabular-nums" aria-hidden="true">{clampStrength(l.strength)}/5</span>
                     </button>

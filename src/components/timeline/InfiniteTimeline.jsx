@@ -24,6 +24,7 @@ import { getCategoryMeta } from "@/lib/locationCategories";
 import { effectiveSeverity, formatSeverityForSymptom } from "@/lib/trackingModel";
 import { journalEntryDate } from "@/lib/journalDate";
 import { clockPattern } from "@/lib/timeFormat";
+import RichText from "@/components/shared/RichText";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
@@ -1977,7 +1978,7 @@ export default function InfiniteTimeline({
               );
             })()}
             {entry.mergedCount > 1 && <p className="text-xs text-muted-foreground mt-1">{entry.mergedCount} instances</p>}
-            {entry.activity.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.activity.notes}</p>}
+            {entry.activity.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap"><RichText content={entry.activity.notes} /></p>}
             {!entry.activity.notes && entry.mergedCount <= 1 && <p className="text-xs text-muted-foreground mt-1 italic">No notes</p>}
           </DetailPopup>
         );
@@ -2013,7 +2014,7 @@ export default function InfiniteTimeline({
                 </div>
               </div>
             )}
-            {note && <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>}
+            {note && <p className="text-sm text-foreground whitespace-pre-wrap"><RichText content={note} /></p>}
             {emotions.length === 0 && !note && <p className="text-xs text-muted-foreground italic">No details</p>}
           </DetailPopup>
         );
@@ -2027,7 +2028,7 @@ export default function InfiniteTimeline({
           <DetailPopup icon={cat.emoji} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
             <p className="text-sm font-semibold">{entry.data.name || cat.label}</p>
             <p className="text-xs mt-0.5" style={{ color: cat.color }}>{cat.label}</p>
-            {entry.data.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.data.notes}</p>}
+            {entry.data.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap"><RichText content={entry.data.notes} /></p>}
             {entry.data.latitude != null && entry.data.longitude != null && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground font-mono">
