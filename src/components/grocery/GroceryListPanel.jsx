@@ -19,6 +19,7 @@ import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { PopupLayer } from "@/components/shared/popupLayer";
 import RichText from "@/components/shared/RichText";
 import { useTerms } from "@/lib/useTerms";
 import { finishNoteText, noteSpeaksGrammar } from "@/lib/noteLists";
@@ -683,7 +684,10 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
 
   const noListsAtAll = allLists.length === 0;
 
+  // The overlay sits at z-9999, above the text tools' pop-ups (mentions,
+  // colour, link, draw…) — lift them over it. The page needs no lift.
   return (
+    <PopupLayer lift={asPage ? 0 : 10010}>
     <div
       className={asPage
         ? "os-themed-lists flex flex-col max-w-3xl mx-auto w-full"
@@ -914,6 +918,8 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
           <FlashCards
             key={`${activeList.source}-${activeList.id}`}
             cards={activeItems}
+            list={activeList}
+            alters={activeAlters}
             canAttach={idbAvailable && activeList.source !== "local"}
             onAdd={addCard}
             onUpdate={patchItem}
@@ -1193,6 +1199,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
         </div>
       )}
     </div>
+    </PopupLayer>
   );
 }
 

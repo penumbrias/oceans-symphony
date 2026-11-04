@@ -110,16 +110,18 @@ export const notesPath = (listId) => (listId ? `/notes?list=${encodeURIComponent
 // grammar is off and Done just saves.
 export const noteSpeaksGrammar = (list, { dbReady = isDbInitialized() } = {}) => !!list && list.source !== "local" && dbReady;
 
-// Returns the patch to save ({ note_content, author_alter_ids? }), or null
-// when the save should stop (a broken ~command was shown as a toast, or the
-// whisper warning was cancelled). Signed only when the person signposted.
-export async function finishNoteText(list, text, { alters = [], terms = {} } = {}) {
+// Runs one piece of text written on a list through the shared pipeline.
+// Returns { content, authorIds } or null when the save should stop (a broken
+// ~command was shown as a toast, or the whisper warning was cancelled).
+// Plaintext ("available when locked") lists skip it: the text comes back as
+// typed, and nobody is recorded by name.
+export async function prepareListText(list, text, { alters = [], terms = {}, surfaceLabel = "note", sourceType = "note", sourceLabel } = {}) {
   const raw = typeof text === "string" ? text : "";
-  if (!noteSpeaksGrammar(list)) return { note_content: raw };
+  if (!noteSpeaksGrammar(list)) return { content: raw, authorIds: [] };
   const { prepareAuthoredText, recordAuthoredText, isLogCommandError } = await import("@/lib/authoredText");
   let prepared;
   try {
-    prepared = await prepareAuthoredText(raw, { alters, terms, surfaceLabel: "note" });
+    prepared = await prepareAuthoredText(raw, { alters, terms, surfaceLabel });
   } catch (e) {
     if (isLogCommandError(e)) {
       const { toast } = await import("sonner");
@@ -130,11 +132,31 @@ export async function finishNoteText(list, text, { alters = [], terms = {} } = {
   }
   if (!prepared) return null;
   await recordAuthoredText({
-    ...prepared, alters, sourceType: "note", sourceId: list.id,
-    sourceLabel: `Note: ${list.name || "note"}`, navigatePath: notesPath(list.id),
+    ...prepared, alters, sourceType, sourceId: list.id,
+    sourceLabel: sourceLabel || `Note: ${list.name || "note"}`, navigatePath: notesPath(list.id),
   });
+  return { content: prepared.content, authorIds: prepared.authorIds || [] };
+}
+
+// Returns the patch to save ({ note_content, author_alter_ids? }), or null
+// when the save should stop. Signed only when the person signposted.
+export async function finishNoteText(list, text, opts = {}) {
+  const done = await prepareListText(list, text, opts);
+  if (!done) return null;
   return {
-    note_content: prepared.content,
-    ...(prepared.authorIds?.length ? { author_alter_ids: prepared.authorIds } : {}),
+    note_content: done.content,
+    ...(done.authorIds.length ? { author_alter_ids: done.authorIds } : {}),
   };
+}
+
+// A flash card's two sides (v0.347.2): each side runs the pipeline on Save.
+// Returns { name, back, author_alter_ids? } or null when the save should stop.
+export async function finishCardText(list, front, back, opts = {}) {
+  const sourceLabel = `Flash cards: ${list?.name || "deck"}`;
+  const f = await prepareListText(list, front, { ...opts, surfaceLabel: "flash card", sourceType: "flashcard", sourceLabel });
+  if (!f) return null;
+  const b = await prepareListText(list, back, { ...opts, surfaceLabel: "flash card", sourceType: "flashcard", sourceLabel });
+  if (!b) return null;
+  const authors = [...new Set([...f.authorIds, ...b.authorIds])];
+  return { name: f.content, back: b.content, ...(authors.length ? { author_alter_ids: authors } : {}) };
 }
