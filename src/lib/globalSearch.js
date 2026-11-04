@@ -754,9 +754,9 @@ export function buildGroceryRecords({ items = [], lists = [] }) {
     type: "grocery",
     id: `list-${l.id}`,
     title: l.name || "List",
-    subtitle: l.list_type === "note" ? (snippet(l.note_content) || "Note") : (kindLabel[l.list_type] || "List"),
+    subtitle: l.list_type === "note" ? (snippet(stripHtml(l.note_content)) || "Note") : (kindLabel[l.list_type] || "List"),
     path: `/notes?list=${encodeURIComponent(l.id)}`,
-    searchableText: joinNonEmpty([l.name, l.note_content, kindLabel[l.list_type]]).toLowerCase(),
+    searchableText: joinNonEmpty([l.name, stripHtml(l.note_content), kindLabel[l.list_type]]).toLowerCase(),
     sortDate: l.created_date,
   }));
   const itemRecords = (items || []).filter((g) => g && !g.trashed_at).map((g) => {

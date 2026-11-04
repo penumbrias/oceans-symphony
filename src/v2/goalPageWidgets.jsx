@@ -16,8 +16,11 @@ import { StackedRow } from "@/components/shared/SettingRows";
 import StudyDeckButton from "@/components/goals/StudyDeckButton";
 import {
   useNoteLists, useNoteListWriters, listLabel, listProgress, isNote, isItemList, isDeck, notesPath,
-  deckStudySessions,
+  deckStudySessions, finishNoteText, noteSpeaksGrammar,
 } from "@/lib/noteLists";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
+import { useTerms } from "@/lib/useTerms";
 import { goalWeekWindow } from "@/lib/goalCounting";
 import { formatMinutes } from "@/lib/goalTree";
 import ActivityStrip from "@/components/goals/workspace/ActivityStrip";
@@ -74,20 +77,29 @@ function MissingList({ what }) {
 // A note from the person's notes: the one copy, edited right here.
 function SharedNote({ list }) {
   const { saveNote } = useNoteListWriters();
+  const ws = useWorkspace();
+  const terms = useTerms();
+  const alters = ws?.alters || [];
+  const grammar = noteSpeaksGrammar(list);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(list.note_content || "");
   const [saving, setSaving] = useState(false);
   useEffect(() => { if (!editing) setText(list.note_content || ""); }, [list.note_content, editing]);
   const save = async () => {
     setSaving(true);
-    try { await saveNote(list, text); setEditing(false); }
-    finally { setSaving(false); }
+    try {
+      const patch = await finishNoteText(list, text, { alters, terms });
+      if (!patch) return; // a broken ~command or a cancelled whisper: keep editing
+      await saveNote(list, patch);
+      setEditing(false);
+    } finally { setSaving(false); }
   };
   if (editing) {
     return (
       <div className="space-y-1.5">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus aria-label={list.name || "Note"}
-          className="w-full min-h-[8em] rounded-md border bg-transparent px-2 py-1.5 text-sm" style={{ borderColor: "var(--v2-accent)" }} />
+        <MentionTextarea toolbar value={text} onChange={setText} autoFocus aria-label={list.name || "Note"}
+          alters={grammar ? alters : []} signposts={grammar} commands={grammar}
+          className="w-full min-h-[8em] bg-transparent text-sm" style={{ borderColor: "var(--v2-accent)" }} />
         <div className="flex justify-end gap-3">
           <TextAction onClick={() => { setText(list.note_content || ""); setEditing(false); }}>Cancel</TextAction>
           <TextAction onClick={saving ? undefined : save}>{saving ? "Saving…" : "Save"}</TextAction>
@@ -100,7 +112,7 @@ function SharedNote({ list }) {
   return (
     <div className="space-y-1">
       <button type="button" onClick={() => setEditing(true)} className="w-full text-left text-sm whitespace-pre-wrap break-words">
-        {body || <span className="opacity-60">Empty note. Tap to write.</span>}
+        {body ? <RichText content={body} alters={alters} terms={terms} /> : <span className="opacity-60">Empty note. Tap to write.</span>}
       </button>
       {photos > 0 && <p className="text-xs opacity-70">{photos === 1 ? "1 photo" : `${photos} photos`} on this note</p>}
     </div>

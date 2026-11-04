@@ -18,6 +18,10 @@ import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSett
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
+import { useTerms } from "@/lib/useTerms";
+import { finishNoteText, noteSpeaksGrammar } from "@/lib/noteLists";
 
 // v0.87.7: list types — the panel is now a general list tool, not just
 // groceries. "shopping" keeps the full purchased/ran-out/frequent-items
@@ -904,6 +908,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
             list={activeList}
             canAttach={idbAvailable && activeList.source !== "local"}
             onSave={saveNote}
+            alters={activeAlters}
           />
         ) : typeOf(activeList) === "flashcards" ? (
           <FlashCards
@@ -1309,8 +1314,14 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
 // camera capture, photo upload, voice input where the platform has
 // it). Keyed by list id from the caller, so switching notes remounts
 // with the right content and pending saves flush per-note.
-function NotePad({ list, canAttach, onSave }) {
+function NotePad({ list, canAttach, onSave, alters = [] }) {
+  const terms = useTerms();
   const [text, setText] = useState(typeof list.note_content === "string" ? list.note_content : "");
+  // Writing vs reading (v0.347.1): the note shows formatted until tapped;
+  // Done runs the app's text grammar over it (noteLists.finishNoteText).
+  const [editing, setEditing] = useState(() => !(typeof list.note_content === "string" && list.note_content.trim()));
+  const [finishing, setFinishing] = useState(false);
+  const grammar = noteSpeaksGrammar(list);
   const [images, setImages] = useState(Array.isArray(list.note_images) ? list.note_images : []);
   const [savedAt, setSavedAt] = useState(null);
   const [dirty, setDirty] = useState(false);
@@ -1423,6 +1434,27 @@ function NotePad({ list, canAttach, onSave }) {
     }
   };
 
+  const finish = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      clearTimeout(saveTimer.current);
+      const patch = await finishNoteText(list, latest.current.text, { alters, terms });
+      if (!patch) return; // a broken ~command or a cancelled whisper: keep writing
+      await onSave(list, { ...patch, note_images: latest.current.images });
+      latest.current.text = patch.note_content;
+      latest.current.dirty = false;
+      setText(patch.note_content);
+      setDirty(false);
+      setSavedAt(new Date());
+      setEditing(false);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save the note");
+    } finally {
+      setFinishing(false);
+    }
+  };
+
   const setNoteOpenMode = (mode) => {
     setOpenMode(mode);
     try { localStorage.setItem("grocery_note_open_mode_v1", mode); } catch { /* storage off */ }
@@ -1462,17 +1494,38 @@ function NotePad({ list, canAttach, onSave }) {
         </div>
         <span className="text-[11px] text-neutral-400 flex-shrink-0" role="status">
           {dirty ? "Saving…" : savedAt ? `Saved ${format(savedAt, clockPattern("h:mm a"))}` : "Auto-saves"}
+          {editing && (
+            <button type="button" onClick={finish} disabled={finishing}
+              className="ml-2 text-xs px-2.5 py-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50">
+              {finishing ? "Saving…" : "Done"}
+            </button>
+          )}
         </span>
       </div>
 
-      <textarea
-        ref={taRef}
-        value={text}
-        onChange={(e) => { setText(e.target.value); queueSave(); }}
-        onBlur={flush}
-        placeholder="Write anything — it saves as you type."
-        className="flex-1 w-full min-h-[40vh] resize-none bg-transparent text-base leading-relaxed focus:outline-none placeholder:text-neutral-400"
-      />
+      {editing ? (
+        <MentionTextarea
+          ref={taRef}
+          toolbar
+          value={text}
+          onChange={(v) => { setText(v); queueSave(); }}
+          onBlur={flush}
+          alters={grammar ? alters : []}
+          signposts={grammar}
+          commands={grammar}
+          autoFocus={!text}
+          placeholder={grammar
+            ? "Write anything — it saves as you type. @ names someone, ~ logs something, Done finishes."
+            : "Write anything — it saves as you type."}
+          className="flex-1 w-full min-h-[40vh] resize-none bg-transparent text-base leading-relaxed focus:outline-none placeholder:text-neutral-400 border-0 shadow-none px-0 focus-visible:ring-0"
+        />
+      ) : (
+        <div role="button" tabIndex={0} onClick={() => setEditing(true)} aria-label="Edit this note"
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditing(true); } }}
+          className="flex-1 w-full min-h-[40vh] text-left text-base leading-relaxed whitespace-pre-wrap break-words cursor-text">
+          <RichText content={text} alters={alters} terms={terms} />
+        </div>
+      )}
 
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 py-2">

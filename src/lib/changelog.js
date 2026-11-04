@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 4, 2026",
+    changes: [
+      { type: "improve", text: "Notes now have the full text tools: formatting, @mentions, ~commands and signposts. Tap Done to finish a note; it still saves as you type." },
+    ],
+  },
+  {
     date: "November 3, 2026",
+    version: "0.347.0",
     changes: [
       { type: "feature", text: "Notes & lists is now its own page, in your app's colours, from the sidebar and the dashboard. Search finds your notes, lists and cards, and goals open them there." },
       { type: "feature", text: "Goals can count your lists and flash cards: \"finish this list\", \"make 10 cards\" or \"study this deck for 20 minutes\", with study time on the activity timer." },
