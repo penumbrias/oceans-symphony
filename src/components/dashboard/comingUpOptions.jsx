@@ -24,6 +24,7 @@ export function ComingUpPanel({ settings, scope = "widget", title }) {
       limitConfig={widgetLimitConfig(settings, scope)}
       showPlans={settings?.upcomingPlans !== false}
       showOverdue={settings?.upcomingOverdue !== false}
+      showEvents={settings?.upcomingEvents !== false}
       showRecurring={settings?.recurring !== false}
       recurringKinds={recurringKindsOf(settings)}
       recurringShowDone={recurringShowDoneOf(settings)} />
@@ -51,6 +52,9 @@ export function comingUpPlanFields({ scope = "widget", when = () => true } = {})
     { key: "upcomingOverdue", type: "toggle", label: "Overdue plans", default: true, group: "Plans",
       help: "Plans whose time has passed that you haven't marked yet.",
       showIf: plansOn },
+    { key: "upcomingEvents", type: "toggle", label: "Events", default: true, group: "Plans",
+      help: "Paydays, birthdays and other dates from the planner, as far ahead as the plans.",
+      showIf: when },
   ];
 }
 

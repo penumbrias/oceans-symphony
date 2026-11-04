@@ -34,6 +34,7 @@ import { getActiveActivities, ACTIVE_ACTIVITY_EVENT, plannedEndMsFor } from "@/l
 import { getActiveSystemId } from "@/lib/systems";
 import { planMark } from "@/lib/planner/planMark";
 import { datesForDay } from "@/lib/importantDates";
+import EventChips from "@/components/planner/EventChips";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 
@@ -1053,6 +1054,8 @@ export default function WeekCanvas({
                       </div>
                     );
                   })()}
+                  {/* Events (payday, birthdays): a date, never a block. */}
+                  <EventChips day={day} compact={dayCount !== 1} className="justify-center mt-0.5" />
                 </div>
               );
             })}

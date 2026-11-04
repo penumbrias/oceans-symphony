@@ -34,6 +34,7 @@ const TYPE_ICONS = {
   journal:   "📓",
   bulletin:  "📌",
   activity:  "⚡",
+  event:     "🗓️",
   task:      "☑️",
   emotion:   "💜",
   status:    "💬",
@@ -67,6 +68,7 @@ function getTypeLabels(t) {
     journal:   "Journals",
     bulletin:  "Bulletins",
     activity:  "Activities",
+    event:     "Events",
     task:      "Tasks",
     emotion:   "Emotions",
     status:    "Custom Statuses",
@@ -168,6 +170,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const { data: activities = [] } = useQuery({
     queryKey: ["searchActivities"],
     queryFn: () => safeList(base44.entities.Activity, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: plannerEvents = [] } = useQuery({
+    queryKey: ["searchPlannerEvents"],
+    queryFn: () => safeList(base44.entities.PlannerEvent, "-created_date", 300),
     staleTime: stale, enabled,
   });
   const { data: sleep = [] } = useQuery({
@@ -341,7 +348,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep, activityCategories,
+    activities, sleep, activityCategories, plannerEvents,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -368,7 +375,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep, activityCategories,
+    activities, sleep, activityCategories, plannerEvents,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -433,7 +440,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
 
   const TYPE_ORDER = [
     "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn",
-    "activity", "task", "reminder", "checkin", "diarycard",
+    "activity", "event", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];
 

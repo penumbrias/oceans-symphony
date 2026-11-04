@@ -13,6 +13,8 @@ import { startOfDay, endOfDay } from "date-fns";
 import { base44, localEntities } from "@/api/base44Client";
 import { collectAlterDates, datesForDay } from "@/lib/importantDates";
 import { journalEntryDate } from "@/lib/journalDate";
+import { eventsOnDay } from "@/lib/plannerEventDates";
+import { PLANNER_EVENTS_KEY } from "@/lib/plannerEvents";
 
 const parseDate = (v) => (v instanceof Date ? v : new Date(v));
 
@@ -45,6 +47,8 @@ export function useTimelineSources() {
   const { data: alterNotes = [] } = useQuery({ queryKey: ["alterNotes"], queryFn: () => base44.entities.AlterNote.list("-created_date", 2000) });
   const { data: dailyTaskTemplates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list() });
 
+  // Events (payday, birthdays) — dates, drawn as chips on the day header.
+  const { data: plannerEvents = [] } = useQuery({ queryKey: PLANNER_EVENTS_KEY, queryFn: () => localEntities.PlannerEvent.list() });
   const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
   const reminderById = useMemo(() => Object.fromEntries((reminders || []).map((r) => [r.id, r])), [reminders]);
 
@@ -52,7 +56,7 @@ export function useTimelineSources() {
     sessions, activities, emotions, alters, customFields, journals, checkIns, categories,
     bulletins, tasks, dailyProgress, symptomSessions, symptomCheckIns, locationRecords,
     statusNotes, symptoms, sleeps, lineageEvents, diaryCards, polls, reminderInstances,
-    reminders, reminderById, reflections, alterNotes, dailyTaskTemplates, importantDates,
+    reminders, reminderById, reflections, alterNotes, dailyTaskTemplates, importantDates, plannerEvents,
   };
 }
 
@@ -119,12 +123,13 @@ export function sliceTimelineDay(src, day, filters = {}) {
   const dayProgress = src.dailyProgress.find((p) => p.date === dateStr) || null;
   const dayHasDailyTasks = !!(dayProgress && Array.isArray(dayProgress.completed_task_ids) && dayProgress.completed_task_ids.length && dayProgress.created_date);
   const dayImportantDates = datesForDay(src.importantDates, day);
+  const dayPlannerEvents = eventsOnDay(src.plannerEvents || [], day);
 
   const hasData =
     daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 ||
     dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 ||
     daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0 ||
-    dayImportantDates.length > 0 || daySleeps.length > 0 || dayLineage.length > 0 || dayDiaryCards.length > 0 ||
+    dayImportantDates.length > 0 || dayPlannerEvents.length > 0 || daySleeps.length > 0 || dayLineage.length > 0 || dayDiaryCards.length > 0 ||
     dayPolls.length > 0 || dayReminderInstances.length > 0 || dayReflections.length > 0 ||
     dayAlterNotes.length > 0 || dayHasDailyTasks;
 
@@ -136,6 +141,6 @@ export function sliceTimelineDay(src, day, filters = {}) {
     locations: dayLocations, statusNotes: dayStatusNotes, sleeps: daySleeps,
     lineageEvents: dayLineage, diaryCards: dayDiaryCards, polls: dayPolls,
     reminderInstances: dayReminderInstances, reflections: dayReflections, alterNotes: dayAlterNotes,
-    dailyProgress: dayProgress, importantDates: dayImportantDates,
+    dailyProgress: dayProgress, importantDates: dayImportantDates, plannerEvents: dayPlannerEvents,
   };
 }

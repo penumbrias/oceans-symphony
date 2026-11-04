@@ -36,6 +36,7 @@ import { Square,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music, X
 , Map, MapPin,
   HeartHandshake, Target, Image as ImageIcon, ArrowLeftRight, Gift,
+  CalendarHeart,
 } from "lucide-react";
 import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
 import { LINKED_PROFILE_WIDGETS } from "@/v2/linkedProfileWidgets";
@@ -98,6 +99,10 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { redactWhispers } from "@/lib/whisperRedact";
 import { useQueryClient } from "@tanstack/react-query";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
+import EventSheet from "@/components/planner/EventSheet";
+import { eventChipColor } from "@/components/planner/EventChips";
+import { usePlannerEvents } from "@/lib/plannerEvents";
+import { eventsOnDay } from "@/lib/plannerEventDates";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -579,6 +584,11 @@ function TodayWidget({ recurring = true, recurringKinds = "all", recurringShowDo
   const [detailItem, setDetailItem] = React.useState(null);
   const activities = useList("activities", "Activity");
   const tasks = useList("tasks", "Task");
+  // Today's events (payday, birthdays): a date, so no tick box — they
+  // never need marking done. Tapping one opens the event sheet.
+  const plannerEvents = usePlannerEvents();
+  const todaysEvents = React.useMemo(() => eventsOnDay(plannerEvents, new Date()), [plannerEvents]);
+  const [openedEvent, setOpenedEvent] = React.useState(null);
   // Plans for today: timed ones AND the day's untimed intentions (the
   // planner's day "+" writes planned_date with no timestamp) — those used
   // to be missing here entirely, so a plan made that way only appeared via
@@ -620,7 +630,15 @@ function TodayWidget({ recurring = true, recurringKinds = "all", recurringShowDo
         item={detailItem}
         onClose={() => setDetailItem(null)}
       />
-      {plans.length === 0 && due.length === 0 && (
+      {openedEvent && <EventSheet request={openedEvent} onClose={() => setOpenedEvent(null)} />}
+      {todaysEvents.map((occ) => (
+        <Row key={`ev-${occ.event.id}`}
+          left={<CalendarHeart className="w-3.5 h-3.5 flex-shrink-0" style={{ color: eventChipColor(occ.event) }} />}
+          primary={occ.event.title}
+          right={tr("event.kind")}
+          onClick={() => setOpenedEvent({ event: occ.event, occurrenceKey: occ.key })} />
+      ))}
+      {plans.length === 0 && due.length === 0 && todaysEvents.length === 0 && (
         <button type="button" onClick={() => setAddOpen(true)} className="text-left w-full">
           <Muted>{tr("widget.today.empty")} — {tr("widget.today.tapToAdd")}</Muted>
         </button>
