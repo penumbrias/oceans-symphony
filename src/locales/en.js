@@ -619,6 +619,16 @@ export default {
 
   // ── Planner events (dates to remember: payday, birthdays) ──
   "event.kind": "Event",
+  "event.remind": "Remind me",
+  "event.remindHint": "When to remind you",
+  "event.remind.0": "On the day",
+  "event.remind.1": "The day before",
+  "event.remind.7": "A week before",
+  "event.remindAt": "At",
+  "event.remindSummary": "Reminder {days}, at {time}",
+  "event.remindShort.0": "on the day",
+  "event.remindShort.1": "the day before",
+  "event.remindShort.7": "a week before",
   "event.toggle": "It's an event",
   "event.toggleHint": "A date to remember, like payday or a birthday. No time, nothing to mark done, and it can repeat.",
   "event.namePlaceholder": "Name it (e.g. Payday!)",

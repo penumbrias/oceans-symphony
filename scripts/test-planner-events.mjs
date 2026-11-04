@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import {
   occurrencesBetween, eventsOnDay, nextOccurrence, upcomingOccurrences, occursOn,
-  parseDayKey, dayKey, yearsSinceFirst, eventIsPast,
+  parseDayKey, dayKey, yearsSinceFirst, eventIsPast, eventReminderFires, reminderDaysOf,
 } from "../src/lib/plannerEventDates.js";
 
 let passed = 0;
@@ -74,6 +74,21 @@ test("broken records show nowhere and never throw", () => {
     assert.deepEqual(occurrencesBetween(ev, d("2026-01-01"), d("2026-12-31")), []);
   }
   assert.equal(dayKey(new Date(2026, 0, 5)), "2026-01-05");
+});
+
+test("reminders: on the day, the day before, a week before", () => {
+  const now = new Date(2026, 10, 4, 10, 0).getTime(); // Wed 4 Nov, 10:00
+  const pay = { id: "p", title: "Payday", date: "2026-11-06", repeat: "biweekly", reminders: [0, 1], reminder_time: "08:30" };
+  const fires = eventReminderFires([pay], { now, horizonDays: 15 });
+  const fmt = (f) => `${dayKey(new Date(f.fireMs))} ${new Date(f.fireMs).getHours()}:${new Date(f.fireMs).getMinutes()} -${f.daysBefore}`;
+  assert.deepEqual(fires.map(fmt), ["2026-11-05 8:30 -1", "2026-11-06 8:30 -0", "2026-11-19 8:30 -1"]);
+  // Today's 08:30 has already passed; a date with no reminders never fires.
+  const today = { id: "t", title: "Today", date: "2026-11-04", reminders: [0] };
+  assert.equal(eventReminderFires([today, { id: "x", date: "2026-11-05" }], { now }).length, 0);
+  // A week-before reminder for a date just past the horizon still fires inside it.
+  const bday = { id: "b", title: "Birthday", date: "1990-11-20", repeat: "yearly", reminders: [7] };
+  assert.deepEqual(eventReminderFires([bday], { now, horizonDays: 10 }).map((f) => dayKey(new Date(f.fireMs))), ["2026-11-13"]);
+  assert.deepEqual(reminderDaysOf({ reminders: [7, "1", 3, 1] }), [1, 7]);
 });
 
 console.log(`\n${passed} passed`);

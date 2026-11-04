@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { CalendarHeart, ChevronLeft, Repeat } from "lucide-react";
+import { Bell, CalendarHeart, ChevronLeft, Repeat } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -35,7 +35,9 @@ import {
 } from "@/lib/plannerEvents";
 import {
   EVENT_REPEATS, repeatOf, parseDayKey, dayKey, nextOccurrence, yearsSinceFirst,
+  EVENT_REMINDER_DAYS, reminderDaysOf, reminderTimeOf,
 } from "@/lib/plannerEventDates";
+import { ensureEventReminderPermission } from "@/lib/eventReminderScheduler";
 import { normalizeHex } from "@/lib/planTagColor";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
@@ -56,6 +58,14 @@ function aYearOn(key) {
   if (!d) return key;
   d.setFullYear(d.getFullYear() + 1);
   return dayKey(d);
+}
+
+// "On the day and the day before, at 09:00" — the reminder line.
+export function eventReminderSummary(ev, tr) {
+  const days = reminderDaysOf(ev);
+  if (!days.length) return "";
+  const list = days.map((d) => tr(`event.remindShort.${d}`)).join(", ");
+  return tr("event.remindSummary", { days: list, time: reminderTimeOf(ev) });
 }
 
 // "Every 2 weeks from Fri 6 Nov 2026 until …" — shared with the plans list.
@@ -99,6 +109,8 @@ export default function EventSheet({ request, onClose, onBack = null }) {
       notes: ev?.notes || request.notes || "",
       tagColor: ev?.tag_color || null,
       alterIds: ev?.alter_ids || request.alterIds || [],
+      reminders: reminderDaysOf(ev),
+      reminderTime: reminderTimeOf(ev),
     });
   }, [request]);
 
@@ -115,6 +127,7 @@ export default function EventSheet({ request, onClose, onBack = null }) {
     who: form.alterIds.length > 0,
     notes: !!form.notes.trim(),
     tag: !!normalizeHex(form.tagColor || ""),
+    remind: form.reminders.length > 0,
   };
   const isOpen = (k) => open[k] ?? has[k];
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !isOpen(k) }));
@@ -133,8 +146,13 @@ export default function EventSheet({ request, onClose, onBack = null }) {
         notes: form.notes,
         tagColor: form.tagColor,
         alterIds: form.alterIds,
+        reminders: form.reminders,
+        reminderTime: form.reminderTime,
       }, { alters, terms: t });
       if (!rec) return; // backed out of the whisper warning
+      // Ask for notification permission the first time a reminder is on.
+      // Saving the event re-syncs the OS queue (useEventReminderSync).
+      if (form.reminders.length) await ensureEventReminderPermission();
       qc.invalidateQueries({ queryKey: PLANNER_EVENTS_KEY });
       toast.success(tr("event.saved"));
       onClose?.();
@@ -219,6 +237,11 @@ export default function EventSheet({ request, onClose, onBack = null }) {
           {years && (
             <p className="text-xs text-muted-foreground">
               {tr("event.years", { count: years, year: parseDayKey(existing.date).getFullYear() })}
+            </p>
+          )}
+          {reminderDaysOf(existing).length > 0 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Bell className="w-3.5 h-3.5 flex-shrink-0" />{eventReminderSummary(existing, tr)}
             </p>
           )}
         </div>
@@ -311,6 +334,7 @@ export default function EventSheet({ request, onClose, onBack = null }) {
           label={form.alterIds.length && !isOpen("who") ? `${tr("planner.who")} · ${form.alterIds.length}` : tr("planner.who")} />
         <DetailChip open={isOpen("notes")} has={has.notes} onToggle={() => toggle("notes")} label={tr("planner.notes")} />
         <DetailChip open={isOpen("tag")} has={has.tag} onToggle={() => toggle("tag")} label={tr("planner.colorTag")} />
+        <DetailChip open={isOpen("remind")} has={has.remind} onToggle={() => toggle("remind")} label={tr("event.remind")} />
       </div>
       {isOpen("who") && (
         <div>
@@ -337,6 +361,30 @@ export default function EventSheet({ request, onClose, onBack = null }) {
       {isOpen("tag") && (
         <PlanColorTagPicker value={form.tagColor} onChange={(hex) => set({ tagColor: normalizeHex(hex || "") || null })}
           hint={tr("event.colorHint")} />
+      )}
+
+      {isOpen("remind") && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Bell className="w-3 h-3" /> {tr("event.remindHint")}</p>
+          <div className="flex flex-wrap gap-1" role="group" aria-label={tr("event.remind")}>
+            {EVENT_REMINDER_DAYS.map((d) => {
+              const on = form.reminders.includes(d);
+              return (
+                <button key={d} type="button" aria-pressed={on} className={chipCls(on)}
+                  onClick={() => set({ reminders: on ? form.reminders.filter((x) => x !== d) : [...form.reminders, d].sort((a, b) => a - b) })}>
+                  {tr(`event.remind.${d}`)}
+                </button>
+              );
+            })}
+          </div>
+          {form.reminders.length > 0 && (
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+              {tr("event.remindAt")}
+              <input type="time" value={form.reminderTime} onChange={(e) => set({ reminderTime: e.target.value || "09:00" })}
+                className="h-8 px-2 rounded-lg border border-input bg-background text-sm text-foreground" />
+            </label>
+          )}
+        </div>
       )}
 
       <Button className="w-full" disabled={!canSave || saving} onClick={save}>

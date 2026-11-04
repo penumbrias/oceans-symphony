@@ -101,6 +101,7 @@ import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNat
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
 import { usePlanReminderSync } from '@/lib/planReminderScheduler';
+import { useEventReminderSync } from '@/lib/eventReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -143,6 +144,8 @@ const AuthenticatedApp = () => {
   // an alert before each plan starts. Guarded by the user-facing
   // "Remind me before upcoming plans" toggle in Settings → Reminders.
   usePlanReminderSync();
+  // Reminders for planner events (payday, birthdays) the person turned on.
+  useEventReminderSync();
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();

@@ -5,6 +5,9 @@ import {
 } from "date-fns";
 import { countableMinutes, statusFor, visualForStatus } from "@/lib/activityStatus";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
+import { usePlannerEvents } from "@/lib/plannerEvents";
+import { occurrencesBetween } from "@/lib/plannerEventDates";
+import { eventChipColor } from "@/components/planner/EventChips";
 import { dayTagColor, taggedPlansForDay, textOn, tagRank, eventDotColor, dayActivityColor, softFill } from "@/lib/planTagColor";
 
 // Events without a colour of their own get a faint theme colour, the same one
@@ -32,7 +35,7 @@ function eventDots(list) {
     .map((a) => { const own = eventDotColor(a); return { id: a.id, color: own || NO_COLOR_DOT, opacity: (() => { const v = visualForStatus(statusFor(a)); return !own || v.dashed ? 1 : v.fillOpacity; })() }; });
 }
 
-function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, onDayClick, drag }) {
+function MiniMonth({ monthDate, byDay, datesByDay = {}, maxMinutes, weekStartsOn, onMonthClick, onDayClick, drag }) {
   const monthStart = startOfMonth(monthDate);
   const monthEnd = endOfMonth(monthDate);
   const gridStart = startOfWeek(monthStart, { weekStartsOn });
@@ -69,6 +72,10 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
           const tagNames = taggedPlansForDay(list).map((a) => a.activity_name || "Plan").join(", ");
           const actColor = inMonth ? (dominantActivityColor(list) || dayActivityColor(list, countableMinutes)) : null;
           const dots = inMonth ? eventDots(list) : [];
+          // Planner events (payday, birthdays) ring the day in the event's
+          // colour — an outline, so it sits beside the today/range rings.
+          const dates = inMonth ? (datesByDay[key] || []) : [];
+          const ring = dates.length ? eventChipColor(dates[0].event) : null;
           // A tagged plan wins; else a logged activity tints the day in ITS
           // colour (as in the month view); else the theme heat-map.
           const bg = tag ? tag : !inMonth
@@ -87,8 +94,8 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
               {...(drag ? drag.cellProps(d) : {})}
               onClick={(e) => { e.stopPropagation(); if (!drag?.suppressClick()) onDayClick?.(d); }}
               className={`relative aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""} ${drag?.inRange(d) ? "ring-1 ring-primary" : ""}`}
-              style={{ backgroundColor: bg, ...(tag ? { color: textOn(tag) } : null), ...(drag?.dragging ? { touchAction: "none" } : null) }}
-              title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}${tag ? ` — ${tagNames}` : ""}${list.length ? ` — ${list.map((a) => a.activity_name || "Plan").join(", ")}` : ""}` : undefined}
+              style={{ backgroundColor: bg, ...(tag ? { color: textOn(tag) } : null), ...(ring ? { outline: `1.5px solid ${ring}`, outlineOffset: "-1.5px" } : null), ...(drag?.dragging ? { touchAction: "none" } : null) }}
+              title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}${tag ? ` — ${tagNames}` : ""}${list.length ? ` — ${list.map((a) => a.activity_name || "Plan").join(", ")}` : ""}${dates.length ? ` — ${dates.map((o) => o.event.title).join(", ")}` : ""}` : undefined}
             >
               {inMonth ? format(d, "d") : ""}
               {dots.length > 0 && (
@@ -145,6 +152,18 @@ export default function ActivityYearView({
     return out;
   }, [activities]);
 
+  // Every planner event date this year, by day.
+  const plannerEvents = usePlannerEvents();
+  const datesByDay = useMemo(() => {
+    const out = {};
+    const from = new Date(year, 0, 1);
+    const to = new Date(year, 11, 31);
+    for (const ev of plannerEvents) {
+      for (const occ of occurrencesBetween(ev, from, to, { max: 400 })) (out[occ.key] ||= []).push(occ);
+    }
+    return out;
+  }, [plannerEvents, year]);
+
   const maxMinutes = useMemo(() => {
     let max = 0;
     for (const list of Object.values(byDay)) {
@@ -161,6 +180,7 @@ export default function ActivityYearView({
           key={m.toISOString()}
           monthDate={m}
           byDay={byDay}
+          datesByDay={datesByDay}
           maxMinutes={maxMinutes}
           weekStartsOn={weekStartsOn}
           onMonthClick={onMonthClick}
