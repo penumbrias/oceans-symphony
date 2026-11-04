@@ -1071,6 +1071,8 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **CRITICAL — keep global search current.** Global search is meant to find *everything*. Whenever you add a new content-bearing entity or a new findable surface (a new page, a new kind of record, a new profile type like subsystems), you MUST add it to global search in the same change — steps 1–4 above. When you add a profile/detail route, point existing records at it (e.g. groups + subsystems now route to `/group/:id`, not `/groups`). If a surface holds user-authored text or names, it should be searchable. Don't let search silently fall behind the feature set.
 
+**Scale + privacy (v0.351.0).** Fetch EVERY row in `GlobalSearch.jsx` — never a `list(sort, N)` cap (a lifelong app; capped lists made old records unfindable). A query is split into words (quotes keep a phrase) and a record must hold every word; `searchIndex` ranks title matches first, then newest, and the dropdown shows 5 per kind with "Show more". Typing is debounced + deferred. Private things follow the private-channel rule: inbox `AlterMessage`s (`to_alter_id`) and private channels are indexed only while one of their people is in front. Tests: `node scripts/test-global-search.mjs`.
+
 **Gotchas.** `searchableText` is pre-built per record — case-insensitive substring scan, no Fuse/Lunr. Strip HTML out of rich content (chat/bulletin) before indexing. Date strings are baked in multiple formats so users can query "March 2025" / "2025-03" / "Mar 12". Don't move filtering into render — keep it in the index.
 
 ---
