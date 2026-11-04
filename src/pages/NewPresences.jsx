@@ -15,6 +15,7 @@ import CreateAlterFromPresence from "@/components/presences/CreateAlterFromPrese
 import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import RichText from "@/components/shared/RichText";
 
 function AlterChip({ alter, onRemove }) {
   const formatAlter = useAlterLabel();
@@ -233,7 +234,7 @@ export default function NewPresences() {
                   )}
                 </div>
 
-                {p.notes && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{p.notes}</p>}
+                {p.notes && <p className="text-sm text-foreground/90 whitespace-pre-wrap"><RichText content={p.notes} /></p>}
 
                 {resolved && <p className="text-xs text-emerald-500">Identified as <strong>{resolved.name}</strong></p>}
 

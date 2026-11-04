@@ -9,6 +9,7 @@ import {
   getTherapyKeyword, setTherapyKeyword, sanitizeTherapyKeyword, isPendingTherapyNote,
   DEFAULT_THERAPY_KEYWORD, THERAPY_KEYWORD_EVENT, THERAPY_NOTES_EVENT,
 } from "@/lib/therapyCommand";
+import RichText from "@/components/shared/RichText";
 
 // The user's current ~therapy word, kept live across the app.
 export function useTherapyKeyword() {
@@ -90,7 +91,7 @@ export default function TherapyNotesCard({ notes = [] }) {
                   <p className="text-[0.6875rem] text-muted-foreground">
                     {fmt(n.timestamp)}{n.source ? ` · ${n.source}` : ""}
                   </p>
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{n.note}</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap"><RichText content={n.note} /></p>
                 </li>
               ))}
             </ul>

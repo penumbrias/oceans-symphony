@@ -5,10 +5,11 @@ import { CURRICULUM } from "./TopicView";
 import { format } from "date-fns";
 import { ChevronLeft, FileText, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import RichText from "@/components/shared/RichText";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 // One saved reflection — read-only by default, with inline edit (each response
 // becomes an editable field) and delete. SupportJournalEntry.responses is a
@@ -78,8 +79,8 @@ function ReflectionCard({ entry }) {
         {editing ? (
           <div className="space-y-2">
             {Object.keys(entry.responses || {}).map((fieldId) => (
-              <Textarea key={fieldId} value={draft[fieldId] ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, [fieldId]: e.target.value }))}
+              <MentionTextarea key={fieldId} commands={false} value={String(draft[fieldId] ?? "")}
+                onChange={(v) => setDraft((d) => ({ ...d, [fieldId]: v }))}
                 className="text-sm min-h-[56px]" />
             ))}
             <div className="flex gap-1.5">
@@ -91,7 +92,7 @@ function ReflectionCard({ entry }) {
           filled.length > 0
             ? filled.map(([fieldId, value]) => (
                 <div key={fieldId}>
-                  <p className="text-xs text-foreground/70 italic leading-relaxed">"{String(value)}"</p>
+                  <p className="text-xs text-foreground/70 italic leading-relaxed">"<RichText content={String(value)} />"</p>
                 </div>
               ))
             : <p className="text-xs text-muted-foreground italic">No content.</p>

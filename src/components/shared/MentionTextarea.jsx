@@ -67,7 +67,7 @@ function SuggestionRow({ alter, label, onSelect }) {
 }
 
 const MentionTextarea = forwardRef(function MentionTextarea(
-  { value = "", onChange, alters = [], signposts = false, commands = true, systemName, placeholder, className, rows, toolbar = false, ...textareaProps },
+  { value = "", onChange, alters = [], signposts = false, commands = true, systemName, placeholder, className, rows, toolbar = true, ...textareaProps },
   forwardedRef
 ) {
   const terms = useTerms();
@@ -75,9 +75,10 @@ const MentionTextarea = forwardRef(function MentionTextarea(
   const innerRef = useRef(null);
   useImperativeHandle(forwardedRef, () => innerRef.current, []);
   // toolbar: the shared formatting toolbar under the box while it's focused
-  // (v0.311.0). Only for hosts whose saved text renders through a rich
-  // renderer (RichText / renderBulletinContent) — elsewhere the tags would
-  // show as text.
+  // (v0.311.0). On by default since v0.347.3 — every text box gets it, so
+  // wherever the saved text is shown must render it through RichText (or
+  // plainNoteText for a one-line preview). Pass toolbar={false} only where
+  // the host draws its own MiniToolbar.
   const menuZ = usePopupZ(240);
   const fieldToolbar = useFieldToolbar({ enabled: toolbar, fieldRef: innerRef, value, onChange });
 

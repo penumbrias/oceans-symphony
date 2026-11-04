@@ -153,6 +153,7 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
               </div>
             </div>
             <MentionTextarea
+              toolbar={false}
               signposts
               ref={textareaRef}
               value={content}

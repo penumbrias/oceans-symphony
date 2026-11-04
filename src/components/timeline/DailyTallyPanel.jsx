@@ -7,6 +7,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { journalEntryDate } from "@/lib/journalDate";
 import { clockPattern } from "@/lib/timeFormat";
+import RichText from "@/components/shared/RichText";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -278,7 +279,7 @@ export default function DailyTallyPanel({
               .map(n => (
                 <div key={n.id} className="flex items-start gap-1.5">
                   <span className="text-muted-foreground flex-shrink-0">💬</span>
-                  <span className="text-xs text-foreground flex-1 min-w-0 break-words">{n.note}</span>
+                  <span className="text-xs text-foreground flex-1 min-w-0 break-words"><RichText content={n.note} /></span>
                 </div>
               ))}
           </div>

@@ -362,7 +362,7 @@ export default function SystemCheckInPage() {
                       <CheckCircle2 className="w-3.5 h-3.5" /> Breaths taken
                     </div>
                   )}
-                  {currentCheckIn.step1_arrive.notes && <p className="text-sm text-foreground">{currentCheckIn.step1_arrive.notes}</p>}
+                  {currentCheckIn.step1_arrive.notes && <p className="text-sm text-foreground"><RichText content={currentCheckIn.step1_arrive.notes} /></p>}
                 </CardContent>
               </Card>
             )}
@@ -403,8 +403,8 @@ export default function SystemCheckInPage() {
                       </p>
                     );
                   })()}
-                  {currentCheckIn.step2_notice.sensations && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Sensations: </span>{currentCheckIn.step2_notice.sensations}</p>}
-                  {currentCheckIn.step2_notice.notes && <p className="text-sm text-foreground">{currentCheckIn.step2_notice.notes}</p>}
+                  {currentCheckIn.step2_notice.sensations && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Sensations: </span><RichText content={currentCheckIn.step2_notice.sensations} /></p>}
+                  {currentCheckIn.step2_notice.notes && <p className="text-sm text-foreground"><RichText content={currentCheckIn.step2_notice.notes} /></p>}
                 </CardContent>
               </Card>
             )}
@@ -437,7 +437,7 @@ export default function SystemCheckInPage() {
                             </p>
                           )}
                           {(p.note || "").trim() && (
-                            <p className="text-sm text-foreground whitespace-pre-wrap">{p.note}</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap"><RichText content={p.note} /></p>
                           )}
                         </div>
                       );

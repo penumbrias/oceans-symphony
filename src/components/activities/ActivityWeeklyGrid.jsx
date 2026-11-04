@@ -59,6 +59,7 @@ import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSl
 import { statusFor, visualForStatus, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { useNavigate } from "react-router-dom";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
+import RichText from "@/components/shared/RichText";
 
 // Quick-plan row with tap vs press-and-hold gestures. Both open the
 // shared details sheet (read it, resolve it, start it, edit it).
@@ -917,7 +918,7 @@ if (isSameCell) {
                     <span className="font-semibold text-foreground">{a.activity_name}</span>
                     {a.duration_minutes && <span className="text-muted-foreground ml-auto">{a.duration_minutes}m</span>}
                   </div>
-                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
+                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug"><RichText content={a.notes} /></p>}
                 </button>
               ))}
 
@@ -933,7 +934,7 @@ if (isSameCell) {
                     <span className="font-semibold text-foreground">{a.activity_name}</span>
                     <span className="text-muted-foreground ml-1 opacity-70">· logged</span>
                   </div>
-                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
+                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug"><RichText content={a.notes} /></p>}
                 </button>
               ))}
 
@@ -1392,7 +1393,7 @@ if (isSameCell) {
                                   <div key={a.id}>
                                     <span className="font-semibold">{a.activity_name}</span>
                                     {a.duration_minutes ? <span className="ml-1 opacity-80">{a.duration_minutes}m</span> : null}
-                                    {a.notes ? <p className="italic opacity-80 leading-tight mt-0.5">{a.notes}</p> : null}
+                                    {a.notes ? <p className="italic opacity-80 leading-tight mt-0.5"><RichText content={a.notes} /></p> : null}
                                   </div>
                                 ))}
                               </div>
@@ -1535,7 +1536,7 @@ if (isSameCell) {
                                     </span>
                                     {pill.notes && <span style={{ fontSize: Math.max(6, fs * 0.85), marginLeft: 1 }}>💭</span>}
                                     {isExpanded && pill.notes && (
-                                      <p className="text-white/80 italic text-xs ml-1">{pill.notes}</p>
+                                      <p className="text-white/80 italic text-xs ml-1"><RichText content={pill.notes} /></p>
                                     )}
                                     {showAlters && pillAlters.slice(0, isExpanded ? 6 : 2).map(a => (
                                       <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"

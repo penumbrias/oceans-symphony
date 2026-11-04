@@ -33,6 +33,7 @@ import { changeFront } from "@/lib/setFront";
 import { triggerPatch } from "@/lib/triggerCategories";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { alterPictureStyle } from "@/lib/imageFraming";
+import RichText from "@/components/shared/RichText";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -935,7 +936,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false, onlyAl
             className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between gap-2"
           >
             {latestStatusNote
-              ? <span className="truncate">💬 {latestStatusNote.note}</span>
+              ? <span className="truncate">💬 <RichText content={latestStatusNote.note} /></span>
               : <span className="italic">Set a new status...</span>
             }
             <Edit2 className="w-3 h-3 flex-shrink-0" />

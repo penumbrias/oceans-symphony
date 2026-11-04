@@ -278,7 +278,7 @@ function MentionComposeModal({ onInsert, onClose }) {
           <p className="font-semibold text-sm flex items-center gap-1.5"><AtSign className="w-4 h-4" /> Mentions &amp; commands</p>
           <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
-        <MentionTextarea
+        <MentionTextarea toolbar={false}
           value={text}
           onChange={setText}
           alters={alters}
