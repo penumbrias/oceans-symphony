@@ -1,5 +1,5 @@
 import { loadStore as loadUnlockedStore } from "@/lib/localUnlockedGrocery";
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useDeferredValue } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
@@ -7,7 +7,9 @@ import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
-import { buildSearchIndex, searchIndex, groupResults } from "@/lib/globalSearch";
+import { buildSearchIndex, searchIndex, groupResults, queryWords } from "@/lib/globalSearch";
+import { buildGridItems } from "@/lib/navCatalogue";
+import { useModPagesVersion } from "@/lib/mods/registry";
 import { useExperimentalOn, isExperimentalPath } from "@/lib/experimentalFeatures";
 import { listSystems } from "@/lib/systems";
 import { listMods, MODS_QUERY_KEY } from "@/lib/mods/modStore";
@@ -59,6 +61,11 @@ const TYPE_ICONS = {
   system:    "🪞",
   asset:     "🖼️",
   mod:       "🧩",
+  page:      "🧭",
+  front:     "🕰️",
+  groupnote: "🗒️",
+  contactnote: "🗒️",
+  relationship: "🔗",
 };
 
 function getTypeLabels(t) {
@@ -93,22 +100,28 @@ function getTypeLabels(t) {
     system:    t.Systems,
     asset:     "Assets",
     mod:       "Mods",
+    page:      "Pages",
+    front:     `${t.Fronting} notes & triggers`,
+    groupnote: "Group notes",
+    contactnote: "Contact notes",
+    relationship: "Relationships",
   };
 }
 
-function highlightMatch(text, query) {
-  if (!text || !query) return text;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="bg-primary/20 text-primary rounded px-0.5">
-        {text.slice(idx, idx + query.length)}
-      </mark>
-      {text.slice(idx + query.length)}
-    </>
-  );
+// A few hits per kind, then "Show more" adds this many at a time — so a
+// search over years of records stays readable and quick to draw.
+const PER_TYPE = 5;
+const MORE_STEP = 20;
+
+// Mark every word of the query where it appears in a result's line.
+function highlightMatch(text, words) {
+  if (!text || !words?.length) return text;
+  const escaped = words.filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!escaped.length) return text;
+  const parts = String(text).split(new RegExp(`(${escaped.join("|")})`, "ig"));
+  return parts.map((part, i) => (i % 2 === 1
+    ? <mark key={i} className="bg-primary/20 text-primary rounded px-0.5">{part}</mark>
+    : <React.Fragment key={i}>{part}</React.Fragment>));
 }
 
 // autoFocus: used when the search is opened as its own sheet (UI v2 top
@@ -144,47 +157,47 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   // background queries when the user actually engages the input.
   const { data: journals = [] } = useQuery({
     queryKey: ["searchJournals"],
-    queryFn: () => safeList(base44.entities.JournalEntry, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.JournalEntry, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: supportJournals = [] } = useQuery({
     queryKey: ["searchSupportJournals"],
-    queryFn: () => safeList(base44.entities.SupportJournalEntry, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.SupportJournalEntry, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: bulletins = [] } = useQuery({
     queryKey: ["searchBulletins"],
-    queryFn: () => safeList(base44.entities.Bulletin, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.Bulletin, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: bulletinComments = [] } = useQuery({
     queryKey: ["searchBulletinComments"],
-    queryFn: () => safeList(base44.entities.BulletinComment, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.BulletinComment, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: polls = [] } = useQuery({
     queryKey: ["searchPolls"],
-    queryFn: () => safeList(base44.entities.Poll, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.Poll, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: activities = [] } = useQuery({
     queryKey: ["searchActivities"],
-    queryFn: () => safeList(base44.entities.Activity, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.Activity, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: plannerEvents = [] } = useQuery({
     queryKey: ["searchPlannerEvents"],
-    queryFn: () => safeList(base44.entities.PlannerEvent, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.PlannerEvent, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: sleep = [] } = useQuery({
     queryKey: ["searchSleep"],
-    queryFn: () => safeList(base44.entities.Sleep, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.Sleep, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: tasks = [] } = useQuery({
     queryKey: ["searchTasks"],
-    queryFn: () => safeList(base44.entities.Task, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.Task, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: dailyTaskTemplates = [] } = useQuery({
@@ -194,7 +207,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   });
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["searchEmotions"],
-    queryFn: () => safeList(base44.entities.EmotionCheckIn, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.EmotionCheckIn, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: symptoms = [] } = useQuery({
@@ -204,7 +217,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   });
   const { data: symptomCheckIns = [] } = useQuery({
     queryKey: ["searchSymptomCheckIns"],
-    queryFn: () => safeList(base44.entities.SymptomCheckIn, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.SymptomCheckIn, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: groups = [] } = useQuery({
@@ -214,46 +227,72 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   });
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["searchDiaryCards"],
-    queryFn: () => safeList(base44.entities.DiaryCard, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.DiaryCard, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: systemCheckIns = [] } = useQuery({
     queryKey: ["searchSystemCheckIns"],
-    queryFn: () => safeList(base44.entities.SystemCheckIn, "-created_date", 200),
+    queryFn: () => safeList(base44.entities.SystemCheckIn, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: wishes = [] } = useQuery({
     queryKey: ["searchWishes"],
-    queryFn: () => safeList(base44.entities.Wish, "-created_date", 500),
+    queryFn: () => safeList(base44.entities.Wish, "-created_date"),
   });
   const { data: goals = [] } = useQuery({
     queryKey: ["searchGoals"],
-    queryFn: () => safeList(base44.entities.Goal, "-created_date", 500),
+    queryFn: () => safeList(base44.entities.Goal, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: turns = [] } = useQuery({
     queryKey: ["searchTurns"],
-    queryFn: () => safeList(base44.entities.TurnAgreement, "-created_date", 500),
+    queryFn: () => safeList(base44.entities.TurnAgreement, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: goalSteps = [] } = useQuery({
     queryKey: ["searchGoalSteps"],
-    queryFn: () => safeList(base44.entities.GoalStep, "-created_date", 2000),
+    queryFn: () => safeList(base44.entities.GoalStep, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: alterNotes = [] } = useQuery({
     queryKey: ["searchAlterNotes"],
-    queryFn: () => safeList(base44.entities.AlterNote, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.AlterNote, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: alterMessages = [] } = useQuery({
     queryKey: ["searchAlterMessages"],
-    queryFn: () => safeList(base44.entities.AlterMessage, "-created_date", 300),
+    queryFn: () => safeList(base44.entities.AlterMessage, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: reminders = [] } = useQuery({
     queryKey: ["searchReminders"],
     queryFn: () => safeList(base44.entities.Reminder),
+    staleTime: stale, enabled,
+  });
+
+  const { data: frontingSessions = [] } = useQuery({
+    queryKey: ["searchFrontingSessions"],
+    queryFn: () => safeList(base44.entities.FrontingSession, "-start_time"),
+    staleTime: stale, enabled,
+  });
+  const { data: groupNotes = [] } = useQuery({
+    queryKey: ["searchGroupNotes"],
+    queryFn: () => safeList(base44.entities.GroupNote, "-created_date"),
+    staleTime: stale, enabled,
+  });
+  const { data: contactNotes = [] } = useQuery({
+    queryKey: ["searchContactNotes"],
+    queryFn: () => safeList(base44.entities.ContactNote, "-created_date"),
+    staleTime: stale, enabled,
+  });
+  const { data: contactEncounters = [] } = useQuery({
+    queryKey: ["searchContactEncounters"],
+    queryFn: () => safeList(base44.entities.ContactEncounter, "-created_date"),
+    staleTime: stale, enabled,
+  });
+  const { data: relationships = [] } = useQuery({
+    queryKey: ["searchRelationships"],
+    queryFn: () => safeList(base44.entities.AlterRelationship),
     staleTime: stale, enabled,
   });
 
@@ -343,6 +382,10 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     staleTime: stale, enabled,
   });
 
+  // Every page of the app, named in the person's own words.
+  const modPagesV = useModPagesVersion();
+  const pages = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms, modPagesV]);
+
   const index = useMemo(() => buildSearchIndex({
     terms,
     alters, customFieldDefs,
@@ -370,6 +413,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     systems: listSystems(),
     assets,
     mods,
+    pages,
+    frontingSessions,
+    groupNotes,
+    contactNotes, contactEncounters,
+    relationships,
 }), [
     terms,
     alters, customFieldDefs,
@@ -396,15 +444,35 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     contacts,
     assets,
     mods,
+    pages,
+    frontingSessions,
+    groupNotes,
+    contactNotes, contactEncounters,
+    relationships,
 ]);
+
+  // Typing stays smooth on a lifetime of records: the scan runs on a
+  // short pause in typing, at low priority, never on every keystroke.
+  const [settledQuery, setSettledQuery] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setSettledQuery(query), 150);
+    return () => clearTimeout(id);
+  }, [query]);
+  const deferredQuery = useDeferredValue(settledQuery);
+  // Kinds the person opened with "Show more" (reset for every new search).
+  const [shownByType, setShownByType] = useState({});
+  useEffect(() => { setShownByType({}); }, [deferredQuery]);
 
   // Results that open Mods stay out while those are hidden.
   const experimentalFeaturesOn = useExperimentalOn();
   const searchResults = useMemo(() => {
-    const hits = searchIndex(index, query, 80);
+    const hits = searchIndex(index, deferredQuery);
     return experimentalFeaturesOn ? hits : hits.filter((r) => !isExperimentalPath(r.path));
-  }, [index, query, experimentalFeaturesOn]);
+  }, [index, deferredQuery, experimentalFeaturesOn]);
   const groupedResults = useMemo(() => groupResults(searchResults), [searchResults]);
+  // Highlight each word of the query in a result's line.
+  const highlightWords = useMemo(() => queryWords(deferredQuery), [deferredQuery]);
+  const searching = query.trim().length >= 2 && query !== deferredQuery;
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -439,9 +507,9 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn",
+    "page", "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn",
     "activity", "event", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
+    "front", "location", "syschange", "symptom", "group", "groupnote", "contact", "contactnote", "relationship", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];
 
   return (
@@ -467,17 +535,29 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
           {query.length < 2 && (
             <p className="p-4 text-center text-sm text-muted-foreground">Type at least 2 characters to search</p>
           )}
-          {searchResults.length === 0 && query.length >= 2 && (
+          {query.trim().length >= 2 && searching && searchResults.length === 0 && (
+            <p className="p-4 text-center text-sm text-muted-foreground">Searching…</p>
+          )}
+          {searchResults.length === 0 && query.trim().length >= 2 && !searching && (
             <p className="p-4 text-center text-sm text-muted-foreground">No results for "{query}"</p>
+          )}
+          {searchResults.length > 0 && query.trim().length >= 2 && (
+            <p className="px-3 pt-2 text-xs text-muted-foreground">
+              {searchResults.length === 1 ? "1 result" : `${searchResults.length} results`} · best matches first, then newest
+            </p>
           )}
 
           {TYPE_ORDER.map((type) => {
-            const typeResults = groupedResults[type];
-            if (!typeResults?.length) return null;
+            const allOfType = groupedResults[type];
+            if (!allOfType?.length || query.trim().length < 2) return null;
+            const shown = shownByType[type] || PER_TYPE;
+            const typeResults = allOfType.slice(0, shown);
+            const more = allOfType.length - typeResults.length;
             return (
               <div key={type}>
                 <p className="px-3 pt-3 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {TYPE_ICONS[type]} {TYPE_LABELS[type]}
+                  <span className="ml-1 font-normal normal-case tracking-normal">({allOfType.length})</span>
                 </p>
                 {typeResults.map((result) => (
                   <button key={`${result.type}-${result.id}`} onClick={() => handleResultClick(result.path)}
@@ -496,7 +576,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <p className={`text-sm font-medium truncate ${result.isArchived ? "text-muted-foreground" : "text-foreground"}`}>
-                          {result.title}
+                          {highlightMatch(result.title, highlightWords)}
                         </p>
                         {result.isArchived && (
                           <span className="flex-shrink-0 text-[0.625rem] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50">
@@ -506,12 +586,19 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
                       </div>
                       {result.subtitle && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {highlightMatch(result.subtitle, query)}
+                          {highlightMatch(result.subtitle, highlightWords)}
                         </p>
                       )}
                     </div>
                   </button>
                 ))}
+                {more > 0 && (
+                  <button type="button"
+                    onClick={() => setShownByType((m) => ({ ...m, [type]: shown + MORE_STEP }))}
+                    className="w-full px-3 py-2.5 min-h-[44px] text-left text-xs font-medium text-primary hover:bg-muted/50">
+                    Show {Math.min(more, MORE_STEP)} more {TYPE_LABELS[type]?.toLowerCase?.() || ""}{more > MORE_STEP ? ` (${more} left)` : ""}
+                  </button>
+                )}
               </div>
             );
           })}

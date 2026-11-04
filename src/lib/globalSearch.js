@@ -17,9 +17,13 @@ import { nextOccurrence, repeatOf } from "@/lib/plannerEventDates";
  *     pre-built `searchableText` blob per record. Date strings are
  *     baked into the blob in several human + ISO formats so a user
  *     typing "March 2025" or "2025-03" finds records from that month.
- *   - The user's dataset is bounded (hundreds → low thousands of
- *     records), so an in-memory `.includes()` scan is fine. No need
- *     for Fuse/Lunr/FTS — keep it dependency-free.
+ *   - This is a lifelong companion: the index holds EVERY record, never
+ *     "the newest 300". Each record's blob is lower-cased once when the
+ *     index is built; a query is split into words and a record matches
+ *     when it holds every word, in any order. Scanning tens of thousands
+ *     of pre-built blobs is a few milliseconds, so there's no Fuse/Lunr —
+ *     the consumer debounces typing and shows a few hits per kind with
+ *     "show more".
  *
  * Adding a new entity:
  *   1. Add a `build<Name>Records({ items, … })` helper that returns
@@ -249,16 +253,19 @@ export function buildSupportJournalRecords({ items = [] }) {
   });
 }
 
-export function buildBulletinRecords({ items = [] }) {
+export function buildBulletinRecords({ items = [], alters = [] }) {
+  const alterById = new Map((alters || []).map((a) => [a.id, a]));
   return items.map((b) => {
     const content = stripHtml(b.content);
+    const authorIds = b.author_alter_ids?.length ? b.author_alter_ids : (b.author_alter_id ? [b.author_alter_id] : []);
+    const authors = authorIds.map((id) => alterById.get(id)).filter(Boolean).flatMap((a) => [a.name, a.alias]);
     return {
       type: "bulletin",
       id: b.id,
-      title: "Bulletin",
+      title: b.is_pinned ? "Pinned bulletin" : "Bulletin",
       subtitle: snippet(content) || formatDateLabel(b.created_date) || "",
       path: `/bulletin/${b.id}`,
-      searchableText: joinNonEmpty([content, dateSearchBlob(b.created_date)]).toLowerCase(),
+      searchableText: joinNonEmpty([content, ...authors, b.is_pinned ? "pinned" : null, dateSearchBlob(b.created_date)]).toLowerCase(),
       sortDate: b.created_date,
     };
   });
@@ -488,11 +495,13 @@ export function buildSystemRecords({ items = [] }) {
 }
 
 export function buildContactRecords({ items = [] }) {
+  // Archived contacts stay findable (shown dimmed), like archived alters.
   return (items || [])
-    .filter((c) => !c.is_archived)
+    .filter(Boolean)
     .map((c) => ({
       type: "contact",
       id: c.id,
+      isArchived: !!c.is_archived,
       title: c.nickname || c.name || "Contact",
       subtitle: c.relationship_label || "Contact",
       path: `/contacts/${c.id}`,
@@ -634,11 +643,43 @@ export function buildAlterNoteRecords({ items = [], alters = [] }) {
       id: n.id,
       title: snippet(content, 60) || `Note on ${alterName}`,
       subtitle: `${alterName}${n.created_date ? " · " + formatDateLabel(n.created_date) : ""}`,
-      path: alter ? `/alter/${alter.id}` : `/Home`,
+      path: alter ? `/alter/${alter.id}?tab=notes` : `/Home`,
       searchableText: joinNonEmpty([
         content, alterName, dateSearchBlob(n.created_date),
       ]).toLowerCase(),
       sortDate: n.created_date,
+    };
+  });
+}
+
+// Messages left for an alter (AlterMessage). Board posts (`alter_id`) are
+// open; an inbox message (`to_alter_id`) is private, so — like a private
+// chat channel — it's findable only while its sender or recipient is in
+// front.
+export function buildAlterMessageRecords({ items = [], alters = [], frontingIds = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  const here = new Set(frontingIds || []);
+  const label = (id) => { const a = alterById.get(id); return a?.name || a?.alias || null; };
+  return items.filter((m) => {
+    if (!m) return false;
+    if (!m.to_alter_id) return true;
+    return [m.to_alter_id, m.from_alter_id, ...(m.author_alter_ids || [])].some((id) => id && here.has(id));
+  }).map((m) => {
+    const content = stripHtml(m.content || m.note);
+    const inbox = !!m.to_alter_id;
+    const ownerId = inbox ? m.to_alter_id : m.alter_id;
+    const owner = label(ownerId) || "Alter";
+    const from = label(m.from_alter_id);
+    return {
+      type: "note",
+      id: `msg-${m.id}`,
+      title: snippet(content, 60) || (inbox ? `Message to ${owner}` : `Message on ${owner}'s board`),
+      subtitle: [inbox ? (from ? `${from} → ${owner}` : `To ${owner}`) : owner, formatDateLabel(m.created_date)].filter(Boolean).join(" · "),
+      path: ownerId
+        ? (inbox ? `/alter/${ownerId}?tab=private-messages&messageId=${m.id}` : `/alter/${ownerId}?tab=messages`)
+        : "/Home",
+      searchableText: joinNonEmpty([content, owner, from, dateSearchBlob(m.created_date)]).toLowerCase(),
+      sortDate: m.created_date,
     };
   });
 }
@@ -933,6 +974,177 @@ export function buildModRecords({ items = [] }) {
   return out;
 }
 
+// Every page of the app, by its name (in the person's own words — the
+// caller passes buildGridItems' term-aware labels) and a few words people
+// use for what's on it.
+const PAGE_KEYWORDS = {
+  home: "dashboard start widgets",
+  alters: "directory profiles members list",
+  checkin: "meeting check in",
+  journals: "diary writing entries",
+  tasks: "daily tasks habits streak points",
+  todo: "to do todo list tasks",
+  timeline: "history day calendar who was in front",
+  "therapy-report": "report therapist export pdf",
+  "system-map": "inner world map places",
+  analytics: "charts stats patterns insights",
+  activities: "activity tracker log categories",
+  sleep: "sleep tracker night dreams",
+  support: "grounding learn crisis breathing calm",
+  "safety-plan": "safety crisis plan",
+  groups: "subsystems folders",
+  polls: "vote poll",
+  "checkin-log": "emotions feelings log check-ins",
+  reminders: "reminders alarms notifications",
+  "system-history": "lineage fusion split dormancy",
+  "location-history": "places gps where",
+  "history-archive": "recent changes undo restore trash deleted",
+  friends: "friends share",
+  planner: "planner calendar plans schedule events",
+  goals: "goals steps progress",
+  notes: "notes lists flash cards checklist",
+  needs: "needs wishes turns",
+  contacts: "people contacts",
+  bulletins: "bulletin board posts pinned",
+  unblend: "unblend grounding",
+  "get-to-know-me": "questions questionnaire",
+  chat: "chat messages channels",
+  assets: "pictures images files songs",
+  presences: "presences new unknown",
+  mods: "mods add-ons",
+};
+export function buildPageRecords({ items = [] }) {
+  const seen = new Set();
+  return (items || []).filter((p) => p?.id && p.path && p.label && !seen.has(p.path) && seen.add(p.path)).map((p) => ({
+    type: "page",
+    id: `page-${p.id}`,
+    title: p.label,
+    subtitle: "Page",
+    path: p.path,
+    searchableText: joinNonEmpty([p.label, "page", PAGE_KEYWORDS[p.id]]).toLowerCase(),
+    sortDate: null,
+  }));
+}
+
+// Notes written on a fronting session (each note has its own time) and the
+// session's trigger, opening that session on the timeline.
+export function buildFrontNoteRecords({ items = [], alters = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  const out = [];
+  for (const s of items || []) {
+    if (!s || s.removed_at) continue;
+    const alterId = s.alter_id || s.primary_alter_id;
+    const alter = alterById.get(alterId);
+    const who = alter?.name || alter?.alias || "";
+    const day = isoDate(s.start_time);
+    const path = day ? `/timeline?date=${day}&focusSessionId=${s.id}` : "/timeline";
+    let notes = [];
+    if (s.note) {
+      try { const p = JSON.parse(s.note); notes = Array.isArray(p) ? p : [{ text: String(s.note) }]; }
+      catch { notes = [{ text: String(s.note) }]; }
+    }
+    notes.forEach((n, i) => {
+      const text = stripHtml(typeof n === "string" ? n : n?.text);
+      if (!text) return;
+      const when = (n && n.timestamp) || s.start_time;
+      out.push({
+        type: "front",
+        id: `fn-${s.id}-${i}`,
+        title: snippet(text, 60),
+        subtitle: [who, formatDateLabel(when)].filter(Boolean).join(" · "),
+        path,
+        searchableText: joinNonEmpty([text, who, dateSearchBlob(when)]).toLowerCase(),
+        sortDate: when,
+      });
+    });
+    if (s.trigger_label) {
+      out.push({
+        type: "front",
+        id: `ft-${s.id}`,
+        title: s.trigger_label,
+        subtitle: ["Trigger", who, formatDateLabel(s.start_time)].filter(Boolean).join(" · "),
+        path,
+        searchableText: joinNonEmpty(["trigger", s.trigger_label, s.trigger_category, who, dateSearchBlob(s.start_time)]).toLowerCase(),
+        sortDate: s.start_time,
+      });
+    }
+  }
+  return out;
+}
+
+// Group notes and contact notes (and what was noted on a visit / time
+// with a contact), opening on that profile's Notes.
+export function buildGroupNoteRecords({ items = [], groups = [] }) {
+  const groupById = new Map((groups || []).map((g) => [g.id, g]));
+  return (items || []).filter((n) => n?.content).map((n) => {
+    const g = groupById.get(n.group_id);
+    const text = stripHtml(n.content);
+    return {
+      type: "groupnote",
+      id: `gn-${n.id}`,
+      title: snippet(text, 60) || "Group note",
+      subtitle: [g?.name, formatDateLabel(n.created_date)].filter(Boolean).join(" · "),
+      path: n.group_id ? `/group/${n.group_id}?tab=notes` : "/groups",
+      searchableText: joinNonEmpty([text, g?.name, dateSearchBlob(n.created_date)]).toLowerCase(),
+      sortDate: n.created_date,
+    };
+  });
+}
+
+export function buildContactNoteRecords({ items = [], encounters = [], contacts = [] }) {
+  const contactById = new Map((contacts || []).map((c) => [c.id, c]));
+  const nameOf = (id) => contactById.get(id)?.nickname || contactById.get(id)?.name || "";
+  const rec = (n, id, text, when) => ({
+    type: "contactnote",
+    id,
+    title: snippet(text, 60) || "Contact note",
+    subtitle: [nameOf(n.contact_id), formatDateLabel(when)].filter(Boolean).join(" · "),
+    path: n.contact_id ? `/contacts/${n.contact_id}?tab=notes` : "/contacts",
+    searchableText: joinNonEmpty([text, nameOf(n.contact_id), dateSearchBlob(when)]).toLowerCase(),
+    sortDate: when,
+  });
+  return [
+    ...(items || []).filter((n) => n?.content).map((n) => rec(n, `cn-${n.id}`, stripHtml(n.content), n.timestamp || n.created_date)),
+    ...(encounters || []).filter((e) => e?.note).map((e) => rec(e, `ce-${e.id}`, stripHtml(e.note), e.start_time || e.created_date)),
+  ];
+}
+
+// Relationships between alters, by either name, the type and any notes.
+export function buildRelationshipRecords({ items = [], alters = [] }) {
+  const alterById = new Map(alters.map((a) => [a.id, a]));
+  const nm = (id) => { const a = alterById.get(id); return a?.name || a?.alias || ""; };
+  return (items || []).filter((r) => r && (r.alter_id_a || r.alter_id_b)).map((r) => {
+    const a = nm(r.alter_id_a);
+    const b = nm(r.alter_id_b);
+    const type = r.custom_label || r.relationship_type || "Relationship";
+    const notes = stripHtml(r.notes);
+    return {
+      type: "relationship",
+      id: `rel-${r.id}`,
+      title: [a, b].filter(Boolean).join(" & ") || type,
+      subtitle: [type, snippet(notes, 60)].filter(Boolean).join(" · "),
+      path: `/alter/${r.alter_id_a || r.alter_id_b}?tab=relationships`,
+      searchableText: joinNonEmpty([a, b, type, r.relationship_type, notes]).toLowerCase(),
+      sortDate: r.created_date,
+    };
+  });
+}
+
+// Chat channels by name and description (private ones only while a member
+// is in front, as with their messages).
+export function buildChatChannelRecords({ items = [], frontingIds = [] }) {
+  const here = new Set(frontingIds || []);
+  return (items || []).filter((c) => c?.name && !c.trashed_at && (!c.is_private || (c.member_alter_ids || []).some((id) => here.has(id)))).map((c) => ({
+    type: "chat",
+    id: `chan-${c.id}`,
+    title: `#${c.name}`,
+    subtitle: snippet(c.description) || "Channel",
+    path: `/chat?channel=${c.id}`,
+    searchableText: joinNonEmpty([c.name, c.description, "channel"]).toLowerCase(),
+    sortDate: c.created_date,
+  }));
+}
+
 export function buildSearchIndex(sources = {}) {
   const {
     alters, customFieldDefs,
@@ -961,14 +1173,20 @@ export function buildSearchIndex(sources = {}) {
     assets,
     mods,
     terms,
+    pages,
+    frontingSessions,
+    groupNotes,
+    contactNotes, contactEncounters,
+    relationships,
   } = sources;
 
   const records = [];
+  records.push(...buildPageRecords({ items: pages || [] }));
   records.push(...buildSettingsRecords({ terms: terms || {} }));
   records.push(...buildAlterRecords({ alters: alters || [], customFieldDefs: customFieldDefs || [] }));
   records.push(...buildJournalRecords({ items: journals || [] }));
   records.push(...buildSupportJournalRecords({ items: supportJournals || [] }));
-  records.push(...buildBulletinRecords({ items: bulletins || [] }));
+  records.push(...buildBulletinRecords({ items: bulletins || [], alters: alters || [] }));
   records.push(...buildBulletinCommentRecords({ items: bulletinComments || [] }));
   records.push(...buildPollRecords({ items: polls || [] }));
   records.push(...buildActivityRecords({ items: activities || [] }));
@@ -987,7 +1205,12 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildLocationRecords({ items: locations || [] }));
   records.push(...buildSystemChangeRecords({ items: systemChangeEvents || [] }));
   records.push(...buildAlterNoteRecords({ items: alterNotes || [], alters: alters || [] }));
-  records.push(...buildAlterNoteRecords({ items: alterMessages || [], alters: alters || [] }));
+  records.push(...buildAlterMessageRecords({ items: alterMessages || [], alters: alters || [], frontingIds: frontingIds || [] }));
+  records.push(...buildFrontNoteRecords({ items: frontingSessions || [], alters: alters || [] }));
+  records.push(...buildGroupNoteRecords({ items: groupNotes || [], groups: groups || [] }));
+  records.push(...buildContactNoteRecords({ items: contactNotes || [], encounters: contactEncounters || [], contacts: contacts || [] }));
+  records.push(...buildRelationshipRecords({ items: relationships || [], alters: alters || [] }));
+  records.push(...buildChatChannelRecords({ items: chatChannels || [], frontingIds: frontingIds || [] }));
   records.push(...buildWishRecords({ items: wishes || [], alters: alters || [] }));
   records.push(...buildGoalRecords({ items: goals || [], steps: goalSteps || [], alters: alters || [] }));
   records.push(...buildTurnRecords({ items: turns || [], alters: alters || [] }));
@@ -1004,30 +1227,65 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildModRecords({ items: mods || [] }));
   // Plain note fields are indexed as typed, and a whisper in a note is
   // stored as its span — take any secret out of what the search scans.
+  // Each record also gets its lower-cased title and a numeric time once,
+  // here, so ranking a query never re-parses them.
   for (const r of records) {
     if (r.searchableText && r.searchableText.includes("whisper")) {
       r.searchableText = redactWhispers(r.searchableText).toLowerCase();
     }
+    r._title = String(r.title || "").toLowerCase();
+    const t = r.sortDate ? Date.parse(r.sortDate) : NaN;
+    r._t = Number.isFinite(t) ? t : 0;
   }
   return records;
 }
 
+// The words of a query: lower-cased, split on spaces. Quoted text stays
+// one phrase ("dog park" finds that phrase; dog park finds both words
+// anywhere in the record).
+export function queryWords(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return [];
+  const words = [];
+  q.replace(/"([^"]+)"|(\S+)/g, (_, phrase, word) => {
+    const w = (phrase || word || "").trim();
+    if (w) words.push(w);
+    return "";
+  });
+  return words;
+}
+
 /**
- * Filter an index by a query string. Substring, case-insensitive. The
- * caller can cap the returned length — defaults to 60, plenty for the
- * Dashboard dropdown which only shows a handful per type.
+ * Every record holding every word of the query, best first: a title match
+ * before a text match, then newest first. Nothing is cut — the caller shows
+ * a few per kind with "show more" — unless `limit` is passed.
  */
-export function searchIndex(index, query, limit = 60) {
+export function searchIndex(index, query, limit = Infinity) {
   if (!query) return [];
   const q = String(query).trim().toLowerCase();
   if (q.length < 2) return [];
+  const words = queryWords(q);
+  if (words.length === 0) return [];
+  const phrase = words.join(" ");
   const matches = [];
   for (const rec of index) {
-    if (!rec || !rec.searchableText) continue;
-    if (rec.searchableText.includes(q)) matches.push(rec);
-    if (matches.length >= limit) break;
+    const text = rec?.searchableText;
+    if (!text) continue;
+    let ok = true;
+    for (const w of words) { if (!text.includes(w)) { ok = false; break; } }
+    if (!ok) continue;
+    const title = rec._title ?? String(rec.title || "").toLowerCase();
+    let score = 0;
+    if (title === phrase) score = 4;
+    else if (title.startsWith(phrase)) score = 3;
+    else if (title.includes(phrase)) score = 2;
+    else if (words.every((w) => title.includes(w))) score = 1.5;
+    else if (text.includes(phrase)) score = 1;
+    matches.push({ rec, score });
   }
-  return matches;
+  matches.sort((a, b) => (b.score - a.score) || ((b.rec._t || 0) - (a.rec._t || 0)));
+  const out = matches.map((m) => m.rec);
+  return Number.isFinite(limit) ? out.slice(0, limit) : out;
 }
 
 /**

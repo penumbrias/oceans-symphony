@@ -10,6 +10,7 @@ import QuickTaskComposer from "./QuickTaskComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
 import { getBulletinBatchSize } from "@/lib/bulletinLimit";
+import { stripHtml, dateSearchBlob } from "@/lib/globalSearch";
 
 export default function BulletinBoard({
   alters,
@@ -79,12 +80,14 @@ export default function BulletinBoard({
     // re-attach when filtered list size changes so a new sentinel is observed
   }, [pageMode, visibleCount, searchQuery, sortByActivity]);
 
-  // Page mode browses every bulletin (with IntersectionObserver
-  // lazy-load), so we widen the query cap. Dashboard mode keeps the
-  // 100-row cap since the widget only ever shows the latest few.
+  // Every bulletin, in both modes. The widget used to load only the newest
+  // 100, so a pinned bulletin older than that fell off the home board and
+  // out of its search (and a group board lost most of its own posts). The
+  // records are already in memory, and only `visibleCount` of them render,
+  // so the whole list is cheap.
   const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins", pageMode ? "all" : "recent"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", pageMode ? 2000 : 100)
+    queryKey: ["bulletins", "all"],
+    queryFn: () => base44.entities.Bulletin.list("-created_date"),
   });
 
   // Polls flagged `pinned_to_dashboard` from the Polls page surface in
@@ -106,7 +109,7 @@ export default function BulletinBoard({
   // count badge without firing N separate filter() requests on render.
   const { data: allComments = [] } = useQuery({
     queryKey: ["bulletinCommentsAll"],
-    queryFn: () => base44.entities.BulletinComment.list("-created_date", 2000),
+    queryFn: () => base44.entities.BulletinComment.list("-created_date"),
   });
   const commentCounts = useMemo(() => {
     const m = {};
@@ -126,9 +129,19 @@ export default function BulletinBoard({
   // Scope to this group's board, or (system board) exclude any
   // group-scoped bulletins so they don't leak into the main feed.
   const scopedBulletins = bulletins.filter((b) => (groupId ? b.group_id === groupId : !b.group_id));
-  const filteredBulletins = scopedBulletins.filter((b) =>
-    !searchQuery || b.content?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search the words people see (formatting and whisper secrets taken out),
+  // every word in any order, plus who wrote it and when.
+  const searchWords = useMemo(() => searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean), [searchQuery]);
+  const altersById = useMemo(() => Object.fromEntries((alters || []).map((a) => [a.id, a])), [alters]);
+  const searchTextFor = (b) => [
+    stripHtml(b.content),
+    ...[b.author_alter_id, ...(b.author_alter_ids || [])].map((id) => altersById[id]).filter(Boolean).flatMap((a) => [a.name, a.alias]),
+    dateSearchBlob(b.created_date),
+  ].filter(Boolean).join(" ").toLowerCase();
+  const filteredBulletins = searchWords.length === 0 ? scopedBulletins : scopedBulletins.filter((b) => {
+    const text = searchTextFor(b);
+    return searchWords.every((w) => text.includes(w));
+  });
 
   // Pinned always stays at top, unaffected by sort
   const pinned = filteredBulletins.filter((b) => b.is_pinned);

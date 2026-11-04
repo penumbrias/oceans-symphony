@@ -257,7 +257,7 @@ const bioDashboard = `
   ${section("Quick Check-In + Shortcuts hold-menu",
     `Big "❤ Quick Check-In" button. Tap → full check-in modal. Long-press → hold-menu with your configurable shortcuts (Took meds / Brush teeth / Log location / start a symptom session / etc.). Configure shortcuts in Settings → Tracking → Shortcuts.`)}
   ${section("Search everything",
-    `Searches across all entities — alters, bulletins, journals, check-ins, tasks, locations. Tap a result to jump to it.`)}
+    `Searches every record you've ever saved, however old — profiles, journals, bulletins, notes and lists, goals, planner events, check-ins, front notes, relationships, contacts, app pages and settings. Type a few words in any order (put "quotes" round an exact phrase); the best matches come first, a few per kind, with "Show more" for the rest. Private messages and private channels only show while one of their people is in front, and whispers never show.`)}
   ${section("Nav grid",
     `Tiles for every page (Alters, Timeline, Activities, Journals, System Meeting, …). Re-orderable in Display options → Bars → Bottom tabs → What's on it. The To-Do tile shows an amber badge for the count of urgent OR due-within-72-hours tasks. The Reminders tile shows a red badge for currently-firing instances.`)}
   ${section("Bulletin Board",
