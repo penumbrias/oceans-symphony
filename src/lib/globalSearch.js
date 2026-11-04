@@ -764,10 +764,10 @@ export function buildGroceryRecords({ items = [], lists = [] }) {
     return {
       type: "grocery",
       id: g.id,
-      title: g.name || "Item",
-      subtitle: [list?.name, snippet(g.back || g.notes || g.category) || (g.checked ? "Ticked" : null)].filter(Boolean).join(" · "),
+      title: stripHtml(g.name) || "Item",
+      subtitle: [list?.name, snippet(stripHtml(g.back) || g.notes || g.category) || (g.checked ? "Ticked" : null)].filter(Boolean).join(" · "),
       path: g.list_id ? `/notes?list=${encodeURIComponent(g.list_id)}` : "/notes",
-      searchableText: joinNonEmpty([g.name, g.back, g.notes, g.category, list?.name]).toLowerCase(),
+      searchableText: joinNonEmpty([stripHtml(g.name), stripHtml(g.back), g.notes, g.category, list?.name]).toLowerCase(),
       sortDate: g.created_date,
     };
   });

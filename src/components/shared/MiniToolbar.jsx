@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { AtSign } from "lucide-react";
 import useDockHeightVar from "@/hooks/useDockHeightVar";
+import { usePopupZ } from "@/components/shared/popupLayer";
 
 export const PRESET_COLORS = [
   "#ff4d4d","#ff85a1","#ff1493","#c0392b",
@@ -73,8 +74,9 @@ export function ColorPickerModal({ mode, onApply, onClose }) {
   const [hex, setHex] = useState(isFg ? "#ff4d4d" : "#ffd70080");
   const presets = isFg ? PRESET_COLORS : PRESET_HIGHLIGHTS;
   const pickerColor = hex.length === 9 ? hex.slice(0, 7) : hex;
+  const z = usePopupZ(220);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220]">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center" style={{ zIndex: z }}>
       <div className="bg-background border-2 border-border rounded-xl p-5 space-y-4 max-w-xs mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{isFg ? "Text color" : "Highlight color"}</h3>
@@ -163,8 +165,9 @@ function HelpRow({ icons, glyph, d }) {
 }
 
 function HelpPopup({ onClose }) {
+  const z = usePopupZ(220);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220] p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: z }} onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 flex-shrink-0">
           <h3 className="font-semibold text-sm">Formatting tools</h3>
@@ -215,8 +218,9 @@ function LinkPromptModal({ onApply, onClose }) {
   // the whole point of the dialog is naming the link).
   const [text, setText] = useState("");
   const submit = () => { if (url.trim()) onApply(url, text); };
+  const z = usePopupZ(220);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[220] p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: z }} onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-xl p-5 space-y-3 max-w-xs w-full shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">Add a web link</h3>
@@ -266,8 +270,9 @@ function MentionComposeModal({ onInsert, onClose }) {
     onInsert(html);
     onClose();
   };
+  const z = usePopupZ(220);
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[220] p-3" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-3" style={{ zIndex: z }} onClick={onClose}>
       <div className="bg-card border border-border rounded-2xl w-full sm:max-w-md p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <p className="font-semibold text-sm flex items-center gap-1.5"><AtSign className="w-4 h-4" /> Mentions &amp; commands</p>
@@ -567,6 +572,8 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // WebView resizes and the plain inset reads ~0.
   const kbState = useKeyboardState();
   const dockRef = useRef(null);
+  const fontZ = usePopupZ(200);
+  const dockZ = usePopupZ(130);
   useDockHeightVar(dockRef, float === "keyboard" && kbState.open);
 
   const body = (
@@ -734,10 +741,10 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
       {/* Fixed-positioned font menu + click-away backdrop (escapes overflow). */}
       {showFontPicker && fontPickerPos && (
         <>
-          <div className="fixed inset-0 z-[199]" onMouseDown={() => setShowFontPicker(false)} />
+          <div className="fixed inset-0" style={{ zIndex: fontZ - 1 }} onMouseDown={() => setShowFontPicker(false)} />
           <div
-            className="fixed w-48 bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden z-[200]"
-            style={{ left: fontPickerPos.left, bottom: fontPickerPos.bottom }}
+            className="fixed w-48 bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden"
+            style={{ left: fontPickerPos.left, bottom: fontPickerPos.bottom, zIndex: fontZ }}
           >
             <div className="max-h-64 overflow-y-auto p-1 space-y-0.5">
               {FONTS.map(f => (
@@ -787,8 +794,8 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     return createPortal(
       <div
         ref={dockRef}
-        className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
-        style={{ bottom: kbState.inset }}
+        className="fixed left-0 right-0 bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
+        style={{ bottom: kbState.inset, zIndex: dockZ }}
         // Keep the composer focused (selection alive) while tapping styles.
         onPointerDown={(e) => e.preventDefault()}
         onMouseDown={(e) => e.preventDefault()}

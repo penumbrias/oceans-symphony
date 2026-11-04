@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 4, 2026",
     changes: [
+      { type: "improve", text: "Flash cards now have the full text tools too: formatting, @mentions and ~commands on both sides, and studied cards show the formatting." },
+      { type: "fix", text: "Mention lists and text-tool pop-ups no longer hide behind the quick-jump lists screen." },
       { type: "improve", text: "Notes now have the full text tools: formatting, @mentions, ~commands and signposts. Tap Done to finish a note; it still saves as you type." },
     ],
   },

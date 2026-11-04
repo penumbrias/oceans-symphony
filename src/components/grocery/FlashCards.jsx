@@ -4,6 +4,11 @@
 // Study mode walks a shuffled queue: tap to flip, "Again" sends the card
 // to the back of the queue, "Got it" retires it for this round.
 //
+// Both sides are written in the shared text box (v0.347.2): the formatting
+// toolbar always, and on encrypted decks the full grammar (@mentions,
+// ~commands, -name/+name signposts) run on Save. "Available when locked"
+// decks live in plaintext, so they never offer or record anyone by name.
+//
 // Same neutral wording and palette as the rest of the panel — it doubles
 // as the privacy cover, so nothing here may read like Oceans Symphony.
 
@@ -14,6 +19,11 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { saveLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
 import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
+import { redactWhispers } from "@/lib/whisperRedact";
+import { useTerms } from "@/lib/useTerms";
+import { finishCardText, noteSpeaksGrammar } from "@/lib/noteLists";
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -39,7 +49,7 @@ function CardImage({ url, className = "" }) {
 }
 
 // One side of the card editor: text + optional image.
-function SideEditor({ label, text, onText, image, onImage, canAttach, autoFocus }) {
+function SideEditor({ label, text, onText, image, onImage, canAttach, autoFocus, grammar, alters }) {
   const fileRef = useRef(null);
   const camRef = useRef(null);
   const pick = async (file) => {
@@ -73,11 +83,17 @@ function SideEditor({ label, text, onText, image, onImage, canAttach, autoFocus 
           </span>
         )}
       </div>
-      <textarea
+      <MentionTextarea
+        toolbar
         value={text}
-        onChange={(e) => onText(e.target.value)}
+        onChange={onText}
+        alters={grammar ? alters : []}
+        signposts={grammar}
+        commands={grammar}
         autoFocus={autoFocus}
         rows={2}
+        aria-label={label}
+        placeholder={label === "Front" ? "Question, word or prompt" : "Answer"}
         className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
       />
       {image && (
@@ -94,7 +110,10 @@ function SideEditor({ label, text, onText, image, onImage, canAttach, autoFocus 
 }
 
 // Add / edit sheet. `card` null = new card.
-function CardEditor({ card, canAttach, onSave, onDelete, onClose }) {
+function CardEditor({ card, canAttach, list, alters, onSave, onDelete, onClose }) {
+  const terms = useTerms();
+  const grammar = noteSpeaksGrammar(list);
+  const [saving, setSaving] = useState(false);
   const [front, setFront] = useState(card?.name || "");
   const [back, setBack] = useState(card?.back || "");
   const [frontImage, setFrontImage] = useState(card?.front_image || "");
@@ -114,8 +133,19 @@ function CardEditor({ card, canAttach, onSave, onDelete, onClose }) {
   const canSave = !!(front.trim() || frontImage) && !!(back.trim() || backImage);
 
   const save = async () => {
-    if (!canSave) return;
-    const patch = { name: front.trim() || "🖼", back: back.trim(), front_image: frontImage || "", back_image: backImage || "" };
+    if (!canSave || saving) return;
+    setSaving(true);
+    let text;
+    try {
+      text = await finishCardText(list, front.trim(), back.trim(), { alters, terms });
+    } finally {
+      setSaving(false);
+    }
+    if (!text) return; // a broken ~command (shown) or a cancelled whisper
+    const patch = {
+      ...text, name: text.name.trim() || "🖼", back: text.back.trim(),
+      front_image: frontImage || "", back_image: backImage || "",
+    };
     // Replaced images on an existing card: drop the old files.
     const replaced = card ? [card.front_image, card.back_image].filter((u) => u && u !== patch.front_image && u !== patch.back_image) : [];
     added.current.clear();
@@ -127,9 +157,9 @@ function CardEditor({ card, canAttach, onSave, onDelete, onClose }) {
     <div className="absolute inset-0 z-[10001] flex items-end sm:items-center justify-center bg-black/40 animate-in fade-in duration-150">
       <div className="w-full max-w-md max-h-[90%] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-4">
         <h2 className="text-base font-semibold">{card ? "Edit card" : "New card"}</h2>
-        <SideEditor label="Front" text={front} onText={setFront} image={frontImage}
+        <SideEditor label="Front" text={front} onText={setFront} image={frontImage} grammar={grammar} alters={alters}
           onImage={trackImage(setFrontImage, frontImage)} canAttach={canAttach} autoFocus={!card} />
-        <SideEditor label="Back" text={back} onText={setBack} image={backImage}
+        <SideEditor label="Back" text={back} onText={setBack} image={backImage} grammar={grammar} alters={alters}
           onImage={trackImage(setBackImage, backImage)} canAttach={canAttach} />
         <div className="flex items-center gap-2">
           {card && (
@@ -142,7 +172,7 @@ function CardEditor({ card, canAttach, onSave, onDelete, onClose }) {
             className="flex-1 px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm">
             Cancel
           </button>
-          <button type="button" onClick={save} disabled={!canSave}
+          <button type="button" onClick={save} disabled={!canSave || saving}
             className="flex-1 px-3 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm disabled:opacity-50">
             {card ? "Save" : "Add card"}
           </button>
@@ -152,16 +182,26 @@ function CardEditor({ card, canAttach, onSave, onDelete, onClose }) {
   );
 }
 
-function CardFace({ text, image }) {
+function CardFace({ text, image, alters, terms }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 text-center w-full">
       {image && <CardImage url={image} className="max-h-48 max-w-full" />}
-      {text && text !== "🖼" && <p className="text-xl font-medium leading-snug break-words whitespace-pre-wrap">{text}</p>}
+      {text && text !== "🖼" && (
+        <div className="text-xl font-medium leading-snug break-words">
+          <RichText content={text} alters={alters} terms={terms} />
+        </div>
+      )}
     </div>
   );
 }
 
-function StudyView({ cards, onExit }) {
+// One line of a card for the list (formatting dropped, whispers hidden).
+const cardLine = (text) => (text === "🖼" ? "" : redactWhispers(text || "")
+  .replace(/<[^>]*>/g, " ").replace(/\|\|([^|]+?)\|\|/g, "▒▒▒").replace(/&nbsp;/g, " ")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim());
+
+function StudyView({ cards, alters, onExit }) {
+  const terms = useTerms();
   const [queue, setQueue] = useState(() => shuffle(cards.map((c) => c.id)));
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
@@ -217,8 +257,8 @@ function StudyView({ cards, onExit }) {
         }`}
       >
         {flipped
-          ? <CardFace text={current.back} image={current.back_image} />
-          : <CardFace text={current.name} image={current.front_image} />}
+          ? <CardFace text={current.back} image={current.back_image} alters={alters} terms={terms} />
+          : <CardFace text={current.name} image={current.front_image} alters={alters} terms={terms} />}
       </button>
       {flipped ? (
         <div className="grid grid-cols-2 gap-2">
@@ -238,12 +278,12 @@ function StudyView({ cards, onExit }) {
   );
 }
 
-export default function FlashCards({ cards = [], canAttach = false, onAdd, onUpdate, onRemove }) {
+export default function FlashCards({ cards = [], list = null, alters = [], canAttach = false, onAdd, onUpdate, onRemove }) {
   const [editing, setEditing] = useState(null); // null | "new" | card
   const [studying, setStudying] = useState(false);
 
   if (studying && cards.length > 0) {
-    return <StudyView cards={cards} onExit={() => setStudying(false)} />;
+    return <StudyView cards={cards} alters={alters} onExit={() => setStudying(false)} />;
   }
 
   const remove = async (card) => {
@@ -275,8 +315,8 @@ export default function FlashCards({ cards = [], canAttach = false, onAdd, onUpd
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 text-left">
                 {card.front_image && <CardImage url={card.front_image} className="w-10 h-10 object-cover flex-shrink-0" />}
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium truncate">{card.name === "🖼" ? "" : card.name}</span>
-                  <span className="block text-xs text-neutral-500 truncate">{card.back || (card.back_image ? "🖼" : "")}</span>
+                  <span className="block text-sm font-medium truncate">{cardLine(card.name)}</span>
+                  <span className="block text-xs text-neutral-500 truncate">{cardLine(card.back) || (card.back_image ? "🖼" : "")}</span>
                 </span>
                 <Pencil className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
               </button>
@@ -290,6 +330,8 @@ export default function FlashCards({ cards = [], canAttach = false, onAdd, onUpd
           key={editing === "new" ? "new" : editing.id}
           card={editing === "new" ? null : editing}
           canAttach={canAttach}
+          list={list}
+          alters={alters}
           onClose={() => setEditing(null)}
           onDelete={() => remove(editing)}
           onSave={async (patch) => {

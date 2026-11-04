@@ -6,6 +6,7 @@ import { Row, SliderRow, ColourRow, Segmented } from "@/components/shared/Settin
 import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { paintStrokes, renderDrawing, drawingHtml, hasInk } from "@/lib/inkDrawing";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
+import { usePopupZ } from "@/components/shared/popupLayer";
 
 // The drawing pad behind the mini toolbar's brush button (v0.335.0): a
 // quick place to draw instead of type — for anyone who'd rather not use
@@ -34,6 +35,7 @@ const MODE_HINT = {
 };
 
 export default function DrawingPad({ onInsert, onClose }) {
+  const popupZ = usePopupZ(225);
   const [mode, setMode] = useState("ink");
   const [tool, setTool] = useState("pen");
   const [size, setSize] = useState(3);
@@ -203,7 +205,7 @@ export default function DrawingPad({ onInsert, onClose }) {
   return createPortal(
     // A full-screen drawing page, not a sheet over something it edits.
     <div role="dialog" aria-modal="true" aria-label="Draw"
-      /* ui-ok: the canvas needs the room */ className="drawing-pad fixed inset-0 z-[225] bg-black/50 flex items-stretch sm:items-center justify-center">
+      /* ui-ok: the canvas needs the room */ className="drawing-pad fixed inset-0 bg-black/50 flex items-stretch sm:items-center justify-center" style={{ zIndex: popupZ }}>
       <div className="bg-background w-full sm:max-w-2xl sm:h-[92vh] sm:rounded-2xl sm:border sm:border-border flex flex-col overflow-hidden"
         style={{ paddingTop: "var(--os-sat, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {/* Header: close, title, history, Insert. */}

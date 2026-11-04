@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
+import { usePopupZ } from "@/components/shared/popupLayer";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -77,6 +78,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
   // (v0.311.0). Only for hosts whose saved text renders through a rich
   // renderer (RichText / renderBulletinContent) — elsewhere the tags would
   // show as text.
+  const menuZ = usePopupZ(240);
   const fieldToolbar = useFieldToolbar({ enabled: toolbar, fieldRef: innerRef, value, onChange });
 
   const [menu, setMenu] = useState(null); // { type, start, query } | { type:"command", start, segments }
@@ -291,8 +293,8 @@ const MentionTextarea = forwardRef(function MentionTextarea(
       />
       {fieldToolbar.toolbar}
       {open && menuPos && createPortal(
-        <div className="fixed z-[240] bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
-          style={menuPos}>
+        <div className="fixed bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
+          style={{ ...menuPos, zIndex: menuZ }}>
           {menu.type === "command" ? (
             <>
               <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border/50">
