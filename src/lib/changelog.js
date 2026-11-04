@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 4, 2026",
     changes: [
+      { type: "feature", text: "Planner events can remind you: on the day, the day before or a week before, at a time you pick. Event dates are also marked on the Year view." },
       { type: "feature", text: "Planner events: paydays, birthdays and anniversaries as a date with no time and nothing to mark done. They can repeat every week, 2 weeks, month or year, and show on the calendars, timeline and Coming up." },
       { type: "feature", text: "Every text box now has the formatting toolbar: sleep, contacts, relationships, lineage, check-ins, activities, statuses, Learn reflections and more. Saved notes show their formatting wherever they appear." },
       { type: "improve", text: "Flash cards now have the full text tools too: formatting, @mentions and ~commands on both sides, and studied cards show the formatting." },

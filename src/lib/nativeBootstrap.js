@@ -278,6 +278,13 @@ export async function initNativeShell() {
       // Tracker with the plan id pre-loaded — same convention as the
       // Dashboard's critical-plan card. Doesn't record a
       // ReminderInstance (plans don't share the Reminder entity).
+      if (extra.kind === "event_reminder" && extra.eventId) {
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(extra.date || "") ? `date=${extra.date}&` : "";
+        pendingNativeRoute.target = `/planner?${date}event=${encodeURIComponent(extra.eventId)}`;
+        notifyRoute();
+        return;
+      }
+
       if (extra.kind === "plan_reminder" && extra.activityId) {
         pendingNativeRoute.target = `/planner?activityId=${encodeURIComponent(extra.activityId)}`;
         notifyRoute();

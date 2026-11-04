@@ -646,6 +646,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: ["planner-events", "planner-sections"],
     }),
     s("activities", {
+      emoji: "🔔", title: "Event reminders",
+      body: `Open "Remind me" on an event to get a notification on the day, the day before or a week before, at the time you pick. Event dates are ringed on the Year view.`,
+      route: "/planner", target: ["planner-events", "planner-sections"],
+    }),
+    s("activities", {
       emoji: "📈", title: "Insights",
       body: `Insights has the week's totals per activity and per ${t.alter}, weekly goals, an all-time tally, and "Plan follow-through": how often plans really happen, hardest first.`,
       route: "/planner", target: "planner-sections",

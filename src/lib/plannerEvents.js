@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { prepareAuthoredText, recordAuthoredText } from "@/lib/authoredText";
 import { normalizeHex } from "@/lib/planTagColor";
-import { EVENT_REPEATS, parseDayKey } from "@/lib/plannerEventDates";
+import { EVENT_REPEATS, parseDayKey, reminderDaysOf, reminderTimeOf } from "@/lib/plannerEventDates";
 
 export const PLANNER_EVENTS_KEY = ["plannerEvents"];
 
@@ -42,6 +42,8 @@ function cleanFields(draft) {
     until,
     tag_color: normalizeHex(draft.tagColor || "") || null,
     alter_ids: Array.isArray(draft.alterIds) ? draft.alterIds : [],
+    reminders: reminderDaysOf({ reminders: draft.reminders }),
+    reminder_time: reminderTimeOf({ reminder_time: draft.reminderTime }),
   };
 }
 

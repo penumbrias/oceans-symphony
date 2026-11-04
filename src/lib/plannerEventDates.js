@@ -115,3 +115,47 @@ export function yearsSinceFirst(ev, occurrenceDate) {
   const n = occurrenceDate.getFullYear() - first.getFullYear();
   return n > 0 ? n : null;
 }
+
+// ── Reminders (v0.350.0) ─────────────────────────────────────────────
+// An event's `reminders` is a list of how many days before each date to
+// remind (0 = on the day, 1 = the day before, 7 = a week before), at
+// `reminder_time` ("HH:MM", default 09:00) local time.
+
+export const EVENT_REMINDER_DAYS = Object.freeze([0, 1, 7]);
+export const DEFAULT_EVENT_REMINDER_TIME = "09:00";
+
+export function reminderDaysOf(ev) {
+  const list = Array.isArray(ev?.reminders) ? ev.reminders : [];
+  return [...new Set(list.map(Number).filter((n) => EVENT_REMINDER_DAYS.includes(n)))].sort((a, b) => a - b);
+}
+
+export function reminderTimeOf(ev) {
+  const t = ev?.reminder_time;
+  return typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : DEFAULT_EVENT_REMINDER_TIME;
+}
+
+// Every reminder that should fire after `now` and within `horizonDays`,
+// soonest first: [{ event, occurrence, daysBefore, fireMs }].
+export function eventReminderFires(events, { now = Date.now(), horizonDays = 45, limit = 24 } = {}) {
+  const nowMs = typeof now === "number" ? now : new Date(now).getTime();
+  const horizonMs = nowMs + horizonDays * 86400000;
+  const from = new Date(nowMs);
+  const to = new Date(horizonMs + 8 * 86400000); // a date up to a week past the horizon can still fire inside it
+  const out = [];
+  for (const ev of events || []) {
+    const days = reminderDaysOf(ev);
+    if (!days.length || !ev?.id) continue;
+    const [hh, mm] = reminderTimeOf(ev).split(":").map(Number);
+    for (const occ of occurrencesBetween(ev, from, to, { max: 60 })) {
+      for (const daysBefore of days) {
+        const fire = new Date(occ.date);
+        fire.setDate(fire.getDate() - daysBefore);
+        fire.setHours(hh, mm, 0, 0);
+        const fireMs = fire.getTime();
+        if (fireMs > nowMs && fireMs <= horizonMs) out.push({ event: ev, occurrence: occ, daysBefore, fireMs });
+      }
+    }
+  }
+  out.sort((a, b) => a.fireMs - b.fireMs);
+  return out.slice(0, limit);
+}
