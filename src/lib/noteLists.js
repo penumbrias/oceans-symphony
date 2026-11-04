@@ -72,8 +72,9 @@ export function useNoteListWriters() {
   return {
     // A note's text — the one copy, wherever it's edited from.
     async saveNote(list, content) {
-      if (list.source === "local") updateUnlockedList(list.id, { note_content: content });
-      else { await localEntities.GroceryList.update(list.id, { note_content: content }); refresh(); }
+      const patch = typeof content === "string" ? { note_content: content } : content;
+      if (list.source === "local") updateUnlockedList(list.id, { note_content: patch.note_content });
+      else { await localEntities.GroceryList.update(list.id, patch); refresh(); }
     },
     // Tick / untick an item the way the lists panel's two-state lists do.
     async setChecked(list, item, checked) {
@@ -98,3 +99,42 @@ export function useNoteListWriters() {
 
 // Where a list, note or deck opens: the Notes & lists page.
 export const notesPath = (listId) => (listId ? `/notes?list=${encodeURIComponent(listId)}` : "/notes");
+
+// ── Writing a note: the app's full text grammar (v0.347.1) ────────────
+//
+// A note autosaves its raw text while you type (so nothing is ever lost);
+// tapping Done runs the same pipeline every other text box uses — ~commands,
+// /w whispers, -name/+name signposts, @mentions (authoredText.js) — saves the
+// result and records the mentions. An "available when locked" note lives in
+// plaintext storage, so it never offers or records anyone by name: there the
+// grammar is off and Done just saves.
+export const noteSpeaksGrammar = (list, { dbReady = isDbInitialized() } = {}) => !!list && list.source !== "local" && dbReady;
+
+// Returns the patch to save ({ note_content, author_alter_ids? }), or null
+// when the save should stop (a broken ~command was shown as a toast, or the
+// whisper warning was cancelled). Signed only when the person signposted.
+export async function finishNoteText(list, text, { alters = [], terms = {} } = {}) {
+  const raw = typeof text === "string" ? text : "";
+  if (!noteSpeaksGrammar(list)) return { note_content: raw };
+  const { prepareAuthoredText, recordAuthoredText, isLogCommandError } = await import("@/lib/authoredText");
+  let prepared;
+  try {
+    prepared = await prepareAuthoredText(raw, { alters, terms, surfaceLabel: "note" });
+  } catch (e) {
+    if (isLogCommandError(e)) {
+      const { toast } = await import("sonner");
+      toast.error(e.message);
+      return null;
+    }
+    throw e;
+  }
+  if (!prepared) return null;
+  await recordAuthoredText({
+    ...prepared, alters, sourceType: "note", sourceId: list.id,
+    sourceLabel: `Note: ${list.name || "note"}`, navigatePath: notesPath(list.id),
+  });
+  return {
+    note_content: prepared.content,
+    ...(prepared.authorIds?.length ? { author_alter_ids: prepared.authorIds } : {}),
+  };
+}
