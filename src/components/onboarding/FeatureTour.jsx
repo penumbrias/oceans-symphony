@@ -636,6 +636,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner-sections",
     }),
     s("activities", {
+      emoji: "💸", title: "Events",
+      body: `Paydays, birthdays and anniversaries are events: a date with no time and nothing to mark done. Add one with "+ Event" at the top of Plans, or turn on "It's an event" when planning for any time that day.`,
+      route: "/planner", target: ["planner-events", "planner-sections"],
+    }),
+    s("activities", {
+      emoji: "🔁", title: "Repeating events",
+      body: `An event can repeat every week, every 2 weeks, every month or every year, for ever or until a date. It shows on the calendars, the timeline and Coming up. Tap a date to skip just that one.`,
+      route: "/planner", target: ["planner-events", "planner-sections"],
+    }),
+    s("activities", {
       emoji: "📈", title: "Insights",
       body: `Insights has the week's totals per activity and per ${t.alter}, weekly goals, an all-time tally, and "Plan follow-through": how often plans really happen, hardest first.`,
       route: "/planner", target: "planner-sections",

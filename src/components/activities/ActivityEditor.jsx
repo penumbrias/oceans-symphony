@@ -42,6 +42,7 @@ import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import PlanColorTagPicker from "@/components/activities/PlanColorTagPicker";
 import ActivityWhenField from "@/components/activities/ActivityWhenField";
 import PlanOutcome from "@/components/planner/PlanOutcome";
+import EventSheet from "@/components/planner/EventSheet";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
@@ -64,6 +65,7 @@ import { normalizeHex } from "@/lib/planTagColor";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import DetailChip from "@/components/shared/DetailChip";
+import { SwitchRow } from "@/components/shared/SettingRows";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
@@ -145,6 +147,9 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
   const [start, setStart] = useState(() => new Date());
   const [minutes, setMinutes] = useState(60);
   const [untimed, setUntimed] = useState(false);
+  // "It's an event" — the draft is handed to the event sheet (a date to
+  // remember, not a plan to resolve). Going back keeps the plan draft.
+  const [asEvent, setAsEvent] = useState(false);
   const [mode, setMode] = useState(ENTRY_MODES.DONE);
   const [noteValue, setNoteValue] = useState("");
   const [recur, setRecur] = useState({ interval: "none", count: 8 });
@@ -172,7 +177,7 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     if (!request) { setEntry(null); return; }
     setOpen({}); setCloseAsk(false); setBranchAsk(null); setCountReschedule(true);
     setTodoPickerOpen(false); setTodoQuery(""); setRecordFronting(false); setStillFrontingPick(null);
-    setRecur({ interval: "none", count: 8 }); setExtraDays([]);
+    setRecur({ interval: "none", count: 8 }); setExtraDays([]); setAsEvent(false);
     autoTitleRef.current = "";
     if (request.create) {
       const s = request.start instanceof Date ? request.start : new Date();
@@ -567,6 +572,19 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
     return () => window.removeEventListener("keydown", onKey);
   }, [entry, activities]);
 
+  // Hand the draft to the event sheet: name, day, who and notes carry over.
+  const [eventRequest, setEventRequest] = useState(null);
+  const openAsEvent = () => {
+    setEventRequest({
+      create: true,
+      title: item.activity_name || "",
+      date: format(start, "yyyy-MM-dd"),
+      alterIds: entry?.whoTouched ? (item.fronting_alter_ids || []) : [],
+      notes: noteValue,
+    });
+    setAsEvent(true);
+  };
+
   // ── Save a new entry ───────────────────────────────────────────────
   const commitCreate = async () => {
     if (!create || savingRef.current) return;
@@ -625,6 +643,16 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
   };
 
   if (!entry) return null;
+
+  if (asEvent && create) {
+    return (
+      <EventSheet
+        request={eventRequest}
+        onClose={onClose}
+        onBack={() => setAsEvent(false)}
+      />
+    );
+  }
 
   // Chip open state: the person's own toggle, else open when it holds a value.
   const has = {
@@ -835,6 +863,10 @@ export default function ActivityEditor({ request, onClose, onSaved = null, weekS
               <span>{tr("planner.anyTimeThatDay")}</span>
               <Switch checked={untimed} onCheckedChange={setUntimed} aria-label={tr("planner.anyTimeThatDay")} />
             </label>
+            {untimed && (
+              <SwitchRow label={tr("event.toggle")} hint={tr("event.toggleHint")}
+                checked={false} onChange={(on) => { if (on) openAsEvent(); }} />
+            )}
           </div>
         )}
         {create && mode === ENTRY_MODES.PLAN && untimed ? (

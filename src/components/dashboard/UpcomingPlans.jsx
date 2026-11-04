@@ -7,6 +7,9 @@ import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList
 import RecurringTasksDue, { useRecurringTasksDue } from "@/components/tasks/RecurringTasksDue";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { activityDate } from "@/lib/dateUtils";
+import { UpcomingEventRows } from "@/components/planner/EventsList";
+import { usePlannerEvents } from "@/lib/plannerEvents";
+import { upcomingOccurrences } from "@/lib/plannerEventDates";
 import {
   getActiveLimit,
   MODE_COUNT,
@@ -39,12 +42,15 @@ import {
  *                 haven't been marked yet.
  *   recurringKinds / recurringShowDone — which recurring tasks (see
  *                 RecurringTasksDue), and whether finished ones stay.
+ *   showEvents  — list the planner's events (payday, birthdays) coming
+ *                 up, above the plans. Same count / window as the plans.
  *   title       — heading text. Default "📅 Coming up".
  */
 export default function UpcomingPlans({
   placement, limit, limitConfig: limitOverride = null, filterByAlterId = null,
   showRecurring = true, showPlans = true, showOverdue = true,
   recurringKinds = "all", recurringShowDone = true, title = "📅 Coming up",
+  showEvents = true,
 }) {
   const navigate = useNavigate();
 
@@ -114,6 +120,19 @@ export default function UpcomingPlans({
     effectiveLimit = limitConfig.count;
   }
 
+  // Events: dates to remember, nothing to resolve — so never "overdue".
+  // Today's still show. The window / count follows the plans'.
+  const plannerEvents = usePlannerEvents({ enabled: showEvents });
+  const eventOccurrences = useMemo(() => {
+    if (!showEvents) return [];
+    const mine = filterByAlterId ? plannerEvents.filter((e) => (e.alter_ids || []).includes(filterByAlterId)) : plannerEvents;
+    const from = new Date(); from.setHours(0, 0, 0, 0);
+    if (typeof limit !== "number" && limitConfig.mode === MODE_WINDOW) {
+      return upcomingOccurrences(mine, { from, to: new Date(Date.now() + limitConfig.windowMs), limit: WINDOW_MODE_HARD_CAP });
+    }
+    return upcomingOccurrences(mine, { from, limit: typeof limit === "number" ? limit : limitConfig.count });
+  }, [showEvents, plannerEvents, filterByAlterId, limit, limitConfig.mode, limitConfig.windowMs, limitConfig.count]);
+
   // Compose the list — but only render the wrapper if there's at least one
   // upcoming item, so empty surfaces stay hidden.
   const now = Date.now();
@@ -130,7 +149,7 @@ export default function UpcomingPlans({
     return ts > now;
   }).length;
   const hasRecurring = recurringOn && recurringRows.length > 0;
-  if (upcomingCount === 0 && !hasRecurring) return null;
+  if (upcomingCount === 0 && !hasRecurring && !eventOccurrences.length) return null;
 
   return (
     <div className="mb-3">
@@ -146,6 +165,9 @@ export default function UpcomingPlans({
           >See all</button>
         </div>
       </div>
+      {eventOccurrences.length > 0 && (
+        <div className={upcomingCount > 0 ? "mb-1.5" : ""}><UpcomingEventRows occurrences={eventOccurrences} /></div>
+      )}
       {upcomingCount > 0 && (
         <PlannedActivitiesList
           activities={prefilteredActivities}

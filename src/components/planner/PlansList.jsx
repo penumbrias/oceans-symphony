@@ -21,6 +21,7 @@ import { format, isSameDay, isSameWeek, isSameMonth, isSameYear, startOfDay } fr
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { planMark } from "@/lib/planner/planMark";
+import EventsList from "@/components/planner/EventsList";
 
 const dayMs = 86400000;
 
@@ -245,6 +246,8 @@ export default function PlansList({ activities = [], categories = [], alters = [
           </button>
         ))}
       </div>
+      {/* Events (payday, birthdays): dates, not plans — nothing to resolve. */}
+      {filter === "all" && !selectMode && <EventsList />}
       {visible.length === 0 && (
         <p className="text-xs text-muted-foreground px-1 py-3">{tr("planner.noPlans")}</p>
       )}

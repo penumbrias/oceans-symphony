@@ -1,6 +1,7 @@
 import { journalEntryDate } from "@/lib/journalDate";
 import { meetingTextParts } from "@/lib/systemMeetingText";
 import { redactWhispers } from "@/lib/whisperRedact";
+import { nextOccurrence, repeatOf } from "@/lib/plannerEventDates";
 /**
  * Global search engine — shared between the Dashboard "Search everything"
  * input and any other surface that wants to query across the user's data.
@@ -289,6 +290,25 @@ export function buildActivityRecords({ items = [] }) {
       path: `/planner?date=${dateStr}&highlight=${a.id}`,
       searchableText: joinNonEmpty([a.activity_name, a.notes, a.category, dateSearchBlob(a.timestamp)]).toLowerCase(),
       sortDate: a.timestamp,
+    };
+  });
+}
+
+// Planner events (payday, birthdays) — open on the next date they fall on.
+const REPEAT_WORDS = { weekly: "every week", biweekly: "every 2 weeks", monthly: "every month", yearly: "every year" };
+export function buildPlannerEventRecords({ items = [] }) {
+  return items.filter((e) => e?.id && e.title).map((e) => {
+    const next = nextOccurrence(e);
+    const key = next?.key || e.date;
+    const repeat = repeatOf(e);
+    return {
+      type: "event",
+      id: `ev-${e.id}`,
+      title: e.title,
+      subtitle: [formatDateLabel(`${key}T12:00:00`), REPEAT_WORDS[repeat]].filter(Boolean).join(" · "),
+      path: `/planner?date=${key}&event=${e.id}`,
+      searchableText: joinNonEmpty([e.title, stripHtml(e.notes || ""), dateSearchBlob(`${e.date}T12:00:00`), dateSearchBlob(`${key}T12:00:00`)]).toLowerCase(),
+      sortDate: `${key}T12:00:00`,
     };
   });
 }
@@ -918,7 +938,7 @@ export function buildSearchIndex(sources = {}) {
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
-    activities, sleep, activityCategories,
+    activities, sleep, activityCategories, plannerEvents,
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
@@ -953,6 +973,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildPollRecords({ items: polls || [] }));
   records.push(...buildActivityRecords({ items: activities || [] }));
   records.push(...buildSleepRecords({ items: sleep || [] }));
+  records.push(...buildPlannerEventRecords({ items: plannerEvents || [] }));
   records.push(...buildTaskRecords({ items: tasks || [] }));
   records.push(...buildDailyTaskTemplateRecords({ items: dailyTaskTemplates || [] }));
   records.push(...buildStatusNoteRecords({ items: statusNotes || [] }));

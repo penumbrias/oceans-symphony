@@ -5,6 +5,7 @@ import {
 } from "date-fns";
 import { countableMinutes, statusFor, visualForStatus } from "@/lib/activityStatus";
 import { datesForDay } from "@/lib/importantDates";
+import EventChips from "@/components/planner/EventChips";
 import useDayRangeDrag from "@/lib/useDayRangeDrag";
 import { dayTagColor, taggedPlansForDay, eventDotColor, dayActivityColor, softFill } from "@/lib/planTagColor";
 
@@ -173,6 +174,7 @@ export default function ActivityMonthView({
                   </div>
                 );
               })()}
+              <EventChips day={d} compact className="mt-0.5 flex-col items-stretch" />
             </button>
           );
         })}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import EventChips from "@/components/planner/EventChips";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterAvatarInline from "@/components/shared/AlterAvatar";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
@@ -1548,6 +1549,7 @@ export default function InfiniteTimeline({
               <span className="opacity-70">· {x.fieldName}</span>
             </span>
           ))}
+          <EventChips day={day} className="text-sm" />
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
