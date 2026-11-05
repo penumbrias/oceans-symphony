@@ -1085,6 +1085,9 @@ html[data-home-edit] [data-vaul-drawer][data-vaul-drawer-direction="bottom"] {
 html[data-home-edit] .pf-widget-empty { display: flex; min-height: 40px; }
 /* A playing video embed must not swallow the drag while the layout is being edited. */
 html[data-home-edit] .media-embed { pointer-events: none; }
+/* The setup guide's chip floated over the edit bar and its Save / exit
+   menu; it comes back when editing ends. */
+html[data-home-edit] .os-setup-chip { display: none; }
 
 /* Status-banner widget ticker — two copies of the text scroll by half the
    track width for a seamless loop; duration is set inline per note length. */

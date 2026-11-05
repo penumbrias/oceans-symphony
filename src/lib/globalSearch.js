@@ -895,7 +895,6 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["language", "Language", "Language, locale, translation"],
     ["timezone", "Time & clock", "Timezone, time zone, clock, 12-hour, 24-hour"],
     ["alter-labels", `${Alter} labels in lists`, "Name, alias, labels, pickers"],
-    ["home-screen", "Home screen", "New UI, home screen, widgets, board, home opens on"],
     ["experimental", "Experimental features", "Experimental, beta, labs, needs, goals, mods"],
     ["display", "Display options", "Appearance, theme, colours, fonts, text size, wallpaper, presets, dark, light, corners, bars, navigation, top bar, bottom bar, sidebar, wave"],
     ["accessibility", "Accessibility", "Low vision, contrast, motion, screen reader, tap targets, bar height"],
