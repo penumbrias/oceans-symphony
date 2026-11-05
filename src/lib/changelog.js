@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "improve", text: "Settings: coming back from a page now returns you to where you were in the list, search included." },
+      { type: "improve", text: "Custom fields can be searched, filtered by type and sorted, and each one shows how many profiles fill it in." },
+      { type: "improve", text: "The \"labels in lists\" choice (name, alias or both) moved onto the Order page in Settings." },
       { type: "feature", text: "Wishes now link to the real thing: activity wishes pick or create an activity, goal wishes link or make a goal, and item wishes go on a list (like a wishlist) or come from one." },
       { type: "improve", text: "A to-do's Goal option can now put it on a goal in your Notebook, where it shows as a to-do." },
       { type: "improve", text: "Goals is now called Notebook, since it holds projects and stories as well as goals. Everything inside stays where it was." },

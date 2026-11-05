@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, FileText, CalendarDays, MoreVertical, GripVertical, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, FileText, CalendarDays, MoreVertical, GripVertical, Pencil, Check, Search, X as XIcon, ChevronDown, ListFilter, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { useTerms } from "@/lib/useTerms";
 import {
   DndContext,
   closestCenter,
@@ -44,9 +45,24 @@ const TYPE_LABELS = {
   date: "Date",
 };
 
-function SortableFieldRow({ field, isEditing, editName, editType, setEditName, setEditType, onStartEdit, onSaveEdit, onCancelEdit, onDelete }) {
+const SORTS = [
+  { id: "manual", label: "Your order" },
+  { id: "az", label: "A to Z" },
+  { id: "used", label: "Most filled in" },
+  { id: "unused", label: "Least filled in" },
+];
+
+// Is a stored value actually filled in? (Yes/No `false` counts — it was answered.)
+function isFilled(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+}
+
+function SortableFieldRow({ field, usedBy, usedLabel, canDrag, isEditing, editName, editType, setEditName, setEditType, onStartEdit, onSaveEdit, onCancelEdit, onDelete }) {
   const Icon = TYPE_ICONS[field.field_type] || Type;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: !canDrag });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -87,18 +103,20 @@ function SortableFieldRow({ field, isEditing, editName, editType, setEditName, s
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-2 px-3 py-3 rounded-xl border border-border/50 bg-muted/10">
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        // touchAction: none lets dnd-kit own the touch gesture so
-        // mobile drag doesn't fight with vertical page scroll.
-        style={{ touchAction: "none" }}
-        aria-label={`Drag to reorder ${field.name}`}
-        className="flex-shrink-0 p-1 -m-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+      {canDrag && (
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          // touchAction: none lets dnd-kit own the touch gesture so
+          // mobile drag doesn't fight with vertical page scroll.
+          style={{ touchAction: "none" }}
+          aria-label={`Drag to reorder ${field.name}`}
+          className="flex-shrink-0 p-1 -m-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
         <div className="flex items-center gap-2 mt-1">
@@ -106,6 +124,7 @@ function SortableFieldRow({ field, isEditing, editName, editType, setEditName, s
             <Icon className="w-3 h-3" />
             {TYPE_LABELS[field.field_type] || field.field_type}
           </span>
+          <span className="text-xs text-muted-foreground truncate">{usedLabel(usedBy)}</span>
         </div>
       </div>
       <DropdownMenu>
@@ -136,11 +155,31 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState("text");
+  const terms = useTerms();
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sort, setSort] = useState("manual");
 
   const { data: fields = [] } = useQuery({
     queryKey: ["customFields"],
     queryFn: () => base44.entities.CustomField.list("order"),
   });
+  // Shared ["alters"] cache — only read, to show how many profiles fill
+  // each field in.
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const usage = useMemo(() => {
+    const m = new Map();
+    for (const a of alters) {
+      const cf = a?.custom_fields;
+      if (!cf || typeof cf !== "object") continue;
+      for (const f of fields) if (isFilled(cf[f.id])) m.set(f.id, (m.get(f.id) || 0) + 1);
+    }
+    return m;
+  }, [alters, fields]);
+  const usedLabel = (n) => (n ? `Filled in by ${n} ${n === 1 ? terms.alter : terms.alters}` : "Not filled in yet");
 
   // Sort defensively — `.list("order")` can interleave rows that share
   // an `order` (or are missing one entirely) in arbitrary order. Fall
@@ -156,6 +195,28 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
       return String(ac).localeCompare(String(bc));
     });
   }, [fields]);
+
+  // What the list shows: search by name (every word), filter by type, sort.
+  // Dragging only makes sense on the whole list in your own order.
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filtering = words.length > 0 || typeFilter !== "all";
+  const canDrag = sort === "manual" && !filtering;
+  const shownFields = useMemo(() => {
+    let list = sortedFields.filter((f) => {
+      if (typeFilter !== "all" && (f.field_type || "text") !== typeFilter) return false;
+      const name = String(f.name || "").toLowerCase();
+      return words.every((w) => name.includes(w));
+    });
+    if (sort === "az") list = [...list].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" }));
+    else if (sort === "used") list = [...list].sort((a, b) => (usage.get(b.id) || 0) - (usage.get(a.id) || 0));
+    else if (sort === "unused") list = [...list].sort((a, b) => (usage.get(a.id) || 0) - (usage.get(b.id) || 0));
+    return list;
+  }, [sortedFields, typeFilter, sort, usage, query]); // eslint-disable-line react-hooks/exhaustive-deps
+  const typeCounts = useMemo(() => {
+    const m = {};
+    for (const f of sortedFields) { const k = f.field_type || "text"; m[k] = (m[k] || 0) + 1; }
+    return m;
+  }, [sortedFields]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -254,20 +315,78 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
           <p className="text-sm text-muted-foreground italic py-2">No custom fields yet. Custom fields are the questions every profile answers, like Likes or Age.</p>
         )}
 
-        {/* Once a user has more than a handful of custom fields, the
-            uncapped list pushes everything else on the Settings page
-            way down. Cap the visible area at ~6 rows tall and let
-            longer lists scroll inside the card. */}
-        <div
-          className={sortedFields.length > 6 ? "max-h-[24rem] overflow-y-auto pr-1 -mr-1 space-y-3" : "space-y-3"}
-          data-scrollable={sortedFields.length > 6 || undefined}
-        >
+        {sortedFields.length > 0 && (
+          <div className="space-y-2">
+            <div role="search" className="relative">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search custom fields" aria-label="Search custom fields"
+                className="w-full h-10 rounded-xl border border-border/60 bg-background pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              {query && (
+                <button type="button" onClick={() => setQuery("")} aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground">
+                  <XIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                    <ListFilter className="w-3.5 h-3.5" />
+                    {typeFilter === "all" ? "All types" : TYPE_LABELS[typeFilter] || typeFilter}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuRadioGroup value={typeFilter} onValueChange={setTypeFilter}>
+                    <DropdownMenuRadioItem value="all">All types ({sortedFields.length})</DropdownMenuRadioItem>
+                    {Object.entries(TYPE_LABELS).filter(([k]) => typeCounts[k]).map(([k, label]) => (
+                      <DropdownMenuRadioItem key={k} value={k}>{label} ({typeCounts[k]})</DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    {SORTS.find((x) => x.id === sort)?.label}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuRadioGroup value={sort} onValueChange={setSort}>
+                    {SORTS.map((x) => <DropdownMenuRadioItem key={x.id} value={x.id}>{x.label}</DropdownMenuRadioItem>)}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {filtering && (
+                <span className="text-xs text-muted-foreground">Showing {shownFields.length} of {sortedFields.length}</span>
+              )}
+            </div>
+            {!canDrag && (
+              <p className="text-[0.6875rem] text-muted-foreground">
+                {filtering ? "Clear the search and type filter" : "Switch to Your order"} to drag fields into a new order.
+              </p>
+            )}
+          </div>
+        )}
+
+        {filtering && shownFields.length === 0 && (
+          <p className="text-sm text-muted-foreground py-2">No custom fields match.</p>
+        )}
+
+        <div className="space-y-3">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sortedFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-              {sortedFields.map((field) => (
+            <SortableContext items={shownFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+              {shownFields.map((field) => (
                 <SortableFieldRow
                   key={field.id}
                   field={field}
+                  usedBy={usage.get(field.id) || 0}
+                  usedLabel={usedLabel}
+                  canDrag={canDrag}
                   isEditing={editingId === field.id}
                   editName={editName}
                   editType={editType}

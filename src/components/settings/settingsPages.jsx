@@ -9,7 +9,7 @@
 // ids and deep links) are mapped in LEGACY_HASHES so old links still land.
 import React from "react";
 import {
-  IdCard, MessageSquareText, Boxes, Languages, Clock, Tag, LayoutGrid, FlaskConical, Palette, Accessibility,
+  IdCard, MessageSquareText, Boxes, Languages, Clock, LayoutGrid, FlaskConical, Palette, Accessibility,
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
@@ -70,6 +70,8 @@ export const EXPORT_FORMAT_EXTRAS = [
 export const LEGACY_HASHES = {
   system: "profile",
   "alter-entries": "custom-fields",
+  // v0.353.1: the list-label choice lives on "Order your {alters}".
+  "alter-labels": "alter-order",
   "about-updates": "whats-new",
   "recent-updates": "whats-new",
   appearance: "group:look",
@@ -109,8 +111,6 @@ export function buildSettingsGroups(ctx) {
         { id: "timezone", label: "Time & clock", hint: "12 or 24-hour clock, and which timezone days follow", icon: Clock,
           keywords: "timezone time zone clock travel 12 24 hour military am pm",
           render: () => (<div className="space-y-4"><ClockFormatRow /><TimezoneSettings /></div>) },
-        { id: "alter-labels", label: `${t.Alter} labels in lists`, hint: "Name, alias or both", icon: Tag,
-          keywords: `${t.alter} label name alias lists pickers dropdowns`, render: () => <AlterLabelSettings embedded /> },
         { id: "home-screen", label: "Home screen", hint: "The new home screen and which page greets you", icon: LayoutGrid,
           when: () => UI_V2_ENABLED, keywords: "new ui home screen widgets board classic home opens on dashboard",
           render: () => (<div className="space-y-2"><NewUiToggle /><HomeOpensOnRow /></div>) },
@@ -140,8 +140,14 @@ export function buildSettingsGroups(ctx) {
           keywords: "profile layouts default board pages widgets new profile old profile", render: () => <ProfileLayoutSettings /> },
         { id: "profile-songs", label: "Profile songs", hint: "Music on profiles", icon: Music,
           keywords: "profile songs music audio theme song", render: () => <ProfileSongsSettings /> },
-        { id: "alter-order", label: `Order your ${t.alters}`, hint: "How the directory sorts", icon: ArrowUpDown,
-          keywords: `order sort arrange ${t.alters} directory`, render: () => <AlterOrderSettings /> },
+        { id: "alter-order", label: `Order your ${t.alters}`, hint: "How they're sorted and labelled in lists", icon: ArrowUpDown,
+          keywords: `order sort arrange ${t.alters} directory ${t.alter} label labels name alias lists pickers dropdowns`,
+          render: () => (
+            <div className="space-y-6">
+              <AlterOrderSettings />
+              <Group title={`${t.Alter} labels in lists`} first><AlterLabelSettings embedded /></Group>
+            </div>
+          ) },
         { id: "archived-alters", label: `Archived ${t.alters}`, hint: "Bring one back", icon: Archive,
           keywords: `archived ${t.alters} restore unarchive dormant`, render: () => <ArchivedAltersManager /> },
         { id: "archived-contacts", label: "Archived contacts", hint: "Bring one back", icon: Contact,
