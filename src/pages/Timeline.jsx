@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { parseDate } from "@/lib/dateUtils";
 import { format, subDays, startOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
@@ -158,7 +158,14 @@ export default function Timeline() {
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const days = Array.from({ length: daysBack }, (_, i) => subDays(anchorDate, i));
+  // Sliced once per data change, not on every render of the page.
+  const dayRows = useMemo(
+    () => Array.from({ length: daysBack }, (_, i) => {
+      const day = subDays(anchorDate, i);
+      return { day, d: sliceTimelineDay(src, day, { showActivities, showFronting, showLocations }) };
+    }),
+    [src, anchorDate, daysBack, showActivities, showFronting, showLocations],
+  );
 
   const toggleStyles = (active) =>
     `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -218,8 +225,7 @@ export default function Timeline() {
 
       {/* Timeline days */}
       <div className="space-y-2">
-        {days.map((day) => {
-          const d = sliceTimelineDay(src, day, { showActivities, showFronting, showLocations });
+        {dayRows.map(({ day, d }) => {
           return (
             <div key={d.dateStr} id={`day-${d.dateStr}`}>
               <InfiniteTimeline

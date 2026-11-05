@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -34,6 +34,7 @@ import { triggerPatch } from "@/lib/triggerCategories";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { alterPictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
+import { latestBy } from "@/lib/latestRecord";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -677,9 +678,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false, onlyAl
     queryKey: ["statusNotes"],
     queryFn: () => localEntities.StatusNote.list(),
   });
-  const latestStatusNote = allStatusNotes
-    .slice()
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] ?? null;
+  const latestStatusNote = useMemo(() => latestBy(allStatusNotes), [allStatusNotes]);
 
   const isDemo = realActiveSessions.length === 0 && !!window.__tourActive;
   const demoAlterSource = alters.length > 0 ? alters.slice(0, 2) : TOUR_DEMO_ALTERS.slice(0, 2);

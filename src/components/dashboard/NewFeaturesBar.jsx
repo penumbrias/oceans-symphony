@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
-import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import BugReportModal from "@/components/settings/BugReportModal";
@@ -57,16 +56,26 @@ export default function NewFeaturesBar({ embedded = false }) {
 
   // Pre-filter the whole changelog once: drop hotfixes, drop empty
   // blocks. The order is preserved (newest first).
+  // The changelog is large (every release ever), so it loads after the
+  // home screen instead of being part of the app's startup code.
+  const [changelog, setChangelog] = useState(null);
+  useEffect(() => {
+    let live = true;
+    import("@/lib/changelog").then((m) => { if (live) setChangelog(m.CHANGELOG || []); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
   const filteredChangelog = useMemo(() => {
-    return (CHANGELOG || [])
+    if (!changelog) return null;
+    return changelog
       .map((entry) => ({
         ...entry,
         changes: (entry.changes || []).filter((c) => VISIBLE_TYPES.has(c.type)),
       }))
       .filter((entry) => entry.changes.length > 0);
-  }, []);
+  }, [changelog]);
 
   useEffect(() => {
+    if (!filteredChangelog) return;
     try {
       const seen = localStorage.getItem(STORAGE_KEY);
       if (seen === APP_VERSION) {

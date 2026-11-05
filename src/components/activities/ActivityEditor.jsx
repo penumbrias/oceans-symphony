@@ -126,7 +126,15 @@ const EDIT_GUARD_FIELDS = ["activity_name", "notes", "fronting_alter_ids", "acti
   "parent_category_id", "location", "is_critical", "contact_ids", "color", "tag_color", "timestamp",
   "duration_minutes", "actual_duration_minutes", "task_id"];
 
-export default function ActivityEditor({ request, onClose, onSaved = null, weekStartsOn = 1 }) {
+// Closed editors render nothing and do no work. Pages mount several of these
+// (one per door); each used to sort the whole activity history on every
+// render while closed, because the shared cache hands them data anyway.
+export default function ActivityEditor(props) {
+  if (!props.request) return null;
+  return <ActivityEditorOpen {...props} />;
+}
+
+function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1 }) {
   const t = useTerms();
   const tr = useT();
   const qc = useQueryClient();

@@ -89,13 +89,20 @@ export function dateSearchBlob(dateInput) {
   ].join(" ");
 }
 
+// One formatter for the whole index: toLocaleDateString builds a fresh
+// Intl formatter on every call, which made indexing thousands of dated
+// records take most of a second on a phone.
+let _dateLabelFormat = null;
 export function formatDateLabel(dateInput) {
   if (!dateInput) return null;
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
-  });
+  if (!_dateLabelFormat) {
+    _dateLabelFormat = new Intl.DateTimeFormat("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+  }
+  return _dateLabelFormat.format(d);
 }
 
 export function isoDate(ts) {

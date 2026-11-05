@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "improve", text: "The app is snappier: the home screen, Timeline and Journals open faster, and saving no longer rebuilds the search index in the background." },
       { type: "improve", text: "Settings: coming back from a page now returns you to where you were in the list, search included." },
       { type: "improve", text: "Custom fields can be searched, filtered by type and sorted, and each one shows how many profiles fill it in." },
       { type: "improve", text: "The \"labels in lists\" choice (name, alias or both) moved onto the Order page in Settings." },

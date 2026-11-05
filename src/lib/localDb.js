@@ -1487,6 +1487,22 @@ function rewriteLocalImageUrls(value) {
   return { changed: false, value };
 }
 
+// Cheap read-only scans used to skip the copying walkers below on records
+// that hold nothing to migrate (nearly all of them, every launch). The
+// walkers rebuilt every object in the database on each boot.
+function someString(value, test, depth = 0) {
+  if (typeof value === 'string') return test(value);
+  if (!value || typeof value !== 'object' || depth > 50) return false;
+  if (Array.isArray(value)) {
+    for (const item of value) if (someString(item, test, depth + 1)) return true;
+    return false;
+  }
+  for (const k in value) if (someString(value[k], test, depth + 1)) return true;
+  return false;
+}
+const hasLegacyLocalImage = (s) => s.startsWith('local-image://');
+const hasDataUrl = (s) => s.startsWith('data:') || s.includes('src="data:image');
+
 export async function migrateLocalImageUrlScheme() {
   const db = getDb();
   let migrated = 0;
@@ -1495,6 +1511,7 @@ export async function migrateLocalImageUrlScheme() {
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
+      if (!someString(record, hasLegacyLocalImage)) continue;
       const { changed, value } = rewriteLocalImageUrls(record);
       if (changed) {
         db[entityName][recordId] = value;
@@ -2238,6 +2255,7 @@ export async function migrateBase64AvatarsToLocal() {
       const patch = {};
       for (const [field, value] of Object.entries(record)) {
         if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
+        if (!someString(value, hasDataUrl)) continue;
         try {
           const r = await walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
           if (r.changed) {

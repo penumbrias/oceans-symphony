@@ -386,7 +386,10 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const modPagesV = useModPagesVersion();
   const pages = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms, modPagesV]);
 
-  const index = useMemo(() => buildSearchIndex({
+  // Built only while the search is open. Most of these lists share their
+  // cache with the home screen, so an always-on index was rebuilt from
+  // scratch on every save anywhere in the app, search open or not.
+  const index = useMemo(() => !enabled ? [] : buildSearchIndex({
     terms,
     alters, customFieldDefs,
     journals, supportJournals,
@@ -449,6 +452,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     groupNotes,
     contactNotes, contactEncounters,
     relationships,
+    enabled,
 ]);
 
   // Typing stays smooth on a lifetime of records: the scan runs on a
