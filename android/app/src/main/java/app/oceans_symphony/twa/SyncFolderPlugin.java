@@ -281,24 +281,69 @@ public class SyncFolderPlugin extends Plugin {
             if (part == null) throw new Exception("Couldn't create a file in the sync folder.");
             writeAll(resolver, part, bytes);
 
-            // Swap it into place: clear the old snapshot, then rename. A
-            // rename onto an existing name would produce "name (1)".
-            String oldId = findChild(tree, dirId, name, false);
-            if (oldId != null) {
-                DocumentsContract.deleteDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, oldId));
-            }
-            Uri renamed = null;
-            try {
-                renamed = DocumentsContract.renameDocument(resolver, part, name);
-            } catch (Exception ignored) {
-                // Provider without rename support: fall through.
-            }
-            if (renamed == null) {
-                // Fallback: write in place, then drop the .part.
-                Uri target = DocumentsContract.createDocument(resolver, dir, "application/octet-stream", name);
-                if (target == null) throw new Exception("Couldn't write to the sync folder.");
-                writeAll(resolver, target, bytes);
-                try { DocumentsContract.deleteDocument(resolver, part); } catch (Exception ignored) { /* best effort */ }
+            swapIntoPlace(resolver, tree, dirId, dir, part, name);
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject(lostAccess());
+        } catch (Exception e) {
+            call.reject(message(e, "Couldn't write to the sync folder."));
+        }
+    }
+
+    // ── Write in pieces (v0.357.2) ─────────────────────────────────────
+    //
+    // write() above receives the whole snapshot as one string; on a big
+    // database that is the same several-copies-at-once load that crashed
+    // read() (OutOfMemoryError, v0.357.1). JS now calls writeBegin, then
+    // writeChunk per piece (appended to name.part), then writeCommit with
+    // the byte count it sent: the staged file is checked against it before
+    // it replaces the live snapshot, so a short write never goes live.
+
+    @PluginMethod
+    public void writeBegin(PluginCall call) {
+        Uri tree = treeOf(call);
+        if (tree == null) return;
+        String name = call.getString("name");
+        if (name == null || name.isEmpty()) { call.reject("name is required"); return; }
+        ContentResolver resolver = getContext().getContentResolver();
+        String dirId = dirOf(call, tree);
+        Uri dir = DocumentsContract.buildDocumentUriUsingTree(tree, dirId);
+        try {
+            String partName = name + ".part";
+            String partId = findChild(tree, dirId, partName, false);
+            Uri part = partId != null
+                ? DocumentsContract.buildDocumentUriUsingTree(tree, partId)
+                : DocumentsContract.createDocument(resolver, dir, "application/octet-stream", partName);
+            if (part == null) throw new Exception("Couldn't create a file in the sync folder.");
+            writeAll(resolver, part, new byte[0]);
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject(lostAccess());
+        } catch (Exception e) {
+            call.reject(message(e, "Couldn't write to the sync folder."));
+        }
+    }
+
+    @PluginMethod
+    public void writeChunk(PluginCall call) {
+        Uri tree = treeOf(call);
+        if (tree == null) return;
+        String name = call.getString("name");
+        String text = call.getString("data");
+        if (name == null || name.isEmpty() || text == null) { call.reject("name and data are required"); return; }
+        ContentResolver resolver = getContext().getContentResolver();
+        try {
+            String partId = findChild(tree, dirOf(call, tree), name + ".part", false);
+            if (partId == null) throw new Exception("The staged sync file went missing.");
+            Uri part = DocumentsContract.buildDocumentUriUsingTree(tree, partId);
+            try (OutputStream out = resolver.openOutputStream(part, "wa")) {
+                if (out == null) throw new Exception("Couldn't open the file for writing.");
+                out.write(text.getBytes(StandardCharsets.UTF_8));
+                out.flush();
             }
             JSObject ret = new JSObject();
             ret.put("ok", true);
@@ -307,6 +352,69 @@ public class SyncFolderPlugin extends Plugin {
             call.reject(lostAccess());
         } catch (Exception e) {
             call.reject(message(e, "Couldn't write to the sync folder."));
+        }
+    }
+
+    @PluginMethod
+    public void writeCommit(PluginCall call) {
+        Uri tree = treeOf(call);
+        if (tree == null) return;
+        String name = call.getString("name");
+        long expected = call.getLong("size", -1L);
+        if (name == null || name.isEmpty()) { call.reject("name is required"); return; }
+        ContentResolver resolver = getContext().getContentResolver();
+        String dirId = dirOf(call, tree);
+        Uri dir = DocumentsContract.buildDocumentUriUsingTree(tree, dirId);
+        try {
+            String partId = findChild(tree, dirId, name + ".part", false);
+            if (partId == null) throw new Exception("The staged sync file went missing.");
+            Uri part = DocumentsContract.buildDocumentUriUsingTree(tree, partId);
+            long actual;
+            try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(part, "r")) {
+                if (pfd == null) throw new Exception("Couldn't open the staged sync file.");
+                actual = pfd.getStatSize();
+            }
+            if (expected >= 0 && actual != expected) {
+                // Leave the live snapshot alone; the .part is ignored by readers.
+                throw new Exception("The sync file was cut short while saving (" + actual + " of " + expected + " bytes). It will be written again on the next sync.");
+            }
+            swapIntoPlace(resolver, tree, dirId, dir, part, name);
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject(lostAccess());
+        } catch (Exception e) {
+            call.reject(message(e, "Couldn't write to the sync folder."));
+        }
+    }
+
+    // Replace the live snapshot with the staged .part: clear the old file,
+    // then rename. A rename onto an existing name would produce "name (1)".
+    // Providers without rename get a streamed copy, then the .part dropped.
+    private void swapIntoPlace(ContentResolver resolver, Uri tree, String dirId, Uri dir, Uri part, String name) throws Exception {
+        String oldId = findChild(tree, dirId, name, false);
+        if (oldId != null) {
+            DocumentsContract.deleteDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, oldId));
+        }
+        Uri renamed = null;
+        try {
+            renamed = DocumentsContract.renameDocument(resolver, part, name);
+        } catch (Exception ignored) {
+            // Provider without rename support: fall through.
+        }
+        if (renamed == null) {
+            Uri target = DocumentsContract.createDocument(resolver, dir, "application/octet-stream", name);
+            if (target == null) throw new Exception("Couldn't write to the sync folder.");
+            try (InputStream in = resolver.openInputStream(part);
+                 OutputStream out = resolver.openOutputStream(target, "wt")) {
+                if (in == null || out == null) throw new Exception("Couldn't write to the sync folder.");
+                byte[] chunk = new byte[64 * 1024];
+                int n;
+                while ((n = in.read(chunk)) != -1) out.write(chunk, 0, n);
+                out.flush();
+            }
+            try { DocumentsContract.deleteDocument(resolver, part); } catch (Exception ignored) { /* best effort */ }
         }
     }
 

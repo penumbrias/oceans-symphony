@@ -82,8 +82,39 @@ export async function readFolderFile(handle, name) {
   throw new Error("That file is too large to read.");
 }
 
+// Write in pieces too (v0.357.2): the whole-string write held the snapshot
+// several times over on the native side, like the old read. Pieces go to
+// name.part; writeCommit checks the byte count before it replaces the live
+// file, so an interrupted write never goes live.
+const WRITE_CHARS = 1024 * 1024;
+
+// Cut points that never split a surrogate pair (an emoji cut in half would
+// be written as "?" on each side).
+export function writePieces(text, size = WRITE_CHARS) {
+  const out = [];
+  let i = 0;
+  while (i < text.length) {
+    let end = Math.min(text.length, i + size);
+    if (end < text.length) {
+      const c = text.charCodeAt(end - 1);
+      if (c >= 0xd800 && c <= 0xdbff) end -= 1;
+    }
+    out.push(text.slice(i, end));
+    i = end;
+  }
+  return out;
+}
+
 export async function writeFolderFile(handle, name, text) {
-  await SyncFolder.write({ uri: handle.uri, docId: handle.docId || undefined, name, data: text });
+  const base = { uri: handle.uri, docId: handle.docId || undefined, name };
+  const encoder = new TextEncoder();
+  let bytes = 0;
+  await SyncFolder.writeBegin(base);
+  for (const piece of writePieces(text)) {
+    bytes += encoder.encode(piece).length;
+    await SyncFolder.writeChunk({ ...base, data: piece });
+  }
+  await SyncFolder.writeCommit({ ...base, size: bytes });
   return { ok: true };
 }
 
