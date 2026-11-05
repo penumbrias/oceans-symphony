@@ -1,22 +1,29 @@
 // One wish: what it is, whose, why, and what can be done with it (plan it,
-// shopping list, make it a goal, done / let go, edit, delete). Shared by
-// an alter's Wishlist tab and the Needs page.
+// put it on a list, make it a goal / open its goal, done / let go, edit,
+// delete). Shared by an alter's Wishlist tab and the Needs page.
+//
+// v0.353.0: a wish shows what it's linked to — its activity, its goal page,
+// the list it sits on — and each link opens the real thing.
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  Lock, ExternalLink, CalendarPlus, ShoppingBasket, Check, Undo2, Pencil, Trash2, Users, Target,
+  Lock, ExternalLink, CalendarPlus, ListPlus, ListChecks, Check, Undo2, Pencil, Trash2, Users, Target,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import RichText from "@/components/shared/RichText";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import PlanTimeChoice from "@/components/planner/PlanTimeChoice";
 import WishEditor from "@/components/wishes/WishEditor";
+import WishLinkFields from "@/components/wishes/WishLinkFields";
+import { GOALS_QUERY_KEY } from "@/lib/goals";
+import { useNoteLists, notesPath, listLabel } from "@/lib/noteLists";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import {
-  wishKindMeta, wishStatusLabel, isOpenWish, wishAgeLabel, setWishStatus, planWish, addWishToShoppingList,
+  wishKindMeta, wishStatusLabel, isOpenWish, wishAgeLabel, setWishStatus, planWish, wishGoalId, applyWishLinks,
 } from "@/lib/wishes";
 import { format } from "date-fns";
 
@@ -31,6 +38,18 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
   const [editing, setEditing] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [listing, setListing] = useState(false);
+  const qc = useQueryClient();
+  const { data: goals = [] } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: () => base44.entities.Goal.list() });
+  const notes = useNoteLists({ enabled: wish.kind === "item" || !!wish.list_id });
+  const goalId = wishGoalId(wish, goals);
+  const goal = goalId ? goals.find((g) => g.id === goalId) : null;
+  const activity = wish.category_id ? (categories || []).find((c) => c.id === wish.category_id) : null;
+  const list = wish.list_id ? notes.byId.get(wish.list_id) : null;
+  const listItem = useMemo(
+    () => (list && wish.list_item_id ? notes.items(list.id).find((i) => i.id === wish.list_item_id) : null),
+    [list, wish.list_item_id, notes],
+  );
   const kind = wishKindMeta(wish.kind);
   const open = isOpenWish(wish);
   const owners = (wish.owner_alter_ids || []).map((id) => alterById.get(id)).filter(Boolean);
@@ -38,7 +57,10 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
 
   const run = async (fn, msg) => {
     setBusy(true);
-    try { await fn(); if (msg) toast.success(msg); onChanged(); }
+    try {
+      await fn(); if (msg) toast.success(msg); onChanged();
+      for (const key of [GOALS_QUERY_KEY, ["groceryLists"], ["groceryItems"]]) qc.invalidateQueries({ queryKey: key });
+    }
     catch (e) { toast.error(e?.message || "Couldn't save that."); }
     finally { setBusy(false); }
   };
@@ -93,6 +115,36 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
         <p className="text-xs text-muted-foreground">Last happened {format(new Date(wish.last_happened_at), "MMM d")}</p>
       )}
 
+      {(activity || goal || list) && (
+        <div className="flex flex-wrap gap-1.5">
+          {activity && (
+            <span className="text-xs flex items-center gap-1 text-muted-foreground">
+              <span className="w-2 h-2 rounded-full" style={{ background: activity.color || "currentColor" }} /> {activity.name}
+            </span>
+          )}
+          {goal && (
+            <button type="button" className={small} onClick={() => navigate(`/goals?page=${goal.id}`)}>
+              <Target className="w-3.5 h-3.5" /> {goal.icon ? `${goal.icon} ` : ""}{goal.title || "Goal"}
+            </button>
+          )}
+          {list && (
+            <button type="button" className={small} onClick={() => navigate(notesPath(list.id))}>
+              <ListChecks className="w-3.5 h-3.5" /> {listItem?.checked ? "✓ ticked on " : "On "}{listLabel(list)}
+            </button>
+          )}
+        </div>
+      )}
+
+      {listing && (
+        <WishLinkFields kind="item" value={{}} onChange={(l) => {
+          if (!l.list_id) return;
+          run(async () => {
+            await applyWishLinks(wish, { list_id: l.list_id }, { lists: notes.lists, items: [...notes.idbItems, ...notes.unlockedItems] });
+            setListing(false);
+          }, "Added to the list");
+        }} />
+      )}
+
       {planning && (
         <PlanTimeChoice kind="later" item={{}} busy={busy} prompt="When could it happen?"
           onPick={(when) => run(async () => { await planWish(wish, when, { categories }); setPlanning(false); }, "Planned")} />
@@ -104,18 +156,14 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
             <CalendarPlus className="w-3.5 h-3.5" /> Plan it
           </button>
         )}
-        {open && wish.kind === "goal" && (
+        {open && wish.kind === "goal" && !goal && (
           <button type="button" disabled={busy} className={small} onClick={() => navigate(`/goals?fromWish=${wish.id}`)}>
             <Target className="w-3.5 h-3.5" /> Make it a goal
           </button>
         )}
-        {open && wish.kind === "item" && (
-          <button type="button" disabled={busy} className={small}
-            onClick={() => run(async () => {
-              const { added } = await addWishToShoppingList(wish);
-              toast.success(added ? "Added to the shopping list" : "It's already on the shopping list");
-            })}>
-            <ShoppingBasket className="w-3.5 h-3.5" /> Shopping list
+        {open && wish.kind === "item" && !list && (
+          <button type="button" disabled={busy} className={small} onClick={() => setListing((v) => !v)}>
+            <ListPlus className="w-3.5 h-3.5" /> Add to a list
           </button>
         )}
         {wish.url && (
@@ -125,7 +173,7 @@ export default function WishCard({ wish, alters, categories, alterById, onChange
         )}
         {open ? (
           <>
-            <button type="button" disabled={busy} className={small} onClick={() => run(() => setWishStatus(wish, "done"), "Marked done 💜")}>
+            <button type="button" disabled={busy} className={small} onClick={() => run(() => setWishStatus(wish, "done", { lists: notes.lists }), list ? "Marked done, and ticked on the list 💜" : "Marked done 💜")}>
               <Check className="w-3.5 h-3.5" /> Done
             </button>
             <button type="button" disabled={busy} className={small} onClick={() => run(() => setWishStatus(wish, "let_go"), "Let go — it stays in the history")}>

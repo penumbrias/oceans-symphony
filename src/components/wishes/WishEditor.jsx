@@ -4,20 +4,21 @@
 // The two "why" prompts speak the app's text grammar (MentionTextarea +
 // prepareAuthoredText / recordAuthoredText), like every other note field.
 
-import React, { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { Chips, SwitchRow } from "@/components/shared/SettingRows";
 import WhoseChoice, { whosePicked, whoseEveryone, WHOSE_PICK } from "@/components/needs/WhoseChoice";
-import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
+import WishLinkFields, { linksActivity, linksGoal, linksList } from "@/components/wishes/WishLinkFields";
+import { GOALS_QUERY_KEY } from "@/lib/goals";
+import { useNoteLists } from "@/lib/noteLists";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { useTerms } from "@/lib/useTerms";
-import { WISH_KINDS, WISH_STATUSES, WISH_PRIORITIES } from "@/lib/wishes";
+import { WISH_KINDS, WISH_STATUSES, WISH_PRIORITIES, NEW_GOAL, NEW_WISHLIST, wishGoalId, applyWishLinks } from "@/lib/wishes";
 
 const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
 const PRIORITY_LABEL = { low: "Someday", normal: "Normal", high: "Important" };
@@ -34,22 +35,28 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
     status: wish.status || "wished",
     price: wish.price ?? "",
     url: wish.url || "",
-    category_id: wish.category_id || null,
     driving: wish.driving || "",
     impact: wish.impact || "",
   }));
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const qc = useQueryClient();
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["activityCategories"],
-    queryFn: () => base44.entities.ActivityCategory.list(),
-  });
-  // Nested picker (house rule: hierarchies never render as a flat select).
-  const categoryOptions = useMemo(
-    () => flattenCategoryTree(categories).map((c) => ({ id: c.id, label: c.name, color: c.color, _depth: c._depth })),
-    [categories],
-  );
+  // What the wish is linked to (WishLinkFields). A wish made into a goal
+  // before goal_id existed is found through the goal's wish_id.
+  const [links, setLinks] = useState(() => ({
+    category_id: wish.category_id || null, goal_id: wish.goal_id || null,
+    list_id: wish.list_id || null, list_item_id: wish.list_item_id || null,
+  }));
+  const { data: goals = [], isFetched: goalsFetched } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: () => base44.entities.Goal.list() });
+  const goalFilled = useRef(false);
+  useEffect(() => {
+    if (goalFilled.current || !goalsFetched) return;
+    goalFilled.current = true;
+    const id = wishGoalId(wish, goals);
+    if (id) setLinks((l) => (l.goal_id ? l : { ...l, goal_id: id }));
+  }, [goalsFetched, goals, wish]);
+  const notes = useNoteLists({ enabled: form.kind === "item" });
   // Whose: the whole system, or picked alters (the standard picker).
   const whose = form.for_everyone || !form.owner_alter_ids.length ? whoseEveryone() : whosePicked(form.owner_alter_ids);
   const setWhose = (v) => setForm((p) => ({
@@ -88,11 +95,22 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
         ...(statusChanged ? { status_changed_at: new Date().toISOString() } : {}),
         price: Number.isFinite(price) ? price : null,
         url: form.url.trim() || null,
-        category_id: form.category_id || null,
+        // Only the link this kind carries is written; a "new goal" / "new
+        // wishlist" choice is made just below, once the wish is saved.
+        ...(linksActivity(form.kind) ? { category_id: links.category_id || null } : {}),
+        ...(linksGoal(form.kind) ? { goal_id: links.goal_id && links.goal_id !== NEW_GOAL ? links.goal_id : (links.goal_id === NEW_GOAL ? wish.goal_id || null : null) } : {}),
+        ...(linksList(form.kind) && !links.list_id ? { list_id: null, list_item_id: null } : {}),
         driving: driving.content,
         impact: impact.content,
         author_alter_ids: [...new Set([...(driving.authorIds || []), ...(impact.authorIds || [])])],
       });
+      const saved = { ...wish, title: form.title.trim(), owner_alter_ids: form.owner_alter_ids, for_everyone: form.for_everyone };
+      if (linksGoal(form.kind) && links.goal_id === NEW_GOAL) await applyWishLinks(saved, { goal_id: NEW_GOAL });
+      if (linksList(form.kind) && links.list_id && (links.list_id === NEW_WISHLIST || links.list_id !== wish.list_id || !wish.list_item_id)) {
+        await applyWishLinks({ ...saved, list_id: null, list_item_id: null }, { list_id: links.list_id },
+          { lists: notes.lists, items: [...notes.idbItems, ...notes.unlockedItems] });
+      }
+      for (const key of [GOALS_QUERY_KEY, ["groceryLists"], ["groceryItems"]]) qc.invalidateQueries({ queryKey: key });
       const owner = form.owner_alter_ids[0];
       const navigatePath = owner ? `/alter/${owner}?tab=wishlist&highlight=${wish.id}` : `/needs?tab=wishes&highlight=${wish.id}`;
       for (const p of [driving, impact]) {
@@ -126,26 +144,7 @@ export default function WishEditor({ wish, alters = [], onDone, onCancel }) {
         </div>
       )}
 
-      {(form.kind === "activity" || form.kind === "experience" || form.category_id) && (
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Activity it fits (optional)</label>
-          <SearchableSelect
-            value={form.category_id}
-            onChange={(id) => set("category_id", id || null)}
-            options={categoryOptions}
-            allowClear
-            placeholder="No activity"
-            searchPlaceholder="Search activities…"
-            renderOption={(o) => (
-              <span className="flex items-center gap-2 min-w-0">
-                {o._depth > 0 && <span style={{ width: o._depth * 12 }} className="flex-shrink-0 text-muted-foreground text-xs text-right">↳</span>}
-                {o.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />}
-                <span className="truncate text-sm">{o.label}</span>
-              </span>
-            )}
-          />
-        </div>
-      )}
+      <WishLinkFields kind={form.kind} value={links} onChange={setLinks} />
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">What's driving this? (optional)</label>

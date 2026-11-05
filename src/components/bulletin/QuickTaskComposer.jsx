@@ -1,3 +1,6 @@
+import GoalPagePicker from "@/components/goals/GoalPagePicker";
+import { GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY } from "@/lib/goals";
+import { createPage, putTaskOnPage } from "@/lib/goalTree";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { saveThing } from "@/lib/thingSave";
 import { base44 } from "@/api/base44Client";
@@ -40,9 +43,12 @@ function formatDateLabel(iso) {
 // A "quick task" composer for the bulletin board — mirrors QuickPlanComposer
 // and now exposes the SAME fields as the full "create a new task" modal:
 // due date, scheduled (plan-to-do) date, priority, activity category, a goal
-// (target + unit), a note/description, plus Pin-to-dashboard and Mark-urgent
+// (a goal page it belongs to, v0.353.0, and/or a target + unit), a note/description, plus Pin-to-dashboard and Mark-urgent
 // toggles. Minimal by default; tapping in expands to the optional pills so it
 // isn't overwhelming. Creating it posts the matching task-bulletin.
+const NEW_GOAL_PAGE = "__new_goal__";
+const NEW_GOAL_PAGE_OPTION = { id: NEW_GOAL_PAGE, label: "＋ New goal named after this to-do" };
+
 export default function QuickTaskComposer({
   frontingAlterIds = [], onSaved, hideCancelButton = false,
   // Opened as "plan something": start expanded with the When panel showing
@@ -67,6 +73,10 @@ export default function QuickTaskComposer({
   const [categoryId, setCategoryId] = useState(null);
   const [goalTarget, setGoalTarget] = useState("");
   const [goalUnit, setGoalUnit] = useState("");
+  // The goal page this to-do goes on (GoalPagePicker; NEW_GOAL_PAGE = a new
+  // page named after the to-do). It shows there as a to-do line.
+  const [goalPageId, setGoalPageId] = useState(null);
+  const { data: goals = [] } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: () => base44.entities.Goal.list(), enabled: !!goalPageId });
   const [note, setNote] = useState("");
   const [pinned, setPinned] = useState(false);
   const [urgent, setUrgent] = useState(false);
@@ -82,7 +92,7 @@ export default function QuickTaskComposer({
   const selectedCategory = useMemo(() => categories.find((c) => c.id === categoryId) || null, [categories, categoryId]);
 
   const isPristine = !title.trim() && priority === "medium" && dueDate === (initialDueDate || "") && !scheduledDate && !scheduledTime
-    && !categoryId && !goalTarget && !goalUnit.trim() && !note.trim() && !pinned && !urgent;
+    && !categoryId && !goalTarget && !goalUnit.trim() && !goalPageId && !note.trim() && !pinned && !urgent;
 
   useEffect(() => {
     if (!expanded) return;
@@ -107,7 +117,7 @@ export default function QuickTaskComposer({
   const resetForm = () => {
     setTitle(""); setPriority("medium"); setDueDate(""); setScheduledDate("");
     setScheduledTime(""); setDurationMin("60");
-    setCategoryId(null); setGoalTarget(""); setGoalUnit("");
+    setCategoryId(null); setGoalTarget(""); setGoalUnit(""); setGoalPageId(null);
     setNote(""); setPinned(false); setUrgent(false); setActivePill(null);
   };
 
@@ -159,6 +169,14 @@ export default function QuickTaskComposer({
         companionBulletin: true,
         authorAlterIds: authorIds,
       });
+      if (goalPageId && task) {
+        try {
+          const pageId = goalPageId === NEW_GOAL_PAGE ? (await createPage({ title }))?.id : goalPageId;
+          await putTaskOnPage(task, pageId);
+        } catch (e) { toast.error(e?.message || "Saved, but couldn't put it on the goal."); }
+        queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: GOAL_STEPS_QUERY_KEY });
+      }
       await recordAuthoredText({
         ...prepared,
         content: [title, prepared.content].filter(Boolean).join(" "),
@@ -186,12 +204,16 @@ export default function QuickTaskComposer({
   const whenLabel = scheduledDate
     ? `${scheduledTime ? `${formatDateLabel(scheduledDate)} ${scheduledTime}` : `Do ${formatDateLabel(scheduledDate)}`}`
     : (dueDate ? `Due ${formatDateLabel(dueDate)}` : "When");
+  const linkedGoal = goalPageId && goalPageId !== NEW_GOAL_PAGE ? goals.find((g) => g.id === goalPageId) : null;
+  const goalPillLabel = goalPageId === NEW_GOAL_PAGE ? "New goal"
+    : linkedGoal ? (linkedGoal.title || "Goal")
+    : goalTarget ? `${goalTarget}${goalUnit ? ` ${goalUnit}` : ""}` : "Goal";
   const pills = [
     { id: "when", icon: CalendarDays, label: whenLabel, active: !!dueDate || !!scheduledDate || !!scheduledTime },
     // Priority pill now also hosts the Pin-to-dashboard + Mark-urgent toggles.
     { id: "priority", icon: Flag, label: priority === "medium" ? "Priority" : priorityMeta.label, active: priority !== "medium" || pinned || urgent },
     { id: "category", icon: Tag, label: selectedCategory ? selectedCategory.name : "Activity", active: !!selectedCategory },
-    { id: "goal", icon: Target, label: goalTarget ? `${goalTarget}${goalUnit ? ` ${goalUnit}` : ""}` : "Goal", active: !!goalTarget },
+    { id: "goal", icon: Target, label: goalPillLabel, active: !!goalTarget || !!goalPageId },
     { id: "note", icon: FileText, label: note.trim() ? "Note added" : "Note", active: !!note.trim() },
   ];
 
@@ -348,12 +370,16 @@ export default function QuickTaskComposer({
                     )}
 
                     {activePill === "goal" && (
+                      <div className="space-y-2">
+                      <GoalPagePicker value={goalPageId} onChange={setGoalPageId} newOption={NEW_GOAL_PAGE_OPTION} label="Goal it belongs to" />
+                      <p className="text-xs font-medium text-muted-foreground">Count toward a number (optional)</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <input type="number" min={1} value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="Target"
                           className="w-24 bg-background border border-input rounded-lg px-2 py-1 text-sm text-foreground" />
                         <input type="text" value={goalUnit} onChange={(e) => setGoalUnit(e.target.value)} placeholder="times, hours, km…"
                           className="flex-1 min-w-[8rem] bg-background border border-input rounded-lg px-2 py-1 text-sm text-foreground" />
                         {(goalTarget || goalUnit) && <button type="button" onClick={() => { setGoalTarget(""); setGoalUnit(""); }} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+                      </div>
                       </div>
                     )}
 

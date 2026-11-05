@@ -420,7 +420,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🗓️", title: "Following up on a wish",
-      body: `Wishes show how long they've waited. "Plan it" puts an activity in the planner. Done and Let go keep a wish in the history instead of deleting it.`,
+      body: `Wishes show how long they've waited and what they link to. "Plan it" puts an activity in the planner. Done and Let go keep a wish in the history instead of deleting it.`,
       route: profile("wishes"),
     }),
     s("profile", {
@@ -783,6 +783,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("activities", {
       emoji: "💗", title: "Wishes",
       body: `The Wishes page starts with a quick add: write the wish and it's for whoever is ${t.fronting}, or pick the whole ${t.system} or other ${t.alters}. Every shared wish's card is below it.`,
+      route: "/needs?tab=wishes", target: ["needs-tabs", "needs-page"],
+    }),
+    s("activities", {
+      emoji: "🔗", title: "What a wish links to",
+      body: `A wish's kind connects it: an activity wish picks or creates one of your activities, a goal wish links or makes a goal, and an item wish goes on a list or is taken from one.`,
       route: "/needs?tab=wishes", target: ["needs-tabs", "needs-page"],
     }),
     s("activities", {
