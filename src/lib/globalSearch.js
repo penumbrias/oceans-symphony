@@ -901,7 +901,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["custom-fields", "Custom fields", `Custom fields, entries, ${Alter} info schema`],
     ["relationship-types", "Relationship types", "Relationship types, lineage"],
     ["profile-layouts", "Profile layouts", "Profile layouts, default layout, new profile"],
-    ["profile-songs", "Profile songs", "Profile songs, music"],
+    ["profile-songs", "Profile songs", "Profile songs, music, sound manager, volume, quiet hours, time of day"],
     ["alter-order", `Order your ${Alters}`, `${Alter} order, sort, arrangement`],
     ["archived-alters", `Archived ${Alters}`, `Archived ${Alters}, restore, unarchive`],
     ["archived-contacts", "Archived contacts", "Archived contacts, restore"],

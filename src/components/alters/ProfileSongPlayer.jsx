@@ -21,6 +21,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isOtherAudioPlaying } from "@/lib/otherAudio";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { registerPageSong, saveSongTime, takeSongTime, songAutomatic, setLastAutoSong } from "@/lib/songPresence";
+import { useSoundManager, useMinuteTick, resolveSong, hasAnySong } from "@/lib/soundManager";
 
 // `song` lets any surface drive this (group/location profiles, the v2 home
 // board); `alter` stays supported so existing callers are untouched.
@@ -33,7 +34,16 @@ const fmtTime = (s) => {
 };
 
 export default function ProfileSongPlayer({ alter, song: songProp, inline = false, everywhere = false }) {
-  const song = songProp || alter?.profile_song;
+  const stored = songProp || alter?.profile_song;
+  // The sound manager (Settings → Profile songs) decides what plays right
+  // now: a time window's own song, the volume (window → this page → the
+  // song's default), and quiet hours. Re-checked every minute.
+  const sm = useSoundManager();
+  const now = useMinuteTick(hasAnySong(stored));
+  const resolvedSong = React.useMemo(() => resolveSong(stored, sm, now), [stored, sm, now]);
+  const song = resolvedSong.song;
+  // Quiet hours ("wait for a tap"): nothing starts on its own.
+  const quiet = resolvedSong.quiet;
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
@@ -75,12 +85,14 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   // Volume rides WITH the song, so a quiet track and a loud one can sit on
   // two different pages without the user re-adjusting their device each time.
   const volume = Number.isFinite(Number(song?.volume)) ? Math.max(0, Math.min(100, Number(song.volume))) : 100;
-  const autoplay = automatic || song?.everywhere === true;
+  const autoplay = (automatic || song?.everywhere === true) && !quiet;
   // "Play when there's no sound playing": the song gives way to any other
   // audio / video (one sound at a time) and picks back up once that stops —
   // unless the person paused the song themselves.
   const playWhenIdle = autoplay;
   const userPaused = useRef(false);
+  // The person pressed play themselves — quiet hours starting doesn't stop it.
+  const userStarted = useRef(false);
   const endedRef = useRef(false);
   const [looping, setLooping] = useState(song?.loop !== false);
   useEffect(() => { setLooping(song?.loop !== false); }, [song?.loop]);
@@ -135,7 +147,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     // shows the same play control the blocked case does, without trying.
     // Someone's music is already playing: starting would stop it (Android
     // hands the audio to whoever played last), so wait for a tap.
-    if (carried?.playing) {
+    if (carried?.playing && (!quiet || userStarted.current)) {
       // It was sounding when it was rebuilt — carry straight on, no waiting.
       el.play().then(() => { if (!cancelled) setState("playing"); }).catch(() => { if (!cancelled) setState(el.error ? "error" : "blocked"); });
     } else if (!autoplay) {
@@ -176,7 +188,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     };
     // Volume is NOT a dependency: changing it must never rebuild the song
     // (that cut the sound off and sent it back to 0:00). It's applied live below.
-  }, [enabled, song?.ref, resolved, autoplay, playWhenIdle, keepPlace, loadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, song?.ref, resolved, autoplay, playWhenIdle, keepPlace, loadNonce, quiet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     volRef.current = volume;
@@ -209,7 +221,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     if (!el) return;
     if (state === "playing") { userPaused.current = true; el.pause(); setState("paused"); }
     else {
-      userPaused.current = false; endedRef.current = false;
+      userPaused.current = false; endedRef.current = false; userStarted.current = true;
       el.play()
         .then(() => setState("playing"))
         // An element that already failed to load can't be "unblocked" by a

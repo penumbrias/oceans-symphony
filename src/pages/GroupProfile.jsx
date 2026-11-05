@@ -45,6 +45,7 @@ import { getMemberAlters, getSubsystemsOwnedBy, wouldCreateOwnershipCycle } from
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import { hasAnySong } from "@/lib/soundManager";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
@@ -250,7 +251,7 @@ function GroupProfileInner() {
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         {/* The song belongs to VIEWING the page. */}
-        {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
+        {hasAnySong(cf[PS.SONG]) && <ProfileSongPlayer song={cf[PS.SONG]} />}
         <div className="relative z-10 os-pf" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5 mb-4">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)} aria-label="Back" title="Back">
@@ -315,7 +316,7 @@ function GroupProfileInner() {
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
       {/* This page's song, set in its style editor like any other profile. */}
-      {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
+      {hasAnySong(cf[PS.SONG]) && <ProfileSongPlayer song={cf[PS.SONG]} />}
       <div className="relative z-10 os-pf space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
