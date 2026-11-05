@@ -19,6 +19,7 @@ import {
   getDeviceId, SYNC_FORMAT, SYNC_MEDIA_FORMAT,
 } from "@/lib/deviceSync";
 import { getSyncAdapter } from "@/lib/syncAdapters";
+import { syncReadSkipReason } from "@/lib/syncReadGuard";
 import { getActiveSystemId } from "@/lib/systems";
 import { isNative } from "@/lib/platform";
 import { measureLocalImages } from "@/lib/localImageStorage";
@@ -55,6 +56,15 @@ const PAIRED_KEY = "symphony_sync_paired_systems";
 // Hash of the content we last wrote, per data file. Device-bound (never in
 // BACKUP_LS_KEYS): it describes THIS device's file in the folder.
 const WRITTEN_HASH_KEY = "symphony_sync_written_hash";
+// The peer file this device was reading when it last stopped mid-pass
+// (v0.357.1). Reading a big snapshot (the desktop's media file holds every
+// picture, song and video) can run a phone out of memory: the app is killed
+// mid-read, reopens, auto-syncs 4 s later and is killed again — forever.
+// The mark is written before each read and cleared after it; a mark still
+// here on the next pass means that exact file (same size + time) took the
+// app down, so it is skipped and reported until the other device rewrites
+// it. Device-bound like the rest.
+const INFLIGHT_KEY = "symphony_sync_inflight";
 // Revision of the local database at the end of the last pass (in memory:
 // a fresh app start always runs one pass).
 let _revisionAtLastPass = null;
@@ -73,7 +83,7 @@ export function hasLocalChangesSinceSync() {
 // All of these are DEVICE-BOUND on purpose and must never be added to
 // BACKUP_LS_KEYS: the folder path is meaningless on another machine, and
 // the "seen" marks describe what THIS device has merged.
-export const SYNC_LOCAL_KEYS = [FOLDER_KEY, LAST_RUN_KEY, MEDIA_FP_KEY, AUTO_KEY, SEEN_KEY, PENDING_DEL_KEY, PAIRED_KEY];
+export const SYNC_LOCAL_KEYS = [FOLDER_KEY, LAST_RUN_KEY, MEDIA_FP_KEY, AUTO_KEY, SEEN_KEY, PENDING_DEL_KEY, PAIRED_KEY, INFLIGHT_KEY];
 
 const readLs = (k, fallback = null) => {
   try { const v = localStorage.getItem(k); return v === null ? fallback : v; } catch { return fallback; }
@@ -198,7 +208,7 @@ export async function runSync({ force = false } = {}) {
 
   const report = {
     startedAt: new Date().toISOString(),
-    wrote: [], merged: [], skipped: [], errors: [], needsPairing: [], unreadable: [],
+    wrote: [], merged: [], skipped: [], held: [], errors: [], needsPairing: [], unreadable: [],
     conflicts: [], pendingDeletions: [], media: { images: 0, fonts: 0 }, settingsFilled: 0, presetsMerged: 0,
   };
 
@@ -259,6 +269,9 @@ export async function runSync({ force = false } = {}) {
   }
 
   const seen = readJson(SEEN_KEY, {});
+  // A mark left by a pass that never finished (the app was killed mid-read).
+  const inflight = readJson(INFLIGHT_KEY, null);
+  writeLs(INFLIGHT_KEY, null);
   for (const peer of peers) {
     const f = peer.data;
     if (!f) continue;
@@ -267,7 +280,13 @@ export async function runSync({ force = false } = {}) {
       report.skipped.push({ deviceId: peer.deviceId, reason: "unchanged" });
       continue;
     }
+    const dataSkip = syncReadSkipReason({ name: f.name, size: f.size, mark, kind: "data", native: isNative(), inflight });
+    if (dataSkip) {
+      report.held.push({ deviceId: peer.deviceId, name: f.name, reason: dataSkip });
+      continue;
+    }
     try {
+      writeLs(INFLIGHT_KEY, JSON.stringify({ name: f.name, mark }));
       const file = parseSnapshotFile(await adapter.read(dir, f.name));
       if (file.__format !== SYNC_FORMAT) throw new Error("Not a data snapshot.");
       const res = await applyDataSnapshot(file);
@@ -282,7 +301,11 @@ export async function runSync({ force = false } = {}) {
       report.presetsMerged += res.presetsMerged || 0;
       report.pendingDeletions.push(...res.pendingDeletions.map((d) => ({ ...d, fromDevice: file.device?.name || peer.deviceId })));
       seen[`${peer.key}:data`] = mark;
+      // Saved as we go: a pass cut short later must not redo this merge.
+      writeLs(SEEN_KEY, JSON.stringify(seen));
+      writeLs(INFLIGHT_KEY, null);
     } catch (e) {
+      writeLs(INFLIGHT_KEY, null);
       // A half-written or stale snapshot (a device that was reinstalled
       // leaves its old file behind forever) must not read as "sync is
       // broken". Name the file, keep going, and let the UI offer to
@@ -301,14 +324,23 @@ export async function runSync({ force = false } = {}) {
     if (!mf) continue;
     const mediaMark = `${mf.size}:${Math.round(mf.mtimeMs || 0)}`;
     if (!force && seen[`${peer.key}:media`] === mediaMark) continue;
+    const mediaSkip = syncReadSkipReason({ name: mf.name, size: mf.size, mark: mediaMark, kind: "media", native: isNative(), inflight });
+    if (mediaSkip) {
+      report.held.push({ deviceId: peer.deviceId, name: mf.name, reason: mediaSkip });
+      continue;
+    }
     try {
+      writeLs(INFLIGHT_KEY, JSON.stringify({ name: mf.name, mark: mediaMark }));
       const file = parseSnapshotFile(await adapter.read(dir, mf.name));
       if (file.__format !== SYNC_MEDIA_FORMAT) throw new Error("Not a media snapshot.");
       const res = await applyMediaSnapshot(file);
       report.media.images += res.images;
       report.media.fonts += res.fonts;
       seen[`${peer.key}:media`] = mediaMark;
+      writeLs(SEEN_KEY, JSON.stringify(seen));
+      writeLs(INFLIGHT_KEY, null);
     } catch (e) {
+      writeLs(INFLIGHT_KEY, null);
       report.unreadable.push({
         deviceId: peer.deviceId,
         name: mf.name,

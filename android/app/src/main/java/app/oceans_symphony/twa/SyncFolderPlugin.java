@@ -19,8 +19,14 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import android.os.ParcelFileDescriptor;
+import android.util.Base64;
+
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -185,6 +191,60 @@ public class SyncFolderPlugin extends Plugin {
             }
             JSObject ret = new JSObject();
             ret.put("data", new String(buf.toByteArray(), StandardCharsets.UTF_8));
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject(lostAccess());
+        } catch (Exception e) {
+            call.reject(message(e, "Couldn't read that file."));
+        }
+    }
+
+    // ── Read one piece (v0.357.1) ──────────────────────────────────────
+    //
+    // read() above hands the whole file over at once: the file's bytes, a
+    // Java string of it, then Capacitor's JSON copy of that string. A
+    // desktop's snapshot of ~20 MB and up went past the app's 256 MB Java
+    // heap (OutOfMemoryError in PluginResult.toString) and Android closed
+    // the app, ~20 s after every launch, when auto-sync read the folder.
+    // JS now reads in pieces of at most MAX_CHUNK bytes, so the Java side
+    // only ever holds one piece. Returns { data: base64, size, eof }.
+    private static final int MAX_CHUNK = 4 * 1024 * 1024;
+
+    @PluginMethod
+    public void readChunk(PluginCall call) {
+        Uri tree = treeOf(call);
+        if (tree == null) return;
+        String name = call.getString("name");
+        if (name == null || name.isEmpty()) { call.reject("name is required"); return; }
+        long offset = Math.max(0L, call.getLong("offset", 0L));
+        int length = Math.min(MAX_CHUNK, Math.max(1, call.getInt("length", MAX_CHUNK)));
+        try {
+            String id = findChild(tree, dirOf(call, tree), name, false);
+            if (id == null) { call.reject("That file isn't in the sync folder any more."); return; }
+            Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
+            byte[] out;
+            long size;
+            boolean eof;
+            try (ParcelFileDescriptor pfd = getContext().getContentResolver().openFileDescriptor(doc, "r")) {
+                if (pfd == null) throw new Exception("Couldn't open that file.");
+                try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+                     FileChannel ch = fis.getChannel()) {
+                    size = ch.size();
+                    ch.position(Math.min(offset, size));
+                    ByteBuffer buf = ByteBuffer.allocate((int) Math.max(0L, Math.min((long) length, size - Math.min(offset, size))));
+                    while (buf.hasRemaining()) {
+                        if (ch.read(buf) < 0) break;
+                    }
+                    out = new byte[buf.position()];
+                    buf.flip();
+                    buf.get(out);
+                    eof = offset + out.length >= size;
+                }
+            }
+            JSObject ret = new JSObject();
+            ret.put("data", Base64.encodeToString(out, Base64.NO_WRAP));
+            ret.put("size", size);
+            ret.put("eof", eof);
             call.resolve(ret);
         } catch (SecurityException e) {
             call.reject(lostAccess());

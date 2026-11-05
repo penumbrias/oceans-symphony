@@ -364,6 +364,9 @@ export default function DeviceSyncSettings() {
           {report.errors.map((e, i) => (
             <p key={i} className="text-destructive">{e.message}</p>
           ))}
+          {(report.held || []).map((h) => (
+            <p key={h.name} className="text-muted-foreground">{h.reason}</p>
+          ))}
         </div>
       )}
 
