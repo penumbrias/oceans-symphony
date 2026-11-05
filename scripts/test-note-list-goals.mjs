@@ -26,7 +26,7 @@ globalThis.localStorage = {
   setItem: (k, v) => store.set(k, String(v)),
 };
 
-const { combineLists, itemsForList, listProgress, deckCardCount, deckStudyMinutes, isDeck, isItemList } =
+const { combineLists, itemsForList, listProgress, deckCardCount, deckStudyMinutes, isDeck, isItemList, isNote } =
   await import("../src/lib/noteListModel.js");
 const { goalXpEvents } = await import("../src/lib/goalXp.js");
 
@@ -43,6 +43,14 @@ test("both stores make one catalogue, trashed lists left out", () => {
   );
   assert.deepEqual(all.map((l) => [l.id, l.source]), [["a", "idb"], ["u", "local"]]);
   assert.ok(isDeck(all[1]) && isItemList(all[0]));
+});
+
+test("notes and lists are one thing: every page but a deck has writing and items", () => {
+  for (const t of ["note", "shopping", "wishlist", "checklist", undefined]) {
+    assert.ok(isItemList({ list_type: t }) && isNote({ list_type: t }), String(t));
+  }
+  assert.ok(!isItemList({ list_type: "flashcards" }) && !isNote({ list_type: "flashcards" }));
+  assert.ok(!isItemList(null));
 });
 
 test("items come from whichever store holds the list", () => {

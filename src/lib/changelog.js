@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "feature", text: "Notes and lists are now one thing: every note can have tick-off items under it, and every list has room for writing on top." },
+      { type: "improve", text: "The Notes & lists page has a link to the quick taps and privacy screen settings." },
       { type: "improve", text: "Settings search now finds the privacy screen (Quick jump) when you search \"privacy screen\" or \"quick tap\"." },
       { type: "improve", text: "The app is snappier: the home screen, Timeline and Journals open faster, and saving no longer rebuilds the search index in the background." },
       { type: "improve", text: "Settings: coming back from a page now returns you to where you were in the list, search included." },
