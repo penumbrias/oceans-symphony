@@ -1,4 +1,5 @@
 import { useRef, useCallback } from "react";
+import { startHoldTimer } from "@/lib/holdTimer";
 
 // After a tap/long-press fires, the platform still dispatches a synthetic
 // `click`. If our handler navigated or re-rendered (e.g. breadcrumb
@@ -54,7 +55,8 @@ export default function useLongPress({ onLongPress, onClick, ms = 400, moveToler
     moved.current = false;
     start.current = { x: e.clientX, y: e.clientY };
     clearTimer();
-    timer.current = setTimeout(() => {
+    // Only a real, continuous hold fires (see holdTimer.js).
+    timer.current = startHoldTimer(() => {
       timer.current = null;
       if (moved.current) return;
       longFired.current = true;

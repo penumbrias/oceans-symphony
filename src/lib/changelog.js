@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "fix", text: "Tapping the screen while the app is still opening no longer counts as a press-and-hold, so the home screen doesn't open in edit mode by itself." },
       { type: "hotfix", text: "Hotfix: updated desktop build tools to clear security warnings." },
       { type: "improve", text: "Custom emotions settings tidied up: tap an emotion to open its own page for name, group, colour and distressing, with built-in marks and group names on their own pages." },
       { type: "feature", text: "Notes and lists are now one thing: every note can have tick-off items under it, and every list has room for writing on top." },

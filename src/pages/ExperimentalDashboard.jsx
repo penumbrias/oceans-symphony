@@ -87,6 +87,7 @@ import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBo
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
+import { startHoldTimer } from "@/lib/holdTimer";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -214,7 +215,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       if (e.target.closest?.("button, a, input, textarea, select, [contenteditable='true'], [role='button'], [role='slider'], [data-own-hold], [data-cell-key], [data-day-key]")) return;
       optionsHoldOrigin.current = { x: e.clientX, y: e.clientY };
       if (optionsHoldTimer.current) clearTimeout(optionsHoldTimer.current);
-      optionsHoldTimer.current = setTimeout(() => {
+      optionsHoldTimer.current = startHoldTimer(() => {
         optionsHoldTimer.current = null;
         try { navigator.vibrate?.(10); } catch { /* no haptics */ }
         // Hold = enter the page's EDIT MODE, edit bar and all (owner call
@@ -1804,7 +1805,7 @@ export default function ExperimentalDashboard({
       if (e.target.closest("[data-widget-content], button, a, input, textarea, select, [contenteditable='true']")) return;
       holdOrigin.current = { x: e.clientX, y: e.clientY };
       if (holdTimer.current) clearTimeout(holdTimer.current);
-      holdTimer.current = setTimeout(() => {
+      holdTimer.current = startHoldTimer(() => {
         holdTimer.current = null;
         try { navigator.vibrate?.(10); } catch { /* no haptics */ }
         setEditMode(true);
