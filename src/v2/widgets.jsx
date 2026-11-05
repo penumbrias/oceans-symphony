@@ -89,7 +89,6 @@ import { ComingUpPanel, comingUpPlanFields, recurringTaskFields, recurringKindsO
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
-import ChannelView from "@/components/chat/ChannelView";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: the Polls PAGE only enters the bundle when someone opens this
 // modal — a static import dragged the whole page into the entry chunk.
@@ -117,19 +116,37 @@ import {
 } from "@/components/ui/drawer";
 import { useT } from "@/lib/i18n";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import {
-  ActivityWeekWidget, ActivityDayWidget, ActivityDayViewWidget,
-  ActivityMonthWidget, ActivityYearWidget,
-} from "@/v2/activityWidgets";
-import {
-  TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
-  ChatChannelsWidget, GroundingWidget, LearnWidget,
-  InnerMapWidget, InnerMapViewField, InnerLocationsWidget,
-} from "@/v2/moreWidgets";
+import { lazyNamed } from "@/lib/lazyNamed";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
 import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS, LOOKBACK_PAST_DEFAULTS } from "@/v2/lookbackWidgets";
-import { NeedsBalanceWidget, WishesWidget, GoalsWidget, WishAddWidget, TurnsWidget } from "@/v2/needsWidgets";
+// Widget bodies that are only code (no definitions the registry reads) load
+// the first time one is drawn, not at startup (v0.357.0). The board and the
+// widget library wrap every body in a Suspense (WidgetSuspense).
+const loadActivityWidgets = () => import("@/v2/activityWidgets");
+const ActivityWeekWidget = lazyNamed(loadActivityWidgets, "ActivityWeekWidget");
+const ActivityDayWidget = lazyNamed(loadActivityWidgets, "ActivityDayWidget");
+const ActivityDayViewWidget = lazyNamed(loadActivityWidgets, "ActivityDayViewWidget");
+const ActivityMonthWidget = lazyNamed(loadActivityWidgets, "ActivityMonthWidget");
+const ActivityYearWidget = lazyNamed(loadActivityWidgets, "ActivityYearWidget");
+const loadMoreWidgets = () => import("@/v2/moreWidgets");
+const TimelineWidget = lazyNamed(loadMoreWidgets, "TimelineWidget");
+const DailySummaryWidget = lazyNamed(loadMoreWidgets, "DailySummaryWidget");
+const CheckInLogWidget = lazyNamed(loadMoreWidgets, "CheckInLogWidget");
+const DailyTasksWidget = lazyNamed(loadMoreWidgets, "DailyTasksWidget");
+const ChatChannelsWidget = lazyNamed(loadMoreWidgets, "ChatChannelsWidget");
+const GroundingWidget = lazyNamed(loadMoreWidgets, "GroundingWidget");
+const LearnWidget = lazyNamed(loadMoreWidgets, "LearnWidget");
+const InnerMapWidget = lazyNamed(loadMoreWidgets, "InnerMapWidget");
+const InnerMapViewField = lazyNamed(loadMoreWidgets, "InnerMapViewField");
+const InnerLocationsWidget = lazyNamed(loadMoreWidgets, "InnerLocationsWidget");
+const loadNeedsWidgets = () => import("@/v2/needsWidgets");
+const NeedsBalanceWidget = lazyNamed(loadNeedsWidgets, "NeedsBalanceWidget");
+const WishesWidget = lazyNamed(loadNeedsWidgets, "WishesWidget");
+const GoalsWidget = lazyNamed(loadNeedsWidgets, "GoalsWidget");
+const WishAddWidget = lazyNamed(loadNeedsWidgets, "WishAddWidget");
+const TurnsWidget = lazyNamed(loadNeedsWidgets, "TurnsWidget");
+const ChannelView = React.lazy(() => import("@/components/chat/ChannelView"));
 import { startSleep } from "@/lib/sleepEntry";
 import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
 import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";

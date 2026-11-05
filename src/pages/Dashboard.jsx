@@ -29,8 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings, { HomeScreenResetDialog } from "@/components/settings/DashboardLayoutSettings";
-import TourModal from "@/components/onboarding/TourModal";
-import { loadChecklist, checklistComplete, checklistProgress } from "@/components/onboarding/SetupChecklist";
+import { loadChecklist, checklistComplete, checklistProgress } from "@/lib/setupChecklistState";
 import { ClipboardList, X } from "lucide-react";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
@@ -47,6 +46,9 @@ import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
 import { runQuickAction } from "@/lib/quickActionRunner";
 import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
+
+// The setup guide is big and opens only when asked for (v0.357.0).
+const TourModal = React.lazy(() => import("@/components/onboarding/TourModal"));
 
 // THE host for the "open-set-front" event — the only listener, whichever
 // UI is on. (It used to be v2-only while CurrentFronters also listened;
@@ -122,6 +124,9 @@ export default function Dashboard() {
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
+  // Once opened, the guide stays mounted so closing it plays its exit.
+  const [tourMounted, setTourMounted] = useState(false);
+  useEffect(() => { if (showTour) setTourMounted(true); }, [showTour]);
   const [tourOpenAt, setTourOpenAt] = useState(null); // "checklist" when jumped from the setup chip
   const { setShowFeatureTour } = useOutletContext() || {};
   // Setup is now single-flow (v0.84.9): Guide (TourModal) auto-opens
@@ -836,7 +841,11 @@ export default function Dashboard() {
           </DialogContent>
         </Dialog>
       )}
-      <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
+      {(showTour || tourMounted) && (
+        <React.Suspense fallback={null}>
+          <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
+        </React.Suspense>
+      )}
       <QuickCheckInModal
         isOpen={showEmotionModal}
         onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}

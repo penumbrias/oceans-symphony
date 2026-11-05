@@ -34,6 +34,8 @@ import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
+// The tour is big and opens only on request (v0.357.0).
+const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour"));
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
@@ -44,7 +46,6 @@ import SoundscapeGlobalBar from "@/components/grounding/soundscape/SoundscapeGlo
 import ActiveActivityBubble from "@/components/activities/ActiveActivityBubble";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
-import FeatureTour from "@/components/onboarding/FeatureTour";
 import PageTutorialBanner from "@/components/onboarding/PageTutorialBanner";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
@@ -1266,13 +1267,15 @@ const handleNotifClick = (mentionLog) => {
       <QuietBoundary name="ActiveActivityBubble">
         <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
       </QuietBoundary>
-      {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
-      {pageScopedTourRoute && !showFeatureTour && (
-        <FeatureTour
-          restrictToRoute={pageScopedTourRoute}
-          onClose={() => setPageScopedTourRoute(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
+        {pageScopedTourRoute && !showFeatureTour && (
+          <FeatureTour
+            restrictToRoute={pageScopedTourRoute}
+            onClose={() => setPageScopedTourRoute(null)}
+          />
+        )}
+      </Suspense>
       {!v2HomeNotices && (
         <NotificationPopups
           mentionLogs={mentionLogs}

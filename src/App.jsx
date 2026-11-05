@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { isNative, isDesktop, hasPrivateFileCopy } from "@/lib/platform";
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { whenIdle } from '@/lib/lazyNamed';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -13,7 +14,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
-import Settings from '@/pages/Settings';
 
 // Route-level code splitting (v0.184.0). Every page except the landing
 // (Dashboard), Settings (reached from every header) and Privacy is loaded
@@ -21,6 +21,13 @@ import Settings from '@/pages/Settings';
 // cost low-end phones 1–2 s of parse before first paint. The Suspense
 // fallback below sits INSIDE AppLayout so header/nav stay put while a
 // page chunk arrives (no full-screen flash).
+// Settings and the first-run setup joined them in v0.357.0: Settings pulls
+// in backup, import and every connector screen (~200 KB), and first-run
+// setup is seen once in an install's life. Settings is fetched in the
+// background once the app is idle, so opening it stays instant.
+const loadSettings = () => import('@/pages/Settings');
+const Settings = lazy(loadSettings);
+const StorageModeSetup = lazy(() => import('@/components/onboarding/StorageModeSetup'));
 const Home = lazy(() => import('@/pages/Home'));
 const AlterProfile = lazy(() => import('@/pages/AlterProfile'));
 const Contacts = lazy(() => import('@/pages/Contacts'));
@@ -65,7 +72,6 @@ const ModPage = lazy(() => import('@/pages/ModPage'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
-import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
 
 // First run: the welcome intro and the storage-setup screen are now a single
@@ -487,7 +493,7 @@ function MainApp() {
       // and the encrypted branch below owns that case.
       if (!peek.encrypted && !orphanDeclined.current) {
         let emptyActive = false;
-        try { emptyActive = isEffectivelyEmpty(JSON.parse(peek.raw)); } catch { emptyActive = false; }
+        try { emptyActive = isEffectivelyEmpty(peek.parsed || JSON.parse(peek.raw)); } catch { emptyActive = false; }
         if (emptyActive) {
           let orphans = [];
           try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
@@ -608,9 +614,6 @@ function MainApp() {
 
   useEffect(() => {
     if (setupState === null && isDbInitialized()) {
-      migrateBase64AvatarsToLocal().catch(() => {});
-      // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
-      migrateLocalImageUrlScheme().catch(() => {});
       // Best-effort; may pop in a beat after first paint, same as the
       // extra Google Fonts <link> loader.
       refreshCustomFontFaces().catch(() => {});
@@ -622,16 +625,27 @@ function MainApp() {
       // board in, keeping the one this device doesn't show as a preset.
       // Also catches one brought back by an import (imports reload).
       if (!isPreviewActive()) unifyHomeBoards().catch(() => {});
-      // Skip auto-backup while preview mode is active — preview's
-      // in-memory snapshot is not the user's real data, exporting it
-      // would overwrite their last real backup file with junk.
-      if (!isPreviewActive()) {
-        runAutoBackupIfDue().catch(() => {});
-        // Scrub membership entries pointing at groups deleted before
-        // deleteGroupCascade existed — they rendered as chips leading to
-        // "Group not found". Best-effort, writes only when stale refs exist.
-        pruneDanglingGroupEntries().catch(() => {});
-      }
+      // Everything below changes nothing on screen, so it waits until the
+      // first screen is up and the app is idle (v0.357.0) instead of
+      // competing with it — on a big database each of these walks every
+      // record, and the backup serialises all of it.
+      return whenIdle(() => {
+        migrateBase64AvatarsToLocal().catch(() => {});
+        // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
+        migrateLocalImageUrlScheme().catch(() => {});
+        // Skip auto-backup while preview mode is active — preview's
+        // in-memory snapshot is not the user's real data, exporting it
+        // would overwrite their last real backup file with junk.
+        if (!isPreviewActive()) {
+          runAutoBackupIfDue().catch(() => {});
+          // Scrub membership entries pointing at groups deleted before
+          // deleteGroupCascade existed — they rendered as chips leading to
+          // "Group not found". Best-effort, writes only when stale refs exist.
+          pruneDanglingGroupEntries().catch(() => {});
+        }
+        // Settings is its own chunk; fetch it now so opening it is instant.
+        loadSettings().catch(() => {});
+      }, { delay: 2500 });
     }
   }, [setupState]);
 
@@ -683,7 +697,9 @@ function MainApp() {
     return (
       <ThemeProvider>
         <QueryClientProvider client={queryClientInstance}>
-          <StorageModeSetup mode="setup" allowOrphans={orphanDeclined.current} onComplete={() => setSetupState(null)} />
+          <Suspense fallback={null}>
+            <StorageModeSetup mode="setup" allowOrphans={orphanDeclined.current} onComplete={() => setSetupState(null)} />
+          </Suspense>
           {/* Accessibility quick-access available from the very first screen,
               before Settings is reachable. Writes localStorage-backed prefs
               that apply instantly. zIndex must clear the welcome overlay

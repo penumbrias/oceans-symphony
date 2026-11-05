@@ -33,7 +33,6 @@ import { recordBackupAttempt, snoozeBackupWarning } from "@/lib/backupHealth";
 import { listSystems, getActiveSystemId, getSystemData } from "@/lib/systems";
 import { isEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { encryptStandardBackup } from "@/lib/backupFormat";
-import { compressBackup } from "@/lib/backupCompress";
 import {
   getBackupCopyTarget,
   backupCopyKind,
@@ -615,6 +614,9 @@ export async function runAutoBackupNow({ silent = false, allSystems = "best", fo
   if (format === BACKUP_FORMATS.COMPACT) {
     filename = `${name}-${date}.txt`;
     mimeType = "text/plain";
+    // The compressor (pako) loads only when a compact backup is written,
+    // never at startup (v0.357.0) — same as the zip builder below.
+    const { compressBackup } = await import("@/lib/backupCompress");
     blob = new Blob([compressBackup(json)], { type: mimeType });
   } else if (isZip) {
     const { buildBackupZip, ZIP_DATA_NAME } = await import("@/lib/backupZip");

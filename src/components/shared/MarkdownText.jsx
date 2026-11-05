@@ -1,6 +1,9 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
+
+// The markdown parser is ~120 KB; it loads the first time a field needs it,
+// not at startup (v0.357.0). Until it arrives the plain text shows.
+const ReactMarkdown = React.lazy(() => import("react-markdown"));
 
 // Shared free-text markdown renderer. Mirrors JournalViewModal's
 // approach so formatting behaves consistently across the app:
@@ -21,7 +24,11 @@ export default function MarkdownText({ children, className = "" }) {
     <div className={`prose prose-sm dark:prose-invert max-w-none break-words ${className}`}>
       {hasHtml
         ? <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
-        : <ReactMarkdown>{content}</ReactMarkdown>}
+        : (
+          <React.Suspense fallback={<p className="whitespace-pre-wrap">{content}</p>}>
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </React.Suspense>
+        )}
     </div>
   );
 }

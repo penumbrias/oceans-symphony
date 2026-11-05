@@ -899,7 +899,7 @@ export default function WidgetConfigSheet({
     // same patch writer every row uses.
     if (f.type === "component" && f.Component) {
       const Editor = f.Component;
-      return <div key={f.key} className="py-1"><Editor settings={settings} set={set} widget={widget} /></div>;
+      return <div key={f.key} className="py-1"><React.Suspense fallback={null}><Editor settings={settings} set={set} widget={widget} /></React.Suspense></div>;
     }
     if (f.type === "quickButtons") {
       return (

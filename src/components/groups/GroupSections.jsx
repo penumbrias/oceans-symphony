@@ -18,7 +18,6 @@ import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupIcon from "@/components/shared/GroupIcon";
-import ProfileJournalTab from "@/components/journal/ProfileJournalTab";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { isLogCommandError } from "@/lib/authoredText";
@@ -32,6 +31,9 @@ import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { framedImageStyle, framingFor, framedBackgroundStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
+
+// Journals (with their reader) load when the section is drawn (v0.357.0).
+const ProfileJournalTab = React.lazy(() => import("@/components/journal/ProfileJournalTab"));
 
 
 export function getContrastColor(hex) {
@@ -288,7 +290,11 @@ export function GroupBoardSection({ group }) {
 // any member.
 export function GroupJournalSection({ group }) {
   const { members } = useGroupContext(group);
-  return <ProfileJournalTab alterIds={members.map((m) => m.id)} />;
+  return (
+    <React.Suspense fallback={null}>
+      <ProfileJournalTab alterIds={members.map((m) => m.id)} />
+    </React.Suspense>
+  );
 }
 
 // Per-group notes — a private notebook for this group/subsystem, separate

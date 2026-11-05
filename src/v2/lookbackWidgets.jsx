@@ -9,7 +9,7 @@
 // then keep) or under the bars.
 // On a profile board they count only that profile's alters (SCOPE_FIELD),
 // through the same counting the analytics page uses (src/lib/lookbackCounts.js).
-import React, { useMemo } from "react";
+import React, { useMemo, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -17,10 +17,13 @@ import { Section, Row, Muted, TextAction, useWidgetMode } from "@/v2/primitives"
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 import { emotionEvents, countEmotions, countSymptomCheckIns, rankCounts } from "@/lib/lookbackCounts";
-import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
-import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useT } from "@/lib/i18n";
+
+// The full analytics carry the chart library (~400 KB), so they're fetched
+// only when a widget actually shows them, never at startup (v0.357.0).
+const EmotionAnalytics = lazy(() => import("@/components/emotions/EmotionAnalytics"));
+const SymptomAnalytics = lazy(() => import("@/components/analytics/SymptomAnalytics"));
 
 const DAY = 86400000;
 const clampInt = (v, lo, hi, dflt) => Math.max(lo, Math.min(hi, parseInt(v, 10) || dflt));
@@ -115,7 +118,7 @@ function FullBelow({ scoped, alone = false, children }) {
   return (
     <div className={alone ? "min-h-0" : "mt-2 pt-2 border-t border-border/40 min-h-0"}>
       <ErrorBoundary fallback={<Muted>The full analytics couldn't be drawn here. Open the Analytics page.</Muted>}>
-        {children}
+        <React.Suspense fallback={<Muted>Loading…</Muted>}>{children}</React.Suspense>
       </ErrorBoundary>
     </div>
   );

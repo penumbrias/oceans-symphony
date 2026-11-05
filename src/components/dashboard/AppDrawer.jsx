@@ -28,6 +28,7 @@ import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
 import { ChoiceRow, Chips, StackedRow } from "@/components/shared/SettingRows";
 import { WidgetSubject } from "@/lib/boardSubject";
+import { WidgetSuspense } from "@/lib/lazyNamed";
 import { useLinkedPreviewSettings } from "@/v2/linkedProfileWidgets";
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
@@ -66,7 +67,7 @@ function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [
       style={{ ...(look ? lookToStyle(look) : null), ...(height ? { height } : { maxHeight }), borderRadius: "var(--v2-radius, 8px)" }}
     >
       <PreviewBoundary>
-        <WidgetSubject def={def} settings={settings}>{def.render({ mode, settings, instanceId: `preview_${mode}`, api })}</WidgetSubject>
+        <WidgetSubject def={def} settings={settings}><WidgetSuspense>{def.render({ mode, settings, instanceId: `preview_${mode}`, api })}</WidgetSuspense></WidgetSubject>
       </PreviewBoundary>
     </div>
   );
