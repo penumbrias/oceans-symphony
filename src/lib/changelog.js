@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "November 5, 2026",
     changes: [
       { type: "feature", text: "Profiles' Connections page has a new Linked widget: the theme an {{alter}} switches the app to, plus their goals and dates. Link, change or unlink their theme right there." },
+      { type: "fix", text: "A theme linked to an {{alter}} now stays linked after the app restarts." },
     ],
   },
   {

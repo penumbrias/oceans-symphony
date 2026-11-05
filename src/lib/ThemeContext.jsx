@@ -519,6 +519,14 @@ export function ThemeProvider({ children }) {
     }
   }, [themeMode, selectedTheme, customColors, mounted, isDarkOS, selectedFont, userCustomPresets]);
 
+  // alter → theme links are saved on their own: the look effect above
+  // doesn't list them, so a new link (or an unlink) used to be lost on the
+  // next restart unless something else about the look changed too.
+  useEffect(() => {
+    if (!mounted) return;
+    localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
+  }, [alterThemeLinks, mounted]);
+
   const updateCustomColors = (newLight) => {
     const newDark = generateDarkTheme(newLight);
     setCustomColors({ light: newLight, dark: newDark });
