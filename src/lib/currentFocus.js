@@ -16,6 +16,7 @@ import { useTerms } from "@/lib/useTerms";
 import { getActiveActivities } from "@/lib/activitySession";
 import { getActiveSystemId } from "@/lib/systems";
 import { contactDisplayName } from "@/lib/contacts";
+import { latestBy } from "@/lib/latestRecord";
 
 // Items: [{ type: "fronting"|"activity"|"sleep"|"symptom"|"company"|"status", label, path }]
 export function useCurrentFocus() {
@@ -139,9 +140,8 @@ export function useCurrentFocus() {
 
   // Today's latest status note.
   const today = new Date().toDateString();
-  const latestToday = statusNotes
-    .filter((n) => n.timestamp && new Date(n.timestamp).toDateString() === today)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+  const latestToday = latestBy(statusNotes
+    .filter((n) => n.timestamp && new Date(n.timestamp).toDateString() === today));
   if (latestToday?.note) {
     items.push({ type: "status", label: `“${latestToday.note}”`, path: "/" });
   }

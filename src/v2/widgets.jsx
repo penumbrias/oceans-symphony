@@ -142,6 +142,7 @@ import { foldWidget } from "@/lib/widgetFold";
 import { pictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 import { plainNoteText } from "@/lib/plainNote";
+import { latestBy } from "@/lib/latestRecord";
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
 // midnight, which is the day before west of Greenwich, so read it as local
@@ -716,7 +717,7 @@ function StatusBannerWidget() {
   const navigate = useNavigate();
   const notes = useList("statusNotes", "StatusNote");
   const latest = React.useMemo(
-    () => [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] || null,
+    () => latestBy(notes),
     [notes]
   );
   const text = plainNoteText(latest?.note || "");
@@ -756,7 +757,7 @@ function StatusCard() {
   const alters = useList("alters", "Alter");
   const [draft, setDraft] = React.useState("");
   const [saving, setSaving] = React.useState(false);
-  const latest = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+  const latest = React.useMemo(() => latestBy(notes) || undefined, [notes]);
 
   // Every save is a NEW note — the status log is a timeline, never an edit
   // of what you said before.

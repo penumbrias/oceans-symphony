@@ -16,7 +16,32 @@ import { journalEntryDate } from "@/lib/journalDate";
 import { eventsOnDay } from "@/lib/plannerEventDates";
 import { PLANNER_EVENTS_KEY } from "@/lib/plannerEvents";
 
-const parseDate = (v) => (v instanceof Date ? v : new Date(v));
+// Each visible day scans every record, so the same date strings were parsed
+// again for every day on screen. Remember each string's time once.
+const _msCache = new Map();
+function toMs(v) {
+  if (v instanceof Date) return v.getTime();
+  if (typeof v !== "string") return new Date(v).getTime();
+  let ms = _msCache.get(v);
+  if (ms === undefined) {
+    if (_msCache.size > 200000) _msCache.clear();
+    ms = new Date(v).getTime();
+    _msCache.set(v, ms);
+  }
+  return ms;
+}
+// activityDate per record (its own parsing rules), remembered per record
+// object. Records are replaced, never mutated, when they change.
+const _activityMs = new WeakMap();
+function activityMs(a) {
+  if (!a || typeof a !== "object") return activityDate(a).getTime();
+  const key = a.timestamp || a.planned_date;
+  const hit = _activityMs.get(a);
+  if (hit && hit.key === key) return hit.ms;
+  const ms = activityDate(a).getTime();
+  _activityMs.set(a, { key, ms });
+  return ms;
+}
 
 export function useTimelineSources() {
   const { data: sessions = [] } = useQuery({ queryKey: ["frontHistory"], queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000) });
@@ -52,12 +77,19 @@ export function useTimelineSources() {
   const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
   const reminderById = useMemo(() => Object.fromEntries((reminders || []).map((r) => [r.id, r])), [reminders]);
 
-  return {
+  // One stable object while nothing changed, so callers can memoise the
+  // per-day slices instead of re-scanning every record on each render.
+  return useMemo(() => ({
     sessions, activities, emotions, alters, customFields, journals, checkIns, categories,
     bulletins, tasks, dailyProgress, symptomSessions, symptomCheckIns, locationRecords,
     statusNotes, symptoms, sleeps, lineageEvents, diaryCards, polls, reminderInstances,
     reminders, reminderById, reflections, alterNotes, dailyTaskTemplates, importantDates, plannerEvents,
-  };
+  }), [
+    sessions, activities, emotions, alters, customFields, journals, checkIns, categories,
+    bulletins, tasks, dailyProgress, symptomSessions, symptomCheckIns, locationRecords,
+    statusNotes, symptoms, sleeps, lineageEvents, diaryCards, polls, reminderInstances,
+    reminders, reminderById, reflections, alterNotes, dailyTaskTemplates, importantDates, plannerEvents,
+  ]);
 }
 
 // Everything belonging to one day, in the shape InfiniteTimeline and
@@ -66,27 +98,29 @@ export function sliceTimelineDay(src, day, filters = {}) {
   const { showActivities = true, showFronting = true, showLocations = true } = filters;
   const dayStart = startOfDay(day);
   const dayEnd = endOfDay(day);
+  const startMs = dayStart.getTime();
+  const endMs = dayEnd.getTime();
+  const nowMs = Date.now();
   const inDay = (val) => {
     if (!val) return false;
-    const t = parseDate(val);
-    return t >= dayStart && t <= dayEnd;
+    const t = toMs(val);
+    return t >= startMs && t <= endMs;
   };
 
   const daySessions = showFronting
     ? src.sessions.filter((s) => {
-        const start = parseDate(s.start_time);
-        const end = s.end_time ? parseDate(s.end_time) : new Date();
-        return start <= dayEnd && end >= dayStart;
+        const start = toMs(s.start_time);
+        const end = s.end_time ? toMs(s.end_time) : nowMs;
+        return start <= endMs && end >= startMs;
       })
     : [];
 
   const dayActivities = showActivities
     ? src.activities.filter((a) => {
-        const t = activityDate(a);
-        const tMs = t.getTime();
+        const tMs = activityMs(a);
         const duration = Math.max(a.duration_minutes || 0, 0);
-        const endMs = duration > 0 ? tMs + duration * 60 * 1000 : tMs + 1;
-        return endMs > dayStart.getTime() && tMs < dayEnd.getTime() + 1;
+        const aEnd = duration > 0 ? tMs + duration * 60 * 1000 : tMs + 1;
+        return aEnd > startMs && tMs < endMs + 1;
       })
     : [];
 
@@ -95,14 +129,14 @@ export function sliceTimelineDay(src, day, filters = {}) {
   const dayCheckIns = src.checkIns.filter((c) => inDay(c.created_date));
   const dayBulletins = src.bulletins.filter((b) => inDay(b.created_date));
   const dayTasks = src.tasks.filter((t) => {
-    const created = parseDate(t.created_date);
-    const completed = t.completed && t.completed_date ? parseDate(t.completed_date) : null;
-    return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
+    const created = toMs(t.created_date);
+    const completed = t.completed && t.completed_date ? toMs(t.completed_date) : null;
+    return (created >= startMs && created <= endMs) || (completed !== null && completed >= startMs && completed <= endMs);
   });
   const daySymptomSessions = src.symptomSessions.filter((s) => {
-    const start = parseDate(s.start_time);
-    const end = s.end_time ? parseDate(s.end_time) : new Date();
-    return start <= dayEnd && end >= dayStart;
+    const start = toMs(s.start_time);
+    const end = s.end_time ? toMs(s.end_time) : nowMs;
+    return start <= endMs && end >= startMs;
   });
   const daySymptomCheckIns = src.symptomCheckIns.filter((s) => inDay(s.timestamp));
   const dayLocations = showLocations ? src.locationRecords.filter((loc) => inDay(loc.timestamp)) : [];

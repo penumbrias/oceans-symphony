@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { isLogCommandError } from "@/lib/authoredText";
 import { saveStatusNote } from "@/lib/checkinEntry";
 import RichText from "@/components/shared/RichText";
+import { latestBy } from "@/lib/latestRecord";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -39,9 +40,7 @@ export default function StatusNoteCard() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const latestStatusNote = allStatusNotes
-    .slice()
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+  const latestStatusNote = useMemo(() => latestBy(allStatusNotes) || undefined, [allStatusNotes]);
 
   const handleSave = async () => {
     const raw = tempStatus.trim();

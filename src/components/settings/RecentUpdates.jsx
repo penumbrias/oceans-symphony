@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
-import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
@@ -19,6 +18,13 @@ export default function RecentUpdates() {
   // notes read in the user's own words, like the rest of the app.
   const t = useTerms();
   const [expanded, setExpanded] = useState(false);
+  // Loaded on demand: the full changelog is too big to ship in startup code.
+  const [CHANGELOG, setChangelog] = useState([]);
+  useEffect(() => {
+    let live = true;
+    import("@/lib/changelog").then((m) => { if (live) setChangelog(m.CHANGELOG || []); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   const visible = expanded ? CHANGELOG : CHANGELOG.slice(0, INITIAL_SHOW);
 

@@ -796,7 +796,9 @@ export default function Journals() {
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
-              <div key={entry.id} id={`item-${entry.id}`}>
+              // Off-screen cards skip layout and paint until scrolled near,
+              // so a long journal list opens without a long freeze.
+              <div key={entry.id} id={`item-${entry.id}`} style={{ contentVisibility: "auto", containIntrinsicSize: "auto 140px" }}>
                 <JournalEntryCard
                   entry={entry}
                   altersById={altersById}
