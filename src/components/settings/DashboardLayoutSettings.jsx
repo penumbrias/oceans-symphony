@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LayoutGrid, Pencil } from "lucide-react";
 import { CLASSIC_TO_V2_WIDGET } from "@/lib/widgetRegistry";
@@ -17,44 +16,10 @@ import { toast } from "sonner";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { useT } from "@/lib/i18n";
 import { BarShowList, EditBarsButton } from "@/components/v2/BarShowSwitch";
+import HomeOpensOnRow from "@/components/settings/HomeOpensOnRow";
 
 // (The old drag/drop pill editor lived here — the home screen is
 // edited in place on the board canvas now.)
-
-// The New-UI opt-in, on its own so onboarding can offer it too. Same
-// record, same write, one implementation.
-export function NewUiToggle() {
-  const queryClient = useQueryClient();
-  const { data: rows = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
-  });
-  const record = pickPrimarySystemSettings(rows);
-  const on = record?.ui_v2?.enabled === true;
-  const toggle = async (next) => {
-    try {
-      const patch = { ...(record?.ui_v2 || {}), enabled: next };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: patch });
-      else await base44.entities.SystemSettings.create({ ui_v2: patch });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success(next ? "New UI on" : "Classic navigation restored");
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
-  if (!UI_V2_ENABLED) return null;
-  return (
-    <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
-      <div className="min-w-0">
-        <span className="text-sm font-medium">New home screen</span>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Build your home screen from widgets. Switch back any time.
-        </p>
-      </div>
-      <Switch checked={on} onCheckedChange={toggle} />
-    </label>
-  );
-}
 
 // The bars under the classic chrome. The setup guide shows each bar's
 // show/hide switch — the SAME BarShowSwitch Display options → Bars uses —
@@ -72,43 +37,7 @@ export function ClassicBarsToggles({ withSwitches = true }) {
   );
 }
 
-export function HomeOpensOnRow() {
-  const queryClient = useQueryClient();
-  const { data: rows = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
-  });
-  const record = pickPrimarySystemSettings(rows) || rows[0];
-  return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5">
-        <div className="min-w-0">
-          <span className="text-sm font-medium">Home opens on</span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            The widget board is always one swipe left; pick which one greets you.
-          </p>
-        </div>
-        <div className="flex gap-1 flex-shrink-0">
-          {[["classic", "Classic"], ["board", "Board"]].map(([v, label]) => {
-            const on = (record?.ui_v2?.homeDefault === "board" ? "board" : "classic") === v;
-            return (
-              <button key={v} type="button" aria-pressed={on}
-                onClick={async () => {
-                  try {
-                    const next = { ...(record?.ui_v2 || {}), homeDefault: v };
-                    if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
-                    else await base44.entities.SystemSettings.create({ ui_v2: next });
-                    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-                  } catch (e) { toast.error(e?.message || "Couldn't switch"); }
-                }}
-                className={`text-xs px-2.5 py-1 rounded-full border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-  );
-}
+export { HomeOpensOnRow };
 
 // The restore-to-default flow, exported so the home screen's own ⚙ menu
 // can offer it too (owner couldn't find it buried in Settings). Reset
@@ -194,7 +123,6 @@ export function HomeScreenResetDialog({ open, onClose }) {
 }
 
 export default function DashboardLayoutSettings() {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: settings = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -203,19 +131,7 @@ export default function DashboardLayoutSettings() {
   const record = pickPrimarySystemSettings(settings) || null;
   const [resetOpen, setResetOpen] = useState(false);
 
-  // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
   const uiV2On = record?.ui_v2?.enabled === true;
-  const toggleUiV2 = async (on) => {
-    try {
-      const next = { ...(record?.ui_v2 || {}), enabled: on };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
-      else await base44.entities.SystemSettings.create({ ui_v2: next });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success(on ? "New UI on" : "Classic navigation restored");
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
 
   // The home screen is edited IN PLACE now — on the board canvas, with
   // the board's own edit mode. This section just points there, and keeps
@@ -228,20 +144,6 @@ export default function DashboardLayoutSettings() {
 
   return (
     <section className="space-y-3 border-t border-border/30 pt-4">
-      {UI_V2_ENABLED && (
-        <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
-          <div className="min-w-0">
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              🧪 New UI (in progress)
-            </span>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              The rebuilt navigation and pages, still being built. Everything you have keeps working underneath — switch back any time.
-            </p>
-          </div>
-          <Switch checked={uiV2On} onCheckedChange={toggleUiV2} />
-        </label>
-      )}
-
       {/* The v2 bars in the CLASSIC chrome — only offered while the full
           new UI is off (v2 already carries its own bars). */}
       {UI_V2_ENABLED && !uiV2On && (
