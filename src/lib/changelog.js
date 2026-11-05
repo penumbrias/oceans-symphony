@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "fix", text: "Phone app: saving its sync file no longer risks the same crash on big databases." },
       { type: "fix", text: "Phone app no longer keeps closing after syncing with a desktop that has lots of pictures, songs or videos." },
       { type: "improve", text: "The app opens faster and stays smoother with lots of data, and quick runs of changes now save together." },
       { type: "fix", text: "Tapping the screen while the app is still opening no longer counts as a press-and-hold, so the home screen doesn't open in edit mode by itself." },
