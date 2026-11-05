@@ -194,12 +194,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "📝", title: "Notes & lists",
-      body: `Your notes, lists and flash-card decks also have their own page, in your app's colours, from the sidebar and the dashboard. Goals can count them too.`,
+      body: `Notes and lists are one thing: every page has writing on top and tick-off items under it. Flash-card decks live here too, and goals can count them.`,
       route: "/notes", target: "notes-page", look: `the Notes & lists page`,
     }),
     s("dashboard", {
       emoji: "🛒", title: "The grocery list",
-      body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Quick jump.`,
+      body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
     }),

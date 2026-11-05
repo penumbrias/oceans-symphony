@@ -6,7 +6,8 @@
 // ?list=<id> opens a given list (a goal's "Open", search results).
 
 import React from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { EyeOff } from "lucide-react";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 
 export default function Notes() {
@@ -14,7 +15,15 @@ export default function Notes() {
   const listId = params.get("list") || params.get("highlight") || null;
   return (
     <div className="p-4 space-y-2" style={{ paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + var(--os-sab, 0px))" }}>
-      <h1 className="font-display text-3xl font-semibold text-foreground max-w-3xl mx-auto">Notes &amp; lists</h1>
+      <div className="max-w-3xl mx-auto flex items-end justify-between gap-3 flex-wrap">
+        <h1 className="font-display text-3xl font-semibold text-foreground">Notes &amp; lists</h1>
+        {/* The quick-taps gesture and its lock are set up in Settings; this is
+            the door people look for from here (v0.356.0). */}
+        <Link to="/settings#privacy-cover"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline py-1">
+          <EyeOff className="w-3.5 h-3.5" /> Quick taps &amp; privacy screen
+        </Link>
+      </div>
       <div data-tour="notes-page" className="rounded-2xl border border-border/50 bg-card overflow-hidden max-w-3xl mx-auto">
         <GroceryListPanel asPage initialListId={listId} />
       </div>

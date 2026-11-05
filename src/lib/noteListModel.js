@@ -13,9 +13,12 @@ export const LIST_KINDS = {
   flashcards: { emoji: "🃏", label: "Flash cards" },
 };
 export const listKind = (list) => (LIST_KINDS[list?.list_type] ? list.list_type : "shopping");
-export const isItemList = (list) => ["shopping", "wishlist", "checklist"].includes(listKind(list));
 export const isDeck = (list) => listKind(list) === "flashcards";
-export const isNote = (list) => listKind(list) === "note";
+// Notes and lists are one thing (v0.356.0): every page that isn't a deck
+// has writing AND tick-off items, so every one can be a "list" (goal
+// progress, wishes) and every one can be a "note" (the goal Note widget).
+export const isItemList = (list) => !!list && !isDeck(list);
+export const isNote = (list) => !!list && !isDeck(list);
 export const listLabel = (list) => `${LIST_KINDS[listKind(list)].emoji} ${list?.name || "Untitled"}`;
 
 const live = (r) => r && !r.trashed_at && !r.removed_at;

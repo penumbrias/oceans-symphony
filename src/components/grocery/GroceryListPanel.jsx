@@ -872,7 +872,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
               }}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
             >
-              <Plus className="w-4 h-4" /> New list…
+              <Plus className="w-4 h-4" /> New note or list…
             </button>
           </div>
         </div>
@@ -906,14 +906,6 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
           </p>
         ) : !activeList ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">Loading…</p>
-        ) : typeOf(activeList) === "note" ? (
-          <NotePad
-            key={`${activeList.source}-${activeList.id}`}
-            list={activeList}
-            canAttach={idbAvailable && activeList.source !== "local"}
-            onSave={saveNote}
-            alters={activeAlters}
-          />
         ) : typeOf(activeList) === "flashcards" ? (
           <FlashCards
             key={`${activeList.source}-${activeList.id}`}
@@ -925,12 +917,24 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
             onUpdate={patchItem}
             onRemove={removeCard}
           />
-        ) : isEmpty ? (
-          <p className="text-sm text-neutral-500 italic mt-12 text-center">
-            Nothing on this list yet. Add an item below.
-          </p>
         ) : (
           <>
+            {/* Notes and lists are one thing (v0.356.0): every page has its
+                writing on top and tick-off items under it. A note opens as a
+                full page until it gets items; a list shows a small note area. */}
+            <NotePad
+              key={`${activeList.source}-${activeList.id}`}
+              list={activeList}
+              compact={typeOf(activeList) !== "note" || !isEmpty}
+              canAttach={idbAvailable && activeList.source !== "local"}
+              onSave={saveNote}
+              alters={activeAlters}
+            />
+            {isEmpty && typeOf(activeList) !== "note" && (
+              <p className="text-sm text-neutral-500 italic mt-6 text-center">
+                Nothing to tick off yet. Add an item below.
+              </p>
+            )}
             {toBuyItems.length > 0 && (
               <ul className="space-y-1">
                 {toBuyItems.map((item) => (
@@ -988,8 +992,9 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
         )}
       </div>
 
-      {/* Add input — item lists only; notes and flash cards have their own editors. */}
-      {(!activeList || !["note", "flashcards"].includes(typeOf(activeList))) && (
+      {/* Add input — every page but a flash-card deck (which has its own
+          card editor). On a note it adds a tick-off item under the writing. */}
+      {(!activeList || typeOf(activeList) !== "flashcards") && (
       <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-2">
           <input
@@ -997,7 +1002,9 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
-            placeholder={activeList ? `Add to ${activeList.name}…` : "Add an item…"}
+            placeholder={!activeList ? "Add an item…"
+              : typeOf(activeList) === "note" ? "Add a checkbox item…"
+                : `Add to ${activeList.name}…`}
             disabled={!activeList}
             className="flex-1 px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50"
           />
@@ -1049,7 +1056,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       {createListOpen && (
         <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6 animate-in fade-in duration-150">
           <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3 animate-in zoom-in-95 duration-150">
-            <h2 className="text-base font-semibold">New list</h2>
+            <h2 className="text-base font-semibold">New note or list</h2>
             <input
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
@@ -1110,7 +1117,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       {editingList && (
         <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
-            <h2 className="text-base font-semibold">Edit list</h2>
+            <h2 className="text-base font-semibold">Edit</h2>
             <input
               value={editingListName}
               onChange={(e) => setEditingListName(e.target.value)}
@@ -1321,12 +1328,15 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
 // camera capture, photo upload, voice input where the platform has
 // it). Keyed by list id from the caller, so switching notes remounts
 // with the right content and pending saves flush per-note.
-function NotePad({ list, canAttach, onSave, alters = [] }) {
+//
+// `compact` (v0.356.0): the writing above a page's tick-off items — a
+// small area that opens when tapped, instead of the full-page note.
+function NotePad({ list, canAttach, onSave, alters = [], compact = false }) {
   const terms = useTerms();
   const [text, setText] = useState(typeof list.note_content === "string" ? list.note_content : "");
   // Writing vs reading (v0.347.1): the note shows formatted until tapped;
   // Done runs the app's text grammar over it (noteLists.finishNoteText).
-  const [editing, setEditing] = useState(() => !(typeof list.note_content === "string" && list.note_content.trim()));
+  const [editing, setEditing] = useState(() => !compact && !(typeof list.note_content === "string" && list.note_content.trim()));
   const [finishing, setFinishing] = useState(false);
   const grammar = noteSpeaksGrammar(list);
   const [images, setImages] = useState(Array.isArray(list.note_images) ? list.note_images : []);
@@ -1469,8 +1479,21 @@ function NotePad({ list, canAttach, onSave, alters = [] }) {
 
   const toolBtn = "p-2 rounded-md text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors";
 
+  const blank = !text.trim() && images.length === 0;
+  // A list's note area with nothing written: one quiet line to start it.
+  if (compact && blank && !editing) {
+    return (
+      <button type="button" onClick={() => setEditing(true)}
+        className="w-full text-left text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 py-1.5 mb-2 flex items-center gap-1.5">
+        <NotebookPen className="w-4 h-4" /> Add a note…
+      </button>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full min-h-[50vh]">
+    <div className={compact
+      ? "flex flex-col mb-3 pb-2 border-b border-neutral-200 dark:border-neutral-800"
+      : "flex flex-col h-full min-h-[50vh]"}>
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={insertStamp} aria-label="Insert a timestamp" title="Insert a timestamp" className={toolBtn}>
@@ -1524,12 +1547,12 @@ function NotePad({ list, canAttach, onSave, alters = [] }) {
           placeholder={grammar
             ? "Write anything — it saves as you type. @ names someone, ~ logs something, Done finishes."
             : "Write anything — it saves as you type."}
-          className="flex-1 w-full min-h-[40vh] resize-none bg-transparent text-base leading-relaxed focus:outline-none placeholder:text-neutral-400 border-0 shadow-none px-0 focus-visible:ring-0"
+          className={`${compact ? "min-h-[8rem]" : "flex-1 min-h-[40vh]"} w-full resize-none bg-transparent text-base leading-relaxed focus:outline-none placeholder:text-neutral-400 border-0 shadow-none px-0 focus-visible:ring-0`}
         />
       ) : (
         <div role="button" tabIndex={0} onClick={() => setEditing(true)} aria-label="Edit this note"
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditing(true); } }}
-          className="flex-1 w-full min-h-[40vh] text-left text-base leading-relaxed whitespace-pre-wrap break-words cursor-text">
+          className={`${compact ? "" : "flex-1 min-h-[40vh] "}w-full text-left text-base leading-relaxed whitespace-pre-wrap break-words cursor-text`}>
           <RichText content={text} alters={alters} terms={terms} />
         </div>
       )}
@@ -1542,7 +1565,7 @@ function NotePad({ list, canAttach, onSave, alters = [] }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 py-2 border-t border-neutral-200 dark:border-neutral-800">
+      {!compact && <div className="flex items-center gap-2 py-2 border-t border-neutral-200 dark:border-neutral-800">
         <span className="text-[11px] text-neutral-500">Notes open to</span>
         {[["last", "Last note"], ["fresh", "A fresh note"]].map(([mode, label]) => (
           <button key={mode} type="button" aria-pressed={openMode === mode}
@@ -1555,7 +1578,7 @@ function NotePad({ list, canAttach, onSave, alters = [] }) {
             {label}
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
