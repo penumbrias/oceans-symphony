@@ -149,7 +149,7 @@ export const NEW_ALTER_PROFILE_PAGES = [
   { tab: "journal", label: "Journal", widgets: ["journal"] },
   { tab: "wishes", label: "Wishes", widgets: [{ widgetId: "wishes", mode: "expanded" }] },
   { tab: "connections", label: "Connections", widgets: [
-    "alter_relationships", "alter_lineage", "inner_locations", "alter_activity_links",
+    "alter_relationships", "alter_lineage", "inner_locations", "alter_activity_links", "alter_linked",
   ] },
 ];
 // Old ?tab= names (notifications, search, the tour, saved links) land on
