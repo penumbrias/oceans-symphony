@@ -11,6 +11,7 @@ import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
+import { getCommandSign } from "@/lib/commandTerms";
 import useFieldToolbar from "@/components/shared/useFieldToolbar";
 
 // One reusable textarea with @mention (always) + -signpost (opt-in via
@@ -180,7 +181,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     // Non-terminal → append ":" and advance to the next section; terminal →
     // just place the value (no auto-space, no colon). The header chevron is the
     // only thing that ends the command with a space.
-    const insertText = "~" + body + (pick.terminal ? "" : ":");
+    const insertText = getCommandSign() + body + (pick.terminal ? "" : ":");
     const newValue = before + insertText + after;
     onChange(newValue);
     const newCaret = before.length + insertText.length;
@@ -202,7 +203,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     if (!cmd) { setMenu(null); return; }
     const before = value.slice(0, cmd.start);
     const after = value.slice(caret);
-    const insertText = "~" + cmd.body.replace(/:$/, "") + " ";
+    const insertText = getCommandSign() + cmd.body.replace(/:$/, "") + " ";
     const newValue = before + insertText + after;
     onChange(newValue);
     setMenu(null);

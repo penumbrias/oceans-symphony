@@ -10,6 +10,7 @@ import {
   DEFAULT_THERAPY_KEYWORD, THERAPY_KEYWORD_EVENT, THERAPY_NOTES_EVENT,
 } from "@/lib/therapyCommand";
 import RichText from "@/components/shared/RichText";
+import { useTerms } from "@/lib/useTerms";
 
 // The user's current ~therapy word, kept live across the app.
 export function useTherapyKeyword() {
@@ -36,6 +37,8 @@ export default function TherapyNotesCard({ notes = [] }) {
   const queryClient = useQueryClient();
   const keyword = useTherapyKeyword();
   const [draft, setDraft] = useState(keyword);
+  // The person's command symbol (Settings → Terminology), "~" by default.
+  const S = useTerms().commandSign || "~";
   const [open, setOpen] = useState(false);
 
   useEffect(() => { setDraft(keyword); }, [keyword]);
@@ -55,9 +58,9 @@ export default function TherapyNotesCard({ notes = [] }) {
 
   const save = () => {
     if (!clean) { toast.error("Type a word for the command"); return; }
-    if (reserved) { toast.error(`~${clean} is already a built-in command`); return; }
+    if (reserved) { toast.error(`${S}${clean} is already a built-in command`); return; }
     const saved = setTherapyKeyword(clean);
-    toast.success(`Now type ~${saved} to save something for therapy`);
+    toast.success(`Now type ${S}${saved} to save something for therapy`);
   };
 
   return (
@@ -66,7 +69,7 @@ export default function TherapyNotesCard({ notes = [] }) {
         <div>
           <p className="text-sm font-semibold text-foreground">🛋️ To bring up</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Type <span className="font-mono text-foreground">~{keyword}</span> followed by anything, in any note, chat, journal or status, and it goes into your next report.
+            Type <span className="font-mono text-foreground">{S}{keyword}</span> followed by anything, in any note, chat, journal or status, and it goes into your next report.
           </p>
         </div>
         <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
@@ -102,7 +105,7 @@ export default function TherapyNotesCard({ notes = [] }) {
       <div className="flex items-center gap-2">
         <label htmlFor="therapy-keyword" className="text-xs text-muted-foreground flex-shrink-0">Command word</label>
         <div className="relative flex-1 max-w-[12rem]">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">~</span>
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{S}</span>
           <Input
             id="therapy-keyword"
             value={draft}
@@ -120,7 +123,7 @@ export default function TherapyNotesCard({ notes = [] }) {
         )}
       </div>
       {reserved && (
-        <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">~{clean} is already a built-in command. Pick another word.</p>
+        <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">{S}{clean} is already a built-in command. Pick another word.</p>
       )}
     </div>
   );
