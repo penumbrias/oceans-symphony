@@ -246,7 +246,13 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run desktop:build:mac -- --publish never
+        # A missing secret arrives as an EMPTY variable, and electron-builder
+        # treats an empty CSC_LINK as a path ("<repo> not a file"). Unset the
+        # empty ones so an unsigned build really is unsigned.
+        run: |
+          [ -n "$CSC_LINK" ] || unset CSC_LINK CSC_KEY_PASSWORD
+          [ -n "$APPLE_ID" ] || unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          npm run desktop:build:mac -- --publish never
 
       - name: List output
         run: ls -la release

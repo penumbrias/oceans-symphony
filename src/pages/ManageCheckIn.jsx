@@ -163,7 +163,10 @@ function FeelingsTab() {
         <Switch checked={sliderOn} onCheckedChange={(on) => { writeQuickCheckinSliderEnabled(on); setSliderOn(on); }} />
       </label>
 
-      <CustomEmotionsManager />
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">Custom emotions</h2>
+        <CustomEmotionsManager />
+      </section>
     </div>
   );
 }

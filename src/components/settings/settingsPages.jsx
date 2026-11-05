@@ -216,8 +216,8 @@ export function buildSettingsGroups(ctx) {
           render: () => <DataInspector /> },
         { id: "find-my-data", label: "Find my data", hint: "Opened to an empty app? Lists every copy on this device and only re-points the app, never deletes", icon: LifeBuoy,
           keywords: "find my data recovery rescue empty wrong system lost data", action: () => ctx.openRescue?.() },
-        { id: "privacy-cover", label: "Quick jump", hint: "Quick taps open a page, a picture or your lists, with an optional lock", icon: EyeOff,
-          keywords: "quick jump privacy cover panic hide grocery list notes triple tap shortcut lock picture page", render: () => <QuickJumpSettings /> },
+        { id: "privacy-cover", label: "Quick jump", hint: "Privacy screen: quick taps open a page, a picture or your lists, with an optional lock", icon: EyeOff,
+          keywords: "quick jump quick tap taps access privacy screen cover panic hide grocery list notes triple tap shortcut lock picture page", render: () => <QuickJumpSettings /> },
       ],
     },
     {
