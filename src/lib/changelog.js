@@ -23,6 +23,8 @@ export const CHANGELOG = [
       { type: "improve", text: "Profiles and the home screen now move widgets like the widget board: hold, drag, and drop on another widget's edge to put them side by side." },
       { type: "fix", text: "A widget that opens up, like What's new set as a thin strip, now grows and moves the widgets below it down instead of being cut off." },
       { type: "improve", text: "Tidier edit menus: grid width is gone, Close gaps and Reset live under Save / exit, bars are set in Display options, and \"Home opens on\" moved into the home screen's Display options." },
+      { type: "feature", text: "Wishes now link to the real thing: activity wishes pick or create an activity, goal wishes link or make a goal, and item wishes go on a list (like a wishlist) or come from one." },
+      { type: "improve", text: "A to-do's Goal option can now put it on a goal in your Notebook, where it shows as a to-do." },
       { type: "improve", text: "Goals is now called Notebook, since it holds projects and stories as well as goals. Everything inside stays where it was." },
       { type: "feature", text: "Profiles' Connections page has a new Linked widget: the theme an {{alter}} switches the app to, plus their goals and dates. Link, change or unlink their theme right there." },
       { type: "fix", text: "A theme linked to an {{alter}} now stays linked after the app restarts." },

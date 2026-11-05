@@ -9,6 +9,20 @@
 //   affect us?"), author_alter_ids, plan_ids[] (plans made from it),
 //   last_happened_at (the last time one of those plans was done).
 //
+// Links into the rest of the app (v0.353.0) — a wish's kind is not just a
+// tag:
+//   category_id — an activity / experience wish IS one of the planner's
+//                 activities (picked or created with ActivityPillSelector);
+//                 "Plan it" makes a plan of that activity.
+//   goal_id     — a goal wish points at a goal page (picked, or made from
+//                 the wish by goalFromWish). Older wishes made into a goal
+//                 before this field are found through Goal.wish_id
+//                 (wishGoalId reads both).
+//   list_id / list_item_id — an item wish sits on one of the person's lists
+//                 (a wishlist, shopping list or checklist on the Notes &
+//                 lists page). Only the title goes onto the list; marking
+//                 the wish done ticks it there.
+//
 // Wishes are never removed by the app: "done" and "let go" keep them in
 // history. Only the person's own Delete removes one.
 //
@@ -17,6 +31,7 @@
 
 import { formatDistanceToNowStrict } from "date-fns";
 import { base44, localEntities } from "@/api/base44Client";
+import { createUnlockedItem, updateUnlockedItem } from "@/lib/localUnlockedGrocery";
 
 export const WISHES_QUERY_KEY = ["wishes"];
 
@@ -79,16 +94,109 @@ export function wishAgeLabel(wish, now = new Date()) {
 // A new wish (v0.304.1) — the quick-add rows on the Needs page, the
 // Wishlist tab and the Wishes widget all make one this way. No owners =
 // for everyone.
-export function createWish({ title, kind = "item", ownerIds = [] }) {
+export function createWish({ title, kind = "item", ownerIds = [], links = {} }) {
   const owners = (ownerIds || []).filter(Boolean);
   return base44.entities.Wish.create({
     title: String(title || "").trim(), kind, owner_alter_ids: owners, for_everyone: owners.length === 0, is_private: false,
     priority: "normal", status: "wished", status_changed_at: new Date().toISOString(),
+    ...cleanLinks(links),
   });
 }
 
-export function setWishStatus(wish, status) {
-  return base44.entities.Wish.update(wish.id, { status, status_changed_at: new Date().toISOString() });
+// Only the link fields a wish stores, without the "make a new one" markers.
+const LINK_FIELDS = ["category_id", "goal_id", "list_id", "list_item_id"];
+export const NEW_GOAL = "__new_goal__";
+export const NEW_WISHLIST = "__new_wishlist__";
+function cleanLinks(links = {}) {
+  const out = {};
+  for (const k of LINK_FIELDS) {
+    const v = links?.[k];
+    if (v && v !== NEW_GOAL && v !== NEW_WISHLIST) out[k] = v;
+  }
+  return out;
+}
+
+export async function setWishStatus(wish, status, { lists = [] } = {}) {
+  const saved = await base44.entities.Wish.update(wish.id, { status, status_changed_at: new Date().toISOString() });
+  // Done → tick it on the list it sits on (never unticks: the list is the
+  // person's own record of what they got).
+  if (status === "done" && wish.list_id && wish.list_item_id) {
+    const list = (lists || []).find((l) => l.id === wish.list_id);
+    try {
+      const patch = { checked: true, purchased_at: new Date().toISOString(), ran_out_at: null };
+      if (list?.source === "local") updateUnlockedItem(wish.list_item_id, patch);
+      else await localEntities.GroceryItem.update(wish.list_item_id, patch);
+    } catch { /* the wish is done either way */ }
+  }
+  return saved;
+}
+
+// ── Links (v0.353.0) ─────────────────────────────────────────────────
+
+// The goal a wish points at: its own goal_id, or (older wishes) the goal
+// that was made from it.
+export function wishGoalId(wish, goals = []) {
+  if (!wish) return null;
+  if (wish.goal_id && (goals || []).some((g) => g.id === wish.goal_id)) return wish.goal_id;
+  return (goals || []).find((g) => g.wish_id === wish.id)?.id || null;
+}
+
+export function linkWishToGoal(wish, goalId) {
+  const move = goalId && (wish.status === "wished" || wish.status === "planned" || !wish.status);
+  return base44.entities.Wish.update(wish.id, {
+    goal_id: goalId || null,
+    ...(move ? { status: "in_progress", status_changed_at: new Date().toISOString() } : {}),
+  });
+}
+
+// A new wishlist on the Notes & lists page (encrypted store, like every
+// list made in the app; nobody's name goes on it).
+export async function createWishlist(name = "Wishlist") {
+  return { ...(await localEntities.GroceryList.create({
+    name: String(name || "").trim() || "Wishlist", list_type: "wishlist", created_date: new Date().toISOString(),
+  })), source: "idb" };
+}
+
+const norm = (s) => String(s || "").trim().toLowerCase();
+
+// Put an item wish on a list (a combined-catalogue list from noteLists.js,
+// carrying `source`), or link the matching row already there. Only the
+// title goes across — lists can be "available when locked" plaintext, so
+// they never name who wants it. Returns { added, item }.
+export async function addWishToList(wish, list, items = []) {
+  if (!wish || !list) return { added: false, item: null };
+  const name = String(wish.title || "").trim();
+  let item = (items || []).find((i) => i && i.list_id === list.id && !i.checked && !i.trashed_at && norm(i.name) === norm(name)) || null;
+  let added = false;
+  if (!item) {
+    item = list.source === "local"
+      ? createUnlockedItem(list.id, name)
+      : await localEntities.GroceryItem.create({ list_id: list.id, name, checked: false, created_date: new Date().toISOString() });
+    added = !!item;
+  }
+  if (item) await base44.entities.Wish.update(wish.id, { list_id: list.id, list_item_id: item.id });
+  return { added, item };
+}
+
+// After a wish is saved: make what the person asked for (a new goal, a new
+// wishlist) and connect it. `links` is what the link fields hold; `lists`
+// and `items` come from useNoteLists. Returns the wish's goal, if one was made.
+export async function applyWishLinks(wish, links = {}, { lists = [], items = [] } = {}) {
+  let goal = null;
+  if (links.goal_id === NEW_GOAL) {
+    const { goalFromWish } = await import("@/lib/goals");
+    goal = await goalFromWish(wish);
+  } else if ((links.goal_id || null) !== (wish.goal_id || null) && links.goal_id) {
+    await linkWishToGoal(wish, links.goal_id);
+  }
+  // A drawn-from-list wish already points at its row (createWish stored it).
+  if (links.list_id && !links.list_item_id) {
+    const list = links.list_id === NEW_WISHLIST
+      ? await createWishlist()
+      : (lists || []).find((l) => l.id === links.list_id);
+    if (list && !(wish.list_id === list.id && wish.list_item_id)) await addWishToList(wish, list, items);
+  }
+  return goal;
 }
 
 // Make a plan from an activity wish. The plan carries wish_id, so doing it
@@ -120,20 +228,4 @@ export async function markWishHappenedFor(plan) {
   try {
     await base44.entities.Wish.update(plan.wish_id, { last_happened_at: new Date().toISOString() });
   } catch { /* the plan outcome stands */ }
-}
-
-// Copy an item wish onto the shopping list. Only the title goes across —
-// the list doubles as the privacy cover, so it never names who wants it.
-export async function addWishToShoppingList(wish) {
-  const lists = await localEntities.GroceryList.list().catch(() => []);
-  let list = (lists || []).find((l) => l.list_type !== "note");
-  if (!list) {
-    list = await localEntities.GroceryList.create({ name: "Grocery list", created_date: new Date().toISOString() });
-  }
-  const items = await localEntities.GroceryItem.list().catch(() => []);
-  const name = String(wish.title || "").trim();
-  const norm = (s) => String(s || "").trim().toLowerCase();
-  if ((items || []).some((i) => i.list_id === list.id && !i.checked && norm(i.name) === norm(name))) return { added: false, list };
-  await localEntities.GroceryItem.create({ list_id: list.id, name, checked: false, created_date: new Date().toISOString() });
-  return { added: true, list };
 }

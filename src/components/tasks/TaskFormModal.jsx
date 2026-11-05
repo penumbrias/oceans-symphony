@@ -1,3 +1,6 @@
+import GoalPagePicker from "@/components/goals/GoalPagePicker";
+import { GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY } from "@/lib/goals";
+import { createPage, putTaskOnPage } from "@/lib/goalTree";
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { saveThing, updateThingSchedule } from "@/lib/thingSave";
@@ -19,6 +22,9 @@ const PRIORITIES = [
   { id: "medium", label: "Medium", cls: "border-yellow-500/40 text-yellow-500 bg-yellow-500/10" },
   { id: "high",   label: "High",   cls: "border-red-500/40 text-red-500 bg-red-500/10" },
 ];
+
+const NEW_GOAL_PAGE = "__new_goal__";
+const NEW_GOAL_PAGE_OPTION = { id: NEW_GOAL_PAGE, label: "＋ New goal named after this to-do" };
 
 export default function TaskFormModal({ open, onClose, editingTask, parentTaskId, allTasks = [] }) {
   const terms = useTerms();
@@ -43,6 +49,11 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     goal_target: "",
     goal_unit: "",
   });
+
+  // The goal page this to-do is on (v0.353.0) — kept out of formData so it
+  // isn't spread onto the task; putTaskOnPage writes goal_id + its line.
+  const [goalPageId, setGoalPageId] = useState(null);
+  useEffect(() => { setGoalPageId(editingTask?.goal_id || null); }, [editingTask?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (editingTask) {
@@ -152,6 +163,15 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         });
         savedTask = res.task;
         toast.success(res.planned ? "Added — and it's on your plan" : "Task created!");
+      }
+
+      if (savedTask && (goalPageId || null) !== (editingTask?.goal_id || null)) {
+        try {
+          const pageId = goalPageId === NEW_GOAL_PAGE ? (await createPage({ title: formData.title }))?.id : goalPageId;
+          await putTaskOnPage(savedTask, pageId || null);
+        } catch (e) { toast.error(e?.message || "Saved, but couldn't put it on the goal."); }
+        queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: GOAL_STEPS_QUERY_KEY });
       }
 
       // The title takes part in the @mention scan too.
@@ -299,6 +319,8 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
 
           <div className="border-t border-border pt-4 space-y-3">
             <p className="text-sm font-medium">Goal (Optional)</p>
+            <GoalPagePicker value={goalPageId} onChange={setGoalPageId} newOption={NEW_GOAL_PAGE_OPTION} label="Goal it belongs to" />
+            <p className="text-xs font-medium text-muted-foreground">Count toward a number</p>
             <div className="flex gap-2">
               <Input
                 type="number"
