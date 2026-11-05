@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "feature", text: "Settings → Profile songs is now a sound manager: see every song and which profiles play it, add a song to a profile, and open your song library." },
+      { type: "feature", text: "Songs can have a default volume, quiet hours stop songs starting on their own, and a profile can play a different song in the morning, at night or any time of day you name." },
       { type: "feature", text: "Settings → Terminology → Commands: choose the symbol that starts a command (~ at first) and your own word for each command, like ~mood for a feeling, ~therapy, or /w for whispers. The built-in words keep working too." },
       { type: "improve", text: "Profiles and the home screen now move widgets like the widget board: hold, drag, and drop on another widget's edge to put them side by side." },
       { type: "fix", text: "A widget that opens up, like What's new set as a thin strip, now grows and moves the widgets below it down instead of being cut off." },

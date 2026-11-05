@@ -218,7 +218,7 @@ function useDebouncedWrite(write, delay = 400) {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     if (pending.current) { const args = pending.current; pending.current = null; latest.current(...args); }
   };
-  useEffect(() => () => flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => flush(), []);
   return (...args) => {
     pending.current = args;
     if (timer.current) clearTimeout(timer.current);
