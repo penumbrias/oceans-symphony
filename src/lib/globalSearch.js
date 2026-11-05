@@ -1001,7 +1001,7 @@ const PAGE_KEYWORDS = {
   "history-archive": "recent changes undo restore trash deleted",
   friends: "friends share",
   planner: "planner calendar plans schedule events",
-  goals: "goals steps progress",
+  goals: "goals steps progress notebook projects stories writing chapters",
   notes: "notes lists flash cards checklist",
   needs: "needs wishes turns",
   contacts: "people contacts",

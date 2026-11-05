@@ -219,7 +219,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
         </Button>
       </div>
       <Link to="/goals" className="block text-xs text-muted-foreground hover:text-foreground mb-5">
-        Longer-term goals with steps and weekly rhythms live on the Goals page →
+        Longer-term goals with steps and weekly rhythms live in your Notebook →
       </Link>
 
       {progressData.length === 0 ? (

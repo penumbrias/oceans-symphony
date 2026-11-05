@@ -36,7 +36,7 @@ export const useGoalPage = () => useContext(GoalPageContext);
 
 
 function NoPage() {
-  return <Muted>Shows on a Goals page.</Muted>;
+  return <Muted>Shows on a Notebook page.</Muted>;
 }
 
 function GoalActivitiesWidget() {
