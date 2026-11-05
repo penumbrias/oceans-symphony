@@ -19,7 +19,7 @@
 // song file — removing one from a profile leaves it in Assets.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronLeft, Music, ListMusic, Users, Upload, FolderOpen, Moon, Clock, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
@@ -92,15 +92,18 @@ function SubHeader({ title, onBack }) {
 }
 
 export default function ProfileSongsSettings() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const view = params.get("sm") || "";
   // Drill-ins push history, so Back (and the phone's back gesture) steps out.
-  const go = (next, { replace = false } = {}) => setParams((prev) => {
-    const p = new URLSearchParams(prev);
+  // The hash names this Settings page, so it rides along.
+  const go = (next, { replace = false } = {}) => {
+    const p = new URLSearchParams(location.search);
     if (next) p.set("sm", next); else p.delete("sm");
-    return p;
-  }, { replace });
+    const search = p.toString();
+    navigate({ pathname: location.pathname, search: search ? `?${search}` : "", hash: location.hash }, { replace });
+  };
   const back = (parent = "") => {
     const idx = typeof window !== "undefined" ? window.history.state?.idx : 0;
     if (idx > 0) navigate(-1); else go(parent, { replace: true });
