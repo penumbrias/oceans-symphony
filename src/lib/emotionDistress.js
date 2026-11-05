@@ -30,7 +30,7 @@ const LS_KEY = "symphony_system_distress";
 // and the body wheel's Freeze/Collapse states — striking gaps for a
 // dissociation-focused app. Mild negatives (annoyed, disappointed, bored)
 // stay off by default; everything is user-toggleable in Settings.
-const DEFAULT_DISTRESS = [
+export const DEFAULT_DISTRESS = [
   // original set
   "anxious", "overwhelmed", "panicked", "scared", "terrified",
   "crisis", "unsafe", "dissociated", "numb", "frozen", "fearful",
