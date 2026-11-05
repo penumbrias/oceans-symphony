@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "improve", text: "Custom emotions settings tidied up: tap an emotion to open its own page for name, group, colour and distressing, with built-in marks and group names on their own pages." },
       { type: "feature", text: "Notes and lists are now one thing: every note can have tick-off items under it, and every list has room for writing on top." },
       { type: "improve", text: "The Notes & lists page has a link to the quick taps and privacy screen settings." },
       { type: "improve", text: "Settings search now finds the privacy screen (Quick jump) when you search \"privacy screen\" or \"quick tap\"." },
