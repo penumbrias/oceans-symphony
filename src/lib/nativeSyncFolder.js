@@ -40,9 +40,46 @@ export async function listFolder(handle) {
   return (res?.files || []).map((f) => ({ name: f.name, size: Number(f.size) || 0, mtimeMs: Number(f.mtime) || 0 }));
 }
 
+// Read in pieces (v0.357.1). A whole-file read made the native side hold
+// several copies of a big snapshot at once and Android closed the app
+// (OutOfMemoryError). Each piece is decoded as it arrives; the decoder's
+// stream mode keeps a character split across two pieces intact.
+const CHUNK_BYTES = 2 * 1024 * 1024;
+// A snapshot can't grow without bound while we read it; this stops a file
+// that keeps changing size from looping forever.
+const MAX_PIECES = 4096;
+
+function base64ToBytes(b64) {
+  const bin = atob(b64 || "");
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 export async function readFolderFile(handle, name) {
-  const res = await SyncFolder.read({ uri: handle.uri, docId: handle.docId || undefined, name });
-  return typeof res?.data === "string" ? res.data : String(res?.data ?? "");
+  const decoder = new TextDecoder("utf-8");
+  const parts = [];
+  let offset = 0;
+  let size = null;
+  for (let i = 0; i < MAX_PIECES; i++) {
+    const res = await SyncFolder.readChunk({
+      uri: handle.uri, docId: handle.docId || undefined, name, offset, length: CHUNK_BYTES,
+    });
+    const bytes = base64ToBytes(res?.data);
+    if (size === null) size = Number(res?.size) || 0;
+    else if (Number(res?.size) !== size) {
+      // The other device rewrote the file mid-read: the pieces would be a
+      // mix of two files. Fail this read; the next pass reads it whole.
+      throw new Error("That file changed while it was being read. It will be read again on the next sync.");
+    }
+    offset += bytes.length;
+    parts.push(decoder.decode(bytes, { stream: !res?.eof }));
+    if (res?.eof || bytes.length === 0) {
+      if (offset < size) throw new Error("That file was cut short while it was being read.");
+      return parts.join("");
+    }
+  }
+  throw new Error("That file is too large to read.");
 }
 
 export async function writeFolderFile(handle, name, text) {
