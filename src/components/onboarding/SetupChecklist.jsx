@@ -29,33 +29,10 @@ import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
 import { PersistentNotificationsSection } from "@/components/settings/NotificationSettings";
 import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
-import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
-
-// Per-system-scoped since v0.85.6 (tester report: a new system was
-// inheriting the previous system's half-finished checklist).
-// psGetItem falls back to the legacy unscoped key when the registry has
-// ≤1 system, so pre-existing single-system users' progress carries over.
-export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
-export const CHECKLIST_ITEMS = ["alters", "levels", "tracking", "activity", "tasks", "reminders", "newui", "backup"];
-
-export function loadChecklist() {
-  try {
-    const raw = psGetItem(CHECKLIST_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed ? parsed : {};
-  } catch { return {}; }
-}
-export function saveChecklist(state) {
-  psSetItem(CHECKLIST_KEY, JSON.stringify(state || {}));
-}
-export function checklistComplete(state = loadChecklist()) {
-  return CHECKLIST_ITEMS.every((k) => !!state[k]);
-}
-export function checklistProgress(state = loadChecklist()) {
-  const done = CHECKLIST_ITEMS.filter((k) => !!state[k]).length;
-  return { done, total: CHECKLIST_ITEMS.length };
-}
+// The checklist's saved state lives in src/lib/setupChecklistState.js so the
+// home screen can read progress without loading this whole guide.
+export { CHECKLIST_KEY, CHECKLIST_ITEMS, loadChecklist, saveChecklist, checklistComplete, checklistProgress } from "@/lib/setupChecklistState";
+import { CHECKLIST_ITEMS, loadChecklist, saveChecklist } from "@/lib/setupChecklistState";
 
 function ChecklistItem({ id, icon: Icon, title, description, done, expanded, onToggleExpand, onToggleDone, highlight, children }) {
   return (

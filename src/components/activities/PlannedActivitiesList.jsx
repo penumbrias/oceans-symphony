@@ -33,43 +33,36 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
     [alters]
   );
 
-  const future = useMemo(() => {
-    return activities
-      .filter(a => {
-        if (!a) return false;
-        const ts = activityDate(a);
-        if (!ts || isNaN(ts)) return false;
-        // Phase 3: use the lifecycle status rather than the bare "ts > now"
-        // check. A plan only belongs on the Planned tab while it's still
-        // SCHEDULED — once it's done / partial / skipped / cancelled it
-        // belongs in the Logged grid. Future-dated plans whose status is
-        // still resolved are also excluded (the user explicitly closed
-        // them out).
-        // Keep overdue-but-unmarked SCHEDULED plans too (dropping the old
-        // `ts > now` gate). Otherwise a scheduled plan whose time had passed but
-        // that the user hadn't resolved fell out of BOTH tabs (Past only lists
-        // resolved outcomes) and vanished entirely.
-        return statusFor(a) === ACTIVITY_STATUSES.SCHEDULED;
-      })
-      .sort((a, b) => activityDate(a) - activityDate(b));
-  }, [activities]);
-
-  const past = useMemo(() => {
-    return activities
-      .filter(a => {
-        if (!a) return false;
-        const ts = activityDate(a);
-        if (!ts || isNaN(ts)) return false;
-        const status = statusFor(a);
-        // Resolved-plan statuses (the user actually marked an outcome).
-        return status === ACTIVITY_STATUSES.DONE
-          || status === ACTIVITY_STATUSES.PARTIAL
-          || status === ACTIVITY_STATUSES.SKIPPED
-          || status === ACTIVITY_STATUSES.CANCELLED;
-      })
-      // Most recent first — when reviewing past plans the user wants
-      // the latest outcome at the top.
-      .sort((a, b) => activityDate(b) - activityDate(a));
+  // One pass over every activity (a lifelong list): the cheap status check
+  // first, each date parsed once, then sorted on the parsed times (v0.357.0).
+  // Upcoming keeps overdue-but-unmarked SCHEDULED plans too (dropping the old
+  // `ts > now` gate). Otherwise a scheduled plan whose time had passed but
+  // that the user hadn't resolved fell out of BOTH tabs (Past only lists
+  // resolved outcomes) and vanished entirely. A plan only belongs on the
+  // Planned tab while it's still SCHEDULED — once it's done / partial /
+  // skipped / cancelled it belongs in Past.
+  const { future, past } = useMemo(() => {
+    const up = [];
+    const done = [];
+    for (const a of activities) {
+      if (!a) continue;
+      const status = statusFor(a);
+      const isFuture = status === ACTIVITY_STATUSES.SCHEDULED;
+      const isPast = status === ACTIVITY_STATUSES.DONE
+        || status === ACTIVITY_STATUSES.PARTIAL
+        || status === ACTIVITY_STATUSES.SKIPPED
+        || status === ACTIVITY_STATUSES.CANCELLED;
+      if (!isFuture && !isPast) continue;
+      const ts = activityDate(a);
+      const t = ts ? ts.getTime() : NaN;
+      if (!ts || Number.isNaN(t)) continue;
+      (isFuture ? up : done).push([t, a]);
+    }
+    up.sort((x, y) => x[0] - y[0]);
+    // Most recent first — when reviewing past plans the user wants the
+    // latest outcome at the top.
+    done.sort((x, y) => y[0] - x[0]);
+    return { future: up.map((e) => e[1]), past: done.map((e) => e[1]) };
   }, [activities]);
 
   const filteredByHorizon = useMemo(() => {

@@ -333,7 +333,15 @@ async function saveToStorage(value) {
 //   { exists: true, encrypted: true,  salt: <string|null>, raw }
 //   { exists: true, corrupted: true,  raw }   ← raw was non-empty but unparseable
 // Throws StorageReadError if the storage layer itself is unreadable.
+// Boot reads the blob twice — peekStoredData, then initLocalDb — and on a
+// years-big database each JSON.parse is the slowest step of opening the app.
+// The peek keeps its parse of a PLAIN blob for initLocalDb to use once
+// (v0.357.0), and only when initLocalDb then reads the very same text for
+// the same slot; anything else parses afresh as before.
+let _peekParse = null;
+
 export async function peekStoredData() {
+  _peekParse = null;
   const raw = await loadFromStorage();
   if (!raw) return { exists: false };
   let parsed;
@@ -347,7 +355,9 @@ export async function peekStoredData() {
       raw,
     };
   }
-  return { exists: true, encrypted: false, raw };
+  _peekParse = { key: _storageKey, raw, parsed };
+  // `parsed` is for reading only (the boot's "is this slot empty?" check).
+  return { exists: true, encrypted: false, raw, parsed };
 }
 
 // Returns the raw on-disk blob (encrypted ciphertext or plain JSON) for
@@ -752,9 +762,25 @@ function saveDb() {
   return _saveDbNow();
 }
 
+// A save that is queued behind another and hasn't read _db yet (v0.357.0).
+// Every save writes the WHOLE database, so a burst of writes (a bulk edit,
+// an import, quick taps) used to queue one full write each. A later write
+// now joins the waiting save instead: that save reads _db only when its
+// turn comes, so it carries every change made before then, and each
+// joiner's promise settles when its change is on disk. The moment a save
+// starts it stops taking joiners — a write after that queues a new save.
+let _waitingSave = null;
+
 function _saveDbNow() {
+  if (_waitingSave) return _waitingSave.promise;
   _pendingSaves++;
-  const run = _saveQueue.then(() => doSaveDb());
+  const waiting = {};
+  _waitingSave = waiting;
+  const run = _saveQueue.then(() => {
+    if (_waitingSave === waiting) _waitingSave = null;
+    return doSaveDb();
+  });
+  waiting.promise = run;
   // Keep the chain alive even if a save fails; the failure still
   // propagates to this call's awaiter. The pending counter (read by
   // adoptExternalChange's guard) drops once this save settles either way.
@@ -955,7 +981,13 @@ export async function initLocalDb(password) {
   }
 
   let parsed;
-  try { parsed = JSON.parse(raw); }
+  const peeked = _peekParse;
+  _peekParse = null;
+  try {
+    parsed = (peeked && peeked.key === _storageKey && peeked.raw === raw)
+      ? peeked.parsed
+      : JSON.parse(raw);
+  }
   catch (e) {
     // Stored blob is non-empty but unparseable. Refuse to clobber it.
     _db = null;
@@ -1135,14 +1167,45 @@ function parseSortKey(sort) {
   return { field: desc ? sort.slice(1) : sort, desc };
 }
 
-function sortRecords(records, sort) {
+function recordComparator(sort) {
   const { field, desc } = parseSortKey(sort);
-  return [...records].sort((a, b) => {
+  return (a, b) => {
     const av = a[field] ?? '';
     const bv = b[field] ?? '';
     const cmp = av < bv ? -1 : av > bv ? 1 : 0;
     return desc ? -cmp : cmp;
-  });
+  };
+}
+
+function sortRecords(records, sort) {
+  return [...records].sort(recordComparator(sort));
+}
+
+// list/filter with a small limit (the newest 50 of years of rows) keep only
+// the top `limit` while walking, instead of sorting everything and throwing
+// most of it away (v0.357.0). Same order as sort-then-slice: rows that tie
+// stay in their original order, exactly like the stable sort.
+function sortedTop(records, sort, limit) {
+  const n = limit > 0 ? Math.floor(limit) : 0;
+  if (!n || n !== Number(limit) || records.length <= 256 || n * 4 >= records.length) {
+    const all = sortRecords(records, sort);
+    return limit ? all.slice(0, limit) : all;
+  }
+  const cmp = recordComparator(sort);
+  const top = [];
+  for (const r of records) {
+    if (top.length === n && cmp(r, top[n - 1]) >= 0) continue;
+    // Insert after any equal rows already kept (upper bound) — stable.
+    let lo = 0;
+    let hi = top.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cmp(top[mid], r) <= 0) lo = mid + 1; else hi = mid;
+    }
+    top.splice(lo, 0, r);
+    if (top.length > n) top.pop();
+  }
+  return top;
 }
 
 function matchesQuery(record, query) {
@@ -1296,16 +1359,12 @@ export function createLocalDbEntities() {
     get(_, entityName) {
       return {
         list: async (sort, limit) => {
-          let records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r));
-          records = sortRecords(records, sort);
-          if (limit) records = records.slice(0, limit);
-          return records;
+          const records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r));
+          return sortedTop(records, sort, limit);
         },
         filter: async (query, sort, limit) => {
-          let records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r) && matchesQuery(r, query));
-          records = sortRecords(records, sort);
-          if (limit) records = records.slice(0, limit);
-          return records;
+          const records = Object.values(getCollection(entityName)).filter(r => !isHiddenRecord(entityName, r) && matchesQuery(r, query));
+          return sortedTop(records, sort, limit);
         },
         get: async (id) => {
           const r = getCollection(entityName)[id] || null;

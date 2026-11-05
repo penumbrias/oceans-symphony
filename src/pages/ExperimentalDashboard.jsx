@@ -88,6 +88,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
+import { WidgetSuspense } from "@/lib/lazyNamed";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -637,6 +638,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           )}>
           <WidgetChromeContext.Provider value={chrome}>
           <WidgetSubject def={def} settings={widget.settings}>
+          <WidgetSuspense>
           {def.render({
             mode,
             settings: foldedSettings(def, widget.settings, widget.instanceId),
@@ -644,6 +646,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             api,
             updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
           })}
+          </WidgetSuspense>
           </WidgetSubject>
           </WidgetChromeContext.Provider>
         </ErrorBoundary>
