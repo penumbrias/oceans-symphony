@@ -19,7 +19,7 @@ import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
-import { V2LanguageSection } from "@/components/settings/V2DisplaySettings";
+import LanguageSettings from "@/components/settings/LanguageSettings";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 import ClockFormatRow from "@/components/settings/ClockFormatRow";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
@@ -104,8 +104,8 @@ export function buildSettingsGroups(ctx) {
     {
       id: "general", label: "General",
       pages: [
-        { id: "language", label: "Language", hint: "The language the app speaks", icon: Languages,
-          keywords: "language locale translation english", render: () => <V2LanguageSection /> },
+        { id: "language", label: "Language", hint: "Experimental: other languages are in progress", icon: Languages,
+          keywords: "language locale translation english translate experimental", render: () => <LanguageSettings /> },
         { id: "timezone", label: "Time & clock", hint: "12 or 24-hour clock, and which timezone days follow", icon: Clock,
           keywords: "timezone time zone clock travel 12 24 hour military am pm",
           render: () => (<div className="space-y-4"><ClockFormatRow /><TimezoneSettings /></div>) },
