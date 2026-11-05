@@ -316,13 +316,14 @@ export function createGoal(fields = {}) {
 }
 
 // A goal-kind wish becomes a goal straight away: its title, what's driving
-// it as the goal's note, and whose it is. The wish moves to "in progress".
+// it as the goal's note, and whose it is. The wish moves to "in progress"
+// and points at the goal (goal_id, v0.353.0).
 export async function goalFromWish(wish) {
   const goal = await createGoal({
     title: wish.title, why: wish.driving || "", impact: wish.impact || "",
     for_everyone: !!wish.for_everyone, owner_alter_ids: wish.owner_alter_ids || [], wish_id: wish.id,
   });
-  await base44.entities.Wish.update(wish.id, { status: "in_progress", status_changed_at: new Date().toISOString() })
+  await base44.entities.Wish.update(wish.id, { goal_id: goal.id, status: "in_progress", status_changed_at: new Date().toISOString() })
     .catch(() => { /* the goal stands */ });
   return goal;
 }
