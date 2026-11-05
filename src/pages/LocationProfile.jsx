@@ -40,6 +40,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, profileSurfaceCss, profileThemeCss, PS } from "@/lib/profileStyle";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import { hasAnySong } from "@/lib/soundManager";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TRASH_HINT } from "@/lib/trashSettings";
@@ -222,7 +223,7 @@ function LocationProfileInner() {
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         {/* The song belongs to VIEWING the page. */}
-        {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
+        {hasAnySong(cf[PS.SONG]) && <ProfileSongPlayer song={cf[PS.SONG]} />}
         <div className="relative z-10 os-pf" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
           <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5 mb-4">
             <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)} aria-label="Back" title="Back">
@@ -277,7 +278,7 @@ function LocationProfileInner() {
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
       {/* This page's song, set in its style editor like any other profile. */}
-      {formCf[PS.SONG]?.ref && <ProfileSongPlayer song={formCf[PS.SONG]} />}
+      {hasAnySong(formCf[PS.SONG]) && <ProfileSongPlayer song={formCf[PS.SONG]} />}
       <div className="relative z-10 os-pf space-y-4">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>

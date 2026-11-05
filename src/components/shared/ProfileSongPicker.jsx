@@ -9,14 +9,14 @@
 import React, { useRef, useState } from "react";
 import { Music, Upload, Loader2, X, FolderOpen } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
-import { isLocalMode } from "@/lib/storageMode";
+import { SliderRow } from "@/components/shared/SettingRows";
+import { saveSongFile } from "@/lib/songUpload";
+import { useSoundManager, songKey, hasAnySong } from "@/lib/soundManager";
 import { keptSongTitle, titleFromRef, meaningfulAssetName } from "@/lib/songTitle";
 import { songAutomatic } from "@/lib/songPresence";
 
@@ -34,7 +34,9 @@ function withTitle(value, ref, autoTitle) {
   };
 }
 
-export default function ProfileSongPicker({ value, onChange, subjectLabel = "page", allowEverywhere = false }) {
+// `compact` leaves out loop / automatic / everywhere — for a song picked for
+// a time of day, which plays the way the profile's own song does.
+export default function ProfileSongPicker({ value, onChange, subjectLabel = "page", allowEverywhere = false, compact = false }) {
   // null | "checking" | "ok" | "bad" — result of probing a pasted URL.
   const [urlState, setUrlState] = React.useState(null);
   const checkUrl = React.useCallback((url) => {
@@ -100,36 +102,36 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("audio/")) { toast.error("That's not an audio file"); e.target.value = ""; return; }
-    if (file.size > 25 * 1024 * 1024) { toast.error("Audio over 25MB is too large — try a compressed MP3"); e.target.value = ""; return; }
     setUploading(true);
     try {
-      if (!isLocalMode()) { toast.error("Song upload requires local mode. Paste an audio URL instead."); return; }
-      if (file.size > 10 * 1024 * 1024) toast.warning(`${(file.size / 1024 / 1024).toFixed(1)}MB — large songs grow your storage and backups.`);
-      const audioId = `song-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveLocalImage(audioId, file, file.type);
-      // Also record it in the asset library so the same audio can be reused
-      // elsewhere without re-uploading, and can sit in a folder to rotate.
-      try {
-        await base44.entities.ImageAsset.create({
-          name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Audio",
-          image_url: createLocalImageUrl(audioId),
-          // Full original file name kept for exports (the title above is shortened).
-          original_name: file.name,
-          folder: "Songs Audio",
-          kind: "audio",
-          created_date: new Date().toISOString(),
-        });
-        qc.invalidateQueries({ queryKey: ["imageAssets"] });
-      } catch { /* the song still works even if the library row fails */ }
-      onChange(withTitle(value, createLocalImageUrl(audioId), file.name.replace(/\.[^.]+$/, "").slice(0, 80)));
-      toast.success("Song saved!");
+      const saved = await saveSongFile(file, qc);
+      if (saved) {
+        onChange(withTitle(value, saved.ref, saved.title));
+        toast.success("Song saved!");
+      }
     } catch {
       toast.error("Failed to save the song");
     } finally {
       setUploading(false);
       e.target.value = "";
     }
+  };
+
+  // Removing the main song keeps any songs set for times of day.
+  const removeSong = () => {
+    if (!value) return onChange(null);
+    const rest = { ...value };
+    delete rest.ref; delete rest.title; delete rest.titleAuto;
+    onChange(hasAnySong(rest) ? rest : null);
+  };
+  // The song's own default volume (sound manager) shows greyed until this
+  // place sets its own.
+  const sm = useSoundManager();
+  const songDefaultVolume = value?.ref ? (sm.songs[songKey(value.ref)]?.volume ?? 100) : 100;
+  const clearVolume = () => {
+    const rest = { ...value };
+    delete rest.volume;
+    onChange(rest);
   };
 
   return (
@@ -148,7 +150,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
             placeholder="Song title (shown in the player)"
             className="h-8 text-sm flex-1 border-0 bg-transparent px-0 focus-visible:ring-0"
           />
-          <button type="button" onClick={() => onChange(null)} aria-label="Remove song" title="Remove song"
+          <button type="button" onClick={removeSong} aria-label="Remove song" title="Remove song"
             className="p-1 rounded-lg text-muted-foreground hover:text-destructive flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -195,6 +197,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
       )}
       {value?.ref && (
         <>
+          {!compact && (<>
           <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span>Loop while the page is open</span>
             <Switch checked={value.loop !== false}
@@ -222,18 +225,13 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
               </p>
             </div>
           )}
+          </>)}
           {/* Volume is saved with the SONG, so a loud track and a quiet one
               can live on two pages without re-adjusting the device each time. */}
-          <div className="space-y-1">
-            <label className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Volume</span>
-              <span className="tabular-nums">{value.volume ?? 100}%</span>
-            </label>
-            <input type="range" min={0} max={100} step={5}
-              value={value.volume ?? 100}
-              onChange={(e) => onChange({ ...value, volume: Number(e.target.value) })}
-              aria-label="Song volume" className="w-full accent-primary" />
-          </div>
+          <SliderRow label="Volume" hint={value.volume === undefined || value.volume === null ? "The song's own volume" : null}
+            value={value.volume ?? undefined} fallback={songDefaultVolume} min={0} max={100} step={5} unit="%"
+            onChange={(v) => onChange({ ...value, volume: v })}
+            onClear={clearVolume} />
         </>
       )}
       <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />

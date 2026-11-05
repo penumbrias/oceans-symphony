@@ -74,7 +74,7 @@ function LocationLink({ value, onChange }) {
     placeholder={CHOOSE.location} searchPlaceholder="Search locations…" />;
 }
 
-const PICKERS = { alter: AlterLink, group: GroupLink, contact: ContactLink, location: LocationLink };
+export const PICKERS = { alter: AlterLink, group: GroupLink, contact: ContactLink, location: LocationLink };
 
 export function WhoseRow({ type, settings, set, ownProfile = false }) {
   const t = useTerms();

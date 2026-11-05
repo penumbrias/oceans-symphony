@@ -1097,6 +1097,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alters} group`,
     }),
     s("settings", {
+      emoji: "🎵", title: "Profile songs",
+      body: `Every song on a profile in one list, and which profiles play it. Set a song's default volume, quiet hours when songs don't start on their own, and a different song for mornings or nights.`,
+      route: "/settings#profile-songs", target: ["sound-manager", "settings-profile-songs"], look: `the Profile songs page, under ${t.Alters}`,
+    }),
+    s("settings", {
       emoji: "💜", title: "Tracking",
       body: `Shortcuts, the check-in manager, your own emotions and triggers, ${t.fronting} levels, and grouping analytics by group for big ${t.systems}.`,
       route: "/settings", target: "settings-checkin", look: `the highlighted Tracking group`,

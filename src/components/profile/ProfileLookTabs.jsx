@@ -18,9 +18,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, FileText, Type, Square, Palette, Star as StarIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { X, FileText, Type, Square, Palette, Star as StarIcon, Music } from "lucide-react";
 import { toast } from "sonner";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow, LinkRow } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import FontUploadButton from "@/components/shared/FontUploadButton";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -150,6 +151,7 @@ export { TAB_KEYS as PROFILE_LOOK_TAB_KEYS };
 export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null }) {
   const t = useTerms();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { type, id } = subject;
   const isAlter = type === "alter";
   // The defaults for new/empty profiles of this type (profileLookDefaults.js)
@@ -378,6 +380,12 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
                   <StackedRow label="Page song" hint={forDefaults ? "Plays when a profile without its own song opens" : "Plays when the profile opens"}>
                     <ProfileSongPicker value={cf[PS.SONG] || null} onChange={(v) => (v ? set(PS.SONG, v) : clear(PS.SONG))} subjectLabel="page" />
                   </StackedRow>
+                  {/* Songs for times of day, quiet hours and every song in
+                      one list live in the sound manager. */}
+                  {!draft && (
+                    <LinkRow icon={Music} label="Sound manager" hint="Songs for times of day, quiet hours, every song in one list"
+                      onClick={() => navigate(forDefaults ? "/settings#profile-songs" : `/settings?sm=${encodeURIComponent(`profile:${type}:${id}`)}#profile-songs`)} />
+                  )}
                 </Group>
               </>
             ) : (

@@ -23,6 +23,7 @@ import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import AlterInfo from "@/components/alters/info/AlterInfo";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import { alterSongOf } from "@/lib/soundManager";
 import { PS } from "@/lib/profileStyle";
 // The profile is a widget board (v0.290.0): the same canvas as the home
 // screen, one page per tab, every section a widget (src/v2/profileWidgets).
@@ -298,9 +299,7 @@ function AlterProfileInner() {
           navigation away. */}
       {/* Either source: the alter's own field, or one set through the
           shared profile-style editor (which every profile page has). */}
-      {(alter?.profile_song?.ref || cf[PS.SONG]?.ref) && (
-        <ProfileSongPlayer song={alter?.profile_song?.ref ? alter.profile_song : cf[PS.SONG]} />
-      )}
+      {alterSongOf(alter, cf) && <ProfileSongPlayer song={alterSongOf(alter, cf)} />}
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
           {resolvedBgImage ? (
