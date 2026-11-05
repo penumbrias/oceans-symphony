@@ -429,6 +429,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: profile("connections"), target: onProfile("alter-profile-tabs"),
     }),
     s("profile", {
+      emoji: "🎨", title: "Linked to them",
+      body: `Linked shows the theme the app switches to when this ${t.alter} starts ${t.fronting}, plus the goals and dates that are theirs. Link, change or unlink their theme right there.`,
+      route: profile("connections"),
+    }),
+    s("profile", {
       emoji: "🌳", title: "Lineage",
       body: `Lineage records fusions, splits, dormancy, returns and reformations, dated by year. Recording a split adds "Split from" relationships for you.`,
       route: profile("connections"),

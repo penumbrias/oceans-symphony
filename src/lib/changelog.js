@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 5, 2026",
+    changes: [
+      { type: "feature", text: "Profiles' Connections page has a new Linked widget: the theme an {{alter}} switches the app to, plus their goals and dates. Link, change or unlink their theme right there." },
+    ],
+  },
+  {
     date: "November 4, 2026",
+    version: "0.351.0",
     changes: [
       { type: "fix", text: "Older pinned bulletins now stay pinned on the home bulletin board, and the board's search finds every bulletin, not just recent ones." },
       { type: "improve", text: "Search everything now looks through all your records, however old. Words can be in any order, best matches come first, and each kind has \"Show more\"." },

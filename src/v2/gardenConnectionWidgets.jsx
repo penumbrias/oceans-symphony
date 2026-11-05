@@ -9,7 +9,7 @@ import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Link2, GitMerge, Zap, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { Link2, GitMerge, Zap, Pencil, Trash2, ArrowRight, Palette, Target, CalendarHeart, X } from "lucide-react";
 import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -30,6 +30,12 @@ import {
 } from "@/lib/lineageEvents";
 import { ALTER_RELATIONS, allRelations, clampStrength, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import RichText from "@/components/shared/RichText";
+import SearchableSelect from "@/components/shared/SearchableSelect";
+import { useTheme } from "@/lib/ThemeContext";
+import { GOALS_QUERY_KEY } from "@/lib/goals";
+import { usePlannerEvents } from "@/lib/plannerEvents";
+import { nextOccurrence } from "@/lib/plannerEventDates";
+import { UNSAVED_STASH } from "@/lib/presetSync";
 
 const outlineBtn = { borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)" };
 const rowCls = "py-[0.45em] border-b border-current/10 last:border-b-0";
@@ -374,6 +380,193 @@ export function ActivityLinksWidget({ settings, mode = "normal" }) {
   );
 }
 
+// ── Linked (v0.352.0) ────────────────────────────────────────────────
+// Things that point at this alter but aren't people: the theme the app
+// switches to when they front (ThemeContext's alterThemeLinks — the same
+// links Display options → Styles makes), the goals they want, can help
+// with or find hard, and the dates (planner events) that are theirs.
+// Theme links are made and undone here through the theme context's own
+// linkAlterTheme / unlinkAlterTheme, so both doors write one store.
+
+export const LINKED_SECTIONS = [
+  { value: "theme", label: "Theme" },
+  { value: "goals", label: "Goals" },
+  { value: "dates", label: "Dates" },
+];
+const GOAL_ROLES = [
+  ["owner_alter_ids", "Wants it"],
+  ["supporter_alter_ids", "Can help"],
+  ["struggler_alter_ids", "Finds it hard"],
+];
+const GOAL_STATUS_WORDS = { paused: "paused", done: "reached", let_go: "let go" };
+// The colour a saved theme leads with, for its little swatch.
+const presetSwatch = (p) => p?.dark?.primary || p?.light?.primary || p?.primary || p?.dark?.accent || p?.light?.accent || null;
+
+// Opens Display options on Styles (where themes are saved and linked).
+function openThemeStyles() {
+  try {
+    sessionStorage.setItem("os_sub_edit-presets", "1");
+    for (const k of ["edit-bars", "edit-size", "edit-colors"]) sessionStorage.setItem(`os_sub_${k}`, "0");
+  } catch { /* storage off — the sheet still opens */ }
+  window.dispatchEvent(new CustomEvent("os-open-display-options"));
+}
+
+function LinkedTheme({ alterId, alterLabel, mode, t }) {
+  const { alterThemeLinks, linkAlterTheme, unlinkAlterTheme, userCustomPresets, allPresets } = useTheme();
+  const [picking, setPicking] = useState(false);
+  const linked = alterThemeLinks?.[alterId] || null;
+  const preset = linked ? (userCustomPresets?.[linked] || allPresets?.[linked]) : null;
+  const options = useMemo(() => Object.entries(userCustomPresets || {})
+    .filter(([name]) => name !== UNSAVED_STASH)
+    .map(([name, p]) => ({ id: name, label: name, color: presetSwatch(p) || undefined }))
+    .sort((a, b) => a.label.localeCompare(b.label)), [userCustomPresets]);
+  if (mode === "minimal") return <p>{linked || "None linked"}</p>;
+  const choose = (name) => {
+    setPicking(false);
+    if (!name || name === linked) return;
+    linkAlterTheme(alterId, name);
+    toast.success(`${alterLabel} is linked to “${name}”.`);
+  };
+  const unlink = () => {
+    unlinkAlterTheme(alterId);
+    toast.success(`Theme unlinked from ${alterLabel}.`);
+  };
+  return (
+    <div>
+      {linked ? (
+        <div className="flex items-center gap-[0.5em] min-h-[44px]">
+          <span className="w-[1.4em] h-[1.4em] rounded-md flex-shrink-0 border border-current/20"
+            style={{ background: presetSwatch(preset) || "transparent" }} aria-hidden="true" />
+          <span className="flex-1 min-w-0">
+            <span className="block truncate font-medium">{linked}</span>
+            {!preset
+              ? <span className="block text-[0.8125em] opacity-70">This theme was deleted — pick another or unlink it.</span>
+              : mode === "expanded" && <span className="block text-[0.8125em] opacity-70">The app changes to it when they start {t.fronting}.</span>}
+          </span>
+          <button type="button" onClick={() => setPicking((v) => !v)} className={iconBtnCls} aria-label={`Change ${alterLabel}'s theme`} aria-expanded={picking}>
+            <Pencil className="w-[1em] h-[1em]" />
+          </button>
+          <button type="button" onClick={unlink} className={iconBtnCls} aria-label={`Unlink the theme from ${alterLabel}`}>
+            <X className="w-[1em] h-[1em]" />
+          </button>
+        </div>
+      ) : (
+        <p className="text-[0.8125em] opacity-70">No theme linked. A linked theme switches the app's look when they start {t.fronting}.</p>
+      )}
+      {(picking || !linked) && (
+        options.length ? (
+          <div className="mt-[0.4em]">
+            <SearchableSelect value="" onChange={choose}
+              options={options.filter((o) => o.id !== linked)}
+              placeholder={linked ? "Pick another theme…" : "Link one of your themes…"} zIndex={80} />
+          </div>
+        ) : (
+          <button type="button" onClick={openThemeStyles} className={`${textBtnCls} w-full border mt-[0.4em]`} style={outlineBtn}>
+            Save a theme in Display options first
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+export function LinkedWidget({ settings, mode = "normal" }) {
+  const t = useTerms();
+  const navigate = useNavigate();
+  const formatAlter = useAlterLabel();
+  const { alter, alterId } = useInfoAlter(settings);
+  const wanted = Array.isArray(settings?.sections) && settings.sections.length ? settings.sections : LINKED_SECTIONS.map((s) => s.value);
+  const showGoals = wanted.includes("goals");
+  const showDates = wanted.includes("dates");
+  const { data: goalRows = [] } = useQuery({
+    queryKey: GOALS_QUERY_KEY, queryFn: () => base44.entities.Goal.list().catch(() => []), enabled: showGoals,
+  });
+  const events = usePlannerEvents({ enabled: showDates });
+  const goals = useMemo(() => (goalRows || [])
+    .filter((g) => g && !g.trashed_at)
+    .map((g) => ({ g, roles: GOAL_ROLES.filter(([k]) => Array.isArray(g[k]) && g[k].includes(alterId)).map(([, label]) => label) }))
+    .filter((x) => x.roles.length)
+    .sort((a, b) => Number(!!GOAL_STATUS_WORDS[a.g.status]) - Number(!!GOAL_STATUS_WORDS[b.g.status]) || String(a.g.title || "").localeCompare(String(b.g.title || ""))),
+  [goalRows, alterId]);
+  const dates = useMemo(() => (events || [])
+    .filter((e) => e && !e.trashed_at && Array.isArray(e.alter_ids) && e.alter_ids.includes(alterId))
+    .map((e) => ({ e, next: nextOccurrence(e) }))
+    .sort((a, b) => String(a.next?.key || "9999").localeCompare(String(b.next?.key || "9999"))),
+  [events, alterId]);
+  if (!alter) return null;
+  const alterLabel = formatAlter(alter);
+  const dayLabel = (key) => {
+    try { return new Date(`${key}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch { return key; }
+  };
+  const sections = [];
+  if (wanted.includes("theme")) {
+    sections.push(
+      <div key="theme" className="mb-[0.6em] last:mb-0">
+        <Heading>Theme</Heading>
+        <LinkedTheme alterId={alterId} alterLabel={alterLabel} mode={mode} t={t} />
+      </div>
+    );
+  }
+  if (showGoals && goals.length) {
+    sections.push(
+      <div key="goals" className="mb-[0.6em] last:mb-0">
+        <Heading>Goals</Heading>
+        {mode === "minimal" ? <p>{goals.map(({ g }) => g.title || "Goal").join(", ")}</p> : (
+          <ul>
+            {goals.map(({ g, roles }) => (
+              <li key={g.id} className={rowCls}>
+                <button type="button" onClick={() => navigate(`/goals?page=${encodeURIComponent(g.id)}`)}
+                  className="w-full flex items-center gap-[0.5em] min-h-[44px] text-left" aria-label={`${g.title || "Goal"}: ${roles.join(", ")}. Open the goal`}>
+                  <Target className="w-[1em] h-[1em] flex-shrink-0 opacity-70" aria-hidden="true" />
+                  <span className="flex-1 min-w-0">
+                    <span className={`block truncate ${GOAL_STATUS_WORDS[g.status] ? "opacity-60" : ""}`}>{g.title || "Goal"}</span>
+                    <span className="block text-[0.8125em] opacity-70 truncate">
+                      {[...roles, GOAL_STATUS_WORDS[g.status]].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <ArrowRight className="w-[0.9em] h-[0.9em] opacity-50 flex-shrink-0" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+  if (showDates && dates.length) {
+    sections.push(
+      <div key="dates" className="mb-[0.6em] last:mb-0">
+        <Heading>Dates</Heading>
+        {mode === "minimal" ? <p>{dates.map(({ e }) => e.title).join(", ")}</p> : (
+          <ul>
+            {dates.map(({ e, next }) => {
+              const key = next?.key || e.date;
+              return (
+                <li key={e.id} className={rowCls}>
+                  <button type="button" onClick={() => navigate(`/planner?date=${key}&event=${encodeURIComponent(e.id)}`)}
+                    className="w-full flex items-center gap-[0.5em] min-h-[44px] text-left" aria-label={`${e.title}, next on ${dayLabel(key)}. Open it in the planner`}>
+                    <CalendarHeart className="w-[1em] h-[1em] flex-shrink-0 opacity-70" style={e.tag_color ? { color: e.tag_color } : undefined} aria-hidden="true" />
+                    <span className="flex-1 min-w-0">
+                      <span className="block truncate">{e.title}</span>
+                      {mode === "expanded" && e.notes && <span className="block text-[0.8125em] opacity-75 break-words"><RichText content={e.notes} /></span>}
+                    </span>
+                    <span className="text-[0.8125em] opacity-70 flex-shrink-0">{dayLabel(key)}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
+  return (
+    <GardenBox empty={!sections.length} name="Linked" data-linked-widget="">
+      {sections}
+    </GardenBox>
+  );
+}
+
 // ── Registry entries ─────────────────────────────────────────────────
 
 export const GARDEN_CONNECTION_WIDGETS = {
@@ -395,6 +588,15 @@ export const GARDEN_CONNECTION_WIDGETS = {
     configFields: [
       { key: "show", type: "select", label: "Shows", default: "both",
         options: [{ value: "both", label: "Both" }, { value: "map", label: "Connections" }, { value: "events", label: "Events" }] },
+    ],
+  },
+  alter_linked: {
+    ...base, label: "Linked", icon: Palette,
+    description: "Things linked to this {{alter}}: the theme the app switches to when they {{front}}, the goals they're part of and the dates that are theirs. Link or unlink their theme right here.",
+    render: ({ settings, mode }) => <LinkedWidget settings={settings} mode={mode} />,
+    supportsModes: MODES, defaultSpan: { cols: 12, rows: 3 },
+    configFields: [
+      { key: "sections", type: "multi", label: "Shows", default: [], options: LINKED_SECTIONS },
     ],
   },
   alter_activity_links: {
