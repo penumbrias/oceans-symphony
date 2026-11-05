@@ -17,6 +17,7 @@ import { renderRichContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
+import { whisperWordPattern, getWhisperWord } from "@/lib/commandTerms";
 import { applyLogCommands } from "@/lib/logCommands";
 import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
@@ -87,8 +88,9 @@ import { clockPattern } from "@/lib/timeFormat";
 
 export const SYSTEM_AUTHOR = { id: SYSTEM_SENTINEL_ID, name: "System", color: "#94a3b8" };
 
-// Whisper command: "/w" or "/whisper" at the very start of a message.
-export const WHISPER_RE = /^\/(?:w|whisper)\b[ \t]*/i;
+// Whisper command at the very start of a message: "/w", "/whisper" or the
+// person's own whisper word (Settings → Terminology).
+const leadingWhisperRe = () => new RegExp(`^\\/(?:${whisperWordPattern()})\\b[ \\t]*`, "i");
 const WORD_CH = /[\p{L}\p{N}_]/u;
 
 export function authorFor(alterId, alters) {
@@ -821,13 +823,14 @@ export default function ChatSurface({
 
     if (hasWhisperCommand(content)) {
       // A LEADING "/w @name …" with no brackets → whole-message whisper.
+      const WHISPER_RE = leadingWhisperRe();
       const leadingNoBracket = WHISPER_RE.test(content) && !content.includes("[");
       if (leadingNoBracket) {
         const afterCmd = content.replace(WHISPER_RE, "");
         const { recipientIds, body: wbody } = peelLeadingMentions(afterCmd, alters);
         const { cleanText, authorAlterIds } = resolveAuthors(wbody, speakerIds);
         if (recipientIds.length === 0) {
-          toast.error(`Whisper needs a recipient — try "/w @name your message".`);
+          toast.error(`Whisper needs a recipient — try "/${getWhisperWord()} @name your message".`);
           return false;
         }
         if (!cleanText) {

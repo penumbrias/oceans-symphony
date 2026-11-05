@@ -21,15 +21,17 @@
 // as literal text.
 
 import { effectiveAlias } from "@/lib/alterLabel";
+import { whisperWordPattern, getWhisperWord } from "@/lib/commandTerms";
 import { confirm as houseConfirm } from "@/components/shared/ConfirmDialog";
 
-// "/w" or "/whisper" at a word boundary, anywhere in the text.
-export const WHISPER_RE = /\/(?:w|whisper)\b/i;
-const CMD_RE = /\/(?:w|whisper)\b[ \t]*/gi;
+// "/w" or "/whisper" at a word boundary, anywhere in the text — plus the
+// person's own whisper word from Settings → Terminology (commandTerms.js).
+export const whisperRe = () => new RegExp(`\\/(?:${whisperWordPattern()})\\b`, "i");
+const cmdRe = () => new RegExp(`\\/(?:${whisperWordPattern()})\\b[ \\t]*`, "gi");
 const WORD_CH = /[\p{L}\p{N}_]/u;
 
 export function hasWhisperCommand(content) {
-  return WHISPER_RE.test(content || "");
+  return whisperRe().test(content || "");
 }
 
 function esc(s) {
@@ -112,7 +114,7 @@ export function parseWhisperInput(content, alters, { rich = false } = {}) {
   let sawWhole = false;
   let sawInline = false;
 
-  CMD_RE.lastIndex = 0;
+  const CMD_RE = cmdRe();
   let m;
   let stop = false;
   while (!stop && (m = CMD_RE.exec(text)) !== null) {
@@ -168,12 +170,13 @@ export function parseWhisperInput(content, alters, { rich = false } = {}) {
 }
 
 export function buildMidWhisperWarning(surfaceLabel = "entry") {
+  const w = `/${getWhisperWord()}`;
   return (
-    `You put "/w" in the middle without [brackets], so everything from there ` +
+    `You put "${w}" in the middle without [brackets], so everything from there ` +
     `to the end of this ${surfaceLabel} will be hidden behind the whisper.\n\n` +
     `Tip: wrap just the secret part in square brackets to hide only that:\n` +
-    `  /w @name [the secret part]\n\n` +
-    `Hide everything from "/w" onward anyway?`
+    `  ${w} @name [the secret part]\n\n` +
+    `Hide everything from "${w}" onward anyway?`
   );
 }
 
