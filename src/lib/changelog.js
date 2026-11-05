@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "improve", text: "Settings: coming back from a page now returns you to where you were in the list, search included." },
+      { type: "improve", text: "Custom fields can be searched, filtered by type and sorted, and each one shows how many profiles fill it in." },
+      { type: "improve", text: "The \"labels in lists\" choice (name, alias or both) moved onto the Order page in Settings." },
       { type: "feature", text: "Settings → Profile songs is now a sound manager: see every song and which profiles play it, add a song to a profile, and open your song library." },
       { type: "feature", text: "Songs can have a default volume, quiet hours stop songs starting on their own, and a profile can play a different song in the morning, at night or any time of day you name." },
       { type: "improve", text: "Settings → Language is no longer empty: it's marked as in progress, and a translation check shows which text is ready to translate." },

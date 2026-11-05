@@ -52,6 +52,12 @@ function DiscordIcon({ className = "w-5 h-5" }) {
   );
 }
 
+// Where the home list was when a page was opened (scroll + search), so
+// Back lands you where you left off instead of at the top. Module-level, so
+// it also survives leaving Settings and coming back within this session.
+let lastHome = null;
+function settingsScroller() { return document.querySelector("main"); }
+
 export default function Settings() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,7 +68,7 @@ export default function Settings() {
   const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
   const [showRescue, setShowRescue] = useState(false); // "Find my data" recovery overlay
   const [showBugReport, setShowBugReport] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => lastHome?.query || "");
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -96,16 +102,30 @@ export default function Settings() {
   const openPage = found?.page || null;
 
   // A page opens scrolled to the top; a group link scrolls the home list
-  // to that group's heading.
+  // to that group's heading; coming back to the home list from a page
+  // returns to where you were.
   useEffect(() => {
-    const main = document.querySelector("main");
+    if (isLoading) return;
+    const main = settingsScroller();
     if (openPage) { main?.scrollTo?.({ top: 0 }); window.scrollTo(0, 0); return; }
     if (groupTarget) {
+      lastHome = null;
       requestAnimationFrame(() => {
         document.getElementById(`settings-group-${groupTarget}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+      return;
     }
-  }, [openPage?.id, groupTarget, location.key]);
+    const saved = lastHome;
+    if (!saved) return;
+    lastHome = null;
+    // Two frames: the list has to be laid out (and the page's entrance
+    // animation started) before the old offset exists again.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const m = settingsScroller();
+      if (m && saved.main) m.scrollTop = saved.main;
+      if (saved.win) window.scrollTo(0, saved.win);
+    }));
+  }, [openPage?.id, groupTarget, location.key, isLoading]);
 
   // A row with an `action` (Display options, Check-in manager, Find my
   // data, bug report) runs it; a hash that names one of those just runs it
@@ -119,6 +139,7 @@ export default function Settings() {
 
   const openRow = (page) => {
     if (page.action && !page.render) { page.action(); return; }
+    lastHome = { main: settingsScroller()?.scrollTop || 0, win: window.scrollY || 0, query };
     navigate(`/settings#${page.id}`);
   };
   // Back is a real back when there is somewhere to go back to (a deep link
