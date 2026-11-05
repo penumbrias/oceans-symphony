@@ -1,15 +1,11 @@
 // useV2Display — the ONE write path for SystemSettings.ui_v2 (tokens,
 // bars, command keys, icon overrides). Every display control in the app
 // goes through it; Display options (UiEditSheet.jsx) is the only editor.
-// The language picker lives here too until Settings has a General group.
 
-import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SubSection } from "@/components/settings/SettingsUI";
 import { resolveUiV2 } from "@/lib/uiV2";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
-import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export function useV2Display() {
@@ -49,31 +45,4 @@ export function useV2Display() {
       return write({ icons: { ...icons, [kind]: bucket } });
     },
   };
-}
-
-// Language picker — only when a second locale is registered.
-export function V2LanguageSection() {
-  const t = useT();
-  const [locale, setLocaleState] = React.useState(getLocale());
-  const localeCodes = Object.keys(LOCALES);
-  if (localeCodes.length < 2) return null;
-  return (
-    <SubSection title={t("options.language")}>
-      <div className="flex flex-wrap gap-1.5 py-1">
-        {localeCodes.map((code) => {
-          const cov = localeCoverage(code);
-          return (
-            <button key={code} type="button"
-              onClick={() => { setLocale(code); setLocaleState(code); }}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                locale === code ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-              }`}>
-              {LOCALES[code].name}
-              {cov.pct < 100 && <span className="opacity-60"> · {cov.pct}%</span>}
-            </button>
-          );
-        })}
-      </div>
-    </SubSection>
-  );
 }

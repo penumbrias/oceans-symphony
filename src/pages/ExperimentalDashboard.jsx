@@ -27,9 +27,8 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine, Eye, EyeOff, Home, Palette, Magnet,
+import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
+  ArrowUpToLine, ArrowDownToLine, Home, Palette, Magnet,
 } from "lucide-react";
 import { openProfileLook } from "@/lib/lookSubject";
 import {
@@ -38,14 +37,13 @@ import {
 import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel, widgetAutoLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
-  flowOrder, flowRepack, flowMove, snapStepFor, isWhole,
+  flowOrder, flowRepack, flowMove, flowPlace, snapStepFor, isWhole,
   isWidgetGap, defaultWidgetGap,
 } from "@/lib/experimentalHome";
 import { BoardGapContext } from "@/components/shared/WidgetGapRow";
@@ -55,6 +53,8 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useFrontingIds } from "@/lib/alterSort";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
+import { useExpandingWidgets } from "@/hooks/useExpandingWidgets";
+import HomeOpensOnRow from "@/components/settings/HomeOpensOnRow";
 import {
   pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
   USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups,
@@ -183,9 +183,11 @@ function offGridArea({ x, y, c, r }, rowPx, gapCss) {
 
 function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", gapPx = 12, flowFlex = false }) {
   const holdSel = useRef(null);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { setNodeRef } = useSortable({
     id: widget.instanceId,
-    disabled: !editMode || a11yStack || free,
+    // Every board moves widgets the same way now (v0.353.0): hold, drag,
+    // drop — useFreeMove below. dnd-kit only remains as the context.
+    disabled: true,
   });
   const t = useTerms();
   const defLabel = widgetAutoLabel(def, widget.settings, t);
@@ -268,8 +270,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     gap: gapPx,
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
-    enabled: free && editMode && !a11yStack,
+    enabled: (free || flowView) && editMode && !a11yStack,
     step,
+    flow: flowView,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
     onBeside: onBeside ? (b) => onBeside(widget.instanceId, b) : null,
@@ -277,7 +280,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   // Tell the board where this widget would land so it can draw the
   // drop-target ghost (dragging blind was the other half of "clunky").
   React.useEffect(() => {
-    if (!free) return undefined;
+    if (!free && !flowView) return undefined;
     onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash, beside: move.drag.beside || null } : null);
     return undefined;
      
@@ -327,6 +330,14 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const fixedHeight = flowView
     ? (handSized || !!resize.preview)
     : (shownRows > 1 || handSized || !!resize.preview);
+  // The size the person gave it, in px — the board measures an opened
+  // widget against this (useExpandingWidgets). A board showing the widget
+  // taller than that while it's open passes the real rows in __baseRows.
+  const baseRows = widget.__baseRows || shownRows;
+  const basePx = (free || fixedHeight) && !collapsed && !a11yStack
+    ? Math.round(baseRows * rowPx + Math.max(0, baseRows - 1) * (free ? gapPx : 12))
+    : null;
+  const flowGrowPx = flowView && fixedHeight && widget.__growPx ? widget.__growPx : null;
   // Layer order and tilt (v0.314.0) — see isLayered in experimentalHome.
   const layered = isLayered(widget);
   const zLayer = layerOf(widget);
@@ -363,16 +374,17 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // now) gets exactly that height and scrolls inside it. Untouched
         // one-row widgets still size to their content, so nothing that was
         // never resized suddenly becomes a 80px letterbox.
-        height: fixedHeight ? shownRows * rowPx + (shownRows - 1) * 12 : undefined,
+        height: fixedHeight ? Math.max(shownRows * rowPx + (shownRows - 1) * 12, flowGrowPx || 0) : undefined,
         overflowY: fixedHeight ? "auto" : undefined,
         minHeight: fixedHeight ? undefined : emptyHint ? 44 : flowView ? 0 : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
-        transform: [CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform), tiltCss].filter(Boolean).join(" ") || undefined,
-        transition,
-        zIndex: isDragging ? 40 : undefined,
-        opacity: isDragging ? 0.85 : undefined,
+        // The lifted widget follows the finger (useFreeMove), same as on
+        // the widget board.
+        transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
+        zIndex: move.dragging ? 45 : undefined,
+        opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
       };
   return (
     <>
@@ -389,6 +401,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         }} />
     )}
     <div ref={setNodeRef} data-widget-id={widget.instanceId}
+      data-base-h={basePx || undefined}
       style={{
         ...style,
         ...(ownShadowCss && !collapsed ? {
@@ -474,7 +487,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         data-halign={halign}
         {...(def.paintBox ? { "data-widget-box": "1" } : {})}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
-        {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
+        {...(editMode && !a11yStack ? move.getMoveProps() : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
           // Hold, then LET GO without moving = pick this widget for a
           // multi-selection (owner spec). Holding and dragging is still
@@ -489,7 +502,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           onPointerUpCapture: () => {
             const h = holdSel.current;
             holdSel.current = null;
-            if (!h || h.moved || isDragging) return;
+            if (!h || h.moved || move.dragging) return;
             if (Date.now() - h.t >= 300) onHoldSelect();
           },
           onPointerCancelCapture: () => { holdSel.current = null; },
@@ -638,7 +651,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
 
       {/* Edge-resize handles — siblings of the drag wrapper so dnd-kit's
           listeners never see their pointer events. Hold 0.15s, then drag. */}
-      {editMode && !a11yStack && !isDragging && (
+      {editMode && !a11yStack && !move.dragging && (
         <>
           <div
             {...resize.getHandleProps("x")}
@@ -841,7 +854,7 @@ export default function ExperimentalDashboard({
   // the row id, not the row, so a refetch doesn't remake persist.
   const store = useMemo(
     () => boardStore || settingsBoardStore({ settingsRow, field: settingsField, qc }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [boardStore, settingsRow?.id, settingsField, qc]
   );
   const rawBoard = boardStore ? boardStore.board : settingsRow?.[settingsField];
@@ -939,26 +952,6 @@ export default function ExperimentalDashboard({
   // Free pages lock to the columns they were arranged on (see useGridCols).
   const gridCols = useGridCols(home.grid?.phoneCols || 4, page.layoutMode === "free");
   const rowPx = [80, 60, 40].includes(home.grid?.rowPx) ? home.grid.rowPx : 80;
-  // Grid density presets. Changing one RESCALES every widget on every page
-  // proportionally (spans and free positions) so the board keeps its shape
-  // — only the size STEPS get finer or coarser.
-  // The user picks WIDTH only; the row unit follows so cells stay squarish
-  // (finer columns ⇒ finer rows, no separate number to reason about).
-  const DENSITIES = [
-    { cols: 4, rowPx: 80, label: "4 across" }, { cols: 5, rowPx: 80, label: "5 across" },
-    { cols: 6, rowPx: 60, label: "6 across" }, { cols: 8, rowPx: 40, label: "8 across" },
-  ];
-  const setDensity = (d) => {
-    const home = boardRef.current.board; // newest board, never the render copy
-    const oldCols = home.grid?.phoneCols || 4, oldRow = rowPx;
-    const fx = d.cols / oldCols, fy = oldRow / d.rowPx;
-    const scaleW = (w) => ({
-      ...w,
-      span: { cols: Math.max(1, Math.round((w.span?.cols || 1) * fx)), rows: Math.max(1, Math.round((w.span?.rows || 1) * fy)) },
-      pos: w.pos ? { x: Math.round((w.pos.x || 0) * fx), y: Math.round((w.pos.y || 0) * fy) } : w.pos,
-    });
-    persist({ ...boardRef.current.board, grid: { ...(home.grid || {}), phoneCols: d.cols, rowPx: d.rowPx }, pages: boardRef.current.board.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
-  };
 
   const goToPage = useCallback((idx) => {
     if (idx < 0 || idx >= visiblePages.length || visiblePages[idx].id === page.id) return;
@@ -1433,6 +1426,14 @@ export default function ExperimentalDashboard({
   const besideMinCols = (w) => registry[w.widgetId]?.minSpan?.cols || 1;
   const handleBeside = (instanceId, { id, side }) => {
     const cur = boardRef.current.board.pages.find((p) => p.id === page.id);
+    // A flow page is an order, not a grid: beside joins the row, above or
+    // below moves it in the order (flowPlace).
+    if (flowView) {
+      if (!flowPlace(cur?.widgets || [], gridCols, instanceId, id, side, besideMinCols)) return false;
+      updatePageWidgets((ws) => flowPlace(ws, gridCols, instanceId, id, side, besideMinCols) || ws);
+      return true;
+    }
+    if (side !== "left" && side !== "right") return false;
     if (!placeBeside(cur?.widgets || [], gridCols, instanceId, id, side, besideMinCols)) return false;
     updatePageWidgets((ws) => {
       const next = placeBeside(ws, gridCols, instanceId, id, side, besideMinCols);
@@ -1584,6 +1585,12 @@ export default function ExperimentalDashboard({
   // A width between grid lines can't be a grid span — such a page lays its
   // column out as a wrapping row of exact widths instead.
   const flowFlex = flowView && page.widgets.some((w) => !isWhole(w.span?.cols || 1));
+  // A widget that opens something (What's new, an expanding list) shows
+  // all of it and moves the page down while it's open — on every board,
+  // display only (v0.353.0). Edit mode shows the sizes as they are.
+  const grownPx = useExpandingWidgets(gridRef, freeMode && !editMode && !a11yStack, page.id);
+  const grownRef = React.useRef(grownPx);
+  grownRef.current = grownPx;
   // Space between widgets (v0.328.0): the person's choice when set (a
   // profile's Profile style, else this board's grid.gap); otherwise the
   // spacing boards always had, in rem as before.
@@ -1604,7 +1611,7 @@ export default function ExperimentalDashboard({
       persist({ ...board, grid });
     },
   // persist reads boardRef, so a stale closure still writes the newest board.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }), [profileBoard, boardGapValue, fallbackGapPx]);
 
   // One pass, per page and width: give every widget the rows its content
@@ -1633,6 +1640,8 @@ export default function ExperimentalDashboard({
       }
       const grown = page.widgets.map((w) => {
         if (w.settings?.autoFit === false) return w;
+        // Open right now (shown taller for the moment) — not its real size.
+        if (grownRef.current.has(w.instanceId)) return w;
         const def = registry[w.widgetId];
         const want = Math.min(Math.round((def?.maxSpan?.rows ?? 8) * (80 / rowPx)), needed[w.instanceId] || 1);
         return want > (w.span?.rows || 1) ? { ...w, span: { ...w.span, rows: want } } : w;
@@ -1715,13 +1724,31 @@ export default function ExperimentalDashboard({
       // Editing: an empty widget keeps its place, outlined, so it can be
       // found, moved or removed without anything else shifting.
       return flowOrder(widgets)
-        .map((w) => (emptyIds.has(w.instanceId) ? (editMode ? { ...w, __empty: true } : { ...w, __collapsed: true }) : w));
+        .map((w) => (emptyIds.has(w.instanceId) ? (editMode ? { ...w, __empty: true } : { ...w, __collapsed: true })
+          : grownPx.has(w.instanceId) ? { ...w, __growPx: grownPx.get(w.instanceId) } : w));
     }
-    if (!freeMode || editMode || emptyIds.size === 0) return widgets;
-    const visible = compactVertically(widgets.filter((w) => !emptyIds.has(w.instanceId)), gridCols);
+    if (!freeMode || editMode) return widgets;
+    // Opened widgets: as many rows as they now need, and whatever they
+    // would cover moves down out of the way.
+    let base = widgets;
+    if (grownPx.size) {
+      let first = null;
+      base = widgets.map((w) => {
+        const px = grownPx.get(w.instanceId);
+        if (!px) return w;
+        const rows = w.span?.rows || 1;
+        const want = Math.max(rows, Math.ceil((px + gapPx) / (rowPx + gapPx) - 1e-6));
+        if (want <= rows) return w;
+        if (!first || (w.pos?.y || 0) < (first.pos?.y || 0)) first = w;
+        return { ...w, __baseRows: rows, span: { ...w.span, rows: want } };
+      });
+      if (first) base = resolveOverlaps(base, gridCols, first.instanceId);
+    }
+    if (emptyIds.size === 0) return base;
+    const visible = compactVertically(base.filter((w) => !emptyIds.has(w.instanceId)), gridCols);
     const byId = new Map(visible.map((w) => [w.instanceId, w]));
-    return widgets.map((w) => byId.get(w.instanceId) || { ...w, __collapsed: true });
-  }, [widgets, emptyIds, freeMode, editMode, gridCols, flowView]);
+    return base.map((w) => byId.get(w.instanceId) || { ...w, __collapsed: true });
+  }, [widgets, emptyIds, freeMode, editMode, gridCols, flowView, grownPx, gapPx, rowPx]);
   // The app-wide "snap to grid" choice (v0.322.x). On (the default), moves
   // and resizes land on whole grid cells; off, they step by a quarter of a
   // cell. A widget's own choice (its options → Shape → Arrange) beats it.
@@ -1909,7 +1936,21 @@ export default function ExperimentalDashboard({
   const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash, beside }
   const [dragId, setDragId] = React.useState(null);
   const handleDragTarget = React.useCallback((instanceId, t) => {
-    setDragGhost(t ? { ...t } : null);
+    // Flow pages draw a bar on the side of the widget it would land next
+    // to — measured here, from the live page, relative to the canvas.
+    let mark = null;
+    const b = t?.beside;
+    const grid = gridRef.current;
+    if (b && grid) {
+      const host = [...grid.querySelectorAll(":scope > [data-widget-id]")]
+        .find((n) => n.getAttribute("data-widget-id") === b.id);
+      if (host) {
+        const g = grid.getBoundingClientRect();
+        const r = host.getBoundingClientRect();
+        mark = { side: b.side, left: r.left - g.left, top: r.top - g.top, width: r.width, height: r.height };
+      }
+    }
+    setDragGhost(t ? { ...t, mark } : null);
     setDragId(t ? instanceId : null);
   }, []);
 
@@ -1917,14 +1958,14 @@ export default function ExperimentalDashboard({
   // widget's cell in the row it would join (worked out the same way the
   // drop will be), so the ghost shows the half it'll take.
   const ghostCell = React.useMemo(() => {
-    if (!dragGhost) return null;
+    if (!dragGhost || flowView) return null;
     const b = dragGhost.beside;
     if (!b || !dragId) return dragGhost;
     const next = placeBeside(page.widgets, gridCols, dragId, b.id, b.side, (w) => registry[w.widgetId]?.minSpan?.cols || 1);
     const m = next?.find((w) => w.instanceId === dragId);
     if (!m) return dragGhost;
     return { x: m.pos.x, y: Math.max(0, m.pos.y - (topRowOffset || 0)), cols: m.span.cols, rows: dragGhost.rows };
-  }, [dragGhost, dragId, page.widgets, gridCols, registry, topRowOffset]);
+  }, [dragGhost, dragId, page.widgets, gridCols, registry, topRowOffset, flowView]);
 
   // "Show as" phone / tablet: the page keeps that shape on a wider screen
   // — a centred column of that width (auto / desktop use the full width).
@@ -1954,6 +1995,19 @@ export default function ExperimentalDashboard({
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
+      {flowView && dragGhost?.mark && !dragGhost.overTrash && (() => {
+        // Where it lands on a flow page: a bar on that side of the widget.
+        const m = dragGhost.mark;
+        const BAR = 4;
+        const vertical = m.side === "left" || m.side === "right";
+        const pos = vertical
+          ? { top: m.top, height: m.height, width: BAR, left: m.side === "left" ? m.left - BAR - 2 : m.left + m.width + 2 }
+          : { left: m.left, width: m.width, height: BAR, top: m.side === "before" ? m.top - BAR - 2 : m.top + m.height + 2 };
+        return (
+          <div aria-hidden="true" data-drop-ghost={vertical ? "beside" : "order"} className="pointer-events-none"
+            style={{ position: "absolute", ...pos, borderRadius: BAR, background: "var(--v2-accent, hsl(var(--primary)))", zIndex: 40 }} />
+        );
+      })()}
       {freeMode && ghostCell && !dragGhost.overTrash && (
         <div aria-hidden="true" className="pointer-events-none"
           data-drop-ghost={dragGhost.beside ? "beside" : "cell"}
@@ -2097,48 +2151,12 @@ export default function ExperimentalDashboard({
           </DrawerHeader>
           <div className="px-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
             style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              This home screen
-            </p>
-            <div className="flex flex-wrap items-center gap-1.5">
-            {eventPrefix === "os-classic" ? (
-              // On the classic home the escape hatch is RESET, not "back
-              // to classic" (owner call) — this IS the classic home, and
-              // the old button quietly disabled the whole canvas.
-              <button
-                type="button"
-                onClick={() => {
-                  setHomeSettingsOpen(false);
-                  setEditMode(false);
-                  window.dispatchEvent(new CustomEvent("os-classic-reset-home"));
-                }}
-                className="text-xs px-2.5 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1"
-              >
-                <Undo2 className="w-3 h-3" /> Reset to default…
-              </button>
-            ) : null}
-            {pageIsFree && (
-              <button
-                type="button"
-                onClick={collapseGaps}
-                title="Pull widgets up to close empty gaps on this page"
-                className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground whitespace-nowrap"
-              >
-                Close gaps
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const i = DENSITIES.findIndex((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx);
-                setDensity(DENSITIES[(i + 1) % DENSITIES.length]);
-              }}
-              title="Grid width — how many columns across (widgets are rescaled to keep their shape)"
-              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
-            >
-              Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label}
-            </button>
-            </div>
+            {/* Which board Home opens on (v0.353.0 — moved here from
+                Settings, it's a question about this screen). The old
+                pill row (reset, close gaps, grid width) is gone: reset and
+                close gaps live in Save / exit, and with snapping off the
+                grid is as fine as anyone needs. */}
+            <HomeOpensOnRow />
 
             {/* Everything else IS the unified edit popup
                 (docs/v2-edit-menu-spec.md) — the same sections as Display
@@ -2146,7 +2164,7 @@ export default function ExperimentalDashboard({
                 board-specific extras the wireframe doesn't cover (layout
                 flow, columns, style, wallpaper folder rotation); the quick
                 action keys and the {alters} bar live in its Bars section. */}
-            <div className="mt-4 pt-3 border-t border-border/40">
+            <div className="mt-2 pt-3 border-t border-border/40">
               {homeSettingsOpen && (
                 <React.Suspense key={homeSettingsNonce} fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
                   <BoardFieldContext.Provider value={boardStore || settingsField}>
@@ -2424,7 +2442,7 @@ export default function ExperimentalDashboard({
           onDragStart={({ active }) => setDraggingId(active.id)}
           onDragCancel={() => setDraggingId(null)}
           onDragEnd={handleDragEnd}>
-          <TrashZone active={!!draggingId} />
+          <TrashZone active={!!draggingId || !!dragGhost} />
           <SortableContext items={(flowView ? displayWidgets : widgets).map((w) => w.instanceId)} strategy={rectSortingStrategy}>
             {canvas}
           </SortableContext>
@@ -2723,28 +2741,6 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "var(--os-sab)",
           }}>
-          {!profileBoard && (
-          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/30">
-            <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground">Bars</span>
-            <button type="button" aria-pressed={barsPreview}
-              aria-label={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
-              title={barsPreview ? "Hide the bars while editing" : "Preview the bars"}
-              onClick={() => setBarsPreview((v) => !v)}
-              className={`w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 ${barsPreview ? "border-[var(--v2-accent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"}`}>
-              {barsPreview ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </button>
-            <button type="button" aria-label="Quick actions bar options" title="Quick actions bar options"
-              onClick={() => openBarsEditor("actions")}
-              className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
-              <Settings2 className="w-3.5 h-3.5" /> Quick actions
-            </button>
-            <button type="button" aria-label="Pinned bar options" title="Pinned bar options"
-              onClick={() => openBarsEditor("alters")}
-              className="text-[0.6875rem] px-3 h-8 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5">
-              <Settings2 className="w-3.5 h-3.5" /> Pinned bar
-            </button>
-          </div>
-          )}
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>
             <button type="button" aria-label="Add widgets" title="Add widgets"
               onClick={() => openWidgetDrawer("widgets")}
@@ -2759,15 +2755,6 @@ export default function ExperimentalDashboard({
               <CheckSquare className="w-4 h-4" />
               <span className="text-[0.5625rem]">Select</span>
             </button>
-            {/* A flow page has no gaps to close — it's a column. */}
-            {!flowView && (
-            <button type="button" aria-label="Close gaps" title="Close gaps" disabled={!pageIsFree}
-              onClick={collapseGaps}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-              <ArrowUpToLine className="w-4 h-4" />
-              <span className="text-[0.5625rem]">Close gaps</span>
-            </button>
-            )}
             {/* Snap to grid, for every board (v0.322.x). A widget's own
                 choice in its options (Shape → Arrange) beats this. */}
             <button type="button" aria-pressed={boardSnap} disabled={!pageIsFree}
@@ -2821,11 +2808,25 @@ export default function ExperimentalDashboard({
                   <button type="button" onClick={resetThisLayout}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Reset this layout…</button>
                   </>)}
+                  {pageIsFree && !flowView && (
+                  <button type="button" onClick={() => { setSaveMenuOpen(false); collapseGaps(); }}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Close gaps on this page</button>
+                  )}
                   {!profileBoard && (<>
                   <button type="button" onClick={() => openPackSheet("export")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
                   <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
+                  {eventPrefix === "os-classic" && (
+                  // Reset offers to keep the current arrangement on the
+                  // widget board first (HomeScreenResetDialog).
+                  <button type="button" onClick={() => {
+                    setSaveMenuOpen(false);
+                    setEditMode(false);
+                    window.dispatchEvent(new CustomEvent("os-classic-reset-home"));
+                  }}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Reset home screen to default…</button>
+                  )}
                   </>)}
                   <button type="button" onClick={() => setSaveMenuOpen(false)}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Keep editing</button>

@@ -75,6 +75,7 @@ import { addActiveActivity, getActiveActivities, endAndLogActiveActivity } from 
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getTherapyKeyword, THERAPY_NOTES_EVENT } from "@/lib/therapyCommand";
 import { isBipolarScale, formatSeverityForSymptom } from "@/lib/trackingModel";
+import { getCommandSign, getCommandWord, getCustomCommandWord } from "@/lib/commandTerms";
 
 // ── Type catalogue ──────────────────────────────────────────────────────────
 export const COMMAND_TYPES = [
@@ -91,14 +92,19 @@ const ICON = { ...Object.fromEntries(COMMAND_TYPES.map((t) => [t.key, t.icon])),
 
 // True when `word` is already a built-in command word (so it can't be used
 // as the user's ~therapy keyword).
+// The person's own command words (Settings → Terminology) count too.
 export function isReservedCommandWord(word) {
   const q = (word || "").trim().toLowerCase();
-  return COMMAND_TYPES.some((x) => x.key === q || x.aliases.includes(q));
+  return COMMAND_TYPES.some((x) => x.key === q || x.aliases.includes(q) || getCustomCommandWord(x.key) === q);
 }
 
+// A type's word as the person wrote it in Terminology wins; the built-in
+// words always keep working alongside it.
 export function normalizeType(raw) {
   const q = (raw || "").trim().toLowerCase();
   if (!q) return null;
+  const own = COMMAND_TYPES.find((x) => getCustomCommandWord(x.key) === q);
+  if (own) return own.key;
   const t = COMMAND_TYPES.find((x) => x.key === q || x.aliases.includes(q));
   if (t) return t.key;
   return q === getTherapyKeyword() ? "therapy" : null;
@@ -352,6 +358,7 @@ function matchEmotion(text, catalogues) {
 // keep the live dropdown past the space — pick it from the dropdown instead;
 // the SAVE-time parser separately allows spaces inside a value.)
 export function detectCommandToken(value, caret) {
+  const sign = getCommandSign();
   let i = caret - 1;
   while (i >= 0) {
     const ch = value[i];
@@ -364,7 +371,7 @@ export function detectCommandToken(value, caret) {
       i -= 1;
       continue;
     }
-    if (ch === "~") {
+    if (ch === sign) {
       const prev = i > 0 ? value[i - 1] : "";
       if (i === 0 || /\s/.test(prev) || prev === ">") {
         const body = value.slice(i + 1, caret);
@@ -383,15 +390,16 @@ export function detectCommandToken(value, caret) {
 // `end` is where the resolved command stops in `text` (chip replaces
 // text[start..end]); trailing prose after `end` is left literal.
 function resolveCommandAt(text, tildeIndex, catalogues) {
+  const sign = getCommandSign();
   // read the greedy body up to a terminator
   let j = tildeIndex + 1;
-  while (j < text.length && !"\n~<>".includes(text[j])) j++;
+  while (j < text.length && !("\n<>".includes(text[j]) || text[j] === sign)) j++;
   const bodyEnd = j;
   // A "~" right after the body closes it ("~symptom:energy:2~"). One after a
   // space starts the NEXT command — treating it as a closer swallowed that
   // command's "~" (and the space), so "~symptom:energy:2 ~feeling:…" lost
   // the feeling and glued its text onto the chip.
-  const hadClose = text[bodyEnd] === "~" && !/\s/.test(text[bodyEnd - 1] || "");
+  const hadClose = text[bodyEnd] === sign && !/\s/.test(text[bodyEnd - 1] || "");
   const body = text.slice(tildeIndex + 1, bodyEnd);
   if (!body.trim()) return null;
 
@@ -669,33 +677,36 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
 // Why a command-LIKE token (a known ~type that didn't resolve) failed —
 // one short, fixable sentence. Mirrors resolveCommandAt's null paths.
 function explainFailure(text, tildeIndex, catalogues) {
+  const S = getCommandSign();
   let j = tildeIndex + 1;
-  while (j < text.length && !"\n~<>".includes(text[j])) j++;
+  while (j < text.length && !("\n<>".includes(text[j]) || text[j] === S)) j++;
   const body = text.slice(tildeIndex + 1, j);
-  if (startsWithTherapyKeyword(body)) return `~${getTherapyKeyword()} needs something to bring up \u2014 like ~${getTherapyKeyword()} sleep has been rough`;
+  if (startsWithTherapyKeyword(body)) return `${S}${getTherapyKeyword()} needs something to bring up \u2014 like ${S}${getTherapyKeyword()} sleep has been rough`;
   const segs = body.split(":").map((x) => x.trim());
   const type = normalizeType(segs[0]);
   if (!type) return null;
   const rest = segs.slice(1).filter(Boolean);
   const name = rest[0] || "";
+  // Hints use the person's own symbol and word for the command.
+  const cmd = `${S}${getCommandWord(type)}`;
   if (type === "symptom" || type === "habit") {
-    if (!name) return `~${type} needs a name \u2014 like ~${type}:anxiety:3`;
+    if (!name) return `${cmd} needs a name \u2014 like ${cmd}:anxiety:3`;
     if (!matchSymptom(name, type, catalogues)) return `No ${type} called \u201c${name}\u201d \u2014 it has to match one from your list`;
   }
   if (type === "feeling") {
-    if (!name) return "~feeling needs an emotion \u2014 like ~feeling:on edge";
+    if (!name) return `${cmd} needs an emotion \u2014 like ${cmd}:on edge`;
     return `No feeling matched \u201c${rest[rest.length - 1]}\u201d \u2014 the last part has to be an emotion from the wheel`;
   }
   if (type === "company") {
-    if (!name) return "~company needs a contact \u2014 like ~company:emma";
+    if (!name) return `${cmd} needs a contact \u2014 like ${cmd}:emma`;
     if (!matchContact(name, catalogues)) return `No contact called \u201c${name}\u201d`;
   }
   if (type === "activity") {
-    if (!name) return "~activity needs an activity \u2014 like ~activity:reading:30m";
+    if (!name) return `${cmd} needs an activity \u2014 like ${cmd}:reading:30m`;
     if (!matchActivity(name, catalogues)) return `No activity called \u201c${name}\u201d \u2014 it has to match one of your activity categories`;
   }
-  if (type === "journal") return "~journal needs title[\u2026] or body[\u2026] \u2014 like ~journal:body[dear diary]";
-  return `\u201c~${body.slice(0, 30)}\u201d isn\u2019t a complete ~${type} command`;
+  if (type === "journal") return `${cmd} needs title[\u2026] or body[\u2026] \u2014 like ${cmd}:body[dear diary]`;
+  return `\u201c${S}${body.slice(0, 30)}\u201d isn\u2019t a complete ${cmd} command`;
 }
 
 // Command-LIKE tokens that failed to resolve: a ~ at a word boundary whose
@@ -703,11 +714,12 @@ function explainFailure(text, tildeIndex, catalogues) {
 // prose tildes (~5 min) are not command-like and never flagged.
 export function findCommandProblems(text, catalogues) {
   const problems = [];
-  if (!text || !text.includes("~")) return problems;
+  const sign = getCommandSign();
+  if (!text || !text.includes(sign)) return problems;
   const resolved = parseLogCommands(text, catalogues);
   let i = 0;
   while (i < text.length) {
-    if (text[i] === "~") {
+    if (text[i] === sign) {
       const inResolved = resolved.some((r) => i >= r.start && i < r.end);
       const prev = i > 0 ? text[i - 1] : "";
       const boundary = i === 0 || /\s/.test(prev) || prev === ">";
@@ -724,10 +736,11 @@ export function findCommandProblems(text, catalogues) {
 // Every resolvable, non-overlapping command in `text`, left to right.
 export function parseLogCommands(text, catalogues) {
   const out = [];
-  if (!text || !text.includes("~")) return out;
+  const sign = getCommandSign();
+  if (!text || !text.includes(sign)) return out;
   let i = 0;
   while (i < text.length) {
-    if (text[i] === "~") {
+    if (text[i] === sign) {
       const prev = i > 0 ? text[i - 1] : "";
       const boundary = i === 0 || /\s/.test(prev) || prev === ">";
       if (boundary) {
@@ -871,7 +884,7 @@ function passthrough(seg, isRich) {
 // Returns { content, logged }. When nothing resolves the content is returned
 // byte-for-byte unchanged (so plain notes stay plain).
 export async function applyLogCommands(content, { isRich = true, chips = true, source = null } = {}) {
-  if (!content || typeof content !== "string" || !content.includes("~")) return { content, logged: [] };
+  if (!content || typeof content !== "string" || !content.includes(getCommandSign())) return { content, logged: [] };
   const catalogues = await fetchCatalogues();
   // A broken command BLOCKS the save with a fixable message (owner rule) —
   // nothing is logged and nothing is sent, so the text stays editable.
@@ -969,11 +982,12 @@ export function buildCommandSuggestions({ segments, catalogues }) {
   if (segments.length === 1) {
     const q = lc(segments[0]);
     const kw = getTherapyKeyword();
+    // The person's own word (Terminology) is the one offered and inserted.
     const items = COMMAND_TYPES
-      .filter((t) => !q || t.key.startsWith(q) || t.aliases.some((a) => a.startsWith(q)))
-      .map((t) => ({ insert: t.key, terminal: false }));
+      .filter((t) => !q || t.key.startsWith(q) || t.aliases.some((a) => a.startsWith(q)) || (getCustomCommandWord(t.key) || "").startsWith(q))
+      .map((t) => ({ insert: getCommandWord(t.key), terminal: false }));
     if (!q || kw.startsWith(q)) items.push({ insert: kw, terminal: false });
-    return items.length ? { header: "Log…", icon: "~", canFinish: false, items } : null;
+    return items.length ? { header: "Log…", icon: getCommandSign(), canFinish: false, items } : null;
   }
   const type = normalizeType(segments[0]);
   if (!type) return null;

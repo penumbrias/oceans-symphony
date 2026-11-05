@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getCommandSign } from "@/lib/commandTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { addDays, format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
@@ -79,7 +80,7 @@ const buildSectionDefs = (t, therapyKeyword = "therapy") => [
   {
     id: "therapyNotes",
     label: "To Bring Up",
-    desc: `Anything you wrote with ~${therapyKeyword} that hasn't been in a report yet — shown first`,
+    desc: `Anything you wrote with ${getCommandSign()}${therapyKeyword} that hasn't been in a report yet — shown first`,
   },
   {
     id: "fronting",

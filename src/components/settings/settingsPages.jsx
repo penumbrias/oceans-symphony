@@ -9,21 +9,19 @@
 // ids and deep links) are mapped in LEGACY_HASHES so old links still land.
 import React from "react";
 import {
-  IdCard, MessageSquareText, Boxes, Languages, Clock, LayoutGrid, FlaskConical, Palette, Accessibility,
+  IdCard, MessageSquareText, Boxes, Languages, Clock, FlaskConical, Palette, Accessibility,
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
-import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
-import { V2LanguageSection } from "@/components/settings/V2DisplaySettings";
+import LanguageSettings from "@/components/settings/LanguageSettings";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 import ClockFormatRow from "@/components/settings/ClockFormatRow";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
-import { NewUiToggle, HomeOpensOnRow } from "@/components/settings/DashboardLayoutSettings";
 import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeaturesSettings";
 import { openDisplayOptions } from "@/components/settings/AppearanceSection";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
@@ -106,14 +104,11 @@ export function buildSettingsGroups(ctx) {
     {
       id: "general", label: "General",
       pages: [
-        { id: "language", label: "Language", hint: "The language the app speaks", icon: Languages,
-          keywords: "language locale translation english", render: () => <V2LanguageSection /> },
+        { id: "language", label: "Language", hint: "Experimental: other languages are in progress", icon: Languages,
+          keywords: "language locale translation english translate experimental", render: () => <LanguageSettings /> },
         { id: "timezone", label: "Time & clock", hint: "12 or 24-hour clock, and which timezone days follow", icon: Clock,
           keywords: "timezone time zone clock travel 12 24 hour military am pm",
           render: () => (<div className="space-y-4"><ClockFormatRow /><TimezoneSettings /></div>) },
-        { id: "home-screen", label: "Home screen", hint: "The new home screen and which page greets you", icon: LayoutGrid,
-          when: () => UI_V2_ENABLED, keywords: "new ui home screen widgets board classic home opens on dashboard",
-          render: () => (<div className="space-y-2"><NewUiToggle /><HomeOpensOnRow /></div>) },
         { id: "experimental", label: "Experimental features", hint: "Things still being built", icon: FlaskConical, tour: "settings-experimental",
           keywords: "experimental beta labs features flags", render: () => <ExperimentalFeaturesSettings /> },
       ],
@@ -138,8 +133,8 @@ export function buildSettingsGroups(ctx) {
           keywords: "relationship types lineage inverse catalogue", render: () => <RelationshipTypesManager /> },
         { id: "profile-layouts", label: "Profile layouts", hint: "Default layouts per profile type", icon: LayoutTemplate,
           keywords: "profile layouts default board pages widgets new profile old profile", render: () => <ProfileLayoutSettings /> },
-        { id: "profile-songs", label: "Profile songs", hint: "Music on profiles", icon: Music,
-          keywords: "profile songs music audio theme song", render: () => <ProfileSongsSettings /> },
+        { id: "profile-songs", label: "Profile songs", hint: "Every song, volumes, quiet hours, times of day", icon: Music, tour: "settings-profile-songs",
+          keywords: "profile songs music audio theme song sound manager volume default volume quiet hours time of day morning night schedule library", render: () => <ProfileSongsSettings /> },
         { id: "alter-order", label: `Order your ${t.alters}`, hint: "How they're sorted and labelled in lists", icon: ArrowUpDown,
           keywords: `order sort arrange ${t.alters} directory ${t.alter} label labels name alias lists pickers dropdowns`,
           render: () => (

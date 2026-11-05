@@ -3,6 +3,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { configureSignpostSigns } from "@/lib/signpostAuthors";
+import { configureCommandTerms, getCommandSign } from "@/lib/commandTerms";
 
 export const DEFAULT_SIGNPOST_ADD = "+";
 export const DEFAULT_SIGNPOST_REPLACE = "-";
@@ -115,6 +116,13 @@ export function useTerms() {
   const signpostAdd = safe(s.signpost_add, DEFAULT_SIGNPOST_ADD);
   const signpostReplace = safe(s.signpost_replace, DEFAULT_SIGNPOST_REPLACE);
   configureSignpostSigns({ add: signpostAdd, replace: signpostReplace });
+  // Command symbol + words (~feeling, /w …), same idea: the parsers read
+  // module state, refreshed here (no-op when unchanged).
+  configureCommandTerms({ sign: s.command_sign, words: s.command_words, whisper: s.whisper_word });
+  const commandSign = getCommandSign();
+  // Changes whenever the saved command words do, so a form showing them can
+  // re-read getCustomCommandWord / getWhisperWord.
+  const commandWordsSig = JSON.stringify([s.command_words || null, s.whisper_word || ""]);
 
   // Memoize derived terms to avoid rebuilds
   const terms = useMemo(() => {
@@ -203,12 +211,14 @@ export function useTerms() {
       // the right hint text ("type - to sign") without hardcoding the sign.
       signpostAdd,
       signpostReplace,
+      commandSign,
+      commandWordsSig,
 
       // Raw settings id for saving
       _settingsId: s.id || null,
       _hasSettings: !!s.id,
     };
-  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, systemsOverride, altersOverride, switchesOverride, frontsOverride, signpostAdd, signpostReplace, s.id]);
+  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, systemsOverride, altersOverride, switchesOverride, frontsOverride, signpostAdd, signpostReplace, commandSign, commandWordsSig, s.id]);
 
   return terms;
 }

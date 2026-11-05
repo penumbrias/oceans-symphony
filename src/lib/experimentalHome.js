@@ -452,6 +452,42 @@ export function flowMove(widgets, gridCols, fromId, toId) {
   return widgets.map((w) => byId.get(w.instanceId) || w);
 }
 
+// Drop on a flow page (v0.353.0) — the same hold-and-drag as the widget
+// board. `side` "left"/"right" joins the target's row and the row shares
+// the width (placeBeside); "before"/"after" moves the widget to just
+// before or after the target in the page's order, keeping its width.
+// Either way the whole page is re-seated from the new order, so a flow
+// page's positions always match what the column shows.
+export function flowPlace(widgets, gridCols, movedId, targetId, side, minColsFor = () => 1) {
+  const list = widgets || [];
+  if (!movedId || !targetId || movedId === targetId) return null;
+  if (!list.some((w) => w.instanceId === movedId) || !list.some((w) => w.instanceId === targetId)) return null;
+  let ordered;
+  if (side === "left" || side === "right") {
+    const beside = placeBeside(list, gridCols, movedId, targetId, side, minColsFor);
+    if (!beside) return null;
+    // placeBeside seats the row by x; the rest of the order is unchanged.
+    const target = beside.find((w) => w.instanceId === targetId);
+    const rowY = target.pos?.y || 0;
+    const rest = flowOrder(beside.filter((w) => w.instanceId !== movedId && (w.pos?.y || 0) !== rowY));
+    const row = beside.filter((w) => (w.pos?.y || 0) === rowY && w.pos)
+      .sort((a, b) => (a.pos?.x || 0) - (b.pos?.x || 0));
+    const at = rest.findIndex((w) => (w.pos?.y || 0) > rowY);
+    ordered = at === -1 ? [...rest, ...row] : [...rest.slice(0, at), ...row, ...rest.slice(at)];
+  } else if (side === "before" || side === "after") {
+    const moved = list.find((w) => w.instanceId === movedId);
+    const rest = flowOrder(list.filter((w) => w.instanceId !== movedId));
+    const at = rest.findIndex((w) => w.instanceId === targetId);
+    rest.splice(side === "before" ? at : at + 1, 0, moved);
+    ordered = rest;
+  } else {
+    return null;
+  }
+  const byId = new Map(flowRepack(ordered, gridCols).map((w) => [w.instanceId, w]));
+  // Keep the stored array order; only positions (and a beside row's widths) change.
+  return list.map((w) => byId.get(w.instanceId) || w);
+}
+
 // ── Grid snapping (v0.322.x) ───────────────────────────────────────
 // Moves and resizes snap to whole grid cells unless snapping is off —
 // for the whole app (SystemSettings.board_snap === false) or for one

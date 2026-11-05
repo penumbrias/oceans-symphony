@@ -22,7 +22,7 @@ register(`data:text/javascript,${encodeURIComponent(`
   }
 `)}`);
 const {
-  flowOrder, flowRepack, flowMove, compactVertically, findFreeCell, resolveOverlaps, hasOverlaps,
+  flowOrder, flowRepack, flowMove, flowPlace, compactVertically, findFreeCell, resolveOverlaps, hasOverlaps,
   widgetSnaps, snapStepFor, isOffGrid, FINE_STEP, resolveExperimentalHome,
 } = await import("../src/lib/experimentalHome.js");
 
@@ -110,6 +110,36 @@ test("reading a board keeps quarter steps and rounds anything finer", () => {
   assert.deepEqual(a.pos, { x: 0.75, y: 2.25 });
   assert.deepEqual(b.span, { cols: 2, rows: 1 });
   assert.deepEqual(b.pos, { x: 1, y: 0 });
+});
+
+test("flow drop above or below another widget moves it in the order", () => {
+  const page = flowRepack([w("a", 0, 0, 4), w("b", 0, 1, 4), w("c", 0, 2, 4)], 4);
+  assert.equal(ids(flowPlace(page, 4, "c", "a", "before")), "c,a,b");
+  assert.equal(ids(flowPlace(page, 4, "a", "c", "after")), "b,c,a");
+  assert.equal(ids(flowPlace(page, 4, "a", "b", "after")), "b,a,c");
+  assert.equal(flowPlace(page, 4, "a", "a", "after"), null);
+});
+
+test("flow drop on a widget's edge puts them side by side and shares the row", () => {
+  const page = flowRepack([w("a", 0, 0, 4), w("b", 0, 1, 4), w("c", 0, 2, 4)], 4);
+  const out = flowPlace(page, 4, "c", "a", "right");
+  assert.equal(ids(out), "a,c,b");
+  assert.deepEqual(at(out, "a").pos, { x: 0, y: 0 });
+  assert.deepEqual(at(out, "c").pos, { x: 2, y: 0 });
+  assert.equal(at(out, "a").span.cols, 2);
+  assert.equal(at(out, "c").span.cols, 2);
+  assert.deepEqual(at(out, "b").pos, { x: 0, y: 1 });
+  const left = flowPlace(page, 4, "c", "b", "left");
+  assert.equal(ids(left), "a,c,b");
+  assert.equal(hasOverlaps(left, 4), false);
+});
+
+test("flow drop beside keeps rows below in order and the array order stored", () => {
+  const page = flowRepack([w("a", 0, 0, 2), w("b", 2, 0, 2), w("c", 0, 1, 4), w("d", 0, 2, 4)], 4);
+  const out = flowPlace(page, 4, "a", "d", "left");
+  assert.deepEqual(out.map((v) => v.instanceId), ["a", "b", "c", "d"]);
+  assert.equal(ids(out), "b,c,a,d");
+  assert.equal(hasOverlaps(out, 4), false);
 });
 
 console.log(`\n${passed} passed`);

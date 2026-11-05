@@ -369,7 +369,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🧩", title: "Edit the page",
-      body: `The pencil edits the page itself, and it keeps looking exactly as it does. Hold a widget to move it in the column, drag its edges to resize, and tap its ⚙ for its options.`,
+      body: `The pencil edits the page itself, and it keeps looking exactly as it does. Hold a widget to move it; drop it on another one's edge to sit beside it. Drag edges to resize; ⚙ opens its options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
       look: ai ? `the highlighted pencil (Edit page)` : `open a profile and look for the pencil at the top-right`,
     }),
@@ -1067,6 +1067,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-system", look: `the highlighted Profile row`,
     }),
     s("settings", {
+      emoji: "⌨️", title: "Your own command words",
+      body: `Terminology → Commands sets the symbol that starts a command (~ at first) and your own word for each kind, like ~mood for a feeling. The built-in words keep working too.`,
+      route: "/settings#terms", target: ["terms-commands", "settings-system"], look: `the Commands section on the Terminology page`,
+    }),
+    s("settings", {
       emoji: "🎨", title: "Appearance",
       body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. This row under Look opens it; the New UI and language switches are under General.`,
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options row, under Look`,
@@ -1077,6 +1082,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `Display options → Styles`,
     }),
     s("settings", {
+      emoji: "🌐", title: "Language (in progress)",
+      body: `Other languages are still being built, so English is the only one for now. The translation check shows which text is ready to translate. Your own words for your ${t.system} never change.`,
+      route: "/settings#language", target: "settings-language", look: `the Language page, under General`,
+    }),
+    s("settings", {
       emoji: "♿", title: "Sizes for low vision",
       body: `Accessibility keeps low-vision mode, reduce motion and high contrast. Text size, tap targets and bar height are in Display options — this button opens it.`,
       route: "/settings#accessibility", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button on the Accessibility page`,
@@ -1085,6 +1095,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "🧩", title: t.Alters,
       body: `Custom fields for every profile, relationship types, archived ${t.alters} and contacts, a duplicate finder, ${t.alter} order, list labels, and profile layouts and songs.`,
       route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alters} group`,
+    }),
+    s("settings", {
+      emoji: "🎵", title: "Profile songs",
+      body: `Every song on a profile in one list, and which profiles play it. Set a song's default volume, quiet hours when songs don't start on their own, and a different song for mornings or nights.`,
+      route: "/settings#profile-songs", target: ["sound-manager", "settings-profile-songs"], look: `the Profile songs page, under ${t.Alters}`,
     }),
     s("settings", {
       emoji: "💜", title: "Tracking",
