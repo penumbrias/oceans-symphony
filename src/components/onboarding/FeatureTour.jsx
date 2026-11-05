@@ -1082,6 +1082,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `Display options → Styles`,
     }),
     s("settings", {
+      emoji: "🌐", title: "Language (in progress)",
+      body: `Other languages are still being built, so English is the only one for now. The translation check shows which text is ready to translate. Your own words for your ${t.system} never change.`,
+      route: "/settings#language", target: "settings-language", look: `the Language page, under General`,
+    }),
+    s("settings", {
       emoji: "♿", title: "Sizes for low vision",
       body: `Accessibility keeps low-vision mode, reduce motion and high contrast. Text size, tap targets and bar height are in Display options — this button opens it.`,
       route: "/settings#accessibility", target: ["settings-a11y-display-options", "settings-accessibility"], look: `the Display options button on the Accessibility page`,
