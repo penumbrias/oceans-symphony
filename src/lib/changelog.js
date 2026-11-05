@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "feature", text: "Settings → Terminology → Commands: choose the symbol that starts a command (~ at first) and your own word for each command, like ~mood for a feeling, ~therapy, or /w for whispers. The built-in words keep working too." },
       { type: "improve", text: "Profiles and the home screen now move widgets like the widget board: hold, drag, and drop on another widget's edge to put them side by side." },
       { type: "fix", text: "A widget that opens up, like What's new set as a thin strip, now grows and moves the widgets below it down instead of being cut off." },
       { type: "improve", text: "Tidier edit menus: grid width is gone, Close gaps and Reset live under Save / exit, bars are set in Display options, and \"Home opens on\" moved into the home screen's Display options." },

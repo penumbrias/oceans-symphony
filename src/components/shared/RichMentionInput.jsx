@@ -8,6 +8,7 @@ import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
+import { getCommandSign } from "@/lib/commandTerms";
 
 // A true inline rich-text input (contentEditable) with @mention (always)
 // and -signpost (opt-in) autocomplete. Unlike MentionTextarea — which is a
@@ -213,7 +214,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
     const cmd = detectCommandToken(text, offset);
     if (!cmd) { setMenu(null); return; }
     const body = [...cmd.segments.slice(0, -1), item.insert].join(":");
-    const insertText = "~" + body + (item.terminal ? "" : ":");
+    const insertText = getCommandSign() + body + (item.terminal ? "" : ":");
     const before = text.slice(0, cmd.start);
     const after = text.slice(offset);
     node.textContent = before + insertText + after;
@@ -242,7 +243,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
     const text = node.textContent || "";
     const cmd = detectCommandToken(text, offset);
     if (!cmd) { setMenu(null); return; }
-    const insertText = "~" + cmd.body.replace(/:$/, "") + " ";
+    const insertText = getCommandSign() + cmd.body.replace(/:$/, "") + " ";
     const before = text.slice(0, cmd.start);
     const after = text.slice(offset);
     node.textContent = before + insertText + after;

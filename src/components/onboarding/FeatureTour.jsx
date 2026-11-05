@@ -1067,6 +1067,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-system", look: `the highlighted Profile row`,
     }),
     s("settings", {
+      emoji: "⌨️", title: "Your own command words",
+      body: `Terminology → Commands sets the symbol that starts a command (~ at first) and your own word for each kind, like ~mood for a feeling. The built-in words keep working too.`,
+      route: "/settings#terms", target: ["terms-commands", "settings-system"], look: `the Commands section on the Terminology page`,
+    }),
+    s("settings", {
       emoji: "🎨", title: "Appearance",
       body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. This row under Look opens it; the New UI and language switches are under General.`,
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options row, under Look`,

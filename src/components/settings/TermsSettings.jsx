@@ -15,6 +15,14 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { markTermsCustomizedToday } from "@/lib/dailyTaskSystem";
+import { Row } from "@/components/shared/SettingRows";
+import {
+  COMMAND_WORD_TYPES, BUILT_IN_COMMAND_WORDS, BUILT_IN_WHISPER_WORDS, DEFAULT_COMMAND_SIGN,
+  getCustomCommandWord, getWhisperWords, sanitizeCommandWord, isValidCommandSign,
+} from "@/lib/commandTerms";
+import {
+  getTherapyKeyword, setTherapyKeyword, DEFAULT_THERAPY_KEYWORD, THERAPY_KEYWORD_EVENT,
+} from "@/lib/therapyCommand";
 
 // Each base word and the key of its plural override.
 const PLURAL_KEY = { system: "systems", alter: "alters", switch: "switches", front: "fronts" };
@@ -28,6 +36,9 @@ export default function TermsSettings({ embedded = false } = {}) {
     systems: "", alters: "", switches: "", fronts: "",
     signpostAdd: "", signpostReplace: "",
   });
+  // Command symbol + words. A blank word means "the built-in word".
+  const [cmd, setCmd] = useState({ sign: DEFAULT_COMMAND_SIGN, words: {}, whisper: "", therapy: "" });
+  const [commandError, setCommandError] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [signpostError, setSignpostError] = useState("");
@@ -89,12 +100,54 @@ export default function TermsSettings({ embedded = false } = {}) {
     });
   }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching, terms.systems, terms.alters, terms.switches, terms.fronts, terms.signpostAdd, terms.signpostReplace]);
 
+  // Load what's in effect (useTerms has just pushed the saved values into
+  // commandTerms). The therapy word lives in localStorage, so follow its event.
+  useEffect(() => {
+    const load = () => {
+      const therapy = getTherapyKeyword();
+      const whisper = getWhisperWords().find((w) => !BUILT_IN_WHISPER_WORDS.includes(w)) || "";
+      setCmd({
+        sign: terms.commandSign || DEFAULT_COMMAND_SIGN,
+        words: Object.fromEntries(COMMAND_WORD_TYPES.map(({ key }) => [key, getCustomCommandWord(key) || ""])),
+        whisper,
+        therapy: therapy === DEFAULT_THERAPY_KEYWORD ? "" : therapy,
+      });
+    };
+    load();
+    window.addEventListener(THERAPY_KEYWORD_EVENT, load);
+    return () => window.removeEventListener(THERAPY_KEYWORD_EVENT, load);
+  }, [terms.commandSign, terms.commandWordsSig]);
+
   // A signpost trigger must be a single symbol that can't blend into a name or
   // clash with the app's other inline syntax (@mention, /whisper, [ ] whisper
   // brackets, ~section signposts).
-  const RESERVED_SIGNS = new Set(["@", "/", "[", "]", "~"]);
+  const RESERVED_SIGNS = new Set(["@", "/", "[", "]", (cmd.sign || DEFAULT_COMMAND_SIGN).trim()]);
   const isValidSign = (ch) =>
     typeof ch === "string" && ch.length === 1 && !/[\w\s]/.test(ch) && !RESERVED_SIGNS.has(ch);
+
+  // Validate + clean the command symbol and words. Returns { error } or the
+  // values to save. A word equal to its own built-in one is stored blank.
+  const checkCommands = (addSign, replaceSign) => {
+    const sign = (cmd.sign || DEFAULT_COMMAND_SIGN).trim();
+    if (!isValidCommandSign(sign, { signpostAdd: addSign, signpostReplace: replaceSign })) {
+      return { error: "The command symbol must be one symbol that isn't a letter, number, space, a signpost symbol, or one of @ / [ ] < > : & ; \" ' =." };
+    }
+    const taken = new Map(); // word → what it already starts
+    Object.entries(BUILT_IN_COMMAND_WORDS).forEach(([type, ws]) => ws.forEach((w) => taken.set(w, type)));
+    const words = {};
+    for (const { key, label } of COMMAND_WORD_TYPES) {
+      const w = sanitizeCommandWord(cmd.words[key]);
+      if (!w || BUILT_IN_COMMAND_WORDS[key].includes(w)) continue;
+      if (taken.has(w)) return { error: `“${w}” already starts another command — pick another word for ${label}.` };
+      taken.set(w, key);
+      words[key] = w;
+    }
+    const therapy = sanitizeCommandWord(cmd.therapy) || DEFAULT_THERAPY_KEYWORD;
+    if (taken.has(therapy)) return { error: `“${therapy}” already starts another command — pick another word for therapy notes.` };
+    let whisper = sanitizeCommandWord(cmd.whisper);
+    if (BUILT_IN_WHISPER_WORDS.includes(whisper)) whisper = "";
+    return { sign, words, therapy, whisper };
+  };
 
   const handleSave = async () => {
     // Validate the signpost triggers before saving — a bad sign would silently
@@ -102,7 +155,7 @@ export default function TermsSettings({ embedded = false } = {}) {
     const addSign = (vals.signpostAdd || "+").trim();
     const replaceSign = (vals.signpostReplace || "-").trim();
     if (!isValidSign(addSign) || !isValidSign(replaceSign)) {
-      setSignpostError("Each signpost trigger must be a single symbol (not a letter, number, space, or one of @ / [ ] ~).");
+      setSignpostError(`Each signpost trigger must be a single symbol (not a letter, number, space, or one of @ / [ ] ${(cmd.sign || DEFAULT_COMMAND_SIGN).trim()}).`);
       return;
     }
     if (addSign === replaceSign) {
@@ -110,6 +163,9 @@ export default function TermsSettings({ embedded = false } = {}) {
       return;
     }
     setSignpostError("");
+    const command = checkCommands(addSign, replaceSign);
+    if (command.error) { setCommandError(command.error); return; }
+    setCommandError("");
     setSaving(true);
     // Only persist override fields when they differ from the auto-derived
     // form — otherwise blank them so future base-term edits propagate
@@ -142,7 +198,11 @@ export default function TermsSettings({ embedded = false } = {}) {
       })),
       signpost_add: addSign,
       signpost_replace: replaceSign,
+      command_sign: command.sign,
+      command_words: command.words,
+      whisper_word: command.whisper,
     };
+    if (command.therapy !== getTherapyKeyword()) setTherapyKeyword(command.therapy);
     if (terms._settingsId) {
       await base44.entities.SystemSettings.update(terms._settingsId, data);
     } else {
@@ -159,6 +219,8 @@ export default function TermsSettings({ embedded = false } = {}) {
     { key: "switch", label: "Switch", hint: "e.g. switch, shift, change" },
     { key: "front", label: "Front", hint: "e.g. front, active, present" },
   ];
+
+  const cmdSign = isValidCommandSign((cmd.sign || "").trim(), { signpostAdd: "", signpostReplace: "" }) ? cmd.sign.trim() : DEFAULT_COMMAND_SIGN;
 
   const inner = (
     <div className="space-y-4">
@@ -239,6 +301,41 @@ export default function TermsSettings({ embedded = false } = {}) {
             e.g. <span className="font-mono text-foreground">{(vals.signpostReplace || "-")}{vals.alter || "name"}</span> signs as them; <span className="font-mono text-foreground">{(vals.signpostAdd || "+")}{vals.alter || "name"}</span> adds them.
           </p>
           {signpostError && <p className="text-[0.6875rem] text-destructive mt-1.5">{signpostError}</p>}
+        </div>
+
+        {/* Inline commands — the symbol that starts a ~command and the word
+            for each kind. Built-in words always keep working, so a new word
+            is an addition, never a rename that breaks old habits. */}
+        <div className="border-t border-border/40 pt-3" data-tour="terms-commands">
+          <label className="text-xs font-medium text-foreground block mb-1">Commands</label>
+          <p className="text-[0.6875rem] text-muted-foreground leading-relaxed mb-1">
+            Type these in any note, chat or journal to log things as you write. Pick your own symbol and words; the built-in words keep working too.
+          </p>
+          <Row label="Command symbol" hint={`Starts a command, like ${cmdSign}feeling`}
+            own={cmdSign !== DEFAULT_COMMAND_SIGN} onClear={() => setCmd((p) => ({ ...p, sign: DEFAULT_COMMAND_SIGN }))}>
+            <Input
+              value={cmd.sign}
+              onChange={(e) => setCmd((p) => ({ ...p, sign: Array.from(e.target.value).slice(-1).join("") }))}
+              placeholder={DEFAULT_COMMAND_SIGN}
+              aria-label="Command symbol"
+              className="h-8 w-14 text-sm font-mono text-center"
+            />
+          </Row>
+          {COMMAND_WORD_TYPES.map(({ key, label, example }) => (
+            <CommandWordRow key={key} label={label} prefix={cmdSign} fallback={key}
+              hint={`e.g. ${cmdSign}${sanitizeCommandWord(cmd.words[key]) || key}:${example}`}
+              value={cmd.words[key] || ""}
+              onChange={(v) => setCmd((p) => ({ ...p, words: { ...p.words, [key]: v } }))} />
+          ))}
+          <CommandWordRow label="Therapy notes" prefix={cmdSign} fallback={DEFAULT_THERAPY_KEYWORD}
+            hint="Saves what follows for your next therapy report"
+            value={cmd.therapy}
+            onChange={(v) => setCmd((p) => ({ ...p, therapy: v }))} />
+          <CommandWordRow label="Whisper" prefix="/" fallback="w"
+            hint={`/${sanitizeCommandWord(cmd.whisper) || "w"} @name [secret] hides it from everyone else`}
+            value={cmd.whisper}
+            onChange={(v) => setCmd((p) => ({ ...p, whisper: v }))} />
+          {commandError && <p className="text-[0.6875rem] text-destructive mt-1.5">{commandError}</p>}
         </div>
 
         {/* Advanced word-form overrides. The auto-conjugator assumes the
@@ -328,5 +425,26 @@ export default function TermsSettings({ embedded = false } = {}) {
       </CardHeader>
       <CardContent className="space-y-4">{inner}</CardContent>
     </Card>
+  );
+}
+// One command word: the symbol shown in front, the built-in word greyed as
+// the placeholder, × to go back to it.
+function CommandWordRow({ label, hint, prefix, fallback, value, onChange }) {
+  return (
+    <Row label={label} hint={hint} own={!!(value || "").trim()} onClear={() => onChange("")}>
+      <div className="relative w-32">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">{prefix}</span>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={fallback}
+          aria-label={`${label} command word`}
+          className="h-8 pl-6 text-sm"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+      </div>
+    </Row>
   );
 }
