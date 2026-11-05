@@ -66,6 +66,11 @@ export function useFreeMove({
   // The unit a drop lands on: 1 = whole cells (snapping on), a fraction of
   // a cell when snapping is off.
   step = 1,
+  // Flow pages (profiles, the classic home — v0.353.0): there are no cells
+  // to land on, the page is an order. Every drop is "beside" a widget:
+  // its left/right edge joins that row, its top/bottom half goes before or
+  // after it, and below the last widget goes to the end.
+  flow = false,
 }) {
   const [drag, setDrag] = useState(null); // { dx, dy, target: {x,y}, overTrash, beside }
   const state = useRef(null);
@@ -136,15 +141,30 @@ export function useFreeMove({
       if (onBeside && !overTrash) {
         const own = node.closest?.("[data-widget-id]");
         const els = document.elementsFromPoint?.(clientX, clientY) || [];
+        let hit = false;
         for (const el of els) {
           const host = el.closest?.("[data-widget-id]");
           if (!host || host === own) continue;
+          // Only widgets on THIS board (a profile can sit inside a sheet
+          // over another board).
+          if (gridRef.current && !gridRef.current.contains(host)) continue;
+          hit = true;
           const r = host.getBoundingClientRect();
           const f = r.width > 0 ? (clientX - r.left) / r.width : 0.5;
           const id = host.getAttribute("data-widget-id");
           if (f < BESIDE_EDGE) beside = { id, side: "left" };
           else if (f > 1 - BESIDE_EDGE) beside = { id, side: "right" };
+          else if (flow) beside = { id, side: (clientY - r.top) < r.height / 2 ? "before" : "after" };
           break;
+        }
+        // Flow: below every widget = the end of the page.
+        if (flow && !hit && gridRef.current) {
+          const hosts = [...gridRef.current.querySelectorAll(":scope > [data-widget-id]")]
+            .filter((h) => h !== own && h.getBoundingClientRect().height > 0);
+          const last = hosts[hosts.length - 1];
+          if (last && clientY > last.getBoundingClientRect().bottom) {
+            beside = { id: last.getAttribute("data-widget-id"), side: "after" };
+          }
         }
       }
       st.pointerY = clientY;
@@ -171,6 +191,7 @@ export function useFreeMove({
       if (!snapshot) return;
       if (snapshot.overTrash) onRemove?.();
       else if (snapshot.beside && onBeside?.(snapshot.beside) !== false) { /* placed beside */ }
+      else if (flow) { /* a flow page only takes drops beside a widget */ }
       else if (snapshot.target.x !== pos.x || snapshot.target.y !== pos.y) onCommit?.(snapshot.target);
     };
 
@@ -248,7 +269,7 @@ export function useFreeMove({
       };
       st.raf = requestAnimationFrame(scrollStep);
     }, HOLD_MS);
-  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, onBeside, trashSelector, step]);
+  }, [enabled, cleanup, gridRef, gridCols, gap, rowHeight, span.cols, pos.x, pos.y, onCommit, onRemove, onBeside, trashSelector, step, flow]);
 
   // Keep the latest preview where pointerup can read it without a stale closure.
   useEffect(() => { if (state.current) state.current.last = drag; }, [drag]);

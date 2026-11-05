@@ -9,13 +9,12 @@
 // ids and deep links) are mapped in LEGACY_HASHES so old links still land.
 import React from "react";
 import {
-  IdCard, MessageSquareText, Boxes, Languages, Clock, Tag, LayoutGrid, FlaskConical, Palette, Accessibility,
+  IdCard, MessageSquareText, Boxes, Languages, Clock, Tag, FlaskConical, Palette, Accessibility,
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
-import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
@@ -23,7 +22,6 @@ import LanguageSettings from "@/components/settings/LanguageSettings";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 import ClockFormatRow from "@/components/settings/ClockFormatRow";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
-import { NewUiToggle, HomeOpensOnRow } from "@/components/settings/DashboardLayoutSettings";
 import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeaturesSettings";
 import { openDisplayOptions } from "@/components/settings/AppearanceSection";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
@@ -111,9 +109,6 @@ export function buildSettingsGroups(ctx) {
           render: () => (<div className="space-y-4"><ClockFormatRow /><TimezoneSettings /></div>) },
         { id: "alter-labels", label: `${t.Alter} labels in lists`, hint: "Name, alias or both", icon: Tag,
           keywords: `${t.alter} label name alias lists pickers dropdowns`, render: () => <AlterLabelSettings embedded /> },
-        { id: "home-screen", label: "Home screen", hint: "The new home screen and which page greets you", icon: LayoutGrid,
-          when: () => UI_V2_ENABLED, keywords: "new ui home screen widgets board classic home opens on dashboard",
-          render: () => (<div className="space-y-2"><NewUiToggle /><HomeOpensOnRow /></div>) },
         { id: "experimental", label: "Experimental features", hint: "Things still being built", icon: FlaskConical, tour: "settings-experimental",
           keywords: "experimental beta labs features flags", render: () => <ExperimentalFeaturesSettings /> },
       ],

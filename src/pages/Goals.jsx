@@ -231,7 +231,7 @@ export default function Goals() {
     const w = wishes.find((x) => x.id === wishId);
     if (!w) return;
     madeFromWish.current = true;
-    const existing = goals.find((g) => g.wish_id === w.id);
+    const existing = goals.find((g) => g.id === w.goal_id) || goals.find((g) => g.wish_id === w.id);
     (async () => {
       try {
         const goal = existing || await goalFromWish(w);

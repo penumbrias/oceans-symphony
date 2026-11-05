@@ -301,6 +301,32 @@ export async function addTodoItem(pageId, title, order) {
   return step;
 }
 
+// A to-do made elsewhere (the to-do sheets' Goal option, v0.353.0) goes onto
+// a goal page as a round to-do line at the end of the page — or, when it's
+// already a line on another page, the line moves there. pageId null only
+// stops the to-do naming its page; the line stays where the person put it.
+export async function putTaskOnPage(task, pageId) {
+  if (!task?.id) return null;
+  if (!pageId) {
+    if (task.goal_id) await base44.entities.Task.update(task.id, { goal_id: null });
+    return null;
+  }
+  const steps = (await base44.entities.GoalStep.list().catch(() => [])) || [];
+  const live = liveSteps(steps);
+  const line = live.find((x) => x.id === task.goal_step_id && x.ref_id === task.id)
+    || live.find((x) => x.kind === "todo" && x.ref_id === task.id) || null;
+  const onPage = live.filter((x) => x.goal_id === pageId);
+  const order = onPage.reduce((m, x) => (Number.isFinite(Number(x.order)) && Number(x.order) > m ? Number(x.order) : m), 0) + 1;
+  if (line) {
+    if (line.goal_id !== pageId) await moveItem(line, pageId, order);
+    else if (task.goal_id !== pageId) await base44.entities.Task.update(task.id, { goal_id: pageId });
+    return line;
+  }
+  const step = await addItem(pageId, { kind: "todo", title: task.title || "To-do", ref_id: task.id }, order);
+  await base44.entities.Task.update(task.id, { goal_id: pageId, goal_step_id: step.id });
+  return step;
+}
+
 // A quick checkbox (or a note) moves onto the To-Do list.
 export async function itemToTodo(item) {
   const task = await createTask({ title: item.title || item.body || "To-do", goal_id: item.goal_id, goal_step_id: item.id });
