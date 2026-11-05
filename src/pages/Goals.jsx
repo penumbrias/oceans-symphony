@@ -87,7 +87,7 @@ function Home({ focusNew, toCarry, onCarry, carrying }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-3xl font-semibold text-foreground">Goals</h1>
+      <h1 className="font-display text-3xl font-semibold text-foreground">Notebook</h1>
       <div className="flex gap-2">
         <input ref={ref} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New goal"
           placeholder="Start a new goal, a project, a story…" onKeyDown={(e) => { if (e.key === "Enter") add(); }} className={inputCls} />
@@ -286,7 +286,7 @@ export default function Goals() {
       </div>
       <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
         <SheetContent side="left" className="w-[85vw] max-w-xs overflow-y-auto pt-12">
-          <SheetTitle className="sr-only">Goals pages</SheetTitle>
+          <SheetTitle className="sr-only">Notebook pages</SheetTitle>
           <PageTree currentId={page?.id || null} onOpen={open} />
         </SheetContent>
       </Sheet>

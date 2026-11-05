@@ -15,7 +15,7 @@ import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
-import { Target, LayoutGrid, HeartHandshake, Heart, ArrowLeftRight } from "lucide-react";
+import { NotebookTabs, LayoutGrid, HeartHandshake, Heart, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
@@ -59,7 +59,7 @@ export default function Needs() {
           {!page.layoutEditing && (
             <>
               <Button variant="outline" size="sm" className="h-11 gap-1.5" onClick={() => navigate("/goals")}>
-                <Target className="w-4 h-4" /> Goals
+                <NotebookTabs className="w-4 h-4" /> Notebook
               </Button>
               <Button variant="outline" size="sm" className="h-11 w-11 px-0" data-tour="needs-layout-btn"
                 onClick={openPageLayoutEditor} aria-label="Edit page"

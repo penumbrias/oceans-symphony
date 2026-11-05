@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 5, 2026",
     changes: [
+      { type: "improve", text: "Goals is now called Notebook, since it holds projects and stories as well as goals. Everything inside stays where it was." },
       { type: "feature", text: "Profiles' Connections page has a new Linked widget: the theme an {{alter}} switches the app to, plus their goals and dates. Link, change or unlink their theme right there." },
       { type: "fix", text: "A theme linked to an {{alter}} now stays linked after the app restarts." },
     ],

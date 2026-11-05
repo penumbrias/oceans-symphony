@@ -721,9 +721,9 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/activities", target: "activities-manage", look: `tap an activity, then Details`,
     }),
     s("activities", {
-      emoji: "🎯", title: "Goals",
-      body: `Goals works like a notebook. Start a goal, a project or a story, then fill its page with sections, and sections inside those, as deep as you like.`,
-      route: "/goals", target: "goals-page", look: `the Goals page`,
+      emoji: "📓", title: "Notebook",
+      body: `Your Notebook holds goals, projects and stories. Start one, then fill its page with sections, and sections inside those, as deep as you like.`,
+      route: "/goals", target: "goals-page", look: `the Notebook page`,
     }),
     s("activities", {
       emoji: "📄", title: "What a page holds",

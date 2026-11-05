@@ -81,9 +81,9 @@ export default function PageTree({ currentId, onOpen }) {
   );
 
   return (
-    <nav aria-label="Goals pages" className="space-y-3">
+    <nav aria-label="Notebook pages" className="space-y-3">
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onOpen(null)} className="font-display text-lg font-semibold flex-1 text-left">Goals</button>
+        <button type="button" onClick={() => onOpen(null)} className="font-display text-lg font-semibold flex-1 text-left">Notebook</button>
         <button type="button" onClick={addPage} disabled={busy} className="text-xs px-2 py-1 rounded-full border border-primary/40 text-primary flex items-center gap-1">
           <Plus className="w-3.5 h-3.5" /> New goal
         </button>

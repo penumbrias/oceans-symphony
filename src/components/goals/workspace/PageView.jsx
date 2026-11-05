@@ -165,7 +165,7 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
   return (
     <article className="space-y-4" data-highlight-id={page.id}>
       <nav aria-label="Where this page is" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-        <button type="button" onClick={() => open(null)} className="hover:text-foreground">Goals</button>
+        <button type="button" onClick={() => open(null)} className="hover:text-foreground">Notebook</button>
         {crumbs.map((c) => (
           <React.Fragment key={c.id}>
             <span aria-hidden="true">›</span>
