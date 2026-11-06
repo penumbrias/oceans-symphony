@@ -1,3 +1,4 @@
+import { onColorVars } from "./contrast.js";
 // A widget's "look" — the whole visual layer, in one plain object.
 //
 // The same shape does double duty: it's what a single widget stores in its
@@ -105,6 +106,7 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   if (isSet(look.accent)) {
     const a = withAlpha(look.accent, look.accentOpacity);
     s["--v2-accent"] = a; s["--color-primary"] = a;
+    Object.assign(s, onColorVars(a));
   }
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;

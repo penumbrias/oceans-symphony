@@ -196,7 +196,7 @@ export default function RelationshipTypeTreeRow({
             </button>
             <button
               onClick={() => onStartCreateSub(type.id)}
-              className="p-1 text-white bg-primary hover:bg-primary/90 rounded"
+              className="p-1 text-primary-foreground bg-primary hover:bg-primary/90 rounded"
               title="Add sub-type"
             >
               <Plus className="w-3.5 h-3.5" />

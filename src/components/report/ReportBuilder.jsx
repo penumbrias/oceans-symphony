@@ -425,7 +425,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
               onClick={() => handleSetPeriod(p.id)}
               className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                 periodType === p.id
-                  ? "bg-primary text-white border-primary"
+                  ? "bg-primary text-primary-foreground border-primary"
                   : "border-border text-foreground hover:bg-muted/40"
               }`}
             >

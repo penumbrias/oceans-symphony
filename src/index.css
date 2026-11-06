@@ -82,6 +82,8 @@
     --color-surface: #E0F2FE;
     --color-surface-rgb: 224, 242, 254;
     --color-primary: #3B82F6;
+    --color-on-primary: #020617;
+    --color-on-accent: #020617;
     --color-secondary: #DBEAFE;
     --color-accent: #38BDF8;
     --color-muted: #B6D4E3;
@@ -124,6 +126,8 @@
     --color-surface: #101820;
     --color-surface-rgb: 16, 24, 32;
     --color-primary: #3B82F6;
+    --color-on-primary: #020617;
+    --color-on-accent: #020617;
     --color-secondary: #1E3A5F;
     --color-accent: #38BDF8;
     --color-muted: #1F2937;
@@ -463,8 +467,13 @@ html.a11y-high-contrast:not(.dark) {
   --color-surface: #FFFFFF !important;
   --color-surface-rgb: 255, 255, 255 !important;
   --color-primary: #1D4ED8 !important;
+  --color-on-primary: #FFFFFF !important;
+  --primary-foreground: 0 0% 100% !important;
   --color-secondary: #DBE4FF !important;
   --color-accent: #0E7490 !important;
+  --color-on-accent: #FFFFFF !important;
+  --accent-foreground: 0 0% 100% !important;
+  --v2-on-accent: #FFFFFF !important;
   --color-muted: #767676 !important;       /* visible border + WCAG-min grey */
   --color-text-primary: #000000 !important;
   --color-text-secondary: #2A2A2A !important;
@@ -474,8 +483,13 @@ html.a11y-high-contrast.dark {
   --color-surface: #000000 !important;
   --color-surface-rgb: 0, 0, 0 !important;
   --color-primary: #1D4ED8 !important;
+  --color-on-primary: #FFFFFF !important;
+  --primary-foreground: 0 0% 100% !important;
   --color-secondary: #243B5A !important;
   --color-accent: #0E7490 !important;
+  --color-on-accent: #FFFFFF !important;
+  --accent-foreground: 0 0% 100% !important;
+  --v2-on-accent: #FFFFFF !important;
   --color-muted: #5A5A5A !important;
   --color-text-primary: #FFFFFF !important;
   --color-text-secondary: #E0E0E0 !important;

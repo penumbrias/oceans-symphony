@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { recordPresetRemoved, clearPresetRemoved } from '@/lib/presetSync';
+import { onColorVars } from "@/lib/contrast";
 
 
 // A corrupt value in one of the theme keys used to throw inside the
@@ -471,8 +472,8 @@ export function ThemeProvider({ children }) {
         popover: triplets.surface, "popover-foreground": triplets["text-primary"],
         border: triplets.muted, input: triplets.surface, ring: triplets.primary,
         "muted-foreground": triplets["text-secondary"],
-        "primary-foreground": "0 0% 100%", "secondary-foreground": triplets["text-primary"],
-        "accent-foreground": "0 0% 100%", destructive: "0 84% 60%", "destructive-foreground": "0 0% 100%",
+        "secondary-foreground": triplets["text-primary"],
+        destructive: "0 84% 60%", "destructive-foreground": "0 0% 100%",
       };
       for (const [k, v] of Object.entries(alias)) if (v) document.documentElement.style.setProperty(`--${k}`, v);
       // The new UI's Highlight (ui_v2.tokens.accent → --v2-accent), when
@@ -497,6 +498,12 @@ export function ThemeProvider({ children }) {
           document.documentElement.style.setProperty("--color-accent", acc);
           const ta = hexToHslTriplet(acc);
           if (ta) document.documentElement.style.setProperty("--accent", ta);
+        }
+        // Text on the primary/accent: white only where it can be read,
+        // otherwise near-black (UI critique C2 — white on amber/green/sky
+        // was ~2:1).
+        for (const [k, v] of Object.entries(onColorVars(realHl || colors.primary, acc))) {
+          document.documentElement.style.setProperty(k, v);
         }
       } catch { /* non-fatal */ }
     }

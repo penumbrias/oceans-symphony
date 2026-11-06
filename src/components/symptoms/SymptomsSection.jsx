@@ -171,7 +171,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
           </div>
           <div className="flex gap-2">
             <button onClick={handleAddNew} disabled={adding}
-          className="flex-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg flex items-center justify-center gap-1">
+          className="flex-1 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg flex items-center justify-center gap-1">
               {adding ? <Loader2 className="w-3 h-3 animate-spin" /> : "Add"}
             </button>
             <button onClick={() => {setAddingNew(false);setNewName("");}}

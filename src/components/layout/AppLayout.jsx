@@ -32,6 +32,7 @@ import SystemSwitcherSheetHost from "@/components/systems/SystemSwitcherSheet";
 import GlobalSongHost from "@/components/alters/GlobalSongHost";
 import PackRestoreBar from "@/components/dashboard/PackRestoreBar";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { onColorVars } from "@/lib/contrast";
 // Lazy: only pulled into the bundle for the users who need it (existing
 // installs with legacy data-URI images). Fresh installs never load it.
 // The tour is big and opens only on request (v0.357.0).
@@ -466,6 +467,7 @@ useEffect(() => {
     // Accent follows the highlight (merged — see ThemeContext).
     root.style.setProperty("--color-accent", hl);
     if (t) root.style.setProperty("--accent", t);
+    for (const [k, v] of Object.entries(onColorVars(hl))) root.style.setProperty(k, v);
   }
   return () => {
     root.removeAttribute("data-ui-v2");

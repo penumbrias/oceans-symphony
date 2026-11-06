@@ -701,7 +701,7 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
             <p className="text-xs text-muted-foreground">{tr("planner.closeAskBody")}</p>
             <div className="flex flex-col gap-1.5">
               <button type="button" onClick={() => { setCloseAsk(false); onClose?.(); }}
-                className="text-sm px-3 py-2 rounded-xl bg-[var(--v2-accent)] text-white font-medium">{tr("planner.keepChanges")}</button>
+                className="text-sm px-3 py-2 rounded-xl bg-[var(--v2-accent)] text-[var(--v2-on-accent,#fff)] font-medium">{tr("planner.keepChanges")}</button>
               <button type="button" onClick={undoChanges}
                 className="text-sm px-3 py-2 rounded-xl border border-destructive/50 text-destructive">{tr("planner.undoChanges")}</button>
               <button type="button" onClick={() => setCloseAsk(false)}

@@ -61,7 +61,7 @@ module.exports = {
   			},
   			primary: {
   				DEFAULT: themeVar('--color-primary'),
-  				foreground: '#FFF'
+  				foreground: themeVar('--color-on-primary')
   			},
   			secondary: {
   				DEFAULT: themeVar('--color-secondary'),
@@ -73,7 +73,7 @@ module.exports = {
   			},
   			accent: {
   				DEFAULT: themeVar('--color-accent'),
-  				foreground: '#FFF'
+  				foreground: themeVar('--color-on-accent')
   			},
   			destructive: {
   				DEFAULT: '#EF4444',

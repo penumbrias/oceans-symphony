@@ -72,6 +72,7 @@ import {
 import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { clockPattern } from "@/lib/timeFormat";
+import { onColor } from "@/lib/contrast";
 
 // User-controllable filter for what shows in the Check-In Log. Stored in
 // localStorage so the choice persists across sessions. All toggles default
@@ -115,6 +116,12 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
+// A feeling chip keeps its colour; its text is white or near-black,
+// whichever can be read on that colour (UI critique C2).
+function chipStyle(bg) {
+  return { backgroundColor: bg, color: onColor(bg) };
+}
+
 function useCustomEmotionsList() {
   const { data = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -140,8 +147,8 @@ function TriggerBadge({ trigger }) {
 function EmotionPill({ em }) {
   const customs = useCustomEmotionsList();
   return (
-    <span className="px-2 py-0.5 rounded-full text-white text-xs font-medium"
-      style={{ backgroundColor: customEmotionColor(em, customs, emotionColor(em)) }}>
+    <span className="px-2 py-0.5 rounded-full text-xs font-medium"
+      style={chipStyle(customEmotionColor(em, customs, emotionColor(em)))}>
       {em}
     </span>
   );
@@ -680,8 +687,8 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       {allEmotions.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {allEmotions.map(([em, count]) => (
-            <span key={em} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-xs font-medium"
-              style={{ backgroundColor: emotionColor(em) }}>
+            <span key={em} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={chipStyle(emotionColor(em))}>
               {em} {count > 1 && <span className="opacity-80">×{count}</span>}
             </span>
           ))}
@@ -780,7 +787,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                           return (
                             <span key={p.key} className="inline-flex items-center gap-1">
                               <TriggerBadge trigger={p.trigger} />
-                              <span className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: emotionColor(p.em) }}>
+                              <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={chipStyle(emotionColor(p.em))}>
                                 {p.text}
                               </span>
                             </span>
