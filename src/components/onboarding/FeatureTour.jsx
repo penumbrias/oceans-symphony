@@ -726,6 +726,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page", look: `the Notebook page`,
     }),
     s("activities", {
+      emoji: "🧩", title: "Lay out the Notebook",
+      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the grid button to move them, or add pictures, notes or anything else beside them.`,
+      route: "/goals", target: ["notebook-layout-btn", "notebook-tabs", "goals-page"],
+    }),
+    s("activities", {
       emoji: "📄", title: "What a page holds",
       body: `Notes, to-dos (round, and also on your to-do list), checkboxes (square, page only), links and activity trackers. Type [[a page's title]] in a note to link to it.`,
       route: "/goals", target: "goals-page",

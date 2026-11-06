@@ -24,3 +24,14 @@ export async function createStoryPage({ title, order = null } = {}) {
   }
   return story;
 }
+
+// "New goal" links (/goals?new=1) put the cursor in the Notebook's Add a
+// goal widget. The page asks once; the first Add a goal widget to mount
+// takes the request.
+let focusAsked = false;
+export const askGoalAddFocus = () => { focusAsked = true; };
+export function takeGoalAddFocus() {
+  const asked = focusAsked;
+  focusAsked = false;
+  return asked;
+}
