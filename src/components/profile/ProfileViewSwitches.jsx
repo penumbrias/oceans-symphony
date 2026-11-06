@@ -1,4 +1,4 @@
-// The two "how profiles behave" switches (v0.358.0), shown in Settings →
+// The two "how profiles behave" switches (v0.361.0), shown in Settings →
 // Alter setup → Profile layouts. The classic-form switch is also on the
 // alter's Info → Profile page group, where people look for it.
 import React, { useState } from "react";

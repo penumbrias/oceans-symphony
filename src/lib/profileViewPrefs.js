@@ -1,4 +1,4 @@
-// How profile pages behave while someone is just reading them (v0.358.0).
+// How profile pages behave while someone is just reading them (v0.361.0).
 //
 // People coming from the old profile found the widget board jumpy: holding
 // anywhere started a layout edit, the old pencil form was buried, and

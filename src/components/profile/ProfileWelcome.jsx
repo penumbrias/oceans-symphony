@@ -1,4 +1,4 @@
-// "How this page works" (v0.358.0) — a one-time card at the top of the
+// "How this page works" (v0.361.0) — a one-time card at the top of the
 // first profile someone opens after the profiles became widget pages.
 // People coming from the old profile couldn't tell reading from editing;
 // this says it once, plainly, and points at the two buttons. Answering it

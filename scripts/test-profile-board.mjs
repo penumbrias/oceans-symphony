@@ -241,7 +241,7 @@ test("the new profile (v0.305.0) seeds eight pages, with its own layout row id",
   const b = seedProfileBoard(rec, "alter");
   assert.deepEqual(b.pages.map((p) => tabOfPageId(p.id)), ["profile", "fronting", "fields", "messages", "notes", "journal", "wishes", "connections"]);
   assert.equal(b.pages.length, NEW_ALTER_PROFILE_PAGES.length);
-  // The Profile page reads in the old profile's order (v0.358.0).
+  // The Profile page reads in the old profile's order (v0.361.0).
   assert.deepEqual(b.pages[0].widgets.map((w) => w.widgetId),
     ["alter_identity", "alter_preferences", "info", "alter_belongs", "alter_answers", "alter_tags", "info"]);
   assert.notEqual(b.pages[0].widgets[0].settings.showAvatar, false, "the picture sits in the banner");

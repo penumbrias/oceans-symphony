@@ -779,7 +779,7 @@ export default function ExperimentalDashboard({
   pageIcons = null,
   pageStripProps = null,
   // Holding a quiet part of a widget enters edit mode (the home board).
-  // Profiles turn it off by default (v0.358.0, owner): reading or scrolling
+  // Profiles turn it off by default (v0.361.0, owner): reading or scrolling
   // a profile must never start a layout edit — the pencil is the door.
   holdToEdit = true,
 }) {
@@ -2775,7 +2775,7 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "var(--os-sab)",
           }}>
-          {/* Say which mode this is (v0.358.0): people coming from the old
+          {/* Say which mode this is (v0.361.0): people coming from the old
               profile couldn't tell editing from reading. */}
           {profileBoard && (
             <div data-edit-mode-label="" className="px-3 pt-1.5 text-center text-[0.6875rem] text-muted-foreground">
