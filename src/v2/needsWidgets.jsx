@@ -18,7 +18,7 @@ import { useScopeAlterIds } from "@/v2/subjectScope";
 import { Section, Row, Muted, TextAction, Dot, useWidgetMode } from "@/v2/primitives";
 import { buildBalance, ALTER_ACTIVITY_LINKS_QUERY_KEY, TURNS_QUERY_KEY, turnState } from "@/lib/needs";
 import NeedsBalance from "@/components/needs/NeedsBalance";
-import NeedsTurns, { TurnCard, sortTurns } from "@/components/needs/NeedsTurns";
+import NeedsTurns, { TurnCard, sortTurns, NewTurn } from "@/components/needs/NeedsTurns";
 import WishQuickAdd from "@/components/needs/WishQuickAdd";
 import { whosePicked } from "@/components/needs/WhoseChoice";
 import WishCard from "@/components/wishes/WishCard";
@@ -263,7 +263,7 @@ export function TurnsWidget({ settings }) {
   if (mode === "expanded") {
     return (
       <Section label={tr("widget.turns.label")}>
-        <NeedsTurns alters={alters} turns={turns} activities={activities} categories={categories} />
+        <NeedsTurns alters={alters} turns={turns} activities={activities} categories={categories} withAdd={settings?.withAdd !== false} />
       </Section>
     );
   }
@@ -399,6 +399,18 @@ export function GoalAddWidget({ settings }) {
           <BookOpen className="w-[1.1em] h-[1.1em]" /> {v ? `Start "${v}" as a story` : "Start a story"}: chapters, characters, places
         </button>
       )}
+    </Section>
+  );
+}
+
+// Add a turn (v0.360.0): New turn agreement on its own — who goes first,
+// what's next, and when the second turn goes in the planner.
+export function TurnAddWidget() {
+  const alters = useList("alters", "Alter");
+  const categories = useList("activityCategories", "ActivityCategory");
+  return (
+    <Section label="Add a turn">
+      <NewTurn alters={alters} categories={categories} intro />
     </Section>
   );
 }

@@ -147,6 +147,7 @@ const GoalsWidget = lazyNamed(loadNeedsWidgets, "GoalsWidget");
 const WishAddWidget = lazyNamed(loadNeedsWidgets, "WishAddWidget");
 const GoalAddWidget = lazyNamed(loadNeedsWidgets, "GoalAddWidget");
 const TurnsWidget = lazyNamed(loadNeedsWidgets, "TurnsWidget");
+const TurnAddWidget = lazyNamed(loadNeedsWidgets, "TurnAddWidget");
 const ChannelView = React.lazy(() => import("@/components/chat/ChannelView"));
 import { startSleep } from "@/lib/sleepEntry";
 import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder, REMINDER_INSTANCES_QUERY_KEY } from "@/lib/reminderInstanceActions";
@@ -3412,11 +3413,21 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   turns: {
-    label: "Taking turns", description: "Open turn agreements — who goes first, who's next — with Kept and Let go right here. Expanded is the whole Turns page: make a new agreement and plan the second turn.",
+    label: "Taking turns", description: "Open turn agreements — who goes first, who's next — with Kept and Let go right here. Expanded shows every agreement (kept and let-go ones folded away) and, unless turned off, New turn agreement.",
     icon: ArrowLeftRight, category: "needs",
     render: sized(({ settings }) => <TurnsWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 4 }],
+    configFields: [
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 4 },
+      { key: "withAdd", type: "toggle", label: "Show New turn agreement when expanded", default: true },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  turn_add: {
+    label: "Add a turn", description: "Make a turn agreement when {{alters}} want different things: who goes first, what's next, and when the second turn goes in the planner.",
+    icon: ArrowLeftRight, category: "needs",
+    render: sized(() => <TurnAddWidget />),
+    supportsModes: ["normal"], supportsMultiInstance: true, configFields: [],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
   },
   goals: {

@@ -4,7 +4,8 @@
 //     each thing they enjoy, need or wished for).
 //   • Wishes — the Add a wish widget, then the Wishes widget expanded
 //     (every shared wish's card, done and let go folded away).
-//   • Turns — the Taking turns widget, expanded ("this now, that next").
+//   • Turns — Add a turn, then the Taking turns widget expanded ("this now,
+//     that next"; kept and let-go ones folded away).
 // Edit page (the grid button) moves, resizes and adds widgets; the layout is
 // saved on the first edit, never before. Goals live on their own page.
 //
@@ -31,7 +32,7 @@ export const NEEDS_PAGES = [
     { widgetId: "wish_add" },
     { widgetId: "wishes", mode: "expanded", settings: { show: "both", view: "cards" } },
   ] },
-  { tab: "turns", label: "Turns", widgets: [{ widgetId: "turns", mode: "expanded" }] },
+  { tab: "turns", label: "Turns", widgets: [{ widgetId: "turn_add" }, { widgetId: "turns", mode: "expanded", settings: { withAdd: false } }] },
 ];
 const PAGE_ICONS = {
   [profilePageId("balance")]: HeartHandshake,

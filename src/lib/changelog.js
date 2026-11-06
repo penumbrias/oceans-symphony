@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "feature", text: "New \"Add a turn\" widget: make a turn agreement from any widget board. On Needs it sits above Taking turns." },
       { type: "improve", text: "Notebook pages have an Info button, like profiles: title, icon, status, tags, word target and chapters all in one sheet that saves as you go. Outline, Board or Map is now the Page widget's option." },
       { type: "feature", text: "The Notebook's front page is now a widget board: tap the grid button to move Add a goal and your goal cards, or add pictures and notes beside them." },
       { type: "fix", text: "Moving widgets is smooth again on profiles and home: they follow your finger without stutter." },

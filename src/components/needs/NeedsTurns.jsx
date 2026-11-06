@@ -1,8 +1,8 @@
 // Turn agreements (v0.331.0 as widget pieces): "this now, that next" when
 // alters want different things. The second half becomes a plan so it
-// doesn't get lost. Used by the Turns widget — its expanded view (the full
-// list with the new-agreement form) is what the Needs page's Turns page
-// starts with. Writes go through src/lib/needs.js. Sized in em.
+// doesn't get lost. Used by the Taking turns widget (expanded: every
+// agreement) and the Add a turn widget (the new-agreement form), which the
+// Needs page's Turns page starts with. Writes go through src/lib/needs.js. Sized in em.
 
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -196,21 +196,19 @@ export function TurnCard({ turn, alters, activities, categories, compact = false
   );
 }
 
-// Everything: the intro, the new-agreement form, open turns, and the
-// kept / let-go ones folded away.
-export default function NeedsTurns({ alters, turns, activities, categories }) {
+// "New turn agreement": the button, then the form in its place. The Add a
+// turn widget is this on its own (v0.360.0).
+export function NewTurn({ alters, categories, intro = false }) {
   const t = useTerms();
   const refresh = useRefreshTurns();
   const [adding, setAdding] = useState(false);
-  const [showFinished, setShowFinished] = useState(false);
-  const sorted = useMemo(() => sortTurns(turns), [turns]);
-  const open = sorted.filter((x) => turnState(x, activities) === "open");
-  const finished = sorted.filter((x) => turnState(x, activities) !== "open");
   return (
     <div className="space-y-[0.6em]">
-      <p className="text-[0.75em] opacity-70">
-        When {t.alters} want different things: agree who goes first, and the second turn goes in the planner so it doesn't get lost.
-      </p>
+      {intro && (
+        <p className="text-[0.75em] opacity-70">
+          When {t.alters} want different things: agree who goes first, and the second turn goes in the planner so it doesn't get lost.
+        </p>
+      )}
       {adding ? (
         <TurnForm alters={alters} categories={categories} onCancel={() => setAdding(false)}
           onDone={() => { setAdding(false); refresh(); toast.success("Agreed 💜"); }} />
@@ -221,7 +219,22 @@ export default function NeedsTurns({ alters, turns, activities, categories }) {
           <Plus className="w-[1em] h-[1em]" /> New turn agreement
         </button>
       )}
-      {open.length === 0 && !adding && <Muted>No open turn agreements.</Muted>}
+    </div>
+  );
+}
+
+// Every agreement: open ones, then the kept / let-go ones folded away.
+// `withAdd` puts New turn agreement on top (the Needs page leaves it off,
+// since its Add a turn widget sits above).
+export default function NeedsTurns({ alters, turns, activities, categories, withAdd = false }) {
+  const [showFinished, setShowFinished] = useState(false);
+  const sorted = useMemo(() => sortTurns(turns), [turns]);
+  const open = sorted.filter((x) => turnState(x, activities) === "open");
+  const finished = sorted.filter((x) => turnState(x, activities) !== "open");
+  return (
+    <div className="space-y-[0.6em]">
+      {withAdd && <NewTurn alters={alters} categories={categories} intro />}
+      {open.length === 0 && <Muted>No open turn agreements.</Muted>}
       <div>{open.map((x) => <TurnCard key={x.id} turn={x} alters={alters} activities={activities} categories={categories} />)}</div>
       {finished.length > 0 && (
         <div className="space-y-[0.4em]">
