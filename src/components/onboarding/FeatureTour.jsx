@@ -535,6 +535,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/journals", target: "journals-new-entry",
     }),
     s("journals", {
+      emoji: "🖼️", title: "Pictures in your writing",
+      body: `Pick several pictures at once and show them one after another, as a carousel or as a slideshow. Drag each one into place like a profile picture; tap a picture later to change it.`,
+      route: "/journals", target: "journals-new-entry",
+    }),
+    s("journals", {
       emoji: "🔒", title: "Who can read it",
       body: `An entry can be limited to chosen ${t.alters} or groups, so only they can open it.`,
       route: "/journals", target: "journals-new-entry",

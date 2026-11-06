@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2, Lock, Check } from "lucide-react";
+import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Lock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
@@ -18,8 +18,6 @@ import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar"
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
-import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
-import { isLocalMode } from "@/lib/storageMode";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
@@ -91,7 +89,6 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // sliver on a phone (owner report, twice).
   useAutoGrowTextarea(textareaRef, content, { min: 128, maxScreen: 0.5 });
   const imageInputRef = useRef(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   // Image waiting in the preview/size dialog before it lands in the post.
   const [pendingImage, setPendingImage] = useState(null);
   // "Fancy" mode adds a formatting toolbar + image/GIF upload over the SAME
@@ -141,28 +138,12 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     },
   });
 
-  const handleComposerImage = async (e) => {
-    const file = e.target.files?.[0];
+  // Several pictures can be picked at once; the picture sheet stores them
+  // and asks how they show (v0.364.0).
+  const handleComposerImage = (e) => {
+    const files = [...(e.target.files || [])];
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
-    setUploadingImage(true);
-    try {
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
-      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
-      let url = dataUrl;
-      if (isLocalMode()) {
-        const id = `bulletinimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(id, dataUrl);
-        url = createLocalImageUrl(id);
-      }
-      setPendingImage(url);
-      toast.success(isGif ? "GIF added!" : "Image added!");
-    } catch (err) {
-      toast.error(err?.message || "Couldn't add that image.");
-    } finally {
-      setUploadingImage(false);
-    }
+    if (files.length) setPendingImage({ files });
   };
   // First-compose discoverability hint for the Pin / Poll buttons. Stored
   // in localStorage so it only shows once per device.
@@ -479,19 +460,19 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       {richMode && (
         <div className="mt-1.5 rounded-lg border border-border/50 overflow-hidden">
           <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
-            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+            <button type="button" title="Insert image / GIF"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => imageInputRef.current?.click()}
               className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+              <ImagePlus className="w-3.5 h-3.5" /> Image / GIF
             </button>
-            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <AssetButton onPick={(url) => setPendingImage({ urls: [url] })} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
             <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions and -signposts still work.</span>
           </div>
           <MiniToolbar onInsert={insertHtml} float="keyboard" />
-          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+          <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handleComposerImage} />
         {pendingImage && (
-          <ImageInsertPreview url={pendingImage}
+          <ImageInsertPreview files={pendingImage.files} urls={pendingImage.urls} prefix="bulletinimg"
             onInsert={(html) => insertHtml(html, "")}
             onClose={() => setPendingImage(null)} />
         )}

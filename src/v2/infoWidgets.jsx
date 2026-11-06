@@ -558,6 +558,21 @@ export function MediaWidget({ settings }) {
       </div>
     );
   }
+  if (arrange === "carousel" && count > 1) {
+    // Swipe sideways through them (v0.364.0), each snapping into place.
+    return (
+      <div className="h-full flex gap-1.5 overflow-x-auto overflow-y-hidden snap-x snap-mandatory overscroll-x-contain" style={flush()} data-media-widget="" data-media-carousel="">
+        {items.map((it, i) => (
+          <figure key={`${it.src}-${i}`} className="relative h-full flex-[0_0_85%] snap-center min-w-0 m-0 flex flex-col">
+            <div className={`relative flex-1 min-h-0 overflow-hidden ${settings?.shape === "circle" ? "rounded-full aspect-square self-center h-full" : "rounded-[inherit]"}`}>
+              <MediaItem item={it} settings={settings} />
+            </div>
+            {showCaption && it.caption && <figcaption className="text-[0.75em] opacity-80 pt-1 flex-shrink-0">{it.caption}</figcaption>}
+          </figure>
+        ))}
+      </div>
+    );
+  }
   const current = items[Math.min(index, count - 1)];
   const circle = settings?.shape === "circle";
   return (

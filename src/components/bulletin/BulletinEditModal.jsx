@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Search, Check, X, Type, Sparkles, ImagePlus, Loader2 } from "lucide-react";
+import { Search, Check, X, Type, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -13,8 +13,7 @@ import SystemAvatar from "@/components/shared/SystemAvatar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
-import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
-import { isLocalMode } from "@/lib/storageMode";
+import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 
 // Edit a bulletin's content + author(s). Rebuilt to use the SAME rich-editing
 // stack as the composer (Simple/Fancy toggle, @mention textarea, formatting
@@ -42,7 +41,8 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
   const [saving, setSaving] = useState(false);
   // Start in Fancy when the post was rich, so its formatting is preserved.
   const [richMode, setRichMode] = useState(!!bulletin?.is_rich);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // Pictures waiting in the picture sheet (v0.364.0): { files } or { urls }.
+  const [pendingImage, setPendingImage] = useState(null);
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
   const insertHtml = useTextareaInsert(textareaRef, content, setContent);
@@ -59,29 +59,10 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
 
   const activeAlters = (alters || []).filter((a) => !a.is_archived);
 
-  const handleComposerImage = async (e) => {
-    const file = e.target.files?.[0];
+  const handleComposerImage = (e) => {
+    const files = [...(e.target.files || [])];
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
-    setUploadingImage(true);
-    try {
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
-      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
-      let url = dataUrl;
-      if (isLocalMode()) {
-        const id = `bulletinimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(id, dataUrl);
-        url = createLocalImageUrl(id);
-      }
-      insertHtml(`<img src="${url}" alt="" />`, "");
-      setRichMode(true);
-      toast.success(isGif ? "GIF added!" : "Image added!");
-    } catch (err) {
-      toast.error(err?.message || "Couldn't add that image.");
-    } finally {
-      setUploadingImage(false);
-    }
+    if (files.length) setPendingImage({ files });
   };
 
   const toggleAlter = (id) => {
@@ -166,18 +147,23 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
             {richMode && (
               <div className="mt-1.5 rounded-lg border border-border/50 overflow-hidden">
                 <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
-                  <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+                  <button type="button" title="Insert image / GIF"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => imageInputRef.current?.click()}
                     className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-                    {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+                    <ImagePlus className="w-3.5 h-3.5" /> Image / GIF
                   </button>
-                  <AssetButton onPick={(url) => { insertHtml(`<img src="${url}" alt="" />`, ""); setRichMode(true); }} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+                  <AssetButton onPick={(url) => setPendingImage({ urls: [url] })} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
                   <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions still work.</span>
                 </div>
                 <MiniToolbar onInsert={insertHtml} float="keyboard" />
-                <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+                <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handleComposerImage} />
               </div>
+            )}
+            {pendingImage && (
+              <ImageInsertPreview files={pendingImage.files} urls={pendingImage.urls} prefix="bulletinimg"
+                onInsert={(html) => { insertHtml(html, ""); setRichMode(true); }}
+                onClose={() => setPendingImage(null)} />
             )}
           </div>
 

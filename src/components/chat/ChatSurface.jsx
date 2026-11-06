@@ -525,7 +525,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
         } else {
           url = await blobToDataUrl(blob);
         }
-        setPendingImage(url);
+        setPendingImage({ urls: [url] });
         toast.success(isGif ? "GIF added!" : "Image added!");
         if (saveCopy) await saveCopyToDevice(url, { name: name || file.name, mime: blob.type || file.type, kind });
       } else {
@@ -682,7 +682,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
             className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 disabled:opacity-50">
             <Paperclip className="w-3.5 h-3.5" />
           </button>
-          <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+          <AssetButton onPick={(url) => setPendingImage({ urls: [url] })} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -704,7 +704,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           <AttachFileDialog file={pendingFile} onConfirm={handleAttachConfirm} onCancel={() => setPendingFile(null)} />
         )}
         {pendingImage && (
-          <ImageInsertPreview url={pendingImage}
+          <ImageInsertPreview urls={pendingImage.urls} prefix="chatimg"
             onInsert={(html) => insertHtml(html, "")}
             onClose={() => setPendingImage(null)} />
         )}

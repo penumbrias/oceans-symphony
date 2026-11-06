@@ -1,23 +1,13 @@
 import { createPortal } from "react-dom";
 import React, { useRef, useEffect, useCallback, useState } from "react";
 
-import { toast } from "sonner";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
-import { saveLocalImage, createLocalImageUrl, compressUploadDataUrl } from "@/lib/localImageStorage";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import { scopeBioStyles } from "@/lib/scopedBioStyle";
 import useDockHeightVar from "@/hooks/useDockHeightVar";
 import { useKeyboardState } from "@/hooks/useKeyboardInset";
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
+import { pictureSetFromElement } from "@/lib/richPictures";
 
 // The Plain bio editor: a contentEditable surface that renders formatting
 // live. It now drives the SAME shared MiniToolbar the system chat uses —
@@ -42,10 +32,18 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // anything different in the DOM is typing the parent hasn't heard about.
   const syncedBody = useRef(null);
   const imageInputRef = useRef(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
-  // An image waiting in the preview/size dialog before it's inserted.
-  const [pendingImage, setPendingImage] = useState(null);
+  // The picture sheet (v0.364.0): pictures waiting to go in ({ files } /
+  // { urls }), or a picture already in the text being changed
+  // ({ initial, el }). Where the caret was is kept so they land there.
+  const [pictureSheet, setPictureSheet] = useState(null);
+  const savedRange = useRef(null);
+  const rememberCaret = () => {
+    const sel = window.getSelection();
+    const ed = editorRef.current;
+    savedRange.current = sel && sel.rangeCount && ed && ed.contains(sel.getRangeAt(0).startContainer)
+      ? sel.getRangeAt(0).cloneRange() : null;
+  };
   // A bio's <style> must NOT apply globally while it's being edited. Keep the
   // raw <style> out of the contentEditable and inject a SCOPED copy into a
   // sibling instead; reattach the raw text on emit so the value round-trips.
@@ -179,28 +177,64 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     emit();
   }, [emit]);
 
-  // Direct image upload — stored in the local image store; drops an <img> at
-  // the cursor. Animated GIFs stored raw; other formats compressed.
-  const handleImageFile = async (e) => {
-    const file = e.target.files?.[0];
+  // Pictures picked from the device — several at once — go to the picture
+  // sheet, which stores them and asks how they show. Never a blind insert.
+  const handleImageFile = (e) => {
+    const files = [...(e.target.files || [])];
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image file."); return; }
-    setUploadingImage(true);
-    try {
-      const rawDataUrl = await fileToDataUrl(file);
-      const isGif = file.type === "image/gif";
-      const stored = isGif ? rawDataUrl : await compressUploadDataUrl(rawDataUrl, 800, 0.85);
-      const id = `bioimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveLocalImage(id, stored);
-      const url = createLocalImageUrl(id);
-      // Preview + size choice first — never a blind insert.
-      setPendingImage(url);
-    } catch (err) {
-      toast.error(err?.message || "Couldn't add that image.");
-    } finally {
-      setUploadingImage(false);
+    if (!files.length) return;
+    setPictureSheet({ files });
+  };
+
+  // The sheet's result: a new set goes in at the caret; a changed one
+  // replaces the picture that was tapped.
+  const placePictures = (html) => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const el = pictureSheet?.el;
+    if (el && ed.contains(el)) {
+      el.insertAdjacentHTML("afterend", html);
+      el.remove();
+      emit();
+      return;
     }
+    // Placed with the Range API, not execCommand("insertHTML"): the browser
+    // rewrites inline styles on that path and dropped the picture's width,
+    // shape and framing.
+    ed.focus();
+    let r = savedRange.current;
+    if (!r || !ed.contains(r.startContainer)) {
+      r = document.createRange();
+      r.selectNodeContents(ed);
+      r.collapse(false);
+    }
+    r.deleteContents();
+    const frag = r.createContextualFragment(html);
+    const last = frag.lastChild;
+    r.insertNode(frag);
+    if (last) {
+      const after = document.createRange();
+      after.setStartAfter(last);
+      after.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(after);
+    }
+    savedRange.current = null;
+    emit();
+  };
+  const removePicture = () => {
+    const el = pictureSheet?.el;
+    if (el && editorRef.current?.contains(el)) { el.remove(); emit(); }
+  };
+
+  // Tapping a picture in the text opens the sheet on it (frame, shape,
+  // size, slideshow…) — older plain pictures too.
+  const onEditorClick = (e) => {
+    const hit = pictureSetFromElement(e.target);
+    if (!hit) return;
+    e.preventDefault();
+    setPictureSheet({ initial: hit.set, el: hit.el });
   };
 
   const handleKeyDown = (e) => {
@@ -248,6 +282,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         onInput={emit}
         onCompositionEnd={flush}
         onKeyDown={handleKeyDown}
+        onClick={onEditorClick}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           flush();
@@ -280,9 +315,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
       {(() => {
         const rows = (
           <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField
-            onImage={() => imageInputRef.current?.click()}
-            onAssets={() => setShowAssetPicker(true)}
-            mediaBusy={uploadingImage}
+            onImage={() => { rememberCaret(); imageInputRef.current?.click(); }}
+            onAssets={() => { rememberCaret(); setShowAssetPicker(true); }}
             onClearFormat={clearFormatting}
             onModalChange={setToolbarModal} />
         );
@@ -311,7 +345,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         );
       })()}
 
-      <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageFile} />
+      <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handleImageFile} />
 
       {showAssetPicker && (
         <AssetPickerModal
@@ -319,16 +353,20 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           onClose={() => setShowAssetPicker(false)}
           onSelect={(url) => {
             setShowAssetPicker(false);
-            setPendingImage(url);
+            setPictureSheet({ urls: [url] });
           }}
         />
       )}
 
-      {pendingImage && (
+      {pictureSheet && (
         <ImageInsertPreview
-          url={pendingImage}
-          onInsert={(html) => insertHTML(html, "")}
-          onClose={() => setPendingImage(null)}
+          files={pictureSheet.files}
+          urls={pictureSheet.urls}
+          initial={pictureSheet.initial}
+          prefix="bioimg"
+          onInsert={placePictures}
+          onRemove={pictureSheet.el ? removePicture : undefined}
+          onClose={() => setPictureSheet(null)}
         />
       )}
     </div>

@@ -216,6 +216,10 @@ function nodeToReact(node, key, renderText) {
   const styleObj = cssStringToStyleObject(node.getAttribute("style"));
   const props = { key };
   if (styleObj) props.style = styleObj;
+  // A picture carousel / slideshow (richPictures.js) keeps its marker so the
+  // global CSS can pause it and turn it into a row under reduced motion.
+  const gallery = tag === "div" ? node.getAttribute("data-os-gallery") : null;
+  if (gallery === "carousel" || gallery === "slideshow") props["data-os-gallery"] = gallery;
   // Preserve the whitelisted "spoiler" / "whisper" classes so censor bars
   // and whispers survive (class is otherwise dropped). Safe — a class name
   // can't execute anything. The whisper carries its recipient names in a

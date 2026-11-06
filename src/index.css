@@ -1140,3 +1140,33 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 .os-themed-lists.os-themed-lists :is(.bg-emerald-500\/10) { background-color: hsl(var(--primary) / 0.1); }
 .os-themed-lists.os-themed-lists :is(.ring-emerald-500\/40) { --tw-ring-color: hsl(var(--primary) / 0.4); }
 .os-themed-lists.os-themed-lists ::placeholder { color: hsl(var(--muted-foreground)); }
+
+/* Picture slideshows in written text (v0.364.0, src/lib/richPictures.js):
+   one fade loop per picture count. Each slide sets its own duration and
+   delay inline, so the stored text needs nothing else from here. A
+   slideshow pauses while a finger or pointer rests on it; with reduced
+   motion it becomes a row to swipe through instead. */
+@keyframes os-slides-2{0%{opacity:0}6%{opacity:1}50%{opacity:1}56%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-3{0%{opacity:0}6%{opacity:1}33.333%{opacity:1}39.333%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-4{0%{opacity:0}6%{opacity:1}25%{opacity:1}31%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-5{0%{opacity:0}6%{opacity:1}20%{opacity:1}26%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-6{0%{opacity:0}5%{opacity:1}16.667%{opacity:1}21.667%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-7{0%{opacity:0}4.286%{opacity:1}14.286%{opacity:1}18.571%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-8{0%{opacity:0}3.75%{opacity:1}12.5%{opacity:1}16.25%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-9{0%{opacity:0}3.333%{opacity:1}11.111%{opacity:1}14.444%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-10{0%{opacity:0}3%{opacity:1}10%{opacity:1}13%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-11{0%{opacity:0}2.727%{opacity:1}9.091%{opacity:1}11.818%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-12{0%{opacity:0}2.5%{opacity:1}8.333%{opacity:1}10.833%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-13{0%{opacity:0}2.308%{opacity:1}7.692%{opacity:1}10%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-14{0%{opacity:0}2.143%{opacity:1}7.143%{opacity:1}9.286%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-15{0%{opacity:0}2%{opacity:1}6.667%{opacity:1}8.667%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-16{0%{opacity:0}1.875%{opacity:1}6.25%{opacity:1}8.125%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-17{0%{opacity:0}1.765%{opacity:1}5.882%{opacity:1}7.647%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-18{0%{opacity:0}1.667%{opacity:1}5.556%{opacity:1}7.222%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-19{0%{opacity:0}1.579%{opacity:1}5.263%{opacity:1}6.842%{opacity:0}100%{opacity:0}}
+@keyframes os-slides-20{0%{opacity:0}1.5%{opacity:1}5%{opacity:1}6.5%{opacity:0}100%{opacity:0}}
+[data-os-gallery="slideshow"]:hover > *, [data-os-gallery="slideshow"]:active > * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  [data-os-gallery="slideshow"] { display: flex !important; gap: 8px; overflow-x: auto !important; scroll-snap-type: x mandatory; aspect-ratio: auto !important; border-radius: 0 !important; }
+  [data-os-gallery="slideshow"] > * { animation: none !important; opacity: 1 !important; flex: 0 0 85%; scroll-snap-align: center; aspect-ratio: 4 / 3; grid-area: auto !important; }
+}
