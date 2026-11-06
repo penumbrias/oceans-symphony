@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "Editing a page: swiping over a resized widget scrolls the page again instead of nudging the widget a few pixels." },
       { type: "improve", text: "Widget options and edit sheets slide open and closed more smoothly, especially on busy pages." },
       { type: "fix", text: "Profiles and the home screen: a widget let go in empty space now stays where you put it instead of jumping back." },
       { type: "improve", text: "Coloured chips and labels are easier to read on dark themes, Planner block names no longer fade with the block, and the small handle above the bottom bar is easier to tap." },

@@ -431,6 +431,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         // never resized suddenly becomes a 80px letterbox.
         height: fixedHeight ? Math.max(shownRows * rowPx + (shownRows - 1) * 12, flowGrowPx || 0) : undefined,
         overflowY: fixedHeight ? "auto" : undefined,
+        overflowX: fixedHeight ? "hidden" : undefined,
         minHeight: fixedHeight ? undefined : emptyHint ? 44 : flowView ? 0 : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
@@ -686,27 +687,30 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
       </div>
 
       {/* Edge-resize handles — siblings of the drag wrapper so dnd-kit's
-          listeners never see their pointer events. Hold 0.15s, then drag. */}
+          listeners never see their pointer events. Hold 0.15s, then drag.
+          They sit INSIDE the cell: a sized widget's cell scrolls, and a
+          handle poking 6px out made it scrollable by those 6px — enough to
+          swallow a swipe meant for the page (owner report, v0.364.16). */}
       {editMode && !a11yStack && !move.dragging && (
         <>
           <div
             {...resize.getHandleProps("x")}
             aria-hidden="true"
-            className="absolute -right-1.5 inset-y-3 w-5 z-20 flex items-center justify-center cursor-ew-resize"
+            className="absolute right-0 inset-y-3 w-5 z-20 flex items-center justify-center cursor-ew-resize"
           >
             <span className="w-1 h-8 rounded-full bg-border" />
           </div>
           <div
             {...resize.getHandleProps("y")}
             aria-hidden="true"
-            className="absolute -bottom-1.5 inset-x-3 h-5 z-20 flex items-center justify-center cursor-ns-resize"
+            className="absolute bottom-0 inset-x-3 h-5 z-20 flex items-center justify-center cursor-ns-resize"
           >
             <span className="h-1 w-8 rounded-full bg-border" />
           </div>
           <div
             {...resize.getHandleProps("xy")}
             aria-hidden="true"
-            className="absolute -bottom-1.5 -right-1.5 w-6 h-6 z-20 flex items-center justify-center cursor-nwse-resize"
+            className="absolute bottom-0 right-0 w-6 h-6 z-20 flex items-center justify-center cursor-nwse-resize"
           >
             <span className="w-2 h-2 rounded-sm border-b-2 border-r-2 border-muted-foreground/70" />
           </div>
