@@ -13,7 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, UserCheck } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronRight, ChevronDown, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
