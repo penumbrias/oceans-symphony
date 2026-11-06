@@ -6,7 +6,7 @@ import { taskCountConfig, taskCountState, countLabel } from "@/lib/taskCounts";
 import { TaskCounter, TaskStepList, useTaskTicks } from "@/components/tasks/TaskCountControls";
 import { taskNote } from "@/lib/taskCreate";
 
-export default function TaskCard({ task, completed, onToggle }) {
+export default function TaskCard({ task, completed, onToggle, showPoints = true }) {
   const navigate = useNavigate();
 
   // Opens the task's link, or asks to begin its activity (openDailyTask).
@@ -36,9 +36,11 @@ export default function TaskCard({ task, completed, onToggle }) {
             }`}>
               {task.mode}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-              {task.points} pts
-            </span>
+            {showPoints && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                {task.points} pts
+              </span>
+            )}
           </div>
           {taskNote(task) && (
             <p className="text-xs text-muted-foreground leading-relaxed">{taskNote(task)}</p>

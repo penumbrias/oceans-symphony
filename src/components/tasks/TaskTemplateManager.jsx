@@ -7,6 +7,7 @@ import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, WEEKDAY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
 import GoalsXpSwitch from "@/components/goals/GoalsXpSwitch";
+import { SwitchRow } from "@/components/shared/SettingRows";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -85,7 +86,12 @@ function countFields(form) {
 const newStepId = () => (globalThis.crypto?.randomUUID?.() || `step_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
 const PERIOD_WORD = { daily: "day", weekly: "week", monthly: "month", yearly: "year" };
 
+// Points and levels are opt-in (src/lib/routinePoints.js); off, the
+// manager hides every points field and chip.
+const ShowPointsContext = React.createContext(true);
+
 function TaskForm({ initial, onSave, onCancel, isNew }) {
+  const showPoints = React.useContext(ShowPointsContext);
   const [form, setForm] = useState(() => {
     if (!initial) return EMPTY_FORM;
     // Older tasks (v0.255.0) stored one activity and no mode — show them
@@ -129,12 +135,12 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             {Object.entries(FREQUENCY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
-        <div>
+        {showPoints && <div>
           <label className="text-xs font-medium text-muted-foreground">Points</label>
           <input type="number" min={1} max={100}
             className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={form.points} onChange={(e) => set("points", Number(e.target.value))} />
-        </div>
+        </div>}
         {/* Daily tasks can be due only on some weekdays. */}
         {(form.frequency || "daily") === "daily" && (
           <div className="col-span-2">
@@ -432,6 +438,7 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
 }
 
 function TaskRow({ template: t, dragHandleProps, onEdit, onToggle, onDelete }) {
+  const showPoints = React.useContext(ShowPointsContext);
   return (
     <div className={`flex items-center gap-2 rounded-xl border p-3 bg-card transition-all ${
       t.is_active ? "border-border/50" : "border-border/30 opacity-60"
@@ -449,7 +456,7 @@ function TaskRow({ template: t, dragHandleProps, onEdit, onToggle, onDelete }) {
           <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${
             t.mode === "AUTO" ? "border-blue-400/50 text-blue-500" : "border-border text-muted-foreground"
           }`}>{t.mode}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t.points} pts</span>
+          {showPoints && <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t.points} pts</span>}
           {!t.is_active && <span className="text-xs text-muted-foreground italic">hidden</span>}
         </div>
         {t.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.description}</p>}
@@ -484,7 +491,7 @@ function SortableTaskRow(props) {
   );
 }
 
-export default function TaskTemplateManager({ templates: propTemplates, onClose }) {
+export default function TaskTemplateManager({ templates: propTemplates, onClose, showPoints = true, onPointsChange }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -609,15 +616,24 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
   const hasAnyTasks = templates.length > 0;
 
   return (
+    <ShowPointsContext.Provider value={showPoints}>
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Manage Tasks</h2>
+        <h2 className="font-semibold text-lg">Manage routines</h2>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <GoalsXpSwitch />
+      {onPointsChange && (
+        <SwitchRow
+          label="Points and levels"
+          hint="Earn points for routines and level up. Off, routines are just ticks; the points are still kept if you turn this on later."
+          checked={showPoints}
+          onChange={onPointsChange}
+        />
+      )}
+      {showPoints && <GoalsXpSwitch />}
 
       {FREQUENCY_ORDER.map((freq) => {
         const section = grouped[freq];
@@ -713,5 +729,6 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         </div>
       )}
     </div>
+    </ShowPointsContext.Provider>
   );
 }

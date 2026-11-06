@@ -585,13 +585,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── TASKS ──────────────────────────────────────────────────────────────
     s("tasks", {
       emoji: "✅", title: "Routines",
-      body: `Routines are little things that repeat daily, weekly, monthly or yearly. Each has points and a streak; finishing them levels you up.`,
+      body: `Routines are little things that repeat daily, weekly, monthly or yearly. Tick them off as you do them; a missed day takes nothing away.`,
       route: "/tasks", target: "tasks-daily", look: `the highlighted task cards`,
     }),
     s("tasks", {
-      emoji: "📊", title: "Level and streak",
-      body: `This bar shows your level, today's points, your current streak and your best one. It fills as you tick tasks off.`,
-      route: "/tasks", target: "tasks-level-bar", look: `the highlighted level bar`,
+      emoji: "📊", title: "Days you showed up",
+      body: `This counts the days you showed up this month. Points and levels are optional: turn them on here or under Edit, and the bar shows your level too.`,
+      route: "/tasks", target: "tasks-level-bar", look: `the highlighted card`,
     }),
     s("tasks", {
       emoji: "🗂️", title: "Daily, weekly, monthly, yearly",
