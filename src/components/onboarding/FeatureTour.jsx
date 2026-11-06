@@ -24,13 +24,15 @@ import { tutorialRouteKey } from "@/lib/pageTutorials";
 export const STEP_BODY_LIMIT = 300;
 
 const SECTION_LABELS = (t) => ({
-  welcome: "Welcome", newui: "New UI", dashboard: "Home", fronting: t.Fronting,
+  welcome: "Welcome", garden: "How it fits together", newui: "New UI", dashboard: "Home", fronting: t.Fronting,
   alters: t.Alters, profile: `${t.Alter} profile`, timeline: "Timeline",
   meetings: `${t.System} Meetings`, journals: "Journals", bulletin: "Bulletin Board",
   tasks: "Routines", activities: "Activities", polls: "Polls", reminders: "Reminders",
   analytics: "Analytics", systemmap: `${t.System} Map`, grounding: "Support",
   contacts: "Contacts", therapy: "Therapy Report", settings: "Settings",
-  friends: "Friends", chat: `${t.System} Chat`, done: "Done!",
+  friends: "Friends", chat: `${t.System} Chat`, groups: "Groups", sleep: "Sleep",
+  history: `${t.System} History`, locations: "Location History", unblend: "Help me unblend",
+  page: "This page", done: "Done!",
 });
 
 export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2On = false) {
@@ -56,6 +58,41 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "♿", title: "Accessibility, any time",
       body: `The Accessibility button in the corner stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
       route: "/", look: `the floating "Accessibility" button in the corner of the screen`,
+    }),
+
+    // ─── HOW IT FITS TOGETHER (the garden, docs/garden.md) ─────────────────
+    // Full tour only: the one plan every page follows, shown on a real
+    // profile. Page tutorials open with pageIntroStep() instead.
+    s("garden", {
+      emoji: "🌱", title: "One plan for every page",
+      body: `Every page is built the same way. What you record is kept in one place, and pages show it with widgets. Learn it once here and you know your way around everywhere.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("garden", {
+      emoji: "🪪", title: "Info is where things live",
+      body: `A profile, a note or a Notebook page is a record. Its Info holds everything about it, and that's the one place it's saved. Changing it there changes it everywhere.`,
+      route: profile(), target: onProfile("alter-profile-edit-btn"), fullTourOnly: true,
+      look: ai ? `the highlighted Info button` : `the Info button at the top of any profile`,
+    }),
+    s("garden", {
+      emoji: "🧩", title: "Pages are boards of widgets",
+      body: `The page itself is a board of widgets. Each widget shows one part of a record: the bio, some custom fields, recent ${t.fronting}. Removing a widget never removes what it showed.`,
+      route: profile(), target: onProfile(["alter-profile-tabs", "alter-profile-edit-btn"]), fullTourOnly: true,
+    }),
+    s("garden", {
+      emoji: "✏️", title: "Edit page arranges",
+      body: `Edit page (the pencil) moves, resizes, adds and removes widgets. It changes how the page looks, never what's saved in Info, so you can rearrange freely.`,
+      route: profile(), target: onProfile(["alter-profile-layout-btn", "alter-profile-edit-btn"]), fullTourOnly: true,
+    }),
+    s("garden", {
+      emoji: "⚙️", title: "A widget's options",
+      body: `While editing, a widget's gear opens its options. Content says what it shows; Text, Shape and Colour set its look. Each tab ends in Reset, so nothing is ever stuck.`,
+      route: profile(), fullTourOnly: true,
+    }),
+    s("garden", {
+      emoji: "🏡", title: "The same everywhere",
+      body: `Your home screen, profiles, Notes & lists, Notebook and Needs all work this way: Info for what's saved, widgets to show it, Edit page to arrange it.`,
+      route: "/", fullTourOnly: true,
     }),
 
     // ─── Classic-hosted v2 bars (classic look only — v2 has its own) ────────
@@ -1217,6 +1254,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings#tour", target: ["rerun-setup", "settings-about"], look: `the highlighted "Re-run setup" button`,
     }),
     s("settings", {
+      emoji: "🧭", title: "Take the tour again",
+      body: `"Take the full tour" here replays this whole tour. For one page, open that page's ⚙ menu and choose "Show me around this page".`,
+      route: "/settings#tour", target: ["settings-full-tour", "settings-about"], look: `the highlighted "Take the full tour" button`,
+    }),
+    s("settings", {
       emoji: "🧪", title: "Experimental features",
       body: `Mods are still settling, so they stay hidden until you switch on Experimental features, under General. Switching it off only hides them.`,
       route: "/settings", target: "settings-experimental", look: `the Experimental features row, under General`,
@@ -1321,6 +1363,68 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/chat",
     }),
 
+    // ─── PAGES WITH ONE OR TWO STEPS ────────────────────────────────────────
+    s("groups", {
+      emoji: "🗂️", title: "Groups",
+      body: `Groups sort ${t.alters} into folders and subsystems, and a group can sit inside another. Tap a group to open its profile; the arrows beside it change the order.`,
+      route: "/groups", target: "groups-page",
+    }),
+    s("groups", {
+      emoji: "➕", title: "New group",
+      body: `New group makes one. Select lets you move or delete several groups at once, and deleted groups go to the trash first.`,
+      route: "/groups", target: ["groups-new-btn", "groups-page"],
+    }),
+    s("sleep", {
+      emoji: "😴", title: "Sleep",
+      body: `This page keeps your nights: how long, how well, and any dreams. The numbers up top sum up this month.`,
+      route: "/sleep", target: "sleep-page",
+    }),
+    s("sleep", {
+      emoji: "⏰", title: "Start and end a night",
+      body: `Start sleep when you go to bed and End sleep when you wake. Forgot? "Add past night" logs one afterwards.`,
+      route: "/sleep", target: ["sleep-start", "sleep-page"],
+    }),
+    s("history", {
+      emoji: "🧬", title: `${t.System} History`,
+      body: `A record of how your ${t.system} has changed: fusions, splits, emergences, dormancy and returns. The chips filter by kind.`,
+      route: "/system-history", target: "system-history-page",
+    }),
+    s("history", {
+      emoji: "➕", title: "Add an event",
+      body: `Add Event records a change, with just the year if that's all you know. A split also links the new ${t.alters} to where they came from.`,
+      route: "/system-history", target: ["system-history-add-btn", "system-history-page"],
+    }),
+    s("locations", {
+      emoji: "📍", title: "Location History",
+      body: `Where you've been, one entry at a time, with patterns over time. Places logged with GPS have an "Open in Maps" link.`,
+      route: "/location-history", target: "location-history-page",
+    }),
+    s("locations", {
+      emoji: "➕", title: "Log a location",
+      body: `Log Location saves where you are now, or a place you type. Each entry is kept; editing one never replaces the others.`,
+      route: "/location-history", target: ["location-history-add-btn", "location-history-page"],
+    }),
+    s("bulletin", {
+      emoji: "📌", title: "The whole board",
+      body: `This page is the full bulletin board. New post writes one; pick which board it goes to inside the popup.`,
+      route: "/bulletins", target: ["bulletins-new-post", "bulletins-page"],
+    }),
+    s("unblend", {
+      emoji: "💗", title: "Help me unblend",
+      body: `A gentle run of questions to work out who's here now. Skip anything; the likely ${t.fronters} at the bottom narrow as you answer.`,
+      route: "/unblend", target: "unblend-page",
+    }),
+    s("unblend", {
+      emoji: "⚙️", title: "Your own questions",
+      body: `The cog opens the question list, where you can add your own. The sparkle opens Get to know me.`,
+      route: "/unblend", target: ["unblend-manage-btn", "unblend-page"],
+    }),
+    s("unblend", {
+      emoji: "✨", title: "Get to know me",
+      body: `Answer questions while you're grounded, for whichever ${t.alters} the answer fits. Help me unblend uses these answers later.`,
+      route: "/get-to-know-me", target: "get-to-know-me-page",
+    }),
+
     // ─── DONE ───────────────────────────────────────────────────────────────
     s("done", {
       emoji: "👁️", title: "Want to see it filled in?",
@@ -1329,10 +1433,29 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("done", {
       emoji: "💜", title: "That's the tour",
-      body: `Log at your own pace; nothing forgotten in the moment is lost. Replay the tour from the ⚙ menu on the home screen, or tap "Show me around" on any page. Take good care.`,
+      body: `Log at your own pace; nothing forgotten in the moment is lost. Replay it from Settings → Tour & onboarding, or open any page's ⚙ menu → "Show me around this page". Take good care.`,
       route: null,
     }),
   ];
+}
+
+// The first card of a page tutorial on a widget-board page: how the page is
+// built (docs/garden.md), pointing at its Edit page button. Null for other
+// pages.
+export function pageIntroStep(t, routeKey) {
+  const base = { section: "page", sectionLabel: "This page", look: null, action: null };
+  if (routeKey === "/alter/:id") {
+    return { ...base, emoji: "🌱", title: "How this page is built", route: null,
+      body: `Everything about this ${t.alter} is kept once, in Info. The page is a board of widgets that show parts of it. Edit page only arranges the widgets; what's in Info stays put.`,
+      target: ["alter-profile-layout-btn", "alter-profile-edit-btn"] };
+  }
+  const boards = { "/notes": "notes-layout-btn", "/goals": "notebook-layout-btn", "/needs": "needs-layout-btn" };
+  if (boards[routeKey]) {
+    return { ...base, emoji: "🌱", title: "How this page is built", route: null,
+      body: `This page is a board of widgets. Each thing you make here is kept as its own record with its own Info, and the widgets show it. Edit page (the pencil) arranges the widgets without touching what you wrote.`,
+      target: [boards[routeKey], `${routeKey.slice(1)}-page`] };
+  }
+  return null;
 }
 
 // `restrictToRoute` — when set, the tour filters down to steps whose `route`
@@ -1353,7 +1476,7 @@ export function getRoutesWithTourSteps() {
   const all = buildSteps({}, "_", false).concat(buildSteps({}, "_", false, true));
   const set = new Set();
   for (const s of all) {
-    if (s.route && s.section !== "welcome" && s.section !== "newui") set.add(tutorialRouteKey(s.route));
+    if (s.route && s.section !== "welcome" && s.section !== "newui" && !s.fullTourOnly) set.add(tutorialRouteKey(s.route));
   }
   _routesCache = set;
   return set;
@@ -1410,7 +1533,11 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
       .filter((st) => !(st.experimental && !experimentalOn));
     if (!restrictToRoute) return all;
     const key = tutorialRouteKey(restrictToRoute);
-    return all.filter(s => s.route && tutorialRouteKey(s.route) === key && s.section !== "welcome" && s.section !== "done");
+    const own = all.filter(s => s.route && tutorialRouteKey(s.route) === key
+      && s.section !== "welcome" && s.section !== "done" && !s.fullTourOnly);
+    // Open on how the page is built, staying on this page (route null).
+    const intro = own.length ? pageIntroStep(t, key) : null;
+    return intro ? [intro, ...own] : own;
   }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn]);
   const [step, setStep] = useState(0);
 
@@ -1622,7 +1749,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">
             <div
-              className="h-full bg-primary transition-all duration-500"
+              className="h-full bg-primary transition-all duration-500 motion-reduce:transition-none"
               style={{ width: `${((step + 1) / steps.length) * 100}%` }}
             />
           </div>

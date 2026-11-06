@@ -101,3 +101,29 @@ export function tutorialRouteKey(route) {
   if (/^\/alter\/[^/]+$/.test(path)) return "/alter/:id";
   return path;
 }
+
+// The pages that have a walk-through. The list lives in the FeatureTour
+// module, which is big — fetch it only when something could offer a tour
+// (the first-visit banner, the ⚙ menu opening), never at startup.
+let _routes = null;
+let _routesPromise = null;
+export function tourRoutesIfLoaded() { return _routes; }
+export function loadTourRoutes() {
+  if (!_routesPromise) {
+    _routesPromise = import("@/components/onboarding/FeatureTour")
+      .then((m) => { _routes = m.getRoutesWithTourSteps(); return _routes; })
+      .catch(() => { _routesPromise = null; return null; });
+  }
+  return _routesPromise;
+}
+
+// Doors into the tours from anywhere (the ⚙ menu, Settings). AppLayout
+// hosts both tours and listens for these.
+export const OPEN_PAGE_TOUR_EVENT = "os-open-page-tour";
+export const OPEN_FULL_TOUR_EVENT = "os-open-feature-tour";
+export function openPageTour(path) {
+  try { window.dispatchEvent(new CustomEvent(OPEN_PAGE_TOUR_EVENT, { detail: { path } })); } catch { /* no window */ }
+}
+export function openFullTour() {
+  try { window.dispatchEvent(new CustomEvent(OPEN_FULL_TOUR_EVENT)); } catch { /* no window */ }
+}

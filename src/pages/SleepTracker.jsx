@@ -169,7 +169,7 @@ export default function SleepTracker() {
 
   return (
     <div className="py-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto" data-tour="sleep-page">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Sleep Tracker</h1>
           <p className="text-muted-foreground">Track your sleep patterns and quality</p>
@@ -214,7 +214,7 @@ export default function SleepTracker() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6 space-y-2">
+            <CardContent className="pt-6 space-y-2" data-tour="sleep-start">
               {/* Start sleep / End sleep — primary one-tap flow for
                   logging tonight's sleep as it happens. When no log
                   is in progress, the button starts one (creates a

@@ -414,7 +414,7 @@ export default function GetToKnowMe() {
   };
 
   return (
-    <div className="os-page-shell p-4 sm:p-6 space-y-5">
+    <div className="os-page-shell p-4 sm:p-6 space-y-5" data-tour="get-to-know-me-page">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
           <ChevronLeft className="w-4 h-4" />

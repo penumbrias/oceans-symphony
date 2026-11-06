@@ -242,13 +242,13 @@ export default function LocationHistory() {
   const topCatMeta = topCat ? getCategoryMeta(topCat[0]) : null;
 
   return (
-    <div className="py-6 os-page-shell">
+    <div className="py-6 os-page-shell" data-tour="location-history-page">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">Location History</h1>
           <p className="text-muted-foreground text-sm mt-1">Track where you go and see patterns over time</p>
         </div>
-        <Button onClick={openAdd} className="bg-primary hover:bg-primary/90">
+        <Button onClick={openAdd} className="bg-primary hover:bg-primary/90" data-tour="location-history-add-btn">
           <Plus className="w-4 h-4 mr-2" />
           Log Location
         </Button>
