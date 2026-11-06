@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2, Lock, Check, Search, X, Pencil } from "lucide-react";
+import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Lock, Check, Search, X, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
@@ -18,8 +18,6 @@ import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
-import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
-import { isLocalMode } from "@/lib/storageMode";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
@@ -60,34 +58,17 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   });
   const inputRef = React.useRef(null);
   const imageInputRef = React.useRef(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   // Image waiting in the preview/size dialog before it lands in the comment.
   const [pendingImage, setPendingImage] = useState(null);
   const insertHtml = useTextareaInsert(inputRef, text, setText);
   // Grows with what's written, then scrolls — same as the post box.
   useAutoGrowTextarea(inputRef, text, { min: richMode ? 112 : 72, maxScreen: 0.4 });
-  const handleImage = async (e) => {
-    const file = e.target.files?.[0];
+  // Several pictures can be picked at once; the picture sheet stores them
+  // and asks how they show (v0.361.0).
+  const handleImage = (e) => {
+    const files = [...(e.target.files || [])];
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
-    setUploadingImage(true);
-    try {
-      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
-      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
-      let url = dataUrl;
-      if (isLocalMode()) {
-        const id = `commentimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(id, dataUrl);
-        url = createLocalImageUrl(id);
-      }
-      setPendingImage(url);
-      toast.success(isGif ? "GIF added!" : "Image added!");
-    } catch (err) {
-      toast.error(err?.message || "Couldn't add that image.");
-    } finally {
-      setUploadingImage(false);
-    }
+    if (files.length) setPendingImage({ files });
   };
 
   const systemKeywords = React.useMemo(() => {
@@ -352,19 +333,19 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       {richMode && (
         <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
           <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
-            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+            <button type="button" title="Insert image / GIF"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => imageInputRef.current?.click()}
               className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+              <ImagePlus className="w-3.5 h-3.5" /> Image / GIF
             </button>
-            <AssetButton onPick={(url) => setPendingImage(url)} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <AssetButton onPick={(url) => setPendingImage({ urls: [url] })} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
             <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
           </div>
           <MiniToolbar onInsert={insertHtml} float="keyboard" />
-          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
+          <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handleImage} />
         {pendingImage && (
-          <ImageInsertPreview url={pendingImage}
+          <ImageInsertPreview files={pendingImage.files} urls={pendingImage.urls} prefix="commentimg"
             onInsert={(html) => insertHtml(html, "")}
             onClose={() => setPendingImage(null)} />
         )}

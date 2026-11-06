@@ -7,8 +7,9 @@
 
 // [data-bio-modal]: the bio editor's Import, Preview and Templates
 // windows (v0.320.1), which the Bio widget's Content tab opens from inside
-// a sheet.
-const PORTAL_SELECTOR = "[data-searchable-dropdown], [data-anchored-portal], [data-color-picker-popover], [data-bio-modal]";
+// a sheet. [data-picture-sheet]: the picture sheet (v0.361.0), opened
+// from text editors that can sit inside another sheet.
+const PORTAL_SELECTOR = "[data-searchable-dropdown], [data-anchored-portal], [data-color-picker-popover], [data-bio-modal], [data-picture-sheet]";
 
 const guard = (e) => {
   const t = e.detail?.originalEvent?.target || e.target;

@@ -22,7 +22,6 @@
 // - the system banner: `system_banner_framing` on SystemSettings (device
 //   look, like its height — the crop differs by screen width).
 
-import { base44 } from "@/api/base44Client";
 
 export const ZOOM_MIN = 1;
 export const ZOOM_MAX = 4;
@@ -103,6 +102,9 @@ export function withImageFraming(map, url, frame) {
 // Settings form holds SystemSettings' map until Save instead).
 export async function setRecordImageFraming(entity, id, url, frame) {
   if (!entity || !id || !url) return null;
+  // Loaded here so the pure helpers above stay importable on their own
+  // (richPictures.js and its test).
+  const { base44 } = await import("@/api/base44Client");
   const fresh = (await base44.entities[entity].get(id)) || {};
   return base44.entities[entity].update(id, { image_framing: withImageFraming(fresh.image_framing, url, frame) });
 }

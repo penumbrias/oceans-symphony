@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "feature", text: "Pictures in your writing: add several at once and show them one after another, as a carousel or as a slideshow. Drag any picture into place, and tap it later to change it." },
+      { type: "improve", text: "The Image widget can show several pictures as a carousel you swipe through." },
       { type: "feature", text: "New \"Add a turn\" widget: make a turn agreement from any widget board. On Needs it sits above Taking turns." },
       { type: "improve", text: "Notebook pages have an Info button, like profiles: title, icon, status, tags, word target and chapters all in one sheet that saves as you go. Outline, Board or Map is now the Page widget's option." },
       { type: "feature", text: "The Notebook's front page is now a widget board: tap the grid button to move Add a goal and your goal cards, or add pictures and notes beside them." },

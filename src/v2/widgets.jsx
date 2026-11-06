@@ -3568,7 +3568,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   },
   media: {
-    label: "Image", description: "A picture, GIF or video \u2014 from your library, a link, or an {{alter}}'s profile picture, Pictures or pinned bar picture. Frame it by dragging, zoom, fade, rotate or flip it, fill or fit the box, or show several as a slideshow or grid.",
+    label: "Image", description: "A picture, GIF or video \u2014 from your library, a link, or an {{alter}}'s profile picture, Pictures or pinned bar picture. Frame it by dragging, zoom, fade, rotate or flip it, fill or fit the box, or show several as a slideshow, carousel or grid.",
     icon: ImageIcon, category: "layout",
     // A page piece: fits every board, profiles included.
     subjects: ["home", "alter", "group", "contact", "location"],
@@ -3600,8 +3600,8 @@ export const V2_WIDGETS = {
       { key: "flipX", type: "toggle", label: "Mirror", default: false },
       { key: "flipY", type: "toggle", label: "Upside down", default: false },
       { key: "arrange", type: "select", label: "With several", default: "slideshow",
-        options: [{ value: "slideshow", label: "Slideshow" }, { value: "grid", label: "Grid" }] },
-      { key: "interval", type: "number", label: "Seconds per slide", min: 2, max: 60, default: 6, unit: "s" },
+        options: [{ value: "slideshow", label: "Slideshow" }, { value: "carousel", label: "Carousel" }, { value: "grid", label: "Grid" }] },
+      { key: "interval", type: "number", label: "Seconds per slide", min: 2, max: 60, default: 6, unit: "s", showIf: (s) => (s?.arrange || "slideshow") === "slideshow" },
       { key: "showCaption", type: "toggle", label: "Show captions", default: true },
     ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 40 },

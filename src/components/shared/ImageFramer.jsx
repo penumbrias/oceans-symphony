@@ -15,7 +15,10 @@ import { framingOf, framedImageStyle, CENTRED, ZOOM_MIN, ZOOM_MAX } from "@/lib/
 const SHAPE_RADIUS = { circle: "9999px", rounded: "22%", square: "6%", box: "12px" };
 
 // `aspect` "square" (default) or "wide" (a banner / header-shaped preview).
-export default function ImageFramer({ src, value, onChange, shape = "circle", label = "Picture", fit = "cover", aspect = "square" }) {
+// `ratio` (a CSS aspect-ratio like "4 / 3") sizes the preview to the shape
+// the picture shows in instead; "natural" keeps the picture's own shape
+// (only the zoom crops it) — pictures in written text, richPictures.js.
+export default function ImageFramer({ src, value, onChange, shape = "circle", label = "Picture", fit = "cover", aspect = "square", ratio = null }) {
   const url = useResolvedAvatarUrl(src);
   const [frame, setFrame] = useState(() => framingOf(value) || CENTRED);
   const timer = useRef(null);
@@ -90,9 +93,9 @@ export default function ImageFramer({ src, value, onChange, shape = "circle", la
           data-vaul-no-drag="" data-own-hold=""
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
           onKeyDown={onKeyDown}
-          className={`relative ${aspect === "wide" ? "w-44 h-20" : "w-28 h-28"} flex-shrink-0 overflow-hidden bg-muted/40 cursor-grab active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary`}
-          style={{ borderRadius: SHAPE_RADIUS[shape] || SHAPE_RADIUS.box, touchAction: "none" }}>
-          {url && <img src={url} alt="" draggable={false} className="w-full h-full block select-none pointer-events-none" style={framedImageStyle(frame, { fit })} />}
+          className={`relative ${ratio === "natural" ? "w-32" : ratio ? "w-36 max-h-48" : aspect === "wide" ? "w-44 h-20" : "w-28 h-28"} flex-shrink-0 overflow-hidden bg-muted/40 cursor-grab active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary`}
+          style={{ borderRadius: SHAPE_RADIUS[shape] || SHAPE_RADIUS.box, touchAction: "none", ...(ratio && ratio !== "natural" ? { aspectRatio: ratio } : null) }}>
+          {url && <img src={url} alt="" draggable={false} className={`w-full ${ratio === "natural" ? "h-auto" : "h-full"} block select-none pointer-events-none`} style={framedImageStyle(frame, { fit })} />}
         </div>
         <div className="flex-1 min-w-0 text-[0.6875rem] text-muted-foreground leading-snug space-y-2">
           <p>Drag the picture to choose what stays in view. Arrow keys move it too.</p>
