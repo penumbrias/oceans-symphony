@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "Get to know me answers can now be added, not just removed: tap an answer or type your own in the widget's options or in Info." },
       { type: "feature", text: "Fill in fields right from a widget's options: \"Every other field\" lists each custom field to fill in, and group, location and contact widgets edit their name, description and details." },
       { type: "fix", text: "Editing a page: swiping over a resized widget scrolls the page again instead of nudging the widget a few pixels." },
       { type: "improve", text: "Widget options and edit sheets slide open and closed more smoothly, especially on busy pages." },

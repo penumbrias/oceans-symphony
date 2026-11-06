@@ -28,7 +28,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useAlterGroups } from "@/components/alters/profile/ProfileSections";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
+import { PRESET_ANSWER_LABELS, PRESET_QUESTIONS } from "@/lib/unblendQuestions";
 import { extractYear, createOwnedSubsystem } from "@/lib/alterEntry";
 import { uploadAlterImage, largeGifWarning, addAlterPicture, releaseAlterPicture, PICTURE_ROLE } from "@/lib/alterImageUpload";
 import {
@@ -728,38 +728,70 @@ export function TagsSection({ info }) {
   );
 }
 
-// ── Get to know me answers (answers come from Get to know me; here they
-// can be taken out) ──
+// ── Get to know me answers ──
+// Answers usually come from Get to know me; here (and in the Get to know
+// me widget's options, v0.365.1) they can be added as well as taken out:
+// each preset question offers its answers to tap, plus "your own".
+// Stored the way Get to know me stores them: a comma list per question
+// on preset_answers, the option's tagLabel (or label).
+const ANSWER_QUESTIONS = PRESET_QUESTIONS
+  .filter((q) => q.kind === "choice" && Array.isArray(q.options))
+  .map((q) => ({ key: q.id, label: PRESET_ANSWER_LABELS[q.id] || q.prompt.replace(/\?$/, ""), options: q.options.map((o) => o.tagLabel || o.label) }));
+const answerLabel = (key) => PRESET_ANSWER_LABELS[key] || ANSWER_QUESTIONS.find((q) => q.key === key)?.label || key.replace(/_/g, " ");
 export function answerRowsOf(form) {
   return Object.entries(form?.preset_answers || {})
-    .map(([key, raw]) => ({ key, label: PRESET_ANSWER_LABELS[key] || key.replace(/_/g, " "), values: splitList(raw) }))
+    .map(([key, raw]) => ({ key, label: answerLabel(key), values: splitList(raw) }))
     .filter((r) => r.values.length > 0);
+}
+function AnswerRow({ row, options, onAdd, onRemove }) {
+  const [own, setOwn] = useState("");
+  const picked = new Set(row.values.map((v) => v.toLowerCase()));
+  const offer = options.filter((o) => !picked.has(o.toLowerCase()));
+  const addOwn = () => { if (own.trim()) { onAdd(own.trim()); setOwn(""); } };
+  return (
+    <StackedRow label={row.label}>
+      <div className="flex flex-wrap gap-1.5" data-answer-row={row.key}>
+        {row.values.map((v) => (
+          <span key={v} className="inline-flex items-center gap-1 pl-2.5 rounded-full text-xs bg-muted/50 border border-border/40">
+            {v}
+            <button type="button" onClick={() => onRemove(v)} aria-label={`Remove ${v}`}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+        {offer.map((o) => (
+          <button key={o} type="button" onClick={() => onAdd(o)} aria-label={`Add ${o}`}
+            className="inline-flex items-center gap-1 px-2.5 min-h-[32px] rounded-full text-xs border border-dashed border-border/70 text-muted-foreground hover:text-foreground">
+            <Plus className="w-3 h-3" /> {o}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-1.5 pt-1.5">
+        <input value={own} onChange={(e) => setOwn(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addOwn(); }}
+          placeholder="Your own answer" aria-label={`Your own answer for ${row.label}`} className={`${inputCls} flex-1`} />
+        <button type="button" className={smallBtn} onClick={addOwn} disabled={!own.trim()}><Plus className="w-3.5 h-3.5" /> Add</button>
+      </div>
+    </StackedRow>
+  );
 }
 export function AnswersSection({ info }) {
   const { form, update } = info;
   if (!form) return null;
   const answers = answerRowsOf(form);
-  const removeAnswer = (key, value) => update((f) => {
+  const change = (key, fn) => update((f) => {
     const next = { ...(f.preset_answers || {}) };
-    const left = splitList(next[key]).filter((v) => v !== value);
-    if (left.length) next[key] = left.join(", ");
+    const list = fn(splitList(next[key]));
+    if (list.length) next[key] = list.join(", ");
     else delete next[key];
     return { ...f, preset_answers: next };
   });
-  if (!answers.length) {
-    return <p className="text-xs text-muted-foreground py-1.5">No answers yet. They're added through Get to know me.</p>;
-  }
-  return answers.map((row) => (
-    <StackedRow key={row.key} label={row.label}>
-      <div className="flex flex-wrap gap-1.5">
-        {row.values.map((v) => (
-          <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 border border-border/40">
-            {v}
-            <button type="button" onClick={() => removeAnswer(row.key, v)} aria-label={`Remove ${v}`}
-              className="-mr-1 p-0.5 rounded-full text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
-          </span>
-        ))}
-      </div>
-    </StackedRow>
+  // Every preset question, answered or not, then any other answers saved.
+  const rows = [
+    ...ANSWER_QUESTIONS.map((q) => answers.find((r) => r.key === q.key) || { key: q.key, label: q.label, values: [] }),
+    ...answers.filter((r) => !ANSWER_QUESTIONS.some((q) => q.key === r.key)),
+  ];
+  return rows.map((row) => (
+    <AnswerRow key={row.key} row={row} options={ANSWER_QUESTIONS.find((q) => q.key === row.key)?.options || []}
+      onAdd={(v) => change(row.key, (list) => (list.some((x) => x.toLowerCase() === v.toLowerCase()) ? list : [...list, v.replace(/[,;|]/g, " ").trim()]))}
+      onRemove={(v) => change(row.key, (list) => list.filter((x) => x !== v))} />
   ));
 }
