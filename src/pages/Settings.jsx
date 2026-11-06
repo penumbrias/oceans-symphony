@@ -31,6 +31,7 @@ import {
   arePageTutorialsEnabled,
   setPageTutorialsEnabled,
   clearAllSeen as clearAllPageTutorialsSeen,
+  openFullTour,
   subscribePageTutorials,
 } from "@/lib/pageTutorials";
 
@@ -308,7 +309,7 @@ function PageTutorialsControls() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground leading-relaxed">
-        First-visit page tutorials prompt you on each page so you can explore one at a time instead of taking the whole guided tour at once.
+        The full tour walks every page, starting with how the app fits together. Each page also has its own short walk-through: open the page's ⚙ menu → "Show me around this page" any time.
       </p>
       <Group title="Page tutorials" first>
         <SwitchRow label="Show page-tutorial prompts" hint={'"New to this page? Show me around" banner on first visit.'}
@@ -316,6 +317,9 @@ function PageTutorialsControls() {
           onChange={(next) => { setPageTutorialsEnabled(next); setEnabled(next); }} />
       </Group>
       <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => openFullTour()} data-tour="settings-full-tour">
+          Take the full tour
+        </Button>
         <Button
           variant="outline"
           size="sm"

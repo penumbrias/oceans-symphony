@@ -302,7 +302,7 @@ export default function HelpMeUnblend() {
   };
 
   return (
-    <div className="os-page-shell p-4 sm:p-6 space-y-5">
+    <div className="os-page-shell p-4 sm:p-6 space-y-5" data-tour="unblend-page">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
           <ChevronLeft className="w-4 h-4" />
@@ -320,7 +320,7 @@ export default function HelpMeUnblend() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/get-to-know-me")} className="gap-1.5" title="Build up data by answering when grounded">
           <Sparkles className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5" title="Manage questions">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5" title="Manage questions" data-tour="unblend-manage-btn">
           <Cog className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="sm" onClick={handleRestart} aria-label="Restart">

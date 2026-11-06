@@ -341,7 +341,7 @@ export default function GroupsManager() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6">
-      <div className="os-page-shell space-y-4"
+      <div className="os-page-shell space-y-4" data-tour="groups-page"
         style={{ paddingBottom: selectMode ? 72 : 0 }}>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -353,7 +353,7 @@ export default function GroupsManager() {
               aria-pressed={selectMode}>
               <CheckSquare className="w-3.5 h-3.5" /> {selectMode ? "Done" : "Select"}
             </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5" data-tour="groups-new-btn">
               <Plus className="w-4 h-4" /> New group
             </Button>
           </div>

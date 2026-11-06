@@ -10,22 +10,10 @@ import {
   hasUserCompletedFullTour,
   subscribePageTutorials,
   tutorialRouteKey,
+  loadTourRoutes,
+  tourRoutesIfLoaded,
 } from "@/lib/pageTutorials";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
-
-// The tour's steps (and the list of pages that have them) live in the
-// FeatureTour module, which is big — fetch it only for someone who could
-// still see a banner, never at startup (v0.357.0).
-let _routes = null;
-let _routesPromise = null;
-function loadTourRoutes() {
-  if (!_routesPromise) {
-    _routesPromise = import("@/components/onboarding/FeatureTour")
-      .then((m) => { _routes = m.getRoutesWithTourSteps(); return _routes; })
-      .catch(() => { _routesPromise = null; return null; });
-  }
-  return _routesPromise;
-}
 
 // Banner that appears once per page on first visit, offering to launch
 // the FeatureTour scoped to that route. See src/lib/pageTutorials.js for
@@ -51,7 +39,7 @@ export default function PageTutorialBanner({ onLaunch }) {
   // profile. The tour itself is launched for the exact path so it opens on
   // THIS profile.
   const pageKey = tutorialRouteKey(pathname);
-  const [routes, setRoutes] = useState(_routes);
+  const [routes, setRoutes] = useState(tourRoutesIfLoaded);
   const couldShow = mayShow(pageKey);
   useEffect(() => {
     if (routes || !couldShow) return;
