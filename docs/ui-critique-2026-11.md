@@ -432,5 +432,6 @@ The step counters ("WELCOME · 1/1", then "SETUP · 1/2") never say how many ste
 | 9 | **H1** two view-switch idioms | M | Consistency | To do |
 | 10 | **H6** one-step welcome, calmer alpha notice | S | Trust at first contact | To do |
 | 11 | Infrastructure 1 + 3: tokens + accessibility checks in the review guide | S | Stops the drift returning | To do |
+| 12 | **Motion** (tester feedback, 2026-11-06): Reduce motion also stops sheets, tab pages and drill-ins from sliding; option to show an inspector as one stacked list instead of tabs | M | Low-vision users who lose track of moving things | To do |
 
 Items 1, 5 (renames only), 8, 10 and 11 are each small enough to be one PR. Item 2 builds on the existing home notice stack. Item 3 is mostly tokens plus a migration-when-touched rule.
