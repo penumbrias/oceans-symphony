@@ -1,3 +1,4 @@
+import { useTerms } from "@/lib/useTerms";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { parseDate } from "@/lib/dateUtils";
 import { format, subDays, startOfDay, isToday } from "date-fns";
@@ -10,6 +11,7 @@ import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
 export default function Timeline() {
+  const terms = useTerms();
   const [searchParams, setSearchParams] = useSearchParams();
   const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
   // Sessions a chip on the dashboard double-tapped through to. The
@@ -183,6 +185,7 @@ export default function Timeline() {
             type="date"
             value={jumpDate}
             onChange={(e) => setJumpDate(e.target.value)}
+            aria-label="Day to jump to"
             className="px-2 py-1.5 rounded-md border border-border bg-background text-xs"
           />
           <Button size="sm" variant="outline" onClick={handleJumpToDate} className="gap-1 text-xs">
@@ -203,24 +206,20 @@ export default function Timeline() {
 
       {/* Toggles */}
       <div data-tour="timeline-filters" className="flex gap-2 flex-wrap">
-        <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
-          <Activity className="w-3.5 h-3.5" />
-        </button>
-        <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)} title="Events">
-          <BookOpen className="w-3.5 h-3.5" />
-        </button>
-        <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)} title="Emotions">
-          <Heart className="w-3.5 h-3.5" />
-        </button>
-        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)} title="Fronting">
-          <Users className="w-3.5 h-3.5" />
-        </button>
-        <button className={toggleStyles(showSymptoms)} onClick={() => setShowSymptoms(!showSymptoms)} title="Symptoms">
-          <Zap className="w-3.5 h-3.5" />
-        </button>
-        <button className={toggleStyles(showLocations)} onClick={() => setShowLocations(!showLocations)} title="Locations">
-          <MapPin className="w-3.5 h-3.5" />
-        </button>
+        {/* Each filter says what it shows (UI critique H2) — six identical
+            icon pills meant guessing. */}
+        {[
+          { on: showActivities, set: setShowActivities, Icon: Activity, label: "Activities" },
+          { on: showCheckIns, set: setShowCheckIns, Icon: BookOpen, label: "Events" },
+          { on: showEmotions, set: setShowEmotions, Icon: Heart, label: "Emotions" },
+          { on: showFronting, set: setShowFronting, Icon: Users, label: terms.Fronting },
+          { on: showSymptoms, set: setShowSymptoms, Icon: Zap, label: "Symptoms" },
+          { on: showLocations, set: setShowLocations, Icon: MapPin, label: "Locations" },
+        ].map(({ on, set, Icon, label }) => (
+          <button key={label} type="button" aria-pressed={on} className={`${toggleStyles(on)} inline-flex items-center gap-1`} onClick={() => set(!on)}>
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
       </div>
 
       {/* Timeline days */}

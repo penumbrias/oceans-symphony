@@ -269,13 +269,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🔃", title: "Sort",
-      body: `The ↕ button sorts A→Z, Z→A, or by most or least ${t.fronting} time. Whoever is ${t.fronting} always stays on top.`,
+      body: `The sort button beside the search sorts A→Z, Z→A, or by most or least ${t.fronting} time. Whoever is ${t.fronting} always stays on top.`,
       route: "/Home", target: "alter-sort", look: `the highlighted sort button beside the search bar`,
     }),
     s("alters", {
-      emoji: "🔲", title: "List or grid",
-      body: `This button cycles between a list and a 2–5 column grid. The camera beside it blurs names, or names and pictures, for screenshots.`,
-      route: "/Home", target: "alter-view-toggle", look: `the highlighted list/grid button`,
+      emoji: "🔲", title: "View",
+      body: `View picks a list or a 2–5 column grid, hides grouped ${t.alters}, and turns on screenshot mode, which blurs names or pictures.`,
+      route: "/Home", target: "alter-view-toggle", look: `the highlighted View button`,
     }),
     s("alters", {
       emoji: "👆", title: `Putting someone in ${t.front}`,
@@ -289,13 +289,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "📁", title: "Groups",
-      body: `The 👁 shows or hides your group folders, + makes a group, and the grid icon changes how groups are laid out. Folder-minus hides grouped ${t.alters} from the list below.`,
+      body: `New group makes a group. The ⋯ beside it shows or hides your group folders and changes how they're laid out.`,
       route: "/Home", target: "alter-groups-controls", look: `the highlighted group buttons`,
     }),
     s("alters", {
       emoji: "🗂️", title: "The groups manager",
-      body: `The ⚙ gear opens the groups manager. Tap a folder to step inside and the breadcrumbs to step out. Select several groups to move, recolour or delete them together.`,
-      route: "/Home", target: "alter-groups-controls", look: `the ⚙ gear among the group buttons`,
+      body: `⋯ → Manage groups opens the groups manager. Tap a folder to step inside and the breadcrumbs to step out. Select several groups to move, recolour or delete them together.`,
+      route: "/Home", target: "alter-groups-controls", look: `the ⋯ beside New group`,
     }),
     s("alters", {
       emoji: "➕", title: `Add an ${t.alter}`,
@@ -473,7 +473,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("timeline", {
       emoji: "🔦", title: "Filters",
       body: `These buttons show or hide each kind of entry: activities, journals, feelings, ${t.fronting}, symptoms and places. Turn the others off to see just one.`,
-      route: "/timeline", target: "timeline-filters", look: `the highlighted row of icons under the heading`,
+      route: "/timeline", target: "timeline-filters", look: `the highlighted row of filter buttons under the heading`,
     }),
     s("timeline", {
       emoji: "📆", title: "Jump to a date",
@@ -908,12 +908,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("analytics", {
       emoji: "🎛️", title: "Choose what the log shows",
-      body: `The round sliders button picks which entry types the Check-In Log shows. Hiding one only hides it here; it's still saved and on the timeline.`,
-      route: "/checkin-log", target: "checkin-log-display", look: `the highlighted round sliders button`,
+      body: `The Show button picks which entry types the Check-In Log shows. Hiding one only hides it here; it's still saved and on the timeline.`,
+      route: "/checkin-log", target: "checkin-log-display", look: `the highlighted Show button`,
     }),
     s("analytics", {
       emoji: "➕", title: "Add a note",
-      body: `The round + beside it adds a note with its own date and time, signed by an ${t.alter} if you like.`,
+      body: `The Note button beside it adds a note with its own date and time, signed by an ${t.alter} if you like.`,
       route: "/checkin-log", target: "checkin-log-display",
     }),
 

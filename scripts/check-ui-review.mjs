@@ -73,6 +73,7 @@ const WARNS = [
   { id: "stepper", re: /<Minus\b[\s\S]{0,400}<Plus\b/, msg: "− / + stepper (sizes and counts are SliderRows)" },
   { id: "hand-row", re: /flex[^"']*justify-between[\s\S]{0,300}(?:<Switch\b|type=["']checkbox["'])/, msg: "hand-rolled setting row (use SwitchRow / Row)" },
   { id: "overlay", re: /\bfixed inset-0\b/, msg: "full-screen overlay (a sheet / existing modal?)" },
+  { id: "icon-only", re: /size=["']icon["'](?![\s\S]{0,300}aria-label)/, msg: "icon-only button: give it a word, or at least an aria-label (only ×, back, search, ⋯, bell, cog go without words)" },
 ];
 
 // Written content, not UI: the changelog and the wiki preview's example text.
@@ -117,7 +118,7 @@ added.forEach((a, i) => {
 // Only report a window from the line where its pattern starts, so one
 // block isn't listed eight times.
 function firstLineMatters(w, text) {
-  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/ };
+  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/, "icon-only": /size=["']icon["']/ };
   return starts[w.id].test(text);
 }
 

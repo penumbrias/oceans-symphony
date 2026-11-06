@@ -547,6 +547,15 @@ html.a11y-mode li {
   word-spacing: 0.04em;
 }
 
+/* A visible focus ring for keyboard and switch users everywhere, not only in
+   Accessibility mode (v0.364.5, UI critique H2, WCAG 2.4.7). :focus-visible
+   only matches keyboard-style focus, so taps and clicks show nothing. Text
+   boxes keep their own ring; menu rows keep their highlight. */
+:is(button, a[href], [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
 /* Always-visible, high-contrast focus ring for keyboard / switch users (2.4.7). */
 html.a11y-mode :focus-visible {
   outline: 3px solid var(--color-primary) !important;

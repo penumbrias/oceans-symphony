@@ -420,7 +420,8 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
           </Button>
           <Button variant="ghost" size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => { e.stopPropagation(); onDelete(checkIn.id); }}>
+            onClick={(e) => { e.stopPropagation(); onDelete(checkIn.id); }}
+            aria-label="Delete check-in" title="Delete check-in">
             <Trash2 className="w-3 h-3" />
           </Button>
         </div>
@@ -1873,15 +1874,15 @@ export default function CheckInLog() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCustomNoteOpen(true)}
-            aria-label="Add note" title="Add note" className="flex-shrink-0 h-9 w-9 rounded-full">
-            <Plus className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={() => setCustomNoteOpen(true)}
+            className="flex-shrink-0 h-9 rounded-full gap-1 px-3 text-xs">
+            <Plus className="w-4 h-4" /> Note
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" data-tour="checkin-log-display"
-                aria-label="Display options" title="Display options" className="flex-shrink-0 h-9 w-9 rounded-full">
-                <SlidersHorizontal className="w-4 h-4" />
+              <Button variant="outline" size="sm" data-tour="checkin-log-display"
+                className="flex-shrink-0 h-9 rounded-full gap-1 px-3 text-xs">
+                <SlidersHorizontal className="w-4 h-4" /> Show
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -1923,9 +1924,9 @@ export default function CheckInLog() {
               diary cards) so we no longer gate the button on diary cards
               specifically. The component itself handles the empty-state
               for accounts with no data anywhere. */}
-          <Button variant="outline" size="icon" onClick={() => setView("analytics")}
-            aria-label="Analytics" title="Analytics" className="flex-shrink-0 h-9 w-9 rounded-full">
-            <BarChart2 className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={() => setView("analytics")}
+            className="flex-shrink-0 h-9 rounded-full gap-1 px-3 text-xs">
+            <BarChart2 className="w-4 h-4" /> Charts
           </Button>
         </div>
       </div>

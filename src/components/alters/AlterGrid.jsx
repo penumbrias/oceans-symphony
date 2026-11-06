@@ -1,7 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive , Image as ImageIcon
+import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, EyeOff, Plus, TrendingDown, TrendingUp, Filter, MoreHorizontal, SlidersHorizontal, ChevronDown
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -81,7 +86,7 @@ export default function AlterGrid({ alters }) {
   // anonymize cycles: "off" | "names" | "all" — persisted to localStorage
   // so the toggle applies system-wide (Dashboard's Currently Fronting
   // widget reads the same mode).
-  const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
+  const { mode: anonymize, setMode: setAnonymize } = useAnonymizeMode();
   // The header look on cards (v0.320.0): on unless turned off.
   const [headerBg, setHeaderBg] = useState(() => headerLookOnCards());
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -103,16 +108,11 @@ export default function AlterGrid({ alters }) {
   const [massArchiveOpen, setMassArchiveOpen] = useState(false);
 
   const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
-  const cycleDisplayMode = () => {
-    const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(displayMode) + 1) % DISPLAY_CYCLE.length];
-    setDisplayMode(next);
-    localStorage.setItem("alter_display_mode", next);
-  };
-  const cycleGroupsDisplayMode = () => {
-    const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(groupsDisplayMode) + 1) % DISPLAY_CYCLE.length];
-    setGroupsDisplayMode(next);
-    localStorage.setItem("alter_groups_display_mode", next);
-  };
+  // Every control here has words (UI critique H2): the less-used ones live in
+  // worded menus instead of a row of bare icons a new alter has to decode.
+  const pickDisplayMode = (v) => { setDisplayMode(v); try { localStorage.setItem("alter_display_mode", v); } catch { /* storage off */ } };
+  const pickGroupsDisplayMode = (v) => { setGroupsDisplayMode(v); try { localStorage.setItem("alter_groups_display_mode", v); } catch { /* storage off */ } };
+  const LAYOUT_LABELS = { list: "List", 2: "2 columns", 3: "3 columns", 4: "4 columns", 5: "5 columns" };
 
 
   const { data: allGroups = [] } = useQuery({
@@ -285,37 +285,46 @@ export default function AlterGrid({ alters }) {
     : (search ? filtered : filtered.filter((a) => !hiddenFromLists.has(a.id)));
   const visibleAlters = showFlat ? flatAlters : topLevelAlters;
 
-  const groupControls = (active) => (
-    <div data-tour="alter-groups-controls" className="flex items-center gap-0.5">
+  const groupControls = () => (
+    <div data-tour="alter-groups-controls" className="flex items-center gap-1">
       <button
-        onClick={() => setShowFolders(!showFolders)}
-        title={showFolders ? "Hide groups" : "Show groups"}
-        className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"} hover:bg-muted/60`}>
-        {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-      </button>
-      {/* View / column cycle — Groups' own, independent of the Alters
-          section's toggle below. Covered by the parent's data-tour
-          (alter-groups-controls), same as its Eye/+/gear siblings. */}
-      <button
-        onClick={cycleGroupsDisplayMode}
-        title={groupsDisplayMode === "list" ? "Switch groups to 2-column grid" : `Groups: ${groupsDisplayMode}-col grid — tap to ${groupsDisplayMode === "5" ? "switch to list" : "add a column"}`}
-        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
-        {groupsDisplayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : groupsDisplayMode}
-      </button>
-      <button
+        type="button"
         onClick={() => setCreateGroupOpen(true)}
-        title="New group"
-        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-        <Plus className="w-4 h-4" />
+        className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        <Plus className="w-4 h-4" /> New group
       </button>
-      <button
-        onClick={() => navigate("/groups")}
-        title="Manage groups"
-        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-        <Settings className="w-4 h-4" />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="Group options"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuCheckboxItem checked={showFolders} onCheckedChange={(v) => setShowFolders(!!v)}>
+            Show groups
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs text-muted-foreground">Group layout</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={groupsDisplayMode} onValueChange={pickGroupsDisplayMode}>
+            {DISPLAY_CYCLE.map((m) => <DropdownMenuRadioItem key={m} value={m}>{LAYOUT_LABELS[m]}</DropdownMenuRadioItem>)}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => navigate("/groups")}>Manage groups…</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
+
+  const SORT_OPTIONS = [
+    ...(manualEntries.length || sortMode === "manual" ? [{ id: "manual", label: "My order", Icon: ListOrdered }] : []),
+    { id: "alpha-asc", label: "A → Z", Icon: ArrowDownAZ },
+    { id: "alpha-desc", label: "Z → A", Icon: ArrowUpAZ },
+    { id: "most", label: `Most ${terms.fronting} time`, Icon: TrendingDown },
+    { id: "least", label: `Least ${terms.fronting} time`, Icon: TrendingUp },
+  ];
+  const currentSort = SORT_OPTIONS.find((o) => o.id === sortMode) || SORT_OPTIONS[0];
+  const ANON_LABELS = { off: "Off", names: "Blur names", avatars: "Blur pictures", all: "Blur names and pictures" };
 
   return (
     <div>
@@ -335,7 +344,7 @@ export default function AlterGrid({ alters }) {
           <div className="flex items-center gap-2 mb-2 px-1">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
             <div className="flex-1 h-px bg-border/50" />
-            {groupControls(rootGroups.length > 0)}
+            {groupControls()}
           </div>
           {rootGroups.length > 0 && showFolders && (
             <FolderGroupsSection
@@ -347,7 +356,7 @@ export default function AlterGrid({ alters }) {
             />
           )}
           {rootGroups.length === 0 && (
-            <p className="text-xs text-muted-foreground px-1 pb-1">No groups yet — tap + to create one.</p>
+            <p className="text-xs text-muted-foreground px-1 pb-1">No groups yet — tap New group to make one.</p>
           )}
         </div>
 
@@ -362,56 +371,32 @@ export default function AlterGrid({ alters }) {
               className="pl-9 pr-3 h-9 border-border/50 bg-transparent" />
           </div>
 
-          {/* Sort */}
-          <button
-            data-tour="alter-sort"
-            onClick={() => setSortMode(m => {
-              // "My order" only joins the cycle once an arrangement exists.
-              const next = { "manual": "alpha-asc", "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": manualEntries.length ? "manual" : "alpha-asc" }[m];
-              return next || "alpha-asc";
-            })}
-            title={{ "manual": "My order", "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
-            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-            {sortMode === "manual" && <ListOrdered className="w-4 h-4" />}
-            {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
-            {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
-            {sortMode === "most" && <TrendingDown className="w-4 h-4" />}
-            {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
-          </button>
-
-          {/* Header image as card background */}
-          <button
-            onClick={() => {
-              const next = !headerBg;
-              setHeaderBg(next);
-              setHeaderLookOnCards(next);
-            }}
-            title={headerBg ? "Plain cards (no header look)" : `Show each ${terms.alter}'s profile header look on their card`}
-            aria-pressed={headerBg}
-            className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${headerBg ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
-            <ImageIcon className="w-4 h-4" />
-          </button>
-
-          {/* Hide grouped */}
-          <button
-            onClick={() => {
-              const next = !hideGrouped;
-              setHideGrouped(next);
-              localStorage.setItem("alter_hide_grouped", next ? "true" : "false");
-            }}
-            title={hideGrouped ? `Show all ${terms.alters}` : `Hide ${terms.alters} already in a group`}
-            className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${hideGrouped ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
-            <FolderMinus className="w-4 h-4" />
-          </button>
+          {/* Sort — a worded menu, not a cycle you have to remember */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" data-tour="alter-sort" aria-label={`Sort: ${currentSort.label}`}
+                className="flex-shrink-0 flex items-center gap-1 h-9 px-2.5 rounded-xl border border-border/50 bg-card/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors whitespace-nowrap">
+                <currentSort.Icon className="w-4 h-4" />
+                <span className="max-w-[7rem] truncate">{currentSort.label}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Sort by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={sortMode} onValueChange={setSortMode}>
+                {SORT_OPTIONS.map((o) => <DropdownMenuRadioItem key={o.id} value={o.id}>{o.label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Filter — opens a popup for nested/flat + group/subsystem/role multi-select */}
           {(regularGroups.length > 0 || subsystemGroups.length > 0 || allRoles.length > 0) && (
             <button
+              type="button"
               onClick={() => setFilterOpen(true)}
-              title="Filter the list"
-              className={`flex-shrink-0 flex items-center justify-center gap-1 h-9 px-2.5 rounded-xl border transition-colors ${filterActive ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50 bg-card/50 hover:text-foreground hover:bg-accent"}`}>
+              className={`flex-shrink-0 flex items-center justify-center gap-1 h-9 px-2.5 rounded-xl border text-xs font-medium transition-colors ${filterActive ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50 bg-card/50 hover:text-foreground hover:bg-accent"}`}>
               <Filter className="w-4 h-4" />
-              {activeFilterCount > 0 && <span className="text-xs font-semibold">{activeFilterCount}</span>}
+              Filter{activeFilterCount > 0 && <span className="font-semibold"> · {activeFilterCount}</span>}
             </button>
           )}
         </div>
@@ -423,51 +408,45 @@ export default function AlterGrid({ alters }) {
             <div className="flex-1 h-px bg-border/50" />
             <div className="flex items-center gap-1">
               <AlterLabelToggle size="xs" />
-              {/* Flatten / nest toggle — flat shows every (non-hidden) alter in
-                  one list, ignoring subsystem nesting, so you can see them all
-                  at once. Tap again to return to the grouped/nested view. */}
-              <button
-                onClick={() => setFilters((f) => ({ ...f, nested: !f.nested }))}
-                aria-pressed={!filters.nested}
-                title={filters.nested ? `Show all ${terms.alters} in one flat list` : "Back to nested view"}
-                className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${!filters.nested ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
-                <List className="w-4 h-4" />
-              </button>
-              {/* View / column cycle */}
-              <button
-                data-tour="alter-view-toggle"
-                onClick={cycleDisplayMode}
-                title={displayMode === "list" ? "Switch to 2-column grid" : `${displayMode}-col grid — tap to ${displayMode === "5" ? "switch to list" : "add a column"}`}
-                className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
-                {displayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : displayMode}
-              </button>
-              {/* Anonymize toggle */}
-              <button
-                onClick={cycleAnonymize}
-                title={{
-                  off: "Screenshot mode: tap to blur names",
-                  names: "Blurring names — tap to blur avatars only",
-                  avatars: "Blurring avatars — tap to blur both",
-                  all: "Blurring names & avatars — tap to turn off",
-                }[anonymize]}
-                className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
-                  anonymize === "off"
-                    ? "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                    : anonymize === "names"
-                    ? "text-amber-500 bg-amber-500/10"
-                    : anonymize === "avatars"
-                    ? "text-sky-500 bg-sky-500/10"
-                    : "text-primary bg-primary/10"
-                }`}>
-                {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-              {/* Bulk archive — select several alters at once. */}
-              <button
-                onClick={() => setMassArchiveOpen(true)}
-                title={`Archive several ${terms.alters} at once`}
-                className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-                <Archive className="w-4 h-4" />
-              </button>
+              {/* Screenshot mode is a privacy state, so while it's on it
+                  shows as a worded chip that turns it off in one tap. */}
+              {anonymize !== "off" && (
+                <button type="button" onClick={() => setAnonymize("off")}
+                  className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-primary bg-primary/10">
+                  <EyeOff className="w-4 h-4" /> {ANON_LABELS[anonymize]} · turn off
+                </button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" data-tour="alter-view-toggle"
+                    className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+                    <SlidersHorizontal className="w-4 h-4" /> View
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 max-h-[70vh] overflow-y-auto">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Layout</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={displayMode} onValueChange={pickDisplayMode}>
+                    {DISPLAY_CYCLE.map((m) => <DropdownMenuRadioItem key={m} value={m}>{LAYOUT_LABELS[m]}</DropdownMenuRadioItem>)}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem checked={!filters.nested} onCheckedChange={(v) => setFilters((f) => ({ ...f, nested: !v }))}>
+                    Everyone in one flat list
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={hideGrouped} onCheckedChange={(v) => { setHideGrouped(!!v); try { localStorage.setItem("alter_hide_grouped", v ? "true" : "false"); } catch { /* storage off */ } }}>
+                    Hide {terms.alters} already in a group
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={headerBg} onCheckedChange={(v) => { setHeaderBg(!!v); setHeaderLookOnCards(!!v); }}>
+                    Profile header look on cards
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Screenshot mode</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={anonymize} onValueChange={setAnonymize}>
+                    {Object.entries(ANON_LABELS).map(([k, label]) => <DropdownMenuRadioItem key={k} value={k}>{label}</DropdownMenuRadioItem>)}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setMassArchiveOpen(true)}>Archive several {terms.alters}…</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           {visibleAlters.length > 0 ?
