@@ -183,6 +183,39 @@ function offGridArea({ x, y, c, r }, rowPx, gapCss) {
   };
 }
 
+// The widget itself (v0.357.4). Kept apart from its box so that dragging
+// or resizing — which re-renders the box on every frame — never re-renders
+// what's inside. Profile sections and lists are the heavy part of a board;
+// redrawing them per pointer move is what made moving widgets stutter.
+const WidgetBody = React.memo(function WidgetBody({ def, mode, settings, instanceId, api, updateSettings, chrome }) {
+  // One widget's bad data can only take down that widget, never the whole
+  // home page (a malformed running activity once did).
+  return (
+    <ErrorBoundary
+      resetKeys={[settings]}
+      fallback={(err, retry) => (
+        <div className="p-2 text-[0.75em] text-muted-foreground">
+          This widget couldn't show. Nothing was lost.
+          <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
+        </div>
+      )}>
+      <WidgetChromeContext.Provider value={chrome}>
+      <WidgetSubject def={def} settings={settings}>
+      <WidgetSuspense>
+      {def.render({
+        mode,
+        settings: foldedSettings(def, settings, instanceId),
+        instanceId,
+        api,
+        updateSettings,
+      })}
+      </WidgetSuspense>
+      </WidgetSubject>
+      </WidgetChromeContext.Provider>
+    </ErrorBoundary>
+  );
+});
+
 function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", gapPx = 12, flowFlex = false }) {
   const holdSel = useRef(null);
   const { setNodeRef } = useSortable({
@@ -281,12 +314,22 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   });
   // Tell the board where this widget would land so it can draw the
   // drop-target ghost (dragging blind was the other half of "clunky").
+  // A flow page has no cells, only "beside this widget", so the grid
+  // target isn't passed on there — it changed every few pixels and
+  // re-rendered the whole board for a marker that never moved.
+  const tx = flowView ? 0 : move.drag?.target?.x;
+  const ty = flowView ? 0 : move.drag?.target?.y;
   React.useEffect(() => {
     if (!free && !flowView) return undefined;
-    onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash, beside: move.drag.beside || null } : null);
+    onDragTarget?.(widget.instanceId, move.drag ? { x: tx, y: ty, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash, beside: move.drag.beside || null } : null);
     return undefined;
      
-  }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.drag?.beside?.id, move.drag?.beside?.side, move.dragging]);
+  }, [tx, ty, move.drag?.overTrash, move.drag?.beside?.id, move.drag?.beside?.side, move.dragging]);
+
+  // Stable across renders so the memoised body isn't redrawn by a drag.
+  const onSettingsRef = useRef(onSettings);
+  onSettingsRef.current = onSettings;
+  const updateSettings = React.useCallback((patch) => onSettingsRef.current?.(widget.instanceId, patch), [widget.instanceId]);
 
   const look = widgetLookFor(widget.settings, userStyles, styleMode);
   // Name + show/hide for the widget's heading (Section reads it).
@@ -358,6 +401,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           ...offGridArea({ x: cell.x, y: cell.y, c: shownCols, r: shownRows }, rowPx, gapCss),
           transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
           zIndex: move.dragging ? 45 : zLayer || undefined,
+          willChange: move.dragging ? "transform" : undefined,
           opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
           // The cell is the widget's boundary. Without this, anything taller
           // than its rows paints straight over its neighbour — which is the
@@ -386,6 +430,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // the widget board.
         transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
         zIndex: move.dragging ? 45 : undefined,
+        willChange: move.dragging ? "transform" : undefined,
         opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
       };
   return (
@@ -626,30 +671,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           const css = [extra, own].filter(Boolean).join("\n");
           return css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null;
         })()}
-        {/* One widget's bad data can only take down that widget, never
-            the whole home page (a malformed running activity once did). */}
-        <ErrorBoundary
-          resetKeys={[widget.settings]}
-          fallback={(err, retry) => (
-            <div className="p-2 text-[0.75em] text-muted-foreground">
-              This widget couldn't show. Nothing was lost.
-              <button type="button" onClick={retry} className="ml-2 underline hover:no-underline">Try again</button>
-            </div>
-          )}>
-          <WidgetChromeContext.Provider value={chrome}>
-          <WidgetSubject def={def} settings={widget.settings}>
-          <WidgetSuspense>
-          {def.render({
-            mode,
-            settings: foldedSettings(def, widget.settings, widget.instanceId),
-            instanceId: widget.instanceId,
-            api,
-            updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
-          })}
-          </WidgetSuspense>
-          </WidgetSubject>
-          </WidgetChromeContext.Provider>
-        </ErrorBoundary>
+        <WidgetBody def={def} mode={mode} settings={widget.settings} instanceId={widget.instanceId}
+          api={api} updateSettings={updateSettings} chrome={chrome} />
         </div>
       </div>
 
@@ -1783,7 +1806,10 @@ export default function ExperimentalDashboard({
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
   // status_note widget is on the page (mirrors classic layoutEnabled logic).
-  const widgetApi = { ...api, statusNotePlaced: widgets.some((w) => w.widgetId === "status_note") };
+  // Memoised so a board re-render (a drag's drop marker moving) doesn't
+  // hand every widget a new api and redraw all of them.
+  const statusNotePlaced = widgets.some((w) => w.widgetId === "status_note");
+  const widgetApi = React.useMemo(() => ({ ...api, statusNotePlaced }), [api, statusNotePlaced]);
 
   // Press-and-hold an empty spot on the home screen to enter edit mode —
   // the phone-homescreen gesture. Background only: a press that starts on

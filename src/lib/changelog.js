@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "Moving widgets is smooth again on profiles and home: they follow your finger without stutter." },
       { type: "hotfix", text: "Hotfix: Friends server moved off a retired storage library (no change to your data)." },
     ],
   },
