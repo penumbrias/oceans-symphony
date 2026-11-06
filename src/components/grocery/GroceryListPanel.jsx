@@ -6,18 +6,14 @@ import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil,
 import { saveLocalImage, createLocalImageUrl, getLocalImageId } from "@/lib/localImageStorage";
 import { deleteLocalImageIfUnused } from "@/lib/localImageUsage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import {
-  readPanicTapsSetting, writePanicTapsSetting, PANIC_TAP_OPTIONS,
-} from "@/components/settings/GroceryPanicTapsSettings";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
-import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
+import { useNavigate } from "react-router-dom";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { PopupLayer } from "@/components/shared/popupLayer";
 import RichText from "@/components/shared/RichText";
@@ -67,7 +63,8 @@ const ACTIVE_LIST_KEY = "grocery_active_list_v1";
 const NOTE_OPEN_MODE_KEY = "grocery_note_open_mode_v1";
 // One-shot flag — the first time the panel opens via the triple-tap panic
 // gesture we show a "What's this?" explainer so a surprised user understands
-// the cover (and can re-tune the gesture).
+// what happened, with a door to Settings → Data & privacy → Quick jump (the
+// one place the taps, the target and the lock are set).
 const PANIC_EXPLAINED_KEY = "grocery_panic_explained_v1";
 
 // Privacy-cover overlay + multi-list grocery store. When open, it sits
@@ -80,7 +77,7 @@ const PANIC_EXPLAINED_KEY = "grocery_panic_explained_v1";
 //   - the dashboard "Grocery list" button
 //   - quick action `view_grocery_list`
 //   - quick action `add_grocery_item`
-//   - tapping the screen 3 times in a row (handled in AppLayout)
+//   - quick taps anywhere, when Quick jump opens Notes & lists (src/lib/quickJump.js)
 //   - "Open grocery list" link on the Unlock screen (lockedMode)
 //
 // State is broadcast through the global window event:
@@ -127,21 +124,6 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
   const encryptionOn = isEncryptionEnabled();
   const dbReady = isDbInitialized();
 
-  // The gesture that OPENS this cover is adjustable from inside the cover —
-  // that's where you are when you discover it fires too easily (or not at
-  // all). Same setting as Settings -> Data & privacy, one writer.
-  const [tapsOpen, setTapsOpen] = useState(false);
-  const { data: settingsList = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => localEntities.SystemSettings.list(),
-  });
-  const currentTaps = readPanicTapsSetting(pickPrimarySystemSettings(settingsList));
-  const setTaps = async (value) => {
-    try {
-      await writePanicTapsSetting(value, { settings: pickPrimarySystemSettings(settingsList), qc });
-      toast.success(value === "off" ? "Quick-tap disabled" : `${value} taps to open`);
-    } catch (e) { toast.error(e?.message || "Couldn't save"); }
-  };
   const [lockOnClose, setLockOnClose] = useState(() => {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
@@ -749,19 +731,13 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
               {lockOnClose ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </button>
           )}
-          {!asPage && <button
-            onClick={() => setTapsOpen((v) => !v)}
-            aria-label="How many taps open this list"
-            aria-expanded={tapsOpen}
-            title="How many quick taps open this list"
-            className={`p-2 rounded-md transition-colors ${
-              tapsOpen
-                ? "text-neutral-900 dark:text-neutral-100 bg-neutral-100 dark:bg-neutral-800"
-                : "text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            }`}
-          >
-            <Hand className="w-5 h-5" />
-          </button>}
+          {!asPage && !lockedMode && (
+            <QuickJumpSettingsButton onLeave={() => {
+              if (lockAndReloadIfArmed()) return false;
+              setOpen(false);
+              return true;
+            }} />
+          )}
           {!asPage && <button
             onClick={handleCloseClick}
             aria-label="Close"
@@ -773,32 +749,6 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       </div>
 
       {/* List switcher overlay */}
-      {tapsOpen && !asPage && (
-        <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 px-3 py-2 space-y-1.5">
-          <p className="text-[11px] text-neutral-500">Quick taps anywhere to open this list</p>
-          <div className="flex flex-wrap gap-1">
-            {PANIC_TAP_OPTIONS.map((o) => {
-              const on = currentTaps === o.value;
-              return (
-                <button
-                  key={String(o.value)}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setTaps(o.value)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    on
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
-                      : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {switcherOpen && (
         <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 max-h-[60vh] overflow-y-auto">
           <ul className="py-1">
@@ -1020,36 +970,24 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       </div>
       )}
 
-      {/* First-time panic-gesture explainer */}
+      {/* First-time quick-jump explainer */}
       {explainerOpen && (
-        <div className="absolute inset-0 z-[10002] flex items-center justify-center bg-black/50 px-5">
-          <div className="w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-4">
-            <div className="space-y-1.5">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <span className="text-xl">🛒</span> What's this?
-              </h2>
-              <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                You just opened the <strong>Grocery List</strong> — a quick-access <strong>privacy screen</strong>. Tapping the screen a few times in a row covers Oceans Symphony with a real-looking grocery list, so a glance reveals nothing about your system.
-              </p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                It's also a fully <strong>functioning list &amp; notes tool</strong> — shopping lists, wishlists, checklists, flash cards, and quick notes that save as you type. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
-              <GroceryPanicTapsSettings />
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                try { localStorage.setItem(PANIC_EXPLAINED_KEY, "1"); } catch { /* ignore */ }
-                setExplainerOpen(false);
-              }}
-              className="w-full px-3 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
+        <QuickJumpExplainer
+          lockedMode={lockedMode}
+          onDone={() => {
+            try { localStorage.setItem(PANIC_EXPLAINED_KEY, "1"); } catch { /* ignore */ }
+            setExplainerOpen(false);
+          }}
+          onOpenSettings={() => {
+            try { localStorage.setItem(PANIC_EXPLAINED_KEY, "1"); } catch { /* ignore */ }
+            setExplainerOpen(false);
+            // Leaving the cover follows the same rule as closing it: with
+            // the lock armed, the way back is through the password.
+            if (lockAndReloadIfArmed()) return false;
+            setOpen(false);
+            return true;
+          }}
+        />
       )}
 
       {/* New-list dialog */}
@@ -1598,5 +1536,75 @@ function NoteImage({ url, onRemove }) {
         <X className="w-3 h-3" />
       </button>
     </span>
+  );
+}
+
+// Settings → Data & privacy → Quick jump is the one home for the quick taps,
+// what they open, and the lock. The overlay only links there.
+const QUICK_JUMP_SETTINGS_PATH = "/settings#privacy-cover";
+
+// Only mounted inside the app's router (never in lockedMode, which sits
+// beside the unlock screen with no router and no settings to reach).
+function QuickJumpSettingsButton({ onLeave }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => { if (onLeave()) navigate(QUICK_JUMP_SETTINGS_PATH); }}
+      aria-label="Quick taps & privacy screen settings"
+      title="Quick taps & privacy screen settings"
+      className="p-2 rounded-md transition-colors text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+    >
+      <Hand className="w-5 h-5" />
+    </button>
+  );
+}
+
+function QuickJumpExplainer({ lockedMode, onDone, onOpenSettings }) {
+  const t = useTerms();
+  return (
+    <div className="absolute inset-0 z-[10002] flex items-center justify-center bg-black/50 px-5">
+      <div className="w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-4">
+        <div className="space-y-1.5">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <span className="text-xl">🛒</span> What's this?
+          </h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            A few quick taps anywhere opened your <strong>notes &amp; lists</strong> over everything. It's a <strong>quick jump</strong>: a fast way to cover the screen so a glance shows nothing about your {t.system}.
+          </p>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            The lists are real, too. Shopping lists, checklists, notes and flash cards all save as you go, and the same lists live on the Notes &amp; lists page.
+          </p>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            In <strong>Settings → Data &amp; privacy → Quick jump</strong> you can change how many taps it takes or turn them off, make the taps open a page or a picture instead, and lock the app behind it.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {!lockedMode && <ExplainerSettingsButton onOpenSettings={onOpenSettings} />}
+          <button
+            type="button"
+            onClick={onDone}
+            className={`w-full px-3 py-2.5 rounded-lg font-medium text-sm ${lockedMode
+              ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+              : "border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExplainerSettingsButton({ onOpenSettings }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => { if (onOpenSettings()) navigate(QUICK_JUMP_SETTINGS_PATH); }}
+      className="w-full px-3 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm"
+    >
+      Open Quick jump settings
+    </button>
   );
 }
