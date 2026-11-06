@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "Profiles and pages: widgets no longer overlap each other after the new layout; boards that already did are tidied up when opened." },
       { type: "improve", text: "Profiles and pages: widgets now stay exactly where you put them (like with \"Overlap other widgets\" on), and ones you haven't resized still grow to fit what they show." },
       { type: "improve", text: "Opening the app: the loading screen now stays up until your home screen is fully ready, instead of showing a half-loaded page, and startup does a little less work." },
       { type: "feature", text: "The guided tour now opens by showing how the app fits together, and every page's ⚙ menu has \"Show me around this page\" to replay its walk-through any time. Sleep, Groups, History, Location History, the bulletin board and Help me unblend got walk-throughs too." },

@@ -45,7 +45,7 @@ import {
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
   flowOrder, flowRepack, flowMove, flowPlace, flowAtOf, snapStepFor, isWhole,
-  isWidgetGap, defaultWidgetGap,
+  isWidgetGap, defaultWidgetGap, FINE_STEP,
 } from "@/lib/experimentalHome";
 import { BoardGapContext } from "@/components/shared/WidgetGapRow";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
@@ -1722,10 +1722,16 @@ export default function ExperimentalDashboard({
           const w = page.widgets.find((x) => x.instanceId === wid);
           const def = w && registry[w.widgetId];
           if (!def) continue;
-          const most = Math.round((def.maxSpan?.rows ?? 40) * (80 / rowPx));
+          // The same bounds the board applies when it reads a widget back
+          // (resolveExperimentalHome) — a size outside them would be shown
+          // clamped while everything around it was placed for the unclamped
+          // one, and the widgets would overlap (owner report, v0.366.3).
+          const least = def.minSpan?.rows ?? 1;
+          const most = Math.round((def.maxSpan?.rows ?? 8) * (80 / rowPx));
           // Quarter-row steps (the same steps as snapping off), so a short
           // widget doesn't leave a band of empty row under it.
-          want[wid] = Math.min(most, (natural + gapPx) / (rowPx + gapPx));
+          const rows = Math.ceil((natural + gapPx) / (rowPx + gapPx) / FINE_STEP - 0.02) * FINE_STEP;
+          want[wid] = Math.max(least, Math.min(most, rows));
         }
         const next = fitRowsToContent(page.widgets, want, gridCols);
         fitted.current = stamp;
