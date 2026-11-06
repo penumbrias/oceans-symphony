@@ -37,6 +37,13 @@ module.exports = {
   		'7xl': ['calc(4.5rem * var(--v2-hmult, 1))',  { lineHeight: '1' }],
   		'8xl': ['calc(6rem * var(--v2-hmult, 1))',    { lineHeight: '1' }],
   		'9xl': ['calc(8rem * var(--v2-hmult, 1))',    { lineHeight: '1' }],
+  		// Semantic names for the same scale (UI critique, infrastructure 1).
+  		// Prefer these in new UI; never a bracketed size (check:ui fails it).
+  		caption: ['calc(0.75rem * var(--v2-hmult, 1))',  { lineHeight: 'calc(1rem * var(--v2-hmult, 1))' }],
+  		body:    ['calc(0.875rem * var(--v2-hmult, 1))', { lineHeight: 'calc(1.25rem * var(--v2-hmult, 1))' }],
+  		lead:    ['calc(1rem * var(--v2-hmult, 1))',     { lineHeight: 'calc(1.5rem * var(--v2-hmult, 1))' }],
+  		title:   ['calc(1.25rem * var(--v2-hmult, 1))',  { lineHeight: 'calc(1.75rem * var(--v2-hmult, 1))' }],
+  		display: ['calc(1.875rem * var(--v2-hmult, 1))', { lineHeight: 'calc(2.25rem * var(--v2-hmult, 1))' }],
   	},
   	extend: {
   		fontFamily: {
@@ -74,6 +81,11 @@ module.exports = {
   			accent: {
   				DEFAULT: themeVar('--color-accent'),
   				foreground: themeVar('--color-on-accent')
+  			},
+  			// Red means danger or a destructive action, nothing else (UI critique M3).
+  			danger: {
+  				DEFAULT: '#EF4444',
+  				foreground: '#FFF'
   			},
   			destructive: {
   				DEFAULT: '#EF4444',

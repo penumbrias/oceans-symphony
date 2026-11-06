@@ -67,9 +67,19 @@ const RULES = [
     re: /\btext-\[(?:0?\.(?:[0-6]\d*|7(?:[0-4]\d*)?)rem|(?:[0-9]|1[01])(?:\.\d+)?px)\]/,
     msg: "text under 12 px (use text-xs or larger; inside a widget use em)",
   },
+  {
+    id: "hand-size",
+    // A hand-typed text size of 12 px or more (infrastructure 1): use the
+    // scale (text-xs…text-4xl, or caption/body/lead/title/display).
+    // Smaller ones are already caught by tiny-text; em is fine in widgets.
+    re: /\btext-\[(?:0?\.(?:7[5-9]|[89])\d*rem|[1-9]\d*(?:\.\d+)?rem|(?:1[2-9]|[2-9]\d)(?:\.\d+)?px)\]/,
+    msg: "hand-typed text size (use text-caption/body/lead/title/display or text-xs…4xl)",
+  },
 ];
 const WARNS = [
   { id: "pill-tabs", re: /rounded-full[\s\S]{0,240}set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\([\s\S]{0,240}rounded-full/, msg: "pill tabs splitting a screen? (views: PageStrip; option menus: TabBar; or drill-in pages)" },
+  { id: "grey", re: /\b(?:text|bg|border)-(?:gray|slate|zinc|neutral|stone)-\d{2,3}\b/, msg: "hardcoded grey (use muted / muted-foreground / border so themes work)" },
+  { id: "red", re: /\b(?:text|bg|border)-(?:red|rose)-\d{2,3}\b/, msg: "red is for danger and destructive actions only (text-destructive / danger); routine things use primary" },
   { id: "hand-strip", re: /role=["']tab["']/, msg: "hand-made tab strip: use PageStrip (src/components/shared/PageStrip.jsx), or TabBar in an option menu" },
   { id: "stepper", re: /<Minus\b[\s\S]{0,400}<Plus\b/, msg: "− / + stepper (sizes and counts are SliderRows)" },
   { id: "hand-row", re: /flex[^"']*justify-between[\s\S]{0,300}(?:<Switch\b|type=["']checkbox["'])/, msg: "hand-rolled setting row (use SwitchRow / Row)" },
@@ -121,7 +131,7 @@ added.forEach((a, i) => {
 // Only report a window from the line where its pattern starts, so one
 // block isn't listed eight times.
 function firstLineMatters(w, text) {
-  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/, "icon-only": /size=["']icon["']/, "confirm-delete": /await confirm\(/, "hand-strip": /role=["']tab["']/ };
+  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/, "icon-only": /size=["']icon["']/, "confirm-delete": /await confirm\(/, "hand-strip": /role=["']tab["']/, grey: /(?:text|bg|border)-(?:gray|slate|zinc|neutral|stone)-\d/, red: /(?:text|bg|border)-(?:red|rose)-\d/ };
   return starts[w.id].test(text);
 }
 

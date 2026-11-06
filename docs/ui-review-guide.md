@@ -26,8 +26,10 @@ question in the PR rather than spending an hour proving it.
 
 ```
 npm run check:ui        # this guide's script: native <select>, raw sliders,
-                        # plain Textarea, browser dialogs, hardcoded terms;
-                        # warns on pill tabs, steppers, hand-made rows, overlays
+                        # plain Textarea, browser dialogs, hardcoded terms,
+                        # text under 12 px, hand-typed text sizes;
+                        # warns on pill tabs, hand-made tab strips, steppers,
+                        # hand-made rows, overlays, grey and red classes
 npm run check:widgets   # if a widget file changed
 npm run check:tour      # if a tour step or data-tour anchor changed
 npm run lint
@@ -117,6 +119,18 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   `ActivityPicker`. User-written text: `MentionTextarea` and
   `prepareAuthoredText` (CLAUDE.md, "Every free-text field").
 - Alter names in lists go through `useAlterLabel()`.
+
+### Tokens — never hand-type a size or a colour
+
+- **Text sizes come from the scale**: `text-caption` (12 px), `text-body`,
+  `text-lead`, `text-title`, `text-display` — or the plain `text-xs…4xl`.
+  A bracketed size (`text-[0.8rem]`) fails `check:ui`; inside a widget, em.
+- **Colours come from the theme**: `muted`, `muted-foreground`, `border`,
+  `primary` and its `-foreground`. A grey class (`text-gray-500`) ignores
+  the theme; `check:ui` warns.
+- **Red means danger.** `danger` / `destructive` only for a destructive
+  action or a real warning; routine things (a check-in button, a feeling
+  category) use the primary colour. `check:ui` warns on red classes.
 
 ### Colour and contrast
 
@@ -212,13 +226,31 @@ check, so read for them on purpose.
   navigation lists (CLAUDE.md). New entity → backup wiring. New widget →
   the contract script's file list.
 
-## 3. Look at it (two minutes)
+## 3. Look at it (five minutes)
 
 Run the app (`npm run dev`, Playwright's Chromium is installed) at 390 px
 wide and open what changed. Check: the first screen makes sense without
 scrolling; tabs or pages, not pills; every number has a slider and a box;
 the sheet leaves the thing it edits visible; nothing overflows sideways;
 dark theme still reads. Take one screenshot for the PR.
+
+Then the accessibility pass, on the routes you touched:
+
+```
+npm run check:a11y -- /route              # axe (WCAG 2.2 AA), tap targets,
+npm run check:a11y -- /route --text xl5   # text under 12 px, sideways scroll
+```
+
+- **axe**: no serious or critical violation (the script fails on them).
+- **200 % text** (`--text xl5`, and look at a screenshot): nothing cut off,
+  no word split down a strip, the content still starts on the first screen.
+- **Keyboard**: Tab reaches every new control in order, the focus ring
+  shows, Escape closes what you opened.
+- **Contrast of any new colour pair**: 4.5:1 for text, 3:1 for icons and
+  borders. Text on a colour goes through `onColor()`.
+- **One notice per page**: anything new that floats or banners holds the
+  attention slot.
+- **No icon-only button**, **red only for danger** (above).
 
 ## 4. Write it down
 
