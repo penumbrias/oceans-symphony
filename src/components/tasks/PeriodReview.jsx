@@ -8,7 +8,7 @@ import { useTerms } from "@/lib/useTerms";
 const REVIEW_COUNTS = { daily: 14, weekly: 12, monthly: 12, yearly: 5 };
 const HOLD_MS = 1000;
 
-export default function PeriodReview({ frequency, templates, allProgress, onToggleTask }) {
+export default function PeriodReview({ frequency, templates, allProgress, onToggleTask, showPoints = true }) {
   const terms = useTerms();
   const [offset, setOffset] = useState(0);
   const [holdCell, setHoldCell] = useState(null); // { taskId, key, progress 0-1 }
@@ -150,7 +150,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                     <div className="font-medium text-foreground truncate max-w-[160px]">
                       {applyTerms(task.title, terms)}
                     </div>
-                    <div className="text-[0.625rem] text-muted-foreground">{task.points} pts · {totalDone}/{pageKeys.length} done</div>
+                    <div className="text-[0.625rem] text-muted-foreground">{showPoints ? `${task.points} pts · ` : ""}{totalDone}/{pageKeys.length} done</div>
                   </td>
                   {pageKeys.map(key => {
                     const entry = progressMap[key];

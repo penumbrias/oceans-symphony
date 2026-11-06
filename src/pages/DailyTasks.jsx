@@ -32,6 +32,8 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import LevelBar from "@/components/tasks/LevelBar";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { POINTS_SETTING, pointsChoice, pointsShown, daysShownUpThisMonth, shownUpText } from "@/lib/routinePoints";
 import { useGoalXp } from "@/lib/useGoalXp";
 import { sumXp } from "@/lib/goalXp";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -66,6 +68,17 @@ export default function DailyTasks() {
       try { localStorage.setItem(HIDE_COMPLETED_KEY, next ? "1" : "0"); } catch {}
       return next;
     });
+  };
+
+  // Points and levels are the person's choice (src/lib/routinePoints.js).
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const sysSettings = pickPrimarySystemSettings(settingsRows) || null;
+  const choosePoints = async (on) => {
+    try {
+      if (sysSettings?.id) await base44.entities.SystemSettings.update(sysSettings.id, { [POINTS_SETTING]: !!on });
+      else await base44.entities.SystemSettings.create({ [POINTS_SETTING]: !!on });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) { toast.error(e?.message || "Couldn't save that."); }
   };
 
   // Task templates
@@ -596,6 +609,10 @@ export default function DailyTasks() {
     return { streak, bestStreak: Math.max(best, streak) };
   }, [allProgress, todayXP, TODAY, activeFreq]);
 
+  const showPoints = pointsShown(sysSettings, allProgress);
+  const askAboutPoints = pointsChoice(sysSettings) === null && !showPoints && !progressLoading;
+  const shownUp = shownUpText(daysShownUpThisMonth(allProgress));
+
   // Streak milestone trigger — fires once per day when the streak crosses
   // (or sits on) a multiple of 7. The localStorage marker stores both the
   // date and the milestone number so a streak that's still 7 across two
@@ -687,7 +704,9 @@ export default function DailyTasks() {
     });
 
     if (nowCompleted) {
-      toast.success(`+${task.points} XP — ${applyTerms(task.title, terms)} done! 🎉`);
+      toast.success(showPoints
+        ? `+${task.points} XP — ${applyTerms(task.title, terms)} done! 🎉`
+        : `${applyTerms(task.title, terms)} done`);
       // Meta trigger: any daily task completion marks the day. The
       // derivation pipeline guards re-entrancy implicitly — even though
       // setting the marker would re-fire the autoTriggers recompute, the
@@ -800,7 +819,7 @@ export default function DailyTasks() {
             className="overflow-hidden"
           >
             <div className="bg-card border border-border rounded-xl p-4">
-              <TaskTemplateManager templates={templates} onClose={() => setShowManager(false)} />
+              <TaskTemplateManager templates={templates} onClose={() => setShowManager(false)} showPoints={showPoints} onPointsChange={choosePoints} />
             </div>
           </motion.div>
         )}
@@ -815,10 +834,22 @@ export default function DailyTasks() {
           periodXP={periodEarnedXP}
           periodPossibleXP={periodPossibleXP}
           periodLabel={periodLabel}
-          streak={streak}
-          bestStreak={bestStreak}
           goalXP={goalXp.on ? sumXp(goalXp.events) : null}
+          showPoints={showPoints}
+          shownUpText={shownUp}
         />
+        {askAboutPoints && (
+          <div className="mt-2 bg-card border border-border/50 rounded-xl p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Would points and levels help you, or get in the way?</p>
+              <p className="text-xs text-muted-foreground mt-1">Some people like earning points for routines. Others find them pressure. You can change this any time under Edit.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => choosePoints(true)}>Use points and levels</Button>
+              <Button size="sm" variant="outline" onClick={() => choosePoints(false)}>No thanks</Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Frequency tabs */}
@@ -852,6 +883,7 @@ export default function DailyTasks() {
               templates={templates}
               allProgress={allProgress}
               onToggleTask={toggleHistoryTask}
+              showPoints={showPoints}
             />
           </motion.div>
         ) : (
@@ -918,6 +950,7 @@ export default function DailyTasks() {
                         }}
                         completed={isDone(task)}
                         onToggle={toggleManual}
+                        showPoints={showPoints}
                       />
                     ))
                   )}

@@ -9,11 +9,22 @@ export default function LevelBar({
   // Legacy props — still accepted so older callers keep working.
   todayXP,
   todayPossibleXP,
-  streak,
-  bestStreak,
   // XP earned on Goals (null when goals don't earn XP) — part of totalXP.
   goalXP = null,
+  // Gap-proof line ("N days you showed up this month"); replaces the old
+  // streak + best, which shamed every gap (UI critique H5).
+  shownUpText = null,
+  // Points and levels are opt-in; off, only the gap-proof line shows.
+  showPoints = true,
 }) {
+  if (!showPoints) {
+    if (!shownUpText) return null;
+    return (
+      <div className="bg-card border border-border/50 rounded-xl px-4 py-3 text-sm text-foreground">
+        🌱 {shownUpText}
+      </div>
+    );
+  }
   const { level, xpIntoLevel, xpForNextLevel } = getLevelFromTotalXP(totalXP);
   const pct = Math.min(100, Math.round((xpIntoLevel / xpForNextLevel) * 100));
   // Resolve effective numbers, preferring the new period-aware props.
@@ -48,7 +59,7 @@ export default function LevelBar({
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{xpForNextLevel - xpIntoLevel} XP to next level</span>
-        <span>🔥 {streak} day streak · Best {bestStreak}</span>
+        {shownUpText && <span>🌱 {shownUpText}</span>}
       </div>
       {goalXP > 0 && (
         <p className="text-xs text-muted-foreground">Includes {goalXP} XP from goals.</p>
