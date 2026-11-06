@@ -25,6 +25,7 @@ import React from "react";
 import { ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { useInspectorStacked } from "@/lib/motionPrefs";
 
 const isSet = (v) => v !== undefined && v !== null && v !== "";
 
@@ -328,4 +329,31 @@ export function TabBar({ tabs, value, onChange }) {
       })}
     </div>
   );
+}
+
+// "Option menus as one list" (Settings → Accessibility, v0.364.12): instead
+// of a tab strip, every tab shows at once, one after another, each under
+// its own heading. An inspector reads this hook and writes
+//   {!stacked && <TabBar … />}
+//   {head("text")}{show("text") && (…the Text tab…)}
+// After an early return, read useInspectorStacked() above it and call
+// inspectorPages(tabs, value, stacked) instead (it is not a hook).
+export function useInspectorPages(tabs, value) {
+  return inspectorPages(tabs, value, useInspectorStacked());
+}
+export function inspectorPages(tabs, value, stacked) {
+  const show = (id) => stacked || value === id;
+  const head = (id) => {
+    if (!stacked) return null;
+    const t = tabs.find((x) => x.id === id);
+    if (!t) return null;
+    const Icon = t.icon;
+    return (
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground pt-5 pb-1.5 mb-1 border-b border-border/60 first:pt-2">
+        {Icon && <Icon className="w-4 h-4 text-primary" aria-hidden />}
+        {t.label}
+      </h3>
+    );
+  };
+  return { stacked, show, head };
 }

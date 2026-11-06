@@ -7,6 +7,7 @@ import {
   setAccessibilityMode,
   setAccessibilityPlayInsideOnly,
 } from "@/lib/useAccessibility";
+import { useInspectorStacked, setInspectorStacked } from "@/lib/motionPrefs";
 import { DisplayOptionsButton } from "@/components/settings/AppearanceSection";
 import {
   isGroundingButtonEnabled,
@@ -17,6 +18,7 @@ import {
 export default function AccessibilitySettings() {
   const [settings, setSettings] = useState(getAccessibilitySettings);
   const [groundingBubble, setGroundingBubble] = useState(() => isGroundingButtonEnabled());
+  const stackedMenus = useInspectorStacked();
 
   useEffect(() => subscribeGroundingButton(() => setGroundingBubble(isGroundingButtonEnabled())), []);
 
@@ -61,11 +63,23 @@ export default function AccessibilitySettings() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Reduce motion</p>
-            <p className="text-xs text-muted-foreground">Disables animations and transitions throughout the app</p>
+            <p className="text-xs text-muted-foreground">Stops animations, transitions and sliding sheets and pages throughout the app</p>
           </div>
           <Switch
             checked={settings.reduceMotion}
             onCheckedChange={v => update("reduceMotion", v, setAccessibilityReduceMotion)}
+          />
+        </div>
+
+        {/* ui-ok: matches the hand rows around it until this page moves to SettingRows */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">Option menus as one list</p>
+            <p className="text-xs text-muted-foreground">Widget options, Display options and Profile style show every section on one page you scroll, instead of tabs</p>
+          </div>
+          <Switch
+            checked={stackedMenus}
+            onCheckedChange={setInspectorStacked}
           />
         </div>
 
