@@ -14,7 +14,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { localEntities } from "@/api/base44Client";
+import { clockPattern } from "@/lib/timeFormat";
 import { isDbInitialized } from "@/lib/localDb";
 import {
   listUnlockedLists, loadStore, updateUnlockedList, updateUnlockedItem, createUnlockedItem,
@@ -83,6 +85,15 @@ export function useNoteListWriters() {
         : { checked: false, purchased_at: null, ran_out_at: null };
       if (list.source === "local") updateUnlockedItem(item.id, patch);
       else { await localEntities.GroceryItem.update(item.id, patch); refresh(); }
+    },
+    // A new note in the normal (encrypted) store — the same record the
+    // lists panel's "New note" makes there (v0.363.0).
+    async createNote(name) {
+      const made = await localEntities.GroceryList.create({
+        name: String(name || "").trim() || `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`, list_type: "note", created_date: new Date().toISOString(),
+      });
+      refresh();
+      return made;
     },
     async addItem(list, name) {
       const v = String(name || "").trim();
