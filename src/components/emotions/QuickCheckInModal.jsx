@@ -13,7 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
@@ -356,26 +356,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     if (id === "fronting") setHadFrontingOpen(true);
   };
 
-  // Bottom prev/next arrows: close the current section, open the adjacent one
-  // in PILLS order, and scroll it into view. Other manually-opened sections
-  // are left as-is (step-one-at-a-time, not a strict wizard).
-  const goToSection = (dir) => {
-    const steps = visiblePills.length ? visiblePills : PILLS;
-    const idx = steps.findIndex((p) => p.id === currentSectionId);
-    const base = idx < 0 ? 0 : idx;
-    const nextIdx = base + dir;
-    if (nextIdx < 0 || nextIdx >= steps.length) return;
-    const curId = steps[base].id;
-    const nextId = steps[nextIdx].id;
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      next.delete(curId);
-      next.add(nextId);
-      return next;
-    });
-    if (nextId === "fronting") setHadFrontingOpen(true);
-    setCurrentSectionId(nextId);
-    setTimeout(() => sectionRefs.current[nextId]?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  // Each section is a worded row that opens in place, one list top to
+  // bottom (UI critique H4) — the old chip row plus a Prev/Next pager were
+  // two ways of moving around the same form, and nothing slides now.
+  const sectionRow = (id) => {
+    const pill = visiblePills.find((p) => p.id === id);
+    if (!pill) return null;
+    const Icon = pill.icon;
+    const open = openSections.has(id);
+    const label = id === "fronting" ? terms.Fronting : pill.label;
+    return (
+      <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition-colors ${open ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/50 bg-card text-muted-foreground hover:text-foreground"}`}>
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span className="flex-1 font-medium">{label}</span>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+    );
   };
 
   useEffect(() => {
@@ -1347,7 +1344,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-border/50 space-y-3">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Heart className="w-5 h-5 text-destructive" />
+              <Heart className="w-5 h-5 text-primary" />
               {/* Far from the close X on purpose — side by side, a slightly
                   off tap on "manage" closed the whole check-in. */}
               {!isEditing && (
@@ -1361,7 +1358,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   <SlidersHorizontal className="w-4 h-4" />
                 </button>
               )}
-              <span className="flex-1">{isEditing ? "Edit Check-In" : "Quick Check-In"}</span>
+              <span className="flex-1 min-w-0 [overflow-wrap:normal]">{isEditing ? "Edit Check\u2011In" : "Quick Check\u2011In"}</span>
               <span className="w-6 flex-shrink-0" aria-hidden />
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
@@ -1370,7 +1367,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 aria-label="Check-in date and time"
                 value={entryTime}
                 onChange={e => setEntryTime(e.target.value)}
-                className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
+                className="h-7 max-w-full min-w-0 px-2 rounded-md border border-input bg-background text-xs text-foreground"
               />
               {!isEditing && lastCheckInAt && (
                 <span className="text-[0.6875rem] text-muted-foreground">
@@ -1379,9 +1376,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-[1_1_auto]">Cancel</Button>
+            <Button onClick={handleSubmit} disabled={saving} className="flex-[1_1_auto]">
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isEditing ? "Save Changes" : "Save Check-In"}
             </Button>
@@ -1390,30 +1387,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
-          {/* Pill toggles */}
-          <div className="flex flex-wrap gap-1.5 pb-1">
-            {visiblePills.map((pill) => {
-              const PillIcon = pill.icon;
-              // Module-scope PILLS can't hit useTerms, so resolve the
-              // label for any system-customisable terms here at render.
-              const label = pill.id === "fronting" ? terms.Fronting : pill.label;
-              return (
-                <button key={pill.id} onClick={() => toggleSection(pill.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${
-                openSections.has(pill.id) ?
-                "bg-primary text-primary-foreground border-primary" :
-                "bg-card text-muted-foreground border-border hover:text-foreground"}`
-                }>
-                  <PillIcon className="w-3 h-3" />
-                  {label}
-                </button>);
-            })}
-          </div>
-
           {/* Feeling */}
+          {sectionRow("feeling")}
           {openSections.has("feeling") &&
           <div ref={(el) => (sectionRefs.current.feeling = el)} className="border border-border/50 rounded-xl p-3">
-              <div className="flex gap-3">
+              <div className="os-feeling-row flex gap-3">
                 <div className="flex-1 min-w-0 space-y-2">
                   <p className="text-sm font-medium">How are you feeling?</p>
                   {/* The quick base moods (Good / Neutral / Bad) are the colourful
@@ -1446,7 +1424,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                     track any other rating-type symptom/habit. 0–5, untouched
                     logs nothing. Merged into the symptom check-ins on save. */}
                 {sliderEnabled && (
-                <div className="flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
+                <div className="os-side-rating flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
                   <button type="button" onClick={() => setShowSliderPicker(true)}
                     aria-label={`Rating tracks ${sliderSymptom?.label || "Energy"} — change`}
                     className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] truncate leading-tight text-center flex items-center gap-0.5">
@@ -1465,6 +1443,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Fronting */}
+          {visiblePills.some((p) => p.id !== "feeling") && (
+            <p className="text-xs font-medium text-muted-foreground pt-1">Add more (optional)</p>
+          )}
+          {sectionRow("fronting")}
           {openSections.has("fronting") &&
           <div ref={(el) => (sectionRefs.current.fronting = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Who's {terms.fronting}?</p>
@@ -1591,6 +1573,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Activity */}
+          {sectionRow("activity")}
           {openSections.has("activity") &&
           <div ref={(el) => (sectionRefs.current.activity = el)} className="border border-border/50 rounded-xl p-3 flex gap-2 items-start">
             <div className="flex-1 min-w-0 space-y-2">
@@ -1740,6 +1723,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Symptoms / Habits */}
+          {sectionRow("symptoms")}
           {openSections.has("symptoms") &&
           <div ref={(el) => (sectionRefs.current.symptoms = el)} className="border border-border/50 rounded-xl p-3">
               <SymptomsSection
@@ -1752,6 +1736,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Diary */}
+          {sectionRow("diary")}
           {openSections.has("diary") &&
           <div ref={(el) => (sectionRefs.current.diary = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Check-In Log</p>
@@ -1760,6 +1745,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Note */}
+          {sectionRow("note")}
           {openSections.has("note") &&
           <div ref={(el) => (sectionRefs.current.note = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Quick note <span className="text-muted-foreground font-normal">(over 50 words → journal)</span></p>
@@ -1785,6 +1771,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Company (who are you with) */}
+          {sectionRow("contacts")}
           {openSections.has("contacts") &&
           <div ref={(el) => (sectionRefs.current.contacts = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Company</p>
@@ -1793,6 +1780,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Location */}
+          {sectionRow("location")}
           {openSections.has("location") && (
             <div ref={(el) => (sectionRefs.current.location = el)} className="border border-border/50 rounded-xl p-3 space-y-3">
               <p className="text-sm font-medium">Where are you?</p>
@@ -1849,26 +1837,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             </div>
           )}
         </div>
-
-        {/* Bottom section nav — close the current section, open the previous /
-            next one in order. Other manually-opened sections stay put. */}
-        {(() => {
-          const cIdx = PILLS.findIndex((p) => p.id === currentSectionId);
-          const labelFor = (p) => (p?.id === "fronting" ? terms.Fronting : p?.label);
-          const prevP = cIdx > 0 ? PILLS[cIdx - 1] : null;
-          const nextP = cIdx >= 0 && cIdx < PILLS.length - 1 ? PILLS[cIdx + 1] : null;
-          return (
-            <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-border/50 bg-card">
-              <Button variant="ghost" size="sm" disabled={!prevP} onClick={() => goToSection(-1)} className="gap-1 text-xs min-w-0 flex-1 justify-start">
-                <ChevronLeft className="w-4 h-4 flex-shrink-0" /> <span className="truncate">{prevP ? labelFor(prevP) : "Prev"}</span>
-              </Button>
-              <span className="text-[0.6875rem] font-medium text-muted-foreground truncate px-1 flex-shrink-0">{cIdx >= 0 ? labelFor(PILLS[cIdx]) : ""}</span>
-              <Button variant="ghost" size="sm" disabled={!nextP} onClick={() => goToSection(1)} className="gap-1 text-xs min-w-0 flex-1 justify-end">
-                <span className="truncate">{nextP ? labelFor(nextP) : "Next"}</span> <ChevronRight className="w-4 h-4 flex-shrink-0" />
-              </Button>
-            </div>
-          );
-        })()}
 
         {/* Slider symptom picker — pick which rating symptom/habit the
             Feeling-section side slider tracks. */}

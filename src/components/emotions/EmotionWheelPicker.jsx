@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useContext, createContext } from "react";
+import React, { useState, useMemo, useContext, createContext, useEffect } from "react";
 import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import useLongPress from "@/hooks/useLongPress";
 import { Input } from "@/components/ui/input";
@@ -189,7 +189,14 @@ export default function EmotionWheelPicker({
   emotionDots = null,
   holdAriaLabel = null,
 }) {
+  // Guided or Classic is one setting (check-in manager), not a toggle on
+  // every picker (UI critique H4).
   const [pickerMode,    setPickerMode]    = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
+  useEffect(() => {
+    const on = () => setPickerMode(lsGet(LS_PICKER_MODE, "wheel"));
+    window.addEventListener("symphony-emotion-picker-mode", on);
+    return () => window.removeEventListener("symphony-emotion-picker-mode", on);
+  }, []);
   const [activeValence, setActiveValence] = useState(null);
   const [activeCore,    setActiveCore]    = useState(null);
   const [search,        setSearch]        = useState("");
@@ -205,13 +212,6 @@ export default function EmotionWheelPicker({
   const catLabels = useEmotionCategoryLabels();
   const rootLabel = (key) => catLabels[key] || WHEEL[key]?.label;
 
-  const handleModeToggle = (mode) => {
-    setPickerMode(mode);
-    lsSet(LS_PICKER_MODE, mode);
-    setActiveValence(null);
-    setActiveCore(null);
-    setSearch("");
-  };
 
   const handleValence = (key) => {
     // Good / Bad / Neutral double as the quick "base mood": tapping one adds
@@ -303,21 +303,6 @@ export default function EmotionWheelPicker({
   return (
     <EmotionHoldContext.Provider value={holdCtx}>
     <div className="space-y-3">
-      {/* Mode toggle */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground font-medium">Mode:</span>
-        {["wheel", "classic"].map(m => (
-          <button key={m} onClick={() => handleModeToggle(m)}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
-              pickerMode === m
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted text-muted-foreground border-border/50 hover:border-border"
-            }`}>
-            {m === "wheel" ? "🎡 Guided" : "📋 Classic"}
-          </button>
-        ))}
-      </div>
-
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
