@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "The Notes & lists \"What's this?\" card now explains quick jump as it works today, with a button to its settings; the hand button there opens them too." },
       { type: "feature", text: "Lists, flash-card decks, notes and whole Notebook pages can now go on your home screen and any profile, not only on Notebook pages: add them from Widgets and pick which one." },
       { type: "improve", text: "Needs balance, Taking turns and Goals on a profile can show just that alter's (or that group's) under Whose; ones already placed keep showing everyone's." },
       { type: "improve", text: "The new profile's first page is back in the familiar order: picture and name banner, boundaries, bio, groups, answers, tags, then custom fields." },

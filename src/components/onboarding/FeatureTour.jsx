@@ -199,7 +199,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "🛒", title: "The grocery list",
-      body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Data & privacy → Quick jump.`,
+      body: `The cart icon opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
     }),
