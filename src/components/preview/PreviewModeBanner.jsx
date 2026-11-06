@@ -38,7 +38,7 @@ export default function PreviewModeBanner() {
     <div
       role="status"
       aria-live="polite"
-      data-os-chrome=""
+      data-os-chrome="banner"
       className="w-full bg-amber-500/15 border-b border-amber-500/40"
       style={{
         paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -60,13 +60,13 @@ export default function PreviewModeBanner() {
             const cmp = cmpVersion(WIKI_CONTENT_VERSION, APP_VERSION);
             if (cmp >= 0) {
               return (
-                <span className="ml-2 text-amber-700/80 dark:text-amber-300/80">
+                <span className="os-preview-note ml-2 text-amber-700/80 dark:text-amber-300/80">
                   walkthrough up to date with v{APP_VERSION}
                 </span>
               );
             }
             return (
-              <span className="ml-2 text-amber-700 dark:text-amber-300" title={`Wiki bios last refreshed for v${WIKI_CONTENT_VERSION}; you're on v${APP_VERSION}. New features may not be documented here yet.`}>
+              <span className="os-preview-note ml-2 text-amber-700 dark:text-amber-300" title={`Wiki bios last refreshed for v${WIKI_CONTENT_VERSION}; you're on v${APP_VERSION}. New features may not be documented here yet.`}>
                 · written for v{WIKI_CONTENT_VERSION}<span className="hidden sm:inline">, you're on v{APP_VERSION} (some new features may be missing)</span>
               </span>
             );

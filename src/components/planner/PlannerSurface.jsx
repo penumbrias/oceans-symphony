@@ -407,7 +407,7 @@ export default function PlannerSurface({
             {/* Row 2: date navigation — steps by whatever the view shows. */}
             {section !== "plans" && (
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-0.5 min-w-0">
+                <div className="flex items-center gap-0.5 min-w-0 flex-wrap">
                   <Button variant="ghost" size="sm" aria-label={tr("planner.prev")} onClick={() => stepAnchor(-1)}>
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -416,7 +416,7 @@ export default function PlannerSurface({
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                   <button type="button" onClick={() => setAnchor(new Date())}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground ml-1">
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground ml-1 whitespace-nowrap flex-shrink-0">
                     {tr("planner.today")}
                   </button>
                   {section === "calendar" && view === "week" && (

@@ -599,19 +599,29 @@ html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 
   overflow-wrap: break-word;
   word-break: normal;
 }
-/* The same pin applies at the three largest text sizes even outside
-   Accessibility mode (v0.364.4, UI critique C3): at 200% the header read
-   "Oceans Sym" under the bell and the tabs read "Syste" / "Journa", and the
-   chrome filled the screen before any content. Page text still scales; the
-   bars stay a fixed, readable size. The v2 bars size their text in em, so
-   pinning the bar's own font-size is enough there. */
-html.a11y-text-xl3 .a11y-header-row, html.a11y-text-xl4 .a11y-header-row, html.a11y-text-xl5 .a11y-header-row { height: 52px !important; }
-html.a11y-text-xl3 .a11y-header-row svg, html.a11y-text-xl4 .a11y-header-row svg, html.a11y-text-xl5 .a11y-header-row svg { width: 22px !important; height: 22px !important; }
+/* The three largest text sizes (v0.364.5, UI critique C3). The bars can't
+   double with the page or they'd fill the screen, but they still grow —
+   pinning them at 12 px (v0.364.4) left them unreadable for exactly the
+   people who chose this size. The tab bar gets taller to fit (applyNavHeight
+   in useAccessibility.js), labels wrap to two lines, and the v2 bars size
+   their text in em, so their own font-size is set here. */
+html.a11y-text-xl3 .a11y-header-row, html.a11y-text-xl4 .a11y-header-row, html.a11y-text-xl5 .a11y-header-row { height: 56px !important; }
+html.a11y-text-xl3 .a11y-header-row svg, html.a11y-text-xl4 .a11y-header-row svg, html.a11y-text-xl5 .a11y-header-row svg { width: 26px !important; height: 26px !important; }
+html.a11y-text-xl3 .a11y-header-row .a11y-keep-truncate, html.a11y-text-xl4 .a11y-header-row .a11y-keep-truncate, html.a11y-text-xl5 .a11y-header-row .a11y-keep-truncate { max-width: 50% !important; }
 html.a11y-text-xl3 .a11y-header-title, html.a11y-text-xl4 .a11y-header-title, html.a11y-text-xl5 .a11y-header-title { font-size: 18px !important; line-height: 1.2 !important; }
-html.a11y-text-xl3 .a11y-bottom-nav svg, html.a11y-text-xl4 .a11y-bottom-nav svg, html.a11y-text-xl5 .a11y-bottom-nav svg { width: 22px !important; height: 22px !important; }
-html.a11y-text-xl3 .a11y-bottom-nav span, html.a11y-text-xl4 .a11y-bottom-nav span, html.a11y-text-xl5 .a11y-bottom-nav span { font-size: 12px !important; line-height: 1.1 !important; }
-html.a11y-text-xl3 [data-os-chrome], html.a11y-text-xl4 [data-os-chrome], html.a11y-text-xl5 [data-os-chrome] { font-size: 18px !important; }
-html.a11y-text-xl3 [data-os-chrome="tabs"], html.a11y-text-xl4 [data-os-chrome="tabs"], html.a11y-text-xl5 [data-os-chrome="tabs"] { font-size: 19.2px !important; }
+html.a11y-text-xl3 .a11y-bottom-nav svg, html.a11y-text-xl4 .a11y-bottom-nav svg, html.a11y-text-xl5 .a11y-bottom-nav svg { width: 24px !important; height: 24px !important; }
+html.a11y-text-xl3 .a11y-bottom-nav span { font-size: 15px !important; line-height: 1.1 !important; }
+html.a11y-text-xl4 .a11y-bottom-nav span, html.a11y-text-xl5 .a11y-bottom-nav span { font-size: 16px !important; line-height: 1.1 !important; }
+html.a11y-text-xl3 [data-os-chrome], html.a11y-text-xl4 [data-os-chrome], html.a11y-text-xl5 [data-os-chrome] { font-size: 20px !important; }
+html.a11y-text-xl3 [data-os-chrome="tabs"], html.a11y-text-xl4 [data-os-chrome="tabs"], html.a11y-text-xl5 [data-os-chrome="tabs"] { font-size: 24px !important; height: auto !important; min-height: var(--v2-strip-h); }
+html.a11y-text-xl3 [data-os-chrome="banner"], html.a11y-text-xl4 [data-os-chrome="banner"], html.a11y-text-xl5 [data-os-chrome="banner"] { font-size: 21.5px !important; }
+/* A reminder card at large text: icon and its fold / × buttons share the top
+   row and the words get the card's whole width beneath them, instead of a
+   narrow column squeezed between. */
+html.a11y-text-xl3 .os-reminder-head, html.a11y-text-xl4 .os-reminder-head, html.a11y-text-xl5 .os-reminder-head { flex-wrap: wrap; row-gap: 0.25rem; }
+html.a11y-text-xl3 .os-reminder-text, html.a11y-text-xl4 .os-reminder-text, html.a11y-text-xl5 .os-reminder-text { order: 3; flex-basis: 100%; }
+html.a11y-text-xl3 .os-preview-note, html.a11y-text-xl4 .os-preview-note, html.a11y-text-xl5 .os-preview-note { display: none; }
+
 /* Page titles don't need to double too: at 200% "Journals" split into
    "Jour / nals" beside its buttons. Cap the display headings outside widgets
    (a widget's own Text size still rules inside it). */

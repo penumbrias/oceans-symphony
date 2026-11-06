@@ -1579,11 +1579,11 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
         onClick={() => setExpanded(v => !v)}
         className="flex-1 min-w-0 text-left pl-4 pr-2 py-3 hover:bg-muted/20 transition-colors"
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <Heart className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
-              <p className="font-semibold text-sm">{format(dateObj, "EEEE, MMMM d, yyyy")}</p>
+              <p className="font-semibold text-sm">{format(dateObj, "EEEE, MMM d, yyyy")}</p>
               {summaryParts.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   {summaryParts.join(" · ")}
@@ -1873,7 +1873,7 @@ export default function CheckInLog() {
             {!allOn && <span className="ml-1.5">· filtered view</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setCustomNoteOpen(true)}
             className="flex-shrink-0 h-9 rounded-full gap-1 px-3 text-xs">
             <Plus className="w-4 h-4" /> Note

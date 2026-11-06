@@ -1555,7 +1555,7 @@ export default function InfiniteTimeline({
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
             <button onClick={() => setShowTally(v => !v)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors whitespace-nowrap flex-shrink-0 ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
               <BarChart3 className="w-3 h-3" />
               Tally
             </button>

@@ -290,7 +290,7 @@ export default function AlterGrid({ alters }) {
       <button
         type="button"
         onClick={() => setCreateGroupOpen(true)}
-        className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors whitespace-nowrap">
         <Plus className="w-4 h-4" /> New group
       </button>
       <DropdownMenu>
@@ -341,7 +341,7 @@ export default function AlterGrid({ alters }) {
 
         {/* Groups section — header always visible */}
         <div>
-          <div className="flex items-center gap-2 mb-2 px-1">
+          <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
             <div className="flex-1 h-px bg-border/50" />
             {groupControls()}
@@ -403,7 +403,7 @@ export default function AlterGrid({ alters }) {
 
         {/* Alters list/grid */}
         <div>
-          <div className="flex items-center gap-2 mb-3 px-1">
+          <div className="flex items-center gap-2 mb-3 px-1 flex-wrap">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
             <div className="flex items-center gap-1">
@@ -419,7 +419,7 @@ export default function AlterGrid({ alters }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" data-tour="alter-view-toggle"
-                    className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+                    className="flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors whitespace-nowrap">
                     <SlidersHorizontal className="w-4 h-4" /> View
                   </button>
                 </DropdownMenuTrigger>
