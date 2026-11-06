@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 6, 2026",
+    changes: [
+      { type: "hotfix", text: "Hotfix: Friends server moved off a retired storage library (no change to your data)." },
+    ],
+  },
+  {
     date: "November 5, 2026",
+    version: "0.357.2",
     changes: [
       { type: "fix", text: "Phone app: saving its sync file no longer risks the same crash on big databases." },
       { type: "fix", text: "Phone app no longer keeps closing after syncing with a desktop that has lots of pictures, songs or videos." },

@@ -4,7 +4,7 @@
 # relay. The server's own package.json pulls just the four packages the
 # handlers need, rather than the app's full dependency tree.
 #
-# @vercel/kv is among them even though a self-hosted relay never calls
+# @upstash/redis is among them even though a self-hosted relay never calls
 # Upstash: api/_kv.js imports it at module scope, and keeping that import
 # is what lets self-hosted and hosted deployments run the SAME handler
 # files instead of a fork. It is inert when REDIS_URL is set.

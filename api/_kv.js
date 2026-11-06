@@ -1,13 +1,42 @@
 // Shared utilities for Friends API endpoints
-import { kv as vercelKv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { randomBytes } from 'node:crypto';
 
-// KV backend. On Vercel this is Upstash via @vercel/kv. A self-hosted
-// relay (server/index.mjs) installs a Redis-backed adapter on globalThis
-// BEFORE importing any handler, so the handlers themselves are never
-// forked — there is exactly one copy of the Friends logic and both
-// deployments run it. See docs/self-hosting.md.
-export const kv = globalThis.__SYMPHONY_KV || vercelKv;
+// KV backend. On Vercel this is the Upstash Redis store that Vercel KV
+// moved to, reached with the same KV_REST_API_URL / KV_REST_API_TOKEN
+// env vars. This used to go through @vercel/kv, which is deprecated; it
+// was a thin wrapper over @upstash/redis, so the client below is built
+// with the same options it used and behaves the same (same data, same
+// JSON (de)serialisation). It is created lazily, on first use, so
+// importing this file never throws when the env vars are missing.
+//
+// A self-hosted relay (server/index.mjs) installs a Redis-backed adapter
+// on globalThis BEFORE importing any handler, so the handlers themselves
+// are never forked — there is exactly one copy of the Friends logic and
+// both deployments run it. See docs/self-hosting.md.
+process.env.UPSTASH_DISABLE_TELEMETRY = '1';
+let upstash = null;
+function upstashClient() {
+  if (!upstash) {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) {
+      throw new Error('Missing required environment variables KV_REST_API_URL and KV_REST_API_TOKEN');
+    }
+    upstash = new Redis({ url, token, cache: 'default', enableAutoPipelining: true });
+  }
+  return upstash;
+}
+const lazyUpstash = new Proxy({}, {
+  get(target, prop, receiver) {
+    if (prop === 'then' || prop === 'parse') return Reflect.get(target, prop, receiver);
+    const client = upstashClient();
+    const value = Reflect.get(client, prop);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
+
+export const kv = globalThis.__SYMPHONY_KV || lazyUpstash;
 
 // Whether a KV backend is actually usable. Every endpoint guards on this
 // rather than reading KV_REST_API_URL directly, because a self-hosted
