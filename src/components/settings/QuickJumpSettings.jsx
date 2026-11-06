@@ -11,9 +11,8 @@ import { buildNavGroups } from "@/lib/navCatalogue";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { verifyPassword } from "@/lib/localDb";
 import { promptText } from "@/components/shared/ConfirmDialog";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Group, ChoiceRow, StackedRow, Row } from "@/components/shared/SettingRows";
+import { Group, ChoiceRow, StackedRow, Row, SwitchRow } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -152,13 +151,12 @@ export default function QuickJumpSettings() {
       </Group>
 
       <Group title="Lock">
-        <Row label="Lock behind it"
+        <SwitchRow label="Lock behind it"
           hint={encryptionOn
             ? "Leaving what the jump opened locks the app until your password is entered."
-            : "Needs a password. Turn one on in Storage & encryption."}>
-          <Switch checked={encryptionOn && lockOn} disabled={!encryptionOn} onCheckedChange={setLock}
-            aria-label="Lock behind it" />
-        </Row>
+            : "Needs a password. Turn one on in Storage & encryption."}
+          checked={encryptionOn && lockOn}
+          onChange={(on) => { if (encryptionOn) setLock(on); }} />
       </Group>
 
       <AssetPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} allowFolders

@@ -1180,6 +1180,10 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
 - **Bars have ONE editor — Display options → Bars (v0.250.0).** Never add a bar setting, toggle or gear anywhere else. Read/write every bar's show/hide, placement and look through `src/lib/barsModel.js` (`barShown`/`barShownPatch` know which flag the chrome on screen obeys; `readPinnedBar`/`pinnedBarPatch`/`pinnedBarLook`/`pinnedBarLookPatch` own the pinned bar), and open the editor with `openBarsEditor(barId)`. Bars are device chrome and live in `ui_v2` (never synced); the pinned bar's old `ui_v2_home.altersBar` is read until the first change copies it across and is never deleted. Show/hide switches are `BarShowSwitch` — the setup guide renders the same component. Tests: `node scripts/test-bars-model.mjs`.
 
+### Every feature is built as "the garden" — read `docs/garden.md`
+
+**The record is the source of truth with one write path; each record has one Info door; a page that shows things is a widget board (`ProfileBoardCanvas` / `PageBoardCanvas`, header title · Info · Edit page); widgets only display and quick-act through the write path, with every setting on Content, and are offered in every library (Which… picker or `SCOPE_FIELD`, no private registries).** The owner asked (2026-11-06) that all new and future work follows it. The UI review checks it.
+
 ### Option menus — follow the inspector guide
 
 **Every menu that edits how something looks or behaves — widget options,

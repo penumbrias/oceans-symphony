@@ -7,7 +7,9 @@ read-through for what it can't, then one look in the browser. It distils
 what the Fable reviews of October 2026 kept catching, so a Fable agent is
 only needed when the owner asks for one.
 
-The design rules themselves live in `docs/inspector-design-guide.md`
+The design rules themselves live in `docs/garden.md` (how every feature
+is built: record, Info door, board page, display widgets — read it first),
+`docs/inspector-design-guide.md`
 (option menus), `docs/v2-ui-standards.md` (every v2 surface) and
 `docs/widget-contract.md` (widgets). This guide doesn't repeat them; it
 says how to check a diff against them.
@@ -36,6 +38,20 @@ native `<select>` inside a third-party form, a word in a code example). Every
 
 Go through `git diff origin/main...HEAD -- src` once with these questions.
 Each has the usual way it goes wrong and the fix past reviews asked for.
+
+### The garden (`docs/garden.md`)
+
+- **Does the data live in a record with one write path?** A widget that
+  stores content in its own settings, or a screen that writes the entity
+  directly, is a fork. Route it through the `src/lib/` writer.
+- **Is the page a board?** A new page that shows things uses
+  `PageBoardCanvas` / `ProfileBoardCanvas` with the standard header
+  (title · Info · Edit page), not a hand-built list.
+- **Is each view a widget offered everywhere?** No private registries; a
+  widget about one record has a Which… picker, one about per-alter records
+  has `SCOPE_FIELD`.
+- **Is there one editor per record?** Editing opens the record's Info
+  sheet or item sheet — not a form swapped into a card.
 
 ### Structure — pages, not pills
 
