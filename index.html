@@ -22,9 +22,37 @@
     <link rel="apple-touch-icon" href="/icon-512.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>Oceans Symphony</title>
+    <!-- Launch cover (v0.365.2): painted before any JS runs and kept up
+         until the first screen is ready (src/lib/launchCover.js lifts it).
+         Looks like the Android launch screen so the hand-over is seamless.
+         The 20s animation is a pure-CSS safety net in case no script ever
+         lifts it. Styles only — no inline script, so the CSP hash below is
+         untouched. -->
+    <style>
+      #launch-cover{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:30vh;gap:14px;
+        background:radial-gradient(ellipse 90% 45% at 50% 66%,#fbf8d4 0%,#efe9a6 22%,#b9bd82 42%,rgba(110,138,110,0) 70%),linear-gradient(180deg,#152a44 0%,#2b4c66 32%,#5c7a6c 52%,#8d9a6e 62%,#4f7287 82%,#2f5a7a 100%);
+        color:#f1f5f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;
+        transition:opacity .3s ease;animation:launch-cover-giveup .3s ease 20s forwards}
+      #launch-cover.launch-cover--out{opacity:0;pointer-events:none}
+      #launch-cover img{width:64px;height:64px;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+      #launch-cover .lc-name{font-size:19px;font-weight:600;letter-spacing:.01em;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+      #launch-cover .lc-dots{display:flex;gap:7px;margin-top:4px}
+      #launch-cover .lc-dots span{width:7px;height:7px;border-radius:50%;background:rgba(241,245,249,.85);animation:launch-cover-dot 1.2s ease-in-out infinite}
+      #launch-cover .lc-dots span:nth-child(2){animation-delay:.2s}
+      #launch-cover .lc-dots span:nth-child(3){animation-delay:.4s}
+      @keyframes launch-cover-dot{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+      @keyframes launch-cover-giveup{to{opacity:0;visibility:hidden;pointer-events:none}}
+      @media (prefers-reduced-motion: reduce){#launch-cover .lc-dots span{animation:none;opacity:.7}}
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="launch-cover" role="status" aria-live="polite">
+      <img src="/logo.svg" alt="" />
+      <div class="lc-name">Oceans Symphony</div>
+      <div class="lc-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Loading</span>
+    </div>
     <!-- White-screen watchdog (tester report: "occasionally the whole screen
          goes white while loading", usually after a long idle or a cache
          clear). Two known shapes: (a) the JS bundle never executes (stale

@@ -44,5 +44,5 @@ export function whenIdle(fn, { timeout = 4000, delay = 0 } = {}) {
 // The placeholder a lazy widget body shows for the moment its code arrives:
 // an empty box of the widget's own size, so nothing jumps.
 export function WidgetSuspense({ children }) {
-  return <React.Suspense fallback={<div style={{ minHeight: 24 }} aria-busy="true" />}>{children}</React.Suspense>;
+  return <React.Suspense fallback={<div style={{ minHeight: 24 }} aria-busy="true" data-launch-pending="" />}>{children}</React.Suspense>;
 }
