@@ -199,7 +199,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "✏️", title: "Lay out your notes",
-      body: `Notes & lists is made of widgets. Tap one to open it in a sheet. The pencil (Edit page) adds a List, Note or Flash-card deck widget beside them, and the same widgets can go on home or a profile.`,
+      body: `Notes & lists is made of widgets. Tap one to open it in a sheet: List to write and tick things off, Info for its name and kind. The pencil (Edit page) adds a List, Note or Flash-card deck widget beside them, and the same widgets can go on home or a profile.`,
       route: "/notes", target: ["notes-layout-btn", "notes-page"],
     }),
     s("dashboard", {

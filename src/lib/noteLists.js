@@ -20,8 +20,10 @@ import { clockPattern } from "@/lib/timeFormat";
 import { isDbInitialized } from "@/lib/localDb";
 import {
   listUnlockedLists, loadStore, updateUnlockedList, updateUnlockedItem, createUnlockedItem,
+  createUnlockedList, deleteUnlockedList, deleteUnlockedItem,
+  listUnlockedFavorites, addUnlockedFavorite, removeUnlockedFavorite,
 } from "@/lib/localUnlockedGrocery";
-import { combineLists, itemsForList } from "@/lib/noteListModel";
+import { combineLists, itemsForList, tickPatch, UNTICK_PATCH } from "@/lib/noteListModel";
 
 export * from "@/lib/noteListModel";
 
@@ -63,49 +65,167 @@ export function useNoteLists({ enabled = true } = {}) {
   }, [ready, idbLists, idbItems, unlocked]);
 }
 
-// ── Writes (routed to the list's own store) ──────────────────────────
+// ── Writes: the one write path for notes, lists and decks (v0.365.0) ──
+//
+// Every change to a list, its items or its favourites goes through here —
+// the list sheet, the widgets, goals AND the lists panel (the privacy cover)
+// all call these, so a write lands the same way from every door. Each call
+// is routed to the store the list lives in (list.source: "local" = the
+// plaintext "available when locked" store, otherwise the encrypted one).
+// Nothing here moves a list between stores, and no person's id is ever
+// written to the plaintext store.
+//
+// Lists, items and favourites are removed at once, not trashed (they are
+// TRASH_INSTANT: the cover keeps its contents out of app history).
+
+const isLocal = (list) => list?.source === "local";
+const norm = (s) => String(s || "").trim().toLowerCase();
+const nowIso = () => new Date().toISOString();
+const quickNoteName = () => `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`;
+
+async function forgetPictures(urls) {
+  const list = (urls || []).filter(Boolean);
+  if (!list.length) return;
+  const { getLocalImageId } = await import("@/lib/localImageStorage");
+  const { deleteLocalImageIfUnused } = await import("@/lib/localImageUsage");
+  for (const url of list) {
+    try { const id = getLocalImageId(url); if (id) await deleteLocalImageIfUnused(id); } catch { /* non-fatal */ }
+  }
+}
+
+export function noteListWriters(qc) {
+  const refresh = (...keys) => {
+    for (const k of keys.length ? keys : ["groceryLists", "groceryItems"]) qc?.invalidateQueries({ queryKey: [k] });
+  };
+  const w = {
+    // ── Lists ──
+    // A new list, note or deck. `unlocked` puts it in the plaintext store
+    // (only ever by the person's explicit choice); an owner is only kept in
+    // the encrypted store. Returns the record, or null.
+    async createList({ name, kind = "shopping", ownerId = null, unlocked = false } = {}) {
+      const n = String(name || "").trim();
+      if (!n) return null;
+      if (unlocked) return createUnlockedList(n, { list_type: kind });
+      const made = await localEntities.GroceryList.create({
+        name: n, list_type: kind, owner_alter_id: ownerId || null, created_date: nowIso(),
+      });
+      refresh("groceryLists");
+      return made;
+    },
+    // A new note named for the moment it was made.
+    async createNote(name, { unlocked = false } = {}) {
+      return w.createList({ name: String(name || "").trim() || quickNoteName(), kind: "note", unlocked });
+    },
+    // Name, kind and owner. The plaintext store keeps name and kind only.
+    async updateList(list, patch = {}) {
+      if (!list) return;
+      if (isLocal(list)) {
+        const safe = {};
+        if (typeof patch.name === "string") safe.name = patch.name;
+        if (typeof patch.list_type === "string") safe.list_type = patch.list_type;
+        updateUnlockedList(list.id, safe);
+        return;
+      }
+      await localEntities.GroceryList.update(list.id, patch);
+      refresh("groceryLists");
+    },
+    // A note's text (and its pictures / authors) — the one copy, wherever
+    // it's edited from. The plaintext store only takes the text.
+    async saveNote(list, content) {
+      const patch = typeof content === "string" ? { note_content: content } : (content || {});
+      if (isLocal(list)) updateUnlockedList(list.id, { note_content: patch.note_content });
+      else { await localEntities.GroceryList.update(list.id, patch); refresh("groceryLists"); }
+    },
+    // The list, every item on it, and the pictures only it used.
+    async deleteList(list) {
+      if (!list) return;
+      if (isLocal(list)) { deleteUnlockedList(list.id); return; }
+      const all = await localEntities.GroceryItem.list("created_date").catch(() => []);
+      for (const item of all.filter((i) => i.list_id === list.id)) {
+        try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
+        await forgetPictures([item.front_image, item.back_image]);
+      }
+      await localEntities.GroceryList.delete(list.id);
+      // After the record is gone, so the in-use check doesn't count it.
+      await forgetPictures(Array.isArray(list.note_images) ? list.note_images : []);
+      refresh();
+    },
+
+    // ── Items ──
+    // Adds one item; skips a name that's already waiting on the list.
+    async addItem(list, name, { existing = [] } = {}) {
+      const v = String(name || "").trim();
+      if (!list || !v) return null;
+      if ((existing || []).some((i) => i && !i.checked && norm(i.name) === norm(v))) return null;
+      if (isLocal(list)) return createUnlockedItem(list.id, v);
+      const made = await localEntities.GroceryItem.create({ list_id: list.id, name: v, checked: false, created_date: nowIso() });
+      refresh("groceryItems");
+      return made;
+    },
+    async patchItem(list, item, patch) {
+      if (!item || !patch) return;
+      if (isLocal(list)) updateUnlockedItem(item.id, patch);
+      else { await localEntities.GroceryItem.update(item.id, patch); refresh("groceryItems"); }
+    },
+    // One tap: to do → ticked (→ ran out, on a shopping list) → back.
+    tick: (list, item) => w.patchItem(list, item, tickPatch(list, item)),
+    untick: (list, item) => w.patchItem(list, item, { ...UNTICK_PATCH }),
+    // Tick / untick outright (a widget's checkbox).
+    setChecked: (list, item, checked) => w.patchItem(list, item, checked
+      ? { checked: true, purchased_at: nowIso(), ran_out_at: null } : { ...UNTICK_PATCH }),
+    async removeItem(list, item) {
+      if (!item) return;
+      if (isLocal(list)) deleteUnlockedItem(item.id);
+      else { await localEntities.GroceryItem.delete(item.id); refresh("groceryItems"); }
+      await forgetPictures([item.front_image, item.back_image]);
+    },
+    async clearRanOut(list, items = []) {
+      for (const i of (items || []).filter((x) => x?.ran_out_at)) await w.removeItem(list, i);
+    },
+    // A flash card: an item with a back and optional pictures.
+    async addCard(list, patch = {}) {
+      if (!list) return null;
+      if (isLocal(list)) {
+        const made = createUnlockedItem(list.id, patch.name);
+        if (made) updateUnlockedItem(made.id, { back: patch.back, front_image: patch.front_image, back_image: patch.back_image });
+        return made;
+      }
+      const made = await localEntities.GroceryItem.create({ list_id: list.id, ...patch, checked: false, created_date: nowIso() });
+      refresh("groceryItems");
+      return made;
+    },
+
+    // ── Frequent items (each store keeps its own) ──
+    async toggleFavorite(list, name, favorites = []) {
+      const v = String(name || "").trim();
+      if (!list || !v) return;
+      const existing = (favorites || []).find((f) => norm(f.name) === norm(v));
+      if (isLocal(list)) {
+        if (existing) removeUnlockedFavorite(v); else addUnlockedFavorite(v);
+        return;
+      }
+      if (existing) await localEntities.GroceryFavorite.delete(existing.id);
+      else await localEntities.GroceryFavorite.create({ name: v });
+      refresh("groceryFavorites");
+    },
+  };
+  return w;
+}
 
 export function useNoteListWriters() {
   const qc = useQueryClient();
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["groceryLists"] });
-    qc.invalidateQueries({ queryKey: ["groceryItems"] });
-  };
-  return {
-    // A note's text — the one copy, wherever it's edited from.
-    async saveNote(list, content) {
-      const patch = typeof content === "string" ? { note_content: content } : content;
-      if (list.source === "local") updateUnlockedList(list.id, { note_content: patch.note_content });
-      else { await localEntities.GroceryList.update(list.id, patch); refresh(); }
-    },
-    // Tick / untick an item the way the lists panel's two-state lists do.
-    async setChecked(list, item, checked) {
-      const patch = checked
-        ? { checked: true, purchased_at: new Date().toISOString(), ran_out_at: null }
-        : { checked: false, purchased_at: null, ran_out_at: null };
-      if (list.source === "local") updateUnlockedItem(item.id, patch);
-      else { await localEntities.GroceryItem.update(item.id, patch); refresh(); }
-    },
-    // A new note in the normal (encrypted) store — the same record the
-    // lists panel's "New note" makes there (v0.363.0).
-    async createNote(name) {
-      const made = await localEntities.GroceryList.create({
-        name: String(name || "").trim() || `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`, list_type: "note", created_date: new Date().toISOString(),
-      });
-      refresh();
-      return made;
-    },
-    async addItem(list, name) {
-      const v = String(name || "").trim();
-      if (!v) return null;
-      if (list.source === "local") return createUnlockedItem(list.id, v);
-      const made = await localEntities.GroceryItem.create({
-        list_id: list.id, name: v, checked: false, created_date: new Date().toISOString(),
-      });
-      refresh();
-      return made;
-    },
-  };
+  return useMemo(() => noteListWriters(qc), [qc]);
+}
+
+// Frequent items for a list's store.
+export function useListFavorites(list, { enabled = true } = {}) {
+  const ready = enabled && isDbInitialized();
+  const { data: idbFavorites = [] } = useQuery({
+    queryKey: ["groceryFavorites"], queryFn: () => localEntities.GroceryFavorite.list("name").catch(() => []), enabled: ready,
+  });
+  const unlocked = useUnlockedStore();
+  return useMemo(() => (isLocal(list) ? listUnlockedFavorites() : idbFavorites),
+    [list, idbFavorites, unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // Where a list, note or deck opens: the Notes & lists page.

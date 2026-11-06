@@ -13,12 +13,12 @@ import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
 import { useNavigate } from "react-router-dom";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import FlashCards, { deleteCardImages } from "@/components/grocery/FlashCards";
+import FlashCards from "@/components/grocery/FlashCards";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { PopupLayer } from "@/components/shared/popupLayer";
 import RichText from "@/components/shared/RichText";
 import { useTerms } from "@/lib/useTerms";
-import { finishNoteText, noteSpeaksGrammar } from "@/lib/noteLists";
+import { finishNoteText, noteSpeaksGrammar, useNoteListWriters, itemState } from "@/lib/noteLists";
 
 // v0.87.7: list types — the panel is now a general list tool, not just
 // groceries. "shopping" keeps the full purchased/ran-out/frequent-items
@@ -42,16 +42,8 @@ const LIST_TYPES = {
 const typeOf = (list) => LIST_TYPES[list?.list_type] ? list.list_type : "shopping";
 import {
   listUnlockedLists,
-  createUnlockedList,
-  deleteUnlockedList,
   listItemsForUnlockedList,
-  createUnlockedItem,
-  updateUnlockedItem,
-  deleteUnlockedItem,
   listUnlockedFavorites,
-  addUnlockedFavorite,
-  removeUnlockedFavorite,
-  updateUnlockedList,
 } from "@/lib/localUnlockedGrocery";
 import { clockPattern } from "@/lib/timeFormat";
 
@@ -118,6 +110,8 @@ const PANIC_EXPLAINED_KEY = "grocery_panic_explained_v1";
 export default function GroceryListPanel({ lockedMode = false, asPage = false, initialListId = null }) {
   const [open, setOpen] = useState(asPage);
   const qc = useQueryClient();
+  // Every write goes through the one write path (noteLists.js, v0.365.0).
+  const writers = useNoteListWriters();
   const inputRef = useRef(null);
   const [text, setText] = useState("");
   const keyboardInset = useKeyboardInset();
@@ -299,32 +293,16 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
   // available-when-locked option, no item rows.
   const [wantFreshNote, setWantFreshNote] = useState(false);
   const createQuickNote = async (unlocked = lockedMode) => {
-    const name = `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`;
     let created = null;
-    if (unlocked || lockedMode) {
-      created = createUnlockedList(name, { list_type: "note" });
-    } else if (idbAvailable) {
-      created = await localEntities.GroceryList.create({
-        name,
-        list_type: "note",
-        created_date: new Date().toISOString(),
-      });
-      qc.invalidateQueries({ queryKey: ["groceryLists"] });
-    }
+    if (unlocked || lockedMode) created = await writers.createNote(null, { unlocked: true });
+    else if (idbAvailable) created = await writers.createNote(null);
     if (created) {
       setActiveListId(created.id);
       setSwitcherOpen(false);
     }
     return created;
   };
-  const saveNote = async (list, patch) => {
-    if (list.source === "local") {
-      updateUnlockedList(list.id, patch);
-    } else {
-      await localEntities.GroceryList.update(list.id, patch);
-      qc.invalidateQueries({ queryKey: ["groceryLists"] });
-    }
-  };
+  const saveNote = (list, patch) => writers.saveNote(list, patch);
   useEffect(() => {
     if (!open || !wantFreshNote || !activeList) return;
     setWantFreshNote(false);
@@ -354,15 +332,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
     const trimmed = (name || "").trim();
     if (!trimmed) return;
     if (!activeList) return;
-    if (activeList.source === "local") {
-      if (isFavorite(trimmed)) removeUnlockedFavorite(trimmed);
-      else addUnlockedFavorite(trimmed);
-    } else {
-      const existing = activeFavorites.find((f) => norm(f.name) === norm(trimmed));
-      if (existing) await localEntities.GroceryFavorite.delete(existing.id);
-      else await localEntities.GroceryFavorite.create({ name: trimmed });
-      qc.invalidateQueries({ queryKey: ["groceryFavorites"] });
-    }
+    await writers.toggleFavorite(activeList, trimmed, activeFavorites);
   };
 
   const lockAndReloadIfArmed = () => {
@@ -457,84 +427,21 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       if (rawName === undefined) setText("");
       return;
     }
-    if (activeList.source === "local") {
-      createUnlockedItem(activeList.id, name);
-    } else {
-      await localEntities.GroceryItem.create({
-        list_id: activeList.id,
-        name,
-        checked: false,
-        created_date: new Date().toISOString(),
-      });
-      qc.invalidateQueries({ queryKey: ["groceryItems"] });
-    }
+    await writers.addItem(activeList, name);
     if (rawName === undefined) setText("");
   };
 
-  const getState = (item) => {
-    if (!item.checked) return "to_buy";
-    if (item.ran_out_at) return "ran_out";
-    return "in_stock";
-  };
-
-  const patchItem = async (item, patch) => {
-    if (activeList?.source === "local") {
-      updateUnlockedItem(item.id, patch);
-    } else {
-      await localEntities.GroceryItem.update(item.id, patch);
-      qc.invalidateQueries({ queryKey: ["groceryItems"] });
-    }
-  };
-
-  const toggle = async (item) => {
-    const state = getState(item);
-    const nowISO = new Date().toISOString();
-    // Non-shopping lists (wishlist / checklist) are a simple two-state
-    // check-off — no "ran out" third state in the cycle.
-    const shopping = typeOf(activeList) === "shopping";
-    if (state === "to_buy") {
-      await patchItem(item, { checked: true, purchased_at: nowISO, ran_out_at: null });
-    } else if (state === "in_stock") {
-      if (shopping) await patchItem(item, { ran_out_at: nowISO });
-      else await patchItem(item, { checked: false, purchased_at: null, ran_out_at: null });
-    } else {
-      await patchItem(item, { ran_out_at: null });
-    }
-  };
-
-  const remove = async (id) => {
-    if (activeList?.source === "local") {
-      deleteUnlockedItem(id);
-    } else {
-      await localEntities.GroceryItem.delete(id);
-      qc.invalidateQueries({ queryKey: ["groceryItems"] });
-    }
-  };
+  const getState = itemState;
+  const patchItem = (item, patch) => writers.patchItem(activeList, item, patch);
+  // Non-shopping lists are a simple two-state check-off (tickPatch).
+  const toggle = (item) => writers.tick(activeList, item);
+  const remove = (item) => writers.removeItem(activeList, item);
 
   // ── Flash cards: same stores as items, extra fields on the record.
-  const addCard = async (patch) => {
-    if (!activeList) return;
-    if (activeList.source === "local") {
-      const created = createUnlockedItem(activeList.id, patch.name);
-      if (created) updateUnlockedItem(created.id, { back: patch.back, front_image: patch.front_image, back_image: patch.back_image });
-    } else {
-      await localEntities.GroceryItem.create({
-        list_id: activeList.id,
-        ...patch,
-        checked: false,
-        created_date: new Date().toISOString(),
-      });
-      qc.invalidateQueries({ queryKey: ["groceryItems"] });
-    }
-  };
-  const removeCard = async (card) => {
-    await remove(card.id);
-    await deleteCardImages(card);
-  };
+  const addCard = (patch) => writers.addCard(activeList, patch);
+  const removeCard = (card) => writers.removeItem(activeList, card);
 
-  const restoreToBuy = async (item) => {
-    await patchItem(item, { checked: false, purchased_at: null, ran_out_at: null });
-  };
+  const restoreToBuy = (item) => writers.untick(activeList, item);
 
   const [clearArmed, setClearArmed] = useState(false);
   const clearRanOut = async () => {
@@ -544,29 +451,18 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       return;
     }
     setClearArmed(false);
-    const toClear = activeItems.filter((i) => i.ran_out_at);
-    for (const i of toClear) await remove(i.id);
+    await writers.clearRanOut(activeList, activeItems);
   };
 
   // ── List CRUD.
   const handleCreateList = async () => {
     const name = newListName.trim();
     if (!name) return;
-    let created;
-    if (newListUnlocked) {
-      // Plaintext store — no owner metadata by design (alter names must
-      // never land in unencrypted storage). The list TYPE is mundane and
-      // carries over, so unlocked notes work from the lock screen too.
-      created = createUnlockedList(name, { list_type: newListType });
-    } else {
-      created = await localEntities.GroceryList.create({
-        name,
-        list_type: newListType,
-        owner_alter_id: newListOwner || null,
-        created_date: new Date().toISOString(),
-      });
-      qc.invalidateQueries({ queryKey: ["groceryLists"] });
-    }
+    // Plaintext store — no owner metadata by design (alter names must
+    // never land in unencrypted storage); createList drops it there.
+    const created = await writers.createList({
+      name, kind: newListType, ownerId: newListOwner, unlocked: newListUnlocked,
+    });
     if (created) {
       setActiveListId(created.id);
       toast.success(newListUnlocked
@@ -583,16 +479,9 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
   const handleRenameList = async () => {
     const next = editingListName.trim();
     if (!editingList || !next) return;
-    if (editingList.source === "local") {
-      updateUnlockedList(editingList.id, { name: next, list_type: editingListType });
-    } else {
-      await localEntities.GroceryList.update(editingList.id, {
-        name: next,
-        list_type: editingListType,
-        owner_alter_id: editingListOwner || null,
-      });
-      qc.invalidateQueries({ queryKey: ["groceryLists"] });
-    }
+    await writers.updateList(editingList, editingList.source === "local"
+      ? { name: next, list_type: editingListType }
+      : { name: next, list_type: editingListType, owner_alter_id: editingListOwner || null });
     setEditingList(null);
     setEditingListName("");
   };
@@ -605,24 +494,9 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
       ? `Delete "${list.name}" and its ${itemCount} item${itemCount === 1 ? "" : "s"}? This cannot be undone.`
       : `Delete "${list.name}"? This cannot be undone.`;
     if (!(await confirm(confirmText))) return;
-    if (list.source === "local") {
-      deleteUnlockedList(list.id);
-    } else {
-      for (const item of idbItems.filter((i) => i.list_id === list.id)) {
-        try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
-        await deleteCardImages(item);
-      }
-      await localEntities.GroceryList.delete(list.id);
-      // A note's photo attachments go with it — they're unreachable
-      // once the note record is gone (deleted after the record, so the
-      // in-use check doesn't count the note itself; a photo used anywhere
-      // else is kept).
-      for (const url of Array.isArray(list.note_images) ? list.note_images : []) {
-        try { const imgId = getLocalImageId(url); if (imgId) await deleteLocalImageIfUnused(imgId); } catch { /* non-fatal */ }
-      }
-      qc.invalidateQueries({ queryKey: ["groceryLists"] });
-      qc.invalidateQueries({ queryKey: ["groceryItems"] });
-    }
+    // The list, its items and the pictures only it used (a note's photos,
+    // a deck's card pictures) go together.
+    await writers.deleteList(list);
     if (activeListId === list.id) setActiveListId(null);
     setEditingList(null);
   };
@@ -895,7 +769,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
                     isFavorite={isFavorite(item.name)}
                     onToggle={() => toggle(item)}
                     onToggleFavorite={() => toggleFavorite(item.name)}
-                    onRemove={() => remove(item.id)}
+                    onRemove={() => remove(item)}
                     onRestore={() => restoreToBuy(item)}
                     showStar={typeOf(activeList) === "shopping"}
                   />
@@ -917,7 +791,7 @@ export default function GroceryListPanel({ lockedMode = false, asPage = false, i
                       isFavorite={isFavorite(item.name)}
                       onToggle={() => toggle(item)}
                       onToggleFavorite={() => toggleFavorite(item.name)}
-                      onRemove={() => remove(item.id)}
+                      onRemove={() => remove(item)}
                       onRestore={() => restoreToBuy(item)}
                       showStar={typeOf(activeList) === "shopping"}
                     />
@@ -1173,7 +1047,7 @@ function ListTypePicker({ value, onChange }) {
   );
 }
 
-function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore, showStar = true }) {
+export function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore, showStar = true }) {
   const inStock = state === "in_stock";
   const ranOut = state === "ran_out";
   const toBuy = state === "to_buy";
@@ -1269,7 +1143,7 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
 //
 // `compact` (v0.356.0): the writing above a page's tick-off items — a
 // small area that opens when tapped, instead of the full-page note.
-function NotePad({ list, canAttach, onSave, alters = [], compact = false }) {
+export function NotePad({ list, canAttach, onSave, alters = [], compact = false }) {
   const terms = useTerms();
   const [text, setText] = useState(typeof list.note_content === "string" ? list.note_content : "");
   // Writing vs reading (v0.347.1): the note shows formatted until tapped;
