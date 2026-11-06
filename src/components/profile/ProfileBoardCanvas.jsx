@@ -30,6 +30,7 @@ import { seedProfileBoard, withAddedProfilePages, profilePageId, tabOfPageId, DE
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { PS } from "@/lib/profileStyle";
+import { readProfileViewPrefs } from "@/lib/profileViewPrefs";
 
 export const PROFILE_EDIT_EVENT = "os-profile-edit-home";
 export const openProfileLayoutEditor = () => window.dispatchEvent(new CustomEvent(PROFILE_EDIT_EVENT));
@@ -150,6 +151,7 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
         widgetGap={typeof widgetGap === "number" ? widgetGap : null}
         pageIcons={pageIcons}
         pageStripProps={tourId ? { "data-tour": tourId } : null}
+        holdToEdit={readProfileViewPrefs(settingsRow).holdToEdit}
       />
     </BoardSubjectContext.Provider>
   );

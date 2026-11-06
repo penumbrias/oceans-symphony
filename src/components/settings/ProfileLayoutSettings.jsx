@@ -17,6 +17,7 @@ import { DEFAULT_OWNER_ID, pickProfileBoardRows, PROFILE_OWNER_TYPES, isGardenPr
 import { switchRecordToNewProfile, revertRecordToOldProfile } from "@/lib/profileLayoutSwitch";
 import { convertAlterProfile } from "@/lib/profileConvertRun";
 import { clearDefaultLayout } from "@/lib/profileBoardBulk";
+import ProfileViewSwitches from "@/components/profile/ProfileViewSwitches";
 
 const when = (iso) => {
   const d = iso ? new Date(iso) : null;
@@ -212,8 +213,9 @@ export default function ProfileLayoutSettings() {
   };
   return (
     <div className="space-y-2">
+      <ProfileViewSwitches />
       <p className="text-xs text-muted-foreground">
-        To set a default, open any profile, tap its grid button, then Save → "Use as the default layout…". Profiles whose layout you have edited keep their own.
+        To set a default, open any profile, tap Edit page (the pencil), then Save → "Use as the default layout…". Profiles whose layout you have edited keep their own.
       </p>
       <div>
         <NewProfileAllRow />

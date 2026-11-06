@@ -34,6 +34,7 @@ import { useAlterInfoForm } from "./useAlterInfoForm";
 import ProfileConvertRow from "./ProfileConvertRow";
 import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import PageLookRow from "@/components/profile/PageLookRow";
+import ProfileViewSwitches from "@/components/profile/ProfileViewSwitches";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
   TagsSection, AnswersSection, answerRowsOf,
@@ -106,6 +107,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
               <ProfileLayoutSwitch ownerType="alter" record={alter} noun={t.alter} plural={t.alters} onBefore={info.flush} />
               <ProfileConvertRow alter={alter} info={info} />
               <PageLookRow />
+              <ProfileViewSwitches show={["classicForm"]} />
             </Group>
           </>
         )}

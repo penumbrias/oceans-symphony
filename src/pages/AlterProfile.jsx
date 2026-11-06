@@ -35,6 +35,8 @@ import { useRegisterLookSubject } from "@/lib/lookSubject";
 import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
+import ProfileWelcome from "@/components/profile/ProfileWelcome";
+import { useProfileViewPrefs } from "@/lib/profileViewPrefs";
 
 import { framedBackgroundStyle, framingFor } from "@/lib/imageFraming";
 // The icon each tab's page shows in the page strip (by page id).
@@ -131,6 +133,7 @@ function AlterProfileInner() {
   const saveRef = useRef(null);
 
   const terms = useTerms();
+  const viewPrefs = useProfileViewPrefs();
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
     queryFn: async () => {
@@ -404,29 +407,24 @@ function AlterProfileInner() {
                 <Mail className="w-3.5 h-3.5" />
               </Button>
             )}
-            {!layoutEditing && editMode === "classic" && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => saveRef.current?.()}
-                className="h-9 px-2.5 gap-1.5 bg-primary hover:bg-primary/90"
-                title="Save"
-              >
-                <Save className="w-3.5 h-3.5" /> Save
-              </Button>
-            )}
             {(
               <Button
                 data-tour="alter-profile-edit-btn"
                 variant={editMode ? "default" : "outline"}
                 size="sm"
                 className="h-9 px-2.5 gap-1.5"
-                onClick={() => (layoutEditing ? setInfoOverlay(true) : setEditMode(e => (e ? false : "info")))}
+                onClick={() => {
+                  if (layoutEditing) { setInfoOverlay(true); return; }
+                  // The classic form has a Save step: leaving it saves
+                  // (only what changed), so nothing typed is dropped.
+                  if (editMode === "classic") { saveRef.current?.(); return; }
+                  setEditMode(editMode ? false : (viewPrefs.classicForm ? "classic" : "info"));
+                }}
                 aria-pressed={!!editMode || infoOverlay}
-                title={editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, entries, pictures, groups…`}
+                title={editMode === "classic" ? `Save and go back to ${alter.name}'s page` : editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, custom fields, pictures, groups…`}
               >
-                {editMode ? <Eye className="w-3.5 h-3.5" /> : <IdCard className="w-3.5 h-3.5" />}
-                {editMode ? "Done" : "Info"}
+                {editMode === "classic" ? <Save className="w-3.5 h-3.5" /> : editMode ? <Eye className="w-3.5 h-3.5" /> : <IdCard className="w-3.5 h-3.5" />}
+                {editMode === "classic" ? "Save" : editMode ? "Done" : "Info"}
               </Button>
             )}
             {!editMode && !layoutEditing && (
@@ -434,12 +432,10 @@ function AlterProfileInner() {
                 data-tour="alter-profile-layout-btn"
                 variant="outline"
                 size="sm"
-                className="h-9 w-9 px-0"
+                className="h-9 px-2.5 gap-1.5"
                 onClick={openProfileLayoutEditor}
-                title="Edit page — move, resize and add widgets, and change what's shown"
-                aria-label="Edit page"
-              >
-                <Pencil className="w-4 h-4" />
+                title="Edit page — move, resize and add widgets, and change what's shown">
+                <Pencil className="w-3.5 h-3.5" /> Edit page
               </Button>
             )}
           </div>
@@ -519,6 +515,7 @@ function AlterProfileInner() {
           />
         ) : (
           <>
+            {onProfilePage && !layoutEditing && <ProfileWelcome />}
             {onProfilePage && !layoutEditing && <NewProfileOffer alter={alter} />}
             {onNewLayout === usesNewProfile(alter) && <ProfileBoardCanvas
               key={onNewLayout ? "new" : "classic"}
