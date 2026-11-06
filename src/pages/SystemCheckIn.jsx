@@ -2,7 +2,6 @@ import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import { clockOpts } from "@/lib/timeFormat";
 import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import React, { useState, useEffect } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { logEmotionCheckIn } from "@/lib/checkinEntry";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +9,9 @@ import { useTerms } from "@/lib/useTerms";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare } from "lucide-react";
+import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare, Trash2 } from "lucide-react";
+import RowMenu from "@/components/shared/RowMenu";
+import { deleteWithUndo } from "@/lib/undoDelete";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import CheckInStep1 from "@/components/system-checkin/CheckInStep1";
@@ -298,17 +299,12 @@ export default function SystemCheckInPage() {
     setView("create");
   };
 
-  const handleDelete = async (id) => {
-    if ((await confirm("Delete this check-in?"))) {
-      try {
-        await base44.entities.SystemCheckIn.delete(id);
-        queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
-        toast.success("Check-in deleted");
-      } catch (err) {
-        toast.error(err.message);
-      }
-    }
-  };
+  // Straight to the trash, with Undo on the toast (UI critique H3).
+  const handleDelete = (id) => deleteWithUndo({
+    label: "Meeting deleted",
+    run: () => base44.entities.SystemCheckIn.delete(id),
+    refresh: () => queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] }),
+  });
 
   const handleView = (checkIn) => {
     setCurrentCheckIn(checkIn);
@@ -575,11 +571,11 @@ export default function SystemCheckInPage() {
                           <p className="text-sm text-muted-foreground line-clamp-1 mt-1">{checkIn.overall_notes}</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleView(checkIn)}><Eye className="w-3.5 h-3.5" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(checkIn)}>Edit</Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(checkIn.id)}>Delete</Button>
-                      </div>
+                      <RowMenu label="Meeting actions" items={[
+                        { label: "Open", icon: Eye, onSelect: () => handleView(checkIn) },
+                        { label: "Edit", icon: Pencil, onSelect: () => handleEdit(checkIn) },
+                        { label: "Delete", icon: Trash2, onSelect: () => handleDelete(checkIn.id), destructive: true },
+                      ]} />
                     </CardContent>
                   </Card>
                 );

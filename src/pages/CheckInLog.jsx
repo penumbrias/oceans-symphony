@@ -1,6 +1,5 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -18,7 +17,9 @@ import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
 import { moodDots, customEmotionColor } from "@/lib/emotionMood";
 import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
-import DiaryCardEditDialog, { deleteDiaryCardWithConfirm } from "@/components/diary/DiaryCardEditDialog";
+import DiaryCardEditDialog, { deleteDiaryCard } from "@/components/diary/DiaryCardEditDialog";
+import RowMenu from "@/components/shared/RowMenu";
+import { deleteWithUndo, offerUndo } from "@/lib/undoDelete";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { formatSeverityForSymptom } from "@/lib/trackingModel";
 import { useTerms } from "@/lib/useTerms";
@@ -410,21 +411,8 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
           <Clock className="w-3 h-3 flex-shrink-0" />
           <span>{timeStr}</span>
         </div>
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={(e) => { e.stopPropagation(); onEdit?.(checkIn); }}
-            aria-label="Edit check-in"
-            title="Edit check-in">
-            <Pencil className="w-3 h-3" />
-          </Button>
-          <Button variant="ghost" size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => { e.stopPropagation(); onDelete(checkIn.id); }}
-            aria-label="Delete check-in" title="Delete check-in">
-            <Trash2 className="w-3 h-3" />
-          </Button>
-        </div>
+        <RowActions onEdit={() => onEdit?.(checkIn)} onDelete={() => onDelete(checkIn.id)}
+          editLabel="Edit check-in" deleteLabel="Delete check-in" menuLabel="Check-in actions" />
       </div>
 
       {emotions.length > 0 && (
@@ -965,53 +953,14 @@ function StandaloneEntry({ timestamp, children, actions }) {
   );
 }
 
-function useArmedDelete(onConfirm) {
-  const [armed, setArmed] = useState(false);
-  const timerRef = useRef(null);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-  const trigger = async () => {
-    if (!armed) {
-      setArmed(true);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setArmed(false), 4000);
-      return;
-    }
-    clearTimeout(timerRef.current);
-    setArmed(false);
-    await onConfirm();
-  };
-  return { armed, trigger };
-}
-
-function RowActions({ onEdit, onDelete, armed, editLabel = "Edit", deleteLabel = "Delete" }) {
+// Row actions live in the ⋯ menu; a delete goes to the trash at once with
+// an Undo on the toast (UI critique H3).
+function RowActions({ onEdit, onDelete, editLabel = "Edit", deleteLabel = "Delete", menuLabel = "Entry actions" }) {
   return (
-    <div className="flex items-center gap-0.5 flex-shrink-0">
-      {onEdit && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          aria-label={editLabel}
-          title={editLabel}
-          className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-      )}
-      {onDelete && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          aria-label={armed ? "Tap again to delete" : deleteLabel}
-          title={armed ? "Tap again to confirm" : deleteLabel}
-          className={`p-1 rounded-md transition-colors ${
-            armed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          {armed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
-        </button>
-      )}
-    </div>
+    <RowMenu label={menuLabel} items={[
+      onEdit && { label: editLabel, icon: Pencil, onSelect: onEdit },
+      onDelete && { label: deleteLabel, icon: Trash2, onSelect: onDelete, destructive: true },
+    ]} />
   );
 }
 
@@ -1029,12 +978,10 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
     qc.invalidateQueries({ queryKey: ["currentSymptoms"] });
   };
 
-  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
-    try {
-      await base44.entities.SymptomCheckIn.delete(sc.id);
-      invalidateAll();
-      toast.success("Symptom deleted");
-    } catch (e) { toast.error(e.message || "Failed to delete"); }
+  const handleDelete = () => deleteWithUndo({
+    label: "Symptom entry deleted",
+    run: () => base44.entities.SymptomCheckIn.delete(sc.id),
+    refresh: invalidateAll,
   });
 
   const handleSave = async () => {
@@ -1054,7 +1001,6 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
         <RowActions
           onEdit={() => setEditing(true)}
           onDelete={handleDelete}
-          armed={armed}
           editLabel="Edit severity"
           deleteLabel="Delete symptom entry"
         />
@@ -1112,13 +1058,13 @@ function LocationEntry({ loc }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const meta = getCategoryMeta(loc.category);
-  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
-    try {
-      await localEntities.Location.delete(loc.id);
+  const handleDelete = () => deleteWithUndo({
+    label: "Location deleted",
+    run: () => localEntities.Location.delete(loc.id),
+    refresh: () => {
       qc.invalidateQueries({ queryKey: ["locations"] });
       qc.invalidateQueries({ queryKey: ["timeline"] });
-      toast.success("Location deleted");
-    } catch (e) { toast.error(e.message || "Failed to delete"); }
+    },
   });
 
   return (
@@ -1128,7 +1074,6 @@ function LocationEntry({ loc }) {
         <RowActions
           onEdit={() => navigate("/location-history")}
           onDelete={handleDelete}
-          armed={armed}
           editLabel="Open Location History to edit"
           deleteLabel="Delete location"
         />
@@ -1235,9 +1180,6 @@ function StatusNoteEntry({ sn, alters = [] }) {
   const [draft, setDraft] = useState(sn.note || "");
   const [whenDraft, setWhenDraft] = useState(() => toLocalDatetimeValue(sn.timestamp, { orNow: true }));
   const [saving, setSaving] = useState(false);
-  const [deleteArmed, setDeleteArmed] = useState(false);
-  const disarmRef = useRef(null);
-  useEffect(() => () => clearTimeout(disarmRef.current), []);
 
   const handleSave = async () => {
     const next = draft.trim();
@@ -1257,21 +1199,11 @@ function StatusNoteEntry({ sn, alters = [] }) {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async () => {
-    if (!deleteArmed) {
-      setDeleteArmed(true);
-      clearTimeout(disarmRef.current);
-      disarmRef.current = setTimeout(() => setDeleteArmed(false), 4000);
-      return;
-    }
-    clearTimeout(disarmRef.current);
-    setDeleteArmed(false);
-    try {
-      await localEntities.StatusNote.delete(sn.id);
-      qc.invalidateQueries({ queryKey: ["statusNotes"] });
-      toast.success("Status deleted");
-    } catch (e) { toast.error(e.message || "Failed to delete"); }
-  };
+  const handleDelete = () => deleteWithUndo({
+    label: "Status deleted",
+    run: () => localEntities.StatusNote.delete(sn.id),
+    refresh: () => qc.invalidateQueries({ queryKey: ["statusNotes"] }),
+  });
 
   return (
     <StandaloneEntry timestamp={sn.timestamp}>
@@ -1315,29 +1247,8 @@ function StatusNoteEntry({ sn, alters = [] }) {
       ) : (
         <div className="flex-1 flex items-start gap-2">
           <span className="text-sm text-foreground/80 italic flex-1">💬 <RichText content={sn.note} /></span>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              aria-label="Edit status"
-              title="Edit"
-              className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              aria-label={deleteArmed ? "Tap again to delete" : "Delete status"}
-              title={deleteArmed ? "Tap again to confirm" : "Delete"}
-              className={`p-1 rounded-md transition-colors ${
-                deleteArmed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
-              }`}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {deleteArmed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
-            </button>
-          </div>
+          <RowActions onEdit={() => setEditing(true)} onDelete={handleDelete}
+            editLabel="Edit status" deleteLabel="Delete status" menuLabel="Status actions" />
         </div>
       )}
     </StandaloneEntry>
@@ -1369,10 +1280,11 @@ function PerAlterEntry({ entry, altersById }) {
     qc.invalidateQueries({ queryKey: ["timeline"] });
   };
 
-  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
+  const handleDelete = async () => {
     try {
       const session = await base44.entities.FrontingSession.filter({ id: entry.sessionId }).then(rs => rs?.[0]);
       if (!session) return;
+      const before = { note: session.note, session_emotions: session.session_emotions, session_symptoms: session.session_symptoms };
       if (entry.kind === "note") {
         const arr = JSON.parse(session.note || "[]");
         const targetIdx = Number((entry.id.match(/-(\d+)$/) || [])[1]);
@@ -1384,9 +1296,16 @@ function PerAlterEntry({ entry, altersById }) {
         await base44.entities.FrontingSession.update(session.id, { session_symptoms: JSON.stringify([]) });
       }
       invalidateAll();
-      toast.success("Deleted");
+      const field = entry.kind === "note" ? "note" : entry.kind === "emotion" ? "session_emotions" : "session_symptoms";
+      offerUndo({
+        label: "Deleted",
+        undo: async () => {
+          await base44.entities.FrontingSession.update(session.id, { [field]: before[field] });
+          invalidateAll();
+        },
+      });
     } catch (e) { toast.error(e.message || "Failed to delete"); }
-  });
+  };
 
   const AlterChip = () => (
     <span className="flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
@@ -1399,7 +1318,6 @@ function PerAlterEntry({ entry, altersById }) {
     <RowActions
       onEdit={() => setEditorOpen(true)}
       onDelete={handleDelete}
-      armed={armed}
       editLabel="Edit"
       deleteLabel="Delete this per-alter entry"
     />
@@ -1692,7 +1610,7 @@ export default function CheckInLog() {
   const [display, setDisplay] = useDisplaySettings();
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [editingDiaryCard, setEditingDiaryCard] = useState(null);
-  const handleDeleteDiary = (card) => deleteDiaryCardWithConfirm(card, queryClient);
+  const handleDeleteDiary = (card) => deleteDiaryCard(card, queryClient);
   const highlightId = searchParams.get("id");
   const dateParam = searchParams.get("date");
 
@@ -1818,8 +1736,15 @@ export default function CheckInLog() {
     return format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
   }, [highlightId, dateParam, checkIns]);
 
-  const handleDelete = async (checkInId) => {
-    if (!(await confirm("Delete this check-in?"))) return;
+  const handleDelete = (checkInId) => deleteWithUndo({
+    label: "Check-in deleted",
+    refresh: () => {
+      queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      queryClient.invalidateQueries({ queryKey: ["timeline"] });
+      queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
+    },
+    run: async () => {
     // Cascade: also remove any SymptomCheckIns logged alongside this
     // check-in so the symptom doesn't outlive the parent on the
     // timeline. (Bug report: deleting a check-in left "emotional
@@ -1831,12 +1756,8 @@ export default function CheckInLog() {
       }
     } catch { /* non-fatal */ }
     await base44.entities.EmotionCheckIn.delete(checkInId);
-    toast.success("🗑 Check-in deleted");
-    queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-    queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
-    queryClient.invalidateQueries({ queryKey: ["timeline"] });
-    queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
-  };
+    },
+  });
 
   const handleEdit = (ci) => setEditingCheckIn(ci);
 

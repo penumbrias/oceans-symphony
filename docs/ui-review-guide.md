@@ -96,6 +96,13 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   three hand-made reset buttons and no per-bar reset.
 - Destructive or rare actions sit in the header's ⋯ menu, not at the
   bottom of a tab.
+- **Row actions go in the row's ⋯** (`RowMenu`, a 44 px target with words),
+  not a pencil and a bin on every row. *Caught:* the Check-In Log's 24 px
+  bin, System Meetings' red Delete on every row.
+- **A delete that goes to the trash doesn't ask.** It happens and offers
+  Undo (`deleteWithUndo` in `src/lib/undoDelete.js`, "In the trash for N
+  days"). Keep a confirmation only for what skips the trash. `check:ui`
+  warns on `await confirm(`.
 
 ### Reuse — one component per job
 
