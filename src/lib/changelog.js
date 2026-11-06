@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "A calmer first run: one short welcome, a plain note that the app is in early testing, and the not-a-medical-product box visible straight away. The guide counts \"Step 1 of 3\"." },
       { type: "improve", text: "Switching views looks the same everywhere: Analytics, the Planner, Journals, Reminders, the map, Support and every profile or board page use one underlined strip you can swipe." },
       { type: "improve", text: "Routines: no more streaks to break. You see the days you showed up this month, and points and levels are your choice (on for anyone already using them, asked once otherwise)." },
       { type: "improve", text: "Deleting in the Check-In Log and {{System}} Meetings no longer asks \"Are you sure?\": it goes to the trash with an Undo. Edit and Delete moved into each row's ⋯ menu, so a slip can't hit them." },

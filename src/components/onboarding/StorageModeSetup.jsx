@@ -723,7 +723,7 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
   const backupPhase = mode !== "unlock" && phase === "backup";
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-[100] overflow-y-auto overscroll-contain">
+    <div className="fixed inset-0 bg-background z-[100] overflow-y-auto overscroll-contain">
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pb-24">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl my-auto">
 
@@ -745,14 +745,19 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
               Welcome to Oceans Symphony
             </h2>
             <p className="text-sm text-foreground/90 leading-relaxed text-center mt-3">
-              A companion app for dissociative systems
+              A companion app for dissociative systems, private on your own device.
             </p>
-            <div className="mt-3 space-y-2.5 text-sm text-muted-foreground leading-relaxed text-center">
-              <p>Designed by an AuDHD, DID system to fill a specific void and assist my needs.</p>
-              <p>Beyond just tracking your system, OS provides structure, tools, and guidance to support your system and build bridges across dissociative and amnesiac barriers.</p>
-              <p>Everything is designed with dissociative systems in mind.</p>
-              <p>Utilize as many or as few of the features as you find helpful, explore at your own pace, and thank you for giving OS a try.</p>
-            </div>
+            {/* One welcome, one sentence (UI critique H6); the maker's note
+                is still here, one tap away. */}
+            <details className="mt-3 w-full text-center">
+              <summary className="text-sm text-primary cursor-pointer py-1">About this app</summary>
+              <div className="mt-2 space-y-2.5 text-sm text-muted-foreground leading-relaxed">
+                <p>Designed by an AuDHD, DID system to fill a specific void and assist my needs.</p>
+                <p>Beyond just tracking your system, Oceans Symphony provides structure, tools, and guidance to support your system and build bridges across dissociative and amnesiac barriers.</p>
+                <p>Everything is designed with dissociative systems in mind.</p>
+                <p>Utilize as many or as few of the features as you find helpful, explore at your own pace, and thank you for giving Oceans Symphony a try.</p>
+              </div>
+            </details>
           </div>
         )}
 
@@ -765,8 +770,8 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
             >
               <span className="text-base">🔐</span>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">Privacy &amp; Data Notice</p>
-                <p className="text-xs text-muted-foreground font-medium">!! Please read !! OS is vibe-coded and in active alpha</p>
+                <p className="text-sm font-semibold text-foreground">Privacy &amp; data</p>
+                <p className="text-xs text-muted-foreground">This app is in early testing, so keep backups. Tap to read how your data is kept.</p>
               </div>
               <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${noticeOpen ? "rotate-180" : ""}`} />
             </button>
