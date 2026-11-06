@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "feature", text: "New Emergency info card: how to talk with you, allergies, medications, who to call and your safety plan, shown full screen in big text for someone helping you. Open it from Quick Support, the Safety Plan or Contacts." },
+      { type: "feature", text: "With a password set, you can choose parts of your emergency card to show on the unlock screen. It's off until you turn it on." },
       { type: "feature", text: "New Medications page: add your medications with their dose, purpose and times, mark today's doses taken or skipped, and see when each runs out. Optional refill reminders never name the medicine." },
       { type: "improve", text: "Routines: a routine can now tick itself once all of today's scheduled medications are marked taken. Backups include medications under a new Health checkbox." },
       { type: "fix", text: "Profiles and pages: widgets no longer overlap each other after the new layout; boards that already did are tidied up when opened." },

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ChevronDown, Shield, Lightbulb, BarChart3, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
+import EmergencyCardLink from "@/components/emergency/EmergencyCardLink";
 
 export default function SafetyPlan() {
   const navigate = useNavigate();
@@ -60,6 +61,7 @@ export default function SafetyPlan() {
             <Lightbulb className="w-4 h-4" /> Go to Safety Plan lesson
           </Button>
         </div>
+        <EmergencyCardLink />
         <MedicalDisclaimerFooter open />
       </motion.div>
     );
@@ -85,6 +87,7 @@ export default function SafetyPlan() {
           Your personalized plan for managing distress and staying safe
         </p>
       </div>
+      <EmergencyCardLink />
 
       {/* Warning Signs Section */}
       {safetyPlanEntry && (

@@ -1,3 +1,4 @@
+import EmergencyCardLink from "@/components/emergency/EmergencyCardLink";
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -101,6 +102,9 @@ export default function Contacts() {
           </div>
         </div>
       )}
+
+      {/* The emergency card shows the emergency-support people above with Call buttons. */}
+      <EmergencyCardLink className="mb-4" />
 
       {/* Search + sort */}
       <div className="flex items-center gap-2 mb-2">

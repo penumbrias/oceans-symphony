@@ -36,7 +36,7 @@ import { Square,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music, X
 , Map, MapPin,
   HeartHandshake, Target, Image as ImageIcon, ArrowLeftRight, Gift,
-  CalendarHeart, Pill, Package,
+  CalendarHeart, Pill, Package, Siren,
 } from "lucide-react";
 import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
 import { LINKED_PROFILE_WIDGETS } from "@/v2/linkedProfileWidgets";
@@ -146,6 +146,7 @@ const loadMedicationWidgets = () => import("@/v2/medicationWidgets");
 const MedsTodayWidget = lazyNamed(loadMedicationWidgets, "MedsTodayWidget");
 const MedicationsWidget = lazyNamed(loadMedicationWidgets, "MedicationsWidget");
 const MedRefillsWidget = lazyNamed(loadMedicationWidgets, "MedRefillsWidget");
+const EmergencyCardWidget = lazyNamed(loadMedicationWidgets, "EmergencyCardWidget");
 const loadNeedsWidgets = () => import("@/v2/needsWidgets");
 const NeedsBalanceWidget = lazyNamed(loadNeedsWidgets, "NeedsBalanceWidget");
 const WishesWidget = lazyNamed(loadNeedsWidgets, "WishesWidget");
@@ -3500,6 +3501,13 @@ export const V2_WIDGETS = {
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 5 },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  emergency_card: {
+    label: "Emergency info", description: "The start of your emergency card, with Show to open it full screen for someone helping you. Fill it in on the Emergency info page.",
+    icon: Siren, category: "health",
+    render: sized(() => <EmergencyCardWidget />),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: false, configFields: [],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   notes_index: {
     label: "Notes & lists", description: "Your notes, lists and flash-card decks, newest first, with New note. Tap one to open it. Expanded shows them all.",

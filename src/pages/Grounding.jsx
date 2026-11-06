@@ -20,6 +20,7 @@ import { stopSoundscape } from "@/lib/soundscape/engine";
 import { stopDistractionFree, isFocusQuiet } from "@/lib/soundscape/focusMode";
 import { readSoundscapePrefs, writeSoundscapePrefs } from "@/lib/soundscape/soundscapePrefs";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
+import EmergencyCardLink from "@/components/emergency/EmergencyCardLink";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
@@ -597,6 +598,7 @@ export default function Grounding({ initialPath = null }) {
         {/* Crisis resources one tap from the Support entry screen (they used
             to be five taps deep, behind the state-check flow). Starts folded. */}
         <CrisisResourcesCard />
+        <EmergencyCardLink />
 
         <div className="space-y-3">
           <button
