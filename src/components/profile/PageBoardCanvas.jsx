@@ -63,7 +63,7 @@ export default function PageBoardCanvas({ pageId, pages, page, tourId = null, pa
       registry={registry}
       boardStore={boardStore}
       eventPrefix={PAGE_BOARD_EVENT_PREFIX}
-      viewFlow
+      fitContent
       notices={null}
       initialPageId={page.initialPageId}
       onPageChange={page.onPageChange}

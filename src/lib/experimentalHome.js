@@ -637,6 +637,45 @@ export function resolveOverlaps(widgets, gridCols, anchorId = null) {
   });
 }
 
+// Rows that follow the content (v0.364.17). Profile and page boards place
+// widgets exactly where they were put (the free grid), and a widget nobody
+// sized by hand is as tall as what it shows — taller when its content
+// grows, shorter when it shrinks — like the old flowing column. `want` maps
+// instanceId → the rows its content needs. A widget that changes height
+// moves whatever sits below it in its columns by the same amount, so the
+// gaps the person left stay the size they were. Hand-sized widgets
+// (settings.autoFit === false) and overlapping ones keep their rows.
+export function fitRowsToContent(widgets, want, gridCols) {
+  let list = [...(widgets || [])];
+  const order = list
+    .filter((w) => w.settings?.autoFit !== false && !isLayered(w) && want[w.instanceId] != null)
+    .sort((a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0))
+    .map((w) => w.instanceId);
+  let changed = false;
+  for (const id of order) {
+    const me = list.find((w) => w.instanceId === id);
+    const rows = me.span?.rows || 1;
+    const next = Math.max(MIN_SPAN, Math.ceil(want[id] / FINE_STEP - 1e-6) * FINE_STEP);
+    if (Math.abs(next - rows) < 1e-6) continue;
+    changed = true;
+    const delta = next - rows;
+    const top = me.pos?.y || 0;
+    const bottom = top + rows;
+    const x0 = me.pos?.x || 0;
+    const x1 = x0 + Math.min(me.span?.cols || 1, gridCols);
+    list = list.map((w) => {
+      if (w.instanceId === id) return { ...w, span: { ...w.span, rows: next } };
+      if (isLayered(w)) return w;
+      const y = w.pos?.y || 0;
+      const wx0 = w.pos?.x || 0;
+      const wx1 = wx0 + Math.min(w.span?.cols || 1, gridCols);
+      const below = y >= bottom - 1e-6 && wx0 < x1 && wx1 > x0;
+      return below ? { ...w, pos: { ...w.pos, y: Math.max(top + next, y + delta) } } : w;
+    });
+  }
+  return changed ? resolveOverlaps(list, gridCols) : widgets;
+}
+
 // First empty cell that fits `span` without displacing anything — new
 // widgets land in the next available gap (or below everything), never
 // interjected into the existing arrangement.

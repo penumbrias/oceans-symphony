@@ -143,7 +143,7 @@ export default function ProfileBoardCanvas({ ownerType, record, pageIcons = null
         registry={registry}
         boardStore={boardStore}
         eventPrefix="os-profile"
-        viewFlow
+        fitContent
         notices={null}
         initialPageId={page.initialPageId}
         onPageChange={page.onPageChange}
