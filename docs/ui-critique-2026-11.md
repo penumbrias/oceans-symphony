@@ -423,7 +423,7 @@ The step counters ("WELCOME · 1/1", then "SETUP · 1/2") never say how many ste
 |---|---|---|---|---|
 | 1 | **C2** on-colour contrast from luminance | S | Clears most axe failures on every page | Done — #584 (v0.364.2) |
 | 2 | **C1** one notice slot + reminder pill + "stop showing tutorials" | M | Every page calmer, content first | Done — v0.364.3 (attention slot, reminder pill, home stack shows one, tip opt-out, storage toast after setup). Left: AnnouncementBanner / NotificationPopups on other pages still float on their own |
-| 3 | **C3** type scale with a 12 px floor + chrome that survives 200 % | M | Readability, WCAG 1.4.4/1.4.10 | To do |
+| 3 | **C3** type scale with a 12 px floor + chrome that survives 200 % | M | Readability, WCAG 1.4.4/1.4.10 | Done — v0.364.4 (12 px floor for the 9–11 px classes, header/tabs/preview banner pinned at 150–200 %, page titles capped and their rows wrap, landscape tip waits its turn, `tiny-text` rule in check:ui). Left: per-page squeezes at 200 % (planner "Today" button, reminder card before it folds), widget em text under 12 px |
 | 4 | **H2** words on icons, a visible alternative for every gesture, default focus ring | M | Amnesia-safe navigation | To do |
 | 5 | **C4** IA map + one name per thing (rename only, no moves yet) | S→M | Findability | To do |
 | 6 | **H4** two-tap Quick Check-In | M | The most frequent action gets easy | To do |
@@ -432,5 +432,6 @@ The step counters ("WELCOME · 1/1", then "SETUP · 1/2") never say how many ste
 | 9 | **H1** two view-switch idioms | M | Consistency | To do |
 | 10 | **H6** one-step welcome, calmer alpha notice | S | Trust at first contact | To do |
 | 11 | Infrastructure 1 + 3: tokens + accessibility checks in the review guide | S | Stops the drift returning | To do |
+| 12 | **Motion** (tester feedback, 2026-11-06): Reduce motion also stops sheets, tab pages and drill-ins from sliding; option to show an inspector as one stacked list instead of tabs | M | Low-vision users who lose track of moving things | To do |
 
 Items 1, 5 (renames only), 8, 10 and 11 are each small enough to be one PR. Item 2 builds on the existing home notice stack. Item 3 is mostly tokens plus a migration-when-touched rule.

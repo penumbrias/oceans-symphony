@@ -425,6 +425,7 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
     <header
       data-widget-content
       data-v2-topbar=""
+      data-os-chrome=""
       className="sticky top-0 z-50 backdrop-blur-xl border-b relative overflow-hidden"
       style={{
         ...barLookStyle(uiV2, "top"),
@@ -1131,7 +1132,7 @@ function useHomeEditMode() {
 // bar AND the fold-out strip when the bars are swapped (reuse, don't fork).
 function TabButtons({ items, uiV2, isActive, navigate, t }) {
   return (
-    <div className="flex items-stretch overflow-x-auto w-full" style={{ height: "var(--v2-strip-h)" }} role="tablist" aria-label={t("nav.appNav")}>
+    <div data-os-chrome="tabs" className="flex items-stretch overflow-x-auto w-full" style={{ height: "var(--v2-strip-h)" }} role="tablist" aria-label={t("nav.appNav")}>
       {items.map((item) => {
         const on = isActive(item.path);
         const Icon = item.icon;

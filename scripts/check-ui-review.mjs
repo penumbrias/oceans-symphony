@@ -60,6 +60,13 @@ const RULES = [
     re: /bg-(?:primary|accent|\[var\(--v2-accent\)\])\b[^"'`]*\btext-white\b|\btext-white\b[^"'`]*bg-(?:primary|accent|\[var\(--v2-accent\)\])\b/,
     msg: "white text on the theme colour (use text-primary-foreground / var(--v2-on-accent) / onColor())",
   },
+  {
+    id: "tiny-text",
+    // Under 12 px at the default size (UI critique C3). Widgets use em,
+    // which the per-widget Text size scales, so em sizes aren't checked.
+    re: /\btext-\[(?:0?\.(?:[0-6]\d*|7(?:[0-4]\d*)?)rem|(?:[0-9]|1[01])(?:\.\d+)?px)\]/,
+    msg: "text under 12 px (use text-xs or larger; inside a widget use em)",
+  },
 ];
 const WARNS = [
   { id: "pill-tabs", re: /rounded-full[\s\S]{0,240}set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\([\s\S]{0,240}rounded-full/, msg: "pill tabs splitting a screen? (use TabBar or drill-in pages)" },
