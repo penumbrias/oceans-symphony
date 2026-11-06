@@ -21,7 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { X, FileText, Type, Square, Palette, Star as StarIcon, Music } from "lucide-react";
 import { toast } from "sonner";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow, LinkRow } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, ResetRow, LinkRow, useInspectorPages } from "@/components/shared/SettingRows";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import FontUploadButton from "@/components/shared/FontUploadButton";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -239,6 +239,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
     { id: "colour", label: "Colour", icon: Palette, dot: TAB_KEYS.colour.some((k) => cf[k] !== undefined) },
     { id: "styles", label: "Styles", icon: StarIcon },
   ];
+  const { stacked, show, head } = useInspectorPages(tabs, tab);
 
   const wave = cf[PS.THEME_WAVE] || "";
   const waveChoice = !wave ? "" : (WAVE_OPTIONS.some((o) => o.value === wave) ? wave : "custom");
@@ -260,16 +261,18 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
 
   return (
     <div data-profile-look={type} data-profile-look-defaults={forDefaults ? "" : undefined}>
-      <div className="sticky -top-1 z-10 -mx-4 bg-background">
-        <TabBar tabs={tabs} value={tab} onChange={onTab} />
-      </div>
+      {!stacked && (
+        <div className="sticky -top-1 z-10 -mx-4 bg-background">
+          <TabBar tabs={tabs} value={tab} onChange={onTab} />
+        </div>
+      )}
       {forDefaults && (
         <p className="text-[0.6875rem] text-muted-foreground pt-2">
           {subject.hint || "The look every profile of this kind starts with. A profile's own Profile style always wins, setting by setting."}
         </p>
       )}
-      <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
-        {tab === "content" && (
+      <div role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`} className="pt-2">
+        {head("content")}{show("content") && (
           <>
             <Group title="Header" first>
               <SwitchRow label="Show the header" hint="The avatar, name, pronouns and role at the top. Hiding it deletes nothing."
@@ -293,7 +296,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
           </>
         )}
 
-        {tab === "text" && (
+        {head("text")}{show("text") && (
           <>
             <Segmented label="Text" value={side} onChange={setSide}
               options={[{ value: "body", label: "Body" }, { value: "header", label: "Header" }]} />
@@ -316,7 +319,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
           </>
         )}
 
-        {tab === "shape" && (
+        {head("shape")}{show("shape") && (
           <>
             <Group title="Layout" first>
               {/* A profile's pages flow as a column, so the fallback is the
@@ -330,7 +333,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
           </>
         )}
 
-        {tab === "colour" && (
+        {head("colour")}{show("colour") && (
           <>
             <Segmented label="Colour" value={side} onChange={setSide}
               options={[{ value: "body", label: "Body" }, { value: "header", label: "Header" }]} />
@@ -413,7 +416,7 @@ export default function ProfileLookTabs({ subject, tab, onTab, onDraft = null })
           </>
         )}
 
-        {tab === "styles" && (
+        {head("styles")}{show("styles") && (
           <>
             <Group title="Header and body" first>
               <Row label="Copy the body's colours to the header">

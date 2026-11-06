@@ -67,8 +67,11 @@ must scale from a phone to a desktop; nothing stored is lost in a redesign.
 3. **Tab strip (`TabBar`).** Fixed under the header; one tab on screen at
    a time; a tab change scrolls the panel to the top. Icon over a
    one-word label. A dot on a tab means the item has its own setting
-   there. Four to six tabs. Standard names, in this order, dropping any
-   that don't apply:
+   there. Four to six tabs. With Settings → Accessibility → "Option menus
+   as one list" on, every tab shows at once under its own heading: read
+   `useInspectorPages(tabs, tab)` from SettingRows and write
+   `{!stacked && <TabBar …/>}` and `{head("text")}{show("text") && …}`.
+   Standard names, in this order, dropping any that don't apply:
    - **Content** — the name, how much it shows, its own options
    - **Text** — font · size · style · colour, for Body | Headings
    - **Shape** — size and spacing, edges (corners, outline, lines inside,

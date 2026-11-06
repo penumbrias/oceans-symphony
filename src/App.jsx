@@ -79,9 +79,12 @@ import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
 // choice in "setup" mode).
 import { initAccessibility } from '@/lib/useAccessibility';
 import { initPlayInsideOnly } from '@/lib/playInsideOnly';
+import { ReduceMotionConfig, installReducedMotionScroll } from '@/lib/motionPrefs';
 
 // Apply saved accessibility settings before first render
 initAccessibility();
+// Reduce motion also stops smooth scrolls (page swipes, "jump to").
+installReducedMotionScroll();
 // "Play inside the app only": stop sound when the app is left (if turned on).
 initPlayInsideOnly();
 // …and again if the on-device preferences mirror restores keys that a
@@ -208,7 +211,7 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <>
+    <ReduceMotionConfig>
       <CornerModeApplier />
       <ErrorBoundary
         resetKeys={[location.pathname]}
@@ -319,7 +322,7 @@ const AuthenticatedApp = () => {
       </Routes>
       </Suspense>
       </ErrorBoundary>
-    </>
+    </ReduceMotionConfig>
   );
 };
 

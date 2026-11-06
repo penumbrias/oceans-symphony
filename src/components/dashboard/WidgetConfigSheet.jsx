@@ -58,8 +58,9 @@ import {
 } from "@/lib/widgetLook";
 // The one row grammar every edit menu shares (v0.287.0).
 import {
-  Row, LinkRow, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, ColourRow, TabBar,
+  Row, LinkRow, StackedRow, Group, SwitchRow, Segmented, Chips, ChoiceRow, SliderRow, ColourRow, TabBar, inspectorPages,
 } from "@/components/shared/SettingRows";
+import { useInspectorStacked } from "@/lib/motionPrefs";
 import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
@@ -784,6 +785,7 @@ export default function WidgetConfigSheet({
   const t = useTerms();
   const boardSubject = useBoardSubject();
   const showIfCtx = React.useMemo(() => ({ subject: boardSubject }), [boardSubject]);
+  const stackedPages = useInspectorStacked();
   if (!open) return null;
 
   const defLabel = widgetAutoLabel(def, settings, t);
@@ -864,6 +866,7 @@ export default function WidgetConfigSheet({
         : tabHasOwn(settings, tb.id, extraKeys),
   }));
   const resetTab = (id) => set(tabResetPatch(id, extraKeys));
+  const { stacked, show, head } = inspectorPages(tabs, tab, stackedPages);
 
   // ── Text ──
   // Before a person first edits Text, headings show the body's styles too
@@ -1126,17 +1129,17 @@ export default function WidgetConfigSheet({
           </div>
         </DrawerHeader>
 
-        <TabBar tabs={tabs} value={tab} onChange={(id) => { setMenuOpen(false); setTab(id); }} />
+        {!stacked && <TabBar tabs={tabs} value={tab} onChange={(id) => { setMenuOpen(false); setTab(id); }} />}
 
         <div
-          ref={panelRef} role="tabpanel" aria-labelledby={`inspector-tab-${tab}`}
+          ref={panelRef} role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`}
           className="px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
           // Bottom-nav height included: on pages where the classic bottom
           // bar is up, the sheet's last rows were hidden behind it.
           style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}
         >
           {/* ── Content: name, how much it shows, and its own options ── */}
-          {tab === "content" && (
+          {head("content")}{show("content") && (
             <div>
               <Row label="Name" hint={typeof def.autoLabel === "function"
                 ? "Blank: follows the file that's set to play"
@@ -1216,7 +1219,7 @@ export default function WidgetConfigSheet({
           )}
 
           {/* ── Text: body or headings, one at a time ── */}
-          {tab === "text" && (
+          {head("text")}{show("text") && (
             <div>
               {/* Live preview in this widget's own fonts. */}
               <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5 mt-1" aria-hidden>
@@ -1290,7 +1293,7 @@ export default function WidgetConfigSheet({
           )}
 
           {/* ── Shape: size, spacing and edges ── */}
-          {tab === "shape" && (
+          {head("shape")}{show("shape") && (
             <div>
               <Group title="Size & spacing" first>
                 <SliderRow label="Content size" hint="Rows, buttons, pictures and spacing"
@@ -1383,7 +1386,7 @@ export default function WidgetConfigSheet({
           )}
 
           {/* ── Colour: everything painted ── */}
-          {tab === "colour" && (
+          {head("colour")}{show("colour") && (
             <div>
               {/* Opacity sits with its OWN colour (inside each swatch's
                   popover), so a gradient can fade or a background can go
@@ -1442,7 +1445,7 @@ export default function WidgetConfigSheet({
           )}
 
           {/* ── Styles: ready-made and saved looks, saving, copying, CSS ── */}
-          {tab === "styles" && (
+          {head("styles")}{show("styles") && (
             <div className="space-y-2 pt-1">
               {stylePage ? (
                 <>

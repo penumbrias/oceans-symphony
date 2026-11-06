@@ -32,7 +32,7 @@ import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFac
 import { CORNER_MODES } from "@/lib/useCornerMode";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -582,7 +582,7 @@ function BarsTab({ v2, alignX }) {
       [next[idx], next[to]] = [next[to], next[idx]];
       write(next);
     };
-    const addOptions = ALL_PAGES.filter((p) => !ids.includes(p.id)).map((p) => ({ id: p.id, label: termMap[p.id] || p.label }));
+    const addOptions = ALL_PAGES.filter((p) => !ids.includes(p.id)).map((p) => ({ id: p.id, label: pageLabel(p, terms) }));
     return (
       <>
         {ids.map((id, idx) => (
@@ -2011,6 +2011,7 @@ export default function UiEditSheet() {
     { id: "colour", label: tr("editSheet.tabColour"), icon: Palette },
     { id: "styles", label: tr("editSheet.tabStyles"), icon: StarIcon },
   ];
+  const { stacked, show, head } = useInspectorPages(tabs, tab);
   // A tab change starts at the top of the panel — the host scrolls, so
   // this scrolls the nearest scrolling ancestor.
   const panelRef = useRef(null);
@@ -2050,19 +2051,21 @@ export default function UiEditSheet() {
         <>
           {/* The tab strip stays put while the panel scrolls (the hosts give it
               a scrolling container with 16px side padding, hence the -mx-4). */}
-          <div className="sticky -top-1 z-10 -mx-4 bg-background">
-            <TabBar tabs={tabs} value={tab} onChange={pickTab} />
-          </div>
-          <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} className="pt-2">
-            {tab === "text" && <TextTab v2={v2} />}
-            {tab === "shape" && <ShapeTab v2={v2} />}
-            {tab === "bars" && <BarsTab v2={v2} alignX={alignX} />}
-            {tab === "colour" && (
+          {!stacked && (
+            <div className="sticky -top-1 z-10 -mx-4 bg-background">
+              <TabBar tabs={tabs} value={tab} onChange={pickTab} />
+            </div>
+          )}
+          <div role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`} className="pt-2">
+            {head("text")}{show("text") && <TextTab v2={v2} />}
+            {head("shape")}{show("shape") && <ShapeTab v2={v2} />}
+            {head("bars")}{show("bars") && <BarsTab v2={v2} alignX={alignX} />}
+            {head("colour")}{show("colour") && (
               <ColourTab v2={v2} onResetBackground={() => writeBackground(null)}>
                 <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
               </ColourTab>
             )}
-            {tab === "styles" && <StylesTab v2={v2} />}
+            {head("styles")}{show("styles") && <StylesTab v2={v2} />}
           </div>
         </>
       )}
