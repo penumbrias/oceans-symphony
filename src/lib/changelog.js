@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Buttons say what they do: the Alters page has View, Sort and Filter menus with words, and the Timeline and Check-In Log buttons are labelled. Keyboard users see where they are on every screen." },
+      { type: "fix", text: "Largest text sizes: the tab bar and Preview banner are readable, reminder cards give their words the full width, and the planner's Today button no longer squeezes." },
       { type: "improve", text: "Small labels are bigger and easier to read across the app. At the largest text sizes the top and bottom bars stay a readable size, so the page itself gets the room." },
       { type: "improve", text: "Calmer screens: only one notice or tip asks for your attention at a time, the rest wait their turn. A reminder folds into a small pill after a few seconds and hides while you type." },
       { type: "improve", text: "\"New to this page?\" tips have a \"Stop showing these\" button." },

@@ -105,6 +105,8 @@ export default function TaskItem({
         {/* Checkbox */}
         <button
           onClick={() => onToggle(task.id)}
+          aria-label={task.completed ? `Mark "${task.title}" not done` : `Mark "${task.title}" done`}
+          aria-pressed={!!task.completed}
           className="mt-1 p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
         >
           {task.completed ? (

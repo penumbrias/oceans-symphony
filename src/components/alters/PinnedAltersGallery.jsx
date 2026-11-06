@@ -61,7 +61,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
   const emptyTerms = useTerms();
-  const emptyHint = `No pinned ${emptyTerms.alters} yet — press and hold an ${emptyTerms.alter} to pin them.`;
+  const emptyHint = `No pinned ${emptyTerms.alters} yet — tap the pin on an ${emptyTerms.alter}'s profile (or press and hold them and pick Pin).`;
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

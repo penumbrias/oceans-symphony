@@ -127,6 +127,15 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   *Caught:* a first visit to home stacked six banners above the content.
 - Nothing floating covers a text box the person is typing in.
 
+### Words on controls
+
+- **No icon-only button** except the universally known ones (×, back,
+  search, ⋯, bell, cog). Everything else shows a word, or lives in a menu
+  whose rows have words. `check:ui` warns on `size="icon"` without an
+  `aria-label`. *Caught:* about 15 bare icons on the Alters page.
+- **Every gesture has a visible way** (a button or a menu row); hints name
+  the visible way first.
+
 ### Text size
 
 - **No text under 12 px** outside widgets: `text-xs` is the smallest.
@@ -134,8 +143,10 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   widget, sizes are em so the widget's Text size scales them.
 - **Look at 200 % text** (Settings → Accessibility → Text size, largest):
   content shows above the fold, titles don't split mid-word, and the bars
-  stay a fixed size (chrome carries `a11y-header-row` / `a11y-bottom-nav`
-  or `data-os-chrome`). *Caught:* at 200 % the header read "Oceans Sym",
+  grow only a little (chrome carries `a11y-header-row` / `a11y-bottom-nav`
+  or `data-os-chrome`) but never below about 15 px, which is still small
+  for someone who chose 200 %. Rows of buttons wrap instead of squeezing a
+  word into a vertical strip. *Caught:* at 200 % the header read "Oceans Sym",
   the tabs "Syste" / "Journa", and no content fit on the first screen.
 
 ### Words

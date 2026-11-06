@@ -139,15 +139,23 @@ function applyLargeTouch(value) {
   if (value && value !== "default") el.classList.add(`a11y-touch-${value}`);
 }
 
+// At the largest text sizes the tab labels grow too (UI critique C3), so the
+// bar is at least this tall. The person's own taller choice still wins.
+const LARGE_TEXT_NAV_MIN = { xl3: 64, xl4: 72, xl5: 76 };
+
 function applyNavHeight(value) {
-  const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
+  const chosen = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
+  let fontSize = "default";
+  try { fontSize = localStorage.getItem(LS_FONT_SIZE) || "default"; } catch { /* storage off */ }
+  const min = LARGE_TEXT_NAV_MIN[fontSize] || 0;
+  const h = `${Math.max(parseInt(chosen, 10) || 56, min)}px`;
   document.documentElement.style.setProperty("--bottom-nav-height", h);
   // The v2 bottom bars (which also replace the classic tab bar) size their
   // tabs from their own token, so a taller setting adds
   // space below the tabs instead — the manual way out when the phone's nav
   // buttons still cover the bar. Twice the difference, so "Extra tall"
   // (a 48px lift) clears a whole 3-button nav bar.
-  const extra = Math.max(0, (parseInt(h, 10) || 56) - 56) * 2;
+  const extra = Math.max(0, (parseInt(chosen, 10) || 56) - 56) * 2;
   document.documentElement.style.setProperty("--bottom-nav-extra", `${extra}px`);
 }
 
@@ -270,6 +278,7 @@ export function setAccessibilityHeadingFont(value) {
 export function setAccessibilityFontSize(value) {
   localStorage.setItem(LS_FONT_SIZE, value);
   applyFontSize(value);
+  applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
   // Let the landscape hint (and any other listeners) re-evaluate immediately.
   try { window.dispatchEvent(new Event("a11y-fontsize-changed")); } catch { /* SSR / no window */ }
   announce();

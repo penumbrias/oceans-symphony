@@ -283,9 +283,9 @@ export default function ReminderToast() {
             return (
               <div key={instance.id}
                 className="bg-card border border-border shadow-xl rounded-2xl p-4 space-y-3 animate-in slide-in-from-bottom-4 duration-300 pointer-events-auto">
-                <div className="flex items-start gap-3">
+                <div className="os-reminder-head flex items-start gap-3">
                   <span className="text-xl flex-shrink-0 mt-0.5">{Icon}</span>
-                  <div className="flex-1 min-w-0">
+                  <div className="os-reminder-text flex-1 min-w-0">
                     <p className="font-semibold text-sm text-foreground leading-tight">{reminder.title}</p>
                     {reminder.body && (
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
@@ -293,6 +293,7 @@ export default function ReminderToast() {
                   </div>
                   <button onClick={() => { setPinnedOpen(false); setExpanded(false); }}
                     aria-label="Fold reminder away"
+                    style={{ marginLeft: "auto" }}
                     className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
                     <ChevronDown className="w-4 h-4" />
                   </button>

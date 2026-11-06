@@ -180,6 +180,8 @@ export default function BulletinBoard({
         </div>
         <button
           onClick={() => { setSearchOpen((p) => !p); if (searchOpen) setSearchQuery(""); }}
+          aria-label={searchOpen ? "Close search" : "Search bulletins"}
+          aria-expanded={searchOpen}
           className={`p-1.5 rounded-lg transition-colors ${searchOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
           {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
         </button>
