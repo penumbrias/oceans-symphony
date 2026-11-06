@@ -130,16 +130,24 @@ import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
 import { unifyHomeBoards } from "@/lib/homeBoardUnify";
 import SaveHealthBanner from "@/components/shared/SaveHealthBanner";
+import { hideLaunchCover, watchForFirstScreen } from "@/lib/launchCover";
 
 // Shown while a lazily-loaded page chunk downloads. Sits in the page slot
 // (inside AppLayout's <Outlet/> position via Suspense above Routes), so
 // only the content area shows it.
 function RouteFallback() {
   return (
-    <div className="flex items-center justify-center py-24" role="status" aria-live="polite">
+    <div className="flex items-center justify-center py-24" role="status" aria-live="polite" data-launch-pending="">
       <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
     </div>
   );
+}
+
+// Lifts the launch cover as soon as it mounts — for screens that are ready
+// the moment they render (privacy page).
+function LaunchCoverRelease() {
+  useEffect(() => { hideLaunchCover(); }, []);
+  return null;
 }
 
 const AuthenticatedApp = () => {
@@ -198,6 +206,13 @@ const AuthenticatedApp = () => {
     consume();
     return subscribeToNativeRoute(consume);
   }, [navigate]);
+
+  // Keep the launch cover up until the first page and its data have
+  // settled (src/lib/launchCover.js).
+  useEffect(() => {
+    if (isLoadingAuth) return undefined;
+    return watchForFirstScreen(queryClientInstance);
+  }, [isLoadingAuth]);
 
   if (isLoadingAuth) {
     return (
@@ -338,6 +353,7 @@ function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
+            <LaunchCoverRelease />
             <Routes>
               <Route path="/privacy" element={<Privacy />} />
             </Routes>
@@ -600,6 +616,9 @@ function MainApp() {
   // watchdog only rescues a boot that never leaves the spinner).
   useEffect(() => {
     if (setupState !== 'booting') window.__OS_ALIVE = true;
+    // Setup, unlock and recovery screens are ready the moment they show;
+    // the main app (null) lifts the cover once its first page settles.
+    if (setupState && setupState !== 'booting') hideLaunchCover();
   }, [setupState]);
 
   // Installed app: keep the private-file copy complete (first copy for

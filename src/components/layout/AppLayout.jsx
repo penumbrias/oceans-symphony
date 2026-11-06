@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
+import { whenIdle } from "@/lib/lazyNamed";
 import { useIsWide } from "@/lib/useIsWide";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, LayoutGrid, ChevronLeft } from "lucide-react";
@@ -186,16 +187,18 @@ export default function AppLayout() {
   // show the blob-storage migration modal. Cheap probe; runs once per
   // session and short-circuits on the persisted `_blob_migration_v1` flag.
   const [showBlobMigration, setShowBlobMigration] = useState(false);
+  // Waits until the first screen is up (v0.366.1) — it never changes what
+  // that screen shows, so it shouldn't compete with it.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const cancelIdle = whenIdle(async () => {
       try {
         const { shouldShowBlobMigration } = await import("@/components/onboarding/BlobStorageMigrationModal");
         const need = await shouldShowBlobMigration();
         if (!cancelled && need) setShowBlobMigration(true);
       } catch { /* skip on error */ }
-    })();
-    return () => { cancelled = true; };
+    }, { delay: 2000 });
+    return () => { cancelled = true; cancelIdle(); };
   }, []);
   // Whether the in-app Back button should be shown (vs the menu icon).
   // Was previously a manual increment-on-each-pathname-change counter,
@@ -1128,7 +1131,7 @@ const handleNotifClick = (mentionLog) => {
               header / bars stay mounted and only the content slot shows the
               spinner — an outer boundary would blank the whole chrome. */}
           <Suspense fallback={
-            <div className="flex items-center justify-center py-24" role="status" aria-live="polite">
+            <div className="flex items-center justify-center py-24" role="status" aria-live="polite" data-launch-pending="">
               <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
             </div>
           }>

@@ -120,6 +120,15 @@ public class MainActivity extends BridgeActivity {
         super.onPause();
     }
 
+    // Launch screen hold (see onCreate). volatile: read on the UI thread's
+    // pre-draw pass, written from the plugin's thread.
+    private static final long LAUNCH_SCREEN_MAX_MS = 10000;
+    private volatile boolean holdLaunchScreen = true;
+
+    public void releaseLaunchScreen() {
+        holdLaunchScreen = false;
+    }
+
     // Render-process recoveries in this app process. Android kills the
     // web view's renderer under memory pressure (and it can crash on its
     // own); when nothing handles that, Android closes the whole app — the
@@ -141,7 +150,16 @@ public class MainActivity extends BridgeActivity {
         // enabled edge-to-edge windowing and the WebView stopped covering
         // the splash artwork in the inset area between the status bar and
         // the AppLayout header.
-        SplashScreen.installSplashScreen(this);
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+
+        // Keep the launch screen up until the web app says its first screen
+        // is ready (LaunchScreenPlugin.hide), instead of dropping it on the
+        // first frame and showing a blank, then half-built page while the
+        // data loads. The time limit means a web app that never says so
+        // (an old bundle, a crash) can't leave anyone stuck on it.
+        holdLaunchScreen = true;
+        splashScreen.setKeepOnScreenCondition(() -> holdLaunchScreen);
+        new Handler(Looper.getMainLooper()).postDelayed(this::releaseLaunchScreen, LAUNCH_SCREEN_MAX_MS);
 
         // Enable edge-to-edge with EXPLICIT transparent system bar styles.
         // The no-arg EdgeToEdge.enable() defaults to SystemBarStyle.auto(),
@@ -172,6 +190,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SyncFolderPlugin.class);
         registerPlugin(BackupCopyPlugin.class);
         registerPlugin(SystemSettingsPlugin.class);
+        registerPlugin(LaunchScreenPlugin.class);
         super.onCreate(savedInstanceState);
 
         if (bridge != null) {

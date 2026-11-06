@@ -21,7 +21,10 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Check, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import DataBackupRestore from "@/components/settings/DataBackupRestore";
+// Lazy (v0.366.1): AppLayout imports this module on every boot just to ask
+// shouldShowBlobMigration(), and the backup panel (with its compression
+// library) is only needed if someone opens it here.
+const DataBackupRestore = React.lazy(() => import("@/components/settings/DataBackupRestore"));
 import {
   probeBlobMigrationStatus,
   migrateLegacyStringsToBlobs,
@@ -107,7 +110,7 @@ export default function BlobStorageMigrationModal({ onClose }) {
               <p className="text-xs text-muted-foreground mb-3">
                 Save a fresh backup, then close this to return to the storage-optimisation prompt.
               </p>
-              <DataBackupRestore section="export" />
+              <React.Suspense fallback={null}><DataBackupRestore section="export" /></React.Suspense>
             </div>
           </div>
         </div>
