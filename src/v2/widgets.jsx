@@ -125,6 +125,7 @@ import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS, LOOKBA
 // the first time one is drawn, not at startup (v0.357.0). The board and the
 // widget library wrap every body in a Suspense (WidgetSuspense).
 const loadActivityWidgets = () => import("@/v2/activityWidgets");
+const NotesIndexWidget = lazyNamed(() => import("@/v2/notesWidgets"), "NotesIndexWidget");
 const ActivityWeekWidget = lazyNamed(loadActivityWidgets, "ActivityWeekWidget");
 const ActivityDayWidget = lazyNamed(loadActivityWidgets, "ActivityDayWidget");
 const ActivityDayViewWidget = lazyNamed(loadActivityWidgets, "ActivityDayViewWidget");
@@ -3462,6 +3463,22 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "story", type: "toggle", label: "Show Start a story", default: true }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  notes_index: {
+    label: "Notes & lists", description: "Your notes, lists and flash-card decks, newest first, with New note. Tap one to open it. Expanded shows them all.",
+    icon: NotebookPen, category: "needs",
+    render: sized(({ settings }) => <NotesIndexWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "show", type: "select", label: "Shows", default: "all",
+        options: [
+          { value: "all", label: "Everything" },
+          { value: "lists", label: "Notes and lists" },
+          { value: "decks", label: "Flash-card decks" },
+        ] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
   },
   sleep: {
     label: "Sleep", description: "Last night's sleep or the night in progress, with the start / wake button right there. Expanded adds the last seven nights as bars.",

@@ -198,6 +198,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/notes", target: "notes-page", look: `the Notes & lists page`,
     }),
     s("dashboard", {
+      emoji: "✏️", title: "Lay out your notes",
+      body: `Notes & lists is made of widgets. Tap one to open it in a sheet. The pencil (Edit page) adds a List, Note or Flash-card deck widget beside them, and the same widgets can go on home or a profile.`,
+      route: "/notes", target: ["notes-layout-btn", "notes-page"],
+    }),
+    s("dashboard", {
       emoji: "🛒", title: "The grocery list",
       body: `The cart icon opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
