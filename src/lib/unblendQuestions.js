@@ -73,6 +73,7 @@ function readCustom(alter, fieldName) {
 // question).
 export const PRESET_ANSWER_LABELS = {
   energy: "Energy",
+  age_range: "Age range",
   body_or_head: "Body or head",
   role_lean: "Role lean",
   dominant_feeling: "Dominant feeling",

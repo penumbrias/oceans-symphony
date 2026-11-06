@@ -37,7 +37,7 @@ import PageLookRow from "@/components/profile/PageLookRow";
 import ProfileViewSwitches from "@/components/profile/ProfileViewSwitches";
 import {
   InfoBar, BasicsSection, BioSection, EntriesSection, PicturesSection, GroupsSection, SubsystemsSection,
-  TagsSection, AnswersSection, answerRowsOf,
+  TagsSection, AnswersSection,
 } from "./infoSections";
 
 export default function AlterInfo({ alter, onOpenClassic }) {
@@ -126,9 +126,7 @@ export default function AlterInfo({ alter, onOpenClassic }) {
               <SubsystemsSection alter={alter} info={info} />
             </Group>
             <Group title="Tags"><TagsSection info={info} /></Group>
-            {answerRowsOf(form).length > 0 && (
-              <Group title="Get to know me"><AnswersSection info={info} /></Group>
-            )}
+            <Group title="Get to know me"><AnswersSection info={info} /></Group>
           </>
         )}
       </div>
