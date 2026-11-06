@@ -150,7 +150,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                     <div className="font-medium text-foreground truncate max-w-[160px]">
                       {applyTerms(task.title, terms)}
                     </div>
-                    <div className="text-[0.625rem] text-muted-foreground">{showPoints ? `${task.points} pts · ` : ""}{totalDone}/{pageKeys.length} done</div>
+                    <div className="text-xs text-muted-foreground">{showPoints ? `${task.points} pts · ` : ""}{totalDone}/{pageKeys.length} done</div>
                   </td>
                   {pageKeys.map(key => {
                     const entry = progressMap[key];
