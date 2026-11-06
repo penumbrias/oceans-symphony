@@ -39,6 +39,9 @@ export default function SetupWizardShell({
   open, onClose, onFinish, steps, ariaLabel = "Setup",
   finishLabel = "Done 💜", skipLabel = "Skip setup",
   initialStep = 0,
+  // Phases counted as one run of steps: their label reads "Step n of m"
+  // across all of them (UI critique H6) instead of restarting per phase.
+  countedPhases = null,
 }) {
   const [step, setStep] = useState(initialStep);
   const [animating, setAnimating] = useState(false);
@@ -76,12 +79,16 @@ export default function SetupWizardShell({
   const phasePosition = currentPhase
     ? phaseInfo.perStep.slice(0, step + 1).filter((p) => p === currentPhase).length
     : 0;
-  const phaseLabel = currentPhase && phaseTotal > 0
-    ? `${currentPhase} · ${phasePosition}/${phaseTotal}`
-    : null;
+  const counted = countedPhases && currentPhase && countedPhases.includes(currentPhase)
+    ? phaseInfo.perStep.map((p) => countedPhases.includes(p)) : null;
+  const phaseLabel = counted
+    ? `Step ${counted.slice(0, step + 1).filter(Boolean).length} of ${counted.filter(Boolean).length}`
+    : currentPhase && phaseTotal > 0
+      ? `${currentPhase} · ${phasePosition}/${phaseTotal}`
+      : null;
   const phaseColorClass = (phase) => {
     if (phase === "Setup") return "bg-primary/40 hover:bg-primary/60";
-    if (phase === "Welcome") return "bg-primary/20 hover:bg-primary/40";
+    if (phase === "Welcome" || phase === "Start") return "bg-primary/20 hover:bg-primary/40";
     return "bg-muted hover:bg-muted-foreground/30";
   };
 
@@ -186,8 +193,8 @@ export default function SetupWizardShell({
               app) so the setup portion doesn't feel like the whole guide. */}
           {phaseLabel && (
             <p
-              className={`text-[0.6875rem] uppercase tracking-wide text-center ${
-                currentPhase === "Setup" ? "text-primary font-semibold" : "text-muted-foreground/80"
+              className={`text-xs text-center ${
+                counted || currentPhase === "Setup" ? "text-primary font-semibold" : "text-muted-foreground"
               }`}
               aria-live="polite"
             >
@@ -262,7 +269,7 @@ export default function SetupWizardShell({
             </button>
           )}
           {locked && current.lockedHint && (
-            <p className="text-[0.6875rem] text-muted-foreground text-center">{current.lockedHint}</p>
+            <p className="text-xs text-foreground/80 text-center">{current.lockedHint}</p>
           )}
         </div>
       </DialogContent>

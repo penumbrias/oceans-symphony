@@ -190,17 +190,14 @@ export default function TourModal({ open, onClose, openAt = null }) {
   // ─── Step declarations ─────────────────────────────────────────────────
   const steps = [
     {
-      phase: "Welcome",
-      title: "Welcome to Oceans Symphony",
+      phase: "Start",
+      title: "Before you start",
       subtitle: `A companion app built for dissociative ${t.systems}`,
       icon: <Bell className="w-8 h-8" />,
       color: "from-violet-500/20 to-purple-500/20",
-      body:
-        `Oceans Symphony is built by and for dissociative ${t.systems}, and it's free for anyone. It helps you track experiences, stay connected across the ${t.system} and bridge the gaps amnesia leaves, privately, on your own device.\n\n` +
-        `The next pages help you set it up the way you want.`,
+      body: `One thing first, then a few quick choices to set it up your way.`,
       render: () => (
-        <div className="space-y-3 pt-1 border-t border-border/40">
-          <MedicalDisclaimer compact />
+        <div className="space-y-3 pt-1">
           <label className="flex items-start gap-2 text-sm cursor-pointer rounded-lg border border-border/60 p-3">
             <input
               type="checkbox"
@@ -213,6 +210,10 @@ export default function TourModal({ open, onClose, openAt = null }) {
               diagnose, treat, or replace care from a professional.
             </span>
           </label>
+          <details className="rounded-lg border border-border/60">
+            <summary className="px-3 py-2.5 cursor-pointer text-sm font-medium text-primary">Read the full notice</summary>
+            <div className="px-3 pb-3"><MedicalDisclaimer compact /></div>
+          </details>
         </div>
       ),
       nextDisabled: !ackChecked,
@@ -448,6 +449,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       onFinish={handleFinish}
       steps={steps}
       ariaLabel="Oceans Symphony guide"
+      countedPhases={["Start", "Setup"]}
       finishLabel="Start exploring 💜"
       skipLabel="Skip guide"
       initialStep={openAt && STEP_ID_INDEX[openAt] != null ? STEP_ID_INDEX[openAt] : 0}
