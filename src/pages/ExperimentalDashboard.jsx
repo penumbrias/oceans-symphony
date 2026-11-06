@@ -41,7 +41,7 @@ import {
 import { WIDGET_REGISTRY, widgetLabel, widgetAutoLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
+  HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside, fitRowsToContent,
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
   flowOrder, flowRepack, flowMove, flowPlace, flowAtOf, snapStepFor, isWhole,
@@ -780,6 +780,11 @@ export default function ExperimentalDashboard({
   // arranging works exactly like the board. Display-only: stored
   // positions and spans are untouched.
   viewFlow = false,
+  // Profile and page boards (v0.364.17, owner): widgets sit exactly where
+  // they were put — the free grid, same as with "Overlap other widgets" —
+  // and a widget nobody sized by hand is as tall as its content
+  // (fitRowsToContent), so nothing is cut off and no empty band is left.
+  fitContent = false,
   // A profile board (v0.290.0): its pages are the profile's tabs, so the
   // page can open on one (`initialPageId`, from a ?tab= link) and tell
   // the page which one is showing (`onPageChange`, which keeps the URL in
@@ -1665,6 +1670,27 @@ export default function ExperimentalDashboard({
   // per-widget writes raced each other and walked the layout down the page.
   // Runs again only when the page or the column count changes.
   const fitted = React.useRef("");
+  // A board whose rows follow the content re-measures when that content
+  // changes (a bio edited, a list loaded, a picture arriving) — settled for
+  // half a second first, so typing or loading doesn't measure every frame.
+  const [contentTick, setContentTick] = React.useState(0);
+  React.useEffect(() => {
+    const grid = gridRef.current;
+    if (!fitContent || !freeMode || !grid || typeof MutationObserver === "undefined") return undefined;
+    let t = 0;
+    const bump = () => { clearTimeout(t); t = setTimeout(() => setContentTick((n) => n + 1), 500); };
+    const mo = new MutationObserver((records) => {
+      // The fit's own measuring and the board's re-render of positions
+      // only touch cell styles — not content.
+      if (records.some((r) => r.type !== "attributes")) bump();
+    });
+    mo.observe(grid, { childList: true, subtree: true, characterData: true });
+    grid.addEventListener("load", bump, true);
+    // Edit mode shows widgets that view mode folds away (empty ones) and
+    // may render a fresh grid — measure again on every switch.
+    bump();
+    return () => { mo.disconnect(); grid.removeEventListener("load", bump, true); clearTimeout(t); };
+  }, [fitContent, freeMode, page.id, editMode]);
   React.useEffect(() => {
     if (!freeMode || !settingsRow?.id || !gridRef.current) return undefined;
     // The stamp carries the layout fingerprint, not just the page id — a
@@ -1673,11 +1699,45 @@ export default function ExperimentalDashboard({
     // leaving every card clipped. The pass's own write changes the
     // fingerprint too, which triggers exactly one confirming re-run that
     // measures, finds nothing to grow, and settles.
-    const stamp = `${page.id}:${gridCols}:${page.widgets.map((w) => `${w.instanceId}${w.span?.rows}|${w.pos?.x},${w.pos?.y}`).join(";")}`;
+    const stamp = `${page.id}:${gridCols}:${contentTick}:${page.widgets.map((w) => `${w.instanceId}${w.span?.rows}|${w.pos?.x},${w.pos?.y}`).join(";")}`;
     if (fitted.current === stamp) return undefined;
     const id = setTimeout(() => {
       const grid = gridRef.current;
       if (!grid) return;
+      if (fitContent) {
+        // Measure how tall each widget's content really is: let the cell
+        // size itself for a moment (one forced layout, restored in the
+        // same frame, so nothing flickers).
+        const want = {};
+        for (const node of grid.querySelectorAll(":scope > [data-widget-id]")) {
+          const wid = node.dataset.widgetId;
+          // Collapsed (empty, view mode) or open right now: not its size.
+          if (node.offsetWidth === 0 || grownRef.current.has(wid)) continue;
+          const keep = [node.style.height, node.style.alignSelf, node.style.minHeight];
+          node.style.height = "max-content";
+          node.style.alignSelf = "start";
+          node.style.minHeight = "0";
+          const natural = node.offsetHeight;
+          [node.style.height, node.style.alignSelf, node.style.minHeight] = keep;
+          const w = page.widgets.find((x) => x.instanceId === wid);
+          const def = w && registry[w.widgetId];
+          if (!def) continue;
+          const most = Math.round((def.maxSpan?.rows ?? 40) * (80 / rowPx));
+          // Quarter-row steps (the same steps as snapping off), so a short
+          // widget doesn't leave a band of empty row under it.
+          want[wid] = Math.min(most, (natural + gapPx) / (rowPx + gapPx));
+        }
+        const next = fitRowsToContent(page.widgets, want, gridCols);
+        fitted.current = stamp;
+        if (next === page.widgets && !hasOverlaps(page.widgets, gridCols)) return;
+        markMachineWrite();
+        const byId = Object.fromEntries(next.map((w) => [w.instanceId, w]));
+        updatePageWidgets((ws) => resolveOverlaps(ws.map((w) => {
+          const f = byId[w.instanceId];
+          return f ? { ...w, pos: f.pos, span: { ...w.span, rows: f.span?.rows } } : w;
+        }), gridCols), { machine: true });
+        return;
+      }
       const needed = {};
       for (const node of grid.querySelectorAll("[data-widget-id]")) {
         const content = node.querySelector("[data-widget-content]");
@@ -1706,7 +1766,7 @@ export default function ExperimentalDashboard({
       }), gridCols), { machine: true });
     }, 120);
     return () => clearTimeout(id);
-  }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);
+  }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets, fitContent, contentTick, gapPx, rowPx]);
   // Presence-conditional widgets (the classic cards) can render NOTHING
   // right now — no pins, no plans — and a cell of nothing is a dead row
   // on the home screen. Track which widgets currently measure empty

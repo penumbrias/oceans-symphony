@@ -23,7 +23,7 @@ register(`data:text/javascript,${encodeURIComponent(`
 `)}`);
 const {
   flowOrder, flowRepack, flowMove, flowPlace, compactVertically, findFreeCell, resolveOverlaps, hasOverlaps,
-  widgetSnaps, snapStepFor, isOffGrid, FINE_STEP, resolveExperimentalHome,
+  widgetSnaps, snapStepFor, fitRowsToContent, isOffGrid, FINE_STEP, resolveExperimentalHome,
 } = await import("../src/lib/experimentalHome.js");
 
 let passed = 0;
@@ -162,6 +162,20 @@ test("flow drop in empty space stands at the chosen column (flowAt)", () => {
   const joined = flowPlace(below, 4, "c", "a", "left");
   assert.equal(at(joined, "c").settings.flowAt, undefined);
   assert.equal(hasOverlaps(below, 4), false);
+});
+
+test("rows follow the content and keep the gaps below", () => {
+  const w = (id, x, y, cols, rows, settings) => ({ instanceId: id, pos: { x, y }, span: { cols, rows }, ...(settings ? { settings } : {}) });
+  const ws = [w("head", 0, 0, 4, 2), w("side", 4, 0, 2, 3), w("bio", 0, 3, 4, 2), w("own", 0, 6, 4, 2, { autoFit: false })];
+  const out = fitRowsToContent(ws, { head: 1, side: 3, bio: 6, own: 9 }, 6);
+  const at = (id) => out.find((x) => x.instanceId === id);
+  assert.equal(at("head").span.rows, 1);
+  assert.equal(at("bio").pos.y, 2, "bio moves up with the header, keeping its one-row gap");
+  assert.equal(at("bio").span.rows, 6);
+  assert.equal(at("own").span.rows, 2, "hand-sized keeps its rows");
+  assert.equal(at("own").pos.y, 9, "and moves down below the taller bio, gap kept");
+  assert.equal(at("side").pos.y, 0, "a widget beside it doesn't move");
+  assert.equal(fitRowsToContent(ws, { head: 2, bio: 2 }, 6), ws, "nothing to change returns the same list");
 });
 
 console.log(`\n${passed} passed`);
