@@ -223,6 +223,19 @@ export async function createLocation(mapId, layerId, fields = {}) {
     layer_id: layerId,
   });
 }
+// A location's own text, edited from its profile widgets (v0.365.0): the
+// name (never blank) and the description.
+export async function updateLocationText(id, { name, description } = {}) {
+  const patch = {};
+  if (name !== undefined) {
+    const clean = String(name ?? "").trim();
+    if (!clean) throw new Error("A location needs a name");
+    patch.name = clean;
+  }
+  if (description !== undefined) patch.description = description ?? "";
+  if (!id || !Object.keys(patch).length) return null;
+  return localEntities.InnerWorldLocation.update(id, patch);
+}
 export const setLocationLink = (id, targetType, targetId) =>
   localEntities.InnerWorldLocation.update(id, { link_target_type: targetType || null, link_target_id: targetId || null });
 export const clearLocationLink = (id) =>

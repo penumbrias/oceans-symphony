@@ -42,6 +42,13 @@ const freshGroup = async (groupId) => (await base44.entities.Group.get(groupId))
 export async function writeGroupEntry(groupId, entryId, value) {
   if (!groupId || !entryId) return null;
   if (entryId === "bio") return base44.entities.Group.update(groupId, { description: value ?? "" });
+  // The group's name (v0.365.0, edited from a widget's Content tab). A
+  // group always keeps a name, so a blank one is refused, never saved.
+  if (entryId === "basic:name") {
+    const name = String(value ?? "").trim();
+    if (!name) throw new Error("A group needs a name");
+    return base44.entities.Group.update(groupId, { name });
+  }
   if (entryId.startsWith("own:")) {
     const name = entryId.slice(4);
     const fresh = await freshGroup(groupId);

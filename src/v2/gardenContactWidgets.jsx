@@ -8,6 +8,7 @@
 // something; ONE box (GardenBox); em text; 44px targets; nothing on the
 // page when there's nothing to show.
 
+import { contactFieldsField } from "@/components/v2/recordFieldEditors";
 import React, { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -273,6 +274,7 @@ export const GARDEN_CONTACT_WIDGETS = {
     render: ({ settings, mode }) => <ContactIdentityWidget settings={settings} mode={mode} />,
     supportsModes: MODES, defaultSpan: { cols: 12, rows: 2 },
     configFields: [
+      contactFieldsField("identity"),
       { key: "showAvatar", type: "toggle", label: "Show the picture", default: true },
       { key: "avatarShape", type: "select", label: "Picture shape", default: "circle",
         options: [{ value: "circle", label: "Circle" }, { value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }] },
@@ -312,6 +314,7 @@ export const GARDEN_CONTACT_WIDGETS = {
         ] },
       { key: "layout", type: "select", label: "Labels", default: "labelled",
         options: [{ value: "labelled", label: "With labels" }, { value: "plain", label: "Just the text" }] },
+      contactFieldsField("details"),
     ],
   },
   contact_notes: {
