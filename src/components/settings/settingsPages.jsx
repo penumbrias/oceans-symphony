@@ -13,6 +13,7 @@ import {
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
+  MessageSquareHeart,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -81,7 +82,7 @@ export const LEGACY_HASHES = {
 };
 
 // `ctx`: { terms, navigate, settings, refetch, queryClient, openBackup(kind),
-//          openRescue(), openBugReport() }
+//          openRescue(), openBugReport(), openFeedbackSurvey() }
 export function buildSettingsGroups(ctx) {
   const { terms: t, navigate } = ctx;
   const onChanged = () => {
@@ -229,6 +230,8 @@ export function buildSettingsGroups(ctx) {
           keywords: "tour onboarding tutorials setup guide re-run replay welcome", render: () => ctx.renderTour?.() },
         { id: "preview", label: "Preview mode", hint: "Explore an example or the wiki walkthrough", icon: Eye, tour: "settings-preview",
           keywords: "preview mode example wiki walkthrough demo", render: () => <PreviewModeSection /> },
+        { id: "feedback-survey", label: "Share feedback", hint: "A few questions from the app's creator", icon: MessageSquareHeart,
+          keywords: "feedback survey questions creator usability suggestions email", action: () => ctx.openFeedbackSurvey?.() },
         { id: "bug-report", label: "Found a bug?", hint: "Open a report with your build info attached", icon: Bug,
           keywords: "bug report issue feedback github", action: () => ctx.openBugReport?.() },
         { id: "disclaimer", label: "Medical disclaimer", hint: "Not a medical product", icon: Stethoscope,

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "feature", text: "A short feedback survey from the app's creator: answer a few questions about using the app and email them in. Find it on the home screen or in Settings → About → Share feedback." },
       { type: "fix", text: "Profiles and pages: widgets no longer overlap each other after the new layout; boards that already did are tidied up when opened." },
       { type: "improve", text: "Profiles and pages: widgets now stay exactly where you put them (like with \"Overlap other widgets\" on), and ones you haven't resized still grow to fit what they show." },
       { type: "improve", text: "Opening the app: the loading screen now stays up until your home screen is fully ready, instead of showing a half-loaded page, and startup does a little less work." },
