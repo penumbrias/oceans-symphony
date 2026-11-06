@@ -1,4 +1,4 @@
-// The launch screen (v0.365.2).
+// The launch screen (v0.366.1).
 //
 // index.html paints a launch cover (#launch-cover) before any JS runs, and
 // on Android MainActivity holds the system launch screen too. Both stay up

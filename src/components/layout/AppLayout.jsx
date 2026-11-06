@@ -20,6 +20,7 @@ import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
+import { OPEN_PAGE_TOUR_EVENT, OPEN_FULL_TOUR_EVENT } from "@/lib/pageTutorials";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
@@ -186,7 +187,7 @@ export default function AppLayout() {
   // show the blob-storage migration modal. Cheap probe; runs once per
   // session and short-circuits on the persisted `_blob_migration_v1` flag.
   const [showBlobMigration, setShowBlobMigration] = useState(false);
-  // Waits until the first screen is up (v0.365.2) — it never changes what
+  // Waits until the first screen is up (v0.366.1) — it never changes what
   // that screen shows, so it shouldn't compete with it.
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +215,24 @@ export default function AppLayout() {
   // full-tour state so both can coexist (e.g. the banner shouldn't fire
   // mid-full-tour).
   const [pageScopedTourRoute, setPageScopedTourRoute] = useState(null);
+  // "Show me around this page" (⚙ menu) and "Take the full tour"
+  // (Settings → Tour & onboarding) can open a tour from anywhere.
+  useEffect(() => {
+    const onPage = (e) => {
+      const path = e.detail?.path;
+      if (!path) return;
+      setShowFeatureTour(false);
+      setPageScopedTourRoute(null);
+      setTimeout(() => setPageScopedTourRoute(path), 0);
+    };
+    const onFull = () => { setPageScopedTourRoute(null); setShowFeatureTour(true); };
+    window.addEventListener(OPEN_PAGE_TOUR_EVENT, onPage);
+    window.addEventListener(OPEN_FULL_TOUR_EVENT, onFull);
+    return () => {
+      window.removeEventListener(OPEN_PAGE_TOUR_EVENT, onPage);
+      window.removeEventListener(OPEN_FULL_TOUR_EVENT, onFull);
+    };
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // The app drawer's list toggle (and anything else outside this layout)
   // opens the sidebar through this event — the drawer lives inside the

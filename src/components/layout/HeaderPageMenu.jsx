@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb, Palette } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb, Palette, Compass } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSyncAdapter } from "@/lib/syncAdapters";
@@ -8,6 +8,7 @@ import { getSyncFolder, runSync } from "@/lib/deviceSyncRunner";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import { useLookSubject } from "@/lib/lookSubject";
+import { loadTourRoutes, tourRoutesIfLoaded, tutorialRouteKey, openPageTour } from "@/lib/pageTutorials";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -222,8 +223,24 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
     });
   }
 
+  // "Show me around this page" — the page's walk-through, any time, not
+  // only on a first visit. The list of pages with one loads when the menu
+  // first opens.
+  const [tourRoutes, setTourRoutes] = React.useState(tourRoutesIfLoaded);
+  const onOpenChange = (open) => {
+    if (open && !tourRoutes) loadTourRoutes().then((r) => { if (r) setTourRoutes(r); });
+  };
+  if (tourRoutes?.has(tutorialRouteKey(path))) {
+    pageActions.push({
+      key: "page-tour",
+      label: "Show me around this page",
+      icon: Compass,
+      onSelect: () => openPageTour(path),
+    });
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           aria-label="Settings & page options"

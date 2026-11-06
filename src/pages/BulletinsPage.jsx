@@ -55,7 +55,7 @@ export default function BulletinsPage() {
     : (frontingAlterIds[0] || null);
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4" data-tour="bulletins-page">
       <div className="flex items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
           <ChevronLeft className="w-4 h-4" />
@@ -67,7 +67,7 @@ export default function BulletinsPage() {
       {/* Compose from the page header, like a new journal entry — the board
           is chosen inside the popup. */}
       <div className="flex justify-end mb-2">
-        <Button size="sm" onClick={() => setComposerOpen(true)} className="gap-1.5 text-xs">
+        <Button size="sm" onClick={() => setComposerOpen(true)} className="gap-1.5 text-xs" data-tour="bulletins-new-post">
           <Plus className="w-3.5 h-3.5" /> New post
         </Button>
       </div>

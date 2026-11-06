@@ -21,7 +21,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Check, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// Lazy (v0.365.2): AppLayout imports this module on every boot just to ask
+// Lazy (v0.366.1): AppLayout imports this module on every boot just to ask
 // shouldShowBlobMigration(), and the backup panel (with its compression
 // library) is only needed if someone opens it here.
 const DataBackupRestore = React.lazy(() => import("@/components/settings/DataBackupRestore"));
