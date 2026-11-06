@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import PageStrip from "@/components/shared/PageStrip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -553,20 +554,7 @@ export default function Journals() {
       </div>
 
       {/* Tabs */}
-      <div data-tour="journals-tabs" className="flex gap-1 mb-4 bg-muted/40 p-1 rounded-xl w-fit">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}>
-              <Icon className="w-3.5 h-3.5" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <PageStrip tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} className="mb-4" />
 
       {/* Filters row */}
       <div data-tour="journals-filters" className="flex flex-wrap gap-2 mb-4">

@@ -7,6 +7,7 @@
 //
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
+import PageStrip from "@/components/shared/PageStrip";
 import React, { useEffect, useMemo, useState } from "react";
 import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
@@ -378,17 +379,13 @@ export default function PlannerSurface({
           <div className="space-y-2">
             {/* Row 1: what you're looking at (calendar / plans / insights)
                 plus page config — the tracker's three tabs, merged in. */}
-            <div className="flex items-center justify-between gap-2">
-              <div role="tablist" className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40" data-tour="planner-sections">
-                {[["calendar", tr("planner.section.calendar")], ["plans", tr("planner.plans")], ["insights", tr("planner.section.insights")]].map(([id, label]) => (
-                  <button key={id} type="button" role="tab" aria-selected={section === id}
-                    onClick={() => setSection(id)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                      section === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}>{label}</button>
-                ))}
-              </div>
-              <div className="flex items-center gap-0.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <PageStrip tour="planner-sections" label="Planner views" className="basis-full" value={section} onChange={setSection} items={[
+                { id: "calendar", label: tr("planner.section.calendar") },
+                { id: "plans", label: tr("planner.plans") },
+                { id: "insights", label: tr("planner.section.insights") },
+              ]} />
+              <div className="flex items-center gap-0.5 ml-auto">
                 <Button variant="ghost" size="sm" onClick={() => setShowDisplay((v) => !v)}
                   aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
                   <SlidersHorizontal className="w-4 h-4" />

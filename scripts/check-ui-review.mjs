@@ -69,7 +69,8 @@ const RULES = [
   },
 ];
 const WARNS = [
-  { id: "pill-tabs", re: /rounded-full[\s\S]{0,240}set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\([\s\S]{0,240}rounded-full/, msg: "pill tabs splitting a screen? (use TabBar or drill-in pages)" },
+  { id: "pill-tabs", re: /rounded-full[\s\S]{0,240}set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\([\s\S]{0,240}rounded-full/, msg: "pill tabs splitting a screen? (views: PageStrip; option menus: TabBar; or drill-in pages)" },
+  { id: "hand-strip", re: /role=["']tab["']/, msg: "hand-made tab strip: use PageStrip (src/components/shared/PageStrip.jsx), or TabBar in an option menu" },
   { id: "stepper", re: /<Minus\b[\s\S]{0,400}<Plus\b/, msg: "− / + stepper (sizes and counts are SliderRows)" },
   { id: "hand-row", re: /flex[^"']*justify-between[\s\S]{0,300}(?:<Switch\b|type=["']checkbox["'])/, msg: "hand-rolled setting row (use SwitchRow / Row)" },
   { id: "overlay", re: /\bfixed inset-0\b/, msg: "full-screen overlay (a sheet / existing modal?)" },
@@ -110,6 +111,7 @@ added.forEach((a, i) => {
   for (const w of WARNS) {
     const key = `${w.id}:${a.file}:${Math.floor(a.line / 10)}`;
     if (warned.has(key)) continue;
+    if (w.id === "hand-strip" && /shared\/(PageStrip|SettingRows)\.jsx$/.test(a.file)) continue;
     if (firstLineMatters(w, a.text) && w.re.test(win)) {
       warned.add(key);
       console.log(`warn ${a.file}:${a.line}  ${w.msg}`);
@@ -119,7 +121,7 @@ added.forEach((a, i) => {
 // Only report a window from the line where its pattern starts, so one
 // block isn't listed eight times.
 function firstLineMatters(w, text) {
-  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/, "icon-only": /size=["']icon["']/, "confirm-delete": /await confirm\(/ };
+  const starts = { "pill-tabs": /rounded-full|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(/, stepper: /<Minus\b/, "hand-row": /justify-between/, overlay: /fixed inset-0/, "icon-only": /size=["']icon["']/, "confirm-delete": /await confirm\(/, "hand-strip": /role=["']tab["']/ };
   return starts[w.id].test(text);
 }
 

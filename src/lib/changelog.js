@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Switching views looks the same everywhere: Analytics, the Planner, Journals, Reminders, the map, Support and every profile or board page use one underlined strip you can swipe." },
       { type: "improve", text: "Routines: no more streaks to break. You see the days you showed up this month, and points and levels are your choice (on for anyone already using them, asked once otherwise)." },
       { type: "improve", text: "Deleting in the Check-In Log and {{System}} Meetings no longer asks \"Are you sure?\": it goes to the trash with an Undo. Edit and Delete moved into each row's ⋯ menu, so a slip can't hit them." },
       { type: "improve", text: "Quick Check-In is quicker: pick a feeling and save. Everything else is a list of optional rows below, and guided or one-list feelings is now a setting in the check-in manager." },

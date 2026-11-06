@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import PageStrip from "@/components/shared/PageStrip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Bell, X } from "lucide-react";
@@ -71,16 +72,10 @@ export default function Reminders() {
       ) : (
         <>
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit">
-            {["inbox", "manage"].map(t => (
-              <button key={t} data-tour={`reminders-${t}-tab`} onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-                  tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}>
-                {t}
-              </button>
-            ))}
-          </div>
+          <PageStrip label="Reminder views" value={tab} onChange={setTab} items={[
+            { id: "inbox", label: "Inbox", tour: "reminders-inbox-tab" },
+            { id: "manage", label: "Manage", tour: "reminders-manage-tab" },
+          ]} />
 
           {!helperDismissed && (
             <div className="flex items-start justify-between gap-3 px-3 py-2 bg-muted/20 rounded-lg border border-border/30">
