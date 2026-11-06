@@ -1244,3 +1244,9 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 .text-\[9px\], .text-\[10px\], .text-\[11px\] {
   font-size: 0.75rem;
 }
+
+/* Quick Check-In at large text: the side rating moves under the feelings
+   instead of squeezing them into a narrow column (UI critique H4). */
+html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-feeling-row { flex-direction: column; }
+html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating { border-left: 0; padding-left: 0; border-top: 1px solid hsl(var(--border) / 0.4); padding-top: 0.5rem; }
+html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating > button { max-width: none; }

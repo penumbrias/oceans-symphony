@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Quick Check-In is quicker: pick a feeling and save. Everything else is a list of optional rows below, and guided or one-list feelings is now a setting in the check-in manager." },
       { type: "improve", text: "Every page has one name everywhere, and the menu is grouped by what you're doing: Today, your system, Plan & do, Write, Support and Look back. \"Tasks\" is now called Routines." },
       { type: "improve", text: "Buttons say what they do: the Alters page has View, Sort and Filter menus with words, and the Timeline and Check-In Log buttons are labelled. Keyboard users see where they are on every screen." },
       { type: "fix", text: "Largest text sizes: the tab bar and Preview banner are readable, reminder cards give their words the full width, and the planner's Today button no longer squeezes." },

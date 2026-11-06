@@ -21,7 +21,8 @@ import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { EMOTION_ATTRIBUTION_ALL, emotionAttributionDefault, ATTRIBUTION_ALL, ATTRIBUTION_NONE, attributionPolicy, policyExcludedLevels } from "@/lib/emotionAttribution";
-import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
+import { SwitchRow } from "@/components/shared/SettingRows";
+import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled, readEmotionPickerMode, writeEmotionPickerMode } from "@/lib/quickCheckinPrefs";
 
 // Toggle which section pills appear in the Quick Check-In modal.
 function SectionsTab() {
@@ -90,6 +91,7 @@ function FeelingsTab() {
     : new Set(legacy === EMOTION_ATTRIBUTION_ALL ? [] : levelCfg.levels.filter((l) => l.id !== legacy).map((l) => l.id));
   const [saving, setSaving] = useState(false);
   const [sliderOn, setSliderOn] = useState(() => readQuickCheckinSliderEnabled());
+  const [pickerMode, setPickerMode] = useState(() => readEmotionPickerMode());
 
   const save = async (next) => {
     if (saving) return;
@@ -158,10 +160,15 @@ function FeelingsTab() {
         )}
       </section>
 
-      <label className="flex items-center justify-between gap-3 bg-card border border-border/50 rounded-xl px-4 py-3 cursor-pointer">
-        <span className="text-sm font-medium">Side rating beside Feeling</span>
-        <Switch checked={sliderOn} onCheckedChange={(on) => { writeQuickCheckinSliderEnabled(on); setSliderOn(on); }} />
-      </label>
+      <div className="bg-card border border-border/50 rounded-xl px-4 py-1">
+        <SwitchRow label="Feelings as one list"
+          hint="Off: the guided wheel (good, neutral, bad, then more specific). On: every feeling in one list."
+          checked={pickerMode === "classic"}
+          onChange={(on) => { writeEmotionPickerMode(on ? "classic" : "wheel"); setPickerMode(on ? "classic" : "wheel"); }} />
+        <SwitchRow label="Side rating beside Feeling"
+          checked={sliderOn}
+          onChange={(on) => { writeQuickCheckinSliderEnabled(on); setSliderOn(on); }} />
+      </div>
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Custom emotions</h2>
