@@ -199,7 +199,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "🛒", title: "The grocery list",
-      body: `The cart icon opens your notes and lists. Triple-tap anywhere to jump there instantly, or pick a page or picture instead in Settings → Data & privacy → Quick jump.`,
+      body: `The cart icon opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
     }),
@@ -337,7 +337,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "⬆️", title: "Along the top",
-      body: `Up top: previous and next ${t.alter}, the pin, ${t.Front} (tap to put them in ${t.front}, hold for the level rail), Info, and the pencil.`,
+      body: `Up top: previous and next ${t.alter}, the pin, ${t.Front} (tap to put them in ${t.front}, hold for the level rail), Info, and Edit page.`,
       route: profile(), look: `the buttons along the top of the profile`,
     }),
     s("profile", {
@@ -369,9 +369,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🧩", title: "Edit the page",
-      body: `The pencil edits the page itself, and it keeps looking exactly as it does. Hold a widget to move it; drop it on another one's edge to sit beside it. Drag edges to resize; ⚙ opens its options.`,
+      body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap its corner button for options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
-      look: ai ? `the highlighted pencil (Edit page)` : `open a profile and look for the pencil at the top-right`,
+      look: ai ? `the highlighted Edit page button` : `open a profile and look for Edit page at the top-right`,
+    }),
+    s("profile", {
+      emoji: "🗂️", title: "Prefer the older form?",
+      body: `Settings → ${t.Alters} → Profile layouts → "Use the classic edit form" makes Info open the older one-page form with a Save button. The same switch is under "Profile page" in Info.`,
+      route: profile(), target: onProfile("alter-profile-edit-btn"),
     }),
     s("profile", {
       emoji: "🧲", title: "Snap to grid",
@@ -732,7 +737,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out the Notebook",
-      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the grid button to move them, or add pictures, notes or anything else beside them.`,
+      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the pencil (Edit page) to move them, or add pictures, notes or anything else beside them.`,
       route: "/goals", target: ["notebook-layout-btn", "notebook-tabs", "goals-page"],
     }),
     s("activities", {
@@ -747,7 +752,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🖼️", title: "Lay out a goal page",
-      body: `Each goal page is made of widgets. Open a page and tap the grid button to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
+      body: `Each goal page is made of widgets. Open a page and tap the pencil (Edit page) to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {
@@ -812,7 +817,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out Needs your way",
-      body: `Needs is made of widgets. The grid button moves, resizes and adds them, and the same widgets can go on your home screen.`,
+      body: `Needs is made of widgets. The pencil (Edit page) moves, resizes and adds them, and the same widgets can go on your home screen.`,
       route: "/needs", target: ["needs-layout-btn", "needs-page"],
     }),
 

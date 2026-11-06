@@ -33,7 +33,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const syncedBody = useRef(null);
   const imageInputRef = useRef(null);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
-  // The picture sheet (v0.361.0): pictures waiting to go in ({ files } /
+  // The picture sheet (v0.363.0): pictures waiting to go in ({ files } /
   // { urls }), or a picture already in the text being changed
   // ({ initial, el }). Where the caret was is kept so they land there.
   const [pictureSheet, setPictureSheet] = useState(null);

@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Target, Repeat, Menu, LayoutGrid } from "lucide-react";
+import { Target, Repeat, Menu } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -26,10 +26,12 @@ import { profilePageId } from "@/lib/profileBoard";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
 import { WorkspaceProvider } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
+import BoardPageHeader from "@/components/profile/BoardPageHeader";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
 import { V2_WIDGETS } from "@/v2/widgets";
-import { GOAL_PAGE_WIDGETS, GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
+import { GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
+import { goalWidgetDefs } from "@/v2/goalWidgetDefs";
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 
@@ -52,16 +54,8 @@ function Home({ toCarry, onCarry, carrying }) {
   const boardPage = useProfilePageState(NOTEBOOK_PAGES);
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h1 className="font-display text-3xl font-semibold text-foreground flex-1 min-w-0">Notebook</h1>
-        {!boardPage.layoutEditing && (
-          <Button variant="outline" size="sm" className="h-11 w-11 px-0" data-tour="notebook-layout-btn"
-            onClick={openPageLayoutEditor} aria-label="Edit page"
-            title="Edit page — move, resize and add widgets">
-            <LayoutGrid className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
+      <BoardPageHeader title="Notebook" layoutEditing={boardPage.layoutEditing}
+        onEditLayout={openPageLayoutEditor} tourId="notebook-layout-btn" />
 
       {toCarry.length > 0 && !hideCarry && !boardPage.layoutEditing && (
         <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
@@ -85,7 +79,7 @@ function Home({ toCarry, onCarry, carrying }) {
 // A goal page: its header, then its widget board (v0.338.0). The board is
 // the standard four widgets until the first Edit page; Media, Text and the
 // rest can go beside them.
-const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...GOAL_PAGE_WIDGETS };
+const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...goalWidgetDefs({ onGoalPage: true }) };
 function GoalPage({ page }) {
   const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
   return (

@@ -6,7 +6,7 @@
 //     (every shared wish's card, done and let go folded away).
 //   • Turns — Add a turn, then the Taking turns widget expanded ("this now,
 //     that next"; kept and let-go ones folded away).
-// Edit page (the grid button) moves, resizes and adds widgets; the layout is
+// Edit page (the pencil) moves, resizes and adds widgets; the layout is
 // saved on the first edit, never before. Goals live on their own page.
 //
 // ?tab=balance|wishes|turns picks the page; ?highlight=<id> scrolls to a
@@ -15,9 +15,8 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { useNavigate } from "react-router-dom";
-import { NotebookTabs, LayoutGrid, HeartHandshake, Heart, ArrowLeftRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HeartHandshake, Heart, ArrowLeftRight } from "lucide-react";
+import BoardPageHeader from "@/components/profile/BoardPageHeader";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
 import { profilePageId } from "@/lib/profileBoard";
@@ -41,7 +40,6 @@ const PAGE_ICONS = {
 };
 
 export default function Needs() {
-  const navigate = useNavigate();
   const page = useProfilePageState(NEEDS_PAGES);
   // Rows render after their queries land and the board mounts: look again
   // once each is ready (same queries the widgets read — cached).
@@ -55,20 +53,9 @@ export default function Needs() {
     <div className="min-h-screen px-4 pt-4"
       style={{ paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + var(--os-sab))" }}>
       <div className="max-w-2xl mx-auto" data-tour="needs-page">
-        <div className="flex items-center gap-2 mb-3">
-          <h1 className="font-display text-3xl font-semibold text-foreground flex-1 min-w-0">Needs</h1>
-          {!page.layoutEditing && (
-            <>
-              <Button variant="outline" size="sm" className="h-11 gap-1.5" onClick={() => navigate("/goals")}>
-                <NotebookTabs className="w-4 h-4" /> Notebook
-              </Button>
-              <Button variant="outline" size="sm" className="h-11 w-11 px-0" data-tour="needs-layout-btn"
-                onClick={openPageLayoutEditor} aria-label="Edit page"
-                title="Edit page — move, resize and add widgets">
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-            </>
-          )}
+        <div className="mb-3">
+          <BoardPageHeader title="Needs" layoutEditing={page.layoutEditing}
+            onEditLayout={openPageLayoutEditor} tourId="needs-layout-btn" />
         </div>
         <PageBoardCanvas pageId="needs" pages={NEEDS_PAGES} page={page} pageIcons={PAGE_ICONS} tourId="needs-tabs" />
       </div>

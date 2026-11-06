@@ -119,6 +119,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { lazyNamed } from "@/lib/lazyNamed";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 import { CALM_WIDGETS } from "@/v2/calmWidgets";
+import { goalWidgetDefs } from "@/v2/goalWidgetDefs";
 import { FeelingsLookbackWidget, SymptomsLookbackWidget, LOOKBACK_FIELDS, LOOKBACK_PAST_DEFAULTS } from "@/v2/lookbackWidgets";
 // Widget bodies that are only code (no definitions the registry reads) load
 // the first time one is drawn, not at startup (v0.357.0). The board and the
@@ -3381,10 +3382,12 @@ export const V2_WIDGETS = {
 
   needs_balance: {
     label: "Needs balance", description: "Which {{alters}} have waited longest for something they enjoy, need or wished for. Expanded shows everyone, with Plan it on each.",
-    icon: HeartHandshake, category: "needs",
+    icon: HeartHandshake, category: "needs", subjects: ["home", "alter", "group", "location"],
+    // Placed before v0.362.0 these showed everyone's on a profile too: keep that.
+    pastDefaults: [{ before: Date.parse("2026-11-06T03:20:00Z"), settings: { scope: "all" } }],
     render: sized(({ settings }) => <NeedsBalanceWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many {{alters}}", min: 1, max: 20, default: 5 }],
+    configFields: [SCOPE_FIELD, { key: "limit", type: "number", label: "How many {{alters}}", min: 1, max: 20, default: 5 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   wishes: {
@@ -3414,10 +3417,13 @@ export const V2_WIDGETS = {
   },
   turns: {
     label: "Taking turns", description: "Open turn agreements — who goes first, who's next — with Kept and Let go right here. Expanded shows every agreement (kept and let-go ones folded away) and, unless turned off, New turn agreement.",
-    icon: ArrowLeftRight, category: "needs",
+    icon: ArrowLeftRight, category: "needs", subjects: ["home", "alter", "group", "location"],
+    // Placed before v0.362.0 these showed everyone's on a profile too: keep that.
+    pastDefaults: [{ before: Date.parse("2026-11-06T03:20:00Z"), settings: { scope: "all" } }],
     render: sized(({ settings }) => <TurnsWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
+      SCOPE_FIELD,
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 4 },
       { key: "withAdd", type: "toggle", label: "Show New turn agreement when expanded", default: true },
     ],
@@ -3432,10 +3438,13 @@ export const V2_WIDGETS = {
   },
   goals: {
     label: "Goals", description: "Goals you're working on, with steps done and the next step as a checkbox you can tick right here. Expanded lists every open step. Or show each goal as a card, with paused and reached ones folded below.",
-    icon: Target, category: "needs",
+    icon: Target, category: "needs", subjects: ["home", "alter", "group", "location"],
+    // Placed before v0.362.0 these showed everyone's on a profile too: keep that.
+    pastDefaults: [{ before: Date.parse("2026-11-06T03:20:00Z"), settings: { scope: "all" } }],
     render: sized(({ settings }) => <GoalsWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
+      SCOPE_FIELD,
       { key: "view", type: "select", label: "Shows", default: "steps",
         options: [
           { value: "steps", label: "Each goal's next steps" },
@@ -3887,3 +3896,8 @@ Object.assign(V2_WIDGETS, LINKED_PROFILE_WIDGETS);
 // The Support page's Scratch pad and Soundscape, on the page
 // (src/v2/calmWidgets.jsx).
 Object.assign(V2_WIDGETS, CALM_WIDGETS);
+
+// Notebook and notes widgets: a list, a deck, a note or a Notebook page on
+// any board (v0.362.0). On a Notebook page Goals.jsx swaps in the versions
+// that start on that page.
+Object.assign(V2_WIDGETS, goalWidgetDefs());

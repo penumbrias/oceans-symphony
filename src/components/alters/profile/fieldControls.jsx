@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import MarkdownText from "@/components/shared/MarkdownText";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
 import useFieldToolbar from "@/components/shared/useFieldToolbar";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { Segmented } from "@/components/shared/SettingRows";
 import { parseDateFieldValue, formatDateField } from "@/lib/importantDates";
 
 const DATE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -16,7 +18,7 @@ const DATE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June"
 // demands a year). The year is a genuinely optional field, shown only when
 // "include the year" is ticked. Stores "MM-DD" (annual, e.g. a birthday) or
 // "YYYY-MM-DD" (specific).
-export function DateFieldInput({ value, onChange, autoFocus = false }) {
+export function DateFieldInput({ value, onChange, autoFocus: _autoFocus = false }) {
   const parsed = parseDateFieldValue(value);
   const [month, setMonth] = useState(parsed ? String(parsed.month) : "");
   const [day, setDay] = useState(parsed ? String(parsed.day) : "");
@@ -38,31 +40,29 @@ export function DateFieldInput({ value, onChange, autoFocus = false }) {
   return (
     <div className="flex-1 flex flex-col gap-1.5">
       <div className="flex gap-2 flex-wrap">
-        <select
-          value={month}
-          autoFocus={autoFocus}
-          onChange={(e) => {
-            const mo = e.target.value;
+        {/* Searchable pickers, not native selects (v0.360.1). */}
+        <SearchableSelect
+          value={month || null}
+          onChange={(mo) => {
+            mo = mo ? String(mo) : "";
             // Clamp the day if the new month has fewer days.
             const maxD = mo ? new Date(2000, Number(mo), 0).getDate() : 31;
             const d = day && Number(day) > maxD ? "" : day;
             setMonth(mo); setDay(d); emit(mo, d, includeYear, year);
           }}
-          className={`${selectCls} flex-1 min-w-[7rem]`}
-          aria-label="Month"
-        >
-          <option value="">Month</option>
-          {DATE_MONTH_NAMES.map((nm, i) => <option key={i} value={i + 1}>{nm}</option>)}
-        </select>
-        <select
-          value={day}
-          onChange={(e) => { const d = e.target.value; setDay(d); emit(month, d, includeYear, year); }}
-          className={`${selectCls} w-20`}
-          aria-label="Day"
-        >
-          <option value="">Day</option>
-          {Array.from({ length: daysInMonth }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
-        </select>
+          options={DATE_MONTH_NAMES.map((nm, i) => ({ id: String(i + 1), label: nm }))}
+          placeholder="Month"
+          searchPlaceholder="Search months…"
+          className="flex-1 min-w-[7rem]"
+        />
+        <SearchableSelect
+          value={day || null}
+          onChange={(d) => { d = d ? String(d) : ""; setDay(d); emit(month, d, includeYear, year); }}
+          options={Array.from({ length: daysInMonth }, (_, i) => ({ id: String(i + 1), label: String(i + 1) }))}
+          placeholder="Day"
+          searchPlaceholder="Type a day…"
+          className="w-24"
+        />
         {includeYear && (
           <input
             type="number"
@@ -155,12 +155,10 @@ export function FieldEditor({ type, value, onChange, autoFocus = false }) {
   }
   if (type === "boolean") {
     return (
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" autoFocus={autoFocus}>
-        <option value="">Select...</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
+      <Segmented label="Yes or no" equal={false}
+        value={value === true || value === "true" ? "true" : value === false || value === "false" ? "false" : ""}
+        onChange={onChange}
+        options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }, { value: "", label: "Not set" }]} />
     );
   }
   if (type === "number") {

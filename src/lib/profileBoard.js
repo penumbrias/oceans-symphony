@@ -131,10 +131,13 @@ export const NEW_PROFILE_AVATAR_WIDGET = { widgetId: "media", settings: { source
 export const NEW_PROFILE_BIO_WIDGET = { widgetId: "info", settings: { entries: ["bio"], layout: "plain" } };
 export const NEW_PROFILE_FIELDS_WIDGET = { widgetId: "info", settings: { entries: ["*fields"], layout: "labelled" } };
 export const NEW_ALTER_PROFILE_PAGES = [
+  // The Profile page reads in the old profile's order (v0.361.0, owner):
+  // the banner with the picture beside the name, boundaries, bio, groups
+  // and sub-systems, answers, tags, then custom fields. Only profiles nobody
+  // has laid out yet show this; a saved layout is never changed.
   { tab: "profile", label: "Profile", widgets: [
-    { widgetId: "alter_identity", settings: { showAvatar: false } },
-    NEW_PROFILE_AVATAR_WIDGET, NEW_PROFILE_BIO_WIDGET, NEW_PROFILE_FIELDS_WIDGET,
-    "alter_belongs", "alter_preferences", "alter_tags", "alter_answers",
+    "alter_identity", "alter_preferences", NEW_PROFILE_BIO_WIDGET,
+    "alter_belongs", "alter_answers", "alter_tags", NEW_PROFILE_FIELDS_WIDGET,
   ] },
   { tab: "fronting", label: "{{Fronting}}", widgets: ["alter_fronting_stats", "alter_fronting_sessions"] },
   // Custom fields (v0.313.0): every field that's switched on, listed to

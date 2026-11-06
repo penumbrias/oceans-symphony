@@ -64,7 +64,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   // Grows with what's written, then scrolls — same as the post box.
   useAutoGrowTextarea(inputRef, text, { min: richMode ? 112 : 72, maxScreen: 0.4 });
   // Several pictures can be picked at once; the picture sheet stores them
-  // and asks how they show (v0.361.0).
+  // and asks how they show (v0.363.0).
   const handleImage = (e) => {
     const files = [...(e.target.files || [])];
     e.target.value = "";

@@ -1,21 +1,25 @@
-// The widgets a Goals page is made of (v0.338.0). A goal page is a widget
-// board (PageBoardCanvas, owner "page:goal:<id>"): these four are its
-// standard layout, and any other widget — Media for pictures and videos,
-// Text, Image, a song — can go beside them with Edit page.
+// The bodies of the Notebook widgets (v0.338.0; on every board since
+// v0.362.0). Their definitions are in goalWidgetDefs.jsx, which loads this
+// file the first time one is shown.
 //
-// They read the open page from GoalPageContext (set by Goals.jsx) and the
-// workspace (WorkspaceContext), so they only exist in a goal page's own
-// registry (GOAL_PAGE_REGISTRY), never in the home library.
+// On a Notebook page they read the open page (GoalPageContext, set by
+// Goals.jsx) and the workspace (WorkspaceContext). Anywhere else, or when
+// the widget's "Which page" names another page, GoalScope gives them that
+// page and a workspace of their own, so they work the same on any board.
 
 import { useNavigate } from "react-router-dom";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Play, StickyNote, ListTree, Link2, ListChecks, Layers, Check, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY } from "@/lib/goals";
+import { indexPages } from "@/lib/goalTree";
+import { useGoalCtx } from "@/lib/useGoalCtx";
 import { Section, Muted, TextAction } from "@/v2/primitives";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
-import { StackedRow } from "@/components/shared/SettingRows";
 import StudyDeckButton from "@/components/goals/StudyDeckButton";
 import {
-  useNoteLists, useNoteListWriters, listLabel, listProgress, isNote, isItemList, isDeck, notesPath,
+  useNoteLists, useNoteListWriters, listLabel, listProgress, notesPath,
   deckStudySessions, finishNoteText, noteSpeaksGrammar,
 } from "@/lib/noteLists";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -28,18 +32,67 @@ import { PageNote, Connections } from "@/components/goals/workspace/PageView";
 import { EntryList } from "@/components/goals/workspace/Outline";
 import BoardView from "@/components/goals/workspace/BoardView";
 import MapView from "@/components/goals/workspace/MapView";
-import { useWorkspace } from "@/components/goals/workspace/WorkspaceContext";
+import { useWorkspace, WorkspaceProvider } from "@/components/goals/workspace/WorkspaceContext";
 import { GOAL_NOTE_EDIT_EVENT } from "@/lib/goalNoteEvents";
 
 export const GoalPageContext = createContext(null);
 export const useGoalPage = () => useContext(GoalPageContext);
 
+const listOf = (entity) => () => base44.entities[entity].list().catch(() => []);
 
-function NoPage() {
-  return <Muted>Shows on a Notebook page.</Muted>;
+// A workspace for a widget that isn't on a Notebook page: the same records
+// and the same write rules (WorkspaceProvider's run) as the Notebook.
+function OwnWorkspace({ children }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { data: goals = [] } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: listOf("Goal") });
+  const { data: steps = [] } = useQuery({ queryKey: GOAL_STEPS_QUERY_KEY, queryFn: listOf("GoalStep") });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: listOf("Alter") });
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const { ctx } = useGoalCtx();
+  const index = useMemo(() => indexPages(goals), [goals]);
+  const value = useMemo(() => ({
+    goals, steps, index, ctx, alters, isFetched: true,
+    settings: pickPrimarySystemSettings(settingsList) || null,
+    refresh: () => {
+      for (const key of [GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, ["tasks"], ["activities"], ["dailyProgress"], ["groceryLists"], ["groceryItems"]]) {
+        qc.invalidateQueries({ queryKey: key });
+      }
+    },
+    open: (id) => navigate(id ? `/goals?page=${id}` : "/goals"),
+    tag: null,
+    showTag: () => navigate("/goals"),
+  }), [goals, steps, index, ctx, alters, settingsList, qc, navigate]);
+  return <WorkspaceProvider value={value}>{children}</WorkspaceProvider>;
 }
 
-function GoalActivitiesWidget() {
+function PageFromIndex({ goalId, children }) {
+  const ws = useWorkspace();
+  const page = goalId ? ws?.index?.byId?.get(goalId) || null : null;
+  return <GoalPageContext.Provider value={page}>{children}</GoalPageContext.Provider>;
+}
+
+// The page a widget shows: its own "Which page", else the Notebook page
+// it sits on. Builds a workspace when there is none.
+function GoalScope({ goalId, children }) {
+  const here = useGoalPage();
+  const ws = useWorkspace();
+  if (!goalId) return children;
+  if (here?.id === goalId) return children;
+  if (ws) return <PageFromIndex goalId={goalId}>{children}</PageFromIndex>;
+  return <OwnWorkspace><PageFromIndex goalId={goalId}>{children}</PageFromIndex></OwnWorkspace>;
+}
+
+const scoped = (Body) => function ScopedGoalWidget({ settings }) {
+  return <GoalScope goalId={settings?.goalId || null}><Body settings={settings} /></GoalScope>;
+};
+
+
+function NoPage() {
+  return <Muted>Choose a Notebook page in this widget's options.</Muted>;
+}
+
+function GoalActivitiesBody() {
   const page = useGoalPage();
   const ws = useWorkspace();
   return (
@@ -51,25 +104,6 @@ function GoalActivitiesWidget() {
 
 // ── The person's own notes, lists and decks ─────────────────────────
 
-// Options row: pick one of the person's notes / lists / decks.
-function listPickerField(key, label, filter, { pageNote = false } = {}) {
-  function ListPicker({ settings, set }) {
-    const { lists } = useNoteLists();
-    const options = useMemo(() => [
-      ...(pageNote ? [{ id: "__page", label: "This goal page's own note" }] : []),
-      ...lists.filter(filter).map((l) => ({ id: l.id, label: listLabel(l) })),
-    ], [lists]);
-    return (
-      <StackedRow label={label}>
-        <SearchableSelect value={settings?.[key] || (pageNote ? "__page" : null)} options={options}
-          placeholder="Choose…" searchPlaceholder="Search…"
-          onChange={(id) => set({ [key]: id && id !== "__page" ? id : null })} />
-      </StackedRow>
-    );
-  }
-  return { key: `_${key}`, type: "component", label: "", Component: ListPicker };
-}
-
 function MissingList({ what }) {
   return <Muted>{`That ${what} was deleted, or isn't here. Choose another in the widget's options.`}</Muted>;
 }
@@ -79,7 +113,8 @@ function SharedNote({ list }) {
   const { saveNote } = useNoteListWriters();
   const ws = useWorkspace();
   const terms = useTerms();
-  const alters = ws?.alters || [];
+  const { data: ownAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: listOf("Alter"), enabled: !ws });
+  const alters = ws?.alters || ownAlters;
   const grammar = noteSpeaksGrammar(list);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(list.note_content || "");
@@ -119,7 +154,7 @@ function SharedNote({ list }) {
   );
 }
 
-function GoalNoteWidget({ settings }) {
+function GoalNoteBody({ settings }) {
   const navigate = useNavigate();
   const page = useGoalPage();
   const ws = useWorkspace();
@@ -137,7 +172,7 @@ function GoalNoteWidget({ settings }) {
 }
 
 // One of the person's lists, ticked from here.
-function GoalListWidget({ settings }) {
+export function GoalListWidget({ settings }) {
   const navigate = useNavigate();
   const { byId, items } = useNoteLists();
   const { setChecked, addItem } = useNoteListWriters();
@@ -177,16 +212,17 @@ function GoalListWidget({ settings }) {
 }
 
 // A flash-card deck: how many cards, time studied, and a timer to study it.
-function GoalDeckWidget({ settings }) {
+export function GoalDeckWidget({ settings }) {
   const navigate = useNavigate();
   const page = useGoalPage();
   const ws = useWorkspace();
   const { byId, items } = useNoteLists();
+  const { data: ownActivities = [] } = useQuery({ queryKey: ["activities"], queryFn: listOf("Activity"), enabled: !ws });
   const deck = settings?.listId ? byId.get(settings.listId) : null;
   if (!settings?.listId) return <Section label="Flash cards"><Muted>Choose a deck in this widget's options.</Muted></Section>;
   if (!deck) return <Section label="Flash cards"><MissingList what="deck" /></Section>;
   const cards = items(deck.id);
-  const acts = ws?.ctx?.activities || [];
+  const acts = ws?.ctx?.activities || ownActivities;
   const now = new Date();
   const week = deckStudySessions(deck.id, acts, { from: goalWeekWindow(now).start, to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
   const all = deckStudySessions(deck.id, acts, { to: now }).reduce((n, x) => n + (x.minutes || 0), 0);
@@ -218,7 +254,7 @@ function PageNoteWidget({ page, ws }) {
 
 // The page's lines and sections. "Show as" is the widget's option; left on
 // "The page's choice" it follows the view the page was set to before.
-function GoalLinesWidget({ settings }) {
+function GoalLinesBody({ settings }) {
   const page = useGoalPage();
   const ws = useWorkspace();
   if (!page || !ws) return <Section label="Page"><NoPage /></Section>;
@@ -233,7 +269,7 @@ function GoalLinesWidget({ settings }) {
   );
 }
 
-function GoalConnectionsWidget() {
+function GoalConnectionsBody() {
   const page = useGoalPage();
   const ws = useWorkspace();
   return (
@@ -245,55 +281,10 @@ function GoalConnectionsWidget() {
   );
 }
 
-const span = { defaultSpan: { cols: 12, rows: 2 }, minSpan: { cols: 3, rows: 1 }, maxSpan: { cols: 12, rows: 20 } };
-
-export const GOAL_PAGE_WIDGETS = {
-  goal_activities: {
-    label: "Goal activities", description: "Start and stop this page's activities without leaving it. The time is logged like any activity and adds up here.",
-    icon: Play, category: "needs", render: () => <GoalActivitiesWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false, configFields: [], ...span,
-  },
-  goal_note: {
-    label: "Goal note", description: "The page's note (what it's for and what it would change), or one of your own notes: the same note everywhere, so editing it here edits it in your notes too.",
-    icon: StickyNote, category: "needs", render: ({ settings }) => <GoalNoteWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [listPickerField("noteId", "Which note", isNote, { pageNote: true })], ...span,
-  },
-  goal_list: {
-    label: "List", description: "One of your lists: tick things off and add to it here. It's the same list everywhere.",
-    icon: ListChecks, category: "needs", render: ({ settings }) => <GoalListWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    needsSetup: (settings) => !settings?.listId,
-    configFields: [listPickerField("listId", "Which list", isItemList)], ...span, defaultSpan: { cols: 12, rows: 4 },
-  },
-  goal_deck: {
-    label: "Flash-card deck", description: "One of your flash-card decks: its cards, the time you've studied it, and a timer to study now.",
-    icon: Layers, category: "needs", render: ({ settings }) => <GoalDeckWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
-    needsSetup: (settings) => !settings?.listId,
-    configFields: [listPickerField("listId", "Which deck", isDeck)], ...span,
-  },
-  goal_lines: {
-    label: "Goal page lines", description: "The page itself: its sections, notes, to-dos, checkboxes, links and trackers, as an outline, a board or a map.",
-    icon: ListTree, category: "needs", render: ({ settings }) => <GoalLinesWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
-    configFields: [
-      { key: "view", type: "select", label: "Show as", default: "page",
-        options: [
-          { value: "page", label: "The page's choice" },
-          { value: "outline", label: "Outline" },
-          { value: "board", label: "Board (sections as columns)" },
-          { value: "map", label: "Map (how it connects)" },
-        ] },
-    ],
-    ...span, defaultSpan: { cols: 12, rows: 6 },
-  },
-  goal_connections: {
-    label: "Goal connections", description: "The pages this one links to, and the pages that link here.",
-    icon: Link2, category: "needs", render: () => <GoalConnectionsWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false, configFields: [], ...span, defaultSpan: { cols: 12, rows: 1 },
-  },
-};
+export const GoalActivitiesWidget = scoped(GoalActivitiesBody);
+export const GoalNoteWidget = scoped(GoalNoteBody);
+export const GoalLinesWidget = scoped(GoalLinesBody);
+export const GoalConnectionsWidget = scoped(GoalConnectionsBody);
 
 // What a goal page shows until its first layout edit.
 export const GOAL_PAGE_PAGES = [
