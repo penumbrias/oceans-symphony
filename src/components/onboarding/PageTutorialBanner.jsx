@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { GraduationCap, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   isRouteSeen,
   markRouteSeen,
   arePageTutorialsEnabled,
+  setPageTutorialsEnabled,
   hasUserCompletedFullTour,
   subscribePageTutorials,
   tutorialRouteKey,
 } from "@/lib/pageTutorials";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 
 // The tour's steps (and the list of pages that have them) live in the
 // FeatureTour module, which is big — fetch it only for someone who could
@@ -56,7 +59,11 @@ export default function PageTutorialBanner({ onLaunch }) {
     loadTourRoutes().then((r) => { if (live && r) setRoutes(r); });
     return () => { live = false; };
   }, [routes, couldShow]);
-  if (!couldShow || !routes?.has(pageKey)) return null;
+  // The gentlest prompt in the app: it waits while anything else (a
+  // reminder, a notice, "Continue setup") is asking for attention.
+  const wanted = couldShow && !!routes?.has(pageKey);
+  const mine = useAttentionSlot("page-tutorial", { priority: ATTENTION.TIP, active: wanted });
+  if (!wanted || !mine) return null;
 
   const handleShow = () => {
     markRouteSeen(pageKey);
@@ -64,6 +71,13 @@ export default function PageTutorialBanner({ onLaunch }) {
   };
   const handleDismiss = () => {
     markRouteSeen(pageKey);
+  };
+  // Turns the prompt off on every page (it comes
+  // back from Settings → Tour & onboarding). Nothing is lost: the tours stay in Guide & tour.
+  const handleStopAll = () => {
+    markRouteSeen(pageKey);
+    setPageTutorialsEnabled(false);
+    toast("Page tips are off. Settings → Tour & onboarding turns them back on.");
   };
 
   return (
@@ -80,6 +94,13 @@ export default function PageTutorialBanner({ onLaunch }) {
             Show me around
           </button>
         </p>
+        <button
+          type="button"
+          onClick={handleStopAll}
+          className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 flex-shrink-0 rounded-md hover:bg-muted/40 transition-colors"
+        >
+          Stop showing these
+        </button>
         <button
           type="button"
           onClick={handleDismiss}

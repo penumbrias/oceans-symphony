@@ -22,6 +22,7 @@ import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import ActivityEditor from "@/components/activities/ActivityEditor";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -178,7 +179,13 @@ export default function Dashboard() {
     } catch { /* storage off */ }
   }, [pendingFromNewSystem, backupDecided]);
   const checklistIncomplete = !checklistComplete(checklistState);
-  const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour;
+  // "Continue setup" takes the attention slot (it waits behind notices
+  // and reminders, and the page tip / board promo wait behind it).
+  const setupChipMine = useAttentionSlot("continue-setup", {
+    priority: ATTENTION.SETUP,
+    active: checklistIncomplete && !checklistDismissed && !showTour,
+  });
+  const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour && setupChipMine;
   const checklistPct = checklistProgress(checklistState);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 

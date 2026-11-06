@@ -421,8 +421,8 @@ The step counters ("WELCOME · 1/1", then "SETUP · 1/2") never say how many ste
 
 | # | Fix | Size | Impact | Status |
 |---|---|---|---|---|
-| 1 | **C2** on-colour contrast from luminance | S | Clears most axe failures on every page | In progress |
-| 2 | **C1** one notice slot + reminder pill + "stop showing tutorials" | M | Every page calmer, content first | To do |
+| 1 | **C2** on-colour contrast from luminance | S | Clears most axe failures on every page | Done — #584 (v0.364.2) |
+| 2 | **C1** one notice slot + reminder pill + "stop showing tutorials" | M | Every page calmer, content first | Done — v0.364.3 (attention slot, reminder pill, home stack shows one, tip opt-out, storage toast after setup). Left: AnnouncementBanner / NotificationPopups on other pages still float on their own |
 | 3 | **C3** type scale with a 12 px floor + chrome that survives 200 % | M | Readability, WCAG 1.4.4/1.4.10 | To do |
 | 4 | **H2** words on icons, a visible alternative for every gesture, default focus ring | M | Amnesia-safe navigation | To do |
 | 5 | **C4** IA map + one name per thing (rename only, no moves yet) | S→M | Findability | To do |

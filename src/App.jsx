@@ -398,11 +398,20 @@ function MainApp() {
         try {
           const last = Number(localStorage.getItem("symphony_persist_nudge_at") || 0);
           if (Date.now() - last > 30 * 86400000) {
-            localStorage.setItem("symphony_persist_nudge_at", String(Date.now()));
-            setTimeout(() => toast.warning("This browser may clear the app's data when space runs low", {
-              description: "Installing the app keeps it safer. Either way, keep a recent backup — Settings → Data & privacy.",
-              duration: 15000,
-            }), 4000);
+            setTimeout(() => {
+              // Not on top of the first-run guide (it sat over every step's
+              // title, UI critique C1) — the guide already asks about
+              // backups; this waits for the next launch after it.
+              try {
+                const setUp = Object.keys(localStorage).some((k) => k === "tour_seen" || k.includes("symphony_onboarding_done_v1"));
+                if (!setUp) return;
+              } catch { /* storage off — show it anyway */ }
+              localStorage.setItem("symphony_persist_nudge_at", String(Date.now()));
+              toast.warning("This browser may clear the app's data when space runs low", {
+                description: "Installing the app keeps it safer. Either way, keep a recent backup — Settings → Data & privacy.",
+                duration: 15000,
+              });
+            }, 4000);
           }
         } catch { /* storage off */ }
       }
