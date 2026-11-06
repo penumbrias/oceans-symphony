@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import PageStrip from "@/components/shared/PageStrip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
@@ -569,24 +570,10 @@ export default function Grounding({ initialPath = null }) {
 
   // Tab bar shown on entry
   const TabBar = () => (
-    <div data-tour="grounding-tabs" className="flex border-b border-border/60 mb-6 sticky top-0 bg-background z-10">
-      {[
-        { id: "support", label: "Support" },
-        { id: "learn", label: "Learn" },
-      ].map(tab => (
-        <button
-          key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
-          className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === tab.id
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <PageStrip tour="grounding-tabs" label="Support views" sticky className="mb-6" value={activeTab} onChange={setActiveTab} items={[
+      { id: "support", label: "Support" },
+      { id: "learn", label: "Learn" },
+    ]} />
   );
 
   if (activeTab === "learn") {

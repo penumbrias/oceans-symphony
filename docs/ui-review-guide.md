@@ -61,9 +61,11 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
 
 - **Is one screen split into sections by a row of pills?** This is the
   most common miss. A `useState` like `tab` / `section` / `view` switched
-  by `rounded-full` buttons. Fix: an option menu uses `TabBar`
-  (`SettingRows.jsx`) with the standard tab names; anything else becomes a
-  list of `LinkRow`s that each open a page (drill-in). *Caught:* the group
+  by `rounded-full` buttons. Fix: views of one screen use `PageStrip`
+  (`src/components/shared/PageStrip.jsx`, underlined, scrolls, never
+  wraps); an option menu uses `TabBar` (`SettingRows.jsx`) with the
+  standard tab names; anything else becomes a list of `LinkRow`s that each
+  open a page (drill-in). `check:ui` warns on a hand-made `role="tab"`. *Caught:* the group
   picker's "Groups / Subsystems" pills became the inspector `TabBar`.
 - **Pills are fine for choosing a value** — `ChoiceRow`, `Segmented`,
   `Chips` pick *what something is* (Small / Medium / Large, weekdays). The

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import PageStrip from "@/components/shared/PageStrip";
 import { base44, localEntities } from "@/api/base44Client";
 import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -305,18 +306,7 @@ export default function Analytics() {
       </motion.div>
 
       {/* Top-level tabs */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold border flex-shrink-0 transition-all ${
-              activeTab === t.id
-                ? "bg-primary text-primary-foreground border-transparent shadow-sm"
-                : "bg-card border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40"
-            }`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <PageStrip label="Analytics views" items={TABS} value={activeTab} onChange={setActiveTab} />
 
       {/* Global Date Range — drives the domain tabs. Overview intentionally
           runs on its own fixed "this week vs your usual" window instead. */}

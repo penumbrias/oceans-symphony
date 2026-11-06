@@ -18,6 +18,7 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
+import PageStrip from "@/components/shared/PageStrip";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
@@ -2245,37 +2246,27 @@ export default function ExperimentalDashboard({
       {pageStrip === "tabs" ? (
         // The profile's tab bar, page by page — same shape the tabs had, so
         // nothing moves for the person; edit mode adds "+" for a new page.
-        <div {...(pageStripProps || {})} data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none px-1.5 py-1" role="tablist" aria-label="Profile pages">
-          {visiblePages.map((p, i) => {
-            const Icon = pageIcons?.[p.id] || null;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                role="tab"
-                aria-selected={p.id === page.id}
-                onClick={() => goToPage(i)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                  p.id === page.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-              >
-                {Icon && <Icon className="w-4 h-4" />}
-                <span>{(applyTerms(p.label, t) || `Page ${i + 1}`)}</span>
-              </button>
-            );
-          })}
+        <PageStrip
+          {...(pageStripProps || {})}
+          data-pf-chrome
+          label="Pages"
+          className="mb-5"
+          value={page.id}
+          onChange={(id) => { const i = visiblePages.findIndex((p) => p.id === id); if (i >= 0) goToPage(i); }}
+          items={visiblePages.map((p, i) => ({ id: p.id, label: applyTerms(p.label, t) || `Page ${i + 1}`, icon: pageIcons?.[p.id] || null }))}
+        >
           {editMode && (
             <button
               type="button"
               onClick={handleAddPage}
               aria-label="Add page"
               title="Add page"
-              className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary flex-shrink-0"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-primary flex-shrink-0"
             >
               <Plus className="w-4 h-4" />
             </button>
           )}
-        </div>
+        </PageStrip>
       ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (

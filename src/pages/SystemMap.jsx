@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import PageStrip from "@/components/shared/PageStrip";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
@@ -90,18 +91,10 @@ export default function SystemMapPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
-        <button
-          onClick={() => setTab("analytics")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "analytics" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <Map className="w-4 h-4" /> Analytics Map
-        </button>
-        <button
-          onClick={() => setTab("inner")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "inner" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <Globe className="w-4 h-4" /> Inner World
-        </button>
-      </div>
+      <PageStrip label="Map views" value={tab} onChange={setTab} items={[
+        { id: "analytics", label: "Analytics Map", icon: Map },
+        { id: "inner", label: "Inner World", icon: Globe },
+      ]} />
 
       {/* Inner World: canvas vs accessible list toggle */}
       {tab === "inner" && (

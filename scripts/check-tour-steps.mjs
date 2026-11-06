@@ -46,7 +46,7 @@ const walk = (dir) => {
     if (statSync(p).isDirectory()) { walk(p); continue; }
     if (!/\.(jsx?|tsx?)$/.test(name)) continue;
     const text = readFileSync(p, "utf8");
-    for (const m of text.matchAll(/(?:data-tour|tourId)=["']([^"'$]+)["']/g)) anchors.add(m[1]);
+    for (const m of text.matchAll(/(?:data-tour|tourId|tour)=["']([^"'$]+)["']/g)) anchors.add(m[1]);
     for (const m of text.matchAll(/tour:\s*["']([^"']+)["']/g)) anchors.add(m[1]);
     for (const m of text.matchAll(/"data-tour":\s*["']([^"']+)["']/g)) anchors.add(m[1]);
   }
