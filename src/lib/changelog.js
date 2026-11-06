@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "fix", text: "The classic edit form switch is now clearly one setting for every profile, and the form itself has buttons back to the Info tabs and the new profile." },
       { type: "feature", text: "Pictures in your writing: add several at once and show them one after another, as a carousel or as a slideshow. Drag any picture into place, and tap it later to change it." },
       { type: "improve", text: "The Image widget can show several pictures as a carousel you swipe through." },
       { type: "improve", text: "Notes & lists is now a widget page like Needs and the Notebook: your notes, lists and decks are listed newest first, and each opens in a sheet. The pencil adds List, Note or Deck widgets beside them." },

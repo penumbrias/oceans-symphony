@@ -239,7 +239,7 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
   });
 
   const handleSave = useCallback(async () => {
-  if (!form.name.trim()) { toast.error("Name is required"); return; }
+  if (!form.name.trim()) { toast.error("Name is required"); return false; }
   setSaving(true);
   try {
     await saveAlterEdits({ alterId: alter.id, baseline: baselineRef.current, form });
@@ -247,7 +247,8 @@ export default function ProfileTab({ alter, onEditModeChange, saveRef }) {
     toast.success("Saved!");
     refreshAlter(queryClient, alter.id);
     onEditModeChange(false);
-  } catch (e) { toast.error(e.message || "Failed to save"); }
+    return true;
+  } catch (e) { toast.error(e.message || "Failed to save"); return false; }
   finally { setSaving(false); }
 }, [form, alter.id]);
 useEffect(() => {
