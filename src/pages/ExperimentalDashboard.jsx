@@ -153,7 +153,11 @@ function TrashZone({ active }) {
         background: isOver ? "#ef4444" : "color-mix(in srgb, var(--color-bg) 95%, transparent)",
         color: isOver ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
         borderColor: isOver ? "hsl(var(--destructive))" : "hsl(var(--border))",
-        backdropFilter: "blur(8px)",
+        // Blur only while it shows (v0.364.15): a hidden blurred layer is
+        // still re-blurred by the phone every frame anything under it
+        // moves — every sheet slide paid for it.
+        backdropFilter: active ? "blur(8px)" : "none",
+        visibility: active ? "visible" : "hidden",
       }}
     >
       <X className="w-4 h-4" /> Drop to remove
@@ -217,7 +221,7 @@ const WidgetBody = React.memo(function WidgetBody({ def, mode, settings, instanc
   );
 });
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", gapPx = 12, flowFlex = false }) {
+const SortableWidget = React.memo(function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, onEnterEdit = null, styleMode = "current", free = false, flowView = false, onPos, onBeside = null, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle, onHoldSelect = null, collapsed = false, onLayer = null, emptyHint = false, step = 1, gapCss = "0.75rem", gapPx = 12, flowFlex = false }) {
   const holdSel = useRef(null);
   const { setNodeRef } = useSortable({
     id: widget.instanceId,
@@ -468,7 +472,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
       {pickLookMode && !pickLookIsSource && (
         <button
           type="button"
-          onClick={onPickLookToggle}
+          onClick={() => onPickLookToggle?.(widget.instanceId)}
           aria-pressed={pickLookSelected}
           aria-label={pickLookSelected ? "Deselect this widget" : "Select this widget"}
           className="absolute inset-0 z-40 rounded-xl flex items-start justify-end p-1.5"
@@ -555,7 +559,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             const h = holdSel.current;
             holdSel.current = null;
             if (!h || h.moved || move.dragging) return;
-            if (Date.now() - h.t >= 300) onHoldSelect();
+            if (Date.now() - h.t >= 300) onHoldSelect(widget.instanceId);
           },
           onPointerCancelCapture: () => { holdSel.current = null; },
         } : {})}
@@ -719,7 +723,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     </div>
     </>
   );
-}
+});
 
 // `registry` and `settingsField` are injected so UI v2 can reuse this
 // canvas (grid, drag/resize, pages, edit mode) with its own redesigned
@@ -1993,6 +1997,25 @@ export default function ExperimentalDashboard({
   gapPxRef.current = gapPx;
   const gridColsRef = React.useRef(gridCols);
   gridColsRef.current = gridCols;
+  // The board's handlers, as functions that never change identity (they
+  // call whatever the latest render defined). SortableWidget is memoised,
+  // so opening or closing a sheet (or any other board state change) no
+  // longer re-renders every widget on the page — that was the stutter when
+  // the edit sheets slid open and closed.
+  const latestRef = React.useRef(null);
+  latestRef.current = {
+    handleRemove, handleSpan, handleMode, handleSettings, handleMove, handlePos, handleBeside, handleLayer, openConfig,
+    enterEdit: () => setEditMode(true),
+    pickLookToggle: (id) => (multiMode
+      ? toggleMulti(id)
+      : setPickLookIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))),
+    holdSelect: (id) => { setMultiMode(true); toggleMulti(id); },
+  };
+  const stable = React.useMemo(() => {
+    const out = {};
+    for (const k of Object.keys(latestRef.current)) out[k] = (...args) => latestRef.current[k](...args);
+    return out;
+  }, []);
   const handleDragTarget = React.useCallback((instanceId, t) => {
     // Flow pages draw a bar on the side of the widget it would land next
     // to — measured here, from the live page, relative to the canvas.
@@ -2099,27 +2122,24 @@ export default function ExperimentalDashboard({
           gridRef={gridRef}
           api={widgetApi}
           a11yStack={a11yStack}
-          onRemove={handleRemove}
-          onSpan={handleSpan}
-          onMode={handleMode}
-          onSettings={handleSettings}
-          onMove={handleMove}
-          onConfigure={openConfig}
-          onEnterEdit={holdToEdit ? () => setEditMode(true) : null}
+          onRemove={stable.handleRemove}
+          onSpan={stable.handleSpan}
+          onMode={stable.handleMode}
+          onSettings={stable.handleSettings}
+          onMove={stable.handleMove}
+          onConfigure={stable.openConfig}
+          onEnterEdit={holdToEdit ? stable.enterEdit : null}
           pickLookMode={!!pickLookFrom || multiMode}
           pickLookSelected={multiMode ? multiIds.includes(w.instanceId) : pickLookIds.includes(w.instanceId)}
           pickLookIsSource={!multiMode && pickLookFrom === w.instanceId}
-          onPickLookToggle={() => (multiMode
-            ? toggleMulti(w.instanceId)
-            : setPickLookIds((prev) =>
-              prev.includes(w.instanceId) ? prev.filter((x) => x !== w.instanceId) : [...prev, w.instanceId]))}
-          onHoldSelect={pickLookFrom ? null : () => { setMultiMode(true); toggleMulti(w.instanceId); }}
+          onPickLookToggle={stable.pickLookToggle}
+          onHoldSelect={pickLookFrom ? null : stable.holdSelect}
           styleMode={home.styleMode}
           free={freeMode && !flowView}
           flowView={flowView}
-          onPos={handlePos}
-          onBeside={handleBeside}
-          onLayer={freeMode && !flowView ? handleLayer : null}
+          onPos={stable.handlePos}
+          onBeside={stable.handleBeside}
+          onLayer={freeMode && !flowView ? stable.handleLayer : null}
           userStyles={userStyles}
           emptyHint={!!w.__empty}
           step={snapStepFor(w, boardSnap)}
@@ -2650,8 +2670,8 @@ export default function ExperimentalDashboard({
         def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}
         onClose={() => setConfigId(null)}
-        onMode={handleMode}
-        onSettings={handleSettings}
+        onMode={stable.handleMode}
+        onSettings={stable.handleSettings}
         onResetWidget={handleResetWidget}
         onLayer={freeMode ? handleLayer : null}
         boardSnap={boardSnap}
