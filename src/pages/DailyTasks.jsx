@@ -31,6 +31,7 @@ import {
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
+import { useMedications, useMedicationDoses, allScheduledTakenToday } from "@/lib/medications";
 import LevelBar from "@/components/tasks/LevelBar";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { POINTS_SETTING, pointsChoice, pointsShown, daysShownUpThisMonth, shownUpText } from "@/lib/routinePoints";
@@ -280,6 +281,10 @@ export default function DailyTasks() {
   // wake_time are still in progress (Start-sleep / End-sleep flow) and
   // don't fire the trigger.
   const hasSleepToday = sleepRows.some((s) => localDateKey(s.wake_time) === TODAY);
+  // meds_taken: every scheduled dose today is marked taken (Medications page).
+  const { medications } = useMedications();
+  const { doses: medicationDoses } = useMedicationDoses();
+  const hasMedsTakenToday = allScheduledTakenToday(medications, medicationDoses);
 
   // switch_logged fires when a fronting session started today. We don't
   // gate on is_primary — any new front today counts as "a switch happened
@@ -357,6 +362,7 @@ export default function DailyTasks() {
       hasStatusNote: hasStatusNoteToday,
       hasLocation: hasLocationToday,
       hasSleep: hasSleepToday,
+      hasMedsTaken: hasMedsTakenToday,
       hasSwitch: hasSwitchToday,
       hasSymptomCheckIn: hasSymptomCheckInToday,
       hasReminderAcknowledged: hasReminderAckToday,
@@ -393,6 +399,7 @@ export default function DailyTasks() {
       hasStatusNoteToday,
       hasLocationToday,
       hasSleepToday,
+      hasMedsTakenToday,
       hasSwitchToday,
       hasSymptomCheckInToday,
       hasReminderAckToday,

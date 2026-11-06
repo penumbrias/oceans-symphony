@@ -285,6 +285,13 @@ export async function initNativeShell() {
         return;
       }
 
+      // Medication refill reminder: open the Refills page.
+      if (extra.kind === "medication_refill") {
+        pendingNativeRoute.target = "/medications?tab=refills";
+        notifyRoute();
+        return;
+      }
+
       if (extra.kind === "plan_reminder" && extra.activityId) {
         pendingNativeRoute.target = `/planner?activityId=${encodeURIComponent(extra.activityId)}`;
         notifyRoute();

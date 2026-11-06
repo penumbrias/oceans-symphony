@@ -23,7 +23,7 @@ export const WIDGET_MENU_GROUPS = [
   { id: "profile", label: "This profile", hint: "The parts of this page — who they are, notes, history", icon: UserCircle },
   { id: "now", label: "Right now", hint: "Who's here, what's running, today at a glance", icon: Zap },
   { id: "log", label: "Log", hint: "One-tap buttons and check-ins", icon: PenLine },
-  { id: "plan", label: "Plan & track", hint: "Planner views, to-dos, reminders, timeline", icon: CalendarDays },
+  { id: "plan", label: "Plan & track", hint: "Planner views, to-dos, medications, reminders, timeline", icon: CalendarDays },
   { id: "write", label: "Write & talk", hint: "Journals, chat, bulletins, polls", icon: BookOpen },
   { id: "alters", label: "{{Alters}} & map", hint: "Lists, pinned {{alters}}, needs, the inner world", icon: Users },
   { id: "calm", label: "Calm", hint: "Grounding, breathing, learning, music", icon: Leaf },
@@ -51,6 +51,7 @@ const BY_ID = {
     "activity_dayview", "activity_day", "activity_week", "activity_month", "activity_year",
     "plan_tracker", "recent_activities", "daily_tasks", "goals", "reminders",
     "timeline_days", "day_summary", "upcoming_top", "upcoming_bottom", "pinned_daily_tasks",
+    "meds_today", "medications", "med_refills",
   ],
   write: ["journal", "notebook", "journal_book", "chat_channel", "chat_channels", "bulletin_board", "polls"],
   alters: [
@@ -68,7 +69,7 @@ const BY_ID = {
 const BY_CATEGORY = {
   home: "now", tracking: "now", sleep: "now",
   actions: "log", checkin: "log",
-  activities: "plan", activity: "plan", tasks: "plan", reminders: "plan", timeline: "plan",
+  activities: "plan", activity: "plan", health: "plan", tasks: "plan", reminders: "plan", timeline: "plan",
   journals: "write", bulletins: "write", chat: "write", content: "write",
   alters: "alters", system: "alters", needs: "alters",
   support: "calm",

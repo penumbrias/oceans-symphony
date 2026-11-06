@@ -863,6 +863,22 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/needs", target: ["needs-layout-btn", "needs-page"],
     }),
 
+    s("activities", {
+      emoji: "💊", title: "Medications",
+      body: `Keep your medications in one place: the dose, what each is for, and when to take it. Today's page lists today's doses with Took it and Skip, and notes who was ${t.fronting}.`,
+      route: "/medications", target: "medications-page", look: `the Medications page`,
+    }),
+    s("activities", {
+      emoji: "📦", title: "Refills",
+      body: `Fill in a medication's last refill and how many you got, and the Refills page shows when it runs out. Turn on a reminder to hear about it a few days ahead.`,
+      route: "/medications?tab=refills", target: ["medications-tabs", "medications-page"],
+    }),
+    s("activities", {
+      emoji: "📝", title: "Everything about one medication",
+      body: `Tap a medication to open its sheet: Info, Schedule, Supply and History. A course with an end date, like antibiotics, says when it finishes.`,
+      route: "/medications?tab=list", target: ["medications-tabs", "medications-page"],
+    }),
+
     // ─── POLLS ──────────────────────────────────────────────────────────────
     s("polls", {
       emoji: "🗳️", title: "Polls",
@@ -1449,7 +1465,7 @@ export function pageIntroStep(t, routeKey) {
       body: `Everything about this ${t.alter} is kept once, in Info. The page is a board of widgets that show parts of it. Edit page only arranges the widgets; what's in Info stays put.`,
       target: ["alter-profile-layout-btn", "alter-profile-edit-btn"] };
   }
-  const boards = { "/notes": "notes-layout-btn", "/goals": "notebook-layout-btn", "/needs": "needs-layout-btn" };
+  const boards = { "/notes": "notes-layout-btn", "/goals": "notebook-layout-btn", "/needs": "needs-layout-btn", "/medications": "medications-layout-btn" };
   if (boards[routeKey]) {
     return { ...base, emoji: "🌱", title: "How this page is built", route: null,
       body: `This page is a board of widgets. Each thing you make here is kept as its own record with its own Info, and the widgets show it. Edit page (the pencil) arranges the widgets without touching what you wrote.`,
