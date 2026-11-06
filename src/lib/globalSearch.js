@@ -1025,6 +1025,7 @@ const PAGE_KEYWORDS = {
   notes: "notes lists flash cards checklist",
   needs: "needs wishes turns",
   medications: "medications meds medicine pills doses refills prescription",
+  emergency: "emergency info card allergies ice in case of emergency medical id non-verbal nonverbal",
   contacts: "people contacts",
   bulletins: "bulletin board posts pinned",
   unblend: "unblend grounding",

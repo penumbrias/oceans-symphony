@@ -10,6 +10,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Section, Row, Muted, TextAction, useWidgetMode } from "@/v2/primitives";
@@ -19,6 +20,7 @@ import {
   useMedications, useMedicationDoses, refreshMedications, createMedication, markDose, unmarkDose,
   dosesOnDay, asNeededTakenOn, isActiveMed, supplyOf, supplyLabel, courseLabel, dayKey,
 } from "@/lib/medications";
+import { useEmergencyCard } from "@/lib/useEmergencyCard";
 
 const limitOf = (settings, fallback) => {
   const n = parseInt(settings?.limit, 10);
@@ -237,6 +239,31 @@ export function MedRefillsWidget({ settings }) {
       ))}
       {mode === "expanded" && missing > 0 && <Muted>{`${missing} without refill details.`}</Muted>}
       {sheet}
+    </Section>
+  );
+}
+
+// ── Emergency card (v0.368.0) ────────────────────────────────────────
+
+// A door to the emergency card from any board: the first lines of it, and
+// Show (full screen, ready to hand to someone).
+export function EmergencyCardWidget() {
+  const navigate = useNavigate();
+  const mode = useWidgetMode();
+  const { sections, isFetched } = useEmergencyCard();
+  const first = sections.find((s) => s.id === "communication");
+  const allergies = sections.find((s) => s.id === "allergies");
+  return (
+    <Section label="Emergency info" action={sections.length > 0 ? <TextAction onClick={() => navigate("/emergency?show=1")}>Show</TextAction> : null}>
+      {isFetched && sections.length === 0 && (
+        <Row primary="Fill in your emergency card" secondary={mode === "minimal" ? null : "What a helper should know"} onClick={() => navigate("/emergency?edit=1")} />
+      )}
+      {sections.length > 0 && (
+        <>
+          <Row primary={first ? first.lines[0] : "Your emergency card"} onClick={() => navigate("/emergency?show=1")} />
+          {mode !== "minimal" && allergies && <Row primary="Allergies" secondary={allergies.lines.join(" ")} onClick={() => navigate("/emergency")} />}
+        </>
+      )}
     </Section>
   );
 }

@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Eye, EyeOff, Loader2, LifeBuoy, ShoppingCart } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2, LifeBuoy, ShoppingCart, Siren } from "lucide-react";
 import { initLocalDb, MissingSaltError, CorruptedDataError, StorageReadError } from '@/lib/localDb';
 import { hasAnyUnlockedList } from "@/lib/localUnlockedGrocery";
+import { readLockCopy } from "@/lib/emergencyCard";
+import EmergencyCardView from "@/components/emergency/EmergencyCardView";
 
 export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   const [password, setPassword] = useState("");
@@ -11,6 +13,10 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
+  // The emergency card's lock-screen copy: only the parts the person chose
+  // to show without the password (emergencyInfo.js). None → no button.
+  const [lockCopy] = useState(() => readLockCopy());
+  const [showEmergency, setShowEmergency] = useState(false);
 
   const handleUnlock = async () => {
     if (!password) return;
@@ -41,7 +47,16 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
 
   return (
     <div className="fixed inset-0 bg-background flex items-center justify-center p-4">
+      {showEmergency && lockCopy && (
+        <EmergencyCardView sections={lockCopy.sections} fullScreen onClose={() => setShowEmergency(false)} />
+      )}
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-5">
+        {lockCopy && (
+          <Button type="button" size="lg" variant="outline" onClick={() => setShowEmergency(true)}
+            className="w-full h-12 gap-2 border-2 border-foreground text-base font-semibold">
+            <Siren className="w-5 h-5" /> Emergency info
+          </Button>
+        )}
         <div className="flex flex-col items-center gap-3">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
             <img src="/logo.png" alt="Oceans Symphony" className="w-10 h-10 rounded-xl object-cover" />

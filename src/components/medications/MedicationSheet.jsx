@@ -21,13 +21,10 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { Group, Row, ChoiceRow, SwitchRow, SliderRow, TabBar } from "@/components/shared/SettingRows";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { inputBase } from "@/components/alters/info/entryEditors";
-import MentionTextarea from "@/components/shared/MentionTextarea";
-import RichText from "@/components/shared/RichText";
+import AuthoredTextField from "@/components/shared/AuthoredTextField";
 import RowMenu from "@/components/shared/RowMenu";
 import { deleteWithUndo } from "@/lib/undoDelete";
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
-import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { clockOpts } from "@/lib/timeFormat";
 import {
@@ -62,49 +59,6 @@ function DateInput({ value, onChange, label }) {
   );
 }
 
-function NotesEditor({ med, alters }) {
-  const t = useTerms();
-  const qc = useQueryClient();
-  const [draft, setDraft] = useState(null);
-  const save = async () => {
-    try {
-      const text = String(draft || "").trim();
-      let prepared = { content: "", authorIds: [] };
-      if (text) {
-        prepared = await prepareAuthoredText(text, { alters, terms: t, surfaceLabel: "medication note", whisper: false });
-        if (prepared === null) return;
-      }
-      await updateMedication(med.id, { notes: prepared.content });
-      if (prepared.content) {
-        await recordAuthoredText({ ...prepared, alters, sourceType: "medication", sourceId: med.id,
-          sourceLabel: `Medication: ${med.name}`, navigatePath: medicationPath(med.id) });
-      }
-      refreshMedications(qc);
-      setDraft(null);
-    } catch (e) {
-      toast.error(isLogCommandError(e) ? e.message : (e?.message || "Couldn't save the note."));
-    }
-  };
-  if (draft === null) {
-    return (
-      <button type="button" onClick={() => setDraft(med.notes || "")}
-        className="w-full text-left min-h-[44px] py-2 text-sm rounded-md hover:bg-muted/30">
-        {med.notes ? <RichText content={med.notes} alters={alters} /> : <span className="text-muted-foreground">Add a note: side effects, how to take it…</span>}
-      </button>
-    );
-  }
-  return (
-    <div className="space-y-2 py-2">
-      <MentionTextarea toolbar value={draft} onChange={setDraft} alters={alters} signposts
-        placeholder="Side effects, how to take it, what to ask next time…" className="min-h-[80px] text-sm" />
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
-        <Button size="sm" onClick={save}><Check className="w-3.5 h-3.5 mr-1" /> Save</Button>
-      </div>
-    </div>
-  );
-}
-
 function InfoTab({ med, run, alters }) {
   return (
     <>
@@ -123,7 +77,11 @@ function InfoTab({ med, run, alters }) {
         </Row>
       </Group>
       <Group title="Notes">
-        <NotesEditor med={med} alters={alters} />
+        <AuthoredTextField value={med.notes} alters={alters} surfaceLabel="medication note" ariaLabel="Notes"
+          placeholder="Add a note: side effects, how to take it…"
+          editPlaceholder="Side effects, how to take it, what to ask next time…"
+          onSave={(content) => updateMedication(med.id, { notes: content }).then(() => run(() => null))}
+          source={{ sourceType: "medication", sourceId: med.id, sourceLabel: `Medication: ${med.name}`, navigatePath: medicationPath(med.id) }} />
       </Group>
       <Group title="Who prescribes it">
         <Row label="Prescriber">
@@ -134,6 +92,10 @@ function InfoTab({ med, run, alters }) {
           <DebouncedText value={med.pharmacy || ""} ariaLabel="Pharmacy" maxLength={160} className={`${inputBase} w-[13rem]`}
             onCommit={(v) => run(() => updateMedication(med.id, { pharmacy: v }))} />
         </Row>
+      </Group>
+      <Group title="In an emergency">
+        <SwitchRow label="Show on my emergency card" hint="Listed with its dose and what it's for"
+          checked={med.share_in_emergency !== false} onChange={(v) => run(() => updateMedication(med.id, { share_in_emergency: v }))} />
       </Group>
       <div className="pt-4"><MedicalDisclaimerFooter /></div>
     </>

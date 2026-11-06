@@ -26,7 +26,7 @@ export const WIDGET_MENU_GROUPS = [
   { id: "plan", label: "Plan & track", hint: "Planner views, to-dos, medications, reminders, timeline", icon: CalendarDays },
   { id: "write", label: "Write & talk", hint: "Journals, chat, bulletins, polls", icon: BookOpen },
   { id: "alters", label: "{{Alters}} & map", hint: "Lists, pinned {{alters}}, needs, the inner world", icon: Users },
-  { id: "calm", label: "Calm", hint: "Grounding, breathing, learning, music", icon: Leaf },
+  { id: "calm", label: "Calm", hint: "Grounding, breathing, emergency info, learning, music", icon: Leaf },
   { id: "lookback", label: "Look back", hint: "Analytics and logs", icon: BarChart3 },
   { id: "pieces", label: "Page pieces", hint: "Headings, text, pictures, spacing, links", icon: Shapes },
   // A profile's widgets placed anywhere else, with whose they are picked
@@ -58,7 +58,7 @@ const BY_ID = {
     "alters_list", "pinned_alters", "system_identity", "system_header",
     "needs_balance", "wishes", "wish_add", "turns", "inner_map", "inner_locations",
   ],
-  calm: ["grounding_techniques", "breathing", "scratch_pad", "soundscape", "learn_modules", "song"],
+  calm: ["emergency_card", "grounding_techniques", "breathing", "scratch_pad", "soundscape", "learn_modules", "song"],
   lookback: ["emotion_analytics", "symptom_analytics", "checkin_log", "fronting_leaders", "insight_spotlight"],
   pieces: [
     "heading", "text", "media", "divider", "spacer", "quick_links", "folder", "clock",

@@ -1074,6 +1074,22 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/safety-plan", look: `the Safety Plan page`,
     }),
 
+    s("grounding", {
+      emoji: "🚨", title: "Emergency info",
+      body: `Emergency info is a card for someone helping you when you can't speak: how to talk with you, allergies, medications and who to call. You fill in everything on it.`,
+      route: "/emergency", target: "emergency-page", look: `the Emergency info page`,
+    }),
+    s("grounding", {
+      emoji: "📣", title: "Show it to someone",
+      body: `Show to someone opens the card full screen in big text, with Call buttons for your emergency contacts. Quick Support, the Safety Plan and Contacts open it too.`,
+      route: "/emergency", target: ["emergency-show-btn", "emergency-page"],
+    }),
+    s("grounding", {
+      emoji: "🔓", title: "Without your password, if you choose",
+      body: `With a password set, Info → Lock screen can show parts you pick on the unlock screen. It's off until you turn it on, and the rest stays locked.`,
+      route: "/emergency", target: ["emergency-info-btn", "emergency-page"],
+    }),
+
     // ─── CONTACTS ───────────────────────────────────────────────────────────
     s("contacts", {
       emoji: "📇", title: "Contacts",
