@@ -51,10 +51,12 @@ export function NeedsBalanceWidget({ settings }) {
   const categories = useList("activityCategories", "ActivityCategory");
   const linkTypes = useList(LINK_TYPES_QUERY_KEY, "ActivityLinkType");
   const mode = useWidgetMode();
-  const all = useMemo(
-    () => buildBalance({ alters, links, wishes, activities, categories, linkTypes }),
-    [alters, links, wishes, activities, categories, linkTypes],
-  );
+  // On a profile: that alter, or the group's members (v0.362.0).
+  const scopeIds = useScopeAlterIds(settings);
+  const all = useMemo(() => {
+    const rows = buildBalance({ alters, links, wishes, activities, categories, linkTypes });
+    return scopeIds ? rows.filter((r) => scopeIds.includes(r.alter.id)) : rows;
+  }, [alters, links, wishes, activities, categories, linkTypes, scopeIds]);
   const rows = useMemo(() => all.slice(0, limitOf(settings, 5)), [all, settings]);
   // Expanded (v0.331.0) is the whole balance with Plan it on every item —
   // what the Needs page's Balance page shows.
@@ -183,10 +185,15 @@ export function GoalsWidget({ settings }) {
   const steps = useList(GOAL_STEPS_QUERY_KEY, "GoalStep");
   const [busyId, setBusyId] = useState(null);
   const { ctx } = useGoalCtx();
+  // On a profile: goals that alter (or the group's members) want, support
+  // or find hard (v0.362.0). Sections follow their top-level goal.
+  const scopeIds = useScopeAlterIds(settings);
+  const inScope = (g) => !scopeIds || ["owner_alter_ids", "supporter_alter_ids", "struggler_alter_ids"]
+    .some((k) => (g[k] || []).some((id) => scopeIds.includes(id)));
   const cards = (settings?.view || "steps") === "cards";
   const rows = useMemo(() => cards ? [] : goals
     // Top-level goals only: sections live inside their page.
-    .filter((g) => !g.parent_id && isOpenGoal(g) && g.status !== "paused")
+    .filter((g) => !g.parent_id && isOpenGoal(g) && g.status !== "paused" && inScope(g))
     .sort((a, b) => String(b.created_date || "").localeCompare(String(a.created_date || "")))
     .slice(0, limitOf(settings, 5))
     .map((g) => {
@@ -194,8 +201,8 @@ export function GoalsWidget({ settings }) {
       const { done, total } = goalProgress(mine, ctx);
       const open = mine.map((s) => ({ step: s, state: stepState(s, ctx) })).filter((x) => !x.state.done && !x.state.ongoing);
       return { goal: g, done, total, next: open[0] || null, open };
-    }), [goals, steps, ctx, settings, cards]);
-  if (cards) return <GoalCards goals={goals} steps={steps} ctx={ctx} />;
+    }), [goals, steps, ctx, settings, cards, scopeIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (cards) return <GoalCards goals={goals} steps={steps} ctx={ctx} rootFilter={scopeIds ? inScope : null} />;
   const tick = async (step, state) => {
     if (busyId) return;
     setBusyId(step.id);
@@ -257,7 +264,12 @@ export function TurnsWidget({ settings }) {
   const navigate = useNavigate();
   const mode = useWidgetMode();
   const alters = useList("alters", "Alter");
-  const turns = useList(TURNS_QUERY_KEY, "TurnAgreement");
+  const allTurns = useList(TURNS_QUERY_KEY, "TurnAgreement");
+  // On a profile: agreements that alter (or the group's members) is part of (v0.362.0).
+  const scopeIds = useScopeAlterIds(settings);
+  const turns = useMemo(() => (scopeIds
+    ? allTurns.filter((x) => [...(x.first_alter_ids || []), ...(x.second_alter_ids || [])].some((id) => scopeIds.includes(id)))
+    : allTurns), [allTurns, scopeIds]);
   const activities = useList("activities", "Activity");
   const categories = useList("activityCategories", "ActivityCategory");
   if (mode === "expanded") {
@@ -316,12 +328,12 @@ function GoalCard({ goal, index, steps, ctx, onOpen }) {
   );
 }
 
-function GoalCards({ goals, steps, ctx }) {
+function GoalCards({ goals, steps, ctx, rootFilter = null }) {
   const tr = useT();
   const navigate = useNavigate();
   const [showFinished, setShowFinished] = useState(false);
   const index = useMemo(() => indexPages(goals), [goals]);
-  const roots = rootPages(index);
+  const roots = rootFilter ? rootPages(index).filter(rootFilter) : rootPages(index);
   const active = roots.filter((g) => isOpenGoal(g) && g.status !== "paused");
   const paused = roots.filter((g) => g.status === "paused");
   const finished = roots.filter((g) => !isOpenGoal(g));
