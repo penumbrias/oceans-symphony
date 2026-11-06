@@ -243,7 +243,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     optionsHoldOrigin.current = null;
   };
   useEffect(() => cancelOptionsHold, []);
-  const optionsHold = editMode ? {} : {
+  const optionsHold = editMode || !onEnterEdit ? {} : {
     onPointerDown: (e) => {
       if (e.button !== undefined && e.button !== 0) return;
       if (e.target.closest?.("button, a, input, textarea, select, [contenteditable='true'], [role='button'], [role='slider'], [data-own-hold], [data-cell-key], [data-day-key]")) return;
@@ -778,6 +778,10 @@ export default function ExperimentalDashboard({
   pageStrip = "dots",
   pageIcons = null,
   pageStripProps = null,
+  // Holding a quiet part of a widget enters edit mode (the home board).
+  // Profiles turn it off by default (v0.361.0, owner): reading or scrolling
+  // a profile must never start a layout edit — the pencil is the door.
+  holdToEdit = true,
 }) {
   const qc = useQueryClient();
   // A profile board has no bars, wallpaper or packs of its own — those are
@@ -2070,7 +2074,7 @@ export default function ExperimentalDashboard({
           onSettings={handleSettings}
           onMove={handleMove}
           onConfigure={openConfig}
-          onEnterEdit={() => setEditMode(true)}
+          onEnterEdit={holdToEdit ? () => setEditMode(true) : null}
           pickLookMode={!!pickLookFrom || multiMode}
           pickLookSelected={multiMode ? multiIds.includes(w.instanceId) : pickLookIds.includes(w.instanceId)}
           pickLookIsSource={!multiMode && pickLookFrom === w.instanceId}
@@ -2771,6 +2775,13 @@ export default function ExperimentalDashboard({
             borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
             paddingBottom: "var(--os-sab)",
           }}>
+          {/* Say which mode this is (v0.361.0): people coming from the old
+              profile couldn't tell editing from reading. */}
+          {profileBoard && (
+            <div data-edit-mode-label="" className="px-3 pt-1.5 text-center text-[0.6875rem] text-muted-foreground">
+              <span className="font-semibold text-foreground">Editing this page</span> · hold a widget to move it; its corner button opens its options
+            </div>
+          )}
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>
             <button type="button" aria-label="Add widgets" title="Add widgets"
               onClick={() => openWidgetDrawer("widgets")}

@@ -337,7 +337,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "⬆️", title: "Along the top",
-      body: `Up top: previous and next ${t.alter}, the pin, ${t.Front} (tap to put them in ${t.front}, hold for the level rail), Info, and the pencil.`,
+      body: `Up top: previous and next ${t.alter}, the pin, ${t.Front} (tap to put them in ${t.front}, hold for the level rail), Info, and Edit page.`,
       route: profile(), look: `the buttons along the top of the profile`,
     }),
     s("profile", {
@@ -369,9 +369,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🧩", title: "Edit the page",
-      body: `The pencil edits the page itself, and it keeps looking exactly as it does. Hold a widget to move it; drop it on another one's edge to sit beside it. Drag edges to resize; ⚙ opens its options.`,
+      body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap its corner button for options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
-      look: ai ? `the highlighted pencil (Edit page)` : `open a profile and look for the pencil at the top-right`,
+      look: ai ? `the highlighted Edit page button` : `open a profile and look for Edit page at the top-right`,
+    }),
+    s("profile", {
+      emoji: "🗂️", title: "Prefer the older form?",
+      body: `Settings → ${t.Alters} → Profile layouts → "Use the classic edit form" makes Info open the older one-page form with a Save button. The same switch is under "Profile page" in Info.`,
+      route: profile(), target: onProfile("alter-profile-edit-btn"),
     }),
     s("profile", {
       emoji: "🧲", title: "Snap to grid",

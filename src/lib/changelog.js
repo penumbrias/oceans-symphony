@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "November 6, 2026",
     changes: [
       { type: "fix", text: "The Notes & lists \"What's this?\" card now explains quick jump as it works today, with a button to its settings; the hand button there opens them too." },
+      { type: "improve", text: "The new profile's first page is back in the familiar order: picture and name banner, boundaries, bio, groups, answers, tags, then custom fields." },
+      { type: "improve", text: "Holding a profile no longer starts editing it; tap Edit page instead. Settings → Profile layouts can turn holding back on." },
+      { type: "feature", text: "New switch: make Info open the classic one-page edit form (Settings → Profile layouts, or Info → Profile page)." },
+      { type: "improve", text: "A one-time card explains how profiles work, and the edit bar now says when you're editing a page." },
       { type: "improve", text: "Needs, the Notebook and Notebook pages share one header, with the pencil for Edit page like profiles. The extra Notebook button on Needs is gone; Notebook is in your menus." },
       { type: "improve", text: "Custom fields: dates use searchable month and day pickers, and Yes / No fields are a simple switch-style choice." },
       { type: "hotfix", text: "Hotfix: tidier picture-link prompts in your profile settings and the Quick jump lock row." },

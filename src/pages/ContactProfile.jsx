@@ -64,12 +64,10 @@ export default function ContactProfile() {
             <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={() => setEditOpen(true)} title="Everything about this person"><IdCard className="w-3.5 h-3.5" /> Info</Button>
             <Button
               data-tour="contact-profile-layout-btn"
-              variant="outline" size="sm" className="h-9 w-9 px-0"
+              variant="outline" size="sm" className="h-9 px-2.5 gap-1.5"
               onClick={openProfileLayoutEditor}
-              title="Edit page — move, resize and add widgets, and change what's shown"
-              aria-label="Edit page"
-            >
-              <Pencil className="w-4 h-4" />
+              title="Edit page — move, resize and add widgets, and change what's shown">
+              <Pencil className="w-3.5 h-3.5" /> Edit page
             </Button>
           </div>
         )}
