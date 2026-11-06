@@ -737,13 +737,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🗺️", title: "Board and map",
-      body: `Switch a page to Board to see its sections as columns, or Map to see how everything connects. The Pages menu shows the whole tree.`,
+      body: `In the Page widget's options, Show as Board puts the sections in columns, and Map shows how everything connects. The Pages menu shows the whole tree.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
       emoji: "🖼️", title: "Lay out a goal page",
       body: `Each goal page is made of widgets. Open a page and tap the grid button to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "🪪", title: "Page info",
+      body: `Info holds everything about a page: its title, icon, status, the day you're aiming for, tags, word target and chapters. It saves as you go; Pin, Move and Delete are under its ⋯.`,
+      route: "/goals", target: ["goals-info-btn", "goals-page"],
     }),
     s("activities", {
       emoji: "⏱️", title: "Work on a goal",
@@ -757,7 +762,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "✍️", title: "Write a story",
-      body: `"Start a story" makes a page with a first chapter and sections for characters, places and lore. Give it a word target from its ⋯ menu.`,
+      body: `"Start a story" makes a page with a first chapter and sections for characters, places and lore. Give it a word target on its Info sheet.`,
       route: "/goals", target: ["goals-story-btn", "goals-page"],
     }),
     s("activities", {

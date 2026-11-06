@@ -1,14 +1,10 @@
-// One page of the Goals workspace: breadcrumbs, title, status, the
-// activity strip, the page's note, its lines and sections (as an outline,
-// a board or a map), and its connections.
+// One page of the Notebook: breadcrumbs, title and where it stands, above
+// the page's widget board. Also the page note and connections pieces the
+// goal widgets draw (goalPageWidgets.jsx).
 import React, { useEffect, useState } from "react";
-import { MoreHorizontal, ListTree, Columns3, Network, Pin, Link2, LayoutGrid } from "lucide-react";
-import { openGoalNoteEditor } from "@/lib/goalNoteEvents";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { confirm, promptText } from "@/components/shared/ConfirmDialog";
-import { GOAL_STATUSES, goalStatusLabel, setGoalStatus } from "@/lib/goals";
+import { Pin, Link2, LayoutGrid, IdCard } from "lucide-react";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { goalStatusLabel } from "@/lib/goals";
 import { useTerms } from "@/lib/useTerms";
 import {
   ancestorsOf, updatePage, deletePage, descendantIds, movePage, pageEntries, orderAfter, connectionsOf,
@@ -16,22 +12,13 @@ import {
 import RichText from "@/components/shared/RichText";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { EntryList, useSubtreeProgress } from "./Outline";
-import BoardView from "./BoardView";
-import MapView from "./MapView";
-import ActivityStrip from "./ActivityStrip";
+import { useSubtreeProgress } from "./Outline";
 import MovePageDialog from "./MovePageDialog";
-import TagEditor, { TagChips } from "./TagEditor";
-import { SectionStyleSub, ChildStyleSub } from "./SectionStyleMenu";
+import { TagChips } from "./TagEditor";
+import PageInfoSheet from "./PageInfoSheet";
 import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "@/lib/goalWriting";
 import { prepareNote, recordNote, NoteText } from "./ItemRow";
 import { useWorkspace } from "./WorkspaceContext";
-
-const VIEWS = [
-  { id: "outline", label: "Outline", Icon: ListTree },
-  { id: "board", label: "Board", Icon: Columns3 },
-  { id: "map", label: "Map", Icon: Network },
-];
 
 export function PageNote({ page, editing, setEditing, emptyPrompt = false }) {
   const { alters, run, busy } = useWorkspace();
@@ -113,41 +100,22 @@ export function Connections({ page, emptyText = null, bare = false }) {
   );
 }
 
-// The page's own chrome — where it is, its title, status and options —
-// above `body`: the page's widget board (Goals.jsx). Without a body it
-// draws the classic page (strip, note, lines, connections).
-export default function PageView({ page, body = null, onEditLayout = null, layoutEditing = false }) {
+// The page's own chrome — where it is, its title and a line about where
+// it stands — above `body`: the page's widget board (Goals.jsx). Everything
+// about the page (title, icon, status, tags, word target, chapters; pin,
+// move, delete) is entered on its Info sheet (PageInfoSheet, v0.359.0);
+// how the lines show (outline, board, map) is the Page widget's option.
+export default function PageView({ page, body, onEditLayout = null, layoutEditing = false }) {
   const ws = useWorkspace();
-  const { index, steps, run, busy, open } = ws;
-  const [title, setTitle] = useState(page.title || "");
+  const { index, steps, run, open } = ws;
   const [moving, setMoving] = useState(false);
-  const [noteEditing, setNoteEditing] = useState(false);
-  const [tagging, setTagging] = useState(false);
-  useEffect(() => { setNoteEditing(false); setTagging(false); }, [page.id]);
-  useEffect(() => { setTitle(page.title || ""); }, [page.id, page.title]);
+  const [infoOpen, setInfoOpen] = useState(false);
+  useEffect(() => { setInfoOpen(false); }, [page.id]);
   const crumbs = ancestorsOf(index, page.id).reverse();
   const { done, total } = useSubtreeProgress(page.id);
-  const view = page.view && VIEWS.some((v) => v.id === page.view) ? page.view : "outline";
-  const isTop = !index.parent.get(page.id);
   const heading = sectionHeading(index, page);
   const wordTarget = wordTargetOf(page);
   const words = heading || page.child_section_style || wordTarget ? pageWordCount(index, steps, page.id) : 0;
-
-  const setWordTarget = async () => {
-    const v = await promptText({
-      title: "Word target", body: "How many words is this page aiming for? Leave it empty for none.",
-      defaultValue: wordTarget ? String(wordTarget) : "", placeholder: "e.g. 50000",
-    });
-    if (v === null) return;
-    const n = Math.round(Number(String(v).replace(/[^\d]/g, "")));
-    run(() => updatePage(page.id, { word_target: Number.isFinite(n) && n > 0 ? n : null }));
-  };
-
-  const saveTitle = () => {
-    const v = title.trim();
-    if (!v) { setTitle(page.title || ""); return; }
-    if (v !== page.title) run(() => updatePage(page.id, { title: v }));
-  };
 
   const remove = async () => {
     const inside = descendantIds(index, page.id).length;
@@ -157,108 +125,64 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
       confirmLabel: "Delete", destructive: true,
     });
     if (!ok) return;
+    setInfoOpen(false);
     const parent = index.parent.get(page.id) || null;
     await run(() => deletePage(index, steps, page.id), "Moved to the trash");
     open(parent);
   };
 
+  const facts = [
+    page.status ? goalStatusLabel(page.status) : null,
+    page.target_date ? `by ${new Date(`${page.target_date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : null,
+    total > 0 ? `${done} of ${total} done` : null,
+    words > 0 || wordTarget ? wordProgressLabel(words, wordTarget) : null,
+  ].filter(Boolean);
+
   return (
     <article className="space-y-4" data-highlight-id={page.id}>
       <nav aria-label="Where this page is" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-        <button type="button" onClick={() => open(null)} className="hover:text-foreground">Notebook</button>
+        <button type="button" onClick={() => open(null)} className="hover:text-foreground min-h-[1.75rem]">Notebook</button>
         {crumbs.map((c) => (
           <React.Fragment key={c.id}>
             <span aria-hidden="true">›</span>
-            <button type="button" onClick={() => open(c.id)} className="hover:text-foreground truncate max-w-[10rem]">{c.title || "Untitled"}</button>
+            <button type="button" onClick={() => open(c.id)} className="hover:text-foreground truncate max-w-[10rem] min-h-[1.75rem]">{c.title || "Untitled"}</button>
           </React.Fragment>
         ))}
       </nav>
 
       <header className="space-y-2">
-        {heading && <p className="text-xs font-semibold uppercase tracking-wide text-primary/80 pl-11">{heading}</p>}
+        {heading && <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">{heading}</p>}
         <div className="flex items-start gap-2">
-          <button type="button" aria-label="Choose an icon" title="Icon"
-            onClick={async () => {
-              const v = await promptText({ title: "Icon", body: "An emoji for this page (leave empty for none).", defaultValue: page.icon || "" });
-              if (v !== null) run(() => updatePage(page.id, { icon: String(v).trim().slice(0, 8) || null }));
-            }}
-            className="text-2xl leading-none mt-1 w-9 h-9 rounded-lg hover:bg-muted/50 flex items-center justify-center flex-shrink-0">
-            {page.icon || <span className="text-base text-muted-foreground">＋</span>}
-          </button>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} onBlur={saveTitle} aria-label="Page title"
-            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            className="flex-1 min-w-0 bg-transparent font-display text-2xl font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 rounded px-1" />
+          {page.icon && <span className="text-2xl leading-none mt-1" aria-hidden="true">{page.icon}</span>}
+          <h1 className="flex-1 min-w-0 font-display text-2xl font-semibold text-foreground break-words">{page.title || "Untitled"}</h1>
+          {!layoutEditing && (
+            <Button variant={infoOpen ? "default" : "outline"} size="sm" className="h-9 px-2.5 gap-1.5 flex-shrink-0"
+              data-tour="goals-info-btn" aria-pressed={infoOpen} onClick={() => setInfoOpen((v) => !v)}
+              title="Everything about this page: title, icon, status, tags, word target, chapters">
+              <IdCard className="w-3.5 h-3.5" /> Info
+            </Button>
+          )}
           {onEditLayout && !layoutEditing && (
-            <button type="button" onClick={onEditLayout} aria-label="Edit page" data-tour="goals-layout-btn"
-              title="Edit page — move, resize and add widgets, like pictures and videos"
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground mt-1">
-              <LayoutGrid className="w-5 h-5" />
-            </button>
+            <Button variant="outline" size="sm" className="h-9 w-9 px-0 flex-shrink-0" onClick={onEditLayout}
+              aria-label="Edit page" data-tour="goals-layout-btn"
+              title="Edit page — move, resize and add widgets, like pictures and videos">
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" aria-label="Page options" className="p-1.5 rounded text-muted-foreground hover:text-foreground mt-1"><MoreHorizontal className="w-5 h-5" /></button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => run(() => updatePage(page.id, { pinned: !page.pinned }))}>
-                {page.pinned ? "Unpin from the sidebar" : "Pin to the sidebar"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => (body ? openGoalNoteEditor(page.id) : setNoteEditing(true))}>{page.why ? "Edit the page note" : "Add a page note"}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTagging(true)}>Tags…</DropdownMenuItem>
-              <DropdownMenuItem onSelect={setWordTarget}>{wordTarget ? "Change the word target" : "Set a word target"}</DropdownMenuItem>
-              {!isTop && <SectionStyleSub page={page} />}
-              <ChildStyleSub page={page} />
-              <DropdownMenuItem onSelect={() => setMoving(true)}>Move to…</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onSelect={remove}>Delete</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                {page.status ? goalStatusLabel(page.status) : "No status"}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {GOAL_STATUSES.map((s) => (
-                <DropdownMenuItem key={s.id} onSelect={() => run(() => setGoalStatus(page, s.id), s.id === "done" ? "Reached 🎉" : null)}>{s.label}</DropdownMenuItem>
-              ))}
-              {!isTop && <DropdownMenuItem onSelect={() => run(() => updatePage(page.id, { status: null }))}>No status</DropdownMenuItem>}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <label className="text-xs text-muted-foreground flex items-center gap-1">
-            by
-            <input type="date" value={page.target_date || ""} aria-label="Target date"
-              onChange={(e) => run(() => updatePage(page.id, { target_date: e.target.value || null }))}
-              className="bg-transparent border border-border/60 rounded px-1 py-0.5 text-xs" />
-          </label>
-          {total > 0 && <span className="text-xs text-muted-foreground tabular-nums">{done} of {total} done</span>}
-          {(words > 0 || wordTarget) && (
-            <button type="button" onClick={setWordTarget} title="Word target"
-              className="text-xs text-muted-foreground hover:text-foreground tabular-nums">{wordProgressLabel(words, wordTarget)}</button>
-          )}
-          {page.pinned && <Pin className="w-3 h-3 text-muted-foreground" aria-label="Pinned" />}
-          <span className="flex-1" />
-          <div role="tablist" aria-label="View" className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
-            {VIEWS.map(({ id, label, Icon }) => (
-              <button key={id} type="button" role="tab" aria-label={label} title={label} aria-selected={view === id} disabled={busy}
-                onClick={() => run(() => updatePage(page.id, { view: id }))}
-                className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 ${view === id ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                <Icon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {(facts.length > 0 || page.pinned) && (
+          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 tabular-nums">
+            {facts.map((f) => <span key={f}>{f}</span>)}
+            {page.pinned && <Pin className="w-3 h-3" aria-label="Pinned" />}
+          </p>
+        )}
         {wordTarget && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-label="Words written"
             aria-valuemin={0} aria-valuemax={wordTarget} aria-valuenow={Math.min(words, wordTarget)}>
             <div className="h-full bg-primary/60 transition-all" style={{ width: `${Math.min(100, (words / wordTarget) * 100)}%` }} />
           </div>
         )}
-        <TagChips page={page} onAdd={() => setTagging(true)} />
+        <TagChips page={page} />
         {total > 0 && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
             <div className="h-full bg-primary transition-all" style={{ width: `${(done / total) * 100}%` }} />
@@ -266,20 +190,10 @@ export default function PageView({ page, body = null, onEditLayout = null, layou
         )}
       </header>
 
-      {body || (
-        <>
-          <ActivityStrip page={page} />
-          <PageNote page={page} editing={noteEditing} setEditing={setNoteEditing} />
+      {body}
 
-          {view === "outline" && <EntryList pageId={page.id} page={page} />}
-          {view === "board" && <BoardView page={page} />}
-          {view === "map" && <MapView page={page} />}
-
-          <Connections page={page} />
-        </>
-      )}
-
-      {tagging && <TagEditor open page={page} onClose={() => setTagging(false)} />}
+      <PageInfoSheet page={page} open={infoOpen && !layoutEditing} onClose={() => setInfoOpen(false)}
+        onMove={() => { setInfoOpen(false); setMoving(true); }} onDelete={remove} />
       {moving && (
         <MovePageDialog open title={`Move "${page.title || "page"}" to…`} movingPageId={page.id} allowTop
           currentId={index.parent.get(page.id) || null} onClose={() => setMoving(false)}
