@@ -103,4 +103,25 @@ test("XP: ticked list items, cards up to the target, study sessions until the mi
   assert.equal(by("s3"), 2);
 });
 
+const { itemState, tickPatch, tickedByDay } = await import("../src/lib/noteListModel.js");
+test("one tap: a shopping item cycles to ran out; other lists tick on and off", () => {
+  const now = "2026-11-06T10:00:00.000Z";
+  const shop = { list_type: "shopping" };
+  const check = { list_type: "checklist" };
+  assert.deepEqual(tickPatch(shop, { checked: false }, now), { checked: true, purchased_at: now, ran_out_at: null });
+  assert.deepEqual(tickPatch(shop, { checked: true }, now), { ran_out_at: now });
+  assert.deepEqual(tickPatch(shop, { checked: true, ran_out_at: now }, now), { ran_out_at: null });
+  assert.deepEqual(tickPatch(check, { checked: true }, now), { checked: false, purchased_at: null, ran_out_at: null });
+  assert.equal(itemState({ checked: true, ran_out_at: now }), "ran_out");
+});
+test("ticked items group by day, newest first, got-it before ran-out", () => {
+  const g = tickedByDay([
+    { id: "a", checked: false },
+    { id: "b", checked: true, ran_out_at: "x", purchased_at: new Date(2026, 10, 5, 9).toISOString() },
+    { id: "c", checked: true, purchased_at: new Date(2026, 10, 5, 8).toISOString() },
+    { id: "d", checked: true, purchased_at: new Date(2026, 10, 1, 8).toISOString() },
+  ]);
+  assert.deepEqual(g.map((x) => x.items.map((i) => i.id)), [["c", "b"], ["d"]]);
+});
+
 console.log(`\n${passed} passed`);

@@ -82,3 +82,45 @@ export function deckStudyMinutes(step, activities = [], now = new Date()) {
     .reduce((n, s) => n + (Number(s.minutes) || 0), 0));
 }
 
+
+// ── Ticking items (pure; the lists panel and the list sheet share it) ──
+//
+// An item is "to do" until ticked. A shopping list has a third state, "ran
+// out" (bought, then used up); every other list ticks on and off.
+export const itemState = (item) => (!item?.checked ? "to_buy" : item.ran_out_at ? "ran_out" : "in_stock");
+
+// The patch one tap on an item makes, or null when nothing changes.
+export function tickPatch(list, item, nowISO = new Date().toISOString()) {
+  const state = itemState(item);
+  if (state === "to_buy") return { checked: true, purchased_at: nowISO, ran_out_at: null };
+  if (state === "in_stock") {
+    return listKind(list) === "shopping"
+      ? { ran_out_at: nowISO }
+      : { checked: false, purchased_at: null, ran_out_at: null };
+  }
+  return { ran_out_at: null };
+}
+export const UNTICK_PATCH = Object.freeze({ checked: false, purchased_at: null, ran_out_at: null });
+
+// Ticked items grouped by the day they were ticked, newest day first; within
+// a day, "got it" before "ran out".
+export function tickedByDay(items = []) {
+  const groups = new Map();
+  for (const item of items || []) {
+    if (!item || itemState(item) === "to_buy") continue;
+    let d = new Date(item.purchased_at || item.created_date || Date.now());
+    if (Number.isNaN(d.getTime())) d = new Date();
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (!groups.has(key)) groups.set(key, { key, date: d, items: [] });
+    groups.get(key).items.push(item);
+  }
+  return [...groups.values()]
+    .sort((a, b) => b.date - a.date)
+    .map((g) => ({
+      ...g,
+      items: [...g.items.filter((i) => itemState(i) === "in_stock"), ...g.items.filter((i) => itemState(i) === "ran_out")],
+    }));
+}
+
+// The word over a list's ticked items.
+export const DONE_HEADER = { shopping: "purchased", wishlist: "got it", checklist: "done", note: "done", flashcards: "" };
