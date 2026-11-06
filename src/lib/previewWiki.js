@@ -509,18 +509,18 @@ const bioQuickCheckIn = `
   ${tip(`Most of the panels above are also reachable from their own pages — but combining them in one check-in is faster, and keeps the timestamps consistent for the moment you're capturing.`)}
 `;
 
-// ── 12b. Pinned Daily Tasks widget ─────────────────────────────────────
+// ── 12b. Pinned Routines widget ─────────────────────────────────────
 const bioPinnedDailyTasks = `
-  ${intro("Wiki · Pinned tasks card", `Configurable dashboard card surfacing your recurring <em>Daily Tasks</em> (the ones with daily / weekly / monthly / yearly frequencies, set up under the Daily Tasks page). Lets you watch what's due now without leaving the dashboard.`)}
+  ${intro("Wiki · Pinned tasks card", `Configurable dashboard card surfacing your recurring <em>Routines</em> (the ones with daily / weekly / monthly / yearly frequencies, set up under the Routines page). Lets you watch what's due now without leaving the dashboard.`)}
   ${section("Two modes",
     `<strong>Auto by frequency</strong> (default) — pick which frequencies to include (e.g. monthly + weekly + daily) and the priority order (e.g. monthly first, then weekly, then daily). Completed tasks drop out as you check them off. Lower-priority frequencies fill the rest of the list.<br><br>
     <strong>Hand-pick</strong> — pick specific tasks and the order they appear in. Useful when "what I want to glance at on the dashboard" is narrower than "everything incomplete by frequency".`)}
   ${section("Scrollable height",
     `Slider in the settings dialog (140–800 px). Anything beyond the height scrolls inside the card so the rest of the dashboard stays where you left it. Saved per device.`)}
   ${section("Manual tap-to-toggle",
-    `For tasks with mode = MANUAL, tap the circle on the left to mark done. Writes through to the same ${kbd("DailyProgress")} record the Daily Tasks page uses, so completion state stays in sync across surfaces.`)}
+    `For tasks with mode = MANUAL, tap the circle on the left to mark done. Writes through to the same ${kbd("DailyProgress")} record the Routines page uses, so completion state stays in sync across surfaces.`)}
   ${section("Auto tasks are read-only here",
-    `Tasks with mode = AUTO update through the trigger pipeline on the Daily Tasks page (e.g. "create a journal entry today" fires automatically). The widget shows them with an external-link icon — tap it to jump to the Daily Tasks page where the auto state refreshes.`)}
+    `Tasks with mode = AUTO update through the trigger pipeline on the Routines page (e.g. "create a journal entry today" fires automatically). The widget shows them with an external-link icon — tap it to jump to the Routines page where the auto state refreshes.`)}
   ${section("Where it lives",
     `Default position: between the "Pinned bulletins & tasks" strip and the "Current symptoms" card. Toggle it off or move it by editing the home screen in place, same as every other dashboard element.`)}
 `;

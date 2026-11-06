@@ -10,7 +10,7 @@
 // resolveLabel pattern.
 
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, NotebookTabs, HeartHandshake, NotebookPen } from "lucide-react";
-import { ALL_PAGES } from "@/utils/navigationConfig";
+import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { withoutHiddenExperimental } from "@/lib/experimentalFeatures";
 
 // Pages of switched-on mods (src/lib/mods/registry.js keeps them in
@@ -29,58 +29,16 @@ export function buildNavGroups(altersLabel, systemLabel) {
 }
 
 export function buildGridItems(altersLabel, systemLabel) {
-  return withoutHiddenExperimental(allGridItems(altersLabel, systemLabel));
+  const terms = { Alters: altersLabel, System: systemLabel };
+  return withoutHiddenExperimental(allGridItems(altersLabel, systemLabel))
+    .map((item) => ({ ...item, label: ALL_PAGES.some((p) => p.id === item.id) ? pageLabel(item.id, terms) : item.label }));
 }
 
+// Same areas and names as the sidebar (navAreaGroups in navigationConfig.js).
 function allNavGroups(altersLabel, systemLabel) {
-  const mods = modPages().map(({ id, label, icon, path }) => ({ id, label, icon, path }));
-  return {
-    [systemLabel]: [
-      { id: "alters",   label: altersLabel,            icon: Users,         path: "/Home" },
-      { id: "presences",label: "New Presences",        icon: Sparkles,      path: "/presences" },
-      { id: "chat",     label: `${systemLabel} Chat`,  icon: MessageSquare, path: "/chat" },
-      { id: "friends",  label: "Friends",              icon: UserRound,     path: "/friends" },
-      { id: "contacts", label: "Contacts",             icon: Contact,       path: "/contacts" },
-      { id: "groups",   label: "Groups",               icon: Users,         path: "/groups" },
-      { id: "assets",   label: "Assets",               icon: Images,        path: "/assets" },
-      { id: "unblend",  label: "Help me unblend",      icon: Heart,         path: "/unblend" },
-      { id: "get-to-know-me", label: "Get to know me", icon: Sparkles,      path: "/get-to-know-me" },
-      { id: "settings", label: "Settings",             icon: Settings,      path: "/settings" },
-    ],
-    "Tracking": [
-      { id: "checkin",      label: `${systemLabel} Meeting`,  icon: Sparkles,   path: "/system-checkin" },
-      { id: "checkin-log",  label: "Check-In Log",            icon: Heart,      path: "/checkin-log" },
-      { id: "planner",      label: "Planner",                 icon: CalendarRange, path: "/planner" },
-      { id: "activities",   label: "Activities",              icon: Zap,        path: "/activities" },
-      { id: "tasks",        label: "Daily Tasks",             icon: CheckSquare,   path: "/tasks" },
-      { id: "todo",         label: "To-Do List",              icon: ClipboardList, path: "/todo" },
-      { id: "notes",        label: "Notes & lists",           icon: NotebookPen,   path: "/notes" },
-      { id: "goals",        label: "Notebook",                icon: NotebookTabs,        path: "/goals" },
-      { id: "needs",        label: "Needs",                   icon: HeartHandshake, path: "/needs" },
-      { id: "sleep",        label: "Sleep",                   icon: Activity,   path: "/sleep" },
-    ],
-    "Journal & Content": [
-      { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
-      { id: "bulletins",label: "Bulletin Board", icon: Pin, path: "/bulletins" },
-      { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
-    ],
-    "Tools": [
-      { id: "reminders",      label: "Reminders",       icon: Bell,        path: "/reminders" },
-      { id: "therapy-report", label: "Therapy Report",  icon: FileText,    path: "/therapy-report" },
-      { id: "support",        label: "Support & Learn", icon: BookOpen,    path: "/grounding" },
-      { id: "safety-plan",    label: "Safety Plan",     icon: Shield,      path: "/safety-plan" },
-      { id: "mods",           label: "Mods",            icon: Puzzle,      path: "/mods" },
-    ],
-    "Analytics": [
-      { id: "analytics",        label: "Analytics",              icon: BarChart2, path: "/analytics" },
-      { id: "system-map",       label: `${systemLabel} Map`,     icon: GitBranch, path: "/system-map" },
-      { id: "timeline",         label: "Timeline",               icon: Clock,     path: "/timeline" },
-      { id: "system-history",   label: `${systemLabel} History`, icon: GitMerge,  path: "/system-history" },
-      { id: "location-history", label: "Location History",       icon: MapPin,    path: "/location-history" },
-      { id: "history-archive", label: "Recent Changes",         icon: History,   path: "/history" },
-    ],
-    ...(mods.length ? { "Mods": mods } : {}),
-  };
+  const out = {};
+  for (const g of navAreaGroups({ Alters: altersLabel, System: systemLabel }, { omit: ["home"] })) out[g.label] = g.items;
+  return out;
 }
 
 function allGridItems(altersLabel, systemLabel) {

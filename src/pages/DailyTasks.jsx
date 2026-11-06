@@ -770,8 +770,8 @@ export default function DailyTasks() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold">Tasks</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Daily, weekly, monthly & yearly check-ins.</p>
+          <h1 className="font-display text-3xl font-semibold">Routines</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Things you do every day, week, month or year.</p>
         </div>
         <div className="flex gap-2">
           <Button

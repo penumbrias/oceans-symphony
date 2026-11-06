@@ -3323,7 +3323,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   notebook: {
-    label: "Notebook", description: "Write straight onto the page — it saves as a journal entry in the journal you pick.",
+    label: "Journal page", description: "Write straight onto the page — it saves as a journal entry in the journal you pick. (Not the Notebook section.)",
     icon: PenLine, category: "journals",
     render: ({ settings, updateSettings, instanceId, mode }) =>
       <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} mode={mode} />,

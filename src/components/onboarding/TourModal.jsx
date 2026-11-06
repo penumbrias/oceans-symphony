@@ -363,7 +363,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       body: `The planner holds what you did and what you mean to do. Plans stay until you say how they went, so nothing quietly disappears.`,
       features: [
         "Planner: drag on the week to log or plan",
-        "Daily tasks with streaks, and a to-do list",
+        "Routines with streaks, and a to-do list",
         "Reminders that open the right thing",
       ],
       tip: isNative()

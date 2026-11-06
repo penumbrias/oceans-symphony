@@ -626,9 +626,9 @@ export const WIDGET_REGISTRY = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   pinned_daily_tasks: {
-    label: "Daily tasks", description: "Pinned daily tasks with check-off.",
+    label: "Routines", description: "Pinned routines with check-off.",
     icon: ListTodo, category: "tracking",
-    render: simple("Daily tasks", ListTodo, PinnedDailyTasksWidget),
+    render: simple("Routines", ListTodo, PinnedDailyTasksWidget),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
     // Which tasks, their order, list height — what the card's cog dialog held.

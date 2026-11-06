@@ -38,7 +38,7 @@ import { onColorVars } from "@/lib/contrast";
 // The tour is big and opens only on request (v0.357.0).
 const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour"));
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
-import { ALL_PAGES, normalizeNavConfig, applySidebarConfig } from "@/utils/navigationConfig";
+import { ALL_PAGES, normalizeNavConfig, applySidebarConfig, pageLabel } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
@@ -542,12 +542,8 @@ const bannerVisible =
   !isOwnBackgroundPage &&
   (bannerScope === "all" || location.pathname === "/" || location.pathname === "/Home");
 
-const termMap = useMemo(() => ({
-  alters:           terms.Alters,
-  checkin:          `${terms.System} Meeting`,
-  "system-map":     `${terms.System} Map`,
-  "system-history": `${terms.System} History`,
-}), [terms]);
+// Page names come from pageLabel (navigationConfig.js) — one name per page.
+const termMap = useMemo(() => Object.fromEntries(ALL_PAGES.map((p) => [p.id, pageLabel(p, terms)])), [terms]);
 
 // Bumps when mod pages join or leave ALL_PAGES (src/lib/mods/registry.js).
 const modPagesVersion = useModPagesVersion();

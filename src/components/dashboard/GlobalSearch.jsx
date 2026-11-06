@@ -83,7 +83,7 @@ function getTypeLabels(t) {
     symptom:   "Symptoms",
     group:     "Groups",
     diarycard: "Diary Cards",
-    checkin:   `${t.System} Check-Ins`,
+    checkin:   `${t.System} Meetings`,
     location:  "Locations",
     syschange: `${t.System} History`,
     note:      `${t.Alter} Notes`,

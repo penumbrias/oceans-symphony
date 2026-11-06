@@ -523,7 +523,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
         <div>
           <Label className="text-xs font-medium mb-1 block">Which daily task?</Label>
           {dailyTaskTemplates && dailyTaskTemplates.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No manual daily tasks found. Add them via the Daily Tasks section.</p>
+            <p className="text-xs text-muted-foreground">No manual daily tasks found. Add them on the Routines page.</p>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {(dailyTaskTemplates || []).map(t => {

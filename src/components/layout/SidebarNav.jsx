@@ -3,7 +3,7 @@ import { withoutHiddenExperimental } from "@/lib/experimentalFeatures";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { ALL_PAGES, applySidebarConfig } from "@/utils/navigationConfig";
+import { applySidebarConfig, navAreaGroups } from "@/utils/navigationConfig";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -19,74 +19,11 @@ export function buildSidebarGroups(altersLabel, systemLabel) {
     .filter((g) => g.items.length > 0);
 }
 
+// The sidebar groups pages by area, named by job — the same areas and the
+// same page names as every other nav surface (navAreaGroups / pageLabel in
+// navigationConfig.js). Home has its own button at the top.
 function allSidebarGroups(altersLabel, systemLabel) {
-  return [
-    {
-      label: systemLabel,
-      items: [
-        { id: "alters",   label: altersLabel,    icon: Users,         path: "/Home" },
-        { id: "presences",label: "New Presences",icon: Sparkles,      path: "/presences" },
-        { id: "chat",     label: `${systemLabel} Chat`, icon: MessageSquare, path: "/chat" },
-        { id: "groups",   label: "Groups",       icon: Users,         path: "/groups" },
-        { id: "assets",   label: "Assets",   icon: Images,        path: "/assets" },
-        { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
-        { id: "contacts", label: "Contacts",     icon: Contact,       path: "/contacts" },
-        { id: "settings", label: "Settings",     icon: Settings,      path: "/settings" },
-      ],
-    },
-    {
-      label: "Tracking",
-      items: [
-        { id: "checkin-log", label: "Check-In Log",            icon: Heart,       path: "/checkin-log" },
-        { id: "planner",     label: "Planner",                 icon: CalendarRange, path: "/planner" },
-        { id: "activities",  label: "Activities",              icon: Zap,         path: "/activities" },
-        { id: "tasks",       label: "Daily Tasks",             icon: CheckSquare, path: "/tasks" },
-        { id: "todo",        label: "To-Do List",              icon: ClipboardList, path: "/todo" },
-        { id: "notes",       label: "Notes & lists",           icon: NotebookPen, path: "/notes" },
-        { id: "goals",       label: "Notebook",                icon: NotebookTabs, path: "/goals" },
-        { id: "needs",       label: "Needs",                   icon: HeartHandshake, path: "/needs" },
-        { id: "sleep",             label: "Sleep",            icon: Activity, path: "/sleep" },
-        { id: "location-history", label: "Locations",         icon: MapPin,   path: "/location-history" },
-        { id: "history-archive",  label: "Recent changes",    icon: History,  path: "/history" },
-        { id: "timeline",    label: "Timeline",                icon: Clock,    path: "/timeline" },
-      ],
-    },
-    {
-      label: "Journal & Content",
-      items: [
-        { id: "journals",  label: "Journals",       icon: BookOpen,   path: "/journals" },
-        { id: "bulletins", label: "Bulletin Board", icon: Megaphone,  path: "/bulletins" },
-        { id: "polls",     label: "Polls",          icon: Vote,       path: "/polls" },
-        { id: "checkin",   label: `${systemLabel} Meeting`, icon: Sparkles, path: "/system-checkin" },
-        { id: "friends",   label: "Friends",        icon: UserRound,  path: "/friends" },
-      ],
-    },
-    {
-      label: "Tools",
-      items: [
-        { id: "reminders",      label: "Reminders",       icon: Bell,       path: "/reminders" },
-        { id: "therapy-report", label: "Therapy Report",  icon: FileText,   path: "/therapy-report" },
-        { id: "support",        label: "Support & Learn", icon: BookOpen,   path: "/grounding" },
-        { id: "safety-plan",    label: "Safety Plan",     icon: Shield,     path: "/safety-plan" },
-        { id: "unblend",        label: "Help me unblend", icon: HelpCircle, path: "/unblend" },
-        { id: "get-to-know-me", label: "Get to know me",  icon: Sparkles,   path: "/get-to-know-me" },
-        { id: "mods",           label: "Mods",            icon: Puzzle,     path: "/mods" },
-      ],
-    },
-    {
-      label: "Analytics",
-      items: [
-        { id: "analytics",       label: "Analytics",          icon: BarChart2,  path: "/analytics" },
-        { id: "system-map",     label: `${systemLabel} Map`, icon: GitBranch,  path: "/system-map" },
-      ],
-    },
-    // Pages of switched-on mods (src/lib/mods/registry.js keeps them in
-    // ALL_PAGES). Callers re-run this when useModPagesVersion() changes.
-    {
-      label: "Mods",
-      items: ALL_PAGES.filter((p) => p.isMod).map(({ id, label, icon, path }) => ({ id, label, icon, path })),
-    },
-  ];
+  return navAreaGroups({ Alters: altersLabel, System: systemLabel }, { omit: ["home"] });
 }
 
 export default function SidebarNav({ open, onClose }) {

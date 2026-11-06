@@ -6,7 +6,7 @@ export const ALL_PAGES = [
   { id: "alters", label: "Alters", path: "/Home", icon: Users },
   { id: "checkin", label: "Meeting", path: "/system-checkin", icon: Sparkles },
   { id: "journals", label: "Journals", path: "/journals", icon: BookOpen },
-  { id: "tasks", label: "Tasks", path: "/tasks", icon: CheckSquare },
+  { id: "tasks", label: "Routines", path: "/tasks", icon: CheckSquare },
   { id: "todo", label: "To-Do List", path: "/todo", icon: ClipboardList },
   { id: "timeline", label: "Timeline", path: "/timeline", icon: Clock },
   { id: "therapy-report", label: "Therapy Report", path: "/therapy-report", icon: FileText },
@@ -40,6 +40,60 @@ export const ALL_PAGES = [
   // Pages of switched-on mods are appended at runtime (isMod: true) by
   // src/lib/mods/registry.js, so they can be pinned like any other page.
 ];
+
+// ── One name per page (UI critique C4, v0.364.6) ─────────────────────────
+// A person who just switched finds their way by NAME, so every surface (tab
+// bars, sidebar, drawer, dashboard grid, quick actions, search) names a page
+// through pageLabel(). Pages whose name holds one of the person's own words
+// resolve it here; the rest use ALL_PAGES' label. Never keep a second label
+// map in a component.
+const TERM_LABELS = {
+  alters: (t) => t.Alters,
+  checkin: (t) => `${t.System} Meeting`,
+  chat: (t) => `${t.System} Chat`,
+  "system-map": (t) => `${t.System} Map`,
+  "system-history": (t) => `${t.System} History`,
+};
+
+/** The page's one name. `terms` is useTerms() (or { System, Alters }). */
+export function pageLabel(pageOrId, terms) {
+  const page = typeof pageOrId === "string" ? ALL_PAGES.find((p) => p.id === pageOrId) : pageOrId;
+  if (!page) return typeof pageOrId === "string" ? pageOrId : "";
+  const fn = TERM_LABELS[page.id];
+  if (fn && terms && terms.System && terms.Alters) return fn(terms);
+  return page.label;
+}
+
+// ── Areas, named by job (UI critique C4) ─────────────────────────────────
+// The sidebar, the phone drawer and the quick-nav menu all group pages by
+// these. A page not listed falls into "More". `label` "{System}" is the
+// person's own word for their system.
+export const NAV_AREAS = [
+  { id: "today",   label: "Today",       pages: ["home", "reminders", "bulletins", "polls", "friends"] },
+  { id: "us",      label: "{System}",    pages: ["alters", "checkin", "groups", "chat", "presences", "contacts", "get-to-know-me", "system-map", "system-history", "assets"] },
+  { id: "plan",    label: "Plan & do",   pages: ["planner", "tasks", "todo", "activities", "needs", "sleep"] },
+  { id: "write",   label: "Write",       pages: ["journals", "goals", "notes"] },
+  { id: "support", label: "Support",     pages: ["support", "unblend", "safety-plan"] },
+  { id: "back",    label: "Look back",   pages: ["timeline", "checkin-log", "analytics", "location-history", "therapy-report", "history-archive"] },
+  { id: "more",    label: "More",        pages: ["settings", "mods"] },
+];
+
+/** Groups of { id, label, icon, path } by area, labels resolved. Mod pages last. */
+export function navAreaGroups(terms, { omit = [] } = {}) {
+  const skip = new Set(omit);
+  const listed = new Set(NAV_AREAS.flatMap((a) => a.pages));
+  const item = (p) => ({ id: p.id, label: pageLabel(p, terms), icon: p.icon, path: p.path });
+  const groups = NAV_AREAS.map((a) => ({
+    id: a.id,
+    label: a.label === "{System}" ? (terms?.System || "System") : a.label,
+    items: a.pages.filter((id) => !skip.has(id)).map((id) => ALL_PAGES.find((p) => p.id === id)).filter(Boolean).map(item),
+  }));
+  const strays = ALL_PAGES.filter((p) => !p.isMod && !listed.has(p.id) && !skip.has(p.id)).map(item);
+  if (strays.length) groups.find((g) => g.id === "more").items.push(...strays);
+  const mods = ALL_PAGES.filter((p) => p.isMod).map(item);
+  if (mods.length) groups.push({ id: "mods", label: "Mods", items: mods });
+  return groups.filter((g) => g.items.length > 0);
+}
 
 // Experimental pages (src/lib/experimentalFeatures.js) leave ALL_PAGES while
 // the switch is off and go back to their own spots when it's turned on, so

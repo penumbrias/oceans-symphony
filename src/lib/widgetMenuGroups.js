@@ -98,7 +98,7 @@ export const WIDGET_FAMILIES = [
   },
   {
     id: "journal", label: "Journal", description: "Your recent entries, a notebook to write straight onto the page, or one journal read like a book.",
-    variants: [["journal", "Recent entries"], ["notebook", "Notebook"], ["journal_book", "Book"]],
+    variants: [["journal", "Recent entries"], ["notebook", "Journal page"], ["journal_book", "Book"]],
   },
   { id: "chat", label: "Chat", description: "One {{system}}-chat channel to read and send in, or every channel as a list.", variants: [["chat_channel", "One channel"], ["chat_channels", "All channels"]] },
   { id: "inner_world", label: "Inner world", description: "One of your inner-world maps, or every place across them as a list.", variants: [["inner_map", "Map"], ["inner_locations", "Places list"]] },
