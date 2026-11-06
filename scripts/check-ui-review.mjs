@@ -54,6 +54,12 @@ const RULES = [
     ),
     msg: "hardcoded term in visible text (use useTerms())",
   },
+  {
+    id: "white-on-primary",
+    // White text assumed on the theme colour reads at ~2:1 on light themes.
+    re: /bg-(?:primary|accent|\[var\(--v2-accent\)\])\b[^"'`]*\btext-white\b|\btext-white\b[^"'`]*bg-(?:primary|accent|\[var\(--v2-accent\)\])\b/,
+    msg: "white text on the theme colour (use text-primary-foreground / var(--v2-on-accent) / onColor())",
+  },
 ];
 const WARNS = [
   { id: "pill-tabs", re: /rounded-full[\s\S]{0,240}set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\(|set(?:Tab|ActiveTab|Section|View|Pane|Page|Mode)\([\s\S]{0,240}rounded-full/, msg: "pill tabs splitting a screen? (use TabBar or drill-in pages)" },

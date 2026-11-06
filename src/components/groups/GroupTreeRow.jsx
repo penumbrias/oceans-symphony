@@ -262,7 +262,7 @@ export default function GroupTreeRow({
                 e.stopPropagation();
                 onStartCreateSubgroup(group.id);
               }}
-              className="flex-shrink-0 p-1 text-white bg-primary hover:bg-primary/90 rounded transition-colors"
+              className="flex-shrink-0 p-1 text-primary-foreground bg-primary hover:bg-primary/90 rounded transition-colors"
               title="Create subgroup"
             >
               <Plus className="w-4 h-4" />

@@ -84,6 +84,44 @@ export function getCssVar(name, fallback = "") {
   }
 }
 
+// ── Readable text ON a colour (v0.365.x, UI critique C2) ─────────────────
+// Buttons, chips and badges paint text on top of the theme's primary or a
+// user-picked colour. The app used to assume white everywhere, which reads
+// at about 2:1 on light colours (amber, green, sky). `onColor` keeps white
+// whenever white already meets WCAG AA (4.5:1) and otherwise picks
+// whichever of white / near-black reads better. The person's colour itself
+// is never changed.
+export const DARK_ON = "#020617";
+const ON_TRIPLET = { "#ffffff": "0 0% 100%", [DARK_ON]: "229 84% 5%" };
+
+export function onColor(background, { min = 4.5 } = {}) {
+  const white = contrastRatio("#ffffff", background);
+  if (white == null || white >= min) return "#ffffff";
+  const dark = contrastRatio(DARK_ON, background);
+  return dark != null && dark > white ? DARK_ON : "#ffffff";
+}
+
+// The CSS variables that carry "text on primary" / "text on accent" for a
+// given primary (and accent, which defaults to the primary). Written by
+// every place that sets --color-primary: ThemeContext, the app Highlight
+// (AppLayout) and a widget's own accent (widgetLook), so text on a button
+// always matches the colour actually behind it.
+export function onColorVars(primary, accent = primary) {
+  const out = {};
+  if (primary) {
+    const p = onColor(primary);
+    out["--color-on-primary"] = p;
+    out["--primary-foreground"] = ON_TRIPLET[p];
+  }
+  if (accent) {
+    const a = onColor(accent);
+    out["--color-on-accent"] = a;
+    out["--accent-foreground"] = ON_TRIPLET[a];
+    out["--v2-on-accent"] = a;
+  }
+  return out;
+}
+
 // Convenience wrappers — the two surfaces a user-colour chip is most
 // commonly drawn against. Page background = `--color-bg`, card / panel
 // surface = `--color-surface`.

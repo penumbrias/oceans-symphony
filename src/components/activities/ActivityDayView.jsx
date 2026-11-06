@@ -604,7 +604,7 @@ export default function ActivityDayView({
       {!embedded && canAdd && (
         <button
           onClick={handleAddNow}
-          className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-white z-20 hover:bg-primary/90 transition-colors"
+          className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-primary-foreground z-20 hover:bg-primary/90 transition-colors"
           aria-label="Add activity"
         >
           <Plus className="w-6 h-6" />

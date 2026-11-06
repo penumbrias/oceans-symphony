@@ -144,7 +144,7 @@ function PillRow({ options, value, onChange, multi = false, labels }) {
       {options.map(o => (
         <button key={o} type="button" onClick={() => toggle(o)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-            isSelected(o) ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40 hover:border-primary/50"
+            isSelected(o) ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40 hover:border-primary/50"
           }`}>
           {labels ? labels[o] || o : o}
         </button>
@@ -200,7 +200,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
                 }}
                 className={`w-10 h-8 rounded-lg text-xs font-medium transition-all border ${
                   (config.days || [0,1,2,3,4,5,6]).includes(i)
-                    ? "bg-primary text-white border-primary"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "bg-muted/30 text-muted-foreground border-border/40"
                 }`}>{d}</button>
             ))}
@@ -279,7 +279,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
                       set("matches", arr.includes(e) ? arr.filter(x => x !== e) : [...arr, e]);
                     }}
                     className={`px-2 py-1 rounded-lg text-xs border transition-all ${
-                      (config.matches || []).includes(e) ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                      (config.matches || []).includes(e) ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
                     }`}>{e}</button>
                 ))}
               </div>
@@ -332,7 +332,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
                       set("symptom_ids", arr.includes(s.id) ? arr.filter(x => x !== s.id) : [...arr, s.id]);
                     }}
                     className={`px-2 py-1 rounded-lg text-xs border transition-all ${
-                      (config.symptom_ids || []).includes(s.id) ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                      (config.symptom_ids || []).includes(s.id) ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
                     }`}>{s.label}</button>
                 ))}
               </div>
@@ -379,7 +379,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
                     set("pre_alerts", selected ? arr.filter(x => x !== opt) : [...arr, opt]);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
-                    selected ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                    selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
                   }`}>{label}</button>
               );
             })}
@@ -531,7 +531,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
               {CATEGORIES.map(c => (
                 <button key={c} type="button" onClick={() => set("category", c)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all ${
-                    form.category === c ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                    form.category === c ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
                   }`}>
                   <span>{CATEGORY_ICONS[c]}</span>
                   <span className="capitalize">{c.replace("_", " ")}</span>
@@ -556,7 +556,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                   set("trigger_config", defaults[t]);
                 }}
                   className={`px-3 py-1.5 rounded-lg text-xs border transition-all capitalize ${
-                    form.trigger_type === t ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                    form.trigger_type === t ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
                   }`}>{t}</button>
               ))}
             </div>

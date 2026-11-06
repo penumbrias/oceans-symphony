@@ -141,7 +141,7 @@ export default function ActivityNestingRecovery({ error, onReset }) {
           size="sm"
           onClick={() => flattenCorrupted.mutate()}
           disabled={flattenCorrupted.isPending || corruptedCount === 0}
-          className="bg-amber-600 hover:bg-amber-700 text-white"
+          className="bg-amber-700 hover:bg-amber-800 text-white"
         >
           Flatten nesting on broken activities ({corruptedCount})
         </Button>

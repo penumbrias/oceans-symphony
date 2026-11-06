@@ -74,7 +74,7 @@ export default function PreviewModeBanner() {
         <button
           type="button"
           onClick={() => exitPreview()}
-          className="flex-shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-md bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-md bg-amber-700 text-white text-xs font-medium hover:bg-amber-800 transition-colors"
         >
           <X className="w-3 h-3" />
           Exit

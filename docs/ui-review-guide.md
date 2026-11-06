@@ -14,6 +14,10 @@ is built: record, Info door, board page, display widgets — read it first),
 `docs/widget-contract.md` (widgets). This guide doesn't repeat them; it
 says how to check a diff against them.
 
+The open UI critique (`docs/ui-critique-2026-11.md`) is the list of
+known app-wide problems and their agreed fixes; when a diff touches one,
+follow its fix and update its status there.
+
 **Keep it cheap.** Read the diff, not the whole codebase. No subagents. If
 a check needs more than opening the file a hunk is in, note it as a
 question in the PR rather than spending an hour proving it.
@@ -104,6 +108,15 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   `ActivityPicker`. User-written text: `MentionTextarea` and
   `prepareAuthoredText` (CLAUDE.md, "Every free-text field").
 - Alter names in lists go through `useAlterLabel()`.
+
+### Colour and contrast
+
+- **Text on a colour is never assumed white.** On the theme colour use
+  `text-primary-foreground` / `text-accent-foreground` (or
+  `var(--v2-on-accent)` in widgets); on any other colour (feelings, alter
+  and group colours, tags) use `onColor(bg)` from `src/lib/contrast.js`.
+  `check:ui` fails on `bg-primary … text-white`. *Caught:* every primary
+  button read at about 2:1 on the warm, forest and sky themes.
 
 ### Words
 

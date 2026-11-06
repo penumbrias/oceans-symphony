@@ -723,7 +723,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         ) : null}
 
         {placingAlter && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
             <span>Tap to place {placingAlter.name} on “{activeLayer?.name}”</span>
             <button onClick={() => setPlacingAlter(null)}><X className="w-3 h-3" /></button>
           </div>

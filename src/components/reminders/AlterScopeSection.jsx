@@ -141,7 +141,7 @@ export default function AlterScopeSection({ form, set, alters }) {
                   onClick={() => set("alter_scope", opt.value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                     form.alter_scope === opt.value
-                      ? "bg-primary text-white border-primary"
+                      ? "bg-primary text-primary-foreground border-primary"
                       : "bg-muted/30 text-muted-foreground border-border/40 hover:border-primary/50"
                   }`}
                 >
