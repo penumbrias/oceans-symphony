@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Needs, the Notebook and Notebook pages share one header, with the pencil for Edit page like profiles. The extra Notebook button on Needs is gone; Notebook is in your menus." },
       { type: "improve", text: "Custom fields: dates use searchable month and day pickers, and Yes / No fields are a simple switch-style choice." },
       { type: "hotfix", text: "Hotfix: tidier picture-link prompts in your profile settings and the Quick jump lock row." },
       { type: "feature", text: "New \"Add a turn\" widget: make a turn agreement from any widget board. On Needs it sits above Taking turns." },
