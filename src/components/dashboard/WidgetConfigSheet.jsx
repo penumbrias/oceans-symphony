@@ -456,16 +456,26 @@ const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded",
 // `revision` re-probes whenever the widget's look changes (a preset
 // applied, a colour cleared) — read once on open, the swatches went stale
 // and disagreed with the widget under them.
+// While the sheet slides in, there's nothing to probe for yet (v0.364.15):
+// reading computed styles forces the page to restyle and re-renders the
+// whole sheet mid-slide, which was the stutter on open. The first probe
+// waits for the slide; later ones (a look edit) run on the next frame.
+const SLIDE_MS = 360;
 function useLiveColors(open, instanceId, revision = "") {
   const [tick, setTick] = React.useState(0);
-  // The DOM repaints AFTER the settings write; probe on the next frame.
+  const settledRef = React.useRef(false);
   React.useEffect(() => {
-    if (!open) return undefined;
-    const id = requestAnimationFrame(() => setTick((t) => t + 1));
+    if (!open) { settledRef.current = false; return undefined; }
+    if (!settledRef.current) {
+      const t = setTimeout(() => { settledRef.current = true; setTick((n) => n + 1); }, SLIDE_MS);
+      return () => clearTimeout(t);
+    }
+    // The DOM repaints AFTER the settings write; probe on the next frame.
+    const id = requestAnimationFrame(() => setTick((n) => n + 1));
     return () => cancelAnimationFrame(id);
   }, [open, revision]);
   return React.useMemo(() => {
-    if (!open || typeof document === "undefined") return {};
+    if (!open || tick === 0 || typeof document === "undefined") return {};
     const toHex = (c) => {
       const str = String(c || "");
       const m = str.match(/[\d.]+/g);
@@ -515,12 +525,21 @@ function useLiveColors(open, instanceId, revision = "") {
 // "Show the name" switch only appears where it does something.
 function useHasWidgetLabel(open, instanceId, tick) {
   const [has, setHas] = React.useState(false);
+  const settledRef = React.useRef(false);
   React.useEffect(() => {
-    if (!open || !instanceId) return undefined;
-    const raf = requestAnimationFrame(() => {
+    if (!open || !instanceId) { settledRef.current = false; return undefined; }
+    const look = () => {
+      settledRef.current = true;
       const node = document.querySelector(`[data-widget-id="${instanceId}"]`);
-      setHas(!!node?.querySelector("[data-widget-label]"));
-    });
+      const next = !!node?.querySelector("[data-widget-label]");
+      setHas((cur) => (cur === next ? cur : next));
+    };
+    // First look after the slide-in (see useLiveColors), then per frame.
+    if (!settledRef.current) {
+      const t = setTimeout(look, SLIDE_MS);
+      return () => clearTimeout(t);
+    }
+    const raf = requestAnimationFrame(look);
     return () => cancelAnimationFrame(raf);
   }, [open, instanceId, tick]);
   return has;
