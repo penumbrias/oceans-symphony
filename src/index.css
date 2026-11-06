@@ -649,6 +649,29 @@ html.a11y-text-xl5 .flex.justify-between:has(.font-display:is(.text-2xl, .text-3
   }
 }
 
+/* Coloured text that reads on every theme (UI critique follow-up, v0.364.13).
+   Tinted chips and labels use `text-<hue>-600`, a fixed mid-tone that fell
+   to ~2.5 : 1 on dark themes. Half the hue, half the theme's own text colour
+   keeps the hue recognisable and always lands on the readable side of the
+   background, light or dark. */
+.text-red-600 { color: color-mix(in srgb, #dc2626 50%, var(--color-text-primary)); }
+.text-rose-600 { color: color-mix(in srgb, #e11d48 50%, var(--color-text-primary)); }
+.text-orange-600 { color: color-mix(in srgb, #ea580c 50%, var(--color-text-primary)); }
+.text-amber-600 { color: color-mix(in srgb, #d97706 50%, var(--color-text-primary)); }
+.text-yellow-600 { color: color-mix(in srgb, #ca8a04 50%, var(--color-text-primary)); }
+.text-lime-600 { color: color-mix(in srgb, #65a30d 50%, var(--color-text-primary)); }
+.text-green-600 { color: color-mix(in srgb, #16a34a 50%, var(--color-text-primary)); }
+.text-emerald-600 { color: color-mix(in srgb, #059669 50%, var(--color-text-primary)); }
+.text-teal-600 { color: color-mix(in srgb, #0d9488 50%, var(--color-text-primary)); }
+.text-cyan-600 { color: color-mix(in srgb, #0891b2 50%, var(--color-text-primary)); }
+.text-sky-600 { color: color-mix(in srgb, #0284c7 50%, var(--color-text-primary)); }
+.text-blue-600 { color: color-mix(in srgb, #2563eb 50%, var(--color-text-primary)); }
+.text-indigo-600 { color: color-mix(in srgb, #4f46e5 50%, var(--color-text-primary)); }
+.text-violet-600 { color: color-mix(in srgb, #7c3aed 50%, var(--color-text-primary)); }
+.text-purple-600 { color: color-mix(in srgb, #9333ea 50%, var(--color-text-primary)); }
+.text-fuchsia-600 { color: color-mix(in srgb, #c026d3 50%, var(--color-text-primary)); }
+.text-pink-600 { color: color-mix(in srgb, #db2777 50%, var(--color-text-primary)); }
+
 /* ── End Accessibility ── */
 
 @keyframes suggestionFadeIn {

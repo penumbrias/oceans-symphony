@@ -975,7 +975,9 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
               icon toggles): swipe up (or tap) on the LEFT half for the
               pinned {alters} bar, on the RIGHT half for the quick
               actions. Both halves swipe down to close their own thing. */}
-          <div className="w-full flex" style={{ height: 13 }}>
+          {/* 13 px tall; each half reaches 11 px above it (self-end, 24 px)
+              so the tap target meets WCAG 2.5.8 without moving the bars. */}
+          <div className="w-full flex items-end" style={{ height: 13 }}>
             {/* Each half is the same glyph — dash · chevron · dash — centred
                 in its half (the lone off-centre chevron looked broken). The
                 halves swap with the Handle-halves option. */}
@@ -997,11 +999,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
                 else if (dir * dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
                 else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
               }}
-              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+              className="flex-1 self-end h-[24px] pb-px flex items-end justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
-              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-2.5 h-2.5" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
-              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-2.5 h-2.5 mb-px" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />
             </button>
             )}
             <button
@@ -1028,11 +1030,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
                 if (dir * dy < -14) { swiped.current = true; toggleQa(true); }
                 else if (dir * dy > 14) { swiped.current = true; toggleQa(false); }
               }}
-              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+              className="flex-1 self-end h-[24px] pb-px flex items-end justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
-              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-2.5 h-2.5" style={{ transform: qaOpen ? openRot : closedRot, transition: "transform .18s" }} />
-              <span className="w-5 h-[2px] rounded-full bg-border" aria-hidden="true" />
+              <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-2.5 h-2.5 mb-px" style={{ transform: qaOpen ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />
             </button>
           </div>
           </div>

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Coloured chips and labels are easier to read on dark themes, Planner block names no longer fade with the block, and the small handle above the bottom bar is easier to tap." },
       { type: "improve", text: "Reduce motion now also stops sheets, pages and drill-ins from sliding. New in Accessibility: show option menus as one list you scroll instead of tabs." },
       { type: "fix", text: "Display options no longer crashes when you open the Bars tab." },
       { type: "improve", text: "A calmer first run: one short welcome, a plain note that the app is in early testing, and the not-a-medical-product box visible straight away. The guide counts \"Step 1 of 3\"." },

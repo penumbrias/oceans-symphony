@@ -512,6 +512,8 @@ function DayColumn({
           const realEnd = b.end ? (b.end instanceof Date ? b.end : new Date(b.end)) : null;
           const clockLabel = (d) => formatClock(d.getHours() * 60 + d.getMinutes(), _timeFmt);
           const pm = b._live ? { mark: "", faded: false, struck: false, labelKey: null } : planMark(b);
+          const blockDim = (blk, live_, bot, mark) => (live_ || (blk._live && blk.status !== "scheduled") ? 1
+            : (blk.status === "scheduled" ? 0.72 : 1) * (bot <= pastMin ? 0.78 : 1) * (mark.faded ? 0.55 : 1));
           return (
             <div
               key={b.id}
@@ -523,10 +525,11 @@ function DayColumn({
                   : r,
                 top: pct(top), height: pct(bottom - top),
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
-                background: isLive ? `${colorFor(b)}55` : `${colorFor(b)}2e`,
-                borderLeft: `2px solid ${colorFor(b)}`,
-                opacity: isLive ? 1 : b._live && b.status !== "scheduled" ? 1
-                  : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1) * (pm.faded ? 0.55 : 1),
+                // Planned, past and skipped blocks fade their FILL and edge,
+                // never their words: fading the whole block (opacity) took
+                // the name under 3 : 1 (axe, v0.364.13).
+                background: `color-mix(in srgb, ${colorFor(b)} ${Math.round((isLive ? 33 : 18) * blockDim(b, isLive, bottom, pm))}%, transparent)`,
+                borderLeft: `2px solid color-mix(in srgb, ${colorFor(b)} ${Math.round(100 * blockDim(b, isLive, bottom, pm))}%, transparent)`,
                 // Skipped / cancelled didn't happen — drained of colour too.
                 ...(pm.faded && !isLive ? { filter: "grayscale(1)" } : null),
                 borderStyle: b._isTask ? "dotted" : b.status === "scheduled" ? "dashed" : "solid",
@@ -598,7 +601,7 @@ function DayColumn({
                   : onOpenBlock(b))}
                 className="w-full h-full text-left px-1 py-0.5"
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
-                <span className="block truncate font-medium" style={{ color: colorFor(b), textDecoration: pm.struck ? "line-through" : undefined }}
+                <span className="block truncate font-medium" style={{ color: `color-mix(in srgb, ${colorFor(b)} 50%, var(--color-text-primary))`, textDecoration: pm.struck ? "line-through" : undefined }}
                   title={pm.labelKey ? tr(pm.labelKey) : undefined}>
                   {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b._isTask ? "☐ " : ""}
                   {pm.mark && <span aria-label={tr(pm.labelKey)}>{pm.mark} </span>}
