@@ -727,7 +727,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out the Notebook",
-      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the grid button to move them, or add pictures, notes or anything else beside them.`,
+      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the pencil (Edit page) to move them, or add pictures, notes or anything else beside them.`,
       route: "/goals", target: ["notebook-layout-btn", "notebook-tabs", "goals-page"],
     }),
     s("activities", {
@@ -742,7 +742,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🖼️", title: "Lay out a goal page",
-      body: `Each goal page is made of widgets. Open a page and tap the grid button to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
+      body: `Each goal page is made of widgets. Open a page and tap the pencil (Edit page) to move or resize them, or add an Image widget for pictures, GIFs and videos.`,
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {
@@ -807,7 +807,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out Needs your way",
-      body: `Needs is made of widgets. The grid button moves, resizes and adds them, and the same widgets can go on your home screen.`,
+      body: `Needs is made of widgets. The pencil (Edit page) moves, resizes and adds them, and the same widgets can go on your home screen.`,
       route: "/needs", target: ["needs-layout-btn", "needs-page"],
     }),
 

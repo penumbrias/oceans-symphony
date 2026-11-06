@@ -2,7 +2,7 @@
 // the page's widget board. Also the page note and connections pieces the
 // goal widgets draw (goalPageWidgets.jsx).
 import React, { useEffect, useState } from "react";
-import { Pin, Link2, LayoutGrid, IdCard } from "lucide-react";
+import { Pin, Link2 } from "lucide-react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { goalStatusLabel } from "@/lib/goals";
 import { useTerms } from "@/lib/useTerms";
@@ -19,6 +19,7 @@ import PageInfoSheet from "./PageInfoSheet";
 import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "@/lib/goalWriting";
 import { prepareNote, recordNote, NoteText } from "./ItemRow";
 import { useWorkspace } from "./WorkspaceContext";
+import BoardPageHeader from "@/components/profile/BoardPageHeader";
 
 export function PageNote({ page, editing, setEditing, emptyPrompt = false }) {
   const { alters, run, busy } = useWorkspace();
@@ -150,26 +151,12 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
         ))}
       </nav>
 
-      <header className="space-y-2">
-        {heading && <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">{heading}</p>}
-        <div className="flex items-start gap-2">
-          {page.icon && <span className="text-2xl leading-none mt-1" aria-hidden="true">{page.icon}</span>}
-          <h1 className="flex-1 min-w-0 font-display text-2xl font-semibold text-foreground break-words">{page.title || "Untitled"}</h1>
-          {!layoutEditing && (
-            <Button variant={infoOpen ? "default" : "outline"} size="sm" className="h-9 px-2.5 gap-1.5 flex-shrink-0"
-              data-tour="goals-info-btn" aria-pressed={infoOpen} onClick={() => setInfoOpen((v) => !v)}
-              title="Everything about this page: title, icon, status, tags, word target, chapters">
-              <IdCard className="w-3.5 h-3.5" /> Info
-            </Button>
-          )}
-          {onEditLayout && !layoutEditing && (
-            <Button variant="outline" size="sm" className="h-9 w-9 px-0 flex-shrink-0" onClick={onEditLayout}
-              aria-label="Edit page" data-tour="goals-layout-btn"
-              title="Edit page — move, resize and add widgets, like pictures and videos">
-              <LayoutGrid className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+      <BoardPageHeader title={page.title || "Untitled"} icon={page.icon || null} size="md"
+        before={heading ? <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">{heading}</p> : null}
+        layoutEditing={layoutEditing} onEditLayout={onEditLayout} tourId="goals-layout-btn"
+        info={{ open: infoOpen, onToggle: () => setInfoOpen((v) => !v), "data-tour": "goals-info-btn",
+          title: "Everything about this page: title, icon, status, tags, word target, chapters" }}
+        after={<>
         {(facts.length > 0 || page.pinned) && (
           <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 tabular-nums">
             {facts.map((f) => <span key={f}>{f}</span>)}
@@ -188,7 +175,7 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
             <div className="h-full bg-primary transition-all" style={{ width: `${(done / total) * 100}%` }} />
           </div>
         )}
-      </header>
+        </>} />
 
       {body}
 

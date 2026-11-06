@@ -1,6 +1,7 @@
 // The {System}'s own profile — picture, banner, name and bio — as its
 // own Settings page (v0.320.0). Moved out of Settings.jsx when the home
 // became a flat list; the fields and the save are unchanged.
+import { promptText } from "@/components/shared/ConfirmDialog";
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -218,7 +219,7 @@ export default function ProfileSettings() {
               <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
             </label>
             <IconButton icon={Images} title="Choose from Assets" onClick={() => setSysAvatarAssets(true)} />
-            <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} picture URL:`, systemAvatarUrl || ""); if (u !== null) setSystemAvatarUrl(u.trim()); }} />
+            <IconButton icon={Link2} title="Paste an image URL" onClick={async () => { const u = await promptText({ title: `${terms.System} picture URL`, defaultValue: systemAvatarUrl || "" }); if (u != null) setSystemAvatarUrl(u.trim()); }} />
             {systemAvatarUrl && (
               <IconButton icon={XIcon} title="Remove image" danger onClick={() => setSystemAvatarUrl("")} />
             )}
@@ -242,7 +243,7 @@ export default function ProfileSettings() {
               <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
             </label>
             <IconButton icon={Images} title="Choose from Assets" onClick={() => setSysBannerAssets(true)} />
-            <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} banner URL:`, systemBannerUrl || ""); if (u !== null) setSystemBannerUrl(u.trim()); }} />
+            <IconButton icon={Link2} title="Paste an image URL" onClick={async () => { const u = await promptText({ title: `${terms.System} banner URL`, defaultValue: systemBannerUrl || "" }); if (u != null) setSystemBannerUrl(u.trim()); }} />
             {systemBannerUrl && (
               <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
             )}
