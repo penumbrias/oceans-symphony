@@ -1,4 +1,4 @@
-// Redis-backed adapter exposing the slice of the @vercel/kv API that the
+// Redis-backed adapter exposing the slice of the Upstash Redis (formerly @vercel/kv) API that the
 // relay handlers actually use.
 //
 // The handlers are NOT forked for self-hosting — api/_kv.js picks this up
