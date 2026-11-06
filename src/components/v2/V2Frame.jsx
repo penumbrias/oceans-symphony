@@ -45,7 +45,7 @@ import { isDesktop } from "@/lib/platform";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
-import { ALL_PAGES, DEFAULT_CONFIG, normalizeNavConfig } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, normalizeNavConfig, pageLabel } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
@@ -604,12 +604,8 @@ function useNavItems(settingsRow) {
   const terms = useTerms();
   const navConfig = normalizeNavConfig(settingsRow?.navigation_config);
   const modNavV = useModPagesVersion();
-  const termMap = useMemo(() => ({
-    alters: terms.Alters,
-    checkin: `${terms.System} Meeting`,
-    "system-map": `${terms.System} Map`,
-    "system-history": `${terms.System} History`,
-  }), [terms]);
+  // One name per page (pageLabel in navigationConfig.js).
+  const termMap = useMemo(() => Object.fromEntries(ALL_PAGES.map((p) => [p.id, pageLabel(p, terms)])), [terms]);
   const resolve = (ids) => (ids || [])
     .map((id) => ALL_PAGES.find((p) => p.id === id))
     .filter(Boolean)

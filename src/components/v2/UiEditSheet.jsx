@@ -48,7 +48,7 @@ import { useV2Display } from "@/components/settings/V2DisplaySettings";
 import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import { ALL_PAGES, DEFAULT_CONFIG, orderSidebarGroups } from "@/utils/navigationConfig";
+import { ALL_PAGES, DEFAULT_CONFIG, orderSidebarGroups, pageLabel } from "@/utils/navigationConfig";
 import { pageForPath, readPageLook, hasPageLook, writePageLook } from "@/lib/pageLooks";
 import { takeLookFocus, useLookSubject, LOOK_DEFAULTS_ID } from "@/lib/lookSubject";
 import { readLookDefaults } from "@/lib/profileLookDefaults";
@@ -564,16 +564,7 @@ function BarsTab({ v2, alignX }) {
   // edits), resolved against ALL_PAGES with the user's terms.
   const navConfig = settingsRow?.navigation_config || {};
   const bottomIds = Array.isArray(navConfig.bottomBar) ? navConfig.bottomBar : DEFAULT_CONFIG.bottomBar;
-  const termMap = {
-    alters: terms.Alters,
-    checkin: `${terms.System} Meeting`,
-    "system-map": `${terms.System} Map`,
-    "system-history": `${terms.System} History`,
-  };
-  const pageLabel = (id) => {
-    const p = ALL_PAGES.find((x) => x.id === id);
-    return p ? (termMap[p.id] || p.label) : id;
-  };
+  const pageName = (id) => pageLabel(id, terms);
   const writeBottomBar = (next) => writeSettings({ navigation_config: { ...navConfig, bottomBar: next } });
   // The classic top navigation bar (web only — phones never show it) is
   // the same kind of list: navigation_config.topBar, up to six pages.
@@ -597,22 +588,22 @@ function BarsTab({ v2, alignX }) {
         {ids.map((id, idx) => (
           <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
             {withIcons && (
-              <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
-                aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
+              <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageName(id) })}
+                aria-label={`${pageName(id)} — change icon`} title="Change icon"
                 className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
                 <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
               </button>
             )}
-            <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
+            <span className="text-xs flex-1 min-w-0 truncate">{pageName(id)}</span>
             <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0}
-              aria-label={`${pageLabel(id)} ↑`}
+              aria-label={`${pageName(id)} ↑`}
               className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => move(idx, 1)} disabled={idx === ids.length - 1}
-              aria-label={`${pageLabel(id)} ↓`}
+              aria-label={`${pageName(id)} ↓`}
               className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => write(ids.filter((x) => x !== id))}
               disabled={ids.length <= 1}
-              aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
+              aria-label={tr("editSheet.removeTab", { name: pageName(id) })}
               className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
               <X className="w-3 h-3 mx-auto" />
             </button>
@@ -1996,13 +1987,10 @@ export default function UiEditSheet() {
     customFields: readLookDefaults(settingsRow, defaultsType),
     hint: `The look every ${defaultsType === "alter" ? terms.alter : defaultsType} profile starts with, and what empty ones show. A profile's own Profile style always wins, setting by setting.`,
   } : null), [defaultsType, defaultsLabel, settingsRow, terms.alter]);
-  const pageLabel = page ? ({
-    alters: terms.Alters, checkin: `${terms.System} Meeting`,
-    "system-map": `${terms.System} Map`, "system-history": `${terms.System} History`,
-  }[page.id] || page.label) : "";
+  const pageTitle = page ? pageLabel(page, terms) : "";
   const scopes = [
     { value: "app", label: tr("editSheet.scopeApp") },
-    ...(page ? [{ value: "page", label: pageLabel }] : []),
+    ...(page ? [{ value: "page", label: pageTitle }] : []),
     ...(defaultsSubject ? [{ value: "defaults", label: defaultsLabel }] : []),
   ];
   // Opened for one bar (openBarsEditor) → land on Bars; opened for this

@@ -583,13 +583,14 @@ export function buildDiaryCardRecords({ items = [] }) {
   });
 }
 
-export function buildSystemCheckInRecords({ items = [] }) {
+export function buildSystemCheckInRecords({ items = [], terms = {} }) {
+  const meetingName = `${terms.System || "System"} Meeting`;
   return items.map((c) => {
     const text = meetingTextParts(c).map((p) => p.text);
     return {
       type: "checkin",
       id: c.id,
-      title: "System Meeting",
+      title: meetingName,
       subtitle: snippet(text[0]) || formatDateLabel(c.created_date) || "",
       path: `/system-checkin?id=${c.id}`,
       searchableText: joinNonEmpty([...text, dateSearchBlob(c.date), dateSearchBlob(c.created_date)]).toLowerCase(),
@@ -987,7 +988,7 @@ const PAGE_KEYWORDS = {
   alters: "directory profiles members list",
   checkin: "meeting check in",
   journals: "diary writing entries",
-  tasks: "daily tasks habits streak points",
+  tasks: "routines daily tasks habits streak points",
   todo: "to do todo list tasks",
   timeline: "history day calendar who was in front",
   "therapy-report": "report therapist export pdf",
@@ -1206,7 +1207,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [], symptoms: symptoms || [] }));
   records.push(...buildGroupRecords({ items: groups || [], alters: alters || [] }));
   records.push(...buildDiaryCardRecords({ items: diaryCards || [] }));
-  records.push(...buildSystemCheckInRecords({ items: systemCheckIns || [] }));
+  records.push(...buildSystemCheckInRecords({ items: systemCheckIns || [], terms: terms || {} }));
   records.push(...buildLocationRecords({ items: locations || [] }));
   records.push(...buildSystemChangeRecords({ items: systemChangeEvents || [] }));
   records.push(...buildAlterNoteRecords({ items: alterNotes || [], alters: alters || [] }));

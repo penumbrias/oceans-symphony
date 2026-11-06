@@ -27,7 +27,7 @@ const SECTION_LABELS = (t) => ({
   welcome: "Welcome", newui: "New UI", dashboard: "Home", fronting: t.Fronting,
   alters: t.Alters, profile: `${t.Alter} profile`, timeline: "Timeline",
   meetings: `${t.System} Meetings`, journals: "Journals", bulletin: "Bulletin Board",
-  tasks: "Tasks", activities: "Activities", polls: "Polls", reminders: "Reminders",
+  tasks: "Routines", activities: "Activities", polls: "Polls", reminders: "Reminders",
   analytics: "Analytics", systemmap: `${t.System} Map`, grounding: "Support",
   contacts: "Contacts", therapy: "Therapy Report", settings: "Settings",
   friends: "Friends", chat: `${t.System} Chat`, done: "Done!",
@@ -584,8 +584,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
 
     // ─── TASKS ──────────────────────────────────────────────────────────────
     s("tasks", {
-      emoji: "✅", title: "Daily tasks and habits",
-      body: `Tasks are little routines that repeat. Each has points and a streak; finishing them levels you up.`,
+      emoji: "✅", title: "Routines",
+      body: `Routines are little things that repeat daily, weekly, monthly or yearly. Each has points and a streak; finishing them levels you up.`,
       route: "/tasks", target: "tasks-daily", look: `the highlighted task cards`,
     }),
     s("tasks", {

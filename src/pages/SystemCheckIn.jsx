@@ -526,7 +526,7 @@ export default function SystemCheckInPage() {
       {view === "list" ? (
         <div data-tour="meetings-list">
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meetings</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
             <p className="text-muted-foreground text-sm mt-1">
               A 5-minute guided ritual to connect with your {terms.system}
             </p>

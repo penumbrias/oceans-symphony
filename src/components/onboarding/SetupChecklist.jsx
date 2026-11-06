@@ -416,7 +416,7 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null, uiV2O
       content: (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Daily tasks are lightweight recurring items that reset every day (or on a schedule you
+            Routines are lightweight recurring items that reset every day (or on a schedule you
             set). They're great for anchoring the day — a morning check-in, taking meds, brushing
             teeth. Tick the ones you'd like, or build your own below.
           </p>
