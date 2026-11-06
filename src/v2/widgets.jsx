@@ -36,7 +36,7 @@ import { Square,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music, X
 , Map, MapPin,
   HeartHandshake, Target, Image as ImageIcon, ArrowLeftRight, Gift,
-  CalendarHeart,
+  CalendarHeart, Pill, Package,
 } from "lucide-react";
 import { InfoWidget, MediaWidget, ALTER_PICTURE_SOURCES } from "@/v2/infoWidgets";
 import { LINKED_PROFILE_WIDGETS } from "@/v2/linkedProfileWidgets";
@@ -142,6 +142,10 @@ const LearnWidget = lazyNamed(loadMoreWidgets, "LearnWidget");
 const InnerMapWidget = lazyNamed(loadMoreWidgets, "InnerMapWidget");
 const InnerMapViewField = lazyNamed(loadMoreWidgets, "InnerMapViewField");
 const InnerLocationsWidget = lazyNamed(loadMoreWidgets, "InnerLocationsWidget");
+const loadMedicationWidgets = () => import("@/v2/medicationWidgets");
+const MedsTodayWidget = lazyNamed(loadMedicationWidgets, "MedsTodayWidget");
+const MedicationsWidget = lazyNamed(loadMedicationWidgets, "MedicationsWidget");
+const MedRefillsWidget = lazyNamed(loadMedicationWidgets, "MedRefillsWidget");
 const loadNeedsWidgets = () => import("@/v2/needsWidgets");
 const NeedsBalanceWidget = lazyNamed(loadNeedsWidgets, "NeedsBalanceWidget");
 const WishesWidget = lazyNamed(loadNeedsWidgets, "WishesWidget");
@@ -3463,6 +3467,39 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "story", type: "toggle", label: "Show Start a story", default: true }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  // Medications (v0.367.0): src/v2/medicationWidgets.jsx. Medicines belong
+  // to the body, so no Whose picker; every dose marked records who was there.
+  meds_today: {
+    label: "Today's medications", description: "Today's doses with Took it and Skip right here, then anything taken as needed. Minimal shows only the doses still to take.",
+    icon: Pill, category: "health",
+    render: sized(({ settings }) => <MedsTodayWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [{ key: "asNeeded", type: "toggle", label: "Show medications taken as needed", default: true }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  medications: {
+    label: "Medications", description: "Your medications with their dose, what they're for and how much is left. Tap one for everything about it, or Add a new one. Expanded also lists the ones you've stopped.",
+    icon: Pill, category: "health",
+    render: sized(({ settings }) => <MedicationsWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "supply", type: "toggle", label: "Show how much is left", default: true },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 6 },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  med_refills: {
+    label: "Refills", description: "When each medication runs out, soonest first, from its last refill. Tap one to record a refill.",
+    icon: Package, category: "health",
+    render: sized(({ settings }) => <MedRefillsWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "show", type: "select", label: "Shows", default: "all",
+        options: [{ value: "all", label: "Every medication" }, { value: "low", label: "Only ones running low" }] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 30, default: 5 },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   notes_index: {
     label: "Notes & lists", description: "Your notes, lists and flash-card decks, newest first, with New note. Tap one to open it. Expanded shows them all.",

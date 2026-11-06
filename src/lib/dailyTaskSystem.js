@@ -109,6 +109,7 @@ export const AUTO_TRIGGER_LABELS = {
   status_note_saved: "Status note saved",
   location_logged: "Location logged",
   sleep_logged: "Sleep logged",
+  meds_taken: "All of today's scheduled medications marked taken",
   switch_logged: "{{Switch}} logged",
   symptom_checkin_saved: "Symptom check-in saved",
   reminder_acknowledged: "Reminder acknowledged",
@@ -168,6 +169,7 @@ export function buildAutoCompletedTriggers(input = {}) {
     hasStatusNote,
     hasLocation,
     hasSleep,
+    hasMedsTaken,
     hasSwitch,
     hasSymptomCheckIn,
     hasReminderAcknowledged,
@@ -207,6 +209,7 @@ export function buildAutoCompletedTriggers(input = {}) {
   if (hasStatusNote) s.add("status_note_saved");
   if (hasLocation) s.add("location_logged");
   if (hasSleep) s.add("sleep_logged");
+  if (hasMedsTaken) s.add("meds_taken");
   if (hasSwitch) s.add("switch_logged");
   if (hasSymptomCheckIn) s.add("symptom_checkin_saved");
   if (hasReminderAcknowledged) s.add("reminder_acknowledged");

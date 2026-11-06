@@ -334,6 +334,8 @@ export const LOG_FIELDS = {
   FrontingSession: { note: "json", level_changes: "array" },
   // Severity ratings during a running symptom episode: both devices' ratings are kept.
   SymptomSession: { severity_snapshots: "array" },
+  // Refills recorded on either device are both kept (medications.js).
+  Medication: { refills: "array" },
 };
 
 export function unionLogField(kind, a, b) {
