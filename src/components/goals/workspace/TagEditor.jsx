@@ -32,7 +32,9 @@ export function TagChips({ page, onAdd = null, className = "" }) {
   );
 }
 
-export default function TagEditor({ page, open, onClose }) {
+// The tags, the add box and the tags used elsewhere — in the Tags dialog
+// and on the page's Info sheet.
+export function TagEditorBody({ page, autoFocus = false }) {
   const { goals, run, busy } = useWorkspace();
   const [text, setText] = useState("");
   const tags = pageTags(page);
@@ -52,39 +54,47 @@ export default function TagEditor({ page, open, onClose }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { setText(""); onClose(); } }}>
+    <div className="space-y-3 py-2">
+      <div className="flex flex-wrap gap-1.5 min-h-[1.75rem]">
+        {tags.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 border border-border/40">
+            #{t}
+            <button type="button" disabled={busy} onClick={() => save(withoutTag(tags, t))} aria-label={`Remove tag ${t}`}
+              className="-mr-1 p-0.5 rounded-full text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+        {tags.length === 0 && <span className="text-sm text-muted-foreground">No tags yet.</span>}
+      </div>
+      <div className="flex gap-1.5">
+        <input className={`${inputCls} flex-1`} value={text} autoFocus={autoFocus} aria-label="New tag"
+          placeholder="Add a tag, like plot or character"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { e.preventDefault(); add(text); } }} />
+        <Button size="sm" disabled={busy || !text.trim()} onClick={() => add(text)}>Add</Button>
+      </div>
+      {suggestions.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Used on other pages</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map(({ tag }) => (
+              <button key={tag} type="button" disabled={busy} onClick={() => add(tag)}
+                className="text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground">
+                + #{tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TagEditor({ page, open, onClose }) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Tags for "{page.title || "Untitled"}"</DialogTitle></DialogHeader>
-        <div className="flex flex-wrap gap-1.5 min-h-[1.75rem]">
-          {tags.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 border border-border/40">
-              #{t}
-              <button type="button" disabled={busy} onClick={() => save(withoutTag(tags, t))} aria-label={`Remove tag ${t}`}
-                className="-mr-1 p-0.5 rounded-full text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
-            </span>
-          ))}
-          {tags.length === 0 && <span className="text-sm text-muted-foreground">No tags yet.</span>}
-        </div>
-        <div className="flex gap-1.5">
-          <input className={`${inputCls} flex-1`} value={text} autoFocus aria-label="New tag"
-            placeholder="Add a tag, like plot or character"
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { e.preventDefault(); add(text); } }} />
-          <Button size="sm" disabled={busy || !text.trim()} onClick={() => add(text)}>Add</Button>
-        </div>
-        {suggestions.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Used on other pages</p>
-            <div className="flex flex-wrap gap-1.5">
-              {suggestions.map(({ tag }) => (
-                <button key={tag} type="button" disabled={busy} onClick={() => add(tag)}
-                  className="text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground">
-                  + #{tag}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <TagEditorBody page={page} autoFocus />
       </DialogContent>
     </Dialog>
   );
