@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { logSymptomCheckIn } from "@/lib/checkinEntry";
 import { useNavigate } from "react-router-dom";
-import { X, ChevronDown, MoreHorizontal } from "lucide-react";
+import { X, ChevronDown, ChevronUp, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -17,6 +17,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isFocusQuiet, subscribeFocusQuiet } from "@/lib/soundscape/focusMode";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+
+// How long a newly fired reminder shows in full before it folds into a
+// small pill (UI critique C1). The pill stays until the reminder is dealt
+// with — folding never settles, dismisses or loses anything.
+const FOLD_AFTER_MS = 8000;
+
+function isEditable(el) {
+  if (!el || el === document.body) return false;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  if (tag === "TEXTAREA") return true;
+  if (tag !== "INPUT") return false;
+  const type = (el.getAttribute("type") || "text").toLowerCase();
+  return !["checkbox", "radio", "button", "submit", "range", "color", "file"].includes(type);
+}
 
 const SESSION_KEY = "symphony_shown_toast_ids";
 const SNOOZE_KEY = "symphony_snoozed_until";
@@ -66,6 +82,34 @@ export default function ReminderToast() {
   // Soundscape distraction-free focus: toasts wait until it ends.
   const [focusQuiet, setFocusQuiet] = useState(isFocusQuiet);
   useEffect(() => subscribeFocusQuiet(setFocusQuiet), []);
+
+  // One reminder at a time, folded to a pill after a few seconds, and out
+  // of the way entirely while the person is typing (it used to sit over
+  // the chat composer and the end of every list).
+  const [expanded, setExpanded] = useState(true);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const firstId = visible[0]?.instance.id;
+  useEffect(() => {
+    if (!firstId) return undefined;
+    setExpanded(true);
+    setPinnedOpen(false);
+    const t = setTimeout(() => setExpanded(false), FOLD_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [firstId]);
+  const showExpanded = expanded || pinnedOpen;
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const check = () => setTyping(isEditable(document.activeElement));
+    // focusout fires before the next element takes focus — look after it.
+    const later = () => setTimeout(check, 0);
+    document.addEventListener("focusin", check);
+    document.addEventListener("focusout", later);
+    return () => {
+      document.removeEventListener("focusin", check);
+      document.removeEventListener("focusout", later);
+    };
+  }, []);
+  useAttentionSlot("reminder-toast", { priority: ATTENTION.REMINDER, active: visible.length > 0 && !focusQuiet, always: true });
 
   // Dedicated modal state — always rendered, open controlled by boolean (same pattern as RemindersInbox)
   const [setFrontOpen, setSetFrontOpen] = useState(false);
@@ -200,10 +244,36 @@ export default function ReminderToast() {
 
   return (
     <>
-      {visible.length > 0 && !focusQuiet && (
+      {visible.length > 0 && !focusQuiet && !typing && !showExpanded && (() => {
+        const { instance, reminder } = visible[0];
+        const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
+        return (
+          <div role="status" aria-live="polite" data-overlay-notification
+            className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[200] max-w-[calc(100vw-2rem)] sm:max-w-xs">
+            <div className="flex items-center gap-1 bg-card border border-border shadow-lg rounded-full pl-1 pr-1 py-1 animate-in fade-in duration-200">
+              <button type="button" onClick={() => setPinnedOpen(true)}
+                aria-label={`Reminder: ${reminder.title}. Show it`}
+                className="flex items-center gap-2 min-h-[36px] min-w-0 pl-2.5 pr-1.5 rounded-full hover:bg-muted/50">
+                <span className="text-base flex-shrink-0" aria-hidden="true">{Icon}</span>
+                <span className="text-sm font-medium truncate">{reminder.title}</span>
+                {visible.length > 1 && (
+                  <span className="text-xs text-muted-foreground flex-shrink-0">+{visible.length - 1}</span>
+                )}
+                <ChevronUp className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              </button>
+              <Button size="sm" className="text-xs h-8 rounded-full px-3 flex-shrink-0"
+                onClick={() => updateInstance(instance.id, { status: "acted", acted_action: "done" })}>
+                Done
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
+      {visible.length > 0 && !focusQuiet && !typing && showExpanded && (
         <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
+          onPointerDown={() => setPinnedOpen(true)}
           className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
-          {visible.slice(0, 3).map(({ instance, reminder }) => {
+          {visible.slice(0, 1).map(({ instance, reminder }) => {
             const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
             const inlineActions = reminder.inline_actions || [];
             const visibleActions = inlineActions.slice(0, 2);
@@ -221,6 +291,11 @@ export default function ReminderToast() {
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
                     )}
                   </div>
+                  <button onClick={() => { setPinnedOpen(false); setExpanded(false); }}
+                    aria-label="Fold reminder away"
+                    className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                   <button onClick={() => handleXClose(instance.id)}
                     aria-label="Dismiss reminder"
                     className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
@@ -279,6 +354,12 @@ export default function ReminderToast() {
                     Dismiss
                   </Button>
                 </div>
+                {visible.length > 1 && (
+                  <button type="button" onClick={() => navigate("/reminders")}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground text-center">
+                    {visible.length - 1} more waiting · open Reminders
+                  </button>
+                )}
               </div>
             );
           })}

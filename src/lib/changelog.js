@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "Calmer screens: only one notice or tip asks for your attention at a time, the rest wait their turn. A reminder folds into a small pill after a few seconds and hides while you type." },
+      { type: "improve", text: "\"New to this page?\" tips have a \"Stop showing these\" button." },
       { type: "fix", text: "Button and chip text is now easy to read on every theme colour: it turns dark on light colours like amber, green and sky instead of staying white." },
       { type: "fix", text: "The classic edit form switch is now clearly one setting for every profile, and the form itself has buttons back to the Info tabs and the new profile." },
       { type: "feature", text: "Pictures in your writing: add several at once and show them one after another, as a carousel or as a slideshow. Drag any picture into place, and tap it later to change it." },

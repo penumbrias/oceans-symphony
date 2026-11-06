@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { Grid2x2, X } from "lucide-react";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 
 const DISMISS_KEY = "symphony_widget_board_banner_dismissed_v1";
 
@@ -14,7 +15,10 @@ export default function NewUiBanner({ onOpenBoard = null }) {
     try { return localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
   });
 
-  if (!UI_V2_ENABLED || dismissed || !onOpenBoard) return null;
+  const wanted = UI_V2_ENABLED && !dismissed && !!onOpenBoard;
+  // Waits its turn behind notices, reminders and "Continue setup".
+  const mine = useAttentionSlot("widget-board-promo", { priority: ATTENTION.PROMO, active: wanted });
+  if (!wanted || !mine) return null;
 
   const dismiss = () => {
     setDismissed(true);

@@ -726,6 +726,8 @@ export default {
   "notices.mentioned": "{name} was mentioned",
   "notices.mentionSource": "In {source}",
   "notices.more": "{count} more — open Reminders",
+  "notices.moreHere": "{count} more waiting — show",
+  "notices.fewer": "Show fewer",
 
   // ── Unified UI edit popup (docs/v2-edit-menu-spec.md) ──
   "editSheet.size": "Text & layout",

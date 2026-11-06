@@ -118,6 +118,15 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   `check:ui` fails on `bg-primary … text-white`. *Caught:* every primary
   button read at about 2:1 on the warm, forest and sky themes.
 
+### Attention — one thing at a time
+
+- **A new banner, tip, promo or floating card claims the attention slot**
+  (`useAttentionSlot` from `src/lib/attentionSlot.js`, with a priority from
+  `ATTENTION`) and renders only while it holds it. Safety notices and fired
+  reminders pass `always: true` so the gentler things wait for them.
+  *Caught:* a first visit to home stacked six banners above the content.
+- Nothing floating covers a text box the person is typing in.
+
 ### Words
 
 - Every alter / system / front / switch word through `useTerms()` — body

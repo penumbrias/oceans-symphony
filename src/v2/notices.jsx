@@ -53,8 +53,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 
-const MAX_VISIBLE = 4;
+// One notice at a time (UI critique C1): the most urgent shows, the rest
+// wait behind a "N more" line that opens them in place.
+const MAX_VISIBLE = 1;
 const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
 
 // One visual card shell for every notice type, so the stack reads as one
@@ -408,6 +411,7 @@ export default function V2Notices() {
   // read as "planned in 3 hours" at 8am.
   const now = useNowTick(60_000);
   const [dismissNonce, setDismissNonce] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(),
@@ -523,9 +527,12 @@ export default function V2Notices() {
     ...mentionNotices,
     ...(unresolvedNotice ? [unresolvedNotice] : []),
   ];
+  // Holds the attention slot while anything is showing, so page tips and
+  // promos wait (the notices themselves never wait).
+  useAttentionSlot("home-notices", { priority: ATTENTION.NOTICES, active: all.length > 0, always: true });
   if (all.length === 0) return null;
-  const shown = all.slice(0, MAX_VISIBLE);
-  const overflow = all.length - shown.length;
+  const shown = expanded ? all : all.slice(0, MAX_VISIBLE);
+  const overflow = all.length - Math.min(all.length, MAX_VISIBLE);
 
   const settleInstance = async (instanceId, data) => {
     try {
@@ -617,10 +624,10 @@ export default function V2Notices() {
         );
       })}
       {overflow > 0 && (
-        <button type="button" onClick={() => navigate("/reminders")}
-          className="w-full text-xs text-muted-foreground hover:text-foreground py-1 text-center bg-background/60 backdrop-blur-md"
+        <button type="button" onClick={() => setExpanded((x) => !x)} aria-expanded={expanded}
+          className="w-full min-h-[36px] text-xs text-muted-foreground hover:text-foreground py-1.5 text-center bg-background/60 backdrop-blur-md"
           style={{ borderRadius: "var(--v2-radius, 12px)" }}>
-          {tr("notices.more", { count: overflow })}
+          {expanded ? tr("notices.fewer") : tr("notices.moreHere", { count: overflow })}
         </button>
       )}
     </div>
