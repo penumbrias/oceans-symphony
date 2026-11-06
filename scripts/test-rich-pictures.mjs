@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Checks pictures in written text (v0.363.0, src/lib/richPictures.js): the
+// Checks pictures in written text (v0.364.0, src/lib/richPictures.js): the
 // HTML each layout writes, that a set reads back off the text unchanged,
 // and that index.css holds the slideshow keyframes the HTML names.
 //

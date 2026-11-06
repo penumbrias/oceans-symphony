@@ -1,4 +1,4 @@
-// Pictures inside written text (v0.363.0) — the mini toolbar's "Insert
+// Pictures inside written text (v0.364.0) — the mini toolbar's "Insert
 // image". A picture can be framed like a profile picture (drag what stays
 // in view, zoom), given a shape, and several pictures can go in at once and
 // show one after another, as a carousel (swipe sideways) or as a slideshow.
@@ -97,7 +97,7 @@ function singleHtml(set, im, srcFor, extraAttrs = "") {
   const ratio = ratioOf(set.shape);
   const framed = !!framingOf(im.frame);
   if (!ratio && !framed) {
-    // Exactly what an image inserted before v0.363.0 looks like, plus its
+    // Exactly what an image inserted before v0.364.0 looks like, plus its
     // corners — plain pictures stay plain markup.
     return `<img src="${src}" alt=""${extraAttrs} style="${width}max-width:100%;height:auto;border-radius:${radiusOf(set)};display:block;margin:6px 0;" />`;
   }

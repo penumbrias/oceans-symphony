@@ -22,6 +22,8 @@ export const CHANGELOG = [
     changes: [
       { type: "feature", text: "Pictures in your writing: add several at once and show them one after another, as a carousel or as a slideshow. Drag any picture into place, and tap it later to change it." },
       { type: "improve", text: "The Image widget can show several pictures as a carousel you swipe through." },
+      { type: "improve", text: "Notes & lists is now a widget page like Needs and the Notebook: your notes, lists and decks are listed newest first, and each opens in a sheet. The pencil adds List, Note or Deck widgets beside them." },
+      { type: "feature", text: "New \"Notes & lists\" widget for home or a profile, with New note." },
       { type: "fix", text: "The Notes & lists \"What's this?\" card now explains quick jump as it works today, with a button to its settings; the hand button there opens them too." },
       { type: "feature", text: "Lists, flash-card decks, notes and whole Notebook pages can now go on your home screen and any profile, not only on Notebook pages: add them from Widgets and pick which one." },
       { type: "improve", text: "Needs balance, Taking turns and Goals on a profile can show just that alter's (or that group's) under Whose; ones already placed keep showing everyone's." },

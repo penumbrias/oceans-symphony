@@ -1141,7 +1141,7 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 .os-themed-lists.os-themed-lists :is(.ring-emerald-500\/40) { --tw-ring-color: hsl(var(--primary) / 0.4); }
 .os-themed-lists.os-themed-lists ::placeholder { color: hsl(var(--muted-foreground)); }
 
-/* Picture slideshows in written text (v0.363.0, src/lib/richPictures.js):
+/* Picture slideshows in written text (v0.364.0, src/lib/richPictures.js):
    one fade loop per picture count. Each slide sets its own duration and
    delay inline, so the stored text needs nothing else from here. A
    slideshow pauses while a finger or pointer rests on it; with reduced

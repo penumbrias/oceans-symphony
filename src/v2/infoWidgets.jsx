@@ -559,7 +559,7 @@ export function MediaWidget({ settings }) {
     );
   }
   if (arrange === "carousel" && count > 1) {
-    // Swipe sideways through them (v0.363.0), each snapping into place.
+    // Swipe sideways through them (v0.364.0), each snapping into place.
     return (
       <div className="h-full flex gap-1.5 overflow-x-auto overflow-y-hidden snap-x snap-mandatory overscroll-x-contain" style={flush()} data-media-widget="" data-media-carousel="">
         {items.map((it, i) => (

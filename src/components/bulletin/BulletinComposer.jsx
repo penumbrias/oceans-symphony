@@ -139,7 +139,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   });
 
   // Several pictures can be picked at once; the picture sheet stores them
-  // and asks how they show (v0.363.0).
+  // and asks how they show (v0.364.0).
   const handleComposerImage = (e) => {
     const files = [...(e.target.files || [])];
     e.target.value = "";

@@ -41,7 +41,7 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
   const [saving, setSaving] = useState(false);
   // Start in Fancy when the post was rich, so its formatting is preserved.
   const [richMode, setRichMode] = useState(!!bulletin?.is_rich);
-  // Pictures waiting in the picture sheet (v0.363.0): { files } or { urls }.
+  // Pictures waiting in the picture sheet (v0.364.0): { files } or { urls }.
   const [pendingImage, setPendingImage] = useState(null);
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);

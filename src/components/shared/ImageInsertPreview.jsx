@@ -1,4 +1,4 @@
-// The picture sheet (v0.363.0) — what opens between "the person picked or
+// The picture sheet (v0.364.0) — what opens between "the person picked or
 // uploaded pictures" and "the pictures land in the text", and again when a
 // picture already in a bio / note is tapped. It used to be a centred
 // size dialog for one image; it is now the standard inspector sheet:
