@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "November 6, 2026",
     changes: [
+      { type: "improve", text: "The new profile's first page is back in the familiar order: picture and name banner, boundaries, bio, groups, answers, tags, then custom fields." },
+      { type: "improve", text: "Holding a profile no longer starts editing it; tap Edit page instead. Settings → Profile layouts can turn holding back on." },
+      { type: "feature", text: "New switch: make Info open the classic one-page edit form (Settings → Profile layouts, or Info → Profile page)." },
+      { type: "improve", text: "A one-time card explains how profiles work, and the edit bar now says when you're editing a page." },
       { type: "feature", text: "New \"Add a turn\" widget: make a turn agreement from any widget board. On Needs it sits above Taking turns." },
       { type: "improve", text: "Notebook pages have an Info button, like profiles: title, icon, status, tags, word target and chapters all in one sheet that saves as you go. Outline, Board or Map is now the Page widget's option." },
       { type: "feature", text: "The Notebook's front page is now a widget board: tap the grid button to move Add a goal and your goal cards, or add pictures and notes beside them." },
