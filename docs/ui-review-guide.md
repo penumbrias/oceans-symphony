@@ -127,6 +127,17 @@ Each has the usual way it goes wrong and the fix past reviews asked for.
   *Caught:* a first visit to home stacked six banners above the content.
 - Nothing floating covers a text box the person is typing in.
 
+### Text size
+
+- **No text under 12 px** outside widgets: `text-xs` is the smallest.
+  `check:ui` fails on new `text-[0.5–0.74rem]` / `text-[9–11px]`. Inside a
+  widget, sizes are em so the widget's Text size scales them.
+- **Look at 200 % text** (Settings → Accessibility → Text size, largest):
+  content shows above the fold, titles don't split mid-word, and the bars
+  stay a fixed size (chrome carries `a11y-header-row` / `a11y-bottom-nav`
+  or `data-os-chrome`). *Caught:* at 200 % the header read "Oceans Sym",
+  the tabs "Syste" / "Journa", and no content fit on the first screen.
+
 ### Words
 
 - Every alter / system / front / switch word through `useTerms()` — body

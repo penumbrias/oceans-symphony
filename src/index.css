@@ -590,6 +590,30 @@ html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 
   overflow-wrap: break-word;
   word-break: normal;
 }
+/* The same pin applies at the three largest text sizes even outside
+   Accessibility mode (v0.364.4, UI critique C3): at 200% the header read
+   "Oceans Sym" under the bell and the tabs read "Syste" / "Journa", and the
+   chrome filled the screen before any content. Page text still scales; the
+   bars stay a fixed, readable size. The v2 bars size their text in em, so
+   pinning the bar's own font-size is enough there. */
+html.a11y-text-xl3 .a11y-header-row, html.a11y-text-xl4 .a11y-header-row, html.a11y-text-xl5 .a11y-header-row { height: 52px !important; }
+html.a11y-text-xl3 .a11y-header-row svg, html.a11y-text-xl4 .a11y-header-row svg, html.a11y-text-xl5 .a11y-header-row svg { width: 22px !important; height: 22px !important; }
+html.a11y-text-xl3 .a11y-header-title, html.a11y-text-xl4 .a11y-header-title, html.a11y-text-xl5 .a11y-header-title { font-size: 18px !important; line-height: 1.2 !important; }
+html.a11y-text-xl3 .a11y-bottom-nav svg, html.a11y-text-xl4 .a11y-bottom-nav svg, html.a11y-text-xl5 .a11y-bottom-nav svg { width: 22px !important; height: 22px !important; }
+html.a11y-text-xl3 .a11y-bottom-nav span, html.a11y-text-xl4 .a11y-bottom-nav span, html.a11y-text-xl5 .a11y-bottom-nav span { font-size: 12px !important; line-height: 1.1 !important; }
+html.a11y-text-xl3 [data-os-chrome], html.a11y-text-xl4 [data-os-chrome], html.a11y-text-xl5 [data-os-chrome] { font-size: 18px !important; }
+html.a11y-text-xl3 [data-os-chrome="tabs"], html.a11y-text-xl4 [data-os-chrome="tabs"], html.a11y-text-xl5 [data-os-chrome="tabs"] { font-size: 19.2px !important; }
+/* Page titles don't need to double too: at 200% "Journals" split into
+   "Jour / nals" beside its buttons. Cap the display headings outside widgets
+   (a widget's own Text size still rules inside it). */
+html.a11y-text-xl3 .font-display:is(.text-2xl, .text-3xl, .text-4xl):not([data-widget-content] *),
+html.a11y-text-xl4 .font-display:is(.text-2xl, .text-3xl, .text-4xl):not([data-widget-content] *),
+html.a11y-text-xl5 .font-display:is(.text-2xl, .text-3xl, .text-4xl):not([data-widget-content] *) { font-size: 32px !important; line-height: 1.15 !important; overflow-wrap: normal !important; word-break: normal !important; }
+/* …and a title row whose buttons leave no room wraps under the title instead of splitting the word. */
+html.a11y-text-xl3 .flex.justify-between:has(.font-display:is(.text-2xl, .text-3xl, .text-4xl)):not([data-widget-content] *),
+html.a11y-text-xl4 .flex.justify-between:has(.font-display:is(.text-2xl, .text-3xl, .text-4xl)):not([data-widget-content] *),
+html.a11y-text-xl5 .flex.justify-between:has(.font-display:is(.text-2xl, .text-3xl, .text-4xl)):not([data-widget-content] *) { flex-wrap: wrap; row-gap: 0.5rem; }
+
 @media (orientation: landscape) {
   html.a11y-mode .a11y-header-row { height: 44px !important; }
   html.a11y-mode .a11y-header-title { font-size: 16px !important; }
@@ -1183,4 +1207,21 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 @media (prefers-reduced-motion: reduce) {
   [data-os-gallery="slideshow"] { display: flex !important; gap: 8px; overflow-x: auto !important; scroll-snap-type: x mandatory; aspect-ratio: auto !important; border-radius: 0 !important; }
   [data-os-gallery="slideshow"] > * { animation: none !important; opacity: 1 !important; flex: 0 0 85%; scroll-snap-align: center; aspect-ratio: 4 / 3; grid-area: auto !important; }
+}
+
+/* ── Readable-text floor (v0.364.4, UI critique C3) ───────────────────────
+   About 760 places used text of 9–11 px for dates, times, hints and labels —
+   the information people who lose time need most. Every one of those sizes
+   now renders at least 0.75rem (12 px at the default text size). It is in
+   rem, so it still follows the person's own text-size setting, smaller or
+   larger. Sizes under 0.5625rem are left alone on purpose: they are glyphs
+   inside fixed boxes (tiny avatar initials, heatmap ticks, year-view cells)
+   that would break rather than read better.
+   Widget text (em sizes) follows the widget's own Text size and is not
+   floored here. New code: use text-xs (0.75rem) or larger — check:ui fails
+   on new 9–11 px sizes. */
+.text-\[0\.5625rem\], .text-\[0\.625rem\], .text-\[0\.65rem\],
+.text-\[0\.6875rem\], .text-\[0\.7rem\],
+.text-\[9px\], .text-\[10px\], .text-\[11px\] {
+  font-size: 0.75rem;
 }

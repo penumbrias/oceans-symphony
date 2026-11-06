@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { RotateCw, X } from "lucide-react";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
+import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 
 // A thin, dismissible tip that nudges phone users toward landscape when their
 // Text size (or Accessibility mode) is large — portrait gets cramped at those
@@ -37,7 +38,10 @@ export default function LandscapeHintBanner() {
     };
   }, []);
 
-  if (!show) return null;
+  // A tip like any other: it waits its turn behind notices, reminders and
+  // setup (UI critique C1/C3) instead of stacking on top of them.
+  const mine = useAttentionSlot("landscape-tip", { priority: ATTENTION.TIP, active: show });
+  if (!show || !mine) return null;
 
   const dismiss = () => { localStorage.setItem(DISMISS_KEY, "true"); setShow(false); };
 
