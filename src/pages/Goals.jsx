@@ -30,7 +30,8 @@ import BoardPageHeader from "@/components/profile/BoardPageHeader";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
 import { V2_WIDGETS } from "@/v2/widgets";
-import { GOAL_PAGE_WIDGETS, GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
+import { GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
+import { goalWidgetDefs } from "@/v2/goalWidgetDefs";
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 
@@ -78,7 +79,7 @@ function Home({ toCarry, onCarry, carrying }) {
 // A goal page: its header, then its widget board (v0.338.0). The board is
 // the standard four widgets until the first Edit page; Media, Text and the
 // rest can go beside them.
-const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...GOAL_PAGE_WIDGETS };
+const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...goalWidgetDefs({ onGoalPage: true }) };
 function GoalPage({ page }) {
   const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
   return (

@@ -44,6 +44,7 @@ const WIDGET_FILES = [
   "src/v2/notices.jsx",
   "src/lib/widgetRegistry.jsx",
   "src/v2/goalPageWidgets.jsx",
+  "src/v2/goalWidgetDefs.jsx",
   "src/components/goals/workspace/ActivityStrip.jsx",
   "src/components/goals/workspace/Outline.jsx",
   "src/components/goals/workspace/ItemRow.jsx",
