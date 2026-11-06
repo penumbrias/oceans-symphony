@@ -2779,7 +2779,7 @@ export default function ExperimentalDashboard({
               profile couldn't tell editing from reading. */}
           {profileBoard && (
             <div data-edit-mode-label="" className="px-3 pt-1.5 text-center text-[0.6875rem] text-muted-foreground">
-              <span className="font-semibold text-foreground">Editing this page</span> · hold a widget to move it, tap its ⚙ for options
+              <span className="font-semibold text-foreground">Editing this page</span> · hold a widget to move it; its corner button opens its options
             </div>
           )}
           <div className="flex items-stretch justify-around" style={{ height: 52 }}>

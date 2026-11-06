@@ -369,7 +369,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🧩", title: "Edit the page",
-      body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap ⚙ for its options.`,
+      body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap its corner button for options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
       look: ai ? `the highlighted Edit page button` : `open a profile and look for Edit page at the top-right`,
     }),
