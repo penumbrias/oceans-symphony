@@ -2,6 +2,8 @@
 // a page; pages hold sections (smaller pages, nested as deep as you like),
 // notes, to-dos, checkboxes, links and trackers. See src/lib/goalTree.js.
 //
+// The front page is a widget board (Add a goal, the goal cards).
+//
 // ?page=<id> opens a page (?highlight=<id> from older links does too);
 // ?new=1 starts a new goal; ?fromWish=<id> makes a goal from a wish.
 
@@ -9,18 +11,20 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Target, ChevronRight, Repeat, Menu, BookOpen } from "lucide-react";
+import { Target, Repeat, Menu, LayoutGrid } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import {
-  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, uncarriedWeeklyGoals, carryOverWeeklyGoals, goalFromWish, goalStatusLabel,
+  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, uncarriedWeeklyGoals, carryOverWeeklyGoals, goalFromWish,
 } from "@/lib/goals";
-import { indexPages, rootPages, createPage, orderAfter } from "@/lib/goalTree";
-import { createStoryPage } from "@/lib/goalStarters";
+import { indexPages } from "@/lib/goalTree";
+import { askGoalAddFocus } from "@/lib/goalStarters";
+import { useGoalCtx } from "@/lib/useGoalCtx";
+import { profilePageId } from "@/lib/profileBoard";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
-import { WorkspaceProvider, useWorkspace, inputCls } from "@/components/goals/workspace/WorkspaceContext";
+import { WorkspaceProvider } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
@@ -28,77 +32,38 @@ import { V2_WIDGETS } from "@/v2/widgets";
 import { GOAL_PAGE_WIDGETS, GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
-import { useSubtreeProgress } from "@/components/goals/workspace/Outline";
-import { useNoteLists } from "@/lib/noteLists";
 
 const list = (entity, ...args) => () => base44.entities[entity].list(...args).catch(() => []);
 
-function GoalSummaryCard({ goal }) {
-  const { open, index } = useWorkspace();
-  const { done, total, sections } = useSubtreeProgress(goal.id);
-  return (
-    <button type="button" onClick={() => open(goal.id)} data-highlight-id={goal.id}
-      className="w-full text-left rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 p-3.5 space-y-2">
-      <div className="flex items-center gap-2">
-        {goal.icon ? <span className="text-lg" aria-hidden="true">{goal.icon}</span> : <Target className="w-4 h-4 text-primary flex-shrink-0" />}
-        <span className="font-medium flex-1 min-w-0 truncate">{goal.title || "Untitled"}</span>
-        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      </div>
-      <div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-        {goal.status && goal.status !== "active" && <span>{goalStatusLabel(goal.status)}</span>}
-        {goal.target_date && <span>by {new Date(`${goal.target_date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>}
-        {total > 0 && <span className="tabular-nums">{done} of {total} done</span>}
-        {sections > 0 && <span>{sections} {sections === 1 ? "section" : "sections"}</span>}
-        {index.children.get(goal.id)?.length === 0 && total === 0 && <span>Empty so far</span>}
-      </div>
-      {total > 0 && (
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
-          <div className="h-full bg-primary" style={{ width: `${(done / total) * 100}%` }} />
-        </div>
-      )}
-    </button>
-  );
-}
+// The Notebook's front page (v0.358.0): a widget board like Needs — Add a
+// goal, then every goal as a card. Edit page moves, resizes and adds
+// widgets (pictures, notes, anything); the layout is saved on the first
+// edit, never before. The weekly-goals carry-over offer sits above it.
+export const NOTEBOOK_PAGES = [
+  { tab: "goals", label: "Goals", widgets: [
+    { widgetId: "goal_add" },
+    { widgetId: "goals", settings: { view: "cards" } },
+  ] },
+];
+const NOTEBOOK_ICONS = { [profilePageId("goals")]: Target };
 
-function Home({ focusNew, toCarry, onCarry, carrying }) {
-  const { index, run, busy, open, isFetched } = useWorkspace();
-  const [title, setTitle] = useState("");
+function Home({ toCarry, onCarry, carrying }) {
   const [hideCarry, setHideCarry] = useState(false);
-  const [showFinished, setShowFinished] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => { if (focusNew) ref.current?.focus(); }, [focusNew]);
-  const roots = rootPages(index);
-  const active = roots.filter((g) => isOpenGoal(g) && g.status !== "paused");
-  const paused = roots.filter((g) => g.status === "paused");
-  const finished = roots.filter((g) => !isOpenGoal(g));
-
-  const add = async () => {
-    const v = title.trim();
-    if (!v) return;
-    const made = await run(() => createPage({ title: v, order: orderAfter(roots.map((rec) => ({ rec }))) }));
-    if (made?.id) { setTitle(""); open(made.id); }
-  };
-
-  // A story: chapters, plus sections for characters, places and lore.
-  const addStory = async () => {
-    const made = await run(() => createStoryPage({ title: title.trim() || "My story", order: orderAfter(roots.map((rec) => ({ rec }))) }));
-    if (made?.id) { setTitle(""); open(made.id); }
-  };
-
+  const boardPage = useProfilePageState(NOTEBOOK_PAGES);
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-3xl font-semibold text-foreground">Notebook</h1>
-      <div className="flex gap-2">
-        <input ref={ref} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New goal"
-          placeholder="Start a new goal, a project, a story…" onKeyDown={(e) => { if (e.key === "Enter") add(); }} className={inputCls} />
-        <Button size="sm" className="gap-1" disabled={busy || !title.trim()} onClick={add}><Plus className="w-4 h-4" /> Add</Button>
+      <div className="flex items-center gap-2">
+        <h1 className="font-display text-3xl font-semibold text-foreground flex-1 min-w-0">Notebook</h1>
+        {!boardPage.layoutEditing && (
+          <Button variant="outline" size="sm" className="h-11 w-11 px-0" data-tour="notebook-layout-btn"
+            onClick={openPageLayoutEditor} aria-label="Edit page"
+            title="Edit page — move, resize and add widgets">
+            <LayoutGrid className="w-4 h-4" />
+          </Button>
+        )}
       </div>
-      <button type="button" onClick={addStory} disabled={busy} data-tour="goals-story-btn"
-        className="text-xs text-primary hover:underline flex items-center gap-1 -mt-2 disabled:opacity-50">
-        <BookOpen className="w-3.5 h-3.5" /> {title.trim() ? `Start "${title.trim()}" as a story` : "Start a story"}: chapters, characters, places
-      </button>
 
-      {toCarry.length > 0 && !hideCarry && (
+      {toCarry.length > 0 && !hideCarry && !boardPage.layoutEditing && (
         <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
           <p className="text-sm flex items-center gap-1.5"><Repeat className="w-4 h-4 text-primary" /> Keep the weekly goals here?</p>
           <p className="text-xs text-muted-foreground">
@@ -112,30 +77,7 @@ function Home({ focusNew, toCarry, onCarry, carrying }) {
         </div>
       )}
 
-      {isFetched && roots.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground text-sm rounded-2xl" data-pf-surface>
-          <Target className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-          Start a goal above. Inside it you can add sections (and sections inside those), notes, to-dos, checkboxes, links to other pages and the activities that go with it.
-        </div>
-      )}
-
-      {active.length > 0 && <div className="space-y-2">{active.map((g) => <GoalSummaryCard key={g.id} goal={g} />)}</div>}
-      {paused.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paused</h2>
-          {paused.map((g) => <GoalSummaryCard key={g.id} goal={g} />)}
-        </div>
-      )}
-      {finished.length > 0 && (
-        <div className="space-y-2">
-          <button type="button" onClick={() => setShowFinished((s) => !s)} aria-expanded={showFinished}
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showFinished ? "rotate-90" : ""}`} />
-            Reached and let go ({finished.length})
-          </button>
-          {showFinished && finished.map((g) => <GoalSummaryCard key={g.id} goal={g} />)}
-        </div>
-      )}
+      <PageBoardCanvas pageId="notebook" pages={NOTEBOOK_PAGES} page={boardPage} pageIcons={NOTEBOOK_ICONS} tourId="notebook-tabs" />
     </div>
   );
 }
@@ -160,7 +102,8 @@ function GoalPage({ page }) {
 export default function Goals() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const [focusNew] = useState(() => params.get("new") === "1");
+  // "New goal" links put the cursor in the Add a goal widget.
+  useState(() => { if (params.get("new") === "1") askGoalAddFocus(); });
   const [wishId] = useState(() => params.get("fromWish"));
   const madeFromWish = useRef(false);
   const [carrying, setCarrying] = useState(false);
@@ -179,26 +122,14 @@ export default function Goals() {
   const { data: goals = [], isFetched } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: list("Goal") });
   const { data: steps = [] } = useQuery({ queryKey: GOAL_STEPS_QUERY_KEY, queryFn: list("GoalStep") });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: list("Alter") });
-  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: list("Task") });
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: list("Activity") });
-  const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: list("ActivityCategory") });
-  const { data: templates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: list("DailyTaskTemplate") });
-  const { data: progress = [] } = useQuery({ queryKey: ["dailyProgress"], queryFn: list("DailyProgress") });
-  const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: list("Symptom") });
-  const { data: symptomSessions = [] } = useQuery({ queryKey: ["symptomSessions", "all"], queryFn: list("SymptomSession", "-start_time", 2000) });
   const { data: activityGoals = [] } = useQuery({ queryKey: ["activityGoals"], queryFn: list("ActivityGoal") });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const { data: wishes = [] } = useQuery({ queryKey: WISHES_QUERY_KEY, queryFn: list("Wish"), enabled: !!wishId });
   const settings = pickPrimarySystemSettings(settingsList) || null;
-  const notes = useNoteLists();
+  const { ctx, symptoms, categories } = useGoalCtx();
 
   const index = useMemo(() => indexPages(goals), [goals]);
   const page = pageId ? index.byId.get(pageId) || null : null;
-  const ctx = useMemo(() => ({
-    tasks, activities, categories, templates, progress, symptomSessions,
-    habits: symptoms.filter((s) => s.is_positive), now: new Date(),
-    noteLists: notes.lists, noteItems: notes.idbItems, unlockedItems: notes.unlockedItems,
-  }), [tasks, activities, categories, templates, progress, symptomSessions, symptoms, notes]);
   const toCarry = useMemo(() => uncarriedWeeklyGoals(activityGoals, goals), [activityGoals, goals]);
 
   const refresh = useCallback(() => {
@@ -278,7 +209,7 @@ export default function Goals() {
             {page ? <GoalPage key={page.id} page={page} /> : (
               <>
                 {pageId && isFetched && <p className="text-sm text-muted-foreground">That page isn't here any more. It may be in the trash.</p>}
-                <Home focusNew={focusNew} toCarry={toCarry} onCarry={carry} carrying={carrying} />
+                <Home toCarry={toCarry} onCarry={carry} carrying={carrying} />
               </>
             )}
           </main>

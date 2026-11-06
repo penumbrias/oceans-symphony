@@ -145,6 +145,7 @@ const NeedsBalanceWidget = lazyNamed(loadNeedsWidgets, "NeedsBalanceWidget");
 const WishesWidget = lazyNamed(loadNeedsWidgets, "WishesWidget");
 const GoalsWidget = lazyNamed(loadNeedsWidgets, "GoalsWidget");
 const WishAddWidget = lazyNamed(loadNeedsWidgets, "WishAddWidget");
+const GoalAddWidget = lazyNamed(loadNeedsWidgets, "GoalAddWidget");
 const TurnsWidget = lazyNamed(loadNeedsWidgets, "TurnsWidget");
 const ChannelView = React.lazy(() => import("@/components/chat/ChannelView"));
 import { startSleep } from "@/lib/sleepEntry";
@@ -3419,12 +3420,28 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
   },
   goals: {
-    label: "Goals", description: "Goals you're working on, with steps done and the next step as a checkbox you can tick right here. Expanded lists every open step.",
+    label: "Goals", description: "Goals you're working on, with steps done and the next step as a checkbox you can tick right here. Expanded lists every open step. Or show each goal as a card, with paused and reached ones folded below.",
     icon: Target, category: "needs",
     render: sized(({ settings }) => <GoalsWidget settings={settings} />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
-    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 5 }],
+    configFields: [
+      { key: "view", type: "select", label: "Shows", default: "steps",
+        options: [
+          { value: "steps", label: "Each goal's next steps" },
+          { value: "cards", label: "Goal cards: open, paused and reached" },
+        ] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 5,
+        showIf: (st) => (st?.view || "steps") === "steps" },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  goal_add: {
+    label: "Add a goal", description: "Start a new goal, project or story in one go. It opens as its own Notebook page.",
+    icon: Target, category: "needs",
+    render: sized(({ settings }) => <GoalAddWidget settings={settings} />),
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "story", type: "toggle", label: "Show Start a story", default: true }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   sleep: {
     label: "Sleep", description: "Last night's sleep or the night in progress, with the start / wake button right there. Expanded adds the last seven nights as bars.",

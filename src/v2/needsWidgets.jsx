@@ -4,7 +4,7 @@
 // Needs and Goals pages use, so the numbers always agree.
 
 import React, { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,10 +25,12 @@ import WishCard from "@/components/wishes/WishCard";
 import { LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import { WISHES_QUERY_KEY, isOpenWish, sortWishes, wishKindMeta, wishAgeLabel, wishStatusLabel } from "@/lib/wishes";
 import { usesNewProfile } from "@/lib/profileBoard";
-import { useNoteLists } from "@/lib/noteLists";
 import {
-  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress, toggleStep,
+  GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY, isOpenGoal, stepsForGoal, stepState, goalProgress, toggleStep, goalStatusLabel,
 } from "@/lib/goals";
+import { indexPages, rootPages, subtreeProgress, createPage, orderAfter } from "@/lib/goalTree";
+import { createStoryPage, takeGoalAddFocus } from "@/lib/goalStarters";
+import { useGoalCtx } from "@/lib/useGoalCtx";
 
 const useList = (key, entity) =>
   useQuery({ queryKey: Array.isArray(key) ? key : [key], queryFn: () => base44.entities[entity].list().catch(() => []) }).data || [];
@@ -179,17 +181,10 @@ export function GoalsWidget({ settings }) {
   const mode = useWidgetMode();
   const goals = useList(GOALS_QUERY_KEY, "Goal");
   const steps = useList(GOAL_STEPS_QUERY_KEY, "GoalStep");
-  const tasks = useList("tasks", "Task");
-  const activities = useList("activities", "Activity");
-  const templates = useList("dailyTaskTemplates", "DailyTaskTemplate");
-  const progress = useList("dailyProgress", "DailyProgress");
   const [busyId, setBusyId] = useState(null);
-  const notes = useNoteLists();
-  const ctx = useMemo(() => ({
-    tasks, activities, templates, progress, now: new Date(),
-    noteLists: notes.lists, noteItems: notes.idbItems, unlockedItems: notes.unlockedItems,
-  }), [tasks, activities, templates, progress, notes]);
-  const rows = useMemo(() => goals
+  const { ctx } = useGoalCtx();
+  const cards = (settings?.view || "steps") === "cards";
+  const rows = useMemo(() => cards ? [] : goals
     // Top-level goals only: sections live inside their page.
     .filter((g) => !g.parent_id && isOpenGoal(g) && g.status !== "paused")
     .sort((a, b) => String(b.created_date || "").localeCompare(String(a.created_date || "")))
@@ -199,7 +194,8 @@ export function GoalsWidget({ settings }) {
       const { done, total } = goalProgress(mine, ctx);
       const open = mine.map((s) => ({ step: s, state: stepState(s, ctx) })).filter((x) => !x.state.done && !x.state.ongoing);
       return { goal: g, done, total, next: open[0] || null, open };
-    }), [goals, steps, ctx, settings]);
+    }), [goals, steps, ctx, settings, cards]);
+  if (cards) return <GoalCards goals={goals} steps={steps} ctx={ctx} />;
   const tick = async (step, state) => {
     if (busyId) return;
     setBusyId(step.id);
@@ -282,6 +278,127 @@ export function TurnsWidget({ settings }) {
             onClick={() => navigate(`/needs?tab=turns&highlight=${x.id}`)} />
         ))
         : <div>{open.map((x) => <TurnCard key={x.id} turn={x} alters={alters} activities={activities} categories={categories} compact />)}</div>}
+    </Section>
+  );
+}
+
+// Goal cards (v0.358.0): every top-level goal as a card — title, status,
+// target date and how much of it (sections included) is done. Paused goals
+// sit below, reached and let-go ones fold away. The Notebook's front page.
+function GoalCard({ goal, index, steps, ctx, onOpen }) {
+  const { done, total, sections } = subtreeProgress(index, steps, ctx, goal.id);
+  const empty = (index.children.get(goal.id)?.length || 0) === 0 && total === 0;
+  return (
+    <button type="button" onClick={() => onOpen(goal.id)} data-highlight-id={goal.id}
+      className="w-full text-left rounded-[0.75em] border p-[0.8em] space-y-[0.45em] hover:bg-muted/30"
+      style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 25%, transparent)" }}>
+      <span className="flex items-center gap-[0.5em]">
+        {goal.icon
+          ? <span className="text-[1.1em]" aria-hidden="true">{goal.icon}</span>
+          : <Target className="w-[1em] h-[1em] flex-shrink-0" style={{ color: "var(--v2-accent)" }} />}
+        <span className="font-medium flex-1 min-w-0 truncate">{goal.title || "Untitled"}</span>
+        <ChevronRight className="w-[1em] h-[1em] flex-shrink-0 opacity-60" />
+      </span>
+      <span className="flex flex-wrap gap-x-[0.6em] text-[0.75em] opacity-70">
+        {goal.status && goal.status !== "active" && <span>{goalStatusLabel(goal.status)}</span>}
+        {goal.target_date && <span>by {new Date(`${goal.target_date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>}
+        {total > 0 && <span className="tabular-nums">{done} of {total} done</span>}
+        {sections > 0 && <span>{sections} {sections === 1 ? "section" : "sections"}</span>}
+        {empty && <span>Empty so far</span>}
+      </span>
+      {total > 0 && (
+        <span className="block h-[0.35em] rounded-full overflow-hidden" aria-hidden="true"
+          style={{ background: "color-mix(in srgb, var(--v2-accent) 15%, transparent)" }}>
+          <span className="block h-full" style={{ width: `${(done / total) * 100}%`, background: "var(--v2-accent)" }} />
+        </span>
+      )}
+    </button>
+  );
+}
+
+function GoalCards({ goals, steps, ctx }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const [showFinished, setShowFinished] = useState(false);
+  const index = useMemo(() => indexPages(goals), [goals]);
+  const roots = rootPages(index);
+  const active = roots.filter((g) => isOpenGoal(g) && g.status !== "paused");
+  const paused = roots.filter((g) => g.status === "paused");
+  const finished = roots.filter((g) => !isOpenGoal(g));
+  const onOpen = (id) => navigate(`/goals?page=${id}`);
+  const card = (g) => <GoalCard key={g.id} goal={g} index={index} steps={steps} ctx={ctx} onOpen={onOpen} />;
+  return (
+    <Section label={tr("widget.goals.label")}>
+      {roots.length === 0 && (
+        <Muted>No goals yet. Start one with Add a goal: inside it you can add sections, notes, to-dos, checkboxes, links to other pages and the activities that go with it.</Muted>
+      )}
+      {active.length > 0 && <div className="space-y-[0.5em]">{active.map(card)}</div>}
+      {paused.length > 0 && (
+        <div className="space-y-[0.5em] mt-[0.8em]">
+          <h3 className="text-[0.7em] font-semibold uppercase tracking-wide opacity-70">Paused</h3>
+          {paused.map(card)}
+        </div>
+      )}
+      {finished.length > 0 && (
+        <div className="space-y-[0.5em] mt-[0.4em]">
+          <button type="button" onClick={() => setShowFinished((v) => !v)} aria-expanded={showFinished}
+            className="min-h-[2.75em] text-[0.75em] opacity-70 hover:opacity-100 flex items-center gap-[0.3em]">
+            <ChevronDown className={`w-[1.2em] h-[1.2em] transition-transform ${showFinished ? "rotate-180" : ""}`} />
+            Reached and let go ({finished.length})
+          </button>
+          {showFinished && finished.map(card)}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// Add a goal (v0.358.0): a title and Add, or Start a story (chapters,
+// characters, places). The new goal opens as its own Notebook page.
+export function GoalAddWidget({ settings }) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const goals = useList(GOALS_QUERY_KEY, "Goal");
+  const [title, setTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputRef = React.useRef(null);
+  React.useEffect(() => { if (takeGoalAddFocus()) inputRef.current?.focus(); }, []);
+  const make = async (fn) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const roots = rootPages(indexPages(goals));
+      const made = await fn(orderAfter(roots.map((rec) => ({ rec }))));
+      setTitle("");
+      await qc.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
+      if (made?.id) navigate(`/goals?page=${made.id}`);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save that.");
+    } finally { setBusy(false); }
+  };
+  const v = title.trim();
+  const add = () => { if (v) make((order) => createPage({ title: v, order })); };
+  const story = () => make((order) => createStoryPage({ title: v || "My story", order }));
+  return (
+    <Section label="Add a goal">
+      <div className="flex gap-[0.4em]">
+        <input ref={inputRef} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New goal"
+          placeholder="A goal, a project, a story…" onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+          className="flex-1 min-w-0 rounded-[0.5em] border bg-transparent px-[0.6em] py-[0.45em] text-sm"
+          style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 40%, transparent)" }} />
+        <button type="button" onClick={add} disabled={busy || !v} aria-label="Add the goal"
+          className="min-h-[2.75em] px-[0.8em] rounded-[0.5em] text-sm font-medium flex items-center gap-[0.3em] disabled:opacity-40"
+          style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>
+          <Plus className="w-[1em] h-[1em]" /> Add
+        </button>
+      </div>
+      {settings?.story !== false && (
+        <button type="button" onClick={story} disabled={busy} data-tour="goals-story-btn"
+          className="mt-[0.4em] min-h-[2.75em] text-[0.75em] flex items-center gap-[0.3em] hover:underline disabled:opacity-50"
+          style={{ color: "var(--v2-accent)" }}>
+          <BookOpen className="w-[1.1em] h-[1.1em]" /> {v ? `Start "${v}" as a story` : "Start a story"}: chapters, characters, places
+        </button>
+      )}
     </Section>
   );
 }

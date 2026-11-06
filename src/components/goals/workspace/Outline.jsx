@@ -3,8 +3,7 @@
 // nesting stops at MAX_INLINE_DEPTH — deeper sections open as their page.
 import React from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { pageEntries, liveSteps, descendantIds, updatePage } from "@/lib/goalTree";
-import { stepState } from "@/lib/goals";
+import { pageEntries, updatePage, subtreeProgress } from "@/lib/goalTree";
 import ItemRow, { EntryMenu } from "./ItemRow";
 import AddLine from "./AddLine";
 import { TagChips } from "./TagEditor";
@@ -12,22 +11,10 @@ import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "
 import { useWorkspace } from "./WorkspaceContext";
 
 const MAX_INLINE_DEPTH = 6;
-const UNCOUNTED = new Set(["text", "link"]);
-
 // Done / total over a page and everything inside it.
 export function useSubtreeProgress(pageId) {
   const { index, steps, ctx } = useWorkspace();
-  const ids = new Set([pageId, ...descendantIds(index, pageId)]);
-  let done = 0, total = 0, notes = 0;
-  for (const s of liveSteps(steps)) {
-    if (!ids.has(s.goal_id)) continue;
-    if (UNCOUNTED.has(s.kind)) { notes += 1; continue; }
-    const st = stepState(s, ctx);
-    if (st.ongoing) continue;
-    total += 1;
-    if (st.done) done += 1;
-  }
-  return { done, total, notes, sections: ids.size - 1 };
+  return subtreeProgress(index, steps, ctx, pageId);
 }
 
 function SectionBlock({ section, parentId, depth }) {

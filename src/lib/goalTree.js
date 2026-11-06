@@ -33,6 +33,7 @@ import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import { createTask, deleteTask } from "@/lib/taskCreate";
 import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { stepState } from "@/lib/goals";
 
 export const MAX_PAGE_DEPTH = 24;
 export const PAGE_VIEWS = ["outline", "board", "map"];
@@ -146,6 +147,23 @@ export function flattenPages(index, { skip = null } = {}) {
 
 export function liveSteps(steps) {
   return (steps || []).filter((s) => s && !s.removed_at);
+}
+
+// Done / total over a page and everything inside it (notes and links don't
+// count; rhythms and daily tasks never finish, so they don't either).
+const UNCOUNTED_KINDS = new Set(["text", "link"]);
+export function subtreeProgress(index, steps, ctx, pageId) {
+  const ids = new Set([pageId, ...descendantIds(index, pageId)]);
+  let done = 0, total = 0, notes = 0;
+  for (const s of liveSteps(steps)) {
+    if (!ids.has(s.goal_id)) continue;
+    if (UNCOUNTED_KINDS.has(s.kind)) { notes += 1; continue; }
+    const st = stepState(s, ctx);
+    if (st.ongoing) continue;
+    total += 1;
+    if (st.done) done += 1;
+  }
+  return { done, total, notes, sections: ids.size - 1 };
 }
 
 // Sections and lines on one page, in order: [{ type: "page"|"item", rec }].
