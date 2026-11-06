@@ -79,6 +79,7 @@ export function useFreeMove({
     const st = state.current;
     if (!st) return;
     if (st.raf) cancelAnimationFrame(st.raf);
+    if (st.moveRaf) cancelAnimationFrame(st.moveRaf);
     if (st.holdTimer) clearTimeout(st.holdTimer);
     window.removeEventListener("pointermove", st.onMove);
     window.removeEventListener("pointerup", st.onUp);
@@ -138,7 +139,38 @@ export function useFreeMove({
       // The lifted widget follows the finger, so it's skipped; the middle
       // of a widget stays an ordinary drop (which pushes it down).
       let beside = null;
-      if (onBeside && !overTrash) {
+      if (onBeside && !overTrash && flow && rect) {
+        // Flow pages never overlap, so the widget under the finger is found
+        // from the board's widget boxes, measured once at lift (and again
+        // every so often in case one finished loading) — not by asking the
+        // browser to hit-test the whole page on every move, which was the
+        // biggest single cost of a drag on a phone.
+        const own = node.closest?.("[data-widget-id]");
+        const now = performance.now();
+        if (!st.boxes || now - st.boxesAt > 400) {
+          st.boxesAt = now;
+          st.boxes = [...gridRef.current.querySelectorAll(":scope > [data-widget-id]")]
+            .filter((h) => h !== own)
+            .map((h) => {
+              const r = h.getBoundingClientRect();
+              return { id: h.getAttribute("data-widget-id"), left: r.left - rect.left, top: r.top - rect.top, width: r.width, height: r.height };
+            })
+            .filter((b) => b.height > 0);
+        }
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+        const hit = st.boxes.find((b) => px >= b.left && px <= b.left + b.width && py >= b.top && py <= b.top + b.height);
+        if (hit) {
+          const f = hit.width > 0 ? (px - hit.left) / hit.width : 0.5;
+          if (f < BESIDE_EDGE) beside = { id: hit.id, side: "left" };
+          else if (f > 1 - BESIDE_EDGE) beside = { id: hit.id, side: "right" };
+          else beside = { id: hit.id, side: (py - hit.top) < hit.height / 2 ? "before" : "after" };
+        } else {
+          // Below every widget = the end of the page.
+          const last = st.boxes.reduce((a, b) => (!a || b.top + b.height >= a.top + a.height ? b : a), null);
+          if (last && py > last.top + last.height) beside = { id: last.id, side: "after" };
+        }
+      } else if (onBeside && !overTrash) {
         const own = node.closest?.("[data-widget-id]");
         const els = document.elementsFromPoint?.(clientX, clientY) || [];
         let hit = false;
@@ -169,7 +201,11 @@ export function useFreeMove({
       }
       st.pointerY = clientY;
       st.point = { x: clientX, y: clientY };
-      setDrag({ dx: clientX - startX, dy: clientY - startY + scrolled, target: { x, y }, overTrash, beside });
+      const next = { dx: clientX - startX, dy: clientY - startY + scrolled, target: { x, y }, overTrash, beside };
+      // Kept here as well, so a release between frames drops where the
+      // finger really was.
+      st.last = next;
+      setDrag(next);
     };
     const onMove = (ev) => {
       const st = state.current;
@@ -179,12 +215,29 @@ export function useFreeMove({
         if (Math.abs(ev.clientX - startX) > SLOP || Math.abs(ev.clientY - startY) > SLOP) cleanup();
         return;
       }
-      computeDrag(ev.clientX, ev.clientY);
       ev.preventDefault();
+      // One update per frame (v0.357.4): phones send pointer moves faster
+      // than the screen draws, and each one re-rendered the widget and hit-
+      // tested the page — the stutter when moving widgets.
+      st.movePoint = { x: ev.clientX, y: ev.clientY };
+      if (!st.moveRaf) {
+        st.moveRaf = requestAnimationFrame(() => {
+          const cur = state.current;
+          if (!cur) return;
+          cur.moveRaf = 0;
+          if (cur.movePoint) computeDrag(cur.movePoint.x, cur.movePoint.y);
+        });
+      }
     };
 
     const onUp = () => {
       const st = state.current;
+      // A move still waiting for its frame counts — it's where the finger is.
+      if (st?.active && st.moveRaf && st.movePoint) {
+        cancelAnimationFrame(st.moveRaf);
+        st.moveRaf = 0;
+        computeDrag(st.movePoint.x, st.movePoint.y);
+      }
       const snapshot = st?.active ? st.last : null;
       cleanup();
       setDrag(null);
