@@ -419,6 +419,14 @@ export function flowOrder(widgets) {
   );
 }
 
+// Where a widget on a flow page asked to stand (v0.364.14): the column
+// it was dropped at in empty space, kept in its settings. Null = it just
+// follows the one before it, as always.
+export function flowAtOf(w) {
+  const n = Number(w?.settings?.flowAt);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function flowRepack(ordered, gridCols) {
   let x = 0;
   let y = 0;
@@ -427,9 +435,18 @@ export function flowRepack(ordered, gridCols) {
   return (ordered || []).map((w) => {
     const c = Math.min(Math.max(MIN_SPAN, w.span?.cols || 1), gridCols);
     const r = Math.max(MIN_SPAN, w.span?.rows || 1);
-    if (x > 0 && x + c > gridCols + EPS) {
+    const want = flowAtOf(w);
+    const wantX = want == null ? null : Math.max(0, Math.min(want, gridCols - c));
+    // Its column is already behind us on this row → it starts the next.
+    if (wantX != null && x > wantX + EPS) {
       y += rowH;
       x = 0;
+      rowH = 0;
+    }
+    if (wantX != null) x = Math.max(x, wantX);
+    if (x > 0 && x + c > gridCols + EPS) {
+      y += rowH;
+      x = wantX ?? 0;
       rowH = 0;
     }
     const pos = { x, y };
@@ -458,8 +475,22 @@ export function flowMove(widgets, gridCols, fromId, toId) {
 // before or after the target in the page's order, keeping its width.
 // Either way the whole page is re-seated from the new order, so a flow
 // page's positions always match what the column shows.
-export function flowPlace(widgets, gridCols, movedId, targetId, side, minColsFor = () => 1) {
-  const list = widgets || [];
+// `at` (v0.364.14): a drop in empty space also says which column the
+// widget should stand at (stored as settings.flowAt; 0 clears it). A drop
+// onto another widget keeps whatever it had, except beside, which joins
+// that row and so clears it.
+export function flowPlace(widgets, gridCols, movedId, targetId, side, minColsFor = () => 1, at = undefined) {
+  const withAt = (w, v) => {
+    const cur = flowAtOf(w);
+    const next = v > 0 ? v : null;
+    if (cur === next) return w;
+    const settings = { ...(w.settings || {}) };
+    if (next == null) delete settings.flowAt; else settings.flowAt = next;
+    return { ...w, settings };
+  };
+  let list = widgets || [];
+  if (typeof at === "number" && Number.isFinite(at)) list = list.map((w) => (w.instanceId === movedId ? withAt(w, at) : w));
+  else if (side === "left" || side === "right") list = list.map((w) => (w.instanceId === movedId ? withAt(w, 0) : w));
   if (!movedId || !targetId || movedId === targetId) return null;
   if (!list.some((w) => w.instanceId === movedId) || !list.some((w) => w.instanceId === targetId)) return null;
   let ordered;
@@ -484,7 +515,8 @@ export function flowPlace(widgets, gridCols, movedId, targetId, side, minColsFor
     return null;
   }
   const byId = new Map(flowRepack(ordered, gridCols).map((w) => [w.instanceId, w]));
-  // Keep the stored array order; only positions (and a beside row's widths) change.
+  // Keep the stored array order; only positions (and a beside row's widths,
+  // and the moved widget's column) change.
   return list.map((w) => byId.get(w.instanceId) || w);
 }
 

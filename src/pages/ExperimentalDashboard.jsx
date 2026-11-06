@@ -44,7 +44,7 @@ import {
   HOME_STYLE_IDS, resolveOverlaps, hasOverlaps, placeBeside,
   isLayered, layerOf, nextLayer, boxRotation,
   compactVertically, findFreeCell, stampBoardChanges, PAGE_SHOW_AS, SHOW_AS_MAX_WIDTH,
-  flowOrder, flowRepack, flowMove, flowPlace, snapStepFor, isWhole,
+  flowOrder, flowRepack, flowMove, flowPlace, flowAtOf, snapStepFor, isWhole,
   isWidgetGap, defaultWidgetGap,
 } from "@/lib/experimentalHome";
 import { BoardGapContext } from "@/components/shared/WidgetGapRow";
@@ -325,7 +325,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     onDragTarget?.(widget.instanceId, move.drag ? { x: tx, y: ty, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash, beside: move.drag.beside || null } : null);
     return undefined;
      
-  }, [tx, ty, move.drag?.overTrash, move.drag?.beside?.id, move.drag?.beside?.side, move.dragging]);
+  }, [tx, ty, move.drag?.overTrash, move.drag?.beside?.id, move.drag?.beside?.side, move.drag?.beside?.at, move.dragging]);
 
   // Stable across renders so the memoised body isn't redrawn by a drag.
   const onSettingsRef = useRef(onSettings);
@@ -414,7 +414,11 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // holding one lays out as a wrapping row of exact widths instead
         // (same widths and gaps for everything else).
         ...(flowFlex
-          ? { flex: "0 0 auto", width: `calc((100% + ${gapCss}) * ${shownCols / gridCols} - ${gapCss})` }
+          ? {
+            flex: "0 0 auto",
+            width: `calc((100% + ${gapCss}) * ${shownCols / gridCols} - ${gapCss})`,
+            ...(widget.__lead ? { marginLeft: `calc((100% + ${gapCss}) * ${widget.__lead / gridCols})` } : null),
+          }
           : { gridColumn: `span ${shownCols}` }),
         // Rows are a real height once they mean something: a widget you have
         // sized yourself (or made taller than one row, or are resizing right
@@ -1456,13 +1460,13 @@ export default function ExperimentalDashboard({
   // Drop beside (v0.306.0): dropped on another widget's left or right edge,
   // the widget joins that row and the row shares the width evenly.
   const besideMinCols = (w) => registry[w.widgetId]?.minSpan?.cols || 1;
-  const handleBeside = (instanceId, { id, side }) => {
+  const handleBeside = (instanceId, { id, side, at }) => {
     const cur = boardRef.current.board.pages.find((p) => p.id === page.id);
     // A flow page is an order, not a grid: beside joins the row, above or
     // below moves it in the order (flowPlace).
     if (flowView) {
-      if (!flowPlace(cur?.widgets || [], gridCols, instanceId, id, side, besideMinCols)) return false;
-      updatePageWidgets((ws) => flowPlace(ws, gridCols, instanceId, id, side, besideMinCols) || ws);
+      if (!flowPlace(cur?.widgets || [], gridCols, instanceId, id, side, besideMinCols, at)) return false;
+      updatePageWidgets((ws) => flowPlace(ws, gridCols, instanceId, id, side, besideMinCols, at) || ws);
       return true;
     }
     if (side !== "left" && side !== "right") return false;
@@ -1616,7 +1620,9 @@ export default function ExperimentalDashboard({
   const flowView = viewFlow && freeMode && !page.widgets.some(isLayered);
   // A width between grid lines can't be a grid span — such a page lays its
   // column out as a wrapping row of exact widths instead.
-  const flowFlex = flowView && page.widgets.some((w) => !isWhole(w.span?.cols || 1));
+  // So does a page where a widget was dropped at its own column in empty
+  // space (flowAt, v0.364.14) — it stands there with a margin before it.
+  const flowFlex = flowView && page.widgets.some((w) => !isWhole(w.span?.cols || 1) || flowAtOf(w) != null);
   // A widget that opens something (What's new, an expanding list) shows
   // all of it and moves the page down while it's open — on every board,
   // display only (v0.353.0). Edit mode shows the sizes as they are.
@@ -1755,9 +1761,22 @@ export default function ExperimentalDashboard({
     if (flowView) {
       // Editing: an empty widget keeps its place, outlined, so it can be
       // found, moved or removed without anything else shifting.
-      return flowOrder(widgets)
+      const shown = flowOrder(widgets)
         .map((w) => (emptyIds.has(w.instanceId) ? (editMode ? { ...w, __empty: true } : { ...w, __collapsed: true })
           : grownPx.has(w.instanceId) ? { ...w, __growPx: grownPx.get(w.instanceId) } : w));
+      // A widget standing at its own column gets the empty space before it
+      // (in columns) from where the last shown widget on its row ends.
+      let rowY = null;
+      let end = 0;
+      return shown.map((w) => {
+        if (w.__collapsed) return w;
+        const y = w.pos?.y || 0;
+        const x = w.pos?.x || 0;
+        if (y !== rowY) { rowY = y; end = 0; }
+        const lead = flowAtOf(w) != null ? Math.max(0, x - end) : 0;
+        end = x + (w.span?.cols || 1);
+        return lead > 0 ? { ...w, __lead: lead } : w;
+      });
     }
     if (!freeMode || editMode) return widgets;
     // Opened widgets: as many rows as they now need, and whatever they
@@ -1970,6 +1989,10 @@ export default function ExperimentalDashboard({
   // Drop-target ghost while a widget drags in free mode.
   const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash, beside }
   const [dragId, setDragId] = React.useState(null);
+  const gapPxRef = React.useRef(gapPx);
+  gapPxRef.current = gapPx;
+  const gridColsRef = React.useRef(gridCols);
+  gridColsRef.current = gridCols;
   const handleDragTarget = React.useCallback((instanceId, t) => {
     // Flow pages draw a bar on the side of the widget it would land next
     // to — measured here, from the live page, relative to the canvas.
@@ -1983,6 +2006,13 @@ export default function ExperimentalDashboard({
         const g = grid.getBoundingClientRect();
         const r = host.getBoundingClientRect();
         mark = { side: b.side, left: r.left - g.left, top: r.top - g.top, width: r.width, height: r.height };
+        // Dropped in empty space: the bar shows the column and width it
+        // will stand at, not the neighbour's.
+        if (typeof b.at === "number" && t?.cols) {
+          const pitch = (g.width + gapPxRef.current) / gridColsRef.current;
+          mark.left = b.at * pitch;
+          mark.width = Math.max(8, t.cols * pitch - gapPxRef.current);
+        }
       }
     }
     setDragGhost(t ? { ...t, mark } : null);

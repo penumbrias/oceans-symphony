@@ -142,4 +142,26 @@ test("flow drop beside keeps rows below in order and the array order stored", ()
   assert.equal(hasOverlaps(out, 4), false);
 });
 
+test("flow drop in empty space stands at the chosen column (flowAt)", () => {
+  // Penumbra's profile: a row with room left over, then a narrow widget.
+  const page = flowRepack([w("a", 0, 0, 2), w("b", 2, 0, 1), w("c", 0, 1, 1)], 4);
+  // Dropped below the row at column 1.5 → its own row, at 1.5.
+  const below = flowPlace(page, 4, "c", "b", "after", () => 1, 1.5);
+  assert.deepEqual(at(below, "c").pos, { x: 1.5, y: 1 });
+  assert.equal(at(below, "c").settings.flowAt, 1.5);
+  // Dropped in the row's empty end → joins that row (room for it).
+  const end = flowPlace(page, 4, "c", "b", "after", () => 1, 3);
+  assert.deepEqual(at(end, "c").pos, { x: 3, y: 0 });
+  // A column already passed on the row starts the next row there.
+  const back = flowPlace(page, 4, "c", "b", "after", () => 1, 1);
+  assert.deepEqual(at(back, "c").pos, { x: 1, y: 1 });
+  // A wider widget is held inside the page.
+  const wide = flowRepack([{ ...w("d", 0, 0, 3), settings: { flowAt: 3 } }], 4);
+  assert.deepEqual(at(wide, "d").pos, { x: 1, y: 0 });
+  // Dropping on a widget's edge clears the column.
+  const joined = flowPlace(below, 4, "c", "a", "left");
+  assert.equal(at(joined, "c").settings.flowAt, undefined);
+  assert.equal(hasOverlaps(below, 4), false);
+});
+
 console.log(`\n${passed} passed`);

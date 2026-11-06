@@ -165,10 +165,20 @@ export function useFreeMove({
           if (f < BESIDE_EDGE) beside = { id: hit.id, side: "left" };
           else if (f > 1 - BESIDE_EDGE) beside = { id: hit.id, side: "right" };
           else beside = { id: hit.id, side: (py - hit.top) < hit.height / 2 ? "before" : "after" };
-        } else {
-          // Below every widget = the end of the page.
-          const last = st.boxes.reduce((a, b) => (!a || b.top + b.height >= a.top + a.height ? b : a), null);
-          if (last && py > last.top + last.height) beside = { id: last.id, side: "after" };
+        } else if (st.boxes.length) {
+          // Empty space is a place too (v0.364.14): a drop between or beside
+          // widgets used to spring back ("can't freely position"). It goes
+          // next to the nearest widget in the page's order and stands at
+          // the column the finger chose (`at`, in the same steps as a
+          // move on the widget board).
+          const gapTo = (b) => Math.hypot(
+            px < b.left ? b.left - px : px > b.left + b.width ? px - (b.left + b.width) : 0,
+            py < b.top ? b.top - py : py > b.top + b.height ? py - (b.top + b.height) : 0,
+          );
+          const near = st.boxes.reduce((a, b) => (gapTo(b) < gapTo(a) ? b : a));
+          const inRow = py >= near.top && py <= near.top + near.height;
+          const before = inRow ? px < near.left : py < near.top;
+          beside = { id: near.id, side: before ? "before" : "after", at: x };
         }
       } else if (onBeside && !overTrash) {
         const own = node.closest?.("[data-widget-id]");
