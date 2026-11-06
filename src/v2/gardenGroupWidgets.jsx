@@ -11,6 +11,7 @@
 //   • nothing on the page when there's nothing to show, and a name while
 //     the layout is being edited.
 
+import { groupFieldsField } from "@/components/v2/recordFieldEditors";
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -423,6 +424,7 @@ export const GARDEN_GROUP_WIDGETS = {
     render: ({ settings, mode }) => <GroupIdentityWidget settings={settings} mode={mode} />,
     supportsModes: MODES, defaultSpan: { cols: 12, rows: 2 },
     configFields: [
+      groupFieldsField(["name"]),
       { key: "showAvatar", type: "toggle", label: "Show the picture", default: true },
       { key: "avatarShape", type: "select", label: "Picture shape", default: "rounded",
         options: [{ value: "circle", label: "Circle" }, { value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }] },
@@ -436,6 +438,7 @@ export const GARDEN_GROUP_WIDGETS = {
     description: "The group's description. Minimal is the first few lines as plain text.",
     render: ({ mode }) => <GroupAboutWidget mode={mode} />,
     supportsModes: ["minimal", "normal"], defaultSpan: { cols: 12, rows: 2 },
+    configFields: [groupFieldsField(["description"])],
   },
   group_members: {
     ...base, label: "Group {{alters}}", icon: Users,

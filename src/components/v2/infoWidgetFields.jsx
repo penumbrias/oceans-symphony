@@ -8,7 +8,7 @@
 import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronUp, ChevronDown, X, Plus, ImagePlus, Loader2, Film, Crop } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronRight, X, Plus, ImagePlus, Loader2, Film, Crop } from "lucide-react";
 import ImageFramer from "@/components/shared/ImageFramer";
 import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
 import { base44 } from "@/api/base44Client";
@@ -20,12 +20,12 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { DebouncedText } from "@/components/shared/DebouncedFields";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { EntryInput, BioEntry, inputCls, smallBtn } from "@/components/alters/info/entryEditors";
-import { useInfoAlter, useInfoRecord, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL } from "@/v2/infoWidgets";
+import { useInfoAlter, useInfoRecord, DEFAULT_INFO_ENTRIES, ALL_FIELDS_ENTRY, ALL_FIELDS_LABEL, expandInfoEntryIds } from "@/v2/infoWidgets";
 import { useBoardSubject } from "@/lib/boardSubject";
 import { WhoseRow as RecordWhoseRow } from "@/components/v2/WhosePicker";
 import GroupSelect from "@/components/groups/GroupSelect";
 import { standardPagesFor } from "@/lib/infoPages";
-import { addOwnEntry, addSharedEntry } from "@/lib/alterInfoEntries";
+import { addOwnEntry, addSharedEntry, hiddenEntryIdsOf } from "@/lib/alterInfoEntries";
 import { refreshAlter } from "@/lib/alterEntry";
 import { mediaItemsOf, parseVideoLink } from "@/lib/mediaItems";
 import { uploadAlterImage, largeGifWarning, addAlterPicture } from "@/lib/alterImageUpload";
@@ -145,6 +145,45 @@ function AddPageRow({ info, ids, onAdded }) {
   );
 }
 
+const isBlank = (v) => v === undefined || v === null || (typeof v === "string" && !v.replace(/<[^>]*>/g, "").trim());
+
+// ── "Every other field" on a Field widget ────────────────────────────
+// It stands for every custom field not listed on its own, so its Content
+// tab lists those fields to fill in: the filled ones first, then the rest
+// behind "Fill in another field" so a long list doesn't bury the options.
+
+function AllFieldsEditor({ entries, valueOf, onCommit, k }) {
+  const [open, setOpen] = useState(false);
+  const filled = entries.filter((e) => !isBlank(valueOf(e.id)));
+  const empty = entries.filter((e) => isBlank(valueOf(e.id)));
+  const row = (entry) => (
+    <div key={entry.id} className="py-1.5" data-all-fields-entry={entry.id}>
+      <p className="text-xs font-medium text-muted-foreground pb-1">{entry.label}</p>
+      {entry.kind === "bio"
+        ? <BioEntry k={`${k}:${entry.id}`} value={valueOf(entry.id)} onChange={(v) => onCommit(entry.id, v)} />
+        : <EntryInput k={`${k}:${entry.id}`} type={entry.kind} label={entry.label} value={valueOf(entry.id)} onCommit={(v) => onCommit(entry.id, v)} />}
+    </div>
+  );
+  return (
+    <div className="pl-3 border-l-2 border-border/40 mt-1 space-y-0.5" data-all-fields-editor="">
+      <p className="text-xs text-muted-foreground">Every custom field not listed on its own, including ones added later. Fill them in here; the page shows the filled-in ones.</p>
+      {filled.map(row)}
+      {empty.length > 0 && (
+        <>
+          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+            className="w-full min-h-[44px] flex items-center gap-1.5 text-sm text-left text-foreground">
+            {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            {filled.length ? "Fill in another field" : "Fill in a field"}
+            <span className="text-xs text-muted-foreground">({empty.length} not filled in)</span>
+          </button>
+          {open && empty.map(row)}
+        </>
+      )}
+      {!entries.length && <p className="text-xs text-muted-foreground py-1">There are no other custom fields yet. Add one with New field.</p>}
+    </div>
+  );
+}
+
 export function InfoEntriesField({ settings, set }) {
   const t = useTerms();
   const formatAlter = useAlterLabel();
@@ -159,6 +198,12 @@ export function InfoEntriesField({ settings, set }) {
   const shown = ids.map((id) => (id === ALL_FIELDS_ENTRY ? (isAlter ? allFields : null) : all.find((e) => e.id === id))).filter(Boolean);
   const setIds = (next) => set({ entries: next });
   const pages = settings.layout === "pages";
+  // What "Every other field" stands for, to fill in here (v0.365.0).
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: isAlter });
+  const everyOther = isAlter && ids.includes(ALL_FIELDS_ENTRY)
+    ? expandInfoEntryIds(ids, all, hiddenEntryIdsOf(pickPrimarySystemSettings(settingsRows)))
+        .filter((id) => !ids.includes(id)).map((id) => all.find((e) => e.id === id)).filter(Boolean)
+    : [];
 
   const commit = async (entryId, value) => {
     try { await info.write(entryId, value); } catch (e) { toast.error(e?.message || "Couldn't save that"); }
@@ -199,7 +244,7 @@ export function InfoEntriesField({ settings, set }) {
                   onRemove={(idx) => setIds(shown.filter((_, j) => j !== idx).map((e) => e.id))} />
               </div>
               {entry.kind === "all"
-                ? <p className="text-xs text-muted-foreground">Every custom field that's filled in and not listed on its own, including ones added later.</p>
+                ? <AllFieldsEditor k={`${type}:${record.id}`} entries={everyOther} valueOf={info.valueOf} onCommit={commit} />
                 : entry.kind === "bio"
                 ? <BioEntry k={`${type}:${record.id}`} value={info.valueOf("bio")} onChange={(v) => commit("bio", v)} />
                 : <EntryInput k={`${type}:${record.id}:${entry.id}`} type={entry.kind} label={entry.label}

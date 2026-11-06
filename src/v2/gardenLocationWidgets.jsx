@@ -10,6 +10,7 @@
 // it — comes from useLocationContext, the same reading the classic sections
 // use (cycle-safe coordinate containment on one map).
 
+import { locationFieldsField } from "@/components/v2/recordFieldEditors";
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -239,6 +240,7 @@ export const GARDEN_LOCATION_WIDGETS = {
     render: ({ settings, mode }) => <LocationIdentityWidget settings={settings} mode={mode} />,
     supportsModes: MODES, defaultSpan: { cols: 12, rows: 2 },
     configFields: [
+      locationFieldsField(["name"]),
       { key: "showAvatar", type: "toggle", label: "Show the picture", default: true },
       { key: "avatarShape", type: "select", label: "Picture shape", default: "rounded",
         options: [{ value: "circle", label: "Circle" }, { value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }] },
@@ -252,6 +254,7 @@ export const GARDEN_LOCATION_WIDGETS = {
     description: "The location's description. Minimal is the first few lines as plain text.",
     render: ({ mode }) => <LocationAboutWidget mode={mode} />,
     supportsModes: ["minimal", "normal"], defaultSpan: { cols: 12, rows: 2 },
+    configFields: [locationFieldsField(["description"])],
   },
   location_alters: {
     ...base, label: "{{Alters}} here", icon: Users,
