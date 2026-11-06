@@ -380,7 +380,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🗂️", title: "Prefer the older form?",
-      body: `Settings → ${t.Alters} → Profile layouts → "Use the classic edit form" makes Info open the older one-page form with a Save button. The same switch is under "Profile page" in Info.`,
+      body: `Settings → ${t.Alters} → Profile layouts → "Classic edit form for every ${t.alter}" makes Info open the older one-page form with a Save button. The same switch is under "Profile page" in Info.`,
       route: profile(), target: onProfile("alter-profile-edit-btn"),
     }),
     s("profile", {

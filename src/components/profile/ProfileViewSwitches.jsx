@@ -24,8 +24,8 @@ export default function ProfileViewSwitches({ show = ["holdToEdit", "classicForm
           checked={prefs.holdToEdit} onChange={(on) => flip("holdToEdit", on)} />
       )}
       {show.includes("classicForm") && (
-        <SwitchRow label="Use the classic edit form"
-          hint={`The Info button on ${t.alter} profiles opens the older one-page form, with a Save button. Both change the same details.`}
+        <SwitchRow label={`Classic edit form for every ${t.alter}`}
+          hint={`One switch for the whole app: on every ${t.alter} profile, Info opens the older one-page form with a Save button. Both change the same details.`}
           checked={prefs.classicForm} onChange={(on) => flip("classicForm", on)} />
       )}
     </div>

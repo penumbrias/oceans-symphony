@@ -38,7 +38,7 @@ export default function ProfileWelcome() {
         ))}
       </ul>
       <p className="text-xs text-muted-foreground">
-        Prefer the older one-page form? Settings → {t.Alters} → Profile layouts → "Use the classic edit form".
+        Prefer the older one-page form? Settings → {t.Alters} → Profile layouts → "Classic edit form for every {t.alter}".
       </p>
       <div className="pt-1">
         <Button size="sm" disabled={busy} onClick={done} className="min-h-[44px]">Got it</Button>

@@ -36,6 +36,8 @@ import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 import ProfileWelcome from "@/components/profile/ProfileWelcome";
+import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
+import { Row } from "@/components/shared/SettingRows";
 import { useProfileViewPrefs } from "@/lib/profileViewPrefs";
 
 import { framedBackgroundStyle, framingFor } from "@/lib/imageFraming";
@@ -508,11 +510,32 @@ function AlterProfileInner() {
           // The old pencil form, kept behind Alter info's ⋯ menu (v0.298.0)
           // for anyone who still wants it. Its Save writes only what changed
           // (saveAlterEdits).
-          <ProfileTab
-            alter={alter}
-            onEditModeChange={setEditMode}
-            saveRef={saveRef}
-          />
+          <>
+            {/* Ways out of the classic form (v0.364.1): with "Use the
+                classic edit form" on, Info opens this form, so the Info
+                sheet's own switches can't be reached from here. Each one
+                saves the form first (only what changed) and stops if the
+                save didn't go through, so nothing typed is lost. */}
+            <div data-classic-form-exits="" className="mb-3 rounded-xl border border-border/60 bg-muted/30 px-3 py-1">
+              <Row label="Classic edit form" hint={`On for every ${terms.alter}, so Info opens this form everywhere. This button switches it off for all of them.`}>
+                <Button variant="outline" size="sm" className="min-h-[36px]" data-classic-form-off=""
+                  onClick={async () => {
+                    if (!(await saveRef.current?.())) return;
+                    try { await viewPrefs.set("classicForm", false); setEditMode("info"); }
+                    catch (e) { toast.error(e?.message || "That didn't save"); }
+                  }}>
+                  Use the Info tabs everywhere
+                </Button>
+              </Row>
+              <ProfileLayoutSwitch ownerType="alter" record={alter} noun={terms.alter} plural={terms.alters}
+                onBefore={async () => { if (!(await saveRef.current?.())) throw new Error("Save your changes first"); }} />
+            </div>
+            <ProfileTab
+              alter={alter}
+              onEditModeChange={setEditMode}
+              saveRef={saveRef}
+            />
+          </>
         ) : (
           <>
             {onProfilePage && !layoutEditing && <ProfileWelcome />}
