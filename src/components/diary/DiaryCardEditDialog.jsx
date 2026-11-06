@@ -18,32 +18,21 @@ import { Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { confirm } from "@/components/shared/ConfirmDialog";
+import { deleteWithUndo } from "@/lib/undoDelete";
 import DiarySection from "@/components/diary/DiarySection";
 import { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 
 export { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 import { clockPattern } from "@/lib/timeFormat";
 
-export async function deleteDiaryCardWithConfirm(card, queryClient) {
+// Goes to the trash at once, with an Undo on the toast (UI critique H3).
+export async function deleteDiaryCard(card, queryClient) {
   if (!card?.id) return false;
-  const when = card.date ? ` from ${format(new Date(`${card.date}T12:00:00`), "MMM d, yyyy")}` : "";
-  const ok = await confirm({
-    title: "Delete this diary card?",
-    body: `This removes the whole diary card${when} (urges, body + mind, skills + safety). Your other check-ins, notes and symptoms are not touched. To fix just one answer, use Edit instead.`,
-    confirmLabel: "Delete",
-    destructive: true,
+  return deleteWithUndo({
+    label: "Diary card deleted",
+    run: () => base44.entities.DiaryCard.delete(card.id),
+    refresh: () => queryClient?.invalidateQueries({ queryKey: ["diaryCards"] }),
   });
-  if (!ok) return false;
-  try {
-    await base44.entities.DiaryCard.delete(card.id);
-    queryClient?.invalidateQueries({ queryKey: ["diaryCards"] });
-    toast.success("Diary card deleted");
-    return true;
-  } catch (e) {
-    toast.error(e?.message || "Couldn't delete the diary card.");
-    return false;
-  }
 }
 
 export default function DiaryCardEditDialog({ card, onClose }) {
@@ -70,7 +59,7 @@ export default function DiaryCardEditDialog({ card, onClose }) {
   };
 
   const handleDelete = async () => {
-    if (await deleteDiaryCardWithConfirm(card, queryClient)) onClose?.();
+    if (await deleteDiaryCard(card, queryClient)) onClose?.();
   };
 
   const when = card?.date ? format(new Date(`${card.date}T12:00:00`), "EEEE, MMM d") : "";
