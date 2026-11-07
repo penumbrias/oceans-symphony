@@ -29,7 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, CheckSquare, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  ArrowUpToLine, ArrowDownToLine, Home, Palette, Magnet,
+  ArrowUpToLine, ArrowDownToLine, Home, Palette, Magnet, FoldVertical,
 } from "lucide-react";
 import { openProfileLook } from "@/lib/lookSubject";
 import {
@@ -2918,6 +2918,18 @@ export default function ExperimentalDashboard({
               <Magnet className="w-4 h-4" />
               <span className="text-[0.5625rem]">{boardSnap ? "Snap on" : "Snap off"}</span>
             </button>
+            {/* Close gaps (v0.368.4): on the bar, not tucked in Save / exit,
+                where nobody found it (owner report). */}
+            {pageIsFree && !flowView && (
+            <button type="button" aria-label="Close gaps on this page" title="Close gaps — slide every widget up into the empty space above it"
+              data-close-gaps=""
+              onClick={() => { closeEditSurfaces(); collapseGaps(); }}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground">
+              <FoldVertical className="w-4 h-4" />
+              {/* ui-ok: same size as the edit bar's other labels; the bar is resized as one in the UI critique (C3). */}
+              <span className="text-[0.5625rem]">Close gaps</span>
+            </button>
+            )}
             {!profileBoard && (
             <button type="button" aria-label="Display options" title="Display options"
               onClick={() => openHomeSettings()}
@@ -2960,10 +2972,6 @@ export default function ExperimentalDashboard({
                   <button type="button" onClick={resetThisLayout}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg text-destructive hover:bg-destructive/10">Reset this layout…</button>
                   </>)}
-                  {pageIsFree && !flowView && (
-                  <button type="button" onClick={() => { setSaveMenuOpen(false); collapseGaps(); }}
-                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Close gaps on this page</button>
-                  )}
                   {!profileBoard && (<>
                   <button type="button" onClick={() => openPackSheet("export")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
