@@ -44,6 +44,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 export const ONBOARDING_DONE_KEY = "symphony_onboarding_done_v1";
 export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
 import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
+import { systemHasPersonalData } from "@/lib/setupGate";
 import { useTerms } from "@/lib/useTerms";
 import { runQuickAction } from "@/lib/quickActionRunner";
 import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
@@ -175,7 +176,18 @@ export default function Dashboard() {
       // new-system creation. Legacy users (terms already done + guide
       // marked done) never see it — they'll open it via the Guide button.
       // Waits for the backup decision so the two never stack.
-      if (backupDecided && ((!guidedDone && !termsDone) || pendingFromNewSystem)) setShowTour(true);
+      if (!backupDecided) return;
+      if (pendingFromNewSystem) { setShowTour(true); return; }
+      if (guidedDone || termsDone) return;
+      // The flags are browser storage, which phone cleaners wipe and a
+      // restore doesn't carry. A system that already holds data has been
+      // set up: record that instead of re-running the Guide over it.
+      if (systemHasPersonalData()) {
+        localStorage.setItem("tour_seen", "1");
+        psSetItem(ONBOARDING_DONE_KEY, "1");
+        return;
+      }
+      setShowTour(true);
     } catch { /* storage off */ }
   }, [pendingFromNewSystem, backupDecided]);
   const checklistIncomplete = !checklistComplete(checklistState);

@@ -18,6 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "November 7, 2026",
+    changes: [
+      { type: "fix", text: "If your phone clears the app's browser storage, an already set-up system no longer gets the first-run setup guide again." },
+      { type: "fix", text: "Finishing the setup guide no longer adds or removes tracked symptoms unless you changed them yourself." },
+      { type: "fix", text: "The feature tour no longer creates a \"Tour Demo\" profile when there are no profiles yet." },
+      { type: "fix", text: "Choosing to track no starter symptoms is now kept in backups, so the starter list doesn't come back after storage is cleared." },
+    ],
+  },
+  {
     date: "November 6, 2026",
     changes: [
       { type: "feature", text: "New Emergency info card: how to talk with you, allergies, medications, who to call and your safety plan, shown full screen in big text for someone helping you. Open it from Quick Support, the Safety Plan or Contacts." },

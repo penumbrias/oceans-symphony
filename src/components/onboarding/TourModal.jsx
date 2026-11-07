@@ -103,7 +103,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
     if (!open) setTermsSaved(false);
   }, [open]);
 
-  const { data: symptoms = [] } = useQuery({
+  const { data: symptoms = [], isSuccess: symptomsLoaded } = useQuery({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
     enabled: !!open,
@@ -124,8 +124,17 @@ export default function TourModal({ open, onClose, openAt = null }) {
     [symptoms]
   );
 
+  // Whether the person changed the tracking selection on this visit. The
+  // Guide's Next ("Complete setup!") applies the selection only when they
+  // did; an untouched list writes nothing (v0.368.1 — it used to add the
+  // starter packs, or archive ones it thought were unticked).
+  const [selectionTouched, setSelectionTouched] = useState(false);
+
   useEffect(() => {
-    if (open && !initialized) {
+    // Build the starting selection only once the person's symptoms have
+    // loaded. Built from a not-yet-loaded (empty) list, it looked like a
+    // fresh install and pre-ticked every starter pack.
+    if (open && !initialized && symptomsLoaded) {
       const start = new Set(symptomByBundleKey.keys());
       if (symptomByBundleKey.size === 0) {
         defaultBundleKeys().forEach((k) => start.add(k));
@@ -135,23 +144,31 @@ export default function TourModal({ open, onClose, openAt = null }) {
     } else if (!open && initialized) {
       setInitialized(false);
       setSelected(new Set());
+      setSelectionTouched(false);
     }
-  }, [open, initialized, symptomByBundleKey]);
+  }, [open, initialized, symptomsLoaded, symptomByBundleKey]);
 
-  const toggleItem = (key) =>
+  const toggleItem = (key) => {
+    setSelectionTouched(true);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
-  const toggleBundle = (_id, keys, select) =>
+  };
+  const toggleBundle = (_id, keys, select) => {
+    setSelectionTouched(true);
     setSelected((prev) => {
       const next = new Set(prev);
       keys.forEach((k) => (select ? next.add(k) : next.delete(k)));
       return next;
     });
+  };
 
   const applyBundlesDiff = async () => {
+    // Never diff against a list that hasn't loaded: every real row would
+    // look unticked.
+    if (!symptomsLoaded || !initialized) return;
     let created = 0, removed = 0;
     // One disk write for the whole choice, not one per item.
     await withBatch(async () => {
@@ -174,6 +191,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
     }
     });
     markBundlesChosen();
+    setSelectionTouched(false);
     qc.invalidateQueries({ queryKey: ["symptoms"] });
     if (created || removed) {
       const parts = [];
@@ -279,7 +297,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       // Auto-save the bundle diff on advance too, in case the user
       // adjusted tracking selection but didn't click the section's own
       // "Save tracking selection" button.
-      onNext: applyBundlesDiff,
+      onNext: () => (selectionTouched ? applyBundlesDiff() : undefined),
       nextLabel: "Complete setup!",
     },
     // Transition — setup is done. "Dive in" is the recommended path; "Read
