@@ -34,7 +34,8 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // Setup progress lives on the system's settings row (v0.369.0) — read and
 // written only through src/lib/onboardingState.js. The older per-system
 // browser flag is still read there, and still written for older versions.
-import { ONBOARDING_DONE_KEY, isOnboardingDone, markOnboardingDone, recordOnboarding } from "@/lib/onboardingState";
+import { ONBOARDING_DONE_KEY, isOnboardingDone, markOnboardingDone, recordOnboarding, storedOnboarding } from "@/lib/onboardingState";
+import { settledInForSurvey } from "@/lib/setupModel";
 export { ONBOARDING_DONE_KEY };
 import { psRemoveItem } from "@/lib/perSystemStorage";
 import { systemHasPersonalData } from "@/lib/setupGate";
@@ -174,7 +175,17 @@ export default function Dashboard() {
   const surveyReady = (() => {
     try {
       return backupDecided && !showTour && !isPreviewActive()
-        && isOnboardingDone(pickPrimarySystemSettings(settings));
+        && isOnboardingDone(pickPrimarySystemSettings(settings))
+        // …and only once the system has used the app for a few days —
+        // right after setup is too soon to ask how it's going.
+        && (() => {
+          const row = pickPrimarySystemSettings(settings);
+          return settledInForSurvey({
+            onboarding: storedOnboarding(row),
+            createdDate: row?.created_date || null,
+            hasSettingsRow: !!row,
+          });
+        })();
     } catch { return false; }
   })();
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");

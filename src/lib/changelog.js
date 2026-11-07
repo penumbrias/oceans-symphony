@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "improve", text: "The feedback survey card now waits until you've used the app for a few days, instead of appearing right after setup." },
       { type: "feature", text: "New \"What we've set up so far\" card shows your words, who's here, backups and the safety basics, marked from what's really saved. New systems start with it on the home screen." },
       { type: "feature", text: "Settings → Setup shows the same list, with Start over and Show me around. The old \"Continue setup\" pop-up is gone." },
       { type: "improve", text: "Setup progress is now kept with your data, so it's the same for everyone who fronts, survives a cleared cache and comes back with a restored backup." },

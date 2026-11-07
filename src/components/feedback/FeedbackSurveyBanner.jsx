@@ -2,8 +2,9 @@
 // card from the app's creator; one tap opens the survey, the × or "No thanks" hides
 // it for good (the survey stays in Settings → About → Share feedback). It
 // also goes away once they've sent their answers. Waits its turn in the
-// attention slot behind reminders (it can share the screen with the notice stack), and never shows before
-// the first-run setup is done — new people have nothing to say yet.
+// attention slot behind reminders (it can share the screen with the notice stack), and never shows until
+// a system has used the app for a few days after setup (Dashboard passes
+// `ready`, see settledInForSurvey in setupModel.js).
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
