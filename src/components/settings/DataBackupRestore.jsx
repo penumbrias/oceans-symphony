@@ -133,6 +133,7 @@ const ENTITY_NAMES = [
   "ImageAsset", "AssetFolder", "GroupNote", "Presence",
   "Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter",
   "CustomFont",
+  "Medication", "MedicationDose", "EmergencyInfo",
   "AlterActivityLink", "FeelingLink", "ActivityLinkType",
   "Wish",
   "Goal",
@@ -188,6 +189,7 @@ export const EXPORT_CATEGORIES = [
   { id: "images",        label: "Local Files & Assets",     entities: ["ImageAsset", "AssetFolder"],                                         desc: "Uploaded pictures, audio, videos & attached files + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
   { id: "needs",         label: "Wishes & Needs",           entities: ["Wish", "Goal", "GoalStep", "TurnAgreement"],                         desc: "Wishlists, goals and turn agreements: wishes, goals and their steps, who they belong to, and why they matter" },
+  { id: "health",        label: "Health",                   entities: ["Medication", "MedicationDose", "EmergencyInfo"],                     desc: "Medications (doses, schedules, refills, notes), every dose marked taken or skipped, and your emergency info" },
   { id: "mods",          label: "Mods",                     entities: ["ModPackage", "ModData"],                                             desc: "Installed mods (other people's add-ons), their settings, and everything they saved" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];

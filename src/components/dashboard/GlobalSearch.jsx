@@ -51,6 +51,7 @@ const TYPE_ICONS = {
   wish:      "💗",
   goal:      "🎯",
   turn:      "🤝",
+  medication: "💊",
   reminder:  "⏰",
   grocery:   "📝",
   chat:      "💬",
@@ -90,6 +91,7 @@ function getTypeLabels(t) {
     wish:      "Wishes",
     goal:      "Goals",
     turn:      "Turn agreements",
+    medication: "Medications",
     reminder:  "Reminders",
     grocery:   "Notes & lists",
     chat:      "Chat Messages",
@@ -247,6 +249,11 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const { data: turns = [] } = useQuery({
     queryKey: ["searchTurns"],
     queryFn: () => safeList(base44.entities.TurnAgreement, "-created_date"),
+    staleTime: stale, enabled,
+  });
+  const { data: medications = [] } = useQuery({
+    queryKey: ["searchMedications"],
+    queryFn: () => safeList(base44.entities.Medication, "-created_date"),
     staleTime: stale, enabled,
   });
   const { data: goalSteps = [] } = useQuery({
@@ -407,6 +414,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alterNotes, alterMessages,
     wishes,
     goals, goalSteps, turns,
+    medications,
     reminders,
     groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
@@ -439,6 +447,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     alterNotes, alterMessages,
     wishes,
     goals, goalSteps, turns,
+    medications,
     reminders,
     groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
@@ -511,7 +520,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "page", "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn",
+    "page", "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn", "medication",
     "activity", "event", "task", "reminder", "checkin", "diarycard",
     "front", "location", "syschange", "symptom", "group", "groupnote", "contact", "contactnote", "relationship", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];

@@ -9,7 +9,7 @@
 // (`useTerms()`) and pass the labels in, same as navigationConfig's
 // resolveLabel pattern.
 
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, NotebookTabs, HeartHandshake, NotebookPen } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange, History, Puzzle, NotebookTabs, HeartHandshake, NotebookPen, Pill, Siren } from "lucide-react";
 import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { withoutHiddenExperimental } from "@/lib/experimentalFeatures";
 
@@ -60,9 +60,11 @@ function allGridItems(altersLabel, systemLabel) {
     { id: "notes",           label: "Notes & lists",          icon: NotebookPen,   path: "/notes",            color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
     { id: "goals",           label: "Notebook",               icon: NotebookTabs,        path: "/goals",            color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "needs",           label: "Needs",                  icon: HeartHandshake, path: "/needs",           color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
+    { id: "medications",     label: "Medications",            icon: Pill,          path: "/medications",      color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
     { id: "groups",          label: "Groups",                 icon: Users,         path: "/groups",           color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
     { id: "assets",          label: "Assets",                 icon: Images,        path: "/assets",           color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "safety-plan",     label: "Safety Plan",            icon: Shield,        path: "/safety-plan",      color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+    { id: "emergency",       label: "Emergency info",         icon: Siren,         path: "/emergency",        color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "polls",           label: "Polls",                  icon: Vote,          path: "/polls",            color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
     { id: "system-history",  label: `${systemLabel} History`, icon: GitMerge,      path: "/system-history",   color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "location-history",label: "Location History",       icon: MapPin,        path: "/location-history", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },

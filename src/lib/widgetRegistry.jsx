@@ -774,6 +774,7 @@ export const WIDGET_CATEGORIES = [
   { id: "activities", label: "Activity tracker" },
   { id: "tasks", label: "To-dos & daily tasks" },
   { id: "needs", label: "Needs & goals" },
+  { id: "health", label: "Medications" },
   { id: "journals", label: "Journals" },
   { id: "bulletins", label: "Bulletins & polls" },
   { id: "chat", label: "{{System}} chat" },

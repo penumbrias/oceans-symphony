@@ -18,9 +18,19 @@
 
 export const CHANGELOG = [
   {
-    date: "November 6, 2026",
+    date: "November 7, 2026",
     changes: [
-      { type: "feature", text: "A short feedback survey from the app's creator: answer a few questions about using the app and email them in. Find it on the home screen or in Settings → About → Share feedback." },
+      { type: "feature", text: "A short, optional feedback survey from the app's creator: answer a few questions about using the app and email them in. Find it on the home screen or in Settings → About → Share feedback." },
+    ],
+  },
+  {
+    date: "November 6, 2026",
+    version: "0.368.0",
+    changes: [
+      { type: "feature", text: "New Emergency info card: how to talk with you, allergies, medications, who to call and your safety plan, shown full screen in big text for someone helping you. Open it from Quick Support, the Safety Plan or Contacts." },
+      { type: "feature", text: "With a password set, you can choose parts of your emergency card to show on the unlock screen. It's off until you turn it on." },
+      { type: "feature", text: "New Medications page: add your medications with their dose, purpose and times, mark today's doses taken or skipped, and see when each runs out. Optional refill reminders never name the medicine." },
+      { type: "improve", text: "Routines: a routine can now tick itself once all of today's scheduled medications are marked taken. Backups include medications under a new Health checkbox." },
       { type: "fix", text: "Profiles and pages: widgets no longer overlap each other after the new layout; boards that already did are tidied up when opened." },
       { type: "improve", text: "Profiles and pages: widgets now stay exactly where you put them (like with \"Overlap other widgets\" on), and ones you haven't resized still grow to fit what they show." },
       { type: "improve", text: "Opening the app: the loading screen now stays up until your home screen is fully ready, instead of showing a half-loaded page, and startup does a little less work." },

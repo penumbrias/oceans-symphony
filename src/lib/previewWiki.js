@@ -707,6 +707,19 @@ const bioSafetyPlan = `
     `Sits alongside the grounding tools and crisis-line resources so support is one surface, not a scavenger hunt.`)}
 `;
 
+// ── 25b. Medications & emergency info (v0.368.0) ───────────────────────
+const bioMedsEmergency = `
+  ${intro("Guide · Medications & emergency info", `Keep track of your medications and refills, and keep a card of what a helper should know when you can't speak.`)}
+  ${section("Medications",
+    `Add each medication with its dose, what it's for and when you take it. <strong>Today</strong> lists today's doses with Took it and Skip, and notes who was fronting. A course with an end date says when it finishes.`)}
+  ${section("Refills",
+    `Fill in the last refill and how many you got, and <strong>Refills</strong> shows when each one runs out. A reminder can tell you a few days ahead. It never names the medicine.`)}
+  ${section("Emergency info",
+    `One card with how to talk with you, allergies, conditions, medications, your emergency contacts with Call buttons and your safety plan. <strong>Show to someone</strong> opens it full screen in big text.`)}
+  ${section("On the unlock screen, only if you choose",
+    `With a password set, you can pick parts of the card to show on the unlock screen, so a helper can read them without unlocking. It's off until you turn it on, and nothing else leaves the encrypted data.`)}
+`;
+
 // ── 26. Contacts — "who are you with?" ──────────────────────────────────
 const bioContacts = `
   ${hero({ eyebrow: "Feature · External people", title: "Contacts", blurb: `A private directory of the people in your life — the parallel to your alter roster, but pointed outward. Safe people, tricky people, professionals.`, c1: "#0ea5e9", c2: "#22c55e", emoji: "🧭" })}
@@ -978,6 +991,7 @@ export function buildPages() {
     grounding:  wikiAlter({ name: "Grounding & Learn",      alias: "calm",  role: "Support",          color: "#22c55e", order_index: 24, description: bioGrounding }),
     unblend:    wikiAlter({ name: "Unblend & get to know me",alias: "unbl", role: "Grounding Qs",     color: "#16a34a", order_index: 25, description: bioUnblend }),
     safetyPlan: wikiAlter({ name: "Safety plan",            alias: "safe",  role: "Crisis plan",      color: "#dc2626", order_index: 26, description: bioSafetyPlan }),
+    medsEmergency: wikiAlter({ name: "Medications & emergency info", alias: "meds", role: "Health",      color: "#0284c7", order_index: 26.5, description: bioMedsEmergency }),
     reminders:  wikiAlter({ name: "Reminders & push",       alias: "ping",  role: "Notifications",    color: "#f97316", order_index: 27, description: bioReminders }),
     // 6 · Connection
     contacts:   wikiAlter({ name: "Contacts",               alias: "who",   role: "External people",  color: "#0ea5e9", order_index: 28, description: bioContacts }),
@@ -1009,7 +1023,7 @@ export function buildPages() {
     { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, Alter info, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.layouts.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
     { id: uid("wiki-group"), name: "3 · Fronting & system", color: "#a855f7", description: "Who's out, lineage over time, the inner-world map, and presences.",           member_alter_ids: [A.fronting.id, A.systemHistory.id, A.systemMap.id, A.presences.id], parent: "root", order: 2 },
     { id: uid("wiki-group"), name: "4 · Tracking",          color: "#10b981", description: "Dashboard, timeline, activities, check-ins, symptoms, sleep, locations, tasks, diary.", member_alter_ids: [A.dashboard.id, A.timeline.id, A.activities.id, A.checkIn.id, A.symptoms.id, A.sleep.id, A.locations.id, A.todo.id, A.pinnedDailyTasks.id, A.diary.id], parent: "root", order: 3 },
-    { id: uid("wiki-group"), name: "5 · Reflection & support", color: "#22c55e", description: "Journaling, grounding & learn, unblend, safety plan, reminders.",           member_alter_ids: [A.journaling.id, A.grounding.id, A.unblend.id, A.safetyPlan.id, A.reminders.id], parent: "root", order: 4 },
+    { id: uid("wiki-group"), name: "5 · Reflection & support", color: "#22c55e", description: "Journaling, grounding & learn, unblend, safety plan, medications & emergency info, reminders.",           member_alter_ids: [A.journaling.id, A.grounding.id, A.unblend.id, A.safetyPlan.id, A.medsEmergency.id, A.reminders.id], parent: "root", order: 4 },
     { id: uid("wiki-group"), name: "6 · Connection",        color: "#ec4899", description: "Contacts (external people), system chat, bulletins, and friends mode.",       member_alter_ids: [A.contacts.id, A.systemChat.id, A.bulletin.id, A.friends.id], parent: "root", order: 5 },
     { id: uid("wiki-group"), name: "7 · Insight & data",    color: "#6366f1", description: "Analytics, therapy reports, settings, privacy, and multiple systems.",        member_alter_ids: [A.analytics.id, A.reports.id, A.settings.id, A.privacy.id, A.multipleSystems.id], parent: "root", order: 6 },
   ];

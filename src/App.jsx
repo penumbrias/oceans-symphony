@@ -66,6 +66,8 @@ const PlannerPage = lazy(() => import('@/pages/Planner'));
 const GoalsPage = lazy(() => import('@/pages/Goals'));
 const NotesPage = lazy(() => import('@/pages/Notes'));
 const NeedsPage = lazy(() => import('@/pages/Needs'));
+const MedicationsPage = lazy(() => import('@/pages/Medications'));
+const EmergencyPage = lazy(() => import('@/pages/Emergency'));
 const ActivitiesPage = lazy(() => import('@/pages/Activities'));
 const ModsPage = lazy(() => import('@/pages/Mods'));
 const ModPage = lazy(() => import('@/pages/ModPage'));
@@ -111,6 +113,8 @@ import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
 import { usePlanReminderSync } from '@/lib/planReminderScheduler';
 import { useEventReminderSync } from '@/lib/eventReminderScheduler';
+import { useMedicationReminderSync } from '@/lib/medicationReminderScheduler';
+import { useEmergencyLockCopySync } from '@/lib/useEmergencyCard';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -163,6 +167,8 @@ const AuthenticatedApp = () => {
   usePlanReminderSync();
   // Reminders for planner events (payday, birthdays) the person turned on.
   useEventReminderSync();
+  useMedicationReminderSync();
+  useEmergencyLockCopySync();
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();
@@ -329,6 +335,8 @@ const AuthenticatedApp = () => {
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/needs" element={<NeedsPage />} />
+        <Route path="/medications" element={<MedicationsPage />} />
+        <Route path="/emergency" element={<EmergencyPage />} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
         <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />

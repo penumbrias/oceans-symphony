@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle, NotebookTabs, HeartHandshake, NotebookPen } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange , History, Puzzle, NotebookTabs, HeartHandshake, NotebookPen, Pill, Siren } from "lucide-react";
 import { EXPERIMENTAL_PAGE_IDS, experimentalOn, subscribeExperimental } from "@/lib/experimentalFeatures";
 
 export const ALL_PAGES = [
@@ -29,6 +29,8 @@ export const ALL_PAGES = [
   { id: "goals", label: "Notebook", path: "/goals", icon: NotebookTabs },
   { id: "notes", label: "Notes & lists", path: "/notes", icon: NotebookPen },
   { id: "needs", label: "Needs", path: "/needs", icon: HeartHandshake },
+  { id: "medications", label: "Medications", path: "/medications", icon: Pill },
+  { id: "emergency", label: "Emergency info", path: "/emergency", icon: Siren },
   { id: "contacts", label: "Contacts", path: "/contacts", icon: Contact },
   { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
@@ -71,9 +73,9 @@ export function pageLabel(pageOrId, terms) {
 export const NAV_AREAS = [
   { id: "today",   label: "Today",       pages: ["home", "reminders", "bulletins", "polls", "friends"] },
   { id: "us",      label: "{System}",    pages: ["alters", "checkin", "groups", "chat", "presences", "contacts", "get-to-know-me", "system-map", "system-history", "assets"] },
-  { id: "plan",    label: "Plan & do",   pages: ["planner", "tasks", "todo", "activities", "needs", "sleep"] },
+  { id: "plan",    label: "Plan & do",   pages: ["planner", "tasks", "todo", "activities", "needs", "medications", "sleep"] },
   { id: "write",   label: "Write",       pages: ["journals", "goals", "notes"] },
-  { id: "support", label: "Support",     pages: ["support", "unblend", "safety-plan"] },
+  { id: "support", label: "Support",     pages: ["support", "unblend", "safety-plan", "emergency"] },
   { id: "back",    label: "Look back",   pages: ["timeline", "checkin-log", "analytics", "location-history", "therapy-report", "history-archive"] },
   { id: "more",    label: "More",        pages: ["settings", "mods"] },
 ];
@@ -135,6 +137,7 @@ export const DEFAULT_CONFIG = {
     "notes",
     "goals",
     "needs",
+    "medications",
     "checkin-log",
     "unblend",
     "get-to-know-me",
@@ -151,6 +154,7 @@ export const DEFAULT_CONFIG = {
     "polls",
     "support",
     "safety-plan",
+    "emergency",
     "therapy-report",
     "contacts",
     "reminders",

@@ -766,6 +766,20 @@ export function buildTurnRecords({ items = [], alters = [] }) {
   }));
 }
 
+// Medications (v0.367.0). Private by design: only the name and the dose
+// are findable — never what it's for, the notes or the dose history.
+export function buildMedicationRecords({ items = [] }) {
+  return items.filter((m) => m && m.name).map((m) => ({
+    type: "medication",
+    id: `medication-${m.id}`,
+    title: m.name,
+    subtitle: [m.dose, m.is_archived ? "stopped" : null].filter(Boolean).join(" · "),
+    path: `/medications?tab=list&open=${encodeURIComponent(m.id)}`,
+    searchableText: joinNonEmpty([m.name, m.dose, "medication"]).toLowerCase(),
+    sortDate: m.created_date,
+  }));
+}
+
 export function buildSleepRecords({ items = [] }) {
   return items.map((s) => ({
     type: "activity",
@@ -1010,6 +1024,8 @@ const PAGE_KEYWORDS = {
   goals: "goals steps progress notebook projects stories writing chapters",
   notes: "notes lists flash cards checklist",
   needs: "needs wishes turns",
+  medications: "medications meds medicine pills doses refills prescription",
+  emergency: "emergency info card allergies ice in case of emergency medical id non-verbal nonverbal",
   contacts: "people contacts",
   bulletins: "bulletin board posts pinned",
   unblend: "unblend grounding",
@@ -1169,6 +1185,7 @@ export function buildSearchIndex(sources = {}) {
     alterNotes, alterMessages,
     wishes,
     goals, goalSteps, turns,
+    medications,
     reminders,
     groceries, groceryLists,
     chatMessages, chatChannels, frontingIds,
@@ -1220,6 +1237,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildWishRecords({ items: wishes || [], alters: alters || [] }));
   records.push(...buildGoalRecords({ items: goals || [], steps: goalSteps || [], alters: alters || [] }));
   records.push(...buildTurnRecords({ items: turns || [], alters: alters || [] }));
+  records.push(...buildMedicationRecords({ items: medications || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [], lists: groceryLists || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [], frontingIds: frontingIds || [] }));
