@@ -7,13 +7,7 @@ import { setMode, setEncryptionEnabled, getSessionPassword } from "@/lib/storage
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
 import DesktopFirstRunNotice from "@/components/onboarding/DesktopFirstRunNotice";
-import ImportAltersModal from "@/components/alters/ImportAltersModal";
-import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import { scanForOrphanedData } from "@/lib/dataRecovery";
-import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
-import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
-import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
-import OctoconConnect from "@/components/settings/OctoconConnect";
 import WhatLeavesDevice from "@/components/shared/WhatLeavesDevice";
 import BackupDecisionStep from "@/components/onboarding/BackupDecisionStep";
 import {
@@ -24,6 +18,18 @@ import {
   FORMAT_MULTISYSTEM,
   FORMAT_RAW_PLAIN,
 } from "@/lib/backupFormat";
+
+// The importers and the data-rescue panel sit behind closed sections most
+// new people never open, so they load on first use (v0.368.4) instead of
+// making everyone's welcome screen wait for about 80 KB gzipped of them.
+const ImportAltersModal = React.lazy(() => import("@/components/alters/ImportAltersModal"));
+const DataRescuePanel = React.lazy(() => import("@/components/settings/DataRescuePanel"));
+const SimplyPluralFileImport = React.lazy(() => import("@/components/settings/SimplyPluralFileImport"));
+const OpenPluralConnect = React.lazy(() => import("@/components/settings/OpenPluralConnect"));
+const OctoconConnect = React.lazy(() => import("@/components/settings/OctoconConnect"));
+const ImportLoading = () => (
+  <p className="text-sm text-muted-foreground py-2" role="status">Loading…</p>
+);
 
 function FirstRunSetup({ onComplete, allowOrphans = false }) {
   const [step, setStep] = useState("choose");
@@ -243,6 +249,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       const text = new TextDecoder("utf-8").decode(bytes);
       let probe = null;
       try { probe = JSON.parse(text); } catch {}
+      const { externalKindFromJson } = await import("@/components/settings/DataBackupRestore");
       const externalKind = externalKindFromJson(probe);
       if (externalKind) {
         setImporting(false);
@@ -581,6 +588,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
               </div>
             ) : (
               <>
+                <React.Suspense fallback={<ImportLoading />}>
                 {externalImport.type === "simplyplural" && (
                   <SimplyPluralFileImport presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
                 )}
@@ -590,6 +598,7 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
                 {externalImport.type === "openplural" && (
                   <OpenPluralConnect presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
                 )}
+                </React.Suspense>
                 <Button
                   type="button"
                   onClick={onComplete}
@@ -650,13 +659,21 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
       {/* SP / PK / OpenPlural import, opened after "Import from another
           app" sets up the empty local DB. Closing it (after importing or
           not) completes onboarding and drops the user into the app. */}
-      <ImportAltersModal
-        open={showImportModal}
-        onClose={() => { setShowImportModal(false); onComplete(); }}
-        contentClassName="z-[130]"
-      />
+      {showImportModal && (
+        <React.Suspense fallback={null}>
+          <ImportAltersModal
+            open={showImportModal}
+            onClose={() => { setShowImportModal(false); onComplete(); }}
+            contentClassName="z-[130]"
+          />
+        </React.Suspense>
+      )}
 
-      {showRescue && <DataRescuePanel onClose={() => setShowRescue(false)} />}
+      {showRescue && (
+        <React.Suspense fallback={null}>
+          <DataRescuePanel onClose={() => setShowRescue(false)} />
+        </React.Suspense>
+      )}
     </div>
   );
 }

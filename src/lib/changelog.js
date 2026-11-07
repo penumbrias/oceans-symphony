@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "improve", text: "First open: the loading screen now stays up until the welcome screen is ready, instead of flashing a blank page, and the welcome screen loads less." },
+      { type: "improve", text: "Opening the app does a little less work once you've read the latest \"What's new\"." },
       { type: "improve", text: "Editing a page: \"Close gaps\" is now a button on the edit bar instead of hidden in the Save / exit menu." },
       { type: "fix", text: "Welcome screen privacy notes now say exactly what a storage wipe keeps and what can leave your device." },
       { type: "fix", text: "Setup guide: the words step waits for your saved words before showing, Back has a name for screen readers, and each new step moves focus to its title." },
