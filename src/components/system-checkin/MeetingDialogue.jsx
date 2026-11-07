@@ -9,6 +9,7 @@ import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { WHISPER_PREVIEW } from "@/lib/whisperRedact";
 import ChatSurface from "@/components/chat/ChatSurface";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { an } from "@/lib/articles";
 
 // ── Meeting "open dialogue" space ────────────────────────────────────────────
 //
@@ -159,7 +160,7 @@ function StorageTargetPicker({ value, channelId, onChange, terms }) {
 
           {/* Existing channels */}
           <div className="px-2 pt-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80">
-            Save to a {terms.System} Chat channel
+            Save to {an(terms.System)} Chat channel
           </div>
           <div className="max-h-40 overflow-y-auto overscroll-contain rounded-md border border-border/30">
             {visibleChannels.length === 0 && (

@@ -14,6 +14,7 @@ import { shapeLayerStyles } from "@/lib/avatarShapes";
 import { alterPictureStyle } from "@/lib/imageFraming";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useWidgetChrome } from "@/v2/primitives";
+import { an } from "@/lib/articles";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -61,7 +62,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
   const emptyTerms = useTerms();
-  const emptyHint = `No pinned ${emptyTerms.alters} yet — tap the pin on an ${emptyTerms.alter}'s profile (or press and hold them and pick Pin).`;
+  const emptyHint = `No pinned ${emptyTerms.alters} yet — tap the pin on ${an(emptyTerms.alter)}'s profile (or press and hold them and pick Pin).`;
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

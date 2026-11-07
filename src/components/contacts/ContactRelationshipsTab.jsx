@@ -14,6 +14,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import RichText from "@/components/shared/RichText";
+import { An, an } from "@/lib/articles";
 
 // Phase 3 — relationships between a contact and the system / individual
 // alters / groups. The relationship TYPE comes from a SEPARATE, editable
@@ -195,7 +196,7 @@ export default function ContactRelationshipsTab({ contact }) {
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Relationship with</label>
             <div className="grid grid-cols-3 gap-1.5 mt-1.5">
               {TARGET_TYPES.map(({ key, icon: Icon }) => {
-                const label = key === "system" ? t.System : key === "alter" ? `An ${t.alter}` : "A group";
+                const label = key === "system" ? t.System : key === "alter" ? `${An(t.alter)}` : "A group";
                 const active = targetType === key;
                 return (
                   <button
@@ -216,7 +217,7 @@ export default function ContactRelationshipsTab({ contact }) {
             <div>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Which {t.alter}?</label>
               <div className="mt-1.5">
-                <AlterSearchSelect alters={alters} value={targetId} onChange={setTargetId} terms={t} showNone={false} placeholder={`Pick an ${t.alter}…`} />
+                <AlterSearchSelect alters={alters} value={targetId} onChange={setTargetId} terms={t} showNone={false} placeholder={`Pick ${an(t.alter)}…`} />
               </div>
             </div>
           )}

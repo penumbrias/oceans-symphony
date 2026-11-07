@@ -94,7 +94,7 @@ self.addEventListener('install', (event) => {
 
 // Background warm-up of every built chunk (v0.184.0). Pages are code-split
 // and fetched on first navigation; without this, a page never visited
-// online would be unavailable offline. Runs after activate, best-effort,
+// online would be unavailable offline. Runs when the page asks, best-effort,
 // one chunk at a time so it never competes with the page the user is
 // actually loading; a missing asset list (dev server) is simply skipped.
 async function warmChunkCache() {
@@ -125,10 +125,14 @@ self.addEventListener('activate', (event) => {
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
-      // Warm the chunk cache AFTER activation completes — deliberately not
-      // awaited inside waitUntil, so a slow warm-up never delays the page.
-      .then(() => { warmChunkCache(); })
   );
+});
+
+// The chunk warm-up runs when the page asks (v0.370.3): only once setup is
+// done and never on Data Saver (src/lib/setupDeferrals.js), so a new
+// person's first minutes don't download the whole app in the background.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'warm-cache') event.waitUntil(warmChunkCache());
 });
 
 self.addEventListener('fetch', (event) => {

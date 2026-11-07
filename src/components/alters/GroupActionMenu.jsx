@@ -12,6 +12,7 @@ import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
 import { groupNameColor } from "@/lib/contrast";
 import { wouldCreateOwnershipCycle } from "@/lib/subsystemUtils";
+import { an } from "@/lib/articles";
 
 // Popup for acting on a regular group folder (parity with the alter and
 // subsystem menus): manage members, assign a "root" (turns it into a
@@ -81,7 +82,7 @@ export default function GroupActionMenu({ group, onClose, onOpen }) {
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-              Pick an {t.alter} to be this group's root — that turns it into their {subTerm}.
+              Pick {an(t.alter)} to be this group's root — that turns it into their {subTerm}.
             </p>
             <AlterSearchSelect
               alters={candidates}

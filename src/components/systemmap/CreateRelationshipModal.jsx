@@ -10,6 +10,7 @@ import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipT
 import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { an } from "@/lib/articles";
 
 // Kept for backward compat with RelationshipsPanel import
 export const RELATIONSHIP_PRESETS = DEFAULT_RELATIONSHIP_TYPES.map(t => ({ type: t.label, color: t.color }));
@@ -81,7 +82,7 @@ function AlterPickerDropdown({ label, selected, excludeId, onSelect }) {
             <p className="text-sm font-medium text-foreground truncate">{selected.name}</p>
           </>
         ) : (
-          <span className="text-sm text-muted-foreground">Select an {terms.alter}...</span>
+          <span className="text-sm text-muted-foreground">Select {an(terms.alter)}...</span>
         )}
       </button>
 

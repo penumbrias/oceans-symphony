@@ -14,6 +14,7 @@ import {
   listSystems, getActiveSystemId, createSystem, setActiveSystem, refreshSystemNames,
   renameSystem, writeSystemDisplayName, deleteSystem, getSystemRawBlob, reorderSystems,
 } from "@/lib/systems";
+import { an } from "@/lib/articles";
 
 // Save a JSON string to the device: native → public Downloads (MediaStore),
 // web/TWA → anchor download. Returns true on success. Used by the per-system
@@ -291,7 +292,7 @@ export default function SystemSwitcherPanel() {
         </div>
       ) : (
         <Button variant="outline" onClick={() => setAdding(true)} disabled={busy} className="w-full gap-2">
-          <Plus className="w-4 h-4" /> Add a {terms.system}
+          <Plus className="w-4 h-4" /> Add {an(terms.system)}
         </Button>
       )}
     </div>

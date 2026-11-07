@@ -27,6 +27,7 @@ import {
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import { an } from "@/lib/articles";
 // The contact whose page this is. Same ["contacts"] query every contact
 // surface reads.
 export function useSubjectContact() {
@@ -80,7 +81,7 @@ export function ContactIdentityWidget({ settings, mode = "normal" }) {
               <span className={chipCls} style={chipStyle(safety.color)}>
                 <span className="w-[0.6em] h-[0.6em] rounded-full flex-shrink-0" style={{ background: safety.color }} aria-hidden="true" />{safety.label}
               </span>
-              {expanded && <span className={chipCls} style={chipStyle(null)}>{awareness.label} we're a {t.system}</span>}
+              {expanded && <span className={chipCls} style={chipStyle(null)}>{awareness.label} we're {an(t.system)}</span>}
               {cats.map((c) => <span key={c.id} className={chipCls} style={chipStyle(c.color || "#8b5cf6")}>{c.name}</span>)}
             </div>
           )}

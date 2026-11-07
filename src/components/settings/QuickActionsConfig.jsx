@@ -16,6 +16,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { contactDisplayName } from "@/lib/contacts";
+import { an } from "@/lib/articles";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -387,7 +388,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
   };
 
   const handleSave = () => {
-    if ((data.type === "set_front_alter" || data.type === "add_to_front_alter") && !data.config?.alter_id) { toast.error(`Choose an ${terms.alter}`); return; }
+    if ((data.type === "set_front_alter" || data.type === "add_to_front_alter") && !data.config?.alter_id) { toast.error(`Choose ${an(terms.alter)}`); return; }
     if (data.type === "log_activity" && !data.config?.category_id) { toast.error("Choose an activity category"); return; }
     if (data.type === "open_checkin_section" && !data.config?.section) { toast.error("Choose a section"); return; }
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
@@ -419,7 +420,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
             onChange={id => setConfig("alter_id", id || "")}
             terms={terms}
             showNone={false}
-            placeholder={`Select an ${terms.alter}…`}
+            placeholder={`Select ${an(terms.alter)}…`}
           />
         </div>
       )}

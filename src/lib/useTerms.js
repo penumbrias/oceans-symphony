@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { configureSignpostSigns } from "@/lib/signpostAuthors";
 import { configureCommandTerms, getCommandSign } from "@/lib/commandTerms";
+import { an, An } from "@/lib/articles";
 
 export const DEFAULT_SIGNPOST_ADD = "+";
 export const DEFAULT_SIGNPOST_REPLACE = "-";
@@ -209,6 +210,9 @@ export function useTerms() {
 
       // Signpost triggers (user-customisable) — surfaced so composers can show
       // the right hint text ("type - to sign") without hardcoding the sign.
+      // "a"/"an" before one of these words: `${t.an(t.alter)}` (articles.js).
+      an, An,
+
       signpostAdd,
       signpostReplace,
       commandSign,

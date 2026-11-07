@@ -13,6 +13,7 @@ import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
 import { getCommandSign } from "@/lib/commandTerms";
 import useFieldToolbar from "@/components/shared/useFieldToolbar";
+import { an } from "@/lib/articles";
 
 // One reusable textarea with @mention (always) + -signpost (opt-in via
 // `signposts`) autocomplete, so every surface shares the same behaviour
@@ -270,7 +271,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
         value={value}
         rows={rows}
         className={className}
-        placeholder={placeholder ?? `Type a note… use @ to mention an ${terms.alter}`}
+        placeholder={placeholder ?? `Type a note… use @ to mention ${an(terms.alter)}`}
         onChange={handleChange}
         onClick={handleCaret}
         onKeyUp={(e) => {

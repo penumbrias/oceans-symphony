@@ -135,6 +135,7 @@ import { CornerModeApplier } from '@/lib/useCornerMode';
 import { unifyHomeBoards } from "@/lib/homeBoardUnify";
 import SaveHealthBanner from "@/components/shared/SaveHealthBanner";
 import { hideLaunchCover, watchForFirstScreen } from "@/lib/launchCover";
+import { dataSaverOn, setupIsDone, warmOfflineCache } from '@/lib/setupDeferrals';
 
 // Shown while a lazily-loaded page chunk downloads. Sits in the page slot
 // (inside AppLayout's <Outlet/> position via Suspense above Routes), so
@@ -685,8 +686,16 @@ function MainApp() {
           // "Group not found". Best-effort, writes only when stale refs exist.
           pruneDanglingGroupEntries().catch(() => {});
         }
-        // Settings is its own chunk; fetch it now so opening it is instant.
-        loadSettings().catch(() => {});
+        // Settings is its own chunk, and the web app can keep every page
+        // for offline use. Both downloads wait until setup is done, and
+        // never run on Data Saver (setupDeferrals.js).
+        if (!dataSaverOn()) {
+          setupIsDone().then((done) => {
+            if (!done) return;
+            loadSettings().catch(() => {});
+            warmOfflineCache();
+          });
+        }
       }, { delay: 2500 });
     }
   }, [setupState]);

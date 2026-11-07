@@ -17,6 +17,7 @@ import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { an } from "@/lib/articles";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -441,7 +442,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, onCon
         )}
 
         <div className="text-xs text-muted-foreground">
-          <p>{selectionHint || `Tap an ${terms.alter} to add or remove them from this meeting.`}</p>
+          <p>{selectionHint || `Tap ${an(terms.alter)} to add or remove them from this meeting.`}</p>
         </div>
 
         {/* Search and view toggle — the tree view brings its own search. */}

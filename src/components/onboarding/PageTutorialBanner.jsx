@@ -14,6 +14,10 @@ import {
   tourRoutesIfLoaded,
 } from "@/lib/pageTutorials";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { isOnboardingDone } from "@/lib/onboardingState";
 
 // Banner that appears once per page on first visit, offering to launch
 // the FeatureTour scoped to that route. See src/lib/pageTutorials.js for
@@ -40,7 +44,13 @@ export default function PageTutorialBanner({ onLaunch }) {
   // THIS profile.
   const pageKey = tutorialRouteKey(pathname);
   const [routes, setRoutes] = useState(tourRoutesIfLoaded);
-  const couldShow = mayShow(pageKey);
+  // No page tips until setup is finished or skipped (v0.370.3): the first
+  // minutes belong to the welcome steps.
+  const { data: settingsList, isFetched: settingsFetched } = useQuery({
+    queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const setupDone = settingsFetched && isOnboardingDone(pickPrimarySystemSettings(settingsList || []));
+  const couldShow = setupDone && mayShow(pageKey);
   useEffect(() => {
     if (routes || !couldShow) return;
     let live = true;

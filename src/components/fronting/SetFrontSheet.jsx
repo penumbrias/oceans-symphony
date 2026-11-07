@@ -48,6 +48,7 @@ import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMen
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { an } from "@/lib/articles";
 
 // One alter in the draft (the "here now" list being edited).
 function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps = null }) {
@@ -416,7 +417,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                   </div>
                 ) : draft.length === 0 ? (
                   <p className="text-xs text-muted-foreground px-1">
-                    No one selected yet — tap an {terms.alter} below to add them.
+                    No one selected yet — tap {an(terms.alter)} below to add them.
                   </p>
                 ) : (
                   draft.map((entry) => {

@@ -55,6 +55,12 @@ const RULES = [
     msg: "hardcoded term in visible text (use useTerms())",
   },
   {
+    id: "fixed-article",
+    // "an ${t.alter}" reads "an part" once the person picks "part" (v0.370.3).
+    re: /\b[Aa]n? \$?\{(?:t|terms|[a-z]+Terms)\.[A-Za-z]+\}/,
+    msg: "a/an written before one of the person's words (use an(t.alter) from src/lib/articles.js)",
+  },
+  {
     id: "white-on-primary",
     // White text assumed on the theme colour reads at ~2:1 on light themes.
     re: /bg-(?:primary|accent|\[var\(--v2-accent\)\])\b[^"'`]*\btext-white\b|\btext-white\b[^"'`]*bg-(?:primary|accent|\[var\(--v2-accent\)\])\b/,

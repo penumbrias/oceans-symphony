@@ -39,6 +39,7 @@ import { KeepSafeStep, NoticeStep, FeelingStep, WhoStep, addAlterByName } from "
 import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
 import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
+import { an } from "@/lib/articles";
 
 // Near-duplicate aware ("Energy level" already covers the "Energy" preset)
 // so a pack never adds a second copy of something already in the list.
@@ -454,7 +455,7 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
         `Bulletin board for the whole ${t.system}`,
         "@ mentions notify, whispers stay private",
       ],
-      tip: `Anywhere you write, @name mentions an ${t.alter} and ~therapy saves a note for your next report.`,
+      tip: `Anywhere you write, @name mentions ${an(t.alter)} and ~therapy saves a note for your next report.`,
     },
     {
       phase: "About the app",
