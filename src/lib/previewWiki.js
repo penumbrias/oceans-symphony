@@ -720,6 +720,17 @@ const bioMedsEmergency = `
     `With a password set, you can pick parts of the card to show on the unlock screen, so a helper can read them without unlocking. It's off until you turn it on, and nothing else leaves the encrypted data.`)}
 `;
 
+// ── 0b. Setting up (v0.369.0) ───────────────────────────────────────────
+const bioSettingUp = `
+  ${intro("Guide · Setting up", `What's set up so far, marked from what's really saved, with the next small thing to do. Nothing on it is ever ticked by hand.`)}
+  ${section("The setup card",
+    `A new system's home screen starts with <strong>What we've set up so far</strong>: your words, who's here, a first check-in, what you track, backups, a safety plan and people to call. Each line opens the page where it's done. Remove the card any time; nothing else goes with it, and Add widget brings it back.`)}
+  ${section("Settings → Setup",
+    `The same list as the card, grouped into the basics, keeping it safe, and hard moments. <strong>Start over</strong> runs the welcome steps again and <strong>Show me around</strong> opens the full tour. Neither deletes or replaces anything.`)}
+  ${section("Shared by the whole system",
+    `Setup is remembered with your data, not in the browser, so it's the same for everyone who fronts, survives a cleared cache, and comes back with a restored backup. A system that already has entries is never sent through the welcome steps again.`)}
+`;
+
 // ── 26. Contacts — "who are you with?" ──────────────────────────────────
 const bioContacts = `
   ${hero({ eyebrow: "Feature · External people", title: "Contacts", blurb: `A private directory of the people in your life — the parallel to your alter roster, but pointed outward. Safe people, tricky people, professionals.`, c1: "#0ea5e9", c2: "#22c55e", emoji: "🧭" })}
@@ -944,6 +955,7 @@ export function buildPages() {
     // 1 · Start here
     welcome:    wikiAlter({ name: "Welcome — start here",   alias: "start", role: "Guided tour",      color: "#38bdf8", order_index: 0,  pronouns: "any/all", description: bioWelcome,
       custom_fields: { "wcf-comfort": "A slow cup of tea and the dashboard open.", "wcf-besttime": "Whenever you open the app." } }),
+    settingUp:  wikiAlter({ name: "Setting up",             alias: "setup", role: "Getting started",  color: "#0ea5e9", order_index: 0.5, description: bioSettingUp }),
     gestures:   wikiAlter({ name: "Gestures cheatsheet",    alias: "swipe", role: "Shortcuts",        color: "#06b6d4", order_index: 1,  description: bioGestures }),
     // 2 · Alters & profiles
     altersPage: wikiAlter({ name: "Alters page & groups",   alias: "alt",   role: "Directory",        color: "#f59e0b", order_index: 2,  description: bioAltersGroups }),
@@ -1019,7 +1031,7 @@ export function buildPages() {
 
   // Groups own their members via `member_alter_ids` + `parent` + `order`.
   const groups = [
-    { id: uid("wiki-group"), name: "1 · Start here",        color: "#38bdf8", description: "Welcome + the gestures cheatsheet. Read these first.",                       member_alter_ids: [A.welcome.id, A.gestures.id], parent: "root", order: 0 },
+    { id: uid("wiki-group"), name: "1 · Start here",        color: "#38bdf8", description: "Welcome, setting up, and the gestures cheatsheet. Read these first.",                       member_alter_ids: [A.welcome.id, A.settingUp.id, A.gestures.id], parent: "root", order: 0 },
     { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, Alter info, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.layouts.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id, A.tables.id, A.launchpad.id, A.typography.id, A.blocksPlay.id, A.customPage.id], parent: "root", order: 1 },
     { id: uid("wiki-group"), name: "3 · Fronting & system", color: "#a855f7", description: "Who's out, lineage over time, the inner-world map, and presences.",           member_alter_ids: [A.fronting.id, A.systemHistory.id, A.systemMap.id, A.presences.id], parent: "root", order: 2 },
     { id: uid("wiki-group"), name: "4 · Tracking",          color: "#10b981", description: "Dashboard, timeline, activities, check-ins, symptoms, sleep, locations, tasks, diary.", member_alter_ids: [A.dashboard.id, A.timeline.id, A.activities.id, A.checkIn.id, A.symptoms.id, A.sleep.id, A.locations.id, A.todo.id, A.pinnedDailyTasks.id, A.diary.id], parent: "root", order: 3 },

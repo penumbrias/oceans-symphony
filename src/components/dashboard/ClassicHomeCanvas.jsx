@@ -24,6 +24,7 @@ import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { writeBoard } from "@/lib/boardWriter";
 import V2Notices from "@/v2/notices";
 import { foldWidget } from "@/lib/widgetFold";
+import { systemHasPersonalData } from "@/lib/setupGate";
 
 export const CLASSIC_HOME_FIELD = "classic_home";
 
@@ -103,6 +104,10 @@ export function seedClassicHome(dashboardLayoutStored) {
   // Flow view auto-places a cols-3 + cols-1 pair onto one row.
   push("system_header", { span: { cols: 3, rows: 1 } });
   push("page_buttons", { span: { cols: 1, rows: 1 } });
+  // A brand-new system starts with the setup card under the heading
+  // (v0.369.0). Only when nothing a person wrote exists yet: a system with
+  // data that lays out its home screen again doesn't grow one.
+  if (!systemHasPersonalData()) push("setup_card");
   for (const entry of layout) {
     if (!enabled(entry.id)) continue;
     if (SUB_BUTTON_IDS.includes(entry.id)) continue; // folded into quick_checkin settings

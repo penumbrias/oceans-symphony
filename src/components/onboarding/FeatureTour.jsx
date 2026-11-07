@@ -1211,6 +1211,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings#shortcuts", target: ["settings-quick-actions", "settings-checkin"],
     }),
     s("settings", {
+      emoji: "🧭", title: "Setup",
+      body: `What's set up so far for your ${t.system}, from what's really saved: your words, who's here, check-ins, backups and the safety basics. Each line opens the page where it's done.`,
+      route: "/settings", target: "settings-setup", look: "the highlighted Setup row",
+    }),
+    s("settings", {
+      emoji: "🔁", title: "Start over any time",
+      body: "At the bottom of Setup, Start over runs the welcome steps again and Show me around opens this tour. Neither deletes anything.",
+      route: "/settings#setup", target: "settings-setup-page", look: "the Setup page",
+    }),
+    s("settings", {
       emoji: "🪞", title: `More than one ${t.system}`,
       body: `Keep several ${t.systems}, each with its own ${t.alters}, journals and settings. Add, switch, rename or delete one (a backup is saved first). Tap your ${t.system}'s name on the home screen to switch.`,
       route: "/settings", target: "settings-systems", look: `the highlighted ${t.Systems} row`,

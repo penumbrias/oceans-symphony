@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -23,7 +22,6 @@ import ActivityEditor from "@/components/activities/ActivityEditor";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
 import FeedbackSurveyBanner from "@/components/feedback/FeedbackSurveyBanner";
-import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -31,20 +29,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings, { HomeScreenResetDialog } from "@/components/settings/DashboardLayoutSettings";
-import { loadChecklist, checklistComplete, checklistProgress } from "@/lib/setupChecklistState";
-import { ClipboardList, X } from "lucide-react";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
-// v0.84.9: terminology moved INTO the Guide (page 2 of the Welcome phase)
-// so there's no more blocking pre-Guide modal — first-run is: Guide opens
-// with welcome+disclaimer, terms, choose what to track, checklist hub,
-// then the rest of the Guide.
-// Per-system-scoped since v0.85.6 — this key MUST be read/written through
-// psGetItem/psSetItem so a newly-created system starts fresh instead of
-// inheriting the first system's "onboarding done" flag.
-export const ONBOARDING_DONE_KEY = "symphony_onboarding_done_v1";
-export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
-import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
+// Setup progress lives on the system's settings row (v0.369.0) — read and
+// written only through src/lib/onboardingState.js. The older per-system
+// browser flag is still read there, and still written for older versions.
+import { ONBOARDING_DONE_KEY, isOnboardingDone, markOnboardingDone, recordOnboarding } from "@/lib/onboardingState";
+export { ONBOARDING_DONE_KEY };
+import { psRemoveItem } from "@/lib/perSystemStorage";
 import { systemHasPersonalData } from "@/lib/setupGate";
 import { useTerms } from "@/lib/useTerms";
 import { runQuickAction } from "@/lib/quickActionRunner";
@@ -146,7 +138,10 @@ export default function Dashboard() {
     } catch { /* storage off */ }
     return false;
   });
-  const [checklistState, setChecklistState] = useState(() => loadChecklist());
+  const { data: settings = [], isFetched: settingsFetched } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list()
+  });
   // Safety net for the backup decision (v0.240.0): first-run answers it in
   // StorageModeSetup, but users from before the step existed, and setup
   // paths that reload the page, arrive here without one. Ask once, before
@@ -155,57 +150,33 @@ export default function Dashboard() {
   const [backupDecided, setBackupDecided] = useState(() => {
     try { return hasBackupDecision() || isPreviewActive(); } catch { return true; }
   });
-  const [checklistDismissed, setChecklistDismissed] = useState(() => {
-    try { return !!psGetItem(SETUP_CHIP_DISMISSED_KEY); } catch { return false; }
-  });
-  // Refresh checklist state on tab focus so returning from a sub-flow
-  // (e.g. added an alter on /Home) updates the dashboard chip.
+  // Auto-open the Guide once per visit, and only on a system that hasn't
+  // been set up: never over data a person wrote (setupGate), never when
+  // the system's own record (or an older browser flag) says it's done.
+  // Waits for the backup decision so the two never stack, and for the
+  // settings row so the record can be read.
+  const autoOpenDecided = useRef(false);
   useEffect(() => {
-    const refresh = () => setChecklistState(loadChecklist());
-    window.addEventListener("focus", refresh);
-    window.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
-  useEffect(() => {
-    try {
-      const guidedDone = !!psGetItem(ONBOARDING_DONE_KEY);
-      const termsDone = !!localStorage.getItem("terms_setup_done");
-      // Auto-open the Guide on first-run (nothing set yet) or after a
-      // new-system creation. Legacy users (terms already done + guide
-      // marked done) never see it — they'll open it via the Guide button.
-      // Waits for the backup decision so the two never stack.
-      if (!backupDecided) return;
-      if (pendingFromNewSystem) { setShowTour(true); return; }
-      if (guidedDone || termsDone) return;
-      // The flags are browser storage, which phone cleaners wipe and a
-      // restore doesn't carry. A system that already holds data has been
-      // set up: record that instead of re-running the Guide over it.
-      if (systemHasPersonalData()) {
-        localStorage.setItem("tour_seen", "1");
-        psSetItem(ONBOARDING_DONE_KEY, "1");
-        return;
-      }
-      setShowTour(true);
-    } catch { /* storage off */ }
-  }, [pendingFromNewSystem, backupDecided]);
-  const checklistIncomplete = !checklistComplete(checklistState);
-  // "Continue setup" takes the attention slot (it waits behind notices
-  // and reminders, and the page tip / board promo wait behind it).
-  const setupChipMine = useAttentionSlot("continue-setup", {
-    priority: ATTENTION.SETUP,
-    active: checklistIncomplete && !checklistDismissed && !showTour,
-  });
+    if (autoOpenDecided.current || !backupDecided) return;
+    if (pendingFromNewSystem) { autoOpenDecided.current = true; setShowTour(true); return; }
+    if (!settingsFetched) return;
+    autoOpenDecided.current = true;
+    if (isPreviewActive()) return;
+    if (isOnboardingDone(pickPrimarySystemSettings(settings))) return;
+    // A system that already holds data has been set up: record that
+    // instead of re-running the Guide over it.
+    if (systemHasPersonalData()) {
+      markOnboardingDone().then(() => queryClient.invalidateQueries({ queryKey: ["systemSettings"] }));
+      return;
+    }
+    setShowTour(true);
+  }, [pendingFromNewSystem, backupDecided, settingsFetched, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const surveyReady = (() => {
     try {
       return backupDecided && !showTour && !isPreviewActive()
-        && (!!localStorage.getItem("terms_setup_done") || !!psGetItem(ONBOARDING_DONE_KEY));
+        && isOnboardingDone(pickPrimarySystemSettings(settings));
     } catch { return false; }
   })();
-  const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour && setupChipMine;
-  const checklistPct = checklistProgress(checklistState);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
@@ -220,14 +191,9 @@ export default function Dashboard() {
     // The Guide now IS the setup, so finishing it (or skipping) records
     // that setup is complete. Otherwise closing and re-opening the app
     // would auto-reopen the Guide every time.
-    try {
-      localStorage.setItem("tour_seen", "1");
-      psSetItem(ONBOARDING_DONE_KEY, "1");
-    } catch { /* storage off */ }
+    markOnboardingDone().then(() => queryClient.invalidateQueries({ queryKey: ["systemSettings"] }));
     setShowTour(false);
     setTourOpenAt(null);
-    // Refresh checklist state — user may have marked items done in the guide.
-    setChecklistState(loadChecklist());
   };
   const location = useLocation();
   const navigate = useNavigate();
@@ -307,6 +273,7 @@ export default function Dashboard() {
       // flow). The blocking terms wizard only ever runs on a genuinely
       // fresh system, so replay skips it and just reopens the Guide.
       try { psRemoveItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
+      recordOnboarding({ restarted_at: new Date().toISOString() });
       setShowTour(true);
     }
     params.delete("action");
@@ -345,10 +312,6 @@ export default function Dashboard() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
   });
 
-  const { data: settings = [] } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list()
-  });
   const terms = useTerms();
   const systemName = pickPrimarySystemSettings(settings)?.system_name || `Your ${terms.system}`;
   // Tap the dashboard title to switch systems — only when more than one exists,
@@ -675,7 +638,8 @@ export default function Dashboard() {
     // The page_buttons widget's board button — only offered while the
     // board actually is a swipe away (classic mode).
     ...(classicBoardAvailable ? { openWidgetBoard: openBoard } : {}),
-    checklistIncomplete,
+    // The page buttons' setup dot: lit until setup has been finished.
+    checklistIncomplete: !isOnboardingDone(pickPrimarySystemSettings(settings)),
     hasUnreadMentions,
     alters,
     currentAlterId,
@@ -806,55 +770,6 @@ export default function Dashboard() {
           onOpenBoard={classicBoardAvailable ? openBoard : null}
         />
       </motion.div>
-      )}
-
-      {/* v0.84.9: no more blocking terms modal — the Guide (below)
-          includes terms as an inline step. A small "Continue setup"
-          chip appears here when the checklist is incomplete, so the
-          user can jump back into the Guide's checklist hub any time. */}
-      {showSetupChip && createPortal(
-        <div
-          // Clears the bottom tab bar. Two fixes (v0.96.1): the calc needs
-          // Tailwind underscores — without them it emits `calc(56px+16px)`,
-          // which is invalid CSS and drops the rule — and the desktop
-          // override must be `lg:`, not `sm:`: the tab bar is `lg:hidden`,
-          // so between 640–1023px it is still on screen and a `sm:bottom-4`
-          // chip lands underneath it.
-          className="os-setup-chip fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_var(--os-sab))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
-          // v2 chrome: the measured bottom bar + the floating quick-action
-          // card publish their heights — the chip sits ABOVE both instead
-          // of covering them (owner report). Inline so it wins the class.
-          style={uiV2On ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + var(--v2-qa-float-bottom-h, 0px) + 16px + var(--os-sab))" } : undefined}
-          role="status"
-          aria-label="Continue setup"
-        >
-          <div className="bg-card border border-primary/40 rounded-xl shadow-2xl p-3 flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold">Continue setup</p>
-              <p className="text-[0.6875rem] text-muted-foreground">{checklistPct.done} of {checklistPct.total} items done</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => { setTourOpenAt("checklist"); setShowTour(true); }}
-              className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium"
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                try { psSetItem(SETUP_CHIP_DISMISSED_KEY, "1"); } catch { /* storage off */ }
-                setChecklistDismissed(true);
-              }}
-              aria-label="Dismiss"
-              className="p-1 rounded-lg text-muted-foreground hover:bg-muted/50"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>,
-        document.body
       )}
 
       {!backupDecided && (

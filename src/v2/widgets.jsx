@@ -142,6 +142,8 @@ const LearnWidget = lazyNamed(loadMoreWidgets, "LearnWidget");
 const InnerMapWidget = lazyNamed(loadMoreWidgets, "InnerMapWidget");
 const InnerMapViewField = lazyNamed(loadMoreWidgets, "InnerMapViewField");
 const InnerLocationsWidget = lazyNamed(loadMoreWidgets, "InnerLocationsWidget");
+const loadSetupWidgets = () => import("@/v2/setupWidgets");
+const SetupCardWidget = lazyNamed(loadSetupWidgets, "SetupCardWidget");
 const loadMedicationWidgets = () => import("@/v2/medicationWidgets");
 const MedsTodayWidget = lazyNamed(loadMedicationWidgets, "MedsTodayWidget");
 const MedicationsWidget = lazyNamed(loadMedicationWidgets, "MedicationsWidget");
@@ -3468,6 +3470,16 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "story", type: "toggle", label: "Show Start a story", default: true }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  // The setup card (v0.369.0): src/v2/setupWidgets.jsx. Reads the one step
+  // list in src/lib/setupSteps.js; every row opens the page where it's done.
+  setup_card: {
+    label: "What we've set up so far", description: "Your words, who's here, check-ins, tracking, backups and the safety basics, each marked from what's really saved, with the next small thing to do. Tap a row to go there.",
+    icon: ClipboardList, category: "system",
+    render: sized(({ settings }) => <SetupCardWidget settings={settings} />),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: false,
+    configFields: [{ key: "showDone", type: "toggle", label: "Show what's already done", default: true }],
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   // Medications (v0.367.0): src/v2/medicationWidgets.jsx. Medicines belong
   // to the body, so no Whose picker; every dose marked records who was there.

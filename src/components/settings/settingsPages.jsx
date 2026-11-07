@@ -13,7 +13,7 @@ import {
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
-  MessageSquareHeart,
+  MessageSquareHeart, ClipboardList,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -57,6 +57,7 @@ import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import { Group } from "@/components/shared/SettingRows";
+import SetupSettings from "@/components/settings/SetupSettings";
 
 // Cross-app export FORMAT chips (alongside Plain .json / Compact), shared by
 // the Export page and the header's Backup → Export popup so they match.
@@ -72,6 +73,9 @@ export const LEGACY_HASHES = {
   // v0.353.1: the list-label choice lives on "Order your {alters}".
   "alter-labels": "alter-order",
   "about-updates": "whats-new",
+  // v0.369.0: the setup checklist became Settings → Setup.
+  "setup-guide": "setup",
+  onboarding: "setup",
   "recent-updates": "whats-new",
   appearance: "group:look",
   notifications: "group:notifications",
@@ -93,6 +97,9 @@ export function buildSettingsGroups(ctx) {
     {
       id: "you", label: "You", tour: "settings-you",
       pages: [
+        { id: "setup", label: "Setup", hint: "What's set up so far, and the next small thing", icon: ClipboardList, tour: "settings-setup",
+          keywords: "setup set up onboarding getting started welcome guide checklist start over first run progress",
+          render: () => <SetupSettings /> },
         { id: "profile", label: "Profile", hint: `${t.System} name, picture, banner and bio`, icon: IdCard, tour: "settings-system",
           keywords: `${t.system} name identity banner bio picture avatar description`, render: () => <ProfileSettings /> },
         { id: "terms", label: "Terminology", hint: `The words the app uses for your ${t.system}`, icon: MessageSquareText,
