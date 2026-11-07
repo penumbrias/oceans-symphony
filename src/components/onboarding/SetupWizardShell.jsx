@@ -42,6 +42,10 @@ export default function SetupWizardShell({
   // Phases counted as one run of steps: their label reads "Step n of m"
   // across all of them (UI critique H6) instead of restarting per phase.
   countedPhases = null,
+  // Skip's own handler (it records a choice); falls back to onClose.
+  onSkip = null,
+  // { label, onClick }: a quiet link at the very bottom (e.g. support).
+  footerLink = null,
 }) {
   const [step, setStep] = useState(initialStep);
   const headingRef = useRef(null);
@@ -276,7 +280,7 @@ export default function SetupWizardShell({
           {!isLast && !current.skipHidden && (
             <button
               type="button"
-              onClick={() => !busy && !locked && onClose?.()}
+              onClick={() => !busy && !locked && (onSkip || onClose)?.()}
               disabled={locked}
               title={locked ? current.lockedHint : undefined}
               className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
@@ -286,6 +290,12 @@ export default function SetupWizardShell({
           )}
           {locked && current.lockedHint && (
             <p className="text-xs text-foreground/80 text-center">{current.lockedHint}</p>
+          )}
+          {footerLink && (
+            <button type="button" onClick={footerLink.onClick}
+              className="w-full text-xs text-primary hover:underline text-center">
+              {footerLink.label}
+            </button>
           )}
         </div>
       </DialogContent>

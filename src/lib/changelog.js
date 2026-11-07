@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "feature", text: "New welcome steps: keep it safe, one short notice, your words, how you are right now, and who's here. Five steps, and you can close them any time." },
+      { type: "improve", text: "A \"Not sure yet: plain words\" choice for the words the app uses, and a \"Need support right now?\" link on every welcome step." },
+      { type: "feature", text: "Activity packs now have their own page in Settings → Tracking." },
       { type: "improve", text: "The feedback survey card now waits until you've used the app for a few days, instead of appearing right after setup." },
       { type: "feature", text: "New \"What we've set up so far\" card shows your words, who's here, backups and the safety basics, marked from what's really saved. New systems start with it on the home screen." },
       { type: "feature", text: "Settings → Setup shows the same list, with Start over and Show me around. The old \"Continue setup\" pop-up is gone." },

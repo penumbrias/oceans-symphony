@@ -37,7 +37,6 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { ONBOARDING_DONE_KEY, isOnboardingDone, markOnboardingDone, recordOnboarding, storedOnboarding } from "@/lib/onboardingState";
 import { settledInForSurvey } from "@/lib/setupModel";
 export { ONBOARDING_DONE_KEY };
-import { psRemoveItem } from "@/lib/perSystemStorage";
 import { systemHasPersonalData } from "@/lib/setupGate";
 import { useTerms } from "@/lib/useTerms";
 import { runQuickAction } from "@/lib/quickActionRunner";
@@ -123,7 +122,7 @@ export default function Dashboard() {
   // Once opened, the guide stays mounted so closing it plays its exit.
   const [tourMounted, setTourMounted] = useState(false);
   useEffect(() => { if (showTour) setTourMounted(true); }, [showTour]);
-  const [tourOpenAt, setTourOpenAt] = useState(null); // "checklist" when jumped from the setup chip
+  const [tourOpenAt, setTourOpenAt] = useState(null); // "start" for Start over
   const { setShowFeatureTour } = useOutletContext() || {};
   // Setup is now single-flow (v0.84.9): Guide (TourModal) auto-opens
   // for anyone who hasn't finished it, terms+disclaimer live as steps
@@ -198,11 +197,10 @@ export default function Dashboard() {
     localStorage.setItem("preview_open", newState ? "true" : "false");
   };
 
+  // Closing the welcome steps records nothing: they resume next time on
+  // a system that's still empty. Finishing or "Skip setup" is recorded by
+  // the steps themselves (TourModal → onboardingState).
   const handleTourClose = () => {
-    // The Guide now IS the setup, so finishing it (or skipping) records
-    // that setup is complete. Otherwise closing and re-opening the app
-    // would auto-reopen the Guide every time.
-    markOnboardingDone().then(() => queryClient.invalidateQueries({ queryKey: ["systemSettings"] }));
     setShowTour(false);
     setTourOpenAt(null);
   };
@@ -223,7 +221,7 @@ export default function Dashboard() {
     const openNotif = () => setShowNotifHistory(true);
     // The v2 cog menu's "Setup guide" — jumps straight to the checklist
     // step, not the welcome/terms pages (those are for first runs).
-    const openGuide = () => { setTourOpenAt("checklist"); setShowTour(true); };
+    const openGuide = () => navigate("/settings#setup");
     window.addEventListener("open-quick-checkin", open);
     window.addEventListener("open-quick-checkin-close", close);
     window.addEventListener("symphony-open-dashboard-layout", openLayout);
@@ -274,17 +272,16 @@ export default function Dashboard() {
     } else if (action === "notifications") {
       setShowNotifHistory(true);
     } else if (action === "setup-guide") {
-      setTourOpenAt("checklist");
-      setShowTour(true);
+      // Older links to the setup checklist land on its successor.
+      navigate("/settings#setup", { replace: true });
+      return;
     }
-    // Settings → About → "Re-run setup" replays the guided onboarding
-    // (different alters may want to re-do it — it never overwrites data).
+    // Settings → Setup → Start over runs the welcome steps again from step
+    // 1 (any alter may want to; it never deletes or replaces anything, and
+    // the record of setup being done stays).
     if (onboardingParam === "replay") {
-      // "Re-run setup" reopens the Guide (which is now also the setup
-      // flow). The blocking terms wizard only ever runs on a genuinely
-      // fresh system, so replay skips it and just reopens the Guide.
-      try { psRemoveItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
       recordOnboarding({ restarted_at: new Date().toISOString() });
+      setTourOpenAt("start");
       setShowTour(true);
     }
     params.delete("action");
@@ -799,7 +796,7 @@ export default function Dashboard() {
       )}
       {(showTour || tourMounted) && (
         <React.Suspense fallback={null}>
-          <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
+          <TourModal open={showTour} onClose={handleTourClose} onDone={handleTourClose} openAt={tourOpenAt} />
         </React.Suspense>
       )}
       <QuickCheckInModal

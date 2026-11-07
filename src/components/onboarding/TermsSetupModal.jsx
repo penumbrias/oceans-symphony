@@ -70,6 +70,9 @@ const PRESETS = [
   // (influencing / influencer), so no truncated-root hack needed.
   { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influence" },
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
+  // v0.370.0: plain, everyday words for anyone not sure yet (median and
+  // non-DID systems included). Kept last so saved preset positions hold.
+  { label: "Not sure yet: plain words", system: "group", alter: "member", switch: "change", front: "front" },
 ];
 
 // The terms step body — shared between the legacy standalone modal and the
