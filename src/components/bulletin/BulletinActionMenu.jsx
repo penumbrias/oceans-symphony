@@ -156,12 +156,14 @@ export default function BulletinActionMenu({ bulletin, alters = [], open, onClos
           </button>
         </div>
       </DialogContent>
-      <BulletinEditModal
-        bulletin={bulletin}
-        alters={alters}
-        open={editing}
-        onClose={() => { setEditing(false); onClose(); }}
-      />
+      {editing && (
+        <BulletinEditModal
+          bulletin={bulletin}
+          alters={alters}
+          open={editing}
+          onClose={() => { setEditing(false); onClose(); }}
+        />
+      )}
     </Dialog>
   );
 }

@@ -23,6 +23,7 @@ export const CHANGELOG = [
       { type: "feature", text: "New \"What we've set up so far\" card shows your words, who's here, backups and the safety basics, marked from what's really saved. New systems start with it on the home screen." },
       { type: "feature", text: "Settings → Setup shows the same list, with Start over and Show me around. The old \"Continue setup\" pop-up is gone." },
       { type: "improve", text: "Setup progress is now kept with your data, so it's the same for everyone who fronts, survives a cleared cache and comes back with a restored backup." },
+      { type: "improve", text: "The bulletin board is much lighter: posts no longer redraw on every front change, and searching it no longer lags while you type." },
       { type: "improve", text: "First open: the loading screen now stays up until the welcome screen is ready, instead of flashing a blank page, and the welcome screen loads less." },
       { type: "improve", text: "Opening the app does a little less work once you've read the latest \"What's new\"." },
       { type: "improve", text: "Editing a page: \"Close gaps\" is now a button on the edit bar instead of hidden in the Save / exit menu." },
