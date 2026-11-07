@@ -1522,7 +1522,8 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
   // A page tutorial on a profile walks THAT profile.
   const routeAlterId = restrictToRoute?.match(/^\/alter\/([^/?#]+)/)?.[1] || null;
   const [tourAlterId, setTourAlterId] = useState(routeAlterId);
-  const [tourAlterWasCreated, setTourAlterWasCreated] = useState(false);
+  // Kept for the step builder's signature; the tour no longer creates one.
+  const tourAlterWasCreated = false;
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -1540,18 +1541,11 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     // steps aren't part of the run anyway.
     if (!altersLoaded || restrictToRoute) return;
     const active = existingAlters.filter(a => !a.is_archived);
-    if (active.length > 0) {
-      setTourAlterId(active[0].id);
-    } else {
-      base44.entities.Alter.create({
-        name: "Tour Demo", pronouns: "they/them", role: "Demo Profile",
-        color: "#8b5cf6", is_archived: false,
-      }).then(dummy => {
-        setTourAlterId(dummy.id);
-        setTourAlterWasCreated(true);
-        queryClient.invalidateQueries({ queryKey: ["alters"] });
-      }).catch(() => {});
-    }
+    // With no alters the profile steps point at the directory instead.
+    // The tour never writes a stand-in profile: a demo record in a
+    // system's real data, left behind by a reload or sitting in the trash,
+    // is a stranger the next alter can't explain (v0.368.1).
+    if (active.length > 0) setTourAlterId(active[0].id);
   }, [altersLoaded]);
 
   const experimentalOn = useExperimentalOn();

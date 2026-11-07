@@ -197,6 +197,10 @@ export const BACKUP_LS_PREFIXES = [
   "symphony_alter_inherit_history_v1_",
   // Each Upcoming plans panel's own limit ("<key>__<panel>").
   "upcoming_plans_limit_mode__", "upcoming_plans_limit_count__", "upcoming_plans_limit_window__",
+  // The starter-pack choice is saved once per system ("<key>:<systemId>",
+  // perSystemStorage) since v0.85.6; only the bare legacy name was listed,
+  // so "track nothing" came back as the default packs after a wipe.
+  "symphony_onboarding_bundles_chosen_v1:",
 ];
 
 const BACKUP_LS_KEY_SET = new Set(BACKUP_LS_KEYS);
