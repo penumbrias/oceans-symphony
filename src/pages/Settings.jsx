@@ -313,7 +313,7 @@ function PageTutorialsControls() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground leading-relaxed">
-        The full tour walks every page, starting with how the app fits together. Each page also has its own short walk-through: open the page's ⚙ menu → "Show me around this page" any time.
+        The tour walks every page, starting with how the app fits together. Each page also has its own short walk-through: open the page's ⚙ menu → "Show me around this page" any time.
       </p>
       <Group title="Page tutorials" first>
         <SwitchRow label="Show page-tutorial prompts" hint={'"New to this page? Show me around" banner on first visit.'}
@@ -322,7 +322,7 @@ function PageTutorialsControls() {
       </Group>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => openFullTour()} data-tour="settings-full-tour">
-          Take the full tour
+          Take the tour
         </Button>
         <Button
           variant="outline"
@@ -340,11 +340,11 @@ function PageTutorialsControls() {
           data-tour="rerun-setup"
           onClick={() => { window.location.href = "/?onboarding=replay"; }}
         >
-          Re-run setup
+          Start setup over
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Re-run setup replays the guided welcome flow (terminology, tracking packs, emotions, backups). It never deletes or overwrites anything.
+        Start setup over runs the welcome steps again (backups, the notice, your words, a first feeling, who's here). It never deletes or overwrites anything.
       </p>
     </div>
   );

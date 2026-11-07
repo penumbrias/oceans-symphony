@@ -61,11 +61,11 @@ export default function PageTutorialBanner({ onLaunch }) {
     markRouteSeen(pageKey);
   };
   // Turns the prompt off on every page (it comes
-  // back from Settings → Tour & onboarding). Nothing is lost: the tours stay in Guide & tour.
+  // back from Settings → Tour). Nothing is lost: the tours stay in Settings → Tour.
   const handleStopAll = () => {
     markRouteSeen(pageKey);
     setPageTutorialsEnabled(false);
-    toast("Page tips are off. Settings → Tour & onboarding turns them back on.");
+    toast("Page tips are off. Settings → Tour turns them back on.");
   };
 
   return (

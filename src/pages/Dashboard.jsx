@@ -219,7 +219,7 @@ export default function Dashboard() {
     // The UI-v2 status line's notification LED opens the inbox from any
     // register — the modal is hosted here.
     const openNotif = () => setShowNotifHistory(true);
-    // The v2 cog menu's "Setup guide" — jumps straight to the checklist
+    // The v2 cog menu's "Setup" — jumps straight to the checklist
     // step, not the welcome/terms pages (those are for first runs).
     const openGuide = () => navigate("/settings#setup");
     window.addEventListener("open-quick-checkin", open);
@@ -640,7 +640,10 @@ export default function Dashboard() {
     systemName,
     multiSystem,
     openSystemSwitcher: () => setShowSystemSwitcher(true),
-    openTour: () => setShowTour(true),
+    // "Setup": unfinished setup resumes its steps; finished setup opens
+    // Settings → Setup (what's set up, Start over).
+    openTour: () => (isOnboardingDone(pickPrimarySystemSettings(settings))
+      ? navigate("/settings#setup") : setShowTour(true)),
     openFeatureTour: () => setShowFeatureTour(true),
     openNotifHistory: () => setShowNotifHistory(true),
     // The page_buttons widget's board button — only offered while the

@@ -381,7 +381,7 @@ function PageButtons({ api, settings }) {
     guide: (
       <DropdownMenu key="guide">
         <DropdownMenuTrigger asChild>
-          <button type="button" aria-label="Guide & tour" title="Guide & tour" className={`${btn} ${single ? "px-3" : ""}`}>
+          <button type="button" aria-label="Setup & tour" title="Setup & tour" className={`${btn} ${single ? "px-3" : ""}`}>
             <HelpCircle className="w-4 h-4" />{name("guide")}
             {api?.checklistIncomplete && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
           </button>
@@ -389,7 +389,7 @@ function PageButtons({ api, settings }) {
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuItem onClick={() => api?.openTour?.()} className="gap-2 cursor-pointer">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="flex-1">Setup guide</span>
+            <span className="flex-1">Setup</span>
             {api?.checklistIncomplete && (
               <span className="text-[0.6875em] text-primary font-medium">In progress</span>
             )}
@@ -397,7 +397,7 @@ function PageButtons({ api, settings }) {
           {api?.openFeatureTour && (
             <DropdownMenuItem onClick={() => api.openFeatureTour()} className="gap-2 cursor-pointer">
               <Compass className="w-4 h-4 text-muted-foreground" />
-              <span className="flex-1">Feature tour</span>
+              <span className="flex-1">Tour</span>
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -452,7 +452,7 @@ export const WIDGET_REGISTRY = {
   // one placeable tile — the static header row they lived in is gone,
   // so the page chrome is a widget like everything else (owner ask).
   page_buttons: {
-    label: "Page buttons", description: "Widget board, guide & tour, and notifications buttons in one row — pick which in this widget's options.",
+    label: "Page buttons", description: "Widget board, setup & tour, and notifications buttons in one row — pick which in this widget's options.",
     icon: LayoutGrid, category: "chrome",
     render: ({ api, settings }) => <PageButtons api={api} settings={settings} />,
     supportsModes: ["normal"],
@@ -461,7 +461,7 @@ export const WIDGET_REGISTRY = {
       { key: "buttons", type: "orderToggle", label: "Buttons", default: PAGE_BUTTON_IDS,
         options: [
           { value: "board", label: "Widget board" },
-          { value: "guide", label: "Guide & tour" },
+          { value: "guide", label: "Setup & tour" },
           { value: "notifications", label: "Notifications" },
         ] },
     ],

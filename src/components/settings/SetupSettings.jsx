@@ -1,8 +1,8 @@
 // Settings → Setup (v0.369.0): what's set up so far, from the same step
 // list as the home screen's setup card (src/lib/setupSteps.js). Each row
 // opens the real page where that thing is done. "Start over" runs the
-// welcome steps again and never deletes anything; "Show me around" is the
-// full tour.
+// welcome steps again and never deletes anything; "Take the tour" is the
+// whole-app tour.
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -61,7 +61,7 @@ export default function SetupSettings() {
         <LinkRow icon={RotateCcw} label="Start over"
           hint="Runs the welcome steps again. Nothing is deleted or replaced."
           onClick={() => navigate("/?onboarding=replay")} />
-        <LinkRow icon={Map} label="Show me around" hint="The full tour of the app, one page at a time."
+        <LinkRow icon={Map} label="Take the tour" hint="The whole app, one page at a time."
           onClick={() => openFullTour()} />
       </Group>
     </div>

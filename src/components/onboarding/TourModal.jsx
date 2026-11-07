@@ -506,7 +506,7 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
       icon: "💜",
       color: "from-violet-500/20 to-purple-500/20",
       body: `Explore at your own pace. Each page's "Show me around" walks you through it one step at a time. Settings → Setup shows what's set up so far, and Start over runs these steps again.`,
-      tip: "For a tour of the whole app, choose Feature tour from the ⚙ menu on the home screen.",
+      tip: "For the whole app, choose Take the tour in Settings → Setup.",
       nextLabel: "Start exploring 💜",
       onNext: handleFinish,
     },
