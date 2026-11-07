@@ -60,10 +60,16 @@ export default function NewFeaturesBar({ embedded = false }) {
   // home screen instead of being part of the app's startup code.
   const [changelog, setChangelog] = useState(null);
   useEffect(() => {
+    // Already read this version's notes? The bar stays hidden, so don't
+    // load the whole changelog (over half a megabyte) on every launch just
+    // to find that out (v0.368.4). The embedded list always needs it.
+    if (!embedded) {
+      try { if (localStorage.getItem(STORAGE_KEY) === APP_VERSION) return undefined; } catch { /* storage off: load */ }
+    }
     let live = true;
     import("@/lib/changelog").then((m) => { if (live) setChangelog(m.CHANGELOG || []); }).catch(() => {});
     return () => { live = false; };
-  }, []);
+  }, [embedded]);
   const filteredChangelog = useMemo(() => {
     if (!changelog) return null;
     return changelog

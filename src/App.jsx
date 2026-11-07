@@ -624,9 +624,12 @@ function MainApp() {
   // watchdog only rescues a boot that never leaves the spinner).
   useEffect(() => {
     if (setupState !== 'booting') window.__OS_ALIVE = true;
-    // Setup, unlock and recovery screens are ready the moment they show;
-    // the main app (null) lifts the cover once its first page settles.
-    if (setupState && setupState !== 'booting') hideLaunchCover();
+    // Unlock and recovery screens are ready the moment they show; the
+    // first-run screen is lazy, so it lifts the cover itself once its code
+    // has arrived (LaunchCoverRelease inside its Suspense) instead of
+    // leaving a blank page in between. The main app (null) lifts the
+    // cover once its first page settles.
+    if (setupState && setupState !== 'booting' && setupState !== 'firstrun') hideLaunchCover();
   }, [setupState]);
 
   // Installed app: keep the private-file copy complete (first copy for
@@ -738,6 +741,7 @@ function MainApp() {
         <QueryClientProvider client={queryClientInstance}>
           <Suspense fallback={null}>
             <StorageModeSetup mode="setup" allowOrphans={orphanDeclined.current} onComplete={() => setSetupState(null)} />
+            <LaunchCoverRelease />
           </Suspense>
           {/* Accessibility quick-access available from the very first screen,
               before Settings is reachable. Writes localStorage-backed prefs
