@@ -48,10 +48,9 @@ export default function FeedbackSurveyBanner({ ready = true }) {
           <div className="flex items-start gap-3">
             <MessageSquareHeart className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" aria-hidden />
             <div className="space-y-1 min-w-0">
-              <p className="text-base font-semibold leading-snug">Hi! A message from the app's creator 😃</p>
+              <p className="text-base font-semibold leading-snug">Optional user feedback survey! super quick</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Penumbrial Ecosystem would love to hear how the app works for you. A few short questions,
-                and room to ramble.
+                From Penumbrial Ecosystem, the app's creator 😃
               </p>
             </div>
           </div>
