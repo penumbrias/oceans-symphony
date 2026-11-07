@@ -22,6 +22,7 @@ import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import ActivityEditor from "@/components/activities/ActivityEditor";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import NewUiBanner from "@/components/dashboard/NewUiBanner";
+import FeedbackSurveyBanner from "@/components/feedback/FeedbackSurveyBanner";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
@@ -185,6 +186,12 @@ export default function Dashboard() {
     priority: ATTENTION.SETUP,
     active: checklistIncomplete && !checklistDismissed && !showTour,
   });
+  const surveyReady = (() => {
+    try {
+      return backupDecided && !showTour && !isPreviewActive()
+        && (!!localStorage.getItem("terms_setup_done") || !!psGetItem(ONBOARDING_DONE_KEY));
+    } catch { return false; }
+  })();
   const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour && setupChipMine;
   const checklistPct = checklistProgress(checklistState);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
@@ -734,6 +741,10 @@ export default function Dashboard() {
         frontingAlterIds={frontingAlterIds}
         onNotifClick={handleNotifClick}
       />
+
+      {/* The creator's feedback survey invitation — only for people past
+          first-run setup, never in preview mode or over the Guide. */}
+      <FeedbackSurveyBanner ready={surveyReady} />
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
       {uiV2On && <HomeV2 settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />}

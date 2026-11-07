@@ -23,6 +23,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import BugReportModal from "@/components/settings/BugReportModal";
+import FeedbackSurveyModal from "@/components/feedback/FeedbackSurveyModal";
 import { Group, LinkRow, SwitchRow } from "@/components/shared/SettingRows";
 import {
   buildSettingsGroups, filterSettingsGroups, findSettingsPage, LEGACY_HASHES, EXPORT_FORMAT_EXTRAS,
@@ -69,6 +70,7 @@ export default function Settings() {
   const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
   const [showRescue, setShowRescue] = useState(false); // "Find my data" recovery overlay
   const [showBugReport, setShowBugReport] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
   const [query, setQuery] = useState(() => lastHome?.query || "");
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
@@ -91,6 +93,7 @@ export default function Settings() {
     terms, navigate, settings, refetch, queryClient,
     openRescue: () => setShowRescue(true),
     openBugReport: () => setShowBugReport(true),
+    openFeedbackSurvey: () => setShowSurvey(true),
     renderTour: () => <PageTutorialsControls />,
   }), [terms, navigate, settings, refetch, queryClient]);
 
@@ -272,6 +275,7 @@ export default function Settings() {
       )}
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
+      <FeedbackSurveyModal open={showSurvey} onClose={() => setShowSurvey(false)} />
 
       {/* Backup dropdown → import/export UI directly, so it's one tap. */}
       <Dialog open={backupModal === "export"} onOpenChange={(o) => { if (!o) setBackupModal(null); }}>

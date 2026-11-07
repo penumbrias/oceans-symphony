@@ -19,6 +19,7 @@ import { useEffect, useId, useSyncExternalStore } from "react";
 export const ATTENTION = {
   NOTICES: 90,   // the home notice stack (safety, critical plans, reminders, mentions)
   REMINDER: 80,  // a fired reminder (the floating card on other pages)
+  SURVEY: 50,    // the creator's feedback survey invitation (time-limited)
   SETUP: 40,     // "Continue setup"
   PROMO: 20,     // "Check out the widget board" and similar one-off promos
   TIP: 10,       // "New to this page? Show me around"
@@ -53,9 +54,11 @@ export function releaseAttention(id) {
 }
 
 // The id holding the slot: highest priority, then the earliest claim.
-export function attentionHolder() {
+// `besides` lists claim names to look past (see useAttentionSlot).
+export function attentionHolder(besides = null) {
   let best = null;
   for (const [id, c] of claims) {
+    if (besides && besides.some((n) => id.startsWith(`${n}:`))) continue;
     if (!best || c.priority > best.priority || (c.priority === best.priority && c.seq < best.seq)) {
       best = { id, ...c };
     }
@@ -63,7 +66,10 @@ export function attentionHolder() {
   return best ? best.id : null;
 }
 
-export function useAttentionSlot(name, { priority, active = true, always = false } = {}) {
+// `besides`: claim names this surface can share the screen with because
+// they never sit in the same place (the in-flow home notice stack vs a
+// card floating above the tab bar). It still waits for everything else.
+export function useAttentionSlot(name, { priority, active = true, always = false, besides = null } = {}) {
   const uid = useId();
   const id = `${name}:${uid}`;
   useEffect(() => {
@@ -76,7 +82,7 @@ export function useAttentionSlot(name, { priority, active = true, always = false
   if (always) return true;
   // Before the claim effect has run (first render) the holder may be
   // someone else or nobody; render only once we actually hold the slot.
-  return attentionHolder() === id;
+  return attentionHolder(besides) === id;
 }
 
 // Test hook.

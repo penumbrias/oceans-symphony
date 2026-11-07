@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 7, 2026",
+    changes: [
+      { type: "feature", text: "A short, optional feedback survey from the app's creator: answer a few questions about using the app and email them in. Find it on the home screen or in Settings → About → Share feedback." },
+    ],
+  },
+  {
     date: "November 6, 2026",
+    version: "0.368.0",
     changes: [
       { type: "feature", text: "New Emergency info card: how to talk with you, allergies, medications, who to call and your safety plan, shown full screen in big text for someone helping you. Open it from Quick Support, the Safety Plan or Contacts." },
       { type: "feature", text: "With a password set, you can choose parts of your emergency card to show on the unlock screen. It's off until you turn it on." },
