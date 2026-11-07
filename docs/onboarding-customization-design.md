@@ -98,6 +98,8 @@ Item wording per the research catalogue (plain, non-clinical, "things some peopl
 
 ## Phase C — Onboarding flow v2
 
+> **Superseded (November 2026).** The onboarding rebuild (v0.368–v0.370, plan in the Library under audits/onboarding-2026-11/) replaced this flow: a short welcome, five counted steps, a data-derived setup card and Settings → Setup. See CLAUDE.md §22.
+
 ### The flow (owner's sequence, refined per research)
 
 A single replayable `OnboardingFlow` component replacing the Dashboard-mounted Disclaimer→Terms→Tour chain (StorageModeSetup stays at boot — its IDB-peek safety logic is untouchable):

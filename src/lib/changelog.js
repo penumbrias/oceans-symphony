@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "improve", text: "Finishing setup now lands straight on your home screen; the short \"About the app\" pages open the Tour instead." },
       { type: "fix", text: "\"a\" and \"an\" now fit your own words (\"a part\", \"an alter\") instead of always saying \"an\"." },
       { type: "improve", text: "Page tips and the web app's offline download wait until setup is done, and the download never runs on Data Saver." },
       { type: "improve", text: "Help is called the same thing everywhere: Setup (what's set up, Start over), Tour (the whole app) and \"Show me around this page\"." },
