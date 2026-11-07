@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { markWordsChosen } from "@/lib/onboardingState";
 import { toast } from "sonner";
 import { Pencil, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -190,6 +191,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
         });
       }
       try { localStorage.setItem("terms_setup_done", "1"); } catch { /* storage off */ }
+      await markWordsChosen();
       // Await the refetch (not just invalidate) so the next Guide step
       // renders with the new terms already in the react-query cache.
       // Previously the shell advanced synchronously and the checklist

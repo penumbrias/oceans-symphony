@@ -35,6 +35,7 @@ import {
 } from "@/lib/trackingPresets";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { markBundlesChosen } from "@/utils/symptomDefaults";
+import { markPacks } from "@/lib/onboardingState";
 import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
 import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
@@ -191,6 +192,12 @@ export default function TourModal({ open, onClose, openAt = null }) {
     }
     });
     markBundlesChosen();
+    // The tracking choice, on the system's own record (onboardingState.js).
+    {
+      const def = new Set(defaultBundleKeys());
+      const same = selected.size === def.size && [...selected].every((k) => def.has(k));
+      markPacks(selected.size === 0 ? "none" : same ? "express" : "custom");
+    }
     setSelectionTouched(false);
     qc.invalidateQueries({ queryKey: ["symptoms"] });
     if (created || removed) {

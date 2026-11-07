@@ -1091,6 +1091,8 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **Gotchas.** Every new `data-tour="…"` attribute MUST have a matching `buildSteps()` entry. Stale tour steps erode trust faster than missing steps.
 
+**Setup state lives with the data (v0.369.0).** Where a system's setup stands is `SystemSettings.onboarding`, written ONLY through `src/lib/onboardingState.js` (`recordOnboarding`, `markOnboardingDone`, `markWordsChosen`, `markPacks`). Never add a localStorage onboarding flag; the older ones (`symphony_onboarding_done_v1`, `terms_setup_done`, `tour_seen`) are still read there and still written for older versions, never deleted. First run is decided by the data first (`systemHasPersonalData` in `src/lib/setupGate.js`), then by that record. "What's set up" is one pure step list (`src/lib/setupModel.js`, live through `useSetupSteps` in `src/lib/setupSteps.js`) where every step is done because of a real record or setting, never a tick; the home screen's setup card (`setup_card`, `src/v2/setupWidgets.jsx`) and Settings → Setup (`SetupSettings.jsx`) both read it. Tests: `node scripts/test-setup.mjs`.
+
 ---
 
 ## Entity Reference Table

@@ -47,6 +47,7 @@ const WIDGET_FILES = [
   "src/v2/goalWidgetDefs.jsx",
   "src/v2/notesWidgets.jsx",
   "src/v2/medicationWidgets.jsx",
+  "src/v2/setupWidgets.jsx",
   "src/components/goals/workspace/ActivityStrip.jsx",
   "src/components/goals/workspace/Outline.jsx",
   "src/components/goals/workspace/ItemRow.jsx",

@@ -45,6 +45,7 @@ const BY_ID = {
   now: [
     "presence", "running", "today", "status", "sleep", "fronting_panel",
     "current_fronters", "status_note", "active_now", "dashboard_pins", "current_focus",
+    "setup_card",
   ],
   log: ["capture", "log_emotion", "log_symptom", "diary_card", "quick_checkin"],
   plan: [
