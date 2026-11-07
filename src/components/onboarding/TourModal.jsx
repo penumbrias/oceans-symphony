@@ -2,8 +2,8 @@
 // from the home screen's ⚙ menu. Five counted steps, each reusing the real
 // thing (SetupFlowSteps.jsx): 1 Keep it safe · 2 One thing first (the
 // not-medical notice) · 3 Your words · 4 How are you right now? (one
-// feeling + what check-ins track) · 5 Who's here? Then an optional "About
-// the app" run of short pages.
+// feeling + what check-ins track) · 5 Who's here? Finishing lands on the
+// home screen; the "About the app" pages moved into the Tour (v0.370.4).
 //
 // Exits are always open. Close (X, Escape) leaves without recording
 // anything, and the steps resume where they stopped next time. "Skip
@@ -15,14 +15,10 @@
 // prop; passive slides are declared with body/features/tip.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { isNative } from "@/lib/platform";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Users, BarChart2, Shield, Sparkles, CheckSquare,
-  MessageSquare, Zap, ShieldCheck, Heart, Languages, UserPlus,
-} from "lucide-react";
+import { ShieldCheck, Heart, Languages, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { withBatch } from "@/lib/localDb";
@@ -39,7 +35,6 @@ import { KeepSafeStep, NoticeStep, FeelingStep, WhoStep, addAlterByName } from "
 import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
 import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
-import { an } from "@/lib/articles";
 
 // Near-duplicate aware ("Energy level" already covers the "Energy" preset)
 // so a pack never adds a second copy of something already in the list.
@@ -342,7 +337,7 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
       ),
       nextLabel: "Finish",
       // A typed name nobody pressed Add for is still added. Then setup is
-      // recorded as done; the "About the app" pages after are optional.
+      // recorded as done and the steps close onto the home screen.
       onNext: async () => {
         if (whoName.trim()) {
           try {
@@ -351,165 +346,8 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
           } catch (e) { toast.error(e?.message || `Couldn't add that ${t.alter}.`); }
         }
         await finishSetup();
+        toast.success("You're all set 💜", { description: "Settings → Setup shows what's next. Take the tour there for the whole app." });
       },
-    },
-    // Transition — setup is done. "Dive in" is the recommended path; "Read
-    // more" walks the short "About the app" pages below.
-    {
-      phase: "About the app",
-      title: "You're all set! 🎉",
-      subtitle: "",
-      icon: "✨",
-      color: "from-violet-500/20 to-emerald-500/20",
-      body:
-        `Dive in, or tap "Read more" for a quick look at what's here. Each page also has a "Show me around" banner that walks you through it one step at a time.`,
-      nextLabel: "Read more",
-      skipHidden: false,
-      extraAction: { label: "Dive in", onClick: () => onClose?.() },
-      extraActionPrimary: true,
-    },
-    // ─── About the app (v0.317.0) ────────────────────────────────────────
-    // One page per area of the app, the way the app itself is now grouped
-    // — short, current, and pointing at the "Show me around" walk-throughs
-    // for the details rather than explaining every control here.
-    {
-      phase: "About the app",
-      title: "This app is your home",
-      subtitle: `There's no "right" way to use it`,
-      icon: "🏡",
-      color: "from-amber-500/20 to-rose-500/20",
-      body: `Use it however fits your ${t.system}. Track what helps, skip what doesn't, and come back to things later. Nothing you log leaves this device unless you send it.`,
-      tip: `Every word the app uses for your ${t.system} — "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed in Settings → Profile → Terminology.`,
-    },
-    {
-      phase: "About the app",
-      title: `Your ${t.alters}`,
-      subtitle: "Every profile is a page you arrange",
-      icon: <Users className="w-8 h-8" />,
-      color: "from-purple-500/20 to-pink-500/20",
-      body: `Each ${t.alter} has a profile made of widgets, like the home screen. What's on it is up to you.`,
-      features: [
-        "Info holds everything about them, and saves as you type",
-        "The pencil (Edit page) moves, resizes and adds widgets",
-        "Custom fields for anything else you want to keep",
-        "Groups, contacts and inner-world places work the same way",
-      ],
-      tip: `The ${t.Front} button on a profile puts them in ${t.front}; hold it for the levels.`,
-    },
-    {
-      phase: "About the app",
-      title: "Your home screen",
-      subtitle: "Built from widgets",
-      icon: <Sparkles className="w-8 h-8" />,
-      color: "from-sky-500/20 to-indigo-500/20",
-      body: `The home screen is made of widgets. Each one shows or does one thing: who's ${t.fronting}, today's plans, a journal, a breathing circle.`,
-      features: [
-        "Hold an empty spot to move, resize or add widgets",
-        "Each widget's gear changes what it shows and how it looks",
-        "Build more pages and swipe between them",
-        "Any widget can go on a profile too",
-      ],
-      tip: "Display options → Bars sets up every bar in the app in one place.",
-    },
-    {
-      phase: "About the app",
-      title: "Logging in a tap",
-      subtitle: "Catch it while it's happening",
-      icon: <Zap className="w-8 h-8" />,
-      color: "from-amber-500/20 to-yellow-500/20",
-      body: `Quick Check-In takes as much or as little as you like. The quick actions bar is always one tap away.`,
-      features: [
-        `Feelings, who's ${t.fronting}, activity, symptoms, a note`,
-        "Statuses, places, sleep and diary cards",
-        "Shortcuts you build yourself",
-        "Everything is timestamped",
-      ],
-      tip: "Missed something? Press and hold a day on the timeline to add it afterwards.",
-    },
-    {
-      phase: "About the app",
-      title: "Your day",
-      subtitle: "Plans, routines and nudges",
-      icon: <CheckSquare className="w-8 h-8" />,
-      color: "from-teal-500/20 to-emerald-500/20",
-      body: `The planner holds what you did and what you mean to do. Plans stay until you say how they went, so nothing quietly disappears.`,
-      features: [
-        "Planner: drag on the week to log or plan",
-        "Routines and a to-do list",
-        "Reminders that open the right thing",
-      ],
-      tip: isNative()
-        ? "Reminders arrive even with the app closed, once notifications are allowed."
-        : "In the web app, reminders arrive while it's open; turn on \"Reliable reminders\" in Settings → Notifications for when it's closed.",
-    },
-    {
-      phase: "About the app",
-      title: "Writing and talking",
-      subtitle: `Bridging the gaps across the ${t.system}`,
-      icon: <MessageSquare className="w-8 h-8" />,
-      color: "from-green-500/20 to-teal-500/20",
-      body: `Leave words for each other, however you talk best.`,
-      features: [
-        "Journals, with folders and private entries",
-        `${t.System} chat with channels`,
-        `Bulletin board for the whole ${t.system}`,
-        "@ mentions notify, whispers stay private",
-      ],
-      tip: `Anywhere you write, @name mentions ${an(t.alter)} and ~therapy saves a note for your next report.`,
-    },
-    {
-      phase: "About the app",
-      title: "Support & Learn",
-      subtitle: "Grounding when you need it",
-      icon: <Shield className="w-8 h-8" />,
-      color: "from-pink-500/20 to-rose-500/20",
-      body: `Grounding techniques, breathing, sounds and a 13-module course of coping skills drawn mainly from the Finding Solid Ground workbook. The app isn't a substitute for professional care.`,
-      features: [
-        "Help me figure out what I need",
-        "Guided breathing and soundscapes",
-        "A safety plan you build over time",
-      ],
-      tip: "The 🫧 bubble on every screen opens Support.",
-    },
-    {
-      phase: "About the app",
-      title: "Looking back",
-      subtitle: "See the patterns, bring them to therapy",
-      icon: <BarChart2 className="w-8 h-8" />,
-      color: "from-violet-500/20 to-indigo-500/20",
-      body: `Everything you log comes together, so you can see what happened even across amnesia.`,
-      features: [
-        "Timeline: every day, everything in it",
-        `Analytics: ${t.fronting}, feelings, symptoms, activities`,
-        "Therapy report: a summary to share, made on your device",
-      ],
-      tip: "The more you log, the more the analytics can show.",
-    },
-    {
-      phase: "About the app",
-      title: "Privacy & your data",
-      subtitle: "Your data, your control",
-      icon: "🔒",
-      color: "from-slate-500/20 to-gray-500/20",
-      body: `Everything stays on this device, and there's no account. It only leaves when you choose: a backup, Friends, cloud reminders or device sync. There's no cloud copy, so please keep backups.`,
-      features: [
-        "Automatic backups, password-locked if you like",
-        "Optional password lock for everything on this device",
-        "Deleted things wait in the trash for 30 days",
-        "No ads, no tracking, free and open source",
-      ],
-      tip: "Settings → Data & privacy has it all, including \"See your data\".",
-    },
-    {
-      phase: "About the app",
-      title: "You're all set 💜",
-      subtitle: `Welcome to the ${t.system}`,
-      icon: "💜",
-      color: "from-violet-500/20 to-purple-500/20",
-      body: `Explore at your own pace. Each page's "Show me around" walks you through it one step at a time. Settings → Setup shows what's set up so far, and Start over runs these steps again.`,
-      tip: "For the whole app, choose Take the tour in Settings → Setup.",
-      nextLabel: "Start exploring 💜",
-      onNext: handleFinish,
     },
   ];
 

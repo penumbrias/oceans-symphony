@@ -25,7 +25,7 @@ import { an } from "@/lib/articles";
 export const STEP_BODY_LIMIT = 300;
 
 const SECTION_LABELS = (t) => ({
-  welcome: "Welcome", garden: "How it fits together", newui: "New UI", dashboard: "Home", fronting: t.Fronting,
+  welcome: "Welcome", about: "About the app", garden: "How it fits together", newui: "New UI", dashboard: "Home", fronting: t.Fronting,
   alters: t.Alters, profile: `${t.Alter} profile`, timeline: "Timeline",
   meetings: `${t.System} Meetings`, journals: "Journals", bulletin: "Bulletin Board",
   tasks: "Routines", activities: "Activities", polls: "Polls", reminders: "Reminders",
@@ -59,6 +59,50 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "♿", title: "Accessibility, any time",
       body: `The Accessibility button in the corner stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
       route: "/", look: `the floating "Accessibility" button in the corner of the screen`,
+    }),
+
+    // ─── ABOUT THE APP (v0.370.4) ───────────────────────────────────────────
+    // The short "About the app" pages that used to follow setup. Full tour
+    // only, no targets: a quick look at each area before the tour visits it.
+    s("about", {
+      emoji: "🏡", title: "This app is your home",
+      body: `There's no "right" way to use it. Track what helps, skip what doesn't, and come back to things later. Every word the app uses for your ${t.system} can be changed in Settings → Profile → Terminology.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "🪪", title: `Your ${t.alters}`,
+      body: `Each ${t.alter} has a profile made of widgets, like the home screen. Info holds everything about them; custom fields keep anything else. Groups, contacts and inner-world places work the same way.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "⚡", title: "Logging in a tap",
+      body: `Quick Check-In takes as much or as little as you like: feelings, who's ${t.fronting}, an activity, symptoms, a note. Missed something? Press and hold a day on the timeline to add it afterwards.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "🗓️", title: "Your day",
+      body: `The planner holds what you did and what you mean to do. Plans stay until you say how they went, so nothing quietly disappears. Routines, a to-do list and reminders sit beside it.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "💬", title: "Writing and talking",
+      body: `Journals, ${t.System} chat and the bulletin board let you leave words for each other. @ mentions notify, whispers stay private.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "🫧", title: "Support & Learn",
+      body: `Grounding, breathing, sounds and a course of coping skills. The 🫧 bubble on every screen opens Support. The app isn't a substitute for professional care.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "📈", title: "Looking back",
+      body: `Everything you log comes together: the timeline, analytics, and a therapy report made on your device. You can see what happened even across amnesia.`,
+      route: "/", fullTourOnly: true,
+    }),
+    s("about", {
+      emoji: "🔒", title: "Your data stays here",
+      body: `There's no account and no cloud copy. Data leaves only when you choose: a backup, Friends, cloud reminders or device sync. Deleted things wait in the trash for 30 days.`,
+      route: "/", fullTourOnly: true,
     }),
 
     // ─── HOW IT FITS TOGETHER (the garden, docs/garden.md) ─────────────────
