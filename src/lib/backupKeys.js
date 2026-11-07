@@ -27,6 +27,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_experimental_features_v1",
   "symphony_goals_last_line_kind",
   "symphony_newui_banner_dismissed_v1",
+  "symphony_feedback_survey_2026_11_dismissed_v1",
   "symphony_themeMode",
   "symphony_selectedTheme",
   "symphony_customColors",

@@ -21,4 +21,14 @@ releaseAttention("setup"); releaseAttention("setup2"); releaseAttention("promo")
 assert.equal(attentionHolder(), "tip");
 releaseAttention("tip");
 assert.equal(attentionHolder(), null);
+
+// `besides` looks past the named claims (the survey floats beside notices).
+claimAttention("home-notices:a", ATTENTION.NOTICES);
+claimAttention("feedback-survey:b", ATTENTION.SURVEY);
+claimAttention("continue-setup:c", ATTENTION.SETUP);
+assert.equal(attentionHolder(), "home-notices:a");
+assert.equal(attentionHolder(["home-notices"]), "feedback-survey:b", "shares the screen with notices");
+claimAttention("reminder-toast:d", ATTENTION.REMINDER);
+assert.equal(attentionHolder(["home-notices"]), "reminder-toast:d", "still waits for a reminder");
+_resetAttention();
 console.log("attention slot: all good");
