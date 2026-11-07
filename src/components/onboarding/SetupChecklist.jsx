@@ -411,7 +411,7 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null, uiV2O
     {
       id: "tasks",
       icon: CheckSquare,
-      title: "Daily & recurring tasks",
+      title: "Routines",
       description: "Little routines that repeat — check-ins, taking meds, journaling.",
       content: (
         <div className="space-y-3">
@@ -428,7 +428,7 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null, uiV2O
 
           <div className="space-y-1.5">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-              Suggested daily tasks
+              Suggested routines
             </p>
             <div className="rounded-lg border border-border/50 divide-y divide-border/40 overflow-hidden">
               {DEFAULT_TASK_TEMPLATES.map((def) => {
