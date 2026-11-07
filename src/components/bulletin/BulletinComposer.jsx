@@ -19,6 +19,7 @@ import ImageInsertPreview from "@/components/shared/ImageInsertPreview";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { an } from "@/lib/articles";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
@@ -531,7 +532,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         <div className="mt-3 flex items-start gap-2 text-xs px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-foreground">
           <span className="text-base leading-none mt-px">💡</span>
           <p className="flex-1 leading-relaxed">
-            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag an {terms.alter}.
+            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag {an(terms.alter)}.
           </p>
           <button onClick={dismissHint} aria-label="Dismiss hint" className="text-muted-foreground hover:text-foreground flex-shrink-0">
             <X className="w-3.5 h-3.5" />

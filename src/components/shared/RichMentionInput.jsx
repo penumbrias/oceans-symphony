@@ -9,6 +9,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
 import { getCommandSign } from "@/lib/commandTerms";
+import { an } from "@/lib/articles";
 
 // A true inline rich-text input (contentEditable) with @mention (always)
 // and -signpost (opt-in) autocomplete. Unlike MentionTextarea — which is a
@@ -326,7 +327,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
-        data-placeholder={placeholder ?? `Type a message… use @ to mention an ${terms.alter}`}
+        data-placeholder={placeholder ?? `Type a message… use @ to mention ${an(terms.alter)}`}
         onInput={handleInput}
         onKeyUp={(e) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) recompute(); }}
         onClick={recompute}

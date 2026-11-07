@@ -10,6 +10,7 @@ import { useTerms } from "@/lib/useTerms";
 import { TabBar } from "@/components/shared/SettingRows";
 import { wouldAddingMemberCycle } from "@/lib/subsystemUtils";
 import { byGroupOrder, indexGroups, ancestorIds, rootGroups, childGroups, MAX_GROUP_DEPTH } from "@/lib/groupTree";
+import { an } from "@/lib/articles";
 
 // One row in the nested group tree
 function GroupRow({ group, depth, isSelected, subgroupDotColors, onToggle, children }) {
@@ -235,7 +236,7 @@ export default function GroupPickerModal({ alter, open, onClose, selectedIds = n
           ) : (
             subsystems.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No {subTerm}s yet. Create one from an {t.alter}'s profile.
+                No {subTerm}s yet. Create one from {an(t.alter)}'s profile.
               </p>
             ) : (
               subsystems.map((g) => {

@@ -17,6 +17,7 @@ import DaySeriesChart from "@/components/analytics/primitives/DaySeriesChart";
 import HBarList from "@/components/analytics/primitives/HBarList";
 import UnlockGate from "@/components/analytics/primitives/UnlockGate";
 import CollapsedSection from "@/components/analytics/primitives/CollapsedSection";
+import { an } from "@/lib/articles";
 
 // Rebuilt Wellbeing analytics (Phase 3). Numbers come from
 // src/lib/analytics/wellbeing.js; sentences here stay descriptive
@@ -187,7 +188,7 @@ export default function WellbeingTab({
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sym?.color || "hsl(var(--primary))" }} />
                   <span className="text-xs font-medium text-foreground flex-1 truncate">{sym?.label || sym?.name || "Symptom"}</span>
                   <span className="text-[0.625rem] text-muted-foreground tabular-nums">
-                    {r.pre} of {r.total} logs fell before a {terms.switch} (~{r.lift.toFixed(1)}× its usual rate)
+                    {r.pre} of {r.total} logs fell before {an(terms.switch)} (~{r.lift.toFixed(1)}× its usual rate)
                   </span>
                 </div>
               );

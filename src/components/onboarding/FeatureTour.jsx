@@ -12,6 +12,7 @@ import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
 import AccessibilityFab from "@/components/accessibility/AccessibilityFab";
 import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { tutorialRouteKey } from "@/lib/pageTutorials";
+import { an } from "@/lib/articles";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
@@ -262,7 +263,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `This window sets who's ${t.fronting}. Everyone in ${t.front} shows as a card at the top; × removes them. Tap anyone in the list to add them.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
-      route: "/", look: `the window — try tapping an ${t.alter} to add them`, action: "open-set-front",
+      route: "/", look: `the window — try tapping ${an(t.alter)} to add them`, action: "open-set-front",
     }),
     s("fronting", {
       emoji: "📶", title: `${t.Fronting} levels`,
@@ -301,7 +302,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "📌", title: `Pinned ${t.alters}`,
-      body: `Pin an ${t.alter} from their profile and they show here and in the pinned bar. Tap a chip for their menu; hold it for the level rail. The ⚙ picks who's pinned and how they look.`,
+      body: `Pin ${an(t.alter)} from their profile and they show here and in the pinned bar. Tap a chip for their menu; hold it for the level rail. The ⚙ picks who's pinned and how they look.`,
       route: "/Home", target: "pinned-alters", look: `the Pinned row — it shows once you've pinned someone`,
     }),
     s("alters", {
@@ -335,7 +336,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alter-groups-controls", look: `the ⋯ beside New group`,
     }),
     s("alters", {
-      emoji: "➕", title: `Add an ${t.alter}`,
+      emoji: "➕", title: `Add ${an(t.alter)}`,
       body: `Tap "Add ${t.Alter}" to make a new profile. A name is enough to start; everything else can be filled in later from their Info.`,
       route: "/Home", target: "alter-add-btn", look: `the highlighted "+ Add ${t.Alter}" button`,
     }),
@@ -524,7 +525,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("timeline", {
       emoji: "⏮️", title: "Add something you missed",
-      body: `Press and hold any day to add what you didn't log then: a ${t.fronting} session (several ${t.alters}, each with a level), a check-in, a symptom or an activity.`,
+      body: `Press and hold any day to add what you didn't log then: ${an(t.fronting)} session (several ${t.alters}, each with a level), a check-in, a symptom or an activity.`,
       route: "/timeline", target: "timeline-container", look: `press and hold on any day`,
     }),
 
@@ -546,7 +547,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("meetings", {
       emoji: "💬", title: "Open dialogue",
-      body: `Under "Invite Sharing", turn on "Open dialogue" for a ${t.System} Chat right inside the meeting. Keep it with the meeting, or save it to a chat channel.`,
+      body: `Under "Invite Sharing", turn on "Open dialogue" for ${an(t.System)} Chat right inside the meeting. Keep it with the meeting, or save it to a chat channel.`,
       route: "/system-checkin", target: "meetings-new", look: `inside a new meeting, under "Invite Sharing"`,
     }),
 
@@ -583,7 +584,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("journals", {
       emoji: "🏷️", title: "@ mentions",
-      body: `Mention an ${t.alter} with @ and they get a notification linking straight to the entry. @ mentions work in bulletins, messages and meeting notes too.`,
+      body: `Mention ${an(t.alter)} with @ and they get a notification linking straight to the entry. @ mentions work in bulletins, messages and meeting notes too.`,
       route: "/journals", target: "journals-new-entry",
     }),
     s("journals", {
@@ -904,7 +905,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── REMINDERS ──────────────────────────────────────────────────────────
     s("reminders", {
       emoji: "🔔", title: "Reminders",
-      body: `Reminders nudge you and open the right thing when tapped: a check-in reminder opens Quick Check-In, a ${t.front} reminder opens the ${t.front} picker. They can repeat or happen once.`,
+      body: `Reminders nudge you and open the right thing when tapped: a check-in reminder opens Quick Check-In, ${an(t.front)} reminder opens the ${t.front} picker. They can repeat or happen once.`,
       route: "/reminders", target: "reminders-list", look: `the Reminders page`,
     }),
     s("reminders", {
@@ -966,7 +967,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("analytics", {
       emoji: "➕", title: "Add a note",
-      body: `The Note button beside it adds a note with its own date and time, signed by an ${t.alter} if you like.`,
+      body: `The Note button beside it adds a note with its own date and time, signed by ${an(t.alter)} if you like.`,
       route: "/checkin-log", target: "checkin-log-display",
     }),
 
@@ -988,7 +989,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("systemmap", {
       emoji: "🏠", title: "Place profiles",
-      body: `Every place has its own profile page, like an ${t.alter}'s, with the places inside it and who's there. Prefer text? The Canvas/List switch lists every place.`,
+      body: `Every place has its own profile page, like ${an(t.alter)}'s, with the places inside it and who's there. Prefer text? The Canvas/List switch lists every place.`,
       route: "/system-map", target: "system-map-canvas",
     }),
     s("systemmap", {
@@ -1135,7 +1136,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("therapy", {
       emoji: "🎛️", title: "How much detail",
-      body: `Each section you turn on offers its own detail, like journal titles or full entries, or a ${t.fronting} summary instead of every session.`,
+      body: `Each section you turn on offers its own detail, like journal titles or full entries, or ${an(t.fronting)} summary instead of every session.`,
       route: "/therapy-report", target: "therapy-report-builder",
     }),
     s("therapy", {
@@ -1172,7 +1173,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "💾", title: "Presets and themes",
-      body: `In Display options → Styles, save your look as a preset, choosing which parts it keeps. Link a preset to an ${t.alter} and the app changes to their look when they ${t.front}.`,
+      body: `In Display options → Styles, save your look as a preset, choosing which parts it keeps. Link a preset to ${an(t.alter)} and the app changes to their look when they ${t.front}.`,
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `Display options → Styles`,
     }),
     s("settings", {
@@ -1287,7 +1288,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "⚖️", title: `When ${t.fronts} disagree`,
-      body: `If both devices logged a ${t.switch}, you choose which is right. "Compare ${t.front} history between devices" shows both, day by day.`,
+      body: `If both devices logged ${an(t.switch)}, you choose which is right. "Compare ${t.front} history between devices" shows both, day by day.`,
       route: "/settings#device-sync", target: ["settings-device-sync", "settings-data"],
     }),
     s("settings", {
@@ -1391,7 +1392,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("chat", {
       emoji: "↩️", title: "Replies and mentions",
-      body: `Reply to a message to quote it. @mention an ${t.alter} and it shows in their mentions.`,
+      body: `Reply to a message to quote it. @mention ${an(t.alter)} and it shows in their mentions.`,
       route: "/chat",
     }),
     s("chat", {

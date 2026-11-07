@@ -30,6 +30,7 @@ import { setBarPicture } from "@/lib/barPicture";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { setAlterFields, refreshAlter } from "@/lib/alterEntry";
 import { Row, StackedRow, Group, SwitchRow, ChoiceRow, SliderRow } from "@/components/shared/SettingRows";
+import { an } from "@/lib/articles";
 
 // Shape swatches — the shape itself is the label.
 function ShapeRow({ value, onChange, exclude = "" }) {
@@ -185,7 +186,7 @@ export default function PinnedAltersConfigPanel({ parts = "all", sizes = false }
             </div>
           </div>
         ) : pinned.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-1.5">{`Nothing pinned yet — tap Add / remove, or press and hold an ${terms.alter} anywhere and pick Pin.`}</p>
+          <p className="text-xs text-muted-foreground py-1.5">{`Nothing pinned yet — tap Add / remove, or press and hold ${an(terms.alter)} anywhere and pick Pin.`}</p>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto overscroll-contain pr-0.5 py-1.5">
             {pinned.map((a, i) => (

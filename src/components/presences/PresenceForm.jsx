@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useFrontersFirst } from "@/lib/alterSort";
+import { an } from "@/lib/articles";
 
 // Self-contained create/edit form for a "presence" — a sensed-but-not-yet-
 // identified fragment/alter. Reuses the SAME colour picker (ColorPickerModal)
@@ -104,7 +105,7 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground leading-snug">
         Sensed someone you can't quite place? Jot down whatever you can — even
-        just a colour or a feeling. You can link it to an {terms.alter} now or later.
+        just a colour or a feeling. You can link it to {an(terms.alter)} now or later.
       </p>
 
       <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="A name or word for them (optional)" />

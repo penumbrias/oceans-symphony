@@ -41,6 +41,7 @@ import {
   VIDEOS_FOLDER, AUDIO_FOLDER, OTHERS_FOLDER, SONGS_AUDIO_FOLDER, UNORGANIZED_FOLDER, BUILT_IN_KIND_FOLDERS,
 } from "@/lib/assetFolders";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { an } from "@/lib/articles";
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const PAGE = 24; // lazy-load page size per folder
 
@@ -979,7 +980,7 @@ export default function AssetsLibrary() {
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={rules.perAlter} onChange={(e) => saveRules({ perAlter: e.target.checked })} className="w-4 h-4 rounded" />
-              File an {t.alter}'s own images under its 👤 folder
+              File {an(t.alter)}'s own images under its 👤 folder
             </label>
             {rules.perAlter && (
               <label className="flex items-center gap-2 text-sm cursor-pointer pl-6">

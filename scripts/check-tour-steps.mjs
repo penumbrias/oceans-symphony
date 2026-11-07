@@ -17,6 +17,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { an, An } from "../src/lib/articles.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tourPath = join(root, "src/components/onboarding/FeatureTour.jsx");
@@ -32,7 +33,8 @@ if (start < 0 || end < 0) {
 }
 const code = src.slice(start, end).replace(/export (const|function) /g, "$1 ")
   + "\nreturn { buildSteps, STEP_BODY_LIMIT };";
-const { buildSteps, STEP_BODY_LIMIT } = new Function(code)();
+// buildSteps may call the a/an helpers (src/lib/articles.js), its one import.
+const { buildSteps, STEP_BODY_LIMIT } = new Function("an", "An", code)(an, An);
 
 // Default-length terms: each key reads as itself ("alters", "Fronting"…),
 // which is about the length of the default words.

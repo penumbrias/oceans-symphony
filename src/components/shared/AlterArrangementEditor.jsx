@@ -15,6 +15,7 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { an } from "@/lib/articles";
 
 // ── Manual arrangement ─────────────────────────────────────────────
 // Owner request: not just sort rules — the user says literally "this
@@ -99,7 +100,7 @@ export default function AlterArrangementEditor({ value = [], onChange }) {
           onChange={(v) => add("alter", v)}
           options={alters.filter((a) => !a.is_archived && !has("alter", a.id))
             .map((a) => ({ id: a.id, label: formatAlter(a) }))}
-          placeholder={`Add an ${terms.alter}…`}
+          placeholder={`Add ${an(terms.alter)}…`}
           searchPlaceholder={`Search ${terms.alters}…`}
         />
         <SearchableSelect

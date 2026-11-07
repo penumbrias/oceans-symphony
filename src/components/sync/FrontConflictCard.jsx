@@ -15,6 +15,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getFrontConflicts, resolveFrontConflict, FRONT_CONFLICTS_EVENT } from "@/lib/frontConflicts";
 import FrontConflictTimeline from "@/components/sync/FrontConflictTimeline";
+import { an } from "@/lib/articles";
 
 let inlineCount = 0;
 const INLINE_EVENT = "symphony-front-conflict-inline";
@@ -102,7 +103,7 @@ export default function FrontConflictCard({ variant = "inline" }) {
         <div className="text-sm space-y-1 min-w-0">
           <p className="font-semibold leading-tight">This device and {device} disagree about who&apos;s {t.fronting}</p>
           <p className="text-xs text-muted-foreground">
-            Each one logged a {t.switch} before they synced. Pick what&apos;s true. You can still edit the times in your {t.front} history afterwards.
+            Each one logged {an(t.switch)} before they synced. Pick what&apos;s true. You can still edit the times in your {t.front} history afterwards.
           </p>
         </div>
       </div>

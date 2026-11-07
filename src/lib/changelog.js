@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "fix", text: "\"a\" and \"an\" now fit your own words (\"a part\", \"an alter\") instead of always saying \"an\"." },
+      { type: "improve", text: "Page tips and the web app's offline download wait until setup is done, and the download never runs on Data Saver." },
       { type: "improve", text: "Help is called the same thing everywhere: Setup (what's set up, Start over), Tour (the whole app) and \"Show me around this page\"." },
       { type: "improve", text: "A shorter first welcome screen: Start, \"Need support right now?\" (breathing and crisis lines, no setup needed) and \"Been here before?\" for finding your data or importing." },
       { type: "feature", text: "New welcome steps: keep it safe, one short notice, your words, how you are right now, and who's here. Five steps, and you can close them any time." },

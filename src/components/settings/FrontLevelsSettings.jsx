@@ -19,6 +19,7 @@ import {
   useFrontLevels, DEFAULT_FRONT_LEVELS, newFrontLevelId, frontLevelLabel,
 } from "@/lib/frontLevels";
 import FrontLevelStylesEditor from "@/components/fronting/FrontLevelStylesEditor";
+import { an } from "@/lib/articles";
 
 export default function FrontLevelsSettings() {
   const terms = useTerms();
@@ -125,8 +126,8 @@ export default function FrontLevelsSettings() {
             </Button>
           </div>
           <p className="text-[0.6875rem] text-muted-foreground">
-            Set a level from the Set {terms.Front} window, an {terms.alter}'s panel in
-            Currently {terms.Fronting}, or (new UI) press-and-hold an {terms.alter} in
+            Set a level from the Set {terms.Front} window, {an(terms.alter)}'s panel in
+            Currently {terms.Fronting}, or (new UI) press-and-hold {an(terms.alter)} in
             the who's-here widget and drag along the spectrum.
           </p>
 
@@ -201,7 +202,7 @@ export default function FrontLevelsSettings() {
               pill in the {alter} menu, and surfaces that adopt it):
               hold is always the rail; TAP is the user's choice. */}
           <div className="rounded-xl border border-border/50 p-2.5 space-y-2">
-            <p className="text-xs font-medium">Tapping a {terms.fronting} control</p>
+            <p className="text-xs font-medium">Tapping {an(terms.fronting)} control</p>
             <div className="flex flex-wrap gap-1">
               {[
                 ["level_up", "Steps a level up"],

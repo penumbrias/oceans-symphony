@@ -11,6 +11,7 @@ import {
   getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindowMinutes, setInferPresenceWindowMinutes,
 } from "@/lib/inferredPresence";
 import { Group, ChoiceRow, SwitchRow } from "@/components/shared/SettingRows";
+import { an } from "@/lib/articles";
 
 const WINDOWS = [
   { id: 30, label: "30 min" }, { id: 60, label: "1 hour" }, { id: 120, label: "2 hours" },
@@ -52,7 +53,7 @@ export default function AnalyticsAttributionSettings() {
 
       <Group title="Attribution">
         <SwitchRow label="Infer presence from authored content"
-          hint={`When an ${terms.alter} posts a chat message, bulletin or journal, treat that as them being present for a window around then, so nearby activities, emotions and symptoms get attributed to them even without ${terms.fronting} tracking.`}
+          hint={`When ${an(terms.alter)} posts a chat message, bulletin or journal, treat that as them being present for a window around then, so nearby activities, emotions and symptoms get attributed to them even without ${terms.fronting} tracking.`}
           checked={inferPresence}
           onChange={(next) => { setInferPresence(next); setInferPresenceEnabled(next); }} />
         {inferPresence && (

@@ -34,6 +34,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { setAlterFields } from "@/lib/alterEntry";
 import { barPictureOverride, setBarPicture } from "@/lib/barPicture";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { An, an } from "@/lib/articles";
 
 function MoveRemove({ index, count, onMove, onRemove, label }) {
   return (
@@ -66,7 +67,7 @@ function WhoseRow({ settings, set, info }) {
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: info.source === "group" });
   const options = [
     ...(onProfileBoard ? [{ value: "profile", label: subject.type === "group" ? "This group" : `This ${t.alter}` }] : []),
-    { value: "alter", label: onProfileBoard ? `Another ${t.alter}` : `An ${t.alter}` },
+    { value: "alter", label: onProfileBoard ? `Another ${t.alter}` : `${An(t.alter)}` },
     { value: "group", label: "A group" },
   ];
   return (
@@ -77,7 +78,7 @@ function WhoseRow({ settings, set, info }) {
         <StackedRow label={t.Alter}>
           <AlterSearchSelect alters={alters.filter((a) => !a.is_archived)} value={settings.alterId || null}
             onChange={(id) => set({ alterId: id || "" })} terms={t} showNone={false} zIndex={120}
-            placeholder={`Choose an ${t.alter}…`} />
+            placeholder={`Choose ${an(t.alter)}…`} />
         </StackedRow>
       )}
       {info.source === "group" && (

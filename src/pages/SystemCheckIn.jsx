@@ -25,6 +25,7 @@ import { saveMentions } from "@/lib/mentionUtils";
 import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
+import { an } from "@/lib/articles";
 
 // In-progress meeting draft. A meeting being created/edited lives in component
 // state, so navigating away (e.g. to Settings) and back used to drop you on the
@@ -667,7 +668,7 @@ export default function SystemCheckInPage() {
                       Open a dialogue space for this meeting
                     </span>
                     <span className="block text-xs text-muted-foreground leading-snug mt-0.5">
-                      A back-and-forth between {terms.alters} using the full {terms.System} Chat composer. Keep it with this meeting, or save it to a {terms.System} Chat channel.
+                      A back-and-forth between {terms.alters} using the full {terms.System} Chat composer. Keep it with this meeting, or save it to {an(terms.System)} Chat channel.
                     </span>
                   </span>
                 </button>

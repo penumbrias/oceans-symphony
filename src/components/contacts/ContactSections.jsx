@@ -35,6 +35,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 import { pictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
+import { an } from "@/lib/articles";
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
@@ -78,7 +79,7 @@ export function ContactHeaderSection({ contact }) {
           {contact.relationship_label && <p className="text-sm text-muted-foreground truncate">{contact.relationship_label}</p>}
           <div className="flex flex-wrap items-center gap-1.5 mt-1">
             <span className="text-[0.6875rem] px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: safety.color }}>{safety.label}</span>
-            <span className="text-[0.6875rem] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{awareness.label} we're a {t.system}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{awareness.label} we're {an(t.system)}</span>
             {(contact.category_ids || [])
               .map((cid) => categories.find((c) => c.id === cid))
               .filter(Boolean)
