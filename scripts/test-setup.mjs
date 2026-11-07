@@ -6,7 +6,7 @@
 //   node scripts/test-setup.mjs
 
 import assert from "node:assert/strict";
-import { evaluateSetup, SETUP_STEPS, SETUP_GROUPS, mergeOnboarding } from "../src/lib/setupModel.js";
+import { evaluateSetup, SETUP_STEPS, SETUP_GROUPS, mergeOnboarding, daysUsingApp, settledInForSurvey } from "../src/lib/setupModel.js";
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log(`ok  ${name}`); };
@@ -83,6 +83,25 @@ test("a merge never drops what was recorded, and ignores undefined", () => {
   assert.equal(b.packs, "express");
   assert.equal(b.restarted_at, "x");
   assert.deepEqual(mergeOnboarding(null, {}, 1), { version: 1 });
+});
+
+test("the survey waits until a system has used the app a few days", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const day = 86400000;
+  const iso = (ms) => new Date(ms).toISOString();
+  // Brand-new system: set up today.
+  assert.equal(settledInForSurvey({ onboarding: { started_at: iso(now - day / 2), completed_at: iso(now) }, createdDate: iso(now - day / 2) }, now), false);
+  // Set up 6 days ago.
+  assert.equal(settledInForSurvey({ onboarding: { completed_at: iso(now - 6 * day) }, createdDate: null }, now), true);
+  // Long-time system whose completed_at was stamped today: the old row wins.
+  assert.equal(settledInForSurvey({ onboarding: { completed_at: iso(now) }, createdDate: iso(now - 90 * day) }, now), true);
+  // Older install with nothing recorded: treated as settled in.
+  assert.equal(daysUsingApp({ onboarding: {}, createdDate: null }, now), null);
+  assert.equal(settledInForSurvey({ onboarding: {}, hasSettingsRow: true }, now), true);
+  // No settings row at all: brand new, not yet.
+  assert.equal(settledInForSurvey({ onboarding: {}, hasSettingsRow: false }, now), false);
+  // Garbage times are ignored.
+  assert.equal(settledInForSurvey({ onboarding: { started_at: "nope" }, createdDate: iso(now - day) }, now), false);
 });
 
 console.log(`\n${passed} setup checks passed.`);
