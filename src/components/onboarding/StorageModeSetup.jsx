@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { openExternalUrl } from "@/lib/openExternalUrl";
-import { Cloud, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
+import { Cloud, Lock, Eye, EyeOff, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled, getSessionPassword } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
@@ -22,6 +22,7 @@ import {
 // The importers and the data-rescue panel sit behind closed sections most
 // new people never open, so they load on first use (v0.368.4) instead of
 // making everyone's welcome screen wait for about 80 KB gzipped of them.
+const WelcomeSupport = React.lazy(() => import("@/components/onboarding/WelcomeSupport"));
 const ImportAltersModal = React.lazy(() => import("@/components/alters/ImportAltersModal"));
 const DataRescuePanel = React.lazy(() => import("@/components/settings/DataRescuePanel"));
 const SimplyPluralFileImport = React.lazy(() => import("@/components/settings/SimplyPluralFileImport"));
@@ -31,7 +32,7 @@ const ImportLoading = () => (
   <p className="text-sm text-muted-foreground py-2" role="status">Loading…</p>
 );
 
-function FirstRunSetup({ onComplete, allowOrphans = false }) {
+function FirstRunSetup({ onComplete, onSupport, allowOrphans = false }) {
   const [step, setStep] = useState("choose");
   const [useEncryption, setUseEncryption] = useState(false);
   const [password, setPassword] = useState("");
@@ -50,7 +51,6 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
   // their imported data already in place.
   const [showImportModal, setShowImportModal] = useState(false);
   const [showRescue, setShowRescue] = useState(false);
-  const [showLocalInfo, setShowLocalInfo] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [externalImport, setExternalImport] = useState(null); // { file, type }
   const fileInputRef = useRef(null);
@@ -440,23 +440,6 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
         prepare={setupLocalStorage}
         onDone={onComplete}
       />
-      <div className="rounded-xl bg-primary/5 border border-primary/20">
-        <button
-          type="button"
-          onClick={() => setShowLocalInfo((v) => !v)}
-          aria-expanded={showLocalInfo}
-          className="w-full flex items-center gap-3 p-3 text-left"
-        >
-          <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-          <span className="text-sm font-semibold text-foreground flex-1">No account or sign-in needed</span>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${showLocalInfo ? "rotate-180" : ""}`} />
-        </button>
-        {showLocalInfo && (
-          <p className="text-sm text-muted-foreground leading-relaxed px-3 pb-3 pl-11">
-            Data is saved locally on your device. Optional at-rest password encryption available in settings. Export a backup in the settings menu to transfer data between devices.
-          </p>
-        )}
-      </div>
       <div className="pt-2">
         <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : (
@@ -469,42 +452,55 @@ function FirstRunSetup({ onComplete, allowOrphans = false }) {
               <path d="M3,19.5 q1.5,-2 3,0 t3,0 t3,0 t3,0 t3,0 t3,0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           )}
-          Enter
+          Start
         </Button>
         {error && <p className="text-xs text-destructive text-center mt-1.5">{error}</p>}
-        {/* Recovery-first, and visible without opening anything: someone who
-            lands here AFTER a storage wipe is exactly who this is for, and
-            they won't go hunting in a collapsed section. Opens the same scan
-            the boot path uses; restoring never deletes anything. */}
-        <button
-          type="button"
-          onClick={() => setShowRescue(true)}
-          className="w-full mt-3 text-left rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-foreground hover:bg-amber-500/10"
-        >
-          <span className="font-medium">Opened to an empty app after an update or reinstall?</span>{" "}
-          <span className="text-muted-foreground">Find my data — check for it here before setting up or importing over the top.</span>
-        </button>
+        <div className="mt-3 space-y-1">
+          <button
+            type="button"
+            onClick={onSupport}
+            className="w-full min-h-[44px] rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5"
+          >
+            Need support right now?
+          </button>
+          {/* Recovery is one tap away, and the row says what's behind it: someone
+              who lands here after a storage wipe is exactly who this is for.
+              Find my data runs the same scan the boot path uses and never
+              deletes anything; the importers load only once it's open. */}
+          <button
+            type="button"
+            onClick={() => setShowImport((v) => !v)}
+            aria-expanded={showImport || !!externalImport}
+            className="w-full min-h-[44px] flex items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted/40"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-medium text-foreground">Been here before?</span>
+              <span className="block text-xs text-muted-foreground">Find your data after an update or reinstall, or bring in a backup.</span>
+            </span>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${(showImport || externalImport) ? "rotate-180" : ""}`} />
+          </button>
+        </div>
       </div>
 
-      <div className="border-t border-border/40 pt-4 mt-2">
-        <button
-          type="button"
-          onClick={() => setShowImport((v) => !v)}
-          aria-expanded={showImport || !!externalImport}
-          className="w-full flex items-center gap-2 py-1 text-sm font-medium text-foreground"
-        >
-          <span className="flex-1 text-left">Import data</span>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${(showImport || externalImport) ? "rotate-180" : ""}`} />
-        </button>
-        {(showImport || externalImport) && (
-        <div className="space-y-2 pt-3">
-        <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
+      <div>
+        {/* Outside the fold, so the desktop notice's import button finds it. */}
         <input
           ref={fileInputRef}
           type="file"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleImportFile(f); }}
           className="hidden"
         />
+        {(showImport || externalImport) && (
+        <div className="space-y-2 pt-1">
+        <button
+          type="button"
+          onClick={() => setShowRescue(true)}
+          className="w-full text-left rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm text-foreground hover:bg-amber-500/10"
+        >
+          <span className="font-medium block">Find my data</span>
+          <span className="text-xs text-muted-foreground">Opened to an empty app after an update or reinstall? Check for your data here before setting up or importing over the top.</span>
+        </button>
+        <p className="text-xs font-medium text-foreground pt-2">Already have data elsewhere?</p>
         {!externalImport ? (
           <>
             <Button
@@ -738,6 +734,10 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
   // (multi-system archive import) is caught by the Dashboard safety net.
   const [phase, setPhase] = useState("setup");
   const backupPhase = mode !== "unlock" && phase === "backup";
+  // "Need support right now?" swaps the welcome for static support. The
+  // setup form stays mounted underneath (hidden) so nothing typed is lost.
+  const [support, setSupport] = useState(false);
+  const welcome = mode !== "unlock" && !backupPhase;
 
   return (
     <div className="fixed inset-0 bg-background z-[100] overflow-y-auto overscroll-contain">
@@ -746,6 +746,12 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
 
         {/* Header — unlock is a simple lock prompt; first-run setup doubles as
             the welcome intro (the two used to be separate screens). */}
+        {welcome && support && (
+          <React.Suspense fallback={<ImportLoading />}>
+            <WelcomeSupport onBack={() => setSupport(false)} />
+          </React.Suspense>
+        )}
+        <div className={welcome && support ? "hidden" : undefined}>
         {backupPhase ? null : mode === "unlock" ? (
           <div className="flex flex-col items-center mb-6">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
@@ -762,7 +768,7 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
               Welcome to Oceans Symphony
             </h2>
             <p className="text-sm text-foreground/90 leading-relaxed text-center mt-3">
-              A companion app for dissociative systems, private on your own device.
+              A private place to keep track, together. Everything stays on this device.
             </p>
             {/* One welcome, one sentence (UI critique H6); the maker's note
                 is still here, one tap away. */}
@@ -844,9 +850,15 @@ export default function StorageModeSetup({ mode, onComplete, allowOrphans = fals
         {mode === "unlock"
           ? <UnlockScreen onUnlock={onComplete} />
           : backupPhase
-            ? <BackupDecisionStep onDone={onComplete} />
-            : <FirstRunSetup onComplete={() => setPhase("backup")} allowOrphans={allowOrphans} />
+            ? (
+              <>
+                <p className="text-xs font-medium text-muted-foreground text-center mb-3">Step 1 of 5 · Keep it safe</p>
+                <BackupDecisionStep onDone={onComplete} />
+              </>
+            )
+            : <FirstRunSetup onComplete={() => setPhase("backup")} onSupport={() => setSupport(true)} allowOrphans={allowOrphans} />
         }
+        </div>
       </div>
       </div>
     </div>
