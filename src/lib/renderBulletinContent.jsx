@@ -88,16 +88,23 @@ function applyTerms(content, terms) {
 // — \w+ alone can't match them.
 function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-function renderTextWithMentions(text, alters, baseKey) {
-  if (!text) return null;
-  const altersByName = Object.fromEntries(alters.map((a) => [a.name, a]));
-  const altersByAlias = Object.fromEntries(alters.filter((a) => a.alias).map((a) => [a.alias, a]));
+// The name/alias lookups and the token regex depend only on the alters list,
+// so they're built once per list and reused for every text node of every
+// post. Building them per text node made a busy board re-scan every alter
+// (and compile a fresh regex) hundreds of times on each render.
+const mentionMatcherCache = new WeakMap();
+function mentionMatcherFor(alters) {
+  const list = Array.isArray(alters) ? alters : [];
+  const cached = mentionMatcherCache.get(list);
+  if (cached) return cached;
+  const altersByName = Object.fromEntries(list.map((a) => [a.name, a]));
+  const altersByAlias = Object.fromEntries(list.filter((a) => a.alias).map((a) => [a.alias, a]));
   // Non-word @-tokens (emoji aliases, symbol/multi-word aliases) — \w+ can't
   // match these, so collect the in-use ones and add them as explicit, escaped
   // regex alternatives. Mirrors the @-tokens mentionUtils.extractMentionedIds
   // counts, so the highlight matches what actually registers as a mention.
   const altersByExtra = {};
-  for (const a of alters) {
+  for (const a of list) {
     for (const tok of [a.name, a.alias, effectiveAlias(a)]) {
       const v = (tok || "").trim();
       if (v && /[^\p{L}\p{N}_]/u.test(v) && !(v in altersByExtra)) altersByExtra[v] = a;
@@ -105,13 +112,23 @@ function renderTextWithMentions(text, alters, baseKey) {
   }
   const extraAlt = Object.keys(altersByExtra).sort((x, y) => y.length - x.length).map(escapeRegExp).join("|");
   const mentionPart = extraAlt ? `@(?:${extraAlt}|\\w+)` : "@\\w+";
-  const TOKEN_RE = new RegExp(`(\\[[^\\]\\n]+\\]\\(https?:\\/\\/[^\\s)]+\\))|(\\bhttps?:\\/\\/[^\\s<]+)|(${mentionPart})`, "g");
+  const source = `(\\[[^\\]\\n]+\\]\\(https?:\\/\\/[^\\s)]+\\))|(\\bhttps?:\\/\\/[^\\s<]+)|(${mentionPart})`;
+  const matcher = { altersByName, altersByAlias, altersByExtra, source };
+  if (Array.isArray(alters)) mentionMatcherCache.set(alters, matcher);
+  return matcher;
+}
+
+function renderTextWithMentions(text, alters, baseKey) {
+  if (!text) return null;
+  const { altersByName, altersByAlias, altersByExtra, source } = mentionMatcherFor(alters);
+  // A fresh RegExp per call: it's stateful (lastIndex) and nested renders
+  // must not share one.
+  const TOKEN_RE = new RegExp(source, "g");
 
   const out = [];
   let last = 0;
   let m;
   let i = 0;
-  TOKEN_RE.lastIndex = 0;
   const linkCls = "underline text-primary break-words";
   while ((m = TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) out.push(<React.Fragment key={`${baseKey}-t${i}`}>{text.slice(last, m.index)}</React.Fragment>);
