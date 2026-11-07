@@ -7,7 +7,7 @@
 // a live interactive React node (bundle picker, emotions manager…). Pages
 // with `render` swap into the body wholesale.
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -44,6 +44,7 @@ export default function SetupWizardShell({
   countedPhases = null,
 }) {
   const [step, setStep] = useState(initialStep);
+  const headingRef = useRef(null);
   const [animating, setAnimating] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -113,6 +114,21 @@ export default function SetupWizardShell({
     if (isLast) onFinish?.(); else goNext();
   };
 
+  // Each new step moves keyboard and screen-reader focus to its heading,
+  // and scrolls the page back to the top, instead of leaving focus on the
+  // page behind the dialog (v0.368.3).
+  useEffect(() => {
+    if (!open) return;
+    const id = setTimeout(() => {
+      const h = headingRef.current;
+      if (!h) return;
+      try { h.focus({ preventScroll: true }); } catch { /* old engines */ }
+      const scroller = h.closest(".overflow-y-auto");
+      if (scroller) scroller.scrollTop = 0;
+    }, 60);
+    return () => clearTimeout(id);
+  }, [open, step]);
+
   if (!current) return null;
 
   return (
@@ -152,7 +168,7 @@ export default function SetupWizardShell({
         <div className="flex-1 overflow-y-auto overscroll-contain">
           <div className={`bg-gradient-to-br ${current.color || "from-violet-500/20 to-purple-500/20"} px-6 pt-6 pb-4`}>
             <div className="text-4xl mb-3">{current.icon || "💜"}</div>
-            <h2 className="text-xl font-bold text-foreground leading-tight pr-10">{current.title}</h2>
+            <h2 ref={headingRef} tabIndex={-1} className="text-xl font-bold text-foreground leading-tight pr-10 focus:outline-none">{current.title}</h2>
             {current.subtitle && (
               <p className="text-sm text-primary font-medium mt-0.5">{current.subtitle}</p>
             )}
@@ -228,7 +244,7 @@ export default function SetupWizardShell({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={goBack} disabled={isFirst || busy || animating} className="flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={goBack} disabled={isFirst || busy || animating} className="flex-shrink-0" aria-label="Back">
               <ChevronLeft className="w-4 h-4" />
             </Button>
             {current.extraAction && (

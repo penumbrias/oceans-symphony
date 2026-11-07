@@ -132,7 +132,7 @@ export default function BackupDecisionStep({ onDone, compact = false }) {
         {busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
         {continueLabel}
       </Button>
-      <p className="text-[0.6875rem] text-muted-foreground text-center">
+      <p className="text-xs text-muted-foreground text-center">
         Change any of this later in Settings → Data &amp; privacy → Auto-backup.
       </p>
     </div>

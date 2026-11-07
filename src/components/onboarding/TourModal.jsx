@@ -91,7 +91,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
   // saves + advances (if not saved yet) or just advances.
   const termsSaveRef = useRef(null);
 
-  const { data: settingsList = [] } = useQuery({
+  const { data: settingsList = [], isSuccess: settingsLoaded } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
     enabled: !!open,
@@ -255,7 +255,12 @@ export default function TourModal({ open, onClose, openAt = null }) {
       subtitle: "Everything else can be edited later, too",
       icon: "🗣️",
       color: "from-violet-500/20 to-fuchsia-500/20",
-      render: () => (
+      // The words step reads the saved words once, when it mounts. Mounted
+      // before settings load, it showed (and Next saved) the default
+      // preset over someone's own words, so it waits (v0.368.3).
+      render: () => (!settingsLoaded ? (
+        <p className="text-sm text-muted-foreground" role="status">Loading your words…</p>
+      ) : (
         <TermsSetupContent
           existingSettingsId={settingsRow?.id || null}
           existingSettings={settingsRow || null}
@@ -265,7 +270,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
           saveRef={termsSaveRef}
           lead="First, select the in-app terminology. Pick a preset or define your own. You can change this any time in Settings → Profile → Terminology."
         />
-      ),
+      )),
       // Always "Save & continue" — labelling it "Continue" after the first
       // save (v0.86.x) was misleading because users editing terms on a
       // return visit expected their edit to save when they hit Continue.

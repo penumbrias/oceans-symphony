@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "fix", text: "Welcome screen privacy notes now say exactly what a storage wipe keeps and what can leave your device." },
+      { type: "fix", text: "Setup guide: the words step waits for your saved words before showing, Back has a name for screen readers, and each new step moves focus to its title." },
       { type: "fix", text: "If your phone clears the app's browser storage, an already set-up system no longer gets the first-run setup guide again." },
       { type: "fix", text: "Finishing the setup guide no longer adds or removes tracked symptoms unless you changed them yourself." },
       { type: "fix", text: "The feature tour no longer creates a \"Tour Demo\" profile when there are no profiles yet." },
