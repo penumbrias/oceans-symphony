@@ -106,3 +106,28 @@ export function mergeOnboarding(cur, patch, version) {
   }
   return next;
 }
+
+// How long a system has been using the app, for things that should wait
+// until people have settled in (the feedback survey). The anchor is the
+// EARLIEST known time: the settings row's creation, setup start or finish.
+// Using the earliest matters: a system that set up long ago but got its
+// `completed_at` stamped today by the data-found check is still old.
+// Returns null when nothing is known. With a settings row that's an older
+// install (rows from before created_date), so it counts as settled in;
+// with no settings row at all the system is brand new and it doesn't.
+export function daysUsingApp({ onboarding = {}, createdDate = null }, now = Date.now()) {
+  const times = [createdDate, onboarding.started_at, onboarding.completed_at]
+    .map((v) => (v ? Date.parse(v) : NaN))
+    .filter((n) => Number.isFinite(n));
+  if (!times.length) return null;
+  return Math.max(0, (now - Math.min(...times)) / 86400000);
+}
+
+// The survey card waits this many days after a system starts using the app.
+export const SURVEY_SETTLE_DAYS = 5;
+
+export function settledInForSurvey(facts, now = Date.now()) {
+  const days = daysUsingApp(facts, now);
+  if (days == null) return facts.hasSettingsRow !== false;
+  return days >= SURVEY_SETTLE_DAYS;
+}
