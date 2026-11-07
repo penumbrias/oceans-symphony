@@ -12,7 +12,7 @@ let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log(`ok  ${name}`); };
 const t = { system: "collective", alter: "member", alters: "members" };
 const empty = {
-  settings: null, onboarding: {}, alters: [], checkIns: [], symptoms: [],
+  settings: null, onboarding: {}, alters: [], checkIns: [], symptoms: [], activityCategories: [],
   supportContacts: [], safetyPlan: null, backupMode: "off", backupLastAt: null, bundlesChosen: false,
 };
 const byId = (steps) => Object.fromEntries(steps.map((s) => [s.id, s]));
@@ -38,6 +38,7 @@ test("steps are marked from records, in the person's words", () => {
     alters: [{ id: "a" }, { id: "b" }, { id: "c", is_archived: true }, { id: "d", trashed_at: "x" }],
     checkIns: [{ id: "e" }],
     symptoms: [{ id: "s" }],
+    activityCategories: [{ id: "c1" }, { id: "c2", parent_category_id: "c1" }],
     supportContacts: [{ id: "k" }],
     safetyPlan: { q1: "breathe" },
     backupMode: "auto",
@@ -46,6 +47,7 @@ test("steps are marked from records, in the person's words", () => {
   assert.equal(s.words.value, "collective · member");
   assert.equal(s.alters.value, "2 members", "archived and trashed don't count");
   assert.equal(s.checkin.value, "1 check-in");
+  assert.equal(s.activities.value, "1 category", "only top-level categories count");
   assert.ok(s.tracking.done && s["safety-plan"].done && s["support-contacts"].done);
   assert.equal(s.backup.value, "Automatic");
 });

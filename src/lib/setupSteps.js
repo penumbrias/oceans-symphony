@@ -26,7 +26,8 @@ export function useSetupSteps({ enabled = true } = {}) {
   const symptomsQ = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list(), enabled });
   const contactsQ = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list(), enabled });
   const entriesQ = useQuery({ queryKey: ["supportJournalEntries"], queryFn: () => base44.entities.SupportJournalEntry.list(), enabled });
-  const all = [settingsQ, altersQ, checkInsQ, symptomsQ, contactsQ, entriesQ];
+  const categoriesQ = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled });
+  const all = [settingsQ, altersQ, checkInsQ, symptomsQ, contactsQ, entriesQ, categoriesQ];
   const isFetched = all.every((x) => x.isFetched);
   const steps = useMemo(() => {
     const settings = pickPrimarySystemSettings(settingsQ.data || []);
@@ -38,11 +39,12 @@ export function useSetupSteps({ enabled = true } = {}) {
       alters: altersQ.data,
       checkIns: checkInsQ.data,
       symptoms: symptomsQ.data,
+      activityCategories: categoriesQ.data,
       supportContacts: emergencySupportContacts(contactsQ.data || []),
       safetyPlan: latestSafetyPlan(entriesQ.data || []),
       backupMode, backupLastAt, bundlesChosen: chose,
     }, t);
-  }, [settingsQ.data, altersQ.data, checkInsQ.data, symptomsQ.data, contactsQ.data, entriesQ.data, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settingsQ.data, altersQ.data, checkInsQ.data, symptomsQ.data, contactsQ.data, entriesQ.data, categoriesQ.data, t]); // eslint-disable-line react-hooks/exhaustive-deps
   const doneCount = steps.filter((s) => s.done).length;
   return {
     steps,

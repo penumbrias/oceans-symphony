@@ -8,7 +8,7 @@
 //
 //   onboarding: {
 //     version: 1,
-//     started_at, words_at, first_entry_at, completed_at,   // ISO times
+//     started_at, notice_seen_at, words_at, first_entry_at, completed_at,  // ISO
 //     packs: "express" | "custom" | "none",                  // tracking choice
 //     restarted_at,                                          // last "Start over"
 //   }
@@ -93,6 +93,14 @@ export async function markOnboardingDone(extra = {}) {
   } catch { /* storage off */ }
   const now = new Date().toISOString();
   return recordOnboarding({ started_at: now, completed_at: now, ...extra });
+}
+
+// The not-medical notice was read and "I understand" pressed. Also keeps
+// the older device flag DisclaimerModal and the Guide read.
+export async function markNoticeSeen() {
+  const now = new Date().toISOString();
+  try { if (!localStorage.getItem("disclaimer_acknowledged_v1")) localStorage.setItem("disclaimer_acknowledged_v1", now); } catch { /* storage off */ }
+  return recordOnboarding({ notice_seen_at: now });
 }
 
 export const markWordsChosen = () => recordOnboarding({ words_at: new Date().toISOString() });

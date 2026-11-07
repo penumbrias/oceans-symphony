@@ -57,6 +57,15 @@ export const SETUP_STEPS = [
     path: "/settings#checkin-manager",
   },
   {
+    id: "activities", group: "basics",
+    label: () => "Activities you do",
+    state: (f) => {
+      const n = live(f.activityCategories).filter((c) => !c.parent_category_id).length;
+      return { done: n > 0, value: n > 0 ? plural(n, "category", "categories") : "None yet" };
+    },
+    path: "/settings#activity-packs",
+  },
+  {
     id: "backup", group: "safe",
     label: () => "Backups",
     state: (f) => {
@@ -94,7 +103,7 @@ export function evaluateSetup(facts, t) {
 
 // Times that, once set, keep their first value: running setup a second
 // time doesn't rewrite when the words were first chosen.
-export const ONBOARDING_SET_ONCE = ["started_at", "words_at", "first_entry_at"];
+export const ONBOARDING_SET_ONCE = ["started_at", "notice_seen_at", "words_at", "first_entry_at"];
 
 export function mergeOnboarding(cur, patch, version) {
   const base = cur && typeof cur === "object" ? cur : {};

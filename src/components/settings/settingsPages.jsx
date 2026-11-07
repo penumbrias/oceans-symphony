@@ -13,7 +13,7 @@ import {
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
-  MessageSquareHeart, ClipboardList,
+  MessageSquareHeart, ClipboardList, Package,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -58,6 +58,7 @@ import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import { Group } from "@/components/shared/SettingRows";
 import SetupSettings from "@/components/settings/SetupSettings";
+import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 
 // Cross-app export FORMAT chips (alongside Plain .json / Compact), shared by
 // the Export page and the header's Backup → Export popup so they match.
@@ -166,6 +167,14 @@ export function buildSettingsGroups(ctx) {
           keywords: "check-in checkin fields symptoms diary card templates quick check in manage", action: () => navigate("/manage-checkin") },
         { id: "emotions", label: "Custom emotions", hint: "Your own entries on the emotion wheel", icon: Smile,
           keywords: "custom emotions feelings wheel", render: () => <CustomEmotionsManager /> },
+        { id: "activity-packs", label: "Activity packs", hint: "Ready-made activity categories for the planner", icon: Package, tour: "settings-activity-packs",
+          keywords: "activity packs categories presets planner starter templates hobbies chores self-care",
+          render: () => (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground leading-relaxed">Pick whole packs or single activities to add to the planner. Anything already there is left as it is; edit them or add your own in the planner.</p>
+              <ActivityPackPicker />
+            </div>
+          ) },
         { id: "triggers", label: "Custom triggers", hint: `${t.Switch} trigger categories`, icon: Zap,
           keywords: `custom triggers ${t.switch} categories`, render: () => <CustomTriggerTypesManager /> },
         { id: "front-levels", label: `${t.Fronting} levels`, hint: "Levels and what they mean", icon: Layers,

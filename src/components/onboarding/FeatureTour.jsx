@@ -1216,6 +1216,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-setup", look: "the highlighted Setup row",
     }),
     s("settings", {
+      emoji: "📦", title: "Activity packs",
+      body: "Ready-made activity categories for the planner, whole packs or one at a time. Anything you already have is left as it is.",
+      route: "/settings", target: "settings-activity-packs", look: "the highlighted Activity packs row",
+    }),
+    s("settings", {
       emoji: "🔁", title: "Start over any time",
       body: "At the bottom of Setup, Start over runs the welcome steps again and Show me around opens this tour. Neither deletes anything.",
       route: "/settings#setup", target: "settings-setup-page", look: "the Setup page",
