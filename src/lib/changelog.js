@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "improve", text: "The bulletin board is much lighter: posts no longer redraw on every front change, and searching it no longer lags while you type." },
       { type: "improve", text: "First open: the loading screen now stays up until the welcome screen is ready, instead of flashing a blank page, and the welcome screen loads less." },
       { type: "improve", text: "Opening the app does a little less work once you've read the latest \"What's new\"." },
       { type: "improve", text: "Editing a page: \"Close gaps\" is now a button on the edit bar instead of hidden in the Save / exit menu." },

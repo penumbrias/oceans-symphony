@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useDeferredValue } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Pin, Search, X, MessageCircle } from "lucide-react";
@@ -128,37 +128,51 @@ export default function BulletinBoard({
 
   // Scope to this group's board, or (system board) exclude any
   // group-scoped bulletins so they don't leak into the main feed.
-  const scopedBulletins = bulletins.filter((b) => (groupId ? b.group_id === groupId : !b.group_id));
+  const scopedBulletins = useMemo(
+    () => bulletins.filter((b) => (groupId ? b.group_id === groupId : !b.group_id)),
+    [bulletins, groupId]
+  );
   // Search the words people see (formatting and whisper secrets taken out),
-  // every word in any order, plus who wrote it and when.
-  const searchWords = useMemo(() => searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean), [searchQuery]);
+  // every word in any order, plus who wrote it and when. Each post's search
+  // text is built once per list (not once per post per keystroke), and the
+  // query is deferred so typing stays responsive on a long board.
+  const deferredQuery = useDeferredValue(searchQuery);
+  const searchWords = useMemo(() => deferredQuery.trim().toLowerCase().split(/\s+/).filter(Boolean), [deferredQuery]);
+  const searching = searchWords.length > 0;
   const altersById = useMemo(() => Object.fromEntries((alters || []).map((a) => [a.id, a])), [alters]);
-  const searchTextFor = (b) => [
-    stripHtml(b.content),
-    ...[b.author_alter_id, ...(b.author_alter_ids || [])].map((id) => altersById[id]).filter(Boolean).flatMap((a) => [a.name, a.alias]),
-    dateSearchBlob(b.created_date),
-  ].filter(Boolean).join(" ").toLowerCase();
-  const filteredBulletins = searchWords.length === 0 ? scopedBulletins : scopedBulletins.filter((b) => {
-    const text = searchTextFor(b);
+  const searchTexts = useMemo(() => {
+    if (!searching) return null;
+    const m = new Map();
+    for (const b of scopedBulletins) {
+      m.set(b.id, [
+        stripHtml(b.content),
+        ...[b.author_alter_id, ...(b.author_alter_ids || [])].map((id) => altersById[id]).filter(Boolean).flatMap((a) => [a.name, a.alias]),
+        dateSearchBlob(b.created_date),
+      ].filter(Boolean).join(" ").toLowerCase());
+    }
+    return m;
+  }, [searching, scopedBulletins, altersById]);
+  const filteredBulletins = useMemo(() => (!searching ? scopedBulletins : scopedBulletins.filter((b) => {
+    const text = searchTexts.get(b.id) || "";
     return searchWords.every((w) => text.includes(w));
-  });
+  })), [searching, scopedBulletins, searchTexts, searchWords]);
 
   // Pinned always stays at top, unaffected by sort
-  const pinned = filteredBulletins.filter((b) => b.is_pinned);
-  const filteredRecent = filteredBulletins.filter((b) => !b.is_pinned);
+  const pinned = useMemo(() => filteredBulletins.filter((b) => b.is_pinned), [filteredBulletins]);
+  const filteredRecent = useMemo(() => filteredBulletins.filter((b) => !b.is_pinned), [filteredBulletins]);
 
   // Sort recent by activity (last comment) or default (created_date desc)
-  const sortedRecent = sortByActivity
+  const sortedRecent = useMemo(() => (sortByActivity
     ? [...filteredRecent].sort((a, b) => {
         const aTime = new Date(a.last_activity_at || a.created_date);
         const bTime = new Date(b.last_activity_at || b.created_date);
         return bTime - aTime;
       })
-    : filteredRecent;
+    : filteredRecent), [filteredRecent, sortByActivity]);
 
-  const unreadCount = scopedBulletins.filter((b) =>
+  const unreadCount = useMemo(() => scopedBulletins.filter((b) =>
     currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
-  ).length;
+  ).length, [scopedBulletins, currentAlterId]);
 
   // Open the full composer as soon as the user taps into the box (on
   // focus), not once they start typing — the empty composer autofocuses
@@ -331,7 +345,7 @@ export default function BulletinBoard({
         </div>
       }
 
-      {filteredBulletins.length === 0 && searchQuery &&
+      {filteredBulletins.length === 0 && searching &&
         <div className="flex flex-col items-center py-10 text-center">
           <div className="text-3xl mb-2">🔍</div>
           <p className="text-sm font-medium text-foreground mb-1">No matches found</p>

@@ -16,7 +16,9 @@ function parseTaskBulletin(content) {
   return null;
 }
 
-export default function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], highlight, isUrgent = false }) {
+const NO_IDS = [];
+
+function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, highlight, isUrgent = false }) {
   const qc = useQueryClient();
   const [toggling, setToggling] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -204,14 +206,30 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
           />
         </div>
       )}
-      <BulletinActionMenu
-        bulletin={bulletin}
-        alters={alters}
-        open={showActions}
-        onClose={() => setShowActions(false)}
-        taskId={parsed.taskId}
-        isUrgent={isUrgent}
-      />
+      {/* Mounted only once it's asked for (see BulletinCard). */}
+      {showActions && (
+        <BulletinActionMenu
+          bulletin={bulletin}
+          alters={alters}
+          open={showActions}
+          onClose={() => setShowActions(false)}
+          taskId={parsed.taskId}
+          isUrgent={isUrgent}
+        />
+      )}
     </div>
   );
 }
+
+const sameIds = (a = NO_IDS, b = NO_IDS) =>
+  a === b || (a.length === b.length && a.every((id, i) => id === b[i]));
+
+// Re-render only when something the card shows changed (see BulletinCard).
+export default React.memo(TaskBulletinCard, (prev, next) =>
+  prev.bulletin === next.bulletin &&
+  prev.alters === next.alters &&
+  prev.currentAlterId === next.currentAlterId &&
+  prev.highlight === next.highlight &&
+  prev.isUrgent === next.isUrgent &&
+  sameIds(prev.frontingAlterIds, next.frontingAlterIds)
+);

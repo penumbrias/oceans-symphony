@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle, ExternalLink } from "lucide-react";
@@ -14,7 +14,9 @@ import { clockPattern } from "@/lib/timeFormat";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
-export default function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], canDelete, highlight, commentCount = 0 }) {
+const NO_IDS = [];
+
+function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, canDelete, highlight, commentCount = 0 }) {
   const terms = useTerms();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -293,6 +295,14 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
   })();
   const totalVotes = pollView?.totalVotes ?? 0;
 
+  // Parsing the post's HTML and finding its @mentions is the costly part of
+  // a card, so it only re-runs when the post, the alters or the words change
+  // — not on every front change or keystroke elsewhere on the board.
+  const renderedContent = useMemo(
+    () => renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich }),
+    [bulletin.content, bulletin.is_rich, alters, terms]
+  );
+
   return (
     // data-own-hold: this card runs its own long-press (the action menu), so
     // the home-widget shell must not ALSO arm its options sheet on the same
@@ -357,7 +367,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
           e.stopPropagation();
         }}
       >
-        {renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich })}
+        {renderedContent}
       </div>
 
       {/* Poll */}
@@ -497,6 +507,10 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
         
         </div>
       }
+      {/* Mounted only once it's asked for: a closed menu (with its edit
+          sheet inside) on every card cost a full editor's worth of hooks
+          per post on each render of the board. */}
+      {showActions &&
       <BulletinActionMenu
         bulletin={bulletin}
         alters={alters}
@@ -504,6 +518,23 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
         onClose={() => setShowActions(false)}
         onOpen={() => navigate(`/bulletin/${bulletin.id}`)}
       />
+      }
     </div>);
 
 }
+
+const sameIds = (a = NO_IDS, b = NO_IDS) =>
+  a === b || (a.length === b.length && a.every((id, i) => id === b[i]));
+
+// A card re-renders only when something it shows changed. The board hands
+// down a fresh `frontingAlterIds` array on every render of the home screen,
+// so that one is compared by its contents.
+export default React.memo(BulletinCard, (prev, next) =>
+  prev.bulletin === next.bulletin &&
+  prev.alters === next.alters &&
+  prev.currentAlterId === next.currentAlterId &&
+  prev.canDelete === next.canDelete &&
+  prev.highlight === next.highlight &&
+  prev.commentCount === next.commentCount &&
+  sameIds(prev.frontingAlterIds, next.frontingAlterIds)
+);
