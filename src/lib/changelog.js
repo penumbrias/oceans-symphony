@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 7, 2026",
     changes: [
+      { type: "improve", text: "A shorter first welcome screen: Start, \"Need support right now?\" (breathing and crisis lines, no setup needed) and \"Been here before?\" for finding your data or importing." },
       { type: "feature", text: "New welcome steps: keep it safe, one short notice, your words, how you are right now, and who's here. Five steps, and you can close them any time." },
       { type: "improve", text: "A \"Not sure yet: plain words\" choice for the words the app uses, and a \"Need support right now?\" link on every welcome step." },
       { type: "feature", text: "Activity packs now have their own page in Settings → Tracking." },
