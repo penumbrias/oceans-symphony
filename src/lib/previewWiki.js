@@ -262,7 +262,7 @@ const bioDashboard = `
     `Tiles for every page (Alters, Timeline, Activities, Journals, System Meeting, …). Re-orderable in Display options → Bars → Bottom tabs → What's on it. The To-Do tile shows an amber badge for the count of urgent OR due-within-72-hours tasks. The Reminders tile shows a red badge for currently-firing instances.`)}
   ${section("Bulletin Board",
     `The board lives at the bottom of the dashboard. Quick task input above and the composer below. See the Bulletin Board wiki alter for the full feature set.`)}
-  ${tip(`The "Guide" and "Tour" buttons (top of the dashboard) launch the in-app feature tour and the onboarding cards. They're separate flows — the tour points at real UI in your system; the guide is the cards explanation.`)}
+  ${tip(`The "Setup & tour" button on the home screen has two doors: Setup (Settings → Setup, what's set up so far and Start over) and Tour (the whole-app tour, pointing at real UI in your system). Each page's ⚙ menu also has "Show me around this page".`)}
 `;
 
 // ── 4. Alters & Groups ─────────────────────────────────────────────────
@@ -605,7 +605,7 @@ const bioSettings = `
   ${section("Data & privacy",
     `The Privacy &amp; Data Notice (what's stored locally, what can leave), Import, Export &amp; automatic backups, Sync between devices, chat cleanup, Storage &amp; encryption (AES-256-GCM, optional), See your data, Find my data and Quick jump.`)}
   ${section("About",
-    `What's new (the changelog), Tour &amp; onboarding (page tutorials, re-run setup), Preview mode, the bug report form and the medical disclaimer.`)}
+    `What's new (the changelog), Tour (the whole-app tour and page tutorials, Start setup over), Preview mode, the bug report form and the medical disclaimer.`)}
   ${tip(`The build version and "alpha" chip are pinned in the top-right of Settings — bump-with-every-changelog by design, so when reporting a bug you can cite the exact build. The Backup button beside them exports, imports or backs up now.`)}
 `;
 

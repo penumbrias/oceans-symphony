@@ -948,7 +948,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["find-my-data", "Find my data", "Lost data, empty app, recovery, rescue"],
     ["privacy-cover", "Quick jump", "Privacy cover, panic hide, grocery list, triple tap, shortcut, lock"],
     ["whats-new", "What's new", "Changelog, updates, version, release notes"],
-    ["tour", "Tour & onboarding", "Feature tour, page tutorials, re-run setup"],
+    ["tour", "Tour", "The whole-app tour, page tutorials, start setup over"],
     ["preview", "Preview mode", "Preview mode, example, wiki walkthrough"],
     ["bug-report", "Found a bug?", "Bug report, issue, feedback, support"],
     ["disclaimer", "Medical disclaimer", "Disclaimer, not medical advice"],

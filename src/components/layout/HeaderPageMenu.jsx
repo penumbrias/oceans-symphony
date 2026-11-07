@@ -147,7 +147,7 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
     if (v2Options.openSetupGuide) {
       pageActions.push({
         key: "v2-setup-guide",
-        label: "Setup guide",
+        label: "Setup",
         icon: ClipboardList,
         onSelect: () => v2Options.openSetupGuide(),
       });

@@ -11,6 +11,7 @@
     "lint": "eslint . --quiet",
     "check:widgets": "node scripts/check-widget-contract.mjs",
     "check:tour": "node scripts/check-tour-steps.mjs",
+    "check:doors": "node scripts/check-door-names.mjs",
     "check:ui": "node scripts/check-ui-review.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:settings": "node scripts/check-settings-singleton.mjs",

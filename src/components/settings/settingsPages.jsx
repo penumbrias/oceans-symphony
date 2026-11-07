@@ -242,7 +242,7 @@ export function buildSettingsGroups(ctx) {
       pages: [
         { id: "whats-new", label: "What's new", hint: "Recent updates", icon: Megaphone,
           keywords: "what's new changelog updates version release notes", render: () => <RecentUpdates /> },
-        { id: "tour", label: "Tour & onboarding", hint: "Page tutorials and re-running setup", icon: Map,
+        { id: "tour", label: "Tour", hint: "The whole-app tour and page walk-throughs", icon: Map,
           keywords: "tour onboarding tutorials setup guide re-run replay welcome", render: () => ctx.renderTour?.() },
         { id: "preview", label: "Preview mode", hint: "Explore an example or the wiki walkthrough", icon: Eye, tour: "settings-preview",
           keywords: "preview mode example wiki walkthrough demo", render: () => <PreviewModeSection /> },

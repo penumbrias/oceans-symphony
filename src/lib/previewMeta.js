@@ -23,7 +23,7 @@
 // to APP_VERSION: the widget home board, unified edit popup and home
 // notices still have no wiki pages, and the banner must say so honestly.
 // 0.91.0: new "Setting up" page (the setup card and Settings → Setup, v0.369.0).
-export const WIKI_CONTENT_VERSION = "0.91.0";
+export const WIKI_CONTENT_VERSION = "0.91.1";
 
 // Registry metadata — one guided example. `wiki: true` keeps the banner's
 // "walkthrough up to date with vX.Y.Z" tag, since the alter profiles ARE the

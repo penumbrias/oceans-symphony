@@ -104,7 +104,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       }),
       s("welcome", {
         emoji: "🎚️", title: "Your bars, your way",
-        body: `Your pinned ${t.alters} can float as a bar too, and a new top bar can replace this header. Switch them on in the setup guide, and change how they look in Display options → Bars.`,
+        body: `Your pinned ${t.alters} can float as a bar too, and a new top bar can replace this header. Switch them on and change how they look in Display options → Bars.`,
         route: "/", look: `Settings → Appearance → Edit bars…`,
       }),
       s("welcome", {
@@ -1222,7 +1222,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🔁", title: "Start over any time",
-      body: "At the bottom of Setup, Start over runs the welcome steps again and Show me around opens this tour. Neither deletes anything.",
+      body: "At the bottom of Setup, Start over runs the welcome steps again and Take the tour opens this tour. Neither deletes anything.",
       route: "/settings#setup", target: "settings-setup-page", look: "the Setup page",
     }),
     s("settings", {
@@ -1296,14 +1296,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-desktop-update", look: `the highlighted "Check for updates" button`,
     }),
     s("settings", {
-      emoji: "🔁", title: "Re-run setup",
-      body: `The setup guide can be run again any time from About → Tour & onboarding. It never deletes or overwrites anything, so another ${t.alter} can walk through it too.`,
-      route: "/settings#tour", target: ["rerun-setup", "settings-about"], look: `the highlighted "Re-run setup" button`,
+      emoji: "🔁", title: "Start setup over",
+      body: `Setup can be started over any time from About → Tour, or from Settings → Setup. It never deletes or overwrites anything, so another ${t.alter} can walk through it too.`,
+      route: "/settings#tour", target: ["rerun-setup", "settings-about"], look: `the highlighted "Start setup over" button`,
     }),
     s("settings", {
       emoji: "🧭", title: "Take the tour again",
-      body: `"Take the full tour" here replays this whole tour. For one page, open that page's ⚙ menu and choose "Show me around this page".`,
-      route: "/settings#tour", target: ["settings-full-tour", "settings-about"], look: `the highlighted "Take the full tour" button`,
+      body: `"Take the tour" here replays this whole tour. For one page, open that page's ⚙ menu and choose "Show me around this page".`,
+      route: "/settings#tour", target: ["settings-full-tour", "settings-about"], look: `the highlighted "Take the tour" button`,
     }),
     s("settings", {
       emoji: "🧪", title: "Experimental features",
@@ -1480,7 +1480,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("done", {
       emoji: "💜", title: "That's the tour",
-      body: `Log at your own pace; nothing forgotten in the moment is lost. Replay it from Settings → Tour & onboarding, or open any page's ⚙ menu → "Show me around this page". Take good care.`,
+      body: `Log at your own pace; nothing forgotten in the moment is lost. Replay it from Settings → Tour, or open any page's ⚙ menu → "Show me around this page". Take good care.`,
       route: null,
     }),
   ];

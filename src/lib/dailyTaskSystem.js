@@ -129,7 +129,7 @@ export const AUTO_TRIGGER_LABELS = {
   quick_action_used: "Shortcut used",
   theme_changed: "Theme color changed",
   terms_customized: "Custom terms edited",
-  tour_completed: "Feature tour completed",
+  tour_completed: "Tour completed",
   reflection_saved: "Learn-module reflection saved",
   grounding_technique_used: "Grounding technique used",
   daily_task_completed: "Any daily task completed (meta)",

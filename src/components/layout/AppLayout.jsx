@@ -215,8 +215,8 @@ export default function AppLayout() {
   // full-tour state so both can coexist (e.g. the banner shouldn't fire
   // mid-full-tour).
   const [pageScopedTourRoute, setPageScopedTourRoute] = useState(null);
-  // "Show me around this page" (⚙ menu) and "Take the full tour"
-  // (Settings → Tour & onboarding) can open a tour from anywhere.
+  // "Show me around this page" (⚙ menu) and "Take the tour"
+  // (Settings → Tour) can open a tour from anywhere.
   useEffect(() => {
     const onPage = (e) => {
       const path = e.detail?.path;
