@@ -395,6 +395,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alter-add-btn",
     }),
     s("alters", {
+      emoji: "📝", title: "Add several at once",
+      body: `"Add several at once" opens a quick list: one line each, or paste a whole list of names. A colour or emoji is enough on its own.`,
+      route: "/Home", target: ["alters-add-several", "alter-add-btn"], look: `the "Add several at once" button below the ${t.alters}`,
+    }),
+    s("alters", {
+      emoji: "🌫️", title: "Not sure yet",
+      body: `Switch a line to "Not sure yet" for anyone you can't pin down, like a part, a feeling or an age. They're kept as presences and listed under ${t.Alters} until you make them ${an(t.alter)}, or never.`,
+      route: "/Home", target: ["alters-not-sure-yet", "alters-grid"], look: `the "Not sure yet" list below the ${t.alters} (it shows once there's one)`,
+    }),
+    s("alters", {
       emoji: "🌫️", title: "New presences",
       body: `Sensed someone you can't quite place? Record a presence, even just a colour or a feeling. This page notices when a presence comes back, or might be someone you already know.`,
       route: "/presences", target: "new-presences", look: `the New Presences page`,

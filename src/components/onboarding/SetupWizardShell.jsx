@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 // One page schema:
 //   { title, subtitle?, body?, icon, color, tip?, features?,
 //     render?({goNext,goBack,busy,setBusy}) → ReactNode,
-//     nextLabel?, nextDisabled?, onNext?() → Promise|void, skipHidden?,
+//     nextLabel?, nextDisabled?, onNext?() → Promise|void|false (false stays on the step), skipHidden?,
 //     phase?: string — groups pages into named phases (e.g. "Welcome",
 //       "Setup", "About the app"). Consecutive pages with the same
 //       phase form a block; the dot nav visually separates blocks and
@@ -113,7 +113,10 @@ export default function SetupWizardShell({
     if (!current) return;
     if (current.onNext) {
       setBusy(true);
-      try { await current.onNext(); } finally { setBusy(false); }
+      let ok = true;
+      // onNext can return false to stay on this step (e.g. a save failed).
+      try { ok = (await current.onNext()) !== false; } finally { setBusy(false); }
+      if (!ok) return;
     }
     if (isLast) onFinish?.(); else goNext();
   };

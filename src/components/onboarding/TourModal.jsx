@@ -31,7 +31,8 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { APP_VERSION } from "@/lib/appVersion";
 import { markBundlesChosen } from "@/utils/symptomDefaults";
 import { markPacks, markOnboardingDone, markNoticeSeen, readOnboarding } from "@/lib/onboardingState";
-import { KeepSafeStep, NoticeStep, FeelingStep, WhoStep, addAlterByName } from "@/components/onboarding/SetupFlowSteps";
+import { KeepSafeStep, NoticeStep, FeelingStep, WhoStep } from "@/components/onboarding/SetupFlowSteps";
+import { newLine, lineKind, saveQuickPeople } from "@/lib/quickPeople";
 import { symptomDuplicateKey } from "@/lib/symptomDuplicates";
 import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
 import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
@@ -93,7 +94,7 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
   // Step 4's tracking choice ("express" | "custom" | "later" | null) and
   // step 5's typed name, kept here so Next can act on them.
   const [trackingChoice, setTrackingChoice] = useState(null);
-  const [whoName, setWhoName] = useState("");
+  const [whoLines, setWhoLines] = useState(() => [newLine()]);
   const [whoAdded, setWhoAdded] = useState([]);
   const [termsSaved, setTermsSaved] = useState(false);
   // The terminology step hides its own Save button and hands us its
@@ -113,7 +114,7 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
   const [startAt, setStartAt] = useState(null);
   useEffect(() => {
     if (!open) {
-      setTermsSaved(false); setStartAt(null); setTrackingChoice(null); setWhoName(""); setWhoAdded([]);
+      setTermsSaved(false); setStartAt(null); setTrackingChoice(null); setWhoLines([newLine()]); setWhoAdded([]);
       return;
     }
     if (startAt != null || !settingsLoaded) return;
@@ -332,18 +333,24 @@ export default function TourModal({ open, onClose, onDone = null, openAt = null 
       icon: <UserPlus className="w-8 h-8" />,
       color: "from-purple-500/20 to-pink-500/20",
       render: () => (
-        <WhoStep name={whoName} setName={setWhoName} added={whoAdded}
-          onAdded={(n) => setWhoAdded((prev) => [...prev, n])} />
+        <WhoStep lines={whoLines} setLines={setWhoLines} added={whoAdded}
+          onAdded={(names) => setWhoAdded((prev) => [...prev, ...names])} />
       ),
       nextLabel: "Finish",
-      // A typed name nobody pressed Add for is still added. Then setup is
-      // recorded as done and the steps close onto the home screen.
+      // Lines nobody pressed Add for are still saved. If any can't be,
+      // setup stays open on this step so nothing typed is lost. Then setup
+      // is recorded as done and the steps close onto the home screen.
       onNext: async () => {
-        if (whoName.trim()) {
-          try {
-            const created = await addAlterByName(whoName, qc);
-            if (created) { setWhoAdded((prev) => [...prev, created.name || whoName.trim()]); setWhoName(""); }
-          } catch (e) { toast.error(e?.message || `Couldn't add that ${t.alter}.`); }
+        if (whoLines.some((l) => lineKind(l))) {
+          const res = await saveQuickPeople(whoLines);
+          if (res.alters.length) qc.invalidateQueries({ queryKey: ["alters"] });
+          if (res.presences.length) qc.invalidateQueries({ queryKey: ["presences"] });
+          if (res.failed.length) {
+            setWhoLines(res.failed.map((f) => f.line));
+            toast.error(`${res.failed.length} couldn't be saved. They're still in the list.`);
+            return false;
+          }
+          setWhoLines([newLine()]);
         }
         await finishSetup();
         toast.success("You're all set 💜", { description: "Settings → Setup shows what's next. Take the tour there for the whole app." });

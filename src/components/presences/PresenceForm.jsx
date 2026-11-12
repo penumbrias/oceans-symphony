@@ -12,6 +12,7 @@ import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useFrontersFirst } from "@/lib/alterSort";
 import { an } from "@/lib/articles";
+import { createPresence } from "@/lib/presenceEntry";
 
 // Self-contained create/edit form for a "presence" — a sensed-but-not-yet-
 // identified fragment/alter. Reuses the SAME colour picker (ColorPickerModal)
@@ -83,11 +84,7 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
         rowId = presence.id;
         toast.success("Presence updated");
       } else {
-        const now = new Date().toISOString();
-        // `sightings` accrues every time the presence is sensed — that's how
-        // reoccurrence is sourced (recording it again, here or from Set Front),
-        // so there's no manual "happened before" flag.
-        const row = await base44.entities.Presence.create({ ...fields, timestamp: now, sightings: [now], resolved_alter_id: "" });
+        const row = await createPresence(fields);
         rowId = row.id;
         toast.success("Presence recorded 🌫️");
       }
