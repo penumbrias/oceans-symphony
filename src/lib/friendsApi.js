@@ -72,11 +72,19 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
     body.secret = existing.secret;
   }
 
-  const res = await fetch(`${BASE}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // fetch only throws when the request never got an answer (offline,
+    // or the relay refused this app's origin). The browser's own wording
+    // ("Load failed", "Failed to fetch") tells the person nothing.
+    throw new Error("Couldn't reach the Friends server. Check your connection and try again.");
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

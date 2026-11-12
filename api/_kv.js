@@ -122,6 +122,11 @@ const ALLOWED_ORIGINS = new Set([
   'https://app.local.oceans-symphony',
   // Electron desktop shell (electron/main.cjs serves the app from here).
   'symphony://app',
+  // iOS app: WKWebView can't serve the https scheme, so Capacitor iOS uses
+  // capacitor:// with the configured server.hostname. Without this entry
+  // every Friends call from the iPhone/iPad app is CORS-blocked and WebKit
+  // reports it as "Load failed".
+  'capacitor://app.local.oceans-symphony',
   'capacitor://localhost',
   'http://localhost',
   'http://localhost:5173',

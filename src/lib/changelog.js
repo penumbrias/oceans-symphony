@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 12, 2026",
     changes: [
+      { type: "fix", text: "Friends: making a Friends profile in the iPhone and iPad app no longer fails with \"Load failed\"." },
       { type: "feature", text: "Setup's \"Who's here?\" step is now a quick list: type or paste several names at once, or give someone just a colour or an emoji." },
       { type: "feature", text: "\"Not sure yet\": anyone you can't pin down is kept as a presence, now listed on the {{Alters}} page with one tap to give them a full profile. \"Add several\" works there and on New Presences too." },
     ],
