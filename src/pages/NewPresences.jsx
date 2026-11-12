@@ -12,6 +12,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import PresenceFormModal from "@/components/presences/PresenceFormModal";
 import CreateAlterFromPresence from "@/components/presences/CreateAlterFromPresence";
+import QuickPeopleSheet from "@/components/shared/QuickPeopleSheet";
 import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 import { TRASH_HINT } from "@/lib/trashSettings";
@@ -43,6 +44,7 @@ export default function NewPresences() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [createAlterFor, setCreateAlterFor] = useState(null);
+  const [showSeveral, setShowSeveral] = useState(false);
 
   const { data: presences = [] } = useQuery({
     queryKey: ["presences"],
@@ -149,6 +151,12 @@ export default function NewPresences() {
           <Button onClick={() => setFormFor(null)} className="gap-1.5">
             <Plus className="w-4 h-4" /> Record
           </Button>
+          <button
+            onClick={() => setShowSeveral(true)}
+            className="text-xs px-2 py-1 rounded-lg text-primary hover:bg-primary/10 min-h-[32px]"
+          >
+            Add several
+          </button>
           {visible.length > 1 && (
             <button
               onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
@@ -272,6 +280,7 @@ export default function NewPresences() {
 
       <PresenceFormModal open={formFor !== undefined} presence={formFor || null} onClose={() => setFormFor(undefined)} />
       <CreateAlterFromPresence open={!!createAlterFor} presence={createAlterFor} onClose={() => setCreateAlterFor(null)} />
+      <QuickPeopleSheet open={showSeveral} onClose={() => setShowSeveral(false)} unsure />
     </motion.div>
   );
 }

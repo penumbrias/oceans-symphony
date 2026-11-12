@@ -2,7 +2,7 @@
 // Guide's SetupWizardShell (TourModal). Each one reuses the real thing:
 // the backup choice (BackupDecisionStep), the check-in's feeling picker
 // (EmotionWheelPicker, saved through logEmotionCheckIn), the tracking packs
-// (BundleList) and the new-alter writer (createAlter). Nothing here writes
+// (BundleList) and the quick list (QuickPeopleList, saved by saveQuickPeople). Nothing here writes
 // except on a tap the person makes.
 
 import React, { useState } from "react";
@@ -11,11 +11,13 @@ import { toast } from "sonner";
 import { Loader2, Check, Upload } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
 import { getBackupDecision, BACKUP_DECISIONS } from "@/lib/autoBackup";
 import { logEmotionCheckIn } from "@/lib/checkinEntry";
-import { createAlter } from "@/lib/alterEntry";
+import { newLine, lineKind } from "@/lib/quickPeople";
+import { an } from "@/lib/articles";
+import QuickPeopleList from "@/components/shared/QuickPeopleList";
+import { useQuickPeopleSave } from "@/components/shared/QuickPeopleSheet";
 import { markFirstEntry } from "@/lib/onboardingState";
 import BackupDecisionStep from "@/components/onboarding/BackupDecisionStep";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
@@ -171,45 +173,41 @@ export function FeelingStep({ tracking }) {
 }
 
 // ── Step 5: Who's here? ──────────────────────────────────────────────
-// `name` / `setName` live in TourModal so Finish can add a typed name the
-// person didn't press Add for.
-export async function addAlterByName(name, qc) {
-  const clean = String(name || "").trim();
-  if (!clean) return null;
-  const created = await createAlter({ name: clean });
-  qc.invalidateQueries({ queryKey: ["alters"] });
-  return created;
-}
-
-export function WhoStep({ name, setName, added, onAdded }) {
+// The quick list (v0.371.0). `lines` live in TourModal so Finish can save
+// lines the person didn't press Add for. Named lines become alters; lines
+// marked "Not sure yet" (or with no name) become presences.
+export function WhoStep({ lines, setLines, added, onAdded }) {
   const t = useTerms();
   const qc = useQueryClient();
+  const save = useQuickPeopleSave();
   const [busy, setBusy] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const count = lines.filter((l) => lineKind(l)).length;
 
   const add = async () => {
-    if (!name.trim() || busy) return;
+    if (!count || busy) return;
     setBusy(true);
     try {
-      const created = await addAlterByName(name, qc);
-      if (created) { onAdded(created.name || name.trim()); setName(""); }
-    } catch (e) {
-      toast.error(e?.message || `Couldn't add that ${t.alter}.`);
+      const res = await save(lines);
+      onAdded([...res.alters, ...res.presences].map(({ line, record }) => record?.name || record?.label || line.name || line.emoji || "someone"));
+      setLines(res.remaining.length ? res.remaining : [newLine()]);
     } finally { setBusy(false); }
   };
 
   return (
     <div className="space-y-3">
-      <label className="block space-y-1.5">
-        <span className="text-sm font-medium">Add one {t.alter} by name</span>
-        <span className="flex gap-2">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="A name, or a nickname"
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
-          <Button onClick={add} disabled={!name.trim() || busy} className="flex-shrink-0">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
-          </Button>
-        </span>
-      </label>
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Add {t.alters} by name</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          One line each, or paste a list. A colour or emoji is enough on its own. Not sure if someone is {an(t.alter)}, a part or a feeling? Switch on "Not sure yet" and they're kept as a presence you can change later.
+        </p>
+      </div>
+      <QuickPeopleList lines={lines} onChange={setLines} />
+      {count > 0 && (
+        <Button onClick={add} disabled={busy} className="w-full">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : count > 1 ? `Add these ${count}` : "Add"}
+        </Button>
+      )}
       {added.length > 0 && (
         <p className="text-sm" aria-live="polite">Added: {added.join(", ")}</p>
       )}

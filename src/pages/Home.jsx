@@ -2,13 +2,15 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Sparkles, Plus, Share2, Download } from "lucide-react";
+import { Sparkles, Plus, Share2, Download, ListPlus } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import AlterExportModal from "@/components/alters/AlterExportModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
+import QuickPeopleSheet from "@/components/shared/QuickPeopleSheet";
+import NotSureYetSection from "@/components/presences/NotSureYetSection";
 import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -20,6 +22,7 @@ export default function Home() {
   const [showAddAlter, setShowAddAlter] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showSeveral, setShowSeveral] = useState(false);
   const terms = useTerms();
 
   // Handle bulletin deep-link
@@ -68,7 +71,11 @@ export default function Home() {
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
           Import your {terms.alters} from another plural app, or add them manually.
         </p>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button variant="outline" onClick={() => setShowSeveral(true)} className="rounded-xl px-6 gap-2">
+            <ListPlus className="w-4 h-4" />
+            Add several
+          </Button>
           <Button variant="outline" onClick={() => setShowImport(true)} className="rounded-xl px-6 gap-2">
             <Download className="w-4 h-4" />
             Import {terms.alters}
@@ -80,6 +87,8 @@ export default function Home() {
         </div>
         <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} />
         <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
+        <QuickPeopleSheet open={showSeveral} onClose={() => setShowSeveral(false)} />
+        <div className="w-full max-w-md text-left"><NotSureYetSection /></div>
       </motion.div>);
 
   }
@@ -135,6 +144,19 @@ export default function Home() {
       <div data-tour="alters-grid">
         <AlterGrid alters={activeAlters} />
       </div>
+
+      <button
+        type="button"
+        data-tour="alters-add-several"
+        onClick={() => setShowSeveral(true)}
+        className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/70 py-2.5 min-h-[44px] text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30"
+      >
+        <ListPlus className="w-4 h-4" /> Add several at once
+      </button>
+
+      <NotSureYetSection />
+
+      <QuickPeopleSheet open={showSeveral} onClose={() => setShowSeveral(false)} />
 
       <AlterEditModal
         open={showAddAlter}
