@@ -104,7 +104,8 @@ via mysteriously missing data.
 - **`EXTRA_ALLOWED_ORIGINS` is the setting people get wrong.** If the
   browser origin you open the app from isn't listed, every response is
   blocked by CORS and the app reports the relay as unreachable. The
-  desktop (`symphony://app`) and native (`app.local.oceans-symphony`)
+  desktop (`symphony://app`) and native (`https://app.local.oceans-symphony` on Android,
+  `capacitor://app.local.oceans-symphony` on iOS)
   origins are allowed by default; a web deployment of your own is not.
 - **`/health`** reports whether Redis is actually reachable, not merely
   whether the process is alive. The container health check uses it.

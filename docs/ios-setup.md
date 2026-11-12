@@ -80,8 +80,10 @@ delayed or batched when the app hasn't been opened recently.
 - **Storage persistence:** data lives in WKWebView's IndexedDB. Verify
   data survives app restart, device reboot, an app UPDATE (install a
   build, add data, install a newer build over it), and low-storage
-  pressure. The origin is `https://app.local.oceans-symphony` (from
-  `server.hostname` — Capacitor iOS uses the same hostname config;
+  pressure. The origin is `capacitor://app.local.oceans-symphony` (iOS can't
+  serve `https` from the app, so the scheme is `capacitor`; the host
+  comes from `server.hostname`, and it must stay listed in
+  `ALLOWED_ORIGINS` in `api/_kv.js` or Friends fails with "Load failed";
   don't change `server.hostname` after shipping or every user's
   IndexedDB origin — and therefore their data — is orphaned).
 - **Backup export/import:** the Filesystem-based export path and the
