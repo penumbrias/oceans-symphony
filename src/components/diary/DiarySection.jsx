@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import RatingRow from "@/components/diary/RatingRow";
 
 export const DEFAULT_GROUPS = [
@@ -57,6 +58,12 @@ export default function DiarySection({ data, onChange }) {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [templateData]);
 
+  // For @ mentions in text fields (the shared alters list, no extra fetch).
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
   const toggleGroup = (id) =>
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -84,7 +91,12 @@ export default function DiarySection({ data, onChange }) {
 
           {!collapsed[group.id] && (
             <div className="px-4 py-3 space-y-4">
-              {group.fields.filter(field => field.enabled !== false).map(field => {
+              {/* The order set in Manage check-in (each field's `order`),
+                  not the order the fields were added in. */}
+              {[...(group.fields || [])]
+                .filter(field => field.enabled !== false)
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map(field => {
                 if (field.type === "rating") {
                   return (
                     <RatingRow
@@ -117,6 +129,22 @@ export default function DiarySection({ data, onChange }) {
                         onChange={e => setValue(group.id, field.data_key, e.target.value === "" ? undefined : Number(e.target.value))}
                         placeholder="0"
                         className="h-8 text-sm w-24"
+                      />
+                    </div>
+                  );
+                }
+                if (field.type === "text") {
+                  // Text fields could be added in Manage check-in but were
+                  // never drawn here, so there was nowhere to write.
+                  return (
+                    <div key={field.id} className="space-y-1">
+                      <span className="text-sm">{field.label}</span>
+                      <MentionTextarea
+                        alters={alters}
+                        value={getValue(group.id, field.data_key) ?? ""}
+                        onChange={v => setValue(group.id, field.data_key, v === "" ? undefined : v)}
+                        aria-label={field.label}
+                        className="text-sm min-h-[2.75rem] resize-none"
                       />
                     </div>
                   );
