@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import * as reportSections from "@/lib/reportSections";
 import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
 import TherapyNotesCard from "@/components/report/TherapyNotesCard";
+import { useDiaryGroups } from "@/components/diary/DiarySection";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -68,6 +69,7 @@ export default function TherapyReportPage() {
     queryFn: () => db.JournalEntry.list(),
   });
 
+  const diaryGroups = useDiaryGroups();
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => db.DiaryCard.list(),
@@ -227,6 +229,7 @@ export default function TherapyReportPage() {
         includeAlterInfo: sectionOptions.alterNames !== false,
         thresholds: config.thresholds,
         diaryDetail: sectionOptions.diaryDetail || "noteworthy",
+        diaryGroups,
       });
 
       const therapyNotesSection = reportSections.buildTherapyNotesSection({

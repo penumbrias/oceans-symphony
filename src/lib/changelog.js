@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 15, 2026",
     changes: [
+      { type: "fix", text: "Phone app: moving widgets around no longer freezes the screen for a second while your data's safety copy is saved." },
+      { type: "fix", text: "Diary fields you added yourself, Text answers included, now show in the Check-in log and the therapy report." },
       { type: "fix", text: "Custom fields on profiles keep the order you set, whichever page you opened first." },
       { type: "fix", text: "A widget in Minimal display now shows the name you gave it." },
       { type: "fix", text: "Profiles: a long bio no longer catches your swipe and stops the page scrolling after a font loads." },

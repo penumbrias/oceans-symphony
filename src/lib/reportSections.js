@@ -23,6 +23,7 @@ import { buildClinicianParagraphs } from "./analytics/clinicianSummary";
 import { journalEntryDate } from "@/lib/journalDate";
 import { meetingTextParts } from "@/lib/systemMeetingText";
 import { redactWhispers } from "@/lib/whisperRedact";
+import { diaryCardRows, diaryRowText } from "@/lib/diaryData";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -373,7 +374,7 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
 
 // ── SECTION: DIARY CARDS ──────────────────────────────────────────────────────
 
-export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, diaryDetail = "noteworthy" }) {
+export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, diaryDetail = "noteworthy", diaryGroups = [] }) {
   const cards = diaryCards
     .filter(d => inRange(d.date, dateFrom, dateTo))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -404,6 +405,12 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
       emotions: (card.emotions || []).join(", ") || "—",
       urges: Object.entries(urges).filter(([, v]) => v > 0).map(([k, v]) => `${k}: ${v}`).join(", ") || "—",
       bodyMind: Object.entries(bm).filter(([, v]) => v != null).map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "—",
+      // Everything else on the card — skills + safety, groups and Text
+      // fields the person added (v0.371.8: these never reached the report).
+      // Whispers stay private here like everywhere outside their screen.
+      other: diaryCardRows(card, diaryGroups)
+        .filter((g) => g.id !== "urges" && g.id !== "body_mind")
+        .flatMap((g) => g.rows.map((r) => redactWhispers(diaryRowText(r)))),
       fronters,
       flags,
     };

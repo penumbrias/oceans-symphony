@@ -148,8 +148,44 @@ async function readText(F, path) {
     return typeof r.data === "string" ? r.data : null;
   } catch { return null; }
 }
+// Big blobs cross the native bridge in pieces (v0.371.8). One call with
+// the whole database froze the screen for a second or more on a phone
+// with a lot of data (the string is copied through the bridge in one go,
+// and the next frame waits for it) — and a big enough one can run the
+// Java side out of memory, as the sync read once did. Between pieces the
+// page gets a frame. A write cut short leaves a slot whose length doesn't
+// match its header, which readBestSlot already treats as torn and skips.
+export const WRITE_CHUNK = 512 * 1024;
+const nextFrame = () => new Promise((r) => {
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(r, 0));
+  else setTimeout(r, 0);
+});
 async function writeText(F, path, data) {
-  await F.Filesystem.writeFile({ path: `${ROOT}/${path}`, data, directory: F.dir, encoding: F.utf8, recursive: true });
+  const target = { path: `${ROOT}/${path}`, directory: F.dir, encoding: F.utf8 };
+  if (data.length <= WRITE_CHUNK || typeof F.Filesystem.appendFile !== "function") {
+    await F.Filesystem.writeFile({ ...target, data, recursive: true });
+    return;
+  }
+  const pieces = chunkText(data, WRITE_CHUNK);
+  await F.Filesystem.writeFile({ ...target, data: pieces[0], recursive: true });
+  for (let i = 1; i < pieces.length; i++) {
+    await nextFrame();
+    await F.Filesystem.appendFile({ ...target, data: pieces[i] });
+  }
+}
+// Pieces of at most `size` code units that never split an emoji (a
+// surrogate pair) — half of one would be written as a broken character.
+export function chunkText(text, size) {
+  const out = [];
+  let at = 0;
+  while (at < text.length) {
+    let end = Math.min(text.length, at + size);
+    const c = text.charCodeAt(end - 1);
+    if (end < text.length && end - 1 > at && c >= 0xd800 && c <= 0xdbff) end -= 1;
+    out.push(text.slice(at, end));
+    at = end;
+  }
+  return out.length ? out : [""];
 }
 async function removeFile(F, path) {
   try { await F.Filesystem.deleteFile({ path: `${ROOT}/${path}`, directory: F.dir }); } catch { /* already gone */ }
@@ -199,16 +235,49 @@ async function writeSlotted(F, base, body, meta = {}) {
 const _pending = new Map(); // key → latest value
 let _timer = null;
 
+// Not in the middle of a gesture (v0.371.8): a copy that lands while a
+// finger is down (dragging a widget, scrolling) stalls that gesture, so a
+// due copy waits for the finger to lift — at most MAX_WAIT_MS, and the
+// app going to the background still flushes at once.
+const MAX_WAIT_MS = 15000;
+let _pointersDown = 0;
+let _firstPendingAt = 0;
+let _gestureWatch = false;
+function watchGestures() {
+  if (_gestureWatch || typeof window === "undefined") return;
+  _gestureWatch = true;
+  const down = () => { _pointersDown += 1; };
+  const up = () => { _pointersDown = Math.max(0, _pointersDown - 1); };
+  try {
+    window.addEventListener("pointerdown", down, { capture: true, passive: true });
+    window.addEventListener("pointerup", up, { capture: true, passive: true });
+    window.addEventListener("pointercancel", up, { capture: true, passive: true });
+    // A lost pointerup must never hold copies back for good.
+    window.addEventListener("blur", () => { _pointersDown = 0; });
+  } catch { /* no window */ }
+}
+function dueFlush() {
+  _timer = null;
+  if (_pointersDown > 0 && Date.now() - _firstPendingAt < MAX_WAIT_MS) {
+    _timer = setTimeout(dueFlush, 400);
+    return;
+  }
+  flushMirror();
+}
+
 export function mirrorDbBlob(key, value) {
   if (!hasPrivateFileCopy() || !key) return;
   if (!isMirrorableBlob(value)) return;
+  watchGestures();
+  if (!_pending.size) _firstPendingAt = Date.now();
   _pending.set(key, value);
   if (_timer) clearTimeout(_timer);
-  _timer = setTimeout(() => { _timer = null; flushMirror(); }, DEBOUNCE_MS);
+  _timer = setTimeout(dueFlush, DEBOUNCE_MS);
 }
 
 // Write every pending blob now (also called when the app is backgrounded).
 export function flushMirror() {
+  if (_timer) { clearTimeout(_timer); _timer = null; }
   if (!_pending.size) return _chain;
   const batch = [..._pending.entries()];
   _pending.clear();

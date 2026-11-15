@@ -18,6 +18,8 @@ import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
 import { moodDots, customEmotionColor } from "@/lib/emotionMood";
 import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 import DiaryCardEditDialog, { deleteDiaryCard } from "@/components/diary/DiaryCardEditDialog";
+import { useDiaryGroups } from "@/components/diary/DiarySection";
+import { diaryCardRows, diaryRowText } from "@/lib/diaryData";
 import RowMenu from "@/components/shared/RowMenu";
 import { deleteWithUndo, offerUndo } from "@/lib/undoDelete";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -172,20 +174,37 @@ function RatingBar({ label, value, max = 5, isPositive = false }) {
   );
 }
 
-function DiaryDataSection({ diaryCard, onEditDiary, onDeleteDiary }) {
-  if (!diaryCard) return null;
-  const urges = diaryCard.urges || {};
-  const bm = diaryCard.body_mind || {};
-  const med = diaryCard.medication_safety || {};
-  const notes = diaryCard.notes || {};
+function DiaryValue({ row }) {
+  if (row.type === "rating") {
+    return <RatingBar label={row.label} value={Number(row.value)} max={row.max || 5} isPositive={row.isPositive} />;
+  }
+  if (row.type === "text") {
+    return (
+      <p className="text-xs text-foreground whitespace-pre-wrap break-words">
+        <span className="text-muted-foreground">{row.label}: </span>{String(row.value)}
+      </p>
+    );
+  }
+  return (
+    <div className="flex justify-between gap-3 text-xs">
+      <span className="text-muted-foreground">{row.label}</span>
+      <span className={row.type === "boolean" && row.value ? "font-medium" : ""}>
+        {row.type === "boolean" ? (row.value ? "Yes" : "No") : String(row.value)}
+      </span>
+    </div>
+  );
+}
 
-  const hasUrges = Object.values(urges).some(v => v !== undefined && v !== null);
-  const hasBodyMind = Object.values(bm).some(v => v !== undefined && v !== null);
-  const hasSkills = diaryCard.skills_practiced !== undefined && diaryCard.skills_practiced !== null;
-  const hasMed = Object.values(med).some(v => v !== undefined && v !== null);
+// Every group and field of the card, in the person's template order —
+// fields they added (Text boxes, new groups) included (v0.371.8).
+function DiaryDataSection({ diaryCard, onEditDiary, onDeleteDiary }) {
+  const groups = useDiaryGroups();
+  if (!diaryCard) return null;
+  const rowGroups = diaryCardRows(diaryCard, groups);
+  const notes = diaryCard.notes || {};
   const hasNotes = !!(notes.what || notes.judgments || notes.optional);
 
-  if (!hasUrges && !hasBodyMind && !hasSkills && !hasMed && !hasNotes) return null;
+  if (!rowGroups.length && !hasNotes) return null;
 
   return (
     <div className="space-y-2 mt-2">
@@ -199,52 +218,12 @@ function DiaryDataSection({ diaryCard, onEditDiary, onDeleteDiary }) {
         />
       </div>
 
-      {hasUrges && (
-        <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
-          <p className="text-xs font-medium text-muted-foreground">⚠️ Urges</p>
-          <RatingBar label="Suicidal urges" value={urges.suicidal} />
-          <RatingBar label="Self-harm urges" value={urges.self_harm} />
-          <RatingBar label="Alcohol / drugs" value={urges.alcohol_drugs} />
+      {rowGroups.map((g) => (
+        <div key={g.id} className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
+          <p className="text-xs font-medium text-muted-foreground">{g.label}</p>
+          {g.rows.map((row) => <DiaryValue key={row.key} row={row} />)}
         </div>
-      )}
-
-      {hasBodyMind && (
-        <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
-          <p className="text-xs font-medium text-muted-foreground">🧠 Body + Mind</p>
-          <RatingBar label="Emotional misery" value={bm.emotional_misery} />
-          <RatingBar label="Physical misery" value={bm.physical_misery} />
-          <RatingBar label="Joy" value={bm.joy} isPositive />
-        </div>
-      )}
-
-      {(hasSkills || hasMed) && (
-        <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
-          <p className="text-xs font-medium text-muted-foreground">🛠️ Skills + Safety</p>
-          {hasSkills && <RatingBar label="Skills practiced" value={diaryCard.skills_practiced} max={7} isPositive />}
-          {med.rx_meds_taken !== undefined && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">💊 Rx meds taken</span>
-              <span className={med.rx_meds_taken ? "text-green-500 font-medium" : "text-muted-foreground"}>
-                {med.rx_meds_taken ? "Yes" : "No"}
-              </span>
-            </div>
-          )}
-          {med.self_harm_occurred !== undefined && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">✏️ Self-harm occurred</span>
-              <span className={med.self_harm_occurred ? "text-destructive font-medium" : "text-muted-foreground"}>
-                {med.self_harm_occurred ? "Yes" : "No"}
-              </span>
-            </div>
-          )}
-          {med.substances_count !== undefined && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">🍺 Substances</span>
-              <span>{med.substances_count}</span>
-            </div>
-          )}
-        </div>
-      )}
+      ))}
 
       {hasNotes && (
         <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
@@ -898,7 +877,13 @@ function DiaryChip({ card, onEditDiary, className = "", children }) {
 
 // A diary card that didn't land next to a check-in gets its own row, so it
 // can always be edited or deleted from the log.
+const BUILTIN_DIARY_PILL_KEYS = new Set([
+  "urges.suicidal", "urges.self_harm", "urges.alcohol_drugs",
+  "body_mind.emotional_misery", "body_mind.physical_misery", "body_mind.joy",
+  "skills.skills_practiced", "skills.rx_meds_taken", "skills.self_harm_occurred", "skills.substances_count",
+]);
 function DiaryCardEntry({ card, onEditDiary, onDeleteDiary }) {
+  const groups = useDiaryGroups();
   const urges = card.urges || {};
   const bm = card.body_mind || {};
   const med = card.medication_safety || {};
@@ -913,6 +898,15 @@ function DiaryCardEntry({ card, onEditDiary, onDeleteDiary }) {
   if (med.rx_meds_taken) parts.push({ text: "💊 Meds taken", cls: "bg-purple-500/10 text-purple-600 border-purple-500/20" });
   if (med.self_harm_occurred) parts.push({ text: "✏️ Self-harm occurred", cls: "bg-red-500/10 text-red-600 border-red-500/20" });
   if (med.substances_count) parts.push({ text: `🍺 Substances ${med.substances_count}`, cls: "bg-muted text-muted-foreground border-border/50" });
+  // Everything else on the card — fields the person added, Text answers
+  // (v0.371.8: these were saved but never shown here).
+  for (const g of diaryCardRows(card, groups)) {
+    for (const row of g.rows) {
+      if (BUILTIN_DIARY_PILL_KEYS.has(`${g.id}.${row.key}`)) continue;
+      const text = diaryRowText(row);
+      parts.push({ text: text.length > 60 ? `${text.slice(0, 59)}…` : text, cls: "bg-muted text-muted-foreground border-border/50" });
+    }
+  }
   return (
     <div data-testid="diary-card-entry">
       <StandaloneEntry
