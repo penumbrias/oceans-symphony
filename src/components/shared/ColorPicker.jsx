@@ -54,12 +54,39 @@ export default function ColorPicker({ value, onChange, label, compact = false, c
     const modal = !!containerRef.current.closest('[role="dialog"][aria-modal="true"]');
     setInModal(modal);
     if (modal) return; // inline rendering needs no viewport math
-    const r = containerRef.current.getBoundingClientRect();
-    const W = POP_W, H = 340; // approximate popover size for clamping
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
-    const below = r.bottom + 8;
-    const top = below + H > window.innerHeight - 8 ? Math.max(8, r.top - H - 8) : below;
-    setPos({ top, left });
+    // Placed from the popover's real size (not a guess, which ran off the
+    // bottom with large text), and again whenever the page scrolls, the
+    // window resizes or the keyboard moves the visible area, so it stays
+    // beside its swatch.
+    const place = () => {
+      const anchor = containerRef.current;
+      if (!anchor) return;
+      const r = anchor.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const vTop = vv ? vv.offsetTop : 0;
+      const vH = vv ? vv.height : window.innerHeight;
+      const W = POP_W;
+      const H = popRef.current?.offsetHeight || 340;
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
+      const below = r.bottom + 8;
+      const bottomEdge = vTop + vH - 8;
+      let top = below + H > bottomEdge ? r.top - H - 8 : below;
+      top = Math.max(vTop + 8, Math.min(top, bottomEdge - H));
+      setPos((p) => (p.top === top && p.left === left ? p : { top, left }));
+    };
+    place();
+    const raf = requestAnimationFrame(place); // once the popover has its real height
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('scroll', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('scroll', place);
+    };
   }, [open]);
 
   useEffect(() => {

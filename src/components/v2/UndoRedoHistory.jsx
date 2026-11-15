@@ -248,6 +248,26 @@ export default function UndoRedoButtons() {
     fn();
   };
 
+  // Re-place once the list has its real height (the 260 px guess ran off
+  // the screen at large text sizes) and whenever the window resizes.
+  useEffect(() => {
+    if (!histOpen) return undefined;
+    const place = () => {
+      const r = wrapRef.current?.getBoundingClientRect();
+      const pop = document.querySelector("[data-uiedit-history]");
+      if (!r || !pop) return;
+      const H = pop.offsetHeight, W = pop.offsetWidth || 240;
+      const below = r.bottom + 6;
+      let top = below + H > window.innerHeight - 8 ? r.top - H - 6 : below;
+      top = Math.max(8, Math.min(top, window.innerHeight - H - 8));
+      const left = Math.max(8, Math.min(r.right - W, window.innerWidth - W - 8));
+      setPos((p) => (p.top === top && p.left === left ? p : { top, left }));
+    };
+    const raf = requestAnimationFrame(place);
+    window.addEventListener("resize", place);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", place); };
+  }, [histOpen]);
+
   useEffect(() => {
     if (!histOpen) return undefined;
     const close = (e) => {

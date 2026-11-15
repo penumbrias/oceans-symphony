@@ -63,7 +63,7 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
     if (!open) return undefined;
     const place = () => {
       const r = anchorRef?.current?.getBoundingClientRect();
-      const W = 260, H = 56 + items.length * 44;
+      const W = 260, H = popRef.current?.offsetHeight || 56 + items.length * 44;
       if (!r) {
         // No anchor (the quick-action keys don't expose a ref): sit just
         // above the bottom chrome, centred.
@@ -73,22 +73,25 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
       }
       const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
       const below = r.bottom + 6;
-      const top = below + H > window.innerHeight - 8 ? Math.max(8, r.top - H - 6) : below;
-      setPos({ top, left });
+      let top = below + H > window.innerHeight - 8 ? r.top - H - 6 : below;
+      top = Math.max(8, Math.min(top, window.innerHeight - H - 8));
+      setPos((p) => (p.top === top && p.left === left ? p : { top, left }));
     };
     place();
+    // Again once the panel has its real height (text size changes it).
+    const raf = requestAnimationFrame(place);
     const out = (e) => {
       if (menuOpenRef.current) return; // a body-portaled action menu owns the screen
       if (!popRef.current?.contains(e.target) && !anchorRef?.current?.contains(e.target)) onClose?.();
     };
     document.addEventListener("pointerdown", out);
     window.addEventListener("resize", place);
-    return () => { document.removeEventListener("pointerdown", out); window.removeEventListener("resize", place); };
+    return () => { cancelAnimationFrame(raf); document.removeEventListener("pointerdown", out); window.removeEventListener("resize", place); };
   }, [open, anchorRef, items.length, onClose]);
   if (!open) return null;
   return createPortal(
     <div ref={popRef} role="dialog" aria-label={tr("active.title")}
-      className="fixed z-[95] w-[260px] rounded-xl border border-border/60 bg-card shadow-xl p-2"
+      className="fixed z-[95] w-[260px] max-h-[calc(100dvh-16px)] overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-card shadow-xl p-2"
       // While an action menu (activity / symptom) is up, the little panel
       // hides so it can't float over the menu — visibility (not display)
       // so the menu, a descendant, can reset it and stay shown.

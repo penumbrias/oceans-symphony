@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Crown, Check, Search } from "lucide-react";
 import { flattenGroupTree, descendantGroupIds } from "@/lib/groupTree";
 
+const PANEL_MAX = 290; // the panel's full height (search + list)
+
 // Single-select, nested, parent-respecting group/subsystem dropdown — the
 // single-select group picker. Used as the "Parent group" picker
 // so the chosen parent respects the nesting tree instead of a flat <select>.
@@ -49,16 +51,31 @@ export default function GroupSelect({
       let left = r.left;
       const maxLeft = window.innerWidth - width - 8;
       left = maxLeft >= 8 ? Math.min(Math.max(left, 8), maxLeft) : 8;
-      setPos({ top: r.bottom + 4, left, width });
+      // Visible-viewport aware (like SearchableSelect): with the keyboard
+      // up the real bottom is visualViewport, so flip above the field
+      // when there's more room there, and never run under the keyboard.
+      const vv = window.visualViewport;
+      const visTop = vv ? vv.offsetTop : 0;
+      const visBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const below = visBottom - r.bottom - 12;
+      const above = r.top - visTop - 12;
+      const up = below < 200 && above > below;
+      const maxHeight = Math.max(120, Math.min(PANEL_MAX, up ? above : below));
+      const top = up ? r.top - 4 - maxHeight : r.bottom + 4;
+      setPos({ top, left, width, maxHeight, up });
     };
     compute();
     window.addEventListener("resize", compute);
     window.addEventListener("orientationchange", compute);
     window.addEventListener("scroll", compute, true);
+    window.visualViewport?.addEventListener("resize", compute);
+    window.visualViewport?.addEventListener("scroll", compute);
     return () => {
       window.removeEventListener("resize", compute);
       window.removeEventListener("orientationchange", compute);
       window.removeEventListener("scroll", compute, true);
+      window.visualViewport?.removeEventListener("resize", compute);
+      window.visualViewport?.removeEventListener("scroll", compute);
     };
   }, [open]);
 
@@ -119,8 +136,8 @@ export default function GroupSelect({
                   read as an outside-dismiss by the parent dialog. */}
               <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
               <div
-                className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
-                style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
+                className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto flex flex-col"
+                style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)", maxHeight: pos.maxHeight, ...(pos.up ? { top: "auto", bottom: window.innerHeight - pos.top - pos.maxHeight } : null) }}
                 onPointerDown={(e) => e.stopPropagation()}
                 onFocus={(e) => e.stopPropagation()}
               >
@@ -134,7 +151,7 @@ export default function GroupSelect({
                     className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
                   />
                 </div>
-                <div className="max-h-60 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
+                <div className="max-h-60 min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
                   <button
                     type="button"
                     onClick={() => pick("")}

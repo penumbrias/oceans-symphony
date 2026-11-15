@@ -548,6 +548,10 @@ html.a11y-mode [role="button"]:not([role="switch"]) {
   min-width: 44px;
 }
 html.a11y-mode a[class] { min-height: 44px; }
+/* Pinned markers on the timeline keep their drawn size: grown to 44 px they
+   covered the {alter}'s session bar beside them, which then couldn't be
+   tapped there. */
+html.a11y-mode .a11y-compact.a11y-compact { min-height: 0; min-width: 0; }
 
 /* Comfortable reading: looser line-height + word wrapping for body text. */
 html.a11y-mode p,

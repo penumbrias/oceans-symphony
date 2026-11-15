@@ -293,7 +293,7 @@ function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onCh
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${isSel ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"}`}>
                 <span className="flex-1">{field.label}</span>
                 <span className="text-xs text-muted-foreground">
-                  {field.type === "rating" ? `0–${field.max}` : field.type === "boolean" ? "Yes/No" : "Number"}
+                  {field.type === "rating" ? `0–${field.max}` : field.type === "boolean" ? "Yes/No" : field.type === "text" ? "Text" : "Number"}
                 </span>
                 {isSel && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
               </button>
