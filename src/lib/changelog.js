@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 14, 2026",
     changes: [
+      { type: "fix", text: "Home screen and widget boards: Spacers and Dividers no longer disappear once you save, so you can put space between widgets again." },
+      { type: "fix", text: "Home screen: an App shortcut now shows the icon you pick for it in its options." },
       { type: "fix", text: "Display options no longer crashes when you open the pinned bar's settings under Bars." },
       { type: "fix", text: "iPhone and iPad: {{Alter}} profiles no longer flicker while scrolling, with the bio jumping up over the header." },
       { type: "fix", text: "A grocery cart and an X no longer get stuck at the top left of the screen with wider fonts." },
