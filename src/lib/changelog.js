@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 15, 2026",
     changes: [
+      { type: "improve", text: "The phone apps now ask for your screen's fastest refresh rate, so scrolling is as smooth as the rest of your phone on 90 and 120 Hz screens (iPhone ProMotion too)." },
       { type: "fix", text: "The panels for who's in front and the session editor list symptoms in your order, pinned ones first." },
       { type: "fix", text: "A diary Text field now works as a quick action." },
       { type: "fix", text: "Colour pickers and other pop-up lists stay beside their button when the page scrolls or the keyboard opens." },

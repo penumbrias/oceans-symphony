@@ -1,13 +1,16 @@
 package app.oceans_symphony.twa;
 
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import androidx.activity.EdgeToEdge;
@@ -107,9 +110,41 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    // Ask for the screen's fastest refresh rate (v0.371.11). Phones with a
+    // 90/120 Hz screen often leave an app that doesn't ask at 60 Hz, so
+    // scrolling here looked choppier than everywhere else on the phone
+    // (owner report: "a weird refresh rate"). Only modes at the current
+    // resolution are considered, so this never changes the resolution.
+    // Battery saver and the phone's own limits still win over this.
+    private void preferFastestRefreshRate() {
+        try {
+            Display display = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                ? getDisplay()
+                : getWindowManager().getDefaultDisplay();
+            if (display == null) return;
+            Display.Mode current = display.getMode();
+            Display.Mode best = current;
+            for (Display.Mode m : display.getSupportedModes()) {
+                if (m.getPhysicalWidth() == current.getPhysicalWidth()
+                        && m.getPhysicalHeight() == current.getPhysicalHeight()
+                        && m.getRefreshRate() > best.getRefreshRate()) {
+                    best = m;
+                }
+            }
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            if (lp.preferredDisplayModeId == best.getModeId()) return;
+            lp.preferredDisplayModeId = best.getModeId();
+            lp.preferredRefreshRate = best.getRefreshRate();
+            getWindow().setAttributes(lp);
+        } catch (Exception e) {
+            Log.w("OceansSymphony", "Couldn't ask for the fastest refresh rate", e);
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
+        preferFastestRefreshRate();
         gapHandler.removeCallbacks(gapCheck);
         gapHandler.postDelayed(gapCheck, 400);
     }
