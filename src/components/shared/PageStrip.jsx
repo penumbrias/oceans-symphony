@@ -30,7 +30,7 @@ export default function PageStrip({ items = [], value, onChange, label = "Views"
       aria-label={label}
       data-tour={tour}
       onKeyDown={onKeyDown}
-      className={`os-page-strip flex items-stretch overflow-x-auto scrollbar-none border-b border-border/60 ${sticky ? "sticky top-0 bg-background z-10" : ""} ${className}`}
+      className={`os-page-strip flex items-stretch overflow-x-auto overflow-y-hidden scrollbar-none border-b border-border/60 ${sticky ? "sticky top-0 bg-background z-10" : ""} ${className}`}
       {...rest}
     >
       {items.map((it) => {

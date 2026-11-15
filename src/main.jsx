@@ -4,6 +4,7 @@ import App from '@/App.jsx'
 import '@/index.css'
 import { isDesktop } from '@/lib/platform'
 import { startNativeInsets } from '@/lib/nativeInsets'
+import { installScrollingFlag } from '@/lib/scrollingFlag'
 
 // Route-level code splitting (v0.184.0) means a page's JS is fetched on
 // first navigation. If the app was open across a deploy, that fetch can
@@ -21,6 +22,8 @@ window.addEventListener('vite:preloadError', (event) => {
     window.location.reload();
   } catch { /* fall through to the error boundary */ }
 });
+
+installScrollingFlag()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

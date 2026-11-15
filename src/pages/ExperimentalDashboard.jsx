@@ -1690,10 +1690,28 @@ export default function ExperimentalDashboard({
     });
     mo.observe(grid, { childList: true, subtree: true, characterData: true });
     grid.addEventListener("load", bump, true);
+    // Text can re-wrap without the DOM changing: a font finishing loading,
+    // the board getting wider or narrower, the text size changing. Missing
+    // those left a long bio a few lines taller than its box — the box then
+    // scrolled on its own and caught every swipe meant for the page, so the
+    // profile "wouldn't scroll" (owner report, v0.371.6).
+    const fonts = typeof document !== "undefined" ? document.fonts : null;
+    fonts?.addEventListener?.("loadingdone", bump);
+    let lastW = grid.clientWidth;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+      if (grid.clientWidth !== lastW) { lastW = grid.clientWidth; bump(); }
+    }) : null;
+    ro?.observe(grid);
+    const htmlMo = new MutationObserver(bump);
+    htmlMo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     // Edit mode shows widgets that view mode folds away (empty ones) and
     // may render a fresh grid — measure again on every switch.
     bump();
-    return () => { mo.disconnect(); grid.removeEventListener("load", bump, true); clearTimeout(t); };
+    return () => {
+      mo.disconnect(); htmlMo.disconnect(); ro?.disconnect();
+      fonts?.removeEventListener?.("loadingdone", bump);
+      grid.removeEventListener("load", bump, true); clearTimeout(t);
+    };
   }, [fitContent, freeMode, page.id, editMode]);
   React.useEffect(() => {
     if (!freeMode || !settingsRow?.id || !gridRef.current) return undefined;
