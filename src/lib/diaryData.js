@@ -60,3 +60,58 @@ export function diaryDataToPatch(data) {
     custom_groups: extraDiaryGroups(d),
   };
 }
+
+// ── Reading a saved card back as rows (v0.371.8) ──
+// Every place that SHOWS a diary card — the Check-in log, the therapy
+// report — reads it through this, so a field the person added in Manage
+// check-in (a Text box, a whole new group) is shown like the built-in
+// ones. Those used to be saved but never drawn anywhere except the edit
+// dialog. Fields come in the template's order; anything saved under a key
+// the template no longer has is still shown (under its key), never hidden.
+//
+// `groups` is the template's groups (DiaryTemplate.groups, or the
+// defaults). Returns [{ id, label, rows: [{ key, label, type, value, max,
+// isPositive }] }], only groups and rows that hold a value.
+const hasValue = (v) => v !== undefined && v !== null && v !== "";
+const prettyKey = (k) => String(k).replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+export function diaryCardRows(card, groups = []) {
+  const data = diaryCardToData(card);
+  const out = [];
+  const seenGroups = new Set();
+  const ordered = [...(groups || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+  for (const g of ordered) {
+    if (!g?.id) continue;
+    seenGroups.add(g.id);
+    const values = data[g.id] || {};
+    const seenKeys = new Set();
+    const rows = [];
+    for (const f of [...(g.fields || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
+      const key = f.data_key || f.id;
+      if (!key) continue;
+      seenKeys.add(key);
+      if (!hasValue(values[key])) continue;
+      rows.push({ key, label: f.label || prettyKey(key), type: f.type || "number", value: values[key], max: f.max, isPositive: !!f.is_positive });
+    }
+    for (const [key, value] of Object.entries(values)) {
+      if (seenKeys.has(key) || !hasValue(value)) continue;
+      rows.push({ key, label: prettyKey(key), type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "text", value });
+    }
+    if (rows.length) out.push({ id: g.id, label: g.label || prettyKey(g.id), rows });
+  }
+  for (const [gid, values] of Object.entries(data)) {
+    if (seenGroups.has(gid) || !plain(values)) continue;
+    const rows = Object.entries(values).filter(([, v]) => hasValue(v)).map(([key, value]) => ({
+      key, label: prettyKey(key), type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "text", value,
+    }));
+    if (rows.length) out.push({ id: gid, label: prettyKey(gid), rows });
+  }
+  return out;
+}
+
+// One row as plain text ("Joy: 4/5", "Rx meds taken: Yes", "Note: …").
+export function diaryRowText(row) {
+  if (row.type === "boolean") return `${row.label}: ${row.value ? "Yes" : "No"}`;
+  if (row.type === "rating" && row.max) return `${row.label}: ${row.value}/${row.max}`;
+  return `${row.label}: ${row.value}`;
+}

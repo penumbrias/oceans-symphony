@@ -43,6 +43,23 @@ export const DEFAULT_GROUPS = [
   },
 ];
 
+// Every diary group the person's template knows, disabled ones included —
+// for SHOWING saved cards (diaryCardRows), where a group switched off later
+// still labels the answers saved under it.
+export function useDiaryGroups() {
+  const { data: templateData } = useQuery({
+    queryKey: ['diaryTemplate'],
+    queryFn: () => base44.entities.DiaryTemplate.list(),
+  });
+  return useMemo(() => {
+    const own = templateData?.[0]?.groups;
+    if (!Array.isArray(own) || !own.length) return DEFAULT_GROUPS;
+    // Built-in groups the template dropped still get their proper labels.
+    const ids = new Set(own.map((g) => g.id));
+    return [...own, ...DEFAULT_GROUPS.filter((g) => !ids.has(g.id)).map((g, i) => ({ ...g, order: 1000 + i }))];
+  }, [templateData]);
+}
+
 export default function DiarySection({ data, onChange }) {
   const [collapsed, setCollapsed] = useState({});
 

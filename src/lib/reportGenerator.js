@@ -479,6 +479,21 @@ function addDiarySection(doc, diaryData, y) {
   y = drawTable(doc, ["Date", "Emotions", "Urges", "Body/Mind", "Flags"],
     diaryData.map(d => [d.date, d.emotions?.slice(0, 20) || "—", d.urges?.slice(0, 20) || "—", d.bodyMind?.slice(0, 20) || "—", d.flags.join(", ") || "—"]), y,
     [CONTENT_W * 0.15, CONTENT_W * 0.2, CONTENT_W * 0.2, CONTENT_W * 0.25, CONTENT_W * 0.2]);
+  // The rest of each card (skills + safety, the person's own fields).
+  const more = diaryData.filter((d) => d.other?.length);
+  if (more.length) {
+    y += 4;
+    more.forEach((d) => {
+      y = checkPageBreak(doc, y, 12);
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text(d.date, MARGIN + 2, y);
+      y += 5;
+      doc.setTextColor(50, 50, 50);
+      y = wrappedText(doc, d.other.join("; "), MARGIN + 4, y, CONTENT_W - 8, 4.5);
+      y += 3;
+    });
+  }
   return y + 8;
 }
 
@@ -922,6 +937,7 @@ function formatAsPlainText({
         if (d.emotions) text += `    Emotions: ${d.emotions}\n`;
         if (d.urges) text += `    Urges: ${d.urges}\n`;
         if (d.bodyMind) text += `    Body/Mind: ${d.bodyMind}\n`;
+        if (d.other?.length > 0) text += `    Also: ${d.other.join("; ")}\n`;
         if (d.flags?.length > 0) text += `    Flags: ${d.flags.join(", ")}\n`;
       });
     } else {
