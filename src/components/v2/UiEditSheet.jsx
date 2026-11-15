@@ -934,17 +934,13 @@ function BarsTab({ v2, alignX }) {
           )}
         </BarPart>
         <BarPart label={tr("editSheet.partSize")}>
-          <SetRow label={tr("editSheet.barHeight")}
-            valueLabel={pinnedCfg.barHeight > 0 ? `${pinnedCfg.barHeight}px` : tr("editSheet.fitIcons")} alignX={alignX}>
-            <input type="range" min={0} max={200} step={4} value={pinnedCfg.barHeight || 0}
-              onChange={(e) => writePinnedCfg({ barHeight: parseInt(e.target.value, 10) })}
-              className="w-full" aria-label={tr("editSheet.barHeight")} />
-          </SetRow>
-          <SetRow label={tr("editSheet.iconSize")} valueLabel={`${pinnedCfg.chipSize ?? 48}px`} alignX={alignX}>
-            <input type="range" min={14} max={88} step={2} value={pinnedCfg.chipSize ?? 48}
-              onChange={(e) => writePinnedCfg({ chipSize: parseInt(e.target.value, 10) })}
-              className="w-full" aria-label={tr("editSheet.iconSize")} />
-          </SetRow>
+          <SliderRow label={tr("editSheet.barHeight")}
+            hint={pinnedCfg.barHeight > 0 ? undefined : tr("editSheet.fitIcons")}
+            value={pinnedCfg.barHeight || 0} fallback={0} min={0} max={200} step={4}
+            onChange={(v) => writePinnedCfg({ barHeight: Math.round(v) || 0 })} />
+          <SliderRow label={tr("editSheet.iconSize")}
+            value={pinnedCfg.chipSize ?? 48} fallback={48} min={14} max={88} step={2}
+            onChange={(v) => writePinnedCfg({ chipSize: Math.round(v) })} />
           {pinnedCfg.barHeight > 0 && (
             <PillRow label={tr("editSheet.iconsSit")} value={pinnedLook.valign || "center"}
               onChange={(val) => writePinnedLook({ valign: val === "center" ? undefined : val })} alignX={alignX}

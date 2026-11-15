@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 14, 2026",
     changes: [
+      { type: "fix", text: "Display options no longer crashes when you open the pinned bar's settings under Bars." },
       { type: "fix", text: "iPhone and iPad: {{Alter}} profiles no longer flicker while scrolling, with the bio jumping up over the header." },
       { type: "fix", text: "A grocery cart and an X no longer get stuck at the top left of the screen with wider fonts." },
       { type: "fix", text: "Profile tabs no longer pile on top of each other with Accessibility mode on; they scroll sideways instead." },
