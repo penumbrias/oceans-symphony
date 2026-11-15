@@ -122,7 +122,7 @@ function StatusNoteBadge({ note, topPx, id }) {
         <div className="mx-1 flex items-center gap-1" style={{ fontSize: 9 }}>
           {/* Only the icon is clickable — rest is pointer-events-none so alters behind are tappable */}
           <button
-            className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted/90 border border-border/60 hover:bg-muted transition-colors cursor-pointer pointer-events-auto"
+            className="a11y-compact flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted/90 border border-border/60 hover:bg-muted transition-colors cursor-pointer pointer-events-auto"
             style={{ fontSize: 10 }}
             onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           >
@@ -720,7 +720,7 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, lane
     entry.type === 'bulletin' ? 'Bulletin' :
     (entry.label || 'Task');
   return (
-    <div className="absolute cursor-pointer z-10"
+    <div className="absolute cursor-pointer z-10 a11y-compact"
       role="button"
       tabIndex={0}
       aria-label={`${shortLabel}${entry.label && entry.label !== shortLabel ? `: ${entry.label}` : ""} — tap to view`}

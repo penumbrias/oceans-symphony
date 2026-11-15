@@ -6,6 +6,8 @@ import { ChevronDown, Check, Settings2 } from "lucide-react";
 import { fetchActiveContactRelationshipTypes } from "@/lib/contacts";
 import ContactRelationshipTypesModal from "./ContactRelationshipTypesModal";
 
+const PANEL_MAX = 280; // the panel's full height (search + list)
+
 // Free-entry relationship-type picker for contacts: a real text input (type
 // anything) PLUS a dropdown of suggestions from the editable contact
 // relationship-type catalogue, and a "Manage types" shortcut. The stored value
@@ -28,14 +30,29 @@ export default function ContactRelationshipTypeField({ value, onChange, placehol
       const node = wrapRef.current;
       if (!node) return;
       const r = node.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.left, width: Math.round(r.width) });
+      // Visible-viewport aware (like SearchableSelect): with the keyboard
+      // up the real bottom is visualViewport, so flip above the field
+      // when there's more room there, and never run under the keyboard.
+      const vv = window.visualViewport;
+      const visTop = vv ? vv.offsetTop : 0;
+      const visBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const below = visBottom - r.bottom - 12;
+      const above = r.top - visTop - 12;
+      const up = below < 200 && above > below;
+      const maxHeight = Math.max(120, Math.min(PANEL_MAX, up ? above : below));
+      const top = up ? r.top - 4 - maxHeight : r.bottom + 4;
+      setPos({ top, left: r.left, width: Math.round(r.width), maxHeight, up });
     };
     compute();
     window.addEventListener("resize", compute);
     window.addEventListener("scroll", compute, true);
+    window.visualViewport?.addEventListener("resize", compute);
+    window.visualViewport?.addEventListener("scroll", compute);
     return () => {
       window.removeEventListener("resize", compute);
       window.removeEventListener("scroll", compute, true);
+      window.visualViewport?.removeEventListener("resize", compute);
+      window.visualViewport?.removeEventListener("scroll", compute);
     };
   }, [open]);
 
@@ -77,7 +94,7 @@ export default function ContactRelationshipTypeField({ value, onChange, placehol
         <div
           ref={panelRef}
           className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden flex flex-col"
-          style={{ position: "fixed", zIndex: 70, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)", maxHeight: 280 }}
+          style={{ position: "fixed", zIndex: 70, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)", maxHeight: pos.maxHeight ?? 280, ...(pos.up ? { top: "auto", bottom: window.innerHeight - pos.top - pos.maxHeight } : null) }}
         >
           <div className="overflow-y-auto overscroll-contain flex-1" style={{ WebkitOverflowScrolling: "touch" }}>
             {value && value.trim() && !exact && (

@@ -17,6 +17,7 @@ import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { sharedList } from "@/lib/sharedLists";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -150,7 +151,13 @@ function AddToFrontRow({ action, alter, onAction, front }) {
 
 function DiaryFieldRow({ action, onAction }) {
   const { field_label, field_type, field_max, field_data_key } = action.config || {};
-  const [value, setValue] = useState(field_type === "rating" ? null : field_type === "boolean" ? false : 0);
+  const [value, setValue] = useState(field_type === "rating" ? null : field_type === "boolean" ? false : field_type === "text" ? "" : 0);
+  // For @ mentions in a Text field (the shared alters list, no extra fetch).
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+    enabled: field_type === "text",
+  });
 
   if (!field_data_key) return null;
 
@@ -188,6 +195,24 @@ function DiaryFieldRow({ action, onAction }) {
               Log
             </button>
           </div>
+        </div>
+      )}
+      {field_type === "text" && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{field_label}</p>
+          <MentionTextarea
+            alters={alters}
+            value={value}
+            onChange={setValue}
+            aria-label={field_label}
+            className="text-sm min-h-[2.75rem] resize-none"
+          />
+          <button
+            disabled={!value.trim()}
+            onClick={() => { onAction(action, { value: value.trim() }); setValue(""); }}
+            className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            Log
+          </button>
         </div>
       )}
     </div>

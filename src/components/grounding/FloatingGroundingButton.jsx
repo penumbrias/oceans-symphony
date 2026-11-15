@@ -33,7 +33,15 @@ function getBottomNavGuard() {
     document.body.appendChild(probe);
     const inset = probe.getBoundingClientRect().height || 0;
     probe.remove();
-    return navPx + inset + EDGE_MARGIN;
+    // The bar's swipe handles reach above the measured bar (more so in
+    // Accessibility mode, where every button grows to 44 px), so keep the
+    // bubble clear of their real top too.
+    let reach = 0;
+    for (const h of document.querySelectorAll("[data-chrome-reach]")) {
+      const r = h.getBoundingClientRect();
+      if (r.height && r.top > window.innerHeight / 2) reach = Math.max(reach, window.innerHeight - r.top);
+    }
+    return Math.max(navPx + inset, reach) + EDGE_MARGIN;
   } catch {
     return 56 + EDGE_MARGIN;
   }
@@ -108,6 +116,24 @@ export default function FloatingGroundingButton() {
     const bandTop = window.innerHeight - getBottomNavGuard() - 110;
     return Math.abs(x - cx) <= halfW && y >= bandTop;
   };
+
+  // The lowest the bubble may sit. Re-measured after the bars mount, on
+  // resize and when Accessibility mode or text size changes, so the
+  // bubble shows clear of the bar without rewriting its saved spot.
+  const [maxY, setMaxY] = useState(() => window.innerHeight - BTN_SIZE - getBottomNavGuard());
+  useEffect(() => {
+    let raf = 0;
+    const measure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setMaxY(window.innerHeight - BTN_SIZE - getBottomNavGuard()));
+    };
+    measure();
+    const t = setTimeout(measure, 800);
+    window.addEventListener("resize", measure);
+    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
+    mo?.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); window.removeEventListener("resize", measure); mo?.disconnect(); };
+  }, []);
 
   // Keep ref in sync so the drag closure always has the latest y
   useEffect(() => { posRef.current = pos; }, [pos]);
@@ -209,7 +235,7 @@ export default function FloatingGroundingButton() {
   };
 
   const btnStyle = {
-    top: pos.y,
+    top: isDragging ? pos.y : Math.max(getTopGuard(), Math.min(pos.y, maxY)),
     ...(pos.side === "right" ? { right: EDGE_MARGIN } : { left: EDGE_MARGIN }),
     cursor: isDragging ? "grabbing" : "grab",
     transition: isDragging ? "none" : "left 0.2s ease, right 0.2s ease",

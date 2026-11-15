@@ -135,6 +135,14 @@ export function widgetLookFor(settings = {}, userStyles = [], pageStyleId = "cur
   return mergeLook(mergeLook(getStyleLook(builtinId), saved?.look || {}), pickLook(settings));
 }
 
+// The widget's OWN background colour or picture (not the page style's,
+// which every widget shares).
+function hasOwnFill(settings) {
+  const own = pickLook(settings || {});
+  const set = (v) => v !== undefined && v !== null && v !== "";
+  return set(own.bg) || set(own.bgImage);
+}
+
 const TRASH_ID = "__widget_trash";
 // Drop target that only exists while a widget is being dragged — hold a
 // widget, drag it here, let go. Nothing to mis-tap the rest of the time.
@@ -462,7 +470,9 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
     )}
     <div ref={setNodeRef} data-widget-id={widget.instanceId}
       data-base-h={basePx || undefined}
-      data-keep-empty={def?.keepWhenEmpty ? "1" : undefined}
+      // A widget given its own fill (a coloured or picture block) is meant
+      // to show even with nothing written in it, so it never folds away.
+      data-keep-empty={def?.keepWhenEmpty || hasOwnFill(widget.settings) ? "1" : undefined}
       style={{
         ...style,
         ...(ownShadowCss && !collapsed ? {

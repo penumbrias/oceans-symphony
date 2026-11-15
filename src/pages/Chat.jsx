@@ -279,9 +279,9 @@ export default function Chat() {
         {/* Channels rail — a persistent rail on desktop, a slide-in drawer that
             OVERLAYS the chat (rather than replacing it) on mobile. */}
         <aside className={`w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-background lg:bg-muted/20 flex flex-col
-          absolute inset-y-0 left-0 z-40 shadow-xl transition-transform duration-200
-          ${showChannels ? "translate-x-0" : "-translate-x-full"}
-          lg:static lg:translate-x-0 lg:z-auto lg:shadow-none`}>
+          absolute inset-y-0 left-0 z-40 shadow-xl transition-[transform,visibility] duration-200
+          ${showChannels ? "translate-x-0" : "-translate-x-full invisible"}
+          lg:static lg:translate-x-0 lg:visible lg:z-auto lg:shadow-none`}>
           <div className="p-2 border-b border-border/40 flex items-center justify-between gap-1">
             <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground px-2">Channels</p>
             <div className="flex items-center gap-1">

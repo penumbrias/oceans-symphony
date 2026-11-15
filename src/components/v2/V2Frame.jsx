@@ -999,6 +999,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
                 else if (dir * dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
                 else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
               }}
+              data-chrome-reach=""
               className="flex-1 self-end h-[24px] pb-px flex items-end justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
               <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />
@@ -1030,6 +1031,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom", content = "keys
                 if (dir * dy < -14) { swiped.current = true; toggleQa(true); }
                 else if (dir * dy > 14) { swiped.current = true; toggleQa(false); }
               }}
+              data-chrome-reach=""
               className="flex-1 self-end h-[24px] pb-px flex items-end justify-center gap-1 text-muted-foreground hover:text-foreground"
             >
               <span className="w-5 h-[2px] mb-1 rounded-full bg-border" aria-hidden="true" />

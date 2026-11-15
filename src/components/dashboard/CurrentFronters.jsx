@@ -36,6 +36,7 @@ import { alterPictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 import { latestBy } from "@/lib/latestRecord";
 import { sharedList } from "@/lib/sharedLists";
+import { bySymptomOrder } from "@/lib/symptomOrder";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -286,7 +287,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
   });
   const allTriggerCategories = useTriggerCategories();
 
-  const activeSymptoms = symptoms.filter(s => !s.is_archived);
+  const activeSymptoms = symptoms.filter(s => !s.is_archived).sort(bySymptomOrder);
   const levelCfg = useFrontLevels();
 
   // Build the canonical [{ id, label, value, type }] symptom array from the

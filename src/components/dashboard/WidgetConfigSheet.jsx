@@ -522,6 +522,28 @@ function useLiveColors(open, instanceId, revision = "") {
 // Does the live widget draw a name the board can hide (a Section heading,
 // a command key's label)? Read off the DOM, like the live colours, so the
 // "Show the name" switch only appears where it does something.
+// Whether the widget shows its name anywhere on its face right now (its
+// own heading, or a classic card's title that reads the name). Many classic
+// cards draw a fixed heading of their own, where a Name changes nothing
+// visible, so the Name row says where it does show instead.
+function useNameOnFace(open, instanceId, name, tick) {
+  const [shown, setShown] = React.useState(true);
+  React.useEffect(() => {
+    if (!open || !instanceId) return undefined;
+    const look = () => {
+      const node = document.querySelector(`[data-widget-id="${instanceId}"]`);
+      if (!node) return;
+      const want = (name || "").trim().toLowerCase();
+      const next = !!node.querySelector("[data-widget-label]")
+        || (!!want && (node.innerText || "").toLowerCase().includes(want));
+      setShown((cur) => (cur === next ? cur : next));
+    };
+    const t = setTimeout(look, SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [open, instanceId, name, tick]);
+  return shown;
+}
+
 function useHasWidgetLabel(open, instanceId, tick) {
   const [has, setHas] = React.useState(false);
   const settledRef = React.useRef(false);
@@ -732,6 +754,7 @@ export default function WidgetConfigSheet({
   };
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const drawsLabel = useHasWidgetLabel(open, widget?.instanceId, `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
+  const nameOnFace = useNameOnFace(open, widget?.instanceId, widget?.settings?.label || "", `${widget?.mode}|${JSON.stringify(widget?.settings || {})}`);
   // Which tab is showing. Remembered while the sheet stays open on one
   // widget; a new widget opens on Content.
   const [tab, setTab] = React.useState("content");
@@ -1159,7 +1182,9 @@ export default function WidgetConfigSheet({
           {/* ── Content: name, how much it shows, and its own options ── */}
           {head("content")}{show("content") && (
             <div>
-              <Row label="Name" hint={typeof def.autoLabel === "function"
+              <Row label="Name" hint={!nameOnFace && settings.label
+                ? "This card keeps its own heading; the name shows in edit mode, Minimal display and widget lists"
+                : typeof def.autoLabel === "function"
                 ? "Blank: follows the file that's set to play"
                 : `Blank keeps “${defLabel}”`}>
                 <DebouncedText

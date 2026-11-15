@@ -20,6 +20,13 @@ export const CHANGELOG = [
   {
     date: "November 15, 2026",
     changes: [
+      { type: "fix", text: "The panels for who's in front and the session editor list symptoms in your order, pinned ones first." },
+      { type: "fix", text: "A diary Text field now works as a quick action." },
+      { type: "fix", text: "Colour pickers and other pop-up lists stay beside their button when the page scrolls or the keyboard opens." },
+      { type: "fix", text: "Bulletin and comment boxes no longer cut off their last lines after the screen rotates or a font loads." },
+      { type: "fix", text: "A widget you gave its own background now stays on the home screen even when it has nothing written in it." },
+      { type: "hotfix", text: "Hotfix: Chat's channel list is hidden from screen readers while closed; widget Name hint says where the name shows." },
+      { type: "fix", text: "Accessibility mode: the support bubble no longer sits under the bottom bar's handle, and timeline markers no longer cover the session bar beside them." },
       { type: "fix", text: "Lists no longer change order or miss older entries depending on which page you opened first." },
       { type: "fix", text: "Phone app: moving widgets around no longer freezes the screen for a second while your data's safety copy is saved." },
       { type: "fix", text: "Diary fields you added yourself, Text answers included, now show in the Check-in log and the therapy report." },

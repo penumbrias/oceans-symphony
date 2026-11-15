@@ -12,6 +12,7 @@ import { useTerms } from "@/lib/useTerms";
 import { triggerPatch } from "@/lib/triggerCategories";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { bySymptomOrder } from "@/lib/symptomOrder";
 
 // Edit dialog for per-alter session entries (per-alter notes /
 // emotions / symptoms / triggered-switch flag stored inside a
@@ -52,7 +53,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
   });
   const allTriggerCategories = useTriggerCategories();
 
-  const activeSymptoms = useMemo(() => symptoms.filter((s) => !s.is_archived), [symptoms]);
+  const activeSymptoms = useMemo(() => symptoms.filter((s) => !s.is_archived).sort(bySymptomOrder), [symptoms]);
 
   const addCustomEmotionMutation = useMutation({
     mutationFn: async ({ label, category = "custom", color }) => {
