@@ -288,7 +288,7 @@ export default function PlannerSurface({
   // The month/year calendars also show open to-dos (with a date) and
   // important dates from custom fields, as the tracker did.
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list(),
+    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order"),
   });
   // Birthdays and other date fields, labelled the way the user picked. The
   // day/week canvas shows them under each day's header too, so tapping a

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 15, 2026",
     changes: [
+      { type: "fix", text: "Custom fields on profiles keep the order you set, whichever page you opened first." },
+      { type: "fix", text: "A widget in Minimal display now shows the name you gave it." },
       { type: "fix", text: "Profiles: a long bio no longer catches your swipe and stops the page scrolling after a font loads." },
       { type: "improve", text: "Smoother scrolling on phones and tablets: the bars drop their frosted-glass blur, and the header wave pauses while you scroll." },
     ],

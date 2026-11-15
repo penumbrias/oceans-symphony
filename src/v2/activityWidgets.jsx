@@ -88,7 +88,7 @@ const lsGet = (key, fallback) => {
 function useActivityData() {
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list() });
+  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
   const { data: frontingHistory = [] } = useQuery({ queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list() });
   const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
   return { activities, alters, frontingHistory, importantDates };
