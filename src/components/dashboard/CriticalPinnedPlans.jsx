@@ -1,13 +1,13 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
 import { format, formatDistanceToNow } from "date-fns";
 import { MapPin, X, Zap } from "lucide-react";
 import { shouldShowPin, writeDismissal } from "@/lib/criticalPins";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { useNowTick } from "@/lib/useNowTick";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 // Top-of-Dashboard pinned cards for plans the user marked critical /
 // urgent. A card appears whenever any of the plan's selected lead-step
@@ -18,8 +18,7 @@ import RichText from "@/components/shared/RichText";
 export default function CriticalPinnedPlans() {
   const navigate = useNavigate();
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   // Force a re-render every minute so the visibility window check stays

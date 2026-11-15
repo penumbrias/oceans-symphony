@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { emotionEvents, countEmotions } from "@/lib/lookbackCounts";
 import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
+import { sharedList } from "@/lib/sharedLists";
 
 // Emotion analytics — revamped. Pulls events from BOTH
 // EmotionCheckIn AND FrontingSession.session_emotions so per-alter
@@ -41,8 +42,7 @@ const CORR_WINDOW_MS = 90 * 60 * 1000; // ±90 minutes for correlation
 export default function EmotionAnalytics({ from, to }) {
   const t = useTerms();
   const { data: checkIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -53,12 +53,10 @@ export default function EmotionAnalytics({ from, to }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
   });
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
   const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list(),
+    ...sharedList("symptomCheckIns"),
   });
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],

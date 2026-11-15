@@ -21,6 +21,7 @@ import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 
 function groupByDay(locations) {
@@ -205,8 +206,7 @@ export default function LocationHistory() {
   const [editingLocation, setEditingLocation] = useState(null);
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   // Arriving from a planner pin (?highlight=<id>) lands on that record.

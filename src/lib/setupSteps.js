@@ -13,6 +13,7 @@ import { getAutoBackupMode, getAutoBackupLastAt, BACKUP_MODES } from "@/lib/auto
 import { evaluateSetup, SETUP_STEPS, SETUP_GROUPS } from "@/lib/setupModel";
 import { latestSafetyPlan } from "@/lib/useEmergencyCard";
 import { emergencySupportContacts } from "@/lib/contacts";
+import { sharedList } from "@/lib/sharedLists";
 
 export { evaluateSetup, SETUP_STEPS, SETUP_GROUPS };
 
@@ -22,7 +23,7 @@ export function useSetupSteps({ enabled = true } = {}) {
   const t = useTerms();
   const settingsQ = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled });
   const altersQ = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled });
-  const checkInsQ = useQuery({ queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(), enabled });
+  const checkInsQ = useQuery({ ...sharedList("emotionCheckIns"), enabled });
   const symptomsQ = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list(), enabled });
   const contactsQ = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list(), enabled });
   const entriesQ = useQuery({ queryKey: ["supportJournalEntries"], queryFn: () => base44.entities.SupportJournalEntry.list(), enabled });

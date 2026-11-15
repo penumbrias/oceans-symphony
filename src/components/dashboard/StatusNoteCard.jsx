@@ -4,12 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Edit2, X } from "lucide-react";
 import { toast } from "sonner";
-import { localEntities, base44 } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { isLogCommandError } from "@/lib/authoredText";
 import { saveStatusNote } from "@/lib/checkinEntry";
 import RichText from "@/components/shared/RichText";
 import { latestBy } from "@/lib/latestRecord";
+import { sharedList } from "@/lib/sharedLists";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -31,8 +32,7 @@ export default function StatusNoteCard() {
   const [tempStatus, setTempStatus] = useState("");
 
   const { data: allStatusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
+    ...sharedList("statusNotes"),
   });
 
   const { data: alters = [] } = useQuery({

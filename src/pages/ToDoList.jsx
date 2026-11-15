@@ -11,6 +11,7 @@ import TaskFormModal from "@/components/tasks/TaskFormModal";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
+import { sharedList } from "@/lib/sharedLists";
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
@@ -38,8 +39,7 @@ export default function ToDoList() {
   }, [highlightId]);
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
 
   // Wait for tasks to load before trying to highlight, otherwise the

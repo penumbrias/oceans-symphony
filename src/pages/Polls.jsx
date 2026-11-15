@@ -18,6 +18,7 @@ import { castPollVote } from "@/lib/pollVote";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
+import { sharedList } from "@/lib/sharedLists";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
@@ -911,8 +912,7 @@ export default function Polls() {
   const focusId = searchParams.get("id");
 
   const { data: polls = [], isLoading: pollsLoading } = useQuery({
-    queryKey: ["polls"],
-    queryFn: () => base44.entities.Poll.list("-created_date"),
+    ...sharedList("polls"),
   });
 
   const { data: alters = [] } = useQuery({

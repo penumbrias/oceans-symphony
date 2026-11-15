@@ -4,7 +4,6 @@ import { openDailyTask, isDailyTaskOpenable } from "@/lib/dailyTaskActivity";
 import { isCountedTask } from "@/lib/taskCounts";
 import { TaskCountChip, useTaskTicks } from "@/components/tasks/TaskCountControls";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { Button } from "@/components/ui/button";
 import { Row, StackedRow, Group, SwitchRow, ChoiceRow, SliderRow, Chips } from "@/components/shared/SettingRows";
@@ -24,6 +23,7 @@ import {
 import {
   loadPrefs, savePrefs, subscribePrefs, FREQUENCIES, DEFAULT_PREFS,
 } from "@/lib/pinnedDailyTasksPrefs";
+import { sharedList } from "@/lib/sharedLists";
 
 function usePinnedPrefs() {
   // useSyncExternalStore so settings changes in the dialog reflect in
@@ -56,15 +56,13 @@ export default function PinnedDailyTasksWidget() {
   // same keys — configured tasks "didn't load" on the home screen until
   // that page was visited (long-standing owner report).
   const { data: templates = [] } = useQuery({
-    queryKey: ["dailyTaskTemplates"],
-    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+    ...sharedList("dailyTaskTemplates"),
     staleTime: 0,
     refetchOnMount: "always",
   });
 
   const { data: allProgress = [] } = useQuery({
-    queryKey: ["dailyProgress"],
-    queryFn: () => base44.entities.DailyProgress.list("-date", 200),
+    ...sharedList("dailyProgress"),
     staleTime: 0,
     refetchOnMount: "always",
   });
@@ -328,8 +326,7 @@ export function PinnedTasksOptions() {
   const prefsJson = usePinnedPrefs();
   const prefs = useMemo(() => JSON.parse(prefsJson), [prefsJson]);
   const { data: templates = [] } = useQuery({
-    queryKey: ["dailyTaskTemplates"],
-    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+    ...sharedList("dailyTaskTemplates"),
   });
   const active = templates.filter((t) => t.is_active !== false);
   const [picking, setPicking] = useState(false);

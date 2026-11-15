@@ -41,6 +41,7 @@ import {
   staleOpenSessions,
 } from "@/lib/sessionNormalizer";
 import { startOfDay, endOfDay } from "date-fns";
+import { sharedList } from "@/lib/sharedLists";
 
 // Per-alter totals computed via a sweep-line over normalised
 // sessions (see /src/lib/sessionNormalizer.js). Single pass, no
@@ -137,8 +138,7 @@ export default function Analytics() {
   };
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+    ...sharedList("frontHistory"),
   });
   const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
@@ -163,80 +163,67 @@ export default function Analytics() {
     [allSessions, hiddenFromAnalytics],
   );
   const { data: cards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
+    ...sharedList("diaryCards"),
   });
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: systemCheckIns = [] } = useQuery({
-    queryKey: ["systemCheckIns"],
-    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 500),
+    ...sharedList("systemCheckIns"),
   });
   const { data: symptomSessions = [] } = useQuery({
     queryKey: ["symptomSessions", "all"],
     queryFn: () => base44.entities.SymptomSession.list("-start_time", 1000),
   });
   const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 1000),
+    ...sharedList("symptomCheckIns"),
   });
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
   });
   const { data: sleepRecords = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-date", 500),
+    ...sharedList("sleep"),
   });
   const { data: journals = [] } = useQuery({
-    queryKey: ["journals"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 500),
+    ...sharedList("journals"),
   });
   const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
+    ...sharedList("bulletins"),
   });
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs", "analytics"],
     queryFn: () => base44.entities.MentionLog.list("-source_date", 3000),
   });
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
   const { data: statusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list("-timestamp", 500),
+    ...sharedList("statusNotes"),
   });
   const { data: contactEncounters = [] } = useQuery({
-    queryKey: ["contactEncounters"],
-    queryFn: () => base44.entities.ContactEncounter.list("-start_time", 1000),
+    ...sharedList("contactEncounters"),
   });
   const { data: goals = [] } = useQuery({
     queryKey: ["activityGoals"],
     queryFn: () => base44.entities.ActivityGoal.list(),
   });
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list("-timestamp", 2000),
+    ...sharedList("locations"),
   });
   const { data: contacts = [] } = useQuery({
     queryKey: ["contacts"],
     queryFn: () => base44.entities.Contact.list(),
   });
   const { data: chatMessages = [] } = useQuery({
-    queryKey: ["systemChatMessages"],
-    queryFn: () => localEntities.SystemChatMessage.list("-timestamp", 3000),
+    ...sharedList("systemChatMessages"),
   });
 
   const { data: systemChangeEvents = [] } = useQuery({

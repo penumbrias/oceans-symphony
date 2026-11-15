@@ -14,6 +14,7 @@ import {
   instantiateUserQuestion,
 } from "@/lib/unblendQuestions";
 import AddUnblendQuestionModal from "@/components/unblend/AddUnblendQuestionModal";
+import { sharedList } from "@/lib/sharedLists";
 
 // Convert a preset / auto-generated question into the user-editable
 // UnblendQuestion spec shape. Used when the user customises a built-in
@@ -72,12 +73,10 @@ export default function UnblendQuestionsManager() {
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: userRecords = [] } = useQuery({
     queryKey: ["unblendQuestions"],

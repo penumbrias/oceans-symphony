@@ -17,6 +17,7 @@ import { getRootCategories } from "@/lib/categoryTreeUtils";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 import { contactDisplayName } from "@/lib/contacts";
 import { an } from "@/lib/articles";
+import { sharedList } from "@/lib/sharedLists";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -583,7 +584,7 @@ export default function QuickActionsConfig() {
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: customEmotions = [] } = useQuery({ queryKey: ["customEmotions"], queryFn: () => base44.entities.CustomEmotion.list() });
   const { data: diaryTemplates = [] } = useQuery({ queryKey: ["diaryTemplate"], queryFn: () => base44.entities.DiaryTemplate.list() });
-  const { data: allTaskTemplates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200) });
+  const { data: allTaskTemplates = [] } = useQuery({ ...sharedList("dailyTaskTemplates") });
   const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   const dailyTaskTemplates = useMemo(() => allTaskTemplates.filter(t => t.is_active !== false && t.mode === "MANUAL"), [allTaskTemplates]);
   const diaryGroups = useMemo(() => {

@@ -5,6 +5,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
 import { AlarmClock, Cloud, ZapOff } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { sharedList } from "@/lib/sharedLists";
 
 function StatCard({ label, value, sub }) {
   return (
@@ -48,8 +49,7 @@ function AlterBadge({ alter, count, total }) {
 
 export default function SleepAnalytics({ sleepRecords = [], from, to }) {
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => localEntities.FrontingSession.list(),
+    ...sharedList("frontHistory"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

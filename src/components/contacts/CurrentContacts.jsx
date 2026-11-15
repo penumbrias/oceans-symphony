@@ -7,6 +7,7 @@ import { Users, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { endEncounter } from "@/lib/contactEncounters";
 import { contactDisplayName } from "@/lib/contacts";
+import { sharedList } from "@/lib/sharedLists";
 
 // Dashboard "Currently with" row — mirrors Active Activities / Current
 // Symptoms. Shows the contacts you've marked yourself as with right now
@@ -22,8 +23,7 @@ export default function CurrentContacts() {
   const [busyId, setBusyId] = useState(null);
 
   const { data: encounters = [] } = useQuery({
-    queryKey: ["contactEncounters"],
-    queryFn: () => base44.entities.ContactEncounter.list(),
+    ...sharedList("contactEncounters"),
   });
   const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   const contactsById = Object.fromEntries(contacts.map((c) => [c.id, c]));

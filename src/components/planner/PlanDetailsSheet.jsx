@@ -37,6 +37,7 @@ import PlanOutcome from "@/components/planner/PlanOutcome";
 import { Button } from "@/components/ui/button";
 import { getActiveActivities } from "@/lib/activitySession";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 const fmtDur = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -49,12 +50,12 @@ export default function PlanDetailsSheet({ item, onClose, onEdit: onEditProp = n
   const formatAlter = useAlterLabel();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: !!item });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!item });
-  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list(), enabled: !!item });
+  const { data: tasks = [] } = useQuery({ ...sharedList("tasks"), enabled: !!item });
   const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list(), enabled: !!item });
   // Feelings logged around the entry (a check-in within 30 minutes of its
   // start) — what the classic details modal showed under each activity.
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(), enabled: !!item,
+    ...sharedList("emotionCheckIns"), enabled: !!item,
   });
 
   // The built-in editor (when the caller has none). While it's open the

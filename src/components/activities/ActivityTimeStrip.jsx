@@ -11,8 +11,8 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isSameDay } from "date-fns";
-import { base44 } from "@/api/base44Client";
 import WeekCanvas from "@/components/planner/WeekCanvas";
+import { sharedList } from "@/lib/sharedLists";
 
 export const PENDING_PREFIX = "qc_pending_";
 // Compact rows so a good slice of the day fits in a thin strip.
@@ -27,8 +27,7 @@ export default function ActivityTimeStrip({
   height = 320,
 }) {
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   const anchor = useMemo(() => { const d = new Date(day); d.setHours(12, 0, 0, 0); return d; }, [day]);

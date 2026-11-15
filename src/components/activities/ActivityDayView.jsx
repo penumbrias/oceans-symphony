@@ -4,7 +4,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format } from "date-fns";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { parseDate, activityDate } from "@/lib/dateUtils";
 import { datesForDay } from "@/lib/importantDates";
@@ -19,6 +19,7 @@ import {
 } from "./activityHelpers";
 import { statusFor, visualForStatus, isPastTimeScheduled, countableMinutes, ACTIVITY_STATUSES, STATUS_LABELS } from "@/lib/activityStatus";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 function EmotionPills({ emotions }) {
   if (!emotions || emotions.length === 0) return null;
@@ -241,8 +242,7 @@ export default function ActivityDayView({
 }) {
   const dayImportantDates = datesForDay(importantDates, date);
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"],
@@ -253,8 +253,7 @@ export default function ActivityDayView({
     queryFn: () => base44.entities.Symptom.list(),
   });
   const { data: locationRecords = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
   const symptomsMap = useMemo(() => {
     const m = {};

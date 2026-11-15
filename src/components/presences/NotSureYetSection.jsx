@@ -2,11 +2,11 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, UserPlus } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { an } from "@/lib/articles";
 import CreateAlterFromPresence from "@/components/presences/CreateAlterFromPresence";
 import { sightingsOf } from "@/components/presences/PresencePicker";
+import { sharedList } from "@/lib/sharedLists";
 
 // "Not sure yet" on the alters directory (v0.371.0): the presences that
 // haven't become alters, beside the alters themselves, so parts, fragments
@@ -17,8 +17,7 @@ export default function NotSureYetSection() {
   const t = useTerms();
   const [promote, setPromote] = useState(null);
   const { data: presences = [] } = useQuery({
-    queryKey: ["presences"],
-    queryFn: () => base44.entities.Presence.list("-timestamp", 500),
+    ...sharedList("presences"),
   });
   const open = useMemo(() => presences.filter((p) => !p.resolved_alter_id), [presences]);
   if (!open.length) return null;

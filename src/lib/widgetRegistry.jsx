@@ -39,7 +39,6 @@ import { getFrequentPages } from "@/lib/pageVisitTracker";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import { frontShare, coFrontingPairs } from "@/lib/analytics/fronting";
 import { lastNDays } from "@/lib/analytics/range";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -63,6 +62,7 @@ import QuickCheckinButtons, { resolveQuickButtons } from "@/components/dashboard
 import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
 import { foldWidget } from "@/lib/widgetFold";
 import { useWidgetChrome } from "@/v2/primitives";
+import { sharedList } from "@/lib/sharedLists";
 
 // Generic minimal-mode shell — gives every widget a "minimal" rendering
 // for free: icon + label (+ the widget can still be tapped via settings
@@ -217,8 +217,7 @@ function FrontingLeadersWidget({ mode, settings, api, updateSettings }) {
     updateSettings?.({ window: next });
   };
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontingSessions"],
-    queryFn: () => base44.entities.FrontingSession.list(),
+    ...sharedList("frontingSessions"),
   });
   const alters = api?.alters || [];
   const altersById = React.useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);

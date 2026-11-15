@@ -8,6 +8,7 @@ import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurf
 import { duePlanReminder, ackPlan } from "@/lib/planBannerAcks";
 import { useNowTick } from "@/lib/useNowTick";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 export default function AnnouncementBanner() {
   const navigate = useNavigate();
@@ -24,8 +25,7 @@ export default function AnnouncementBanner() {
   const settings = pickPrimarySystemSettings(settingsList) || null;
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   if (!isSurfaceEnabled(settings, SURFACE_IN_APP_BANNER)) return null;

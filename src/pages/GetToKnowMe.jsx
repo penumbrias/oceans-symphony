@@ -20,6 +20,7 @@ import { applyGetToKnowMeAnswer } from "@/lib/getToKnowMeWriteback";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import { normalizeHexInput } from "@/lib/colorUtils";
 import { changeFront } from "@/lib/setFront";
+import { sharedList } from "@/lib/sharedLists";
 
 
 // "Get to know me" — the inverse of Help me unblend. The user
@@ -43,12 +44,10 @@ export default function GetToKnowMe() {
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: userRecords = [] } = useQuery({
     queryKey: ["unblendQuestions"],

@@ -28,6 +28,7 @@ import RelationTypePicker from "@/components/activities/RelationTypePicker";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 const fmtMin = (min) => {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
@@ -95,7 +96,7 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
   const qc = useQueryClient();
 
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities") });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: customEmotions = [] } = useQuery({ queryKey: ["customEmotions"], queryFn: () => base44.entities.CustomEmotion.list() });
   const { data: alterLinks = [] } = useQuery({

@@ -10,6 +10,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { AlterPictureFramer } from "@/components/v2/pictureFramingFields";
 import { pictureStyle } from "@/lib/imageFraming";
+import { sharedList } from "@/lib/sharedLists";
 
 const ROLE_LABEL = { avatar: "avatar", background: "background" };
 // Where each role's linked folder name lives on the Alter record. These
@@ -82,8 +83,7 @@ export default function AlterImagePoolManager({ open, onClose, alterId, role }) 
   // in the library, so the user can attach to something that already
   // exists instead of typing.
   const { data: allAssets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    ...sharedList("imageAssets"),
     enabled: open && linkingOpen,
   });
   const existingFolders = useMemo(() => {

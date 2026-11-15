@@ -10,6 +10,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import RichText from "@/components/shared/RichText";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { sharedList } from "@/lib/sharedLists";
 
 // One saved reflection — read-only by default, with inline edit (each response
 // becomes an editable field) and delete. SupportJournalEntry.responses is a
@@ -119,8 +120,7 @@ CURRICULUM.forEach(mod => {
 
 export default function MyReflections({ onBack }) {
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["supportJournalAll"],
-    queryFn: () => base44.entities.SupportJournalEntry.list(),
+    ...sharedList("supportJournalAll"),
   });
 
   // Group by module

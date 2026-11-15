@@ -15,10 +15,10 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, format, isSameDay, startOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import WeekCanvas from "@/components/planner/WeekCanvas";
 import { useT } from "@/lib/i18n";
+import { sharedList } from "@/lib/sharedLists";
 
 const PENDING_ID = "anchor_pending_entry";
 const HOUR_PX = 36;
@@ -48,7 +48,7 @@ export default function ActivityAnchorPicker({
   start, minutes, excludeId = null, name = "", color = null, weekStartsOn = 1, onApply, onClose,
 }) {
   const tr = useT();
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities") });
   const baseLen = Number(minutes) > 0 ? Math.round(Number(minutes)) : 30;
   const [draft, setDraft] = useState(() => ({ start: new Date(start), minutes: baseLen }));
   // An entry with no length keeps none unless a range is drawn here.

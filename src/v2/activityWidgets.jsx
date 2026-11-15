@@ -32,6 +32,7 @@ import ActivityDayView from "@/components/activities/ActivityDayView";
 import ActivityEditor from "@/components/activities/ActivityEditor";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { sharedList } from "@/lib/sharedLists";
 
 // The grid's display filters and sizing live in the WIDGET's options (gear
 // menu), not buried in a toolbar inside the tile. Only keys the user
@@ -86,9 +87,9 @@ const lsGet = (key, fallback) => {
 // Everything the tracker views need, from the same query keys the page
 // uses — so a widget and the page share one cache and stay in step.
 function useActivityData() {
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities") });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
+  const { data: customFields = [] } = useQuery({ ...sharedList("customFields") });
   const { data: frontingHistory = [] } = useQuery({ queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list() });
   const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
   return { activities, alters, frontingHistory, importantDates };

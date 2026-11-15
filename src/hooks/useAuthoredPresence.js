@@ -7,6 +7,7 @@ import {
   inferAlterIdsAt,
   getInferPresenceEnabled,
 } from "@/lib/inferredPresence";
+import { sharedList } from "@/lib/sharedLists";
 
 // Shared analytics helper: turns authored content (chat / bulletins /
 // comments / journals) into "inferred presence" so analytics can attribute
@@ -29,8 +30,7 @@ export function useAuthoredPresence() {
     queryFn: () => base44.entities.MentionLog.list("-source_date", 5000),
   });
   const { data: journals = [] } = useQuery({
-    queryKey: ["journals"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 1000),
+    ...sharedList("journals"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

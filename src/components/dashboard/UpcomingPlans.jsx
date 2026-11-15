@@ -19,6 +19,7 @@ import {
   COUNT_MIN,
   COUNT_MAX,
 } from "@/lib/upcomingPlansLimit";
+import { sharedList } from "@/lib/sharedLists";
 
 /**
  * Shared widget: a compact list of upcoming planned activities. Placing
@@ -58,8 +59,7 @@ export default function UpcomingPlans({
   const { rows: recurringRows } = useRecurringTasksDue({ enabled: recurringOn, kinds: recurringKinds, showDone: recurringShowDone });
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

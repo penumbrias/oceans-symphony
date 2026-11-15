@@ -36,6 +36,7 @@ import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { barPictureFor } from "@/lib/barPicture";
 import { showsOther } from "@/components/v2/WhosePicker";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -59,8 +60,7 @@ export function useInfoAlter(settings) {
 }
 
 export const useSystemFields = () => useQuery({
-  queryKey: ["customFields"],
-  queryFn: () => base44.entities.CustomField.list("order"),
+  ...sharedList("customFields"),
 }).data || [];
 
 // Whose info a Field widget shows (v0.322.0). "profile" is the page it sits

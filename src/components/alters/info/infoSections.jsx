@@ -41,6 +41,7 @@ import { ENTRY_KINDS, KIND_LABEL, EntryInput, BioEntry, inputBase, inputCls, sma
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { AlterPictureFramer, PictureFramingRow } from "@/components/v2/pictureFramingFields";
 import { withImageFraming, framedImageStyle, pictureStyle } from "@/lib/imageFraming";
+import { sharedList } from "@/lib/sharedLists";
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
 
@@ -405,8 +406,7 @@ export function EntriesSection({ alter, info, bio = true }) {
   const [editing, setEditing] = useState(null); // { key, name, kind } — key "field:<id>" or "own:<index>"
   const navigate = useNavigate();
   const { data: systemFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
   const { data: settingsRows = [] } = useQuery({
     queryKey: ["systemSettings"],

@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { clockPattern } from "@/lib/timeFormat";
+import { sharedList } from "@/lib/sharedLists";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -103,8 +104,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
   // BulletinCard on screen shares the same fetch and shares the cache
   // with the standalone Polls page.
   const { data: allPolls = [] } = useQuery({
-    queryKey: ["polls"],
-    queryFn: () => base44.entities.Poll.list("-created_date"),
+    ...sharedList("polls"),
     enabled: !!bulletin.poll_id,
   });
   const linkedPoll = bulletin.poll_id ? allPolls.find((p) => p.id === bulletin.poll_id) : null;

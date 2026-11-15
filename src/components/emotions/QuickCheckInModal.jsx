@@ -4,7 +4,7 @@ import { applyFrontSelection } from "@/lib/setFront";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import useFormDraft from "@/hooks/useFormDraft";
 import { withBatch } from "@/lib/localDb";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { sharedList } from "@/lib/sharedLists";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
 // hold-and-slide level rail as every other {front} surface (the swipe
@@ -262,8 +263,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   });
 
   const { data: pastLocations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   // Fetch alters internally so callers that mount this modal without
@@ -330,8 +330,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
   // Most-recent PRIOR check-in, for the "last check-in" hint in the header.
   const { data: allCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
     enabled: isOpen,
   });
   const lastCheckInAt = useMemo(() => {

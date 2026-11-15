@@ -69,6 +69,7 @@ import { SwitchRow } from "@/components/shared/SettingRows";
 import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
+import { sharedList } from "@/lib/sharedLists";
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } };
@@ -140,10 +141,10 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
 
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list(), enabled: !!request });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities"), enabled: !!request });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: !!request });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!request });
-  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list(), enabled: !!request });
+  const { data: tasks = [] } = useQuery({ ...sharedList("tasks"), enabled: !!request });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: !!request });
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),

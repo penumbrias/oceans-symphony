@@ -26,6 +26,7 @@ import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { an } from "@/lib/articles";
+import { sharedList } from "@/lib/sharedLists";
 
 // In-progress meeting draft. A meeting being created/edited lives in component
 // state, so navigating away (e.g. to Settings) and back used to drop you on the
@@ -50,8 +51,7 @@ export default function SystemCheckInPage() {
   const [draftRestored, setDraftRestored] = useState(false);
 
   const { data: checkIns = [] } = useQuery({
-    queryKey: ["systemCheckIns"],
-    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 100),
+    ...sharedList("systemCheckIns"),
   });
 
   const { data: alters = [] } = useQuery({

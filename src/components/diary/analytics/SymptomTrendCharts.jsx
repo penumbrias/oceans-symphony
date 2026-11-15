@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { format, parseISO } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { sharedList } from "@/lib/sharedLists";
 
 // Legacy hardcoded keys kept for backwards-compat with any old DiaryCard.checklist data
 const LEGACY_COLORS = {
@@ -22,8 +23,7 @@ export default function SymptomTrendCharts({ dailyAggregates }) {
   const [selected, setSelected] = useState(null); // null = use defaults (first 4)
 
   const { data: allSymptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list(),
+    ...sharedList("symptomCheckIns"),
   });
 
   const { data: symptoms = [] } = useQuery({

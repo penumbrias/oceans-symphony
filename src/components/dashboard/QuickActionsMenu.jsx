@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { Plus, MapPin, Loader2, UserPlus, RefreshCw, Check, Play, Moon, MessageSquarePlus, ListPlus } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
@@ -16,6 +16,7 @@ import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
+import { sharedList } from "@/lib/sharedLists";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -234,8 +235,7 @@ function StartActivityRow({ action, category, onAction }) {
 // reads correctly as "with" or "not with" and toggles on tap.
 function ContactRow({ action, contact, onAction }) {
   const { data: encounters = [] } = useQuery({
-    queryKey: ["contactEncounters"],
-    queryFn: () => base44.entities.ContactEncounter.list(),
+    ...sharedList("contactEncounters"),
   });
   const isWith = encounters.some(e => e.is_active && e.contact_id === contact.id);
   const color = contact.color || "#0ea5e9";
@@ -255,8 +255,7 @@ function ContactRow({ action, contact, onAction }) {
 // Start/end sleep — reflects whether a sleep is currently in progress.
 function SleepRow({ action, onAction }) {
   const { data: sleepRecords = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list(),
+    ...sharedList("sleep"),
   });
   const inProgress = sleepRecords.some(s => s.bedtime && !s.wake_time);
   return (
@@ -316,8 +315,7 @@ function LocationRow({ action, onAction }) {
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const { data: pastLocations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   const handleGPS = async () => {
@@ -371,12 +369,10 @@ function DailyTaskRow({ action }) {
   const { task_id } = action.config || {};
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["dailyTaskTemplates"],
-    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+    ...sharedList("dailyTaskTemplates"),
   });
   const { data: allProgress = [] } = useQuery({
-    queryKey: ["dailyProgress"],
-    queryFn: () => base44.entities.DailyProgress.list("-date", 1000),
+    ...sharedList("dailyProgress"),
   });
 
   const template = templates.find(t => t.id === task_id);

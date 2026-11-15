@@ -10,6 +10,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { listSystems, getActiveSystemId, appendEntitiesToSystem } from "@/lib/systems";
 import { getMemberAlters, getSubsystemsOwnedBy, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { childGroups as childGroupsOf } from "@/lib/groupTree";
+import { sharedList } from "@/lib/sharedLists";
 
 // Move or COPY an alter (or a group + its members) from the ACTIVE system into
 // another system. Reuses the cross-system blob writer (appendEntitiesToSystem):
@@ -92,7 +93,7 @@ export default function TransferToSystemModal({ alter = null, group = null, onCl
 
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!group });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
+  const { data: customFields = [] } = useQuery({ ...sharedList("customFields") });
 
   // For a group transfer, the WHOLE subtree that travels with it (the group +
   // every nested subgroup + all their alters). Deep nesting travels.

@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { buildNavGroups, buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 export { buildNavGroups, buildGridItems };
 
 // ── Sortable tile ──────────────────────────────────────────────────────────────
@@ -150,8 +151,7 @@ export default function QuickNavMenu() {
   // Same "urgent + due/scheduled within 72h" rule that drives the sidebar
   // badge — keeps the two surfaces consistent.
   const { data: navTasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
   const todoAlertCount = useMemo(() => {
     const now = Date.now();

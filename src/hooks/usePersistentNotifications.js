@@ -32,6 +32,7 @@ import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 import { setAppNotificationActionHandler } from "@/lib/nativeBootstrap";
+import { sharedList } from "@/lib/sharedLists";
 
 const native = isNative();
 
@@ -169,8 +170,7 @@ export default function usePersistentNotifications() {
   });
   // In-progress sleep counts as a running activity in the notification too.
   const { data: sleeps = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list(),
+    ...sharedList("sleep"),
     enabled: wantActivity,
     refetchInterval: wantActivity ? 60000 : false,
   });

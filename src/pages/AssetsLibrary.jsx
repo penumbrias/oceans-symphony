@@ -42,6 +42,7 @@ import {
 } from "@/lib/assetFolders";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { an } from "@/lib/articles";
+import { sharedList } from "@/lib/sharedLists";
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const PAGE = 24; // lazy-load page size per folder
 
@@ -348,8 +349,7 @@ export default function AssetsLibrary() {
   }, [qc]);
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    ...sharedList("imageAssets"),
   });
 
   const { data: alters = [] } = useQuery({

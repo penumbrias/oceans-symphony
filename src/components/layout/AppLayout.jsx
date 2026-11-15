@@ -70,6 +70,7 @@ import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED, EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 import { safeInternalRoute } from "@/lib/safeRoute";
 import { mentionLogsQuery } from "@/lib/mentionNotices";
+import { sharedList } from "@/lib/sharedLists";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -600,8 +601,7 @@ const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
 // due_date or scheduled_at coming up in the next 72 hours. Drives the
 // notification badge on the To-Do nav item.
 const { data: todoTasks = [] } = useQuery({
-  queryKey: ["tasks"],
-  queryFn: () => base44.entities.Task.list(),
+  ...sharedList("tasks"),
 });
 const todoAlertCount = React.useMemo(() => {
   const now = Date.now();

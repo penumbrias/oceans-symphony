@@ -28,6 +28,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 import { pictureStyle } from "@/lib/imageFraming";
 import { an } from "@/lib/articles";
+import { sharedList } from "@/lib/sharedLists";
 // The contact whose page this is. Same ["contacts"] query every contact
 // surface reads.
 export function useSubjectContact() {
@@ -39,7 +40,7 @@ export function useSubjectContact() {
 }
 
 const useSettings = () => pickPrimarySystemSettings(useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data);
-const useEncounters = () => useQuery({ queryKey: ["contactEncounters"], queryFn: () => base44.entities.ContactEncounter.list() }).data || [];
+const useEncounters = () => useQuery({ ...sharedList("contactEncounters") }).data || [];
 
 const AVATAR_RADIUS = { circle: "9999px", rounded: "22%", square: "6%" };
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
