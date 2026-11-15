@@ -91,9 +91,19 @@ export default function SidebarNav({ open, onClose }) {
           // The mobile header (and its menu button) shows below lg (1024px),
           // but this drawer was hidden above sm (640px), so portrait tablets
           // had a button that opened an invisible drawer (tester report).
-          "fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm lg:hidden transition-opacity duration-300",
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          "fixed inset-0 z-[100] bg-background/60 lg:hidden",
+          // Blurred and on screen only while the menu is open (v0.371.2).
+          // Closed, it used to stay as an invisible full-screen blur layer
+          // above every page and sheet; iPhones keep re-blurring a layer
+          // like that as things move under it, which made pages flicker
+          // while scrolling and could leave a sheet's contents blank.
+          open ? "opacity-100 pointer-events-auto visible backdrop-blur-sm" : "opacity-0 pointer-events-none invisible"
         )}
+        style={{
+          transition: open
+            ? "opacity 300ms, visibility 0s"
+            : "opacity 300ms, visibility 0s linear 300ms",
+        }}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -104,15 +114,26 @@ export default function SidebarNav({ open, onClose }) {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "fixed top-0 left-0 z-[101] w-72 bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-in-out lg:hidden",
-          open ? "translate-x-0" : "-translate-x-full"
+          "fixed top-0 left-0 z-[101] w-72 overflow-hidden bg-background border-r border-border/50 flex flex-col lg:hidden",
+          open ? "translate-x-0 visible" : "-translate-x-full invisible"
         )}
+        // Closed, it is hidden as well as slid away — once the slide has
+        // finished, so the close still animates. Sliding alone left
+        // anything wider than the drawer on screen: with a wide font the
+        // header's grocery cart and X stuck out at the top left of every
+        // page (v0.371.2). overflow-hidden keeps the header inside too.
+        aria-hidden={open ? undefined : true}
         // 100dvh, NOT h-full: h-full on a fixed element is the LARGE
         // viewport height, so whenever a browser URL bar / system chrome is
         // showing, the drawer's bottom hangs below the visible screen and
         // the last nav option can never be scrolled into view (tester
         // report). dvh tracks the real visible height.
-        style={{ height: "100dvh" }}
+        style={{
+          height: "100dvh",
+          transition: open
+            ? "transform 300ms ease-in-out, visibility 0s"
+            : "transform 300ms ease-in-out, visibility 0s linear 300ms",
+        }}
       >
         {/* Safe-area + header */}
         {/* Top inset CLAMPED: a device reporting a garbage inset (notification
@@ -125,7 +146,7 @@ export default function SidebarNav({ open, onClose }) {
             {/* App icon → the system switcher (switch / side systems /
                 create — owner spec); the title text stays the quick way
                 home. */}
-            <span className="flex items-center gap-1 select-none min-h-[44px] -ml-1">
+            <span className="flex items-center gap-1 select-none min-h-[44px] -ml-1 min-w-0">
               <button
                 type="button"
                 onClick={() => { onClose?.(); openSystemSwitcher(); }}
@@ -141,10 +162,10 @@ export default function SidebarNav({ open, onClose }) {
                 className="px-1 rounded-xl hover:bg-muted/50 transition-colors"
                 aria-label="Go to dashboard"
               >
-                <span className="font-display text-base font-semibold text-foreground">Navigation</span>
+                <span className="font-display text-base font-semibold text-foreground truncate block">Navigation</span>
               </Link>
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 data-tour="nav-grid-toggle"
                 onClick={openAppGrid}

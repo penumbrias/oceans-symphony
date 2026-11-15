@@ -36,6 +36,11 @@ export default function PageStrip({ items = [], value, onChange, label = "Views"
       {items.map((it) => {
         const on = it.id === value;
         const Icon = it.icon;
+        // Grows to share spare width, never shrinks below its label
+        // (flex: 1 0 auto). It used to rely on min-width: max-content,
+        // which Accessibility mode's 44px minimum for buttons overrides,
+        // so the tabs squeezed together and their labels overlapped
+        // (v0.371.2). The strip scrolls sideways instead.
         return (
           <button
             key={it.id}
@@ -46,7 +51,7 @@ export default function PageStrip({ items = [], value, onChange, label = "Views"
             data-strip-id={it.id}
             data-tour={it.tour}
             onClick={() => onChange?.(it.id)}
-            className={`flex-1 min-w-max flex items-center justify-center gap-1.5 px-4 min-h-[44px] text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+            className={`flex-[1_0_auto] flex items-center justify-center gap-1.5 px-4 min-h-[44px] text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
               on ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
