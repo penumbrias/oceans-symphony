@@ -346,6 +346,30 @@ body {
      looping forever. */
   .app-header-wave-slide { animation: none; }
 }
+/* Scrolling comes first (v0.371.6). The wave pauses while anything scrolls
+   (src/lib/scrollingFlag.js), so the phone isn't redrawing it on the same
+   frames as the scroll. */
+body[data-os-scrolling] .app-header-wave-slide { animation-play-state: paused; }
+
+/* No frosted glass on touch screens (v0.371.6). A blur behind the header,
+   the bars and floating buttons is redrawn on every frame the page moves
+   under it — measured at about five times the drawing work of the same
+   scroll without it, the main reason scrolling felt low-framerate on
+   phones. The bars keep their colour; the few see-through surfaces get a
+   little more solid so text on them stays readable. A blur the person set
+   on a widget themselves (widget looks) is theirs and stays. */
+@media (pointer: coarse) {
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  [class*="backdrop-blur"].bg-background\/60,
+  [class*="backdrop-blur"].bg-background\/70,
+  [class*="backdrop-blur"].bg-background\/80,
+  [class*="backdrop-blur"].bg-background\/85 {
+    background-color: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  }
+}
 
 /* Prevent text from overflowing button/card boundaries at any font scale */
 button, [role="button"] {

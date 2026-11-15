@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "November 15, 2026",
+    changes: [
+      { type: "fix", text: "Profiles: a long bio no longer catches your swipe and stops the page scrolling after a font loads." },
+      { type: "improve", text: "Smoother scrolling on phones and tablets: the bars drop their frosted-glass blur, and the header wave pauses while you scroll." },
+    ],
+  },
+  {
     date: "November 14, 2026",
+    version: "0.371.5",
     changes: [
       { type: "fix", text: "Check-ins: text boxes you add to the diary now show up, so you can write in them." },
       { type: "fix", text: "Manage check-in: the arrows reorder symptoms and habits again, check-ins list them in that order, and diary groups can be dragged into a new order." },
