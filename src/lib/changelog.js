@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "November 14, 2026",
+    changes: [
+      { type: "fix", text: "iPhone and iPad: {{Alter}} profiles no longer flicker while scrolling, with the bio jumping up over the header." },
+      { type: "fix", text: "A grocery cart and an X no longer get stuck at the top left of the screen with wider fonts." },
+      { type: "fix", text: "Profile tabs no longer pile on top of each other with Accessibility mode on; they scroll sideways instead." },
+      { type: "fix", text: "New {{alter}}: the close button no longer covers Redo." },
+    ],
+  },
+  {
     date: "November 12, 2026",
+    version: "0.371.1",
     changes: [
       { type: "fix", text: "Friends: making a Friends profile in the iPhone and iPad app no longer fails with \"Load failed\"." },
       { type: "feature", text: "Setup's \"Who's here?\" step is now a quick list: type or paste several names at once, or give someone just a colour or an emoji." },

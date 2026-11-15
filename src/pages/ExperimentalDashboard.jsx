@@ -166,24 +166,25 @@ function TrashZone({ active }) {
 }
 
 // Where a widget sits on a free page's grid. Whole cells are plain grid
-// lines; a widget placed or sized between them (snapping off) spans the
-// cells it touches and is positioned exactly inside that area — the area
-// is its containing block, so the maths stays in grid units at any width.
-function offGridArea({ x, y, c, r }, rowPx, gapCss) {
+// lines. A widget placed or sized between them (snapping off, or the
+// quarter-row heights a profile's fit pass gives) is positioned exactly,
+// measured from the board itself: the board is its containing block, so
+// the maths stays in grid units at any width.
+//
+// It used to be positioned inside the grid AREA it touched (the area as
+// its containing block). iPhone and iPad (WebKit) don't keep that up: while
+// the page scrolled they kept switching between the area and the whole
+// board, so a widget lower down — the bio under a profile's header — jumped
+// up over the widget above it and back, many times a second (v0.371.2).
+function offGridArea({ x, y, c, r }, rowPx, gapCss, cols) {
   if (isWhole(x) && isWhole(y) && isWhole(c) && isWhole(r)) {
     return { gridColumn: `${Math.round(x) + 1} / span ${Math.round(c)}`, gridRow: `${Math.round(y) + 1} / span ${Math.round(r)}`, height: "100%" };
   }
-  const x0 = Math.floor(x + 1e-6);
-  const n = Math.max(1, Math.ceil(x + c - 1e-6) - x0);
-  const y0 = Math.floor(y + 1e-6);
-  const m = Math.max(1, Math.ceil(y + r - 1e-6) - y0);
   return {
-    gridColumn: `${x0 + 1} / span ${n}`,
-    gridRow: `${y0 + 1} / span ${m}`,
     position: "absolute",
-    left: `calc((100% + ${gapCss}) * ${(x - x0) / n})`,
-    width: `calc((100% + ${gapCss}) * ${c / n} - ${gapCss})`,
-    top: `calc((${rowPx}px + ${gapCss}) * ${y - y0})`,
+    left: `calc((100% + ${gapCss}) * ${x / cols})`,
+    width: `calc((100% + ${gapCss}) * ${c / cols} - ${gapCss})`,
+    top: `calc((${rowPx}px + ${gapCss}) * ${y})`,
     height: `calc((${rowPx}px + ${gapCss}) * ${r} - ${gapCss})`,
   };
 }
@@ -403,7 +404,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
     ? {}
     : free
       ? {
-          ...offGridArea({ x: cell.x, y: cell.y, c: shownCols, r: shownRows }, rowPx, gapCss),
+          ...offGridArea({ x: cell.x, y: cell.y, c: shownCols, r: shownRows }, rowPx, gapCss, gridCols),
           transform: [move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : "", tiltCss].filter(Boolean).join(" ") || undefined,
           zIndex: move.dragging ? 45 : zLayer || undefined,
           willChange: move.dragging ? "transform" : undefined,
@@ -450,7 +451,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
     {free && move.drag && !move.drag.beside && (
       <div aria-hidden="true" className="rounded-xl border-2 border-dashed pointer-events-none"
         style={{
-          ...offGridArea({ x: move.drag.target.x, y: move.drag.target.y, c: shownCols, r: shownRows }, rowPx, gapCss),
+          ...offGridArea({ x: move.drag.target.x, y: move.drag.target.y, c: shownCols, r: shownRows }, rowPx, gapCss, gridCols),
           // The canvas aligns items to the top, which left this empty box
           // zero-height (a bare line) — fill the cells it stands for.
           alignSelf: "stretch",
@@ -2170,7 +2171,7 @@ export default function ExperimentalDashboard({
         <div aria-hidden="true" className="pointer-events-none"
           data-drop-ghost={dragGhost.beside ? "beside" : "cell"}
           style={{
-            ...offGridArea({ x: ghostCell.x, y: ghostCell.y, c: Math.min(ghostCell.cols, gridCols), r: ghostCell.rows }, rowPx, canvasGap),
+            ...offGridArea({ x: ghostCell.x, y: ghostCell.y, c: Math.min(ghostCell.cols, gridCols), r: ghostCell.rows }, rowPx, canvasGap, gridCols),
             alignSelf: "stretch",
             border: "2px dashed var(--v2-accent)",
             borderRadius: "var(--v2-radius, 12px)",

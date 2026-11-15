@@ -145,8 +145,9 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
         className="max-w-md h-[min(90vh,52rem)] flex flex-col gap-0 overflow-hidden p-0" data-new-alter-sheet="" data-tour="new-alter-sheet">
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
-        {/* Header + fixed tab strip (the inspector's) */}
-        <div className="flex-shrink-0 px-4 pt-3 border-b border-border/50 bg-background">
+        {/* Header + fixed tab strip (the inspector's). Room on the right
+            for the sheet's close X, which used to sit on top of Redo. */}
+        <div className="flex-shrink-0 pl-4 pr-14 pt-3 border-b border-border/50 bg-background">
           {page === "look" ? (
             <div className="flex items-center gap-1 pb-2">
               <button type="button" onClick={() => setPage("sheet")} aria-label="Back"
@@ -161,7 +162,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           ) : (
             <>
               <InfoBar info={info} title={title} />
-              <div className="-mx-4">
+              <div className="-ml-4 -mr-14">
                 <TabBar tabs={tabs} value={tab} onChange={setTab} />
               </div>
             </>
