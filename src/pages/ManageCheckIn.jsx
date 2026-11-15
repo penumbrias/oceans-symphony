@@ -359,6 +359,23 @@ function SymptomTab({ category, contextOnly = false }) {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["symptoms"] });
 
+  // Move one row up or down. Every row in this list gets its position as
+  // its order, then the two swap — swapping the two old orders did nothing
+  // when they were equal, which they are for anything never reordered
+  // (no order yet, or presets added together). Only rows whose order
+  // actually changes are written.
+  const move = async (index, dir) => {
+    const to = index + dir;
+    if (to < 0 || to >= filtered.length) return;
+    const next = [...filtered];
+    [next[index], next[to]] = [next[to], next[index]];
+    const writes = next
+      .map((s, i) => (s.order === i ? null : base44.entities.Symptom.update(s.id, { order: i })))
+      .filter(Boolean);
+    await Promise.all(writes);
+    invalidate();
+  };
+
   const handleSave = async (id, data) => {
     await base44.entities.Symptom.update(id, data);
     invalidate();
@@ -411,24 +428,8 @@ function SymptomTab({ category, contextOnly = false }) {
         {filtered.map((s, index) => (
           <SymptomRow key={s.id} symptom={s} index={index} total={filtered.length}
             onSave={handleSave} onDelete={handleDelete}
-            onMoveUp={async () => {
-              const a = filtered[index - 1];
-              const b = filtered[index];
-              await Promise.all([
-                base44.entities.Symptom.update(a.id, { order: b.order ?? index }),
-                base44.entities.Symptom.update(b.id, { order: a.order ?? index - 1 }),
-              ]);
-              invalidate();
-            }}
-            onMoveDown={async () => {
-              const a = filtered[index];
-              const b = filtered[index + 1];
-              await Promise.all([
-                base44.entities.Symptom.update(a.id, { order: b.order ?? index + 1 }),
-                base44.entities.Symptom.update(b.id, { order: a.order ?? index }),
-              ]);
-              invalidate();
-            }}
+            onMoveUp={() => move(index, -1)}
+            onMoveDown={() => move(index, 1)}
           />
         ))}
       </div>

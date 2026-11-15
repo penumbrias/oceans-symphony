@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 14, 2026",
     changes: [
+      { type: "fix", text: "Check-ins: text boxes you add to the diary now show up, so you can write in them." },
+      { type: "fix", text: "Manage check-in: the arrows reorder symptoms and habits again, check-ins list them in that order, and diary groups can be dragged into a new order." },
       { type: "fix", text: "Home screen and widget boards: Spacers and Dividers no longer disappear once you save, so you can put space between widgets again." },
       { type: "fix", text: "Home screen: an App shortcut now shows the icon you pick for it in its options." },
       { type: "fix", text: "Display options no longer crashes when you open the pinned bar's settings under Bars." },

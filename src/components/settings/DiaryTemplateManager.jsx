@@ -3,7 +3,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus, Trash2, GripVertical, ChevronDown, Check } from "lucide-react";
@@ -293,6 +293,16 @@ export default function DiaryTemplateManager() {
 
   const sortedGroups = useMemo(() => [...groups].sort((a, b) => (a.order || 0) - (b.order || 0)), [groups]);
 
+  // Dragging a group by its handle reorders the groups (the handle used to
+  // lift the group and drop it straight back where it was).
+  const handleGroupDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const from = sortedGroups.findIndex(g => g.id === active.id);
+    const to = sortedGroups.findIndex(g => g.id === over.id);
+    if (from < 0 || to < 0) return;
+    setGroups(arrayMove(sortedGroups, from, to).map((g, i) => ({ ...g, order: i })));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -305,7 +315,7 @@ export default function DiaryTemplateManager() {
         </Button>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
         <SortableContext items={sortedGroups.map(g => g.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
             {sortedGroups.map(group => (

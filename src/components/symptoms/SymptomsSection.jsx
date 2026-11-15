@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus, Pin } from "lucide-react";
+import { Search, Plus, ArrowDownAZ, ArrowUpAZ, ListOrdered, Loader2, Minus, Pin } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -22,7 +22,10 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("symptom");
   const [search, setSearch] = useState("");
-  const [sortAsc, setSortAsc] = useState(true);
+  // "order" = the order set in Manage check-in (ties, and lists never
+  // reordered, fall back to A→Z — so nothing moves for anyone who never
+  // reordered); then A→Z, Z→A.
+  const [sortMode, setSortMode] = useState("order");
   const [addingNew, setAddingNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("boolean");
@@ -51,7 +54,8 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
     const pin = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
     if (pin) return pin;
     const cmp = (a.label || "").localeCompare(b.label || "");
-    return sortAsc ? cmp : -cmp;
+    if (sortMode === "order") return (a.order ?? 0) - (b.order ?? 0) || cmp;
+    return sortMode === "asc" ? cmp : -cmp;
   });
   const pinnedCount = visible.filter((s) => s.is_pinned).length;
 
@@ -143,9 +147,11 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
           placeholder={`Search ${TAB_LABELS[activeTab].toLowerCase()}...`} className="bg-transparent pr-3 pl-8 py-1.5 text-sm rounded-lg w-full border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary" />
           
         </div>
-        <button onClick={() => setSortAsc(!sortAsc)}
-        className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground" title={sortAsc ? "A→Z" : "Z→A"}>
-          {sortAsc ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
+        <button onClick={() => setSortMode((m) => (m === "order" ? "asc" : m === "asc" ? "desc" : "order"))}
+        className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground"
+        title={sortMode === "order" ? "Your order" : sortMode === "asc" ? "A→Z" : "Z→A"}
+        aria-label={`Sort: ${sortMode === "order" ? "your order" : sortMode === "asc" ? "A to Z" : "Z to A"}`}>
+          {sortMode === "order" ? <ListOrdered className="w-4 h-4" /> : sortMode === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
         </button>
         <button onClick={() => {setAddingNew(true);setTimeout(() => newInputRef.current?.focus(), 50);}}
         className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground" title="Add new">
