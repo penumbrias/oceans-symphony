@@ -16,6 +16,7 @@ import {
   applyAnswer,
   rankAlters,
 } from "@/lib/unblendScoring";
+import { sharedList } from "@/lib/sharedLists";
 
 // "Help me unblend" — a gentle, customisable identification helper
 // for figuring out which alter is fronting. Built around the spec
@@ -84,8 +85,7 @@ export default function HelpMeUnblend() {
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontingSessions"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
+    ...sharedList("frontingSessions"),
   });
 
   // EmotionCheckIn history powers the "dominant feeling" question.
@@ -93,16 +93,14 @@ export default function HelpMeUnblend() {
   // options and score by per-alter frequency, so picking "anxious"
   // rewards alters who've logged "anxious" most often.
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+    ...sharedList("emotionCheckIns"),
   });
 
   // Custom field definitions — needed so the dynamic-question
   // builder knows which fields are list-type (and should split on
   // commas) vs plain text (treated as one opaque value).
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
 
   // User-defined questions live in a local entity so they survive

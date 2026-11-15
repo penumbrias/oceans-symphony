@@ -19,6 +19,7 @@ import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 import { resolveAssetRules, autoFolderForItem, explicitFolderOf, alterFolderName } from "@/lib/assetFolders";
 import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -59,8 +60,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
   const fileRef = useRef(null);
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    ...sharedList("imageAssets"),
     enabled: open,
   });
   // v0.88.1: pool images (owner_alter_id-tagged ImageAssets) synthesize

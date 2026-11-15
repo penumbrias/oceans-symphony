@@ -36,6 +36,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { pictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 import { an } from "@/lib/articles";
+import { sharedList } from "@/lib/sharedLists";
 const METHOD_ICON = { phone: Phone, sms: MessageSquare, email: Mail, address: MapPin };
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
@@ -121,7 +122,7 @@ export function ContactHeaderSection({ contact }) {
 export function ContactEncounterSection({ contact }) {
   const queryClient = useQueryClient();
   const id = contact.id;
-  const { data: encounters = [] } = useQuery({ queryKey: ["contactEncounters"], queryFn: () => base44.entities.ContactEncounter.list() });
+  const { data: encounters = [] } = useQuery({ ...sharedList("contactEncounters") });
   const activeEncounter = encounters.find((e) => e.contact_id === id && e.is_active) || null;
   const lastSeen = lastSeenEncounter(encounters, id);
   const [togglingWith, setTogglingWith] = useState(false);

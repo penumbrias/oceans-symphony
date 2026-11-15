@@ -32,8 +32,8 @@ import {
   ensureRemindersChannel,
   REMINDERS_CHANNEL_ID,
 } from "@/lib/nativeNotifications";
-import { base44 } from "@/api/base44Client";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { sharedList } from "@/lib/sharedLists";
 
 const LOG_KEY = "symphony_plan_reminder_log_v1";
 const SETTINGS_ENABLED_KEY = "symphony_plan_reminders_enabled";
@@ -381,8 +381,7 @@ export function usePlanReminderSync() {
   const lastSigRef = useRef(null);
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   // Re-run when settings change too — we listen for the custom event

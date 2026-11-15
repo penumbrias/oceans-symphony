@@ -70,6 +70,7 @@ import { GARDEN_GROUP_WIDGETS } from "@/v2/gardenGroupWidgets";
 import { GARDEN_CONTACT_WIDGETS } from "@/v2/gardenContactWidgets";
 import { GARDEN_LOCATION_WIDGETS } from "@/v2/gardenLocationWidgets";
 import { ownProfileWidgets } from "@/v2/linkedProfileWidgets";
+import { sharedList } from "@/lib/sharedLists";
 
 // The record whose page this is, by owner type. Same query keys the pages
 // themselves use, so a widget and the page chrome never disagree.
@@ -116,7 +117,7 @@ export function useSubjectRecord(type) {
 export const useSubjectAlter = () => useSubjectRecord("alter");
 
 const useAlters = () => useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() }).data || [];
-const useSystemFields = () => useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") }).data || [];
+const useSystemFields = () => useQuery({ ...sharedList("customFields") }).data || [];
 
 // The one visible box. `label` is only drawn when the person named the
 // widget (the sections carry their own headings, as the page always did).

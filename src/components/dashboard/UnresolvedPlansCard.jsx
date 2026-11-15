@@ -16,6 +16,7 @@ import {
 import { addActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { cancelPlanReminder, schedulePlanReminder } from "@/lib/planReminderScheduler";
 import { useNowTick } from "@/lib/useNowTick";
+import { sharedList } from "@/lib/sharedLists";
 
 // Dashboard surface that lists past-time scheduled plans the user hasn't
 // resolved yet. One-tap buttons send the lifecycle update directly so
@@ -51,8 +52,7 @@ export default function UnresolvedPlansCard() {
   const navigate = useNavigate();
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   // Categories only used to colour the active pill when a plan is started.

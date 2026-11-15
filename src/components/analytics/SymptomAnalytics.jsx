@@ -9,6 +9,7 @@ import { format, parseISO, isWithinInterval } from "date-fns";
 import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { sharedList } from "@/lib/sharedLists";
 
 export default function SymptomAnalytics({ startDate, endDate, symptomSessions = null, symptomCheckIns = null, symptoms: propsSymptoms = null }) {
   // Use pre-fetched data if provided, otherwise fetch
@@ -19,8 +20,7 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
   });
 
   const { data: checkIns = symptomCheckIns ?? [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 500),
+    ...sharedList("symptomCheckIns"),
     enabled: !symptomCheckIns,
   });
 

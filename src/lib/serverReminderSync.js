@@ -30,6 +30,7 @@ import { getLocalIdentity, ensurePushIdentity, FRIENDS_API_BASE } from "@/lib/fr
 import { isPushEnabled } from "@/lib/pushRegistration";
 import { computePrescheduledFires, isPrescheduleableType, isRollingFrontReminder } from "@/lib/nativeReminderScheduler";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 // Same host rule as the Friends relay — see src/lib/apiBase.js for why
 // the packaged app targets need an absolute URL here.
@@ -211,8 +212,7 @@ export async function disableCloudReminderDelivery() {
 export function useServerReminderSync() {
   const lastSigRef = useRef(null);
   const { data: reminders = [] } = useQuery({
-    queryKey: ["reminders"],
-    queryFn: () => base44.entities.Reminder.list("-created_date", 500),
+    ...sharedList("reminders"),
   });
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],

@@ -43,6 +43,7 @@ import PeriodReview from "@/components/tasks/PeriodReview";
 import { Button } from "@/components/ui/button";
 import { Settings, LayoutGrid, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { sharedList } from "@/lib/sharedLists";
 
 const FREQUENCIES = ["daily", "weekly", "monthly", "yearly"];
 
@@ -84,8 +85,7 @@ export default function DailyTasks() {
 
   // Task templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ["dailyTaskTemplates"],
-    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+    ...sharedList("dailyTaskTemplates"),
     staleTime: 0,
   });
 
@@ -117,8 +117,7 @@ export default function DailyTasks() {
 
   // All progress records
   const { data: allProgress = [], isLoading: progressLoading } = useQuery({
-    queryKey: ["dailyProgress"],
-    queryFn: () => base44.entities.DailyProgress.list("-date", 1000),
+    ...sharedList("dailyProgress"),
     staleTime: 0,
   });
 

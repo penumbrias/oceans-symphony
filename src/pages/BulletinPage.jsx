@@ -8,6 +8,7 @@ import AuthorsRow from "@/components/bulletin/AuthorsRow";
 import BulletinCommentThread from "@/components/bulletin/BulletinCommentThread";
 import { useTerms } from "@/lib/useTerms";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
+import { sharedList } from "@/lib/sharedLists";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -30,8 +31,7 @@ export default function BulletinPage() {
   });
 
   const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 100),
+    ...sharedList("bulletins"),
   });
   // The list above is capped at the newest 100 — an older post reached
   // from search, a notification or a pinned poll used to render

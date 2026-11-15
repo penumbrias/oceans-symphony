@@ -71,6 +71,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { checkAutoResolveClient } from "@/lib/remindersScheduler";
 import { snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
+import { sharedList } from "@/lib/sharedLists";
 
 // Action-type id we attach to every pre-scheduled notification so
 // Android renders the inline Snooze buttons in the tray. Registered
@@ -664,8 +665,7 @@ export function useNativeReminderSync() {
   const latestRef = useRef(null);
   const lastRunRef = useRef(0);
   const { data: reminders = [] } = useQuery({
-    queryKey: ["reminders"],
-    queryFn: () => base44.entities.Reminder.list("-created_date", 500),
+    ...sharedList("reminders"),
   });
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],

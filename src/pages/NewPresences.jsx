@@ -17,6 +17,7 @@ import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 function AlterChip({ alter, onRemove }) {
   const formatAlter = useAlterLabel();
@@ -47,8 +48,7 @@ export default function NewPresences() {
   const [showSeveral, setShowSeveral] = useState(false);
 
   const { data: presences = [] } = useQuery({
-    queryKey: ["presences"],
-    queryFn: () => base44.entities.Presence.list("-timestamp", 500),
+    ...sharedList("presences"),
   });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 

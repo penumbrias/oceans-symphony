@@ -171,6 +171,7 @@ import { pictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 import { plainNoteText } from "@/lib/plainNote";
 import { latestBy } from "@/lib/latestRecord";
+import { sharedList } from "@/lib/sharedLists";
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
 // A to-do's due_date is a day ("YYYY-MM-DD"). new Date() reads that as UTC
 // midnight, which is the day before west of Greenwich, so read it as local
@@ -2984,8 +2985,7 @@ function SongWidget({ settings }) {
   const own = songDisplayTitle(song);
   const needsLookup = !!song && (!own || own === GENERIC_SONG_TITLE);
   const { data: assets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    ...sharedList("imageAssets"),
     enabled: needsLookup,
   });
   const title = needsLookup ? songDisplayTitle(song, assets) : own;

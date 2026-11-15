@@ -42,6 +42,7 @@ import {
   useSoundManager, patchSoundManager, setSongDefaultVolume, setProfileSong, profilesWithSongs, songCatalogue,
   songKey, hasAnySong, ownSongOf, formatWindow, newWindowId, DAY_OPTIONS, inWindow,
 } from "@/lib/soundManager";
+import { sharedList } from "@/lib/sharedLists";
 
 const ENTITY = { alter: "Alter", group: "Group", location: "InnerWorldLocation" };
 const PROFILE_PATH = { alter: (id) => `/alter/${id}`, group: (id) => `/group/${id}`, location: (id) => `/location/${id}` };
@@ -51,7 +52,7 @@ function useSongData() {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: locations = [] } = useQuery({ queryKey: ["innerWorldLocations"], queryFn: () => base44.entities.InnerWorldLocation.list() });
-  const { data: assets = [] } = useQuery({ queryKey: ["imageAssets"], queryFn: () => base44.entities.ImageAsset.list("-created_date") });
+  const { data: assets = [] } = useQuery({ ...sharedList("imageAssets") });
   return useMemo(() => {
     const profiles = profilesWithSongs({ alters, groups, locations });
     const songs = songCatalogue({ profiles, assets })

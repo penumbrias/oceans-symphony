@@ -46,6 +46,7 @@ import { RecurringTaskRow } from "@/components/tasks/RecurringTasksDue";
 import { isCountedTask, taskCountState, countLabel } from "@/lib/taskCounts";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 import { Row as SettingRow } from "@/components/shared/SettingRows";
+import { sharedList } from "@/lib/sharedLists";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -367,8 +368,7 @@ export function ChatChannelsWidget({ mode = "normal", settings }) {
   const channels = useList("systemChatChannels", "SystemChatChannel", true);
   // Only loaded when the widget actually shows last-activity stamps.
   const { data: messages = [] } = useQuery({
-    queryKey: ["systemChatMessages"],
-    queryFn: () => localEntities.SystemChatMessage.list(),
+    ...sharedList("systemChatMessages"),
     enabled: mode !== "minimal",
   });
   const { data: activeFront = [] } = useQuery({

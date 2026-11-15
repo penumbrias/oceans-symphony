@@ -15,6 +15,7 @@ import { collectAlterDates, datesForDay } from "@/lib/importantDates";
 import { journalEntryDate } from "@/lib/journalDate";
 import { eventsOnDay } from "@/lib/plannerEventDates";
 import { PLANNER_EVENTS_KEY } from "@/lib/plannerEvents";
+import { sharedList } from "@/lib/sharedLists";
 
 // Each visible day scans every record, so the same date strings were parsed
 // again for every day on screen. Remember each string's time once.
@@ -44,33 +45,33 @@ function activityMs(a) {
 }
 
 export function useTimelineSources() {
-  const { data: sessions = [] } = useQuery({ queryKey: ["frontHistory"], queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000) });
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list("-timestamp", 2000) });
-  const { data: emotions = [] } = useQuery({ queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 2000) });
+  const { data: sessions = [] } = useQuery({ ...sharedList("frontHistory") });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities") });
+  const { data: emotions = [] } = useQuery({ ...sharedList("emotionCheckIns") });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
-  const { data: journals = [] } = useQuery({ queryKey: ["journalEntries"], queryFn: () => base44.entities.JournalEntry.list("-created_date", 2000) });
-  const { data: checkIns = [] } = useQuery({ queryKey: ["systemCheckIns"], queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 2000) });
+  const { data: customFields = [] } = useQuery({ ...sharedList("customFields") });
+  const { data: journals = [] } = useQuery({ ...sharedList("journalEntries") });
+  const { data: checkIns = [] } = useQuery({ ...sharedList("systemCheckIns") });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
-  const { data: bulletins = [] } = useQuery({ queryKey: ["bulletins"], queryFn: () => base44.entities.Bulletin.list("-created_date", 2000) });
-  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list("-created_date", 2000) });
-  const { data: dailyProgress = [] } = useQuery({ queryKey: ["dailyProgress"], queryFn: () => base44.entities.DailyProgress.list("-date", 365) });
+  const { data: bulletins = [] } = useQuery({ ...sharedList("bulletins") });
+  const { data: tasks = [] } = useQuery({ ...sharedList("tasks") });
+  const { data: dailyProgress = [] } = useQuery({ ...sharedList("dailyProgress") });
   const { data: symptomSessions = [] } = useQuery({ queryKey: ["symptomSessions", "all"], queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000) });
-  const { data: symptomCheckIns = [] } = useQuery({ queryKey: ["symptomCheckIns"], queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 2000) });
-  const { data: locationRecords = [] } = useQuery({ queryKey: ["locations"], queryFn: () => localEntities.Location.list() });
-  const { data: statusNotes = [] } = useQuery({ queryKey: ["statusNotes"], queryFn: () => localEntities.StatusNote.list() });
+  const { data: symptomCheckIns = [] } = useQuery({ ...sharedList("symptomCheckIns") });
+  const { data: locationRecords = [] } = useQuery({ ...sharedList("locations") });
+  const { data: statusNotes = [] } = useQuery({ ...sharedList("statusNotes") });
   const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list() });
-  const { data: sleeps = [] } = useQuery({ queryKey: ["sleep"], queryFn: () => base44.entities.Sleep.list("-bedtime", 2000) });
+  const { data: sleeps = [] } = useQuery({ ...sharedList("sleep") });
   const { data: lineageEvents = [] } = useQuery({ queryKey: ["systemChangeEvents"], queryFn: () => localEntities.SystemChangeEvent.list() });
-  const { data: diaryCards = [] } = useQuery({ queryKey: ["diaryCards"], queryFn: () => base44.entities.DiaryCard.list("-created_date", 2000) });
-  const { data: polls = [] } = useQuery({ queryKey: ["polls"], queryFn: () => base44.entities.Poll.list("-created_date", 2000) });
-  const { data: reminderInstances = [] } = useQuery({ queryKey: ["reminderInstances"], queryFn: () => base44.entities.ReminderInstance.list("-scheduled_for", 2000) });
+  const { data: diaryCards = [] } = useQuery({ ...sharedList("diaryCards") });
+  const { data: polls = [] } = useQuery({ ...sharedList("polls") });
+  const { data: reminderInstances = [] } = useQuery({ ...sharedList("reminderInstances") });
   // Instances only carry a reminder_id — the parent holds the title/message,
   // so timeline rows can say what the reminder was about.
-  const { data: reminders = [] } = useQuery({ queryKey: ["reminders"], queryFn: () => base44.entities.Reminder.list("-created_date", 1000) });
-  const { data: reflections = [] } = useQuery({ queryKey: ["supportJournalAll"], queryFn: () => base44.entities.SupportJournalEntry.list("-created_date", 2000) });
+  const { data: reminders = [] } = useQuery({ ...sharedList("reminders") });
+  const { data: reflections = [] } = useQuery({ ...sharedList("supportJournalAll") });
   const { data: alterNotes = [] } = useQuery({ queryKey: ["alterNotes"], queryFn: () => base44.entities.AlterNote.list("-created_date", 2000) });
-  const { data: dailyTaskTemplates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list() });
+  const { data: dailyTaskTemplates = [] } = useQuery({ ...sharedList("dailyTaskTemplates") });
 
   // Events (payday, birthdays) — dates, drawn as chips on the day header.
   const { data: plannerEvents = [] } = useQuery({ queryKey: PLANNER_EVENTS_KEY, queryFn: () => localEntities.PlannerEvent.list() });

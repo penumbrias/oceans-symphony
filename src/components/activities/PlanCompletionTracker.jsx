@@ -13,6 +13,7 @@ import {
   TIME_OF_DAY_LABELS,
   DAY_OF_WEEK_LABELS,
 } from "@/lib/planAnalytics";
+import { sharedList } from "@/lib/sharedLists";
 
 // Plan completion tracker — analytics surface for the lifecycle data
 // added in Phase 1/2. Lives on the Activity Tracker page as a third
@@ -109,8 +110,7 @@ export default function PlanCompletionTracker() {
   const { from, to } = useMemo(() => rangeBounds(rangeId), [rangeId]);
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
 
   const { data: categories = [] } = useQuery({

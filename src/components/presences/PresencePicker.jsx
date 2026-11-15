@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import PresenceForm from "./PresenceForm";
+import { sharedList } from "@/lib/sharedLists";
 
 // Helper: every timestamp a presence was sensed (back-compat for rows that
 // only have the single `timestamp`).
@@ -22,8 +23,7 @@ export default function PresencePicker({ onClose }) {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const { data: presences = [] } = useQuery({
-    queryKey: ["presences"],
-    queryFn: () => base44.entities.Presence.list("-timestamp", 200),
+    ...sharedList("presences"),
   });
 
   const logAgain = async (p) => {

@@ -13,6 +13,7 @@ import * as reportSections from "@/lib/reportSections";
 import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
 import TherapyNotesCard from "@/components/report/TherapyNotesCard";
 import { useDiaryGroups } from "@/components/diary/DiarySection";
+import { sharedList } from "@/lib/sharedLists";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -35,13 +36,11 @@ export default function TherapyReportPage() {
 
   const levelCfg = useFrontLevels();
   const { data: frontingSessions = [] } = useQuery({
-    queryKey: ["frontingSessions"],
-    queryFn: () => db.FrontingSession.list(),
+    ...sharedList("frontingSessions"),
   });
 
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => db.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
   });
 
   const { data: symptoms = [] } = useQuery({
@@ -50,8 +49,7 @@ export default function TherapyReportPage() {
   });
 
   const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => db.SymptomCheckIn.list(),
+    ...sharedList("symptomCheckIns"),
   });
 
   const { data: symptomSessions = [] } = useQuery({
@@ -60,34 +58,28 @@ export default function TherapyReportPage() {
   });
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => db.Activity.list(),
+    ...sharedList("activities"),
   });
 
   const { data: journalEntries = [] } = useQuery({
-    queryKey: ["journalEntries"],
-    queryFn: () => db.JournalEntry.list(),
+    ...sharedList("journalEntries"),
   });
 
   const diaryGroups = useDiaryGroups();
   const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => db.DiaryCard.list(),
+    ...sharedList("diaryCards"),
   });
 
   const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => db.Bulletin.list(),
+    ...sharedList("bulletins"),
   });
 
   const { data: systemCheckIns = [] } = useQuery({
-    queryKey: ["systemCheckIns"],
-    queryFn: () => db.SystemCheckIn.list(),
+    ...sharedList("systemCheckIns"),
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => db.Task.list(),
+    ...sharedList("tasks"),
   });
 
   const { data: activityCategories = [] } = useQuery({
@@ -96,8 +88,7 @@ export default function TherapyReportPage() {
   });
 
   const { data: dailyProgress = [] } = useQuery({
-    queryKey: ["dailyProgress"],
-    queryFn: () => db.DailyProgress.list(),
+    ...sharedList("dailyProgress"),
   });
 
   const { data: templates = [] } = useQuery({
@@ -106,13 +97,11 @@ export default function TherapyReportPage() {
   });
 
   const { data: statusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
+    ...sharedList("statusNotes"),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   const { data: sleepLogs = [] } = useQuery({

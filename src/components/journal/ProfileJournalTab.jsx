@@ -22,6 +22,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
+import { sharedList } from "@/lib/sharedLists";
 
 export default function ProfileJournalTab({ alterIds = [], defaultAuthorId = null }) {
   const navigate = useNavigate();
@@ -31,8 +32,7 @@ export default function ProfileJournalTab({ alterIds = [], defaultAuthorId = nul
   const [showEditor, setShowEditor] = useState(false);
 
   const { data: entries = [] } = useQuery({
-    queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list(),
+    ...sharedList("journalEntries"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

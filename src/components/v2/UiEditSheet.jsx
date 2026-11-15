@@ -78,6 +78,7 @@ import { useIsWide } from "@/lib/useIsWide";
 import { readPinnedBar, pinnedBarLook, pinnedBarPatch, pinnedBarLookPatch } from "@/lib/barsModel";
 import BarShowSwitch, { useBarsChrome, useBarLabels } from "@/components/v2/BarShowSwitch";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 const tokenById = Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d]));
 
@@ -1166,7 +1167,7 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
   // app open (the legacy wallpaper's headline feature, kept here now
   // that the pill row is gone).
   const { data: allAssets = [] } = useQuery({
-    queryKey: ["imageAssets"], queryFn: () => base44.entities.ImageAsset.list(),
+    ...sharedList("imageAssets"),
   });
   const assetFolders = useMemo(
     () => [...new Set(allAssets.map((a) => a.folder).filter(Boolean))].sort(),

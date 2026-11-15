@@ -9,6 +9,7 @@ import { lastNDays, priorRange, buildRange, DAY_MS } from "@/lib/analytics/range
 import { frontingRollup, emotionRollup, sleepRollup } from "@/lib/analytics/rollups";
 import { generateInsights, spotlightInsight } from "@/lib/analytics/insights";
 import InsightCard from "@/components/analytics/primitives/InsightCard";
+import { sharedList } from "@/lib/sharedLists";
 
 // The ONE dashboard insight card (locked decision: Analytics feed + a single
 // dismissible dashboard card, pull-based — never pushed). Shows the most
@@ -45,20 +46,17 @@ export default function InsightSpotlight() {
   const spotlightEnabled = pickPrimarySystemSettings(settingsList)?.analytics_spotlight_enabled === true;
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+    ...sharedList("frontHistory"),
   });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: sleepRecords = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-date", 500),
+    ...sharedList("sleep"),
   });
 
   const altersById = useMemo(() => {

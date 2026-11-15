@@ -19,6 +19,7 @@ import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
+import { sharedList } from "@/lib/sharedLists";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -85,8 +86,7 @@ export default function Journals() {
   const [savedFolders, setSavedFoldersState] = useState(getSavedFolders);
 
   const { data: rawEntries = [] } = useQuery({
-    queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date"),
+    ...sharedList("journalEntries"),
   });
   // Newest first by the entry's OWN date (journalDate.js) — not created_date,
   // which is when the row was written (imports, edited dates). Sorted here,

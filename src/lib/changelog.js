@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 15, 2026",
     changes: [
+      { type: "fix", text: "Lists no longer change order or miss older entries depending on which page you opened first." },
       { type: "fix", text: "Phone app: moving widgets around no longer freezes the screen for a second while your data's safety copy is saved." },
       { type: "fix", text: "Diary fields you added yourself, Text answers included, now show in the Check-in log and the therapy report." },
       { type: "fix", text: "Custom fields on profiles keep the order you set, whichever page you opened first." },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
@@ -35,6 +35,7 @@ import { useTriggerCategories } from "@/lib/useTriggerCategories";
 import { alterPictureStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 import { latestBy } from "@/lib/latestRecord";
+import { sharedList } from "@/lib/sharedLists";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -675,8 +676,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false, onlyAl
 
   // Latest status note for display — sorted descending, just grab first
   const { data: allStatusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
+    ...sharedList("statusNotes"),
   });
   const latestStatusNote = useMemo(() => latestBy(allStatusNotes), [allStatusNotes]);
 

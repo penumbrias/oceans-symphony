@@ -13,7 +13,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, Repeat } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
 import {
@@ -22,6 +21,7 @@ import {
 import { isCountedTask, taskCountConfig, addTaskCount, TASK_TICKS_QUERY_KEY } from "@/lib/taskCounts";
 import { TaskCountChip, useTaskTicks } from "@/components/tasks/TaskCountControls";
 import { Row } from "@/v2/primitives";
+import { sharedList } from "@/lib/sharedLists";
 
 const ALL_FREQS = ["daily", "weekly", "monthly", "yearly"];
 
@@ -38,8 +38,8 @@ export function matchesTaskKind(t, kinds = "all") {
 // ones last (or left out with showDone: false). Shared by the list below
 // and the classic panel's gate.
 export function useRecurringTasksDue({ frequencies = ALL_FREQS, enabled = true, kinds = "all", showDone = true } = {}) {
-  const { data: templates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list(), enabled });
-  const { data: progress = [] } = useQuery({ queryKey: ["dailyProgress"], queryFn: () => base44.entities.DailyProgress.list(), enabled });
+  const { data: templates = [] } = useQuery({ ...sharedList("dailyTaskTemplates"), enabled });
+  const { data: progress = [] } = useQuery({ ...sharedList("dailyProgress"), enabled });
   const ticks = useTaskTicks();
   const rows = useMemo(() => {
     const due = templates

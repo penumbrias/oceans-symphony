@@ -41,6 +41,7 @@ import { Row } from "@/components/shared/SettingRows";
 import { useProfileViewPrefs } from "@/lib/profileViewPrefs";
 
 import { framedBackgroundStyle, framingFor } from "@/lib/imageFraming";
+import { sharedList } from "@/lib/sharedLists";
 // The icon each tab's page shows in the page strip (by page id).
 const PAGE_ICONS = {
   [profilePageId("profile")]: User,
@@ -240,8 +241,7 @@ function AlterProfileInner() {
   });
 
   const { data: systemFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
 
   const boardApi = React.useMemo(() => ({ alters }), [alters]);

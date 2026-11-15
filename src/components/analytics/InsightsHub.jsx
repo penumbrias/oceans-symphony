@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44, localEntities } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Target, AlertTriangle, ClipboardList, Bell, CheckSquare, Moon, MapPin, Sparkles } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -16,6 +16,7 @@ import {
   computeLocationRollup,
   computeMoodActivityCorrelation,
 } from "@/lib/analyticsAggregator";
+import { sharedList } from "@/lib/sharedLists";
 
 // Composite analytics surface that pulls together the coverage
 // gaps identified in the analytics audit:
@@ -53,8 +54,7 @@ export default function InsightsHub({ from, to }) {
   const range = useMemo(() => buildRange(from, to), [from, to]);
 
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
@@ -65,24 +65,20 @@ export default function InsightsHub({ from, to }) {
     queryFn: () => base44.entities.ActivityGoal.list(),
   });
   const { data: checkIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp"),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
   const { data: reminderInstances = [] } = useQuery({
-    queryKey: ["reminderInstances"],
-    queryFn: () => base44.entities.ReminderInstance.list(),
+    ...sharedList("reminderInstances"),
   });
   const { data: sleepRecords = [] } = useQuery({
     queryKey: ["sleepRecords"],
     queryFn: () => base44.entities.Sleep.list(),
   });
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   const planLifecycle = useMemo(() => computePlanLifecycle(activities, range), [activities, range]);

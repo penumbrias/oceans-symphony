@@ -76,6 +76,7 @@ import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { clockPattern } from "@/lib/timeFormat";
 import { onColor } from "@/lib/contrast";
+import { sharedList } from "@/lib/sharedLists";
 
 // User-controllable filter for what shows in the Check-In Log. Stored in
 // localStorage so the choice persists across sessions. All toggles default
@@ -1613,8 +1614,7 @@ export default function CheckInLog() {
   const allOff = Object.values(display).every((v) => !v);
 
   const { data: checkIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp"),
+    ...sharedList("emotionCheckIns"),
   });
 
   const { data: alters = [] } = useQuery({
@@ -1628,13 +1628,11 @@ export default function CheckInLog() {
   });
 
   const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 500),
+    ...sharedList("symptomCheckIns"),
   });
 
   const { data: rawActivities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list("-timestamp", 500),
+    ...sharedList("activities"),
   });
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
@@ -1660,23 +1658,19 @@ export default function CheckInLog() {
   }, [rawActivities, activityCategories]);
 
   const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
+    ...sharedList("diaryCards"),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   const { data: statusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
+    ...sharedList("statusNotes"),
   });
 
   const { data: frontingSessions = [] } = useQuery({
-    queryKey: ["frontingSessions"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
+    ...sharedList("frontingSessions"),
   });
 
   const [customNoteOpen, setCustomNoteOpen] = useState(false);

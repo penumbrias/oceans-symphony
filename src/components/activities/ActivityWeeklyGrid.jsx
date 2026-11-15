@@ -60,6 +60,7 @@ import { statusFor, visualForStatus, isPastTimeScheduled, ACTIVITY_STATUSES } fr
 import { useNavigate } from "react-router-dom";
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import RichText from "@/components/shared/RichText";
+import { sharedList } from "@/lib/sharedLists";
 
 // Quick-plan row with tap vs press-and-hold gestures. Both open the
 // shared details sheet (read it, resolve it, start it, edit it).
@@ -351,8 +352,7 @@ export default function ActivityWeeklyGrid({
   useEffect(() => { lsSet(LS_TICK_MODE,  tickMode);     }, [tickMode]);
 
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
   });
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"],

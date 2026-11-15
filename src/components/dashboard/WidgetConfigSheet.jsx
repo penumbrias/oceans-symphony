@@ -71,6 +71,7 @@ import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
 import LucideByName from "@/components/shared/LucideByName";
+import { sharedList } from "@/lib/sharedLists";
 
 function AppListField({ value = [], onChange, terms }) {
   const [q, setQ] = React.useState("");
@@ -258,7 +259,7 @@ function LinksField({ value = [], onChange }) {
   const formatAlter = useAlterLabel();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const { data: entries = [] } = useQuery({ queryKey: ["journalEntries"], queryFn: () => base44.entities.JournalEntry.list() });
+  const { data: entries = [] } = useQuery({ ...sharedList("journalEntries") });
   const journals = React.useMemo(() => {
     const set = new Set(entries.map((e) => e.folder).filter(Boolean));
     try { JSON.parse(localStorage.getItem("os_journal_folders") || "[]").forEach((f) => set.add(f)); }
@@ -349,16 +350,14 @@ const DYNAMIC_SOURCES = {
     searchPlaceholder: "Search channels…",
   },
   polls: {
-    queryKey: ["polls"],
-    queryFn: () => base44.entities.Poll.list(),
+    ...sharedList("polls"),
     toOptions: (rows) => [...rows]
       .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
       .map((p) => ({ id: p.id, label: p.question || "Poll" })),
     searchPlaceholder: "Search polls…",
   },
   journalFolders: {
-    queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list(),
+    ...sharedList("journalEntries"),
     toOptions: (rows) => {
       const set = new Set(rows.map((e) => e.folder).filter(Boolean));
       try { JSON.parse(localStorage.getItem("os_journal_folders") || "[]").forEach((f) => set.add(f)); } catch { /* none saved */ }

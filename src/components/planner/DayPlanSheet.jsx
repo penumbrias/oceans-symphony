@@ -16,6 +16,7 @@ import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+import { sharedList } from "@/lib/sharedLists";
 
 const isOpenTask = (t) => !(t.is_complete || t.completed);
 
@@ -26,10 +27,10 @@ export default function DayPlanSheet({ day, open, onClose }) {
   const [busy, setBusy] = useState(false);
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"], queryFn: () => base44.entities.Task.list(), enabled: open,
+    ...sharedList("tasks"), enabled: open,
   });
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"], queryFn: () => base44.entities.Activity.list(), enabled: open,
+    ...sharedList("activities"), enabled: open,
   });
 
   const dayKey = useMemo(() => {

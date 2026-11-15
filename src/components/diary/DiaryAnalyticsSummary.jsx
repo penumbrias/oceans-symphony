@@ -13,6 +13,7 @@ import {
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { loadSystemDistressSet } from "@/lib/emotionDistress";
 import { useTerms } from "@/lib/useTerms";
+import { sharedList } from "@/lib/sharedLists";
 
 // "Log Analytics" rendered above the Check-In Log. Pulls from every
 // entity the log itself surfaces — EmotionCheckIn, SymptomCheckIn,
@@ -117,8 +118,7 @@ export default function DiaryAnalyticsSummary({
   });
 
   const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 1000),
+    ...sharedList("symptomCheckIns"),
   });
 
   const { data: customEmotions = [] } = useQuery({

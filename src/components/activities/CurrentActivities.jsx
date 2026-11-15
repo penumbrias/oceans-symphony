@@ -29,6 +29,7 @@ const validDate = (v) => {
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { clockPattern } from "@/lib/timeFormat";
+import { sharedList } from "@/lib/sharedLists";
 
 
 // Press-and-hold / tap menu for one running activity — mirrors the active
@@ -203,8 +204,7 @@ export default function CurrentActivities() {
   // goes to the Sleep tracker, where its richer end flow (wake time, quality,
   // dream journal) lives.
   const { data: sleeps = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list(),
+    ...sharedList("sleep"),
   });
   const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time) || null;
 

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { format, parseISO, startOfWeek, endOfWeek } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { sharedList } from "@/lib/sharedLists";
 
 export default function SymptomGridTable({ dailyAggregates, dateRange = 7, altersById = {} }) {
   const { data: symptoms = [] } = useQuery({
@@ -10,8 +11,7 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
   });
 
   const { data: allSymptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list(),
+    ...sharedList("symptomCheckIns"),
   });
 
   const symptomMap = useMemo(() =>

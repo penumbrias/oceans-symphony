@@ -50,6 +50,7 @@ import { tasksAsCalendarItems } from "@/lib/planner/taskItems";
 import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
 import { withTrashBatch } from "@/lib/localDb";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { sharedList } from "@/lib/sharedLists";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -147,21 +148,21 @@ export default function PlannerSurface({
   // Deleting a series member must ask how far the delete reaches.
   const [branchAsk, setBranchAsk] = useState(null); // { item }
 
-  const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
+  const { data: activities = [] } = useQuery({ ...sharedList("activities") });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list() });
+  const { data: tasks = [] } = useQuery({ ...sharedList("tasks") });
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"], queryFn: () => base44.entities.FrontingSession.list(),
     enabled: overlays.alters || !!cellInfo,
   });
   const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
+    ...sharedList("emotionCheckIns"),
     enabled: overlays.emotions || !!cellInfo,
   });
   // Location records pin onto the canvas at their time (on unless turned off).
   const { data: locationRecords = [] } = useQuery({
-    queryKey: ["locations"], queryFn: () => base44.entities.Location.list(),
+    ...sharedList("locations"),
     enabled: overlays.locations !== false,
   });
 
@@ -288,7 +289,7 @@ export default function PlannerSurface({
   // The month/year calendars also show open to-dos (with a date) and
   // important dates from custom fields, as the tracker did.
   const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
   // Birthdays and other date fields, labelled the way the user picked. The
   // day/week canvas shows them under each day's header too, so tapping a

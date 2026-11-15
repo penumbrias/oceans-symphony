@@ -19,6 +19,7 @@ import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 import { emotionEvents, countEmotions, countSymptomCheckIns, rankCounts } from "@/lib/lookbackCounts";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useT } from "@/lib/i18n";
+import { sharedList } from "@/lib/sharedLists";
 
 // The full analytics carry the chart library (~400 KB), so they're fetched
 // only when a widget actually shows them, never at startup (v0.357.0).
@@ -130,7 +131,7 @@ export function FeelingsLookbackWidget({ settings }) {
   const scopeIds = useScopeAlterIds(settings);
   const { from, to, prevFrom, days } = useWindows(settings);
   const compare = settings?.compare !== false;
-  const { data: checkIns = [] } = useQuery({ queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list() });
+  const { data: checkIns = [] } = useQuery({ ...sharedList("emotionCheckIns") });
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontingSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
@@ -161,7 +162,7 @@ export function SymptomsLookbackWidget({ settings }) {
   const scopeIds = useScopeAlterIds(settings);
   const { from, to, prevFrom, days } = useWindows(settings);
   const compare = settings?.compare !== false;
-  const { data: checkIns = [] } = useQuery({ queryKey: ["symptomCheckIns"], queryFn: () => base44.entities.SymptomCheckIn.list() });
+  const { data: checkIns = [] } = useQuery({ ...sharedList("symptomCheckIns") });
   const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list() });
   const byId = useMemo(() => Object.fromEntries(symptoms.map((s) => [s.id, s])), [symptoms]);
   const rows = useMemo(() => {

@@ -9,6 +9,7 @@ import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
 import { clockPattern } from "@/lib/timeFormat";
+import { sharedList } from "@/lib/sharedLists";
 
 function parseTaskBulletin(content) {
   const match = content.match(/^\[task:([^:\]]+)(:done)?\]\s*(.*)/s);
@@ -33,8 +34,7 @@ function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds =
   // the shared ["tasks"] cache so this card stays in sync when the same to-do
   // is checked off anywhere else (To-Do page, dashboard pins, etc.).
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
 
   // Long-press state — declared before the parsed guard below, so the hook

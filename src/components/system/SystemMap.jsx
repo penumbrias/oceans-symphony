@@ -15,6 +15,7 @@ import { byGroupOrder } from "@/lib/groupTree";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { sharedList } from "@/lib/sharedLists";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -155,8 +156,7 @@ const SystemMap = ({ relationships = [] }) => {
   });
 
   const { data: frontingSessions = [] } = useQuery({
-    queryKey: ["frontingSessions"],
-    queryFn: () => db.FrontingSession.list(),
+    ...sharedList("frontingSessions"),
   });
 
   const { data: systemChangeEvents = [] } = useQuery({

@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+import { sharedList } from "@/lib/sharedLists";
 
 // One notice at a time (UI critique C1): the most urgent shows, the rest
 // wait behind a "N more" line that opens them in place.
@@ -417,7 +418,7 @@ export default function V2Notices() {
     queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(),
   });
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"], queryFn: () => base44.entities.Activity.list(),
+    ...sharedList("activities"),
   });
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const { data: reminders = [] } = useQuery({

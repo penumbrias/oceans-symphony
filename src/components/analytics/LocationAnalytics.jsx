@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
-import { localEntities } from "@/api/base44Client";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { startOfDay, endOfDay } from "date-fns";
 import { MapPin } from "lucide-react";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
+import { sharedList } from "@/lib/sharedLists";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -13,13 +13,11 @@ export default function LocationAnalytics({ from, to }) {
   const toMs = endOfDay(to).getTime();
 
   const { data: allLocations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    ...sharedList("locations"),
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+    ...sharedList("frontHistory"),
   });
 
   const { data: alters = [] } = useQuery({

@@ -10,6 +10,7 @@ import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
 import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
 import { toast } from "sonner";
 import { taskNote } from "@/lib/taskCreate";
+import { sharedList } from "@/lib/sharedLists";
 
 // Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
 // ones (and the Tapestry preview) store full ISO timestamps. Concatenating
@@ -43,8 +44,7 @@ export default function DashboardPins() {
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    ...sharedList("tasks"),
   });
 
   // A to-do can be pinned two ways: via the To-Do page (Task.pinned_to_dashboard)

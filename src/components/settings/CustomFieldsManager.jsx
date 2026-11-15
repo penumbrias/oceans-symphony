@@ -26,6 +26,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
+import { sharedList } from "@/lib/sharedLists";
 
 const TYPE_ICONS = {
   text: Type,
@@ -161,8 +162,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
   const [sort, setSort] = useState("manual");
 
   const { data: fields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list("order"),
+    ...sharedList("customFields"),
   });
   // Shared ["alters"] cache — only read, to show how many profiles fill
   // each field in.

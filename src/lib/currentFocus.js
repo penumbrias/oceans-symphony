@@ -17,6 +17,7 @@ import { getActiveActivities } from "@/lib/activitySession";
 import { getActiveSystemId } from "@/lib/systems";
 import { contactDisplayName } from "@/lib/contacts";
 import { latestBy } from "@/lib/latestRecord";
+import { sharedList } from "@/lib/sharedLists";
 
 // Items: [{ type: "fronting"|"activity"|"sleep"|"symptom"|"company"|"status", label, path }]
 export function useCurrentFocus() {
@@ -54,12 +55,10 @@ export function useCurrentFocus() {
     queryFn: () => base44.entities.Symptom.list(),
   });
   const { data: sleeps = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list(),
+    ...sharedList("sleep"),
   });
   const { data: statusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => base44.entities.StatusNote.list(),
+    ...sharedList("statusNotes"),
   });
   const { data: activeEncounters = [] } = useQuery({
     queryKey: ["contactEncounters", "active"],
