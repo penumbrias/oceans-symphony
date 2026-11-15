@@ -62,6 +62,7 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckinButtons, { resolveQuickButtons } from "@/components/dashboard/QuickCheckinButtons";
 import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
 import { foldWidget } from "@/lib/widgetFold";
+import { useWidgetChrome } from "@/v2/primitives";
 
 // Generic minimal-mode shell — gives every widget a "minimal" rendering
 // for free: icon + label (+ the widget can still be tapped via settings
@@ -69,10 +70,14 @@ import { foldWidget } from "@/lib/widgetFold";
 // listing "minimal" in supportsModes and handling it in render().
 function MinimalShell({ icon: Icon, label }) {
   const t = useTerms();
+  // The name set in the widget's options (Content → Name) wins, like the
+  // heading of every board widget (Section) — minimal mode used to ignore it.
+  const chrome = useWidgetChrome();
+  const ownName = typeof chrome.label === "string" ? chrome.label.trim() : "";
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-sm">
       {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
-      <span className="truncate font-medium">{applyTerms(label, t)}</span>
+      <span className="truncate font-medium">{ownName || applyTerms(label, t)}</span>
     </div>
   );
 }

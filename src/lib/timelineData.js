@@ -48,7 +48,7 @@ export function useTimelineSources() {
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list("-timestamp", 2000) });
   const { data: emotions = [] } = useQuery({ queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 2000) });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list() });
+  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
   const { data: journals = [] } = useQuery({ queryKey: ["journalEntries"], queryFn: () => base44.entities.JournalEntry.list("-created_date", 2000) });
   const { data: checkIns = [] } = useQuery({ queryKey: ["systemCheckIns"], queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 2000) });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });

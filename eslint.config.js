@@ -44,6 +44,10 @@ export default [
       // import (USER_STYLE_PREFIX) built clean and crashed the home screen
       // on a real device. Keep this on.
       "no-undef": "error",
+      // no-undef does not see JSX element names, so a component that was
+      // never imported (<SetRow> in v0.371.3) built clean and crashed the
+      // Bars tab. This rule catches it.
+      "react/jsx-no-undef": "error",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
       "unused-imports/no-unused-imports": "error",

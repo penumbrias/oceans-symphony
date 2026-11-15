@@ -92,7 +92,7 @@ export default function TransferToSystemModal({ alter = null, group = null, onCl
 
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !!group });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list() });
+  const { data: customFields = [] } = useQuery({ queryKey: ["customFields"], queryFn: () => base44.entities.CustomField.list("order") });
 
   // For a group transfer, the WHOLE subtree that travels with it (the group +
   // every nested subgroup + all their alters). Deep nesting travels.
