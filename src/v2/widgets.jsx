@@ -3615,6 +3615,9 @@ export const V2_WIDGETS = {
     // A page piece: fits every board, profiles included (v0.290.0).
     subjects: ["home", "alter", "group", "contact", "location"],
     render: ({ settings }) => <DividerWidget settings={settings} />,
+    // Nothing to read inside, but it IS the content: the board must not
+    // fold it away as "empty" when the page is viewed.
+    keepWhenEmpty: true,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
       { key: "thickness", type: "number", label: "Thickness", min: 1, max: 8, default: 1 },
@@ -3628,6 +3631,11 @@ export const V2_WIDGETS = {
     // A page piece: fits every board, profiles included (v0.290.0).
     subjects: ["home", "alter", "group", "contact", "location"],
     render: () => <SpacerWidget />,
+    // Empty on purpose: never folded away as "empty" in view mode, and it
+    // keeps the height it was given on pages that size widgets to their
+    // content (it has no content to size to). It used to vanish once the
+    // page was saved (bug report).
+    keepWhenEmpty: true, holdsSpace: true,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },

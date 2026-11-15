@@ -378,9 +378,11 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
   // Flow view: everything is content-height unless the user explicitly
   // hand-sized it — grown rows from the fit pass are a GRID concept and
   // must not freeze a flowing card.
+  // A spacer (def.holdsSpace) has no content to size to — it is always
+  // the height it was given.
   const fixedHeight = flowView
-    ? (handSized || !!resize.preview)
-    : (shownRows > 1 || handSized || !!resize.preview);
+    ? (handSized || !!resize.preview || !!def?.holdsSpace)
+    : (shownRows > 1 || handSized || !!resize.preview || !!def?.holdsSpace);
   // The size the person gave it, in px — the board measures an opened
   // widget against this (useExpandingWidgets). A board showing the widget
   // taller than that while it's open passes the real rows in __baseRows.
@@ -460,6 +462,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
     )}
     <div ref={setNodeRef} data-widget-id={widget.instanceId}
       data-base-h={basePx || undefined}
+      data-keep-empty={def?.keepWhenEmpty ? "1" : undefined}
       style={{
         ...style,
         ...(ownShadowCss && !collapsed ? {
@@ -1723,6 +1726,9 @@ export default function ExperimentalDashboard({
           const w = page.widgets.find((x) => x.instanceId === wid);
           const def = w && registry[w.widgetId];
           if (!def) continue;
+          // A spacer's size is the space the person asked for, not its
+          // (empty) content's.
+          if (def.holdsSpace) continue;
           // The same bounds the board applies when it reads a widget back
           // (resolveExperimentalHome) — a size outside them would be shown
           // clamped while everything around it was placed for the unclamped
@@ -1806,6 +1812,8 @@ export default function ExperimentalDashboard({
       if (!g) return;
       const next = new Set();
       for (const node of g.querySelectorAll("[data-widget-id]")) {
+        // Spacers and dividers are empty by design — never folded away.
+        if (node.dataset.keepEmpty) continue;
         const content = node.querySelector("[data-widget-content]");
         if (content && contentEmpty(content)) next.add(node.dataset.widgetId);
       }
