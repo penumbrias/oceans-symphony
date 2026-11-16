@@ -56,6 +56,15 @@
 // the WHOLE note. The word is user-set (src/lib/therapyCommand.js), so this
 // type is not in COMMAND_TYPES; it is matched against the current keyword.
 //
+// New activities (v0.374.5): ~activity:new:[parent:…:]name makes a new
+// activity. The parent part is optional ("category:" in front of it is
+// allowed and skipped): the first parent is found by name anywhere, each
+// later one among the previous one's children, and ANY activity can be a
+// parent. The name runs to the end of the line (or a closing ~ / [brackets]).
+// While typing, the autocomplete steps down from the top-level activities.
+// ~activity:name with a name that isn't one of the person's activities
+// asks (at save) whether to create it, instead of just failing.
+//
 // Text templates (v0.374.1): ~template:new:title:text saves the text as a
 // template (the title is optional and defaults to the first line) and keeps
 // the text where it was written. ~template:load:name pastes the template
@@ -327,7 +336,12 @@ export function buildCatalogues({ symptoms = [], contacts = [], activityCategori
     contacts: contacts
       .filter((c) => c && !c.is_archived)
       .map((c) => ({ id: c.id, name: contactDisplayName(c) })),
-    activityCategories: (activityCategories || []).map((c) => ({ id: c.id, name: c.name || "", color: c.color || null })),
+    activityCategories: (activityCategories || []).filter(Boolean).map((c) => ({
+      id: c.id, name: c.name || "", color: c.color || null,
+      // Self-parented rows count as top level (same rule as getRootCategories).
+      parentId: c.parent_category_id && c.parent_category_id !== c.id ? c.parent_category_id : null,
+      order: c.order ?? 0,
+    })),
     emotions: buildEmotionLabels(customEmotions),
     templates: (templates || []).filter(Boolean),
     templateFolders: (templateFolders || []).filter(Boolean),
@@ -450,6 +464,74 @@ function resolveTemplateAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues
   return null;
 }
 
+// ── ~activity:new ───────────────────────────────────────────────────────────
+const NEW_WORDS = new Set(["new", "create", "add"]);
+const PARENT_WORDS = new Set(["category", "in", "under", "parent"]);
+const isNewWord = (x) => NEW_WORDS.has(lc(String(x || "").trim()));
+
+// Activities sorted for display (order, then name) — same as the trees.
+const byOrderName = (a, b) => ((a.order ?? 0) - (b.order ?? 0)) || (a.name || "").localeCompare(b.name || "");
+export function activityChildren(parentId, cats) {
+  const ids = new Set(cats.map((c) => c.id));
+  // An activity whose parent is gone sits at the top, so nothing is buried.
+  return cats.filter((c) => (parentId ? c.parentId === parentId : (!c.parentId || !ids.has(c.parentId))) && c.id !== parentId).sort(byOrderName);
+}
+
+// Walk "Self-care:Hygiene" down the tree. The first step matches by name
+// anywhere (top-level first), the rest among the previous step's children.
+// Returns the last activity, or null when a step doesn't match. Cycle-safe:
+// it only ever steps down a fixed number of names.
+export function resolveActivityPath(names, cats) {
+  let cur = null;
+  for (let i = 0; i < names.length; i += 1) {
+    const want = lc(unbracket(names[i]));
+    if (!want) return null;
+    const pool = i === 0 ? [...activityChildren(null, cats), ...cats] : activityChildren(cur.id, cats);
+    const hit = pool.find((c) => lc(c.name) === want);
+    if (!hit) return null;
+    cur = hit;
+  }
+  return cur;
+}
+
+// Where an activity sits, for labels: "Self-care › Hygiene".
+function activityTrail(cat, cats) {
+  const out = [];
+  const seen = new Set();
+  let cur = cat;
+  while (cur && !seen.has(cur.id) && out.length < 8) {
+    seen.add(cur.id);
+    out.unshift(cur.name);
+    cur = cur.parentId ? cats.find((c) => c.id === cur.parentId) : null;
+  }
+  return out.join(" \u203a ");
+}
+
+function resolveActivityNewAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues, icon) {
+  const cats = catalogues.activityCategories || [];
+  let rest = segs.slice(2);
+  if (!rest.length) return null;
+  // "category:" in front of the parent path is optional wording.
+  if (rest.length >= 2 && PARENT_WORDS.has(lc(rest[0].text.trim())) && !resolveActivityPath([rest[0].text], cats)) rest = rest.slice(1);
+  const nameSeg = rest[rest.length - 1];
+  const parentNames = rest.slice(0, -1).map((x) => x.text);
+  const parent = parentNames.length ? resolveActivityPath(parentNames, cats) : null;
+  if (parentNames.length && !parent) return null;
+  // The name: [bracketed], or to the closing ~ / end of the line.
+  const raw = text.slice(nameSeg.absStart, bodyEnd);
+  const bracket = /^\s*\[([^\]]*)\]/.exec(raw);
+  const name = (bracket ? bracket[1] : raw).replace(/\s+/g, " ").trim();
+  if (!name) return null;
+  const end = bracket ? nameSeg.absStart + bracket[0].length : (hadClose ? bodyEnd + 1 : bodyEnd);
+  const twin = cats.find((c) => lc(c.name) === lc(name) && (c.parentId || null) === (parent?.id || null));
+  const where = parent ? ` in ${activityTrail(parent, cats)}` : "";
+  return {
+    start: tildeIndex, end, type: "activity", isActive: undefined, icon,
+    plan: { kind: "activityNew", name, parentId: parent?.id || null, color: parent?.color || null },
+    label: twin ? `${twin.name}${where} (already an activity)` : `New activity: ${name}${where}`,
+  };
+}
+
 // Resolve the command starting at `tildeIndex`. Returns
 //   { start, end, type, isActive, plan, label, icon }  or null.
 // `end` is where the resolved command stops in `text` (chip replaces
@@ -486,6 +568,11 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
   const icon = ICON[type];
 
   if (type === "template") return resolveTemplateAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues, icon);
+  // ~activity:new:… — unless "new" is itself the name of one of their
+  // activities and nothing follows it.
+  if (type === "activity" && isNewWord(segs[1]?.text) && (segs.length > 2 || !matchActivity(segs[1].text, catalogues))) {
+    return resolveActivityNewAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues, icon);
+  }
 
   let rest = segs.slice(1);
   // trailing is_active keyword (must be an exact whole segment)
@@ -770,7 +857,14 @@ function explainFailure(text, tildeIndex, catalogues) {
   }
   if (type === "activity") {
     if (!name) return `${cmd} needs an activity \u2014 like ${cmd}:reading:30m`;
-    if (!matchActivity(name, catalogues)) return `No activity called \u201c${name}\u201d \u2014 it has to match one of your activity categories`;
+    if (isNewWord(name) && (segs.length > 2 || !matchActivity(name, catalogues))) {
+      const parts = segs.slice(2).filter(Boolean);
+      if (!parts.length) return `${cmd}:new needs a name \u2014 like ${cmd}:new:Hygiene:Shower`;
+      if (parts.length >= 2 && PARENT_WORDS.has(lc(parts[0]))) parts.shift();
+      const path = parts.slice(0, -1);
+      return `No activity called \u201c${path.join(" \u203a ")}\u201d to put it in`;
+    }
+    if (!matchActivity(name, catalogues)) return `No activity called \u201c${name}\u201d \u2014 pick one of yours, or write ${cmd}:new:${name} to make it`;
   }
   if (type === "journal") return `${cmd} needs title[\u2026] or body[\u2026] \u2014 like ${cmd}:body[dear diary]`;
   if (type === "template") {
@@ -807,6 +901,88 @@ export function findCommandProblems(text, catalogues) {
     i += 1;
   }
   return problems;
+}
+
+// ~activity:name commands whose name isn't one of the person's activities —
+// the ones applyLogCommands offers to create instead of failing. Each is
+// { index, name, nameStart, nameEnd, single } where name is the best guess
+// at what they meant (the whole segment) and [nameStart, nameEnd) is where
+// it sits in `text`.
+export function findMissingActivities(text, catalogues) {
+  const out = [];
+  const sign = getCommandSign();
+  if (!text || !text.includes(sign)) return out;
+  const resolved = parseLogCommands(text, catalogues);
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== sign) continue;
+    const prev = i > 0 ? text[i - 1] : "";
+    if (!(i === 0 || /\s/.test(prev) || prev === ">")) continue;
+    if (resolved.some((r) => i >= r.start && i < r.end)) continue;
+    let j = i + 1;
+    while (j < text.length && !("\n<>".includes(text[j]) || text[j] === sign)) j++;
+    const parts = text.slice(i + 1, j).split(":");
+    if (parts.length < 2 || normalizeType(parts[0]) !== "activity") continue;
+    const seg = parts[1];
+    if (isNewWord(seg)) continue;
+    const lead = seg.length - seg.trimStart().length;
+    const nameStart = i + 1 + parts[0].length + 1 + lead;
+    let raw = seg.trim();
+    let nameEnd = nameStart + raw.length;
+    const br = /^\[([^\]]*)\]/.exec(raw);
+    if (br) { raw = br[1]; nameEnd = nameStart + br[0].length; }
+    const name = decodeBasicEntities(raw).replace(/\s+/g, " ").trim();
+    if (!name || matchActivity(name, catalogues)) continue;
+    out.push({ index: i, name: name.slice(0, 80), nameStart, nameEnd, single: parts.length === 2 && !br });
+  }
+  return out;
+}
+
+function decodeBasicEntities(s) {
+  return String(s || "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+}
+
+// The house question for a missing activity: the name is editable, Cancel
+// keeps the old behaviour (the save stops and the text stays editable).
+async function askCreateActivityDefault(name) {
+  const { promptText } = await import("@/components/shared/ConfirmDialog");
+  return promptText({
+    title: "Make a new activity?",
+    body: `\u201c${name}\u201d isn\u2019t one of your activities yet. Create it and log this? It goes at the top level; you can move it in Activities.`,
+    defaultValue: name,
+    placeholder: "Activity name",
+    confirmLabel: "Create",
+    cancelLabel: "Go back",
+  });
+}
+
+// Ask about every missing activity, create the ones they say yes to, and
+// put the chosen name into the text when they changed it. Returns the
+// (maybe rewritten) text and whether anything was created.
+async function offerMissingActivities(content, catalogues, { isRich, ask }) {
+  const missing = findMissingActivities(content, catalogues);
+  if (!missing.length) return { content, created: false };
+  const { createActivityCategory } = await import("@/lib/activityCategoryEntry");
+  const choices = [];
+  for (const m of missing) {
+    let chosen = null;
+    try { chosen = await ask(m.name); } catch { chosen = null; }
+    chosen = String(chosen || "").replace(/\s+/g, " ").trim();
+    if (!chosen) continue;
+    await createActivityCategory({ name: chosen });
+    choices.push({ ...m, chosen });
+  }
+  let out = content;
+  // Right to left so earlier offsets stay true.
+  for (const c of choices.slice().reverse()) {
+    const g = lc(c.name);
+    const keep = c.single
+      ? g.startsWith(lc(c.chosen)) && (g.length === c.chosen.length || /\s/.test(c.name[c.chosen.length]))
+      : g === lc(c.chosen);
+    if (keep) continue;
+    const put = isRich ? esc(c.chosen) : c.chosen;
+    out = out.slice(0, c.nameStart) + put + out.slice(c.nameEnd);
+  }
+  return { content: out, created: choices.length > 0 };
 }
 
 // Every resolvable, non-overlapping command in `text`, left to right.
@@ -912,6 +1088,11 @@ async function executePlan(plan, ctx) {
       });
       return r?.id || null;
     }
+    case "activityNew": {
+      const { createActivityCategory } = await import("@/lib/activityCategoryEntry");
+      const { category } = await createActivityCategory({ name: plan.name, parentId: plan.parentId, color: plan.color });
+      return category?.id || null;
+    }
     case "therapyNote": {
       const r = await base44.entities.TherapyNote.create({
         timestamp: now,
@@ -967,9 +1148,15 @@ function passthrough(seg, isRich) {
 // that render their text as plain — e.g. status notes / timeline badges).
 // Returns { content, logged }. When nothing resolves the content is returned
 // byte-for-byte unchanged (so plain notes stay plain).
-export async function applyLogCommands(content, { isRich = true, chips = true, source = null } = {}) {
+export async function applyLogCommands(content, { isRich = true, chips = true, source = null, askCreateActivity = askCreateActivityDefault } = {}) {
   if (!content || typeof content !== "string" || !content.includes(getCommandSign())) return { content, logged: [] };
-  const catalogues = await fetchCatalogues();
+  let catalogues = await fetchCatalogues();
+  // ~activity:name that isn't one of theirs: offer to make it (owner ask,
+  // v0.374.5) before deciding the command is broken.
+  if (askCreateActivity) {
+    const offered = await offerMissingActivities(content, catalogues, { isRich, ask: askCreateActivity });
+    if (offered.created) { content = offered.content; catalogues = await fetchCatalogues(); }
+  }
   // A broken command BLOCKS the save with a fixable message (owner rule) —
   // nothing is logged and nothing is sent, so the text stays editable.
   // Only command-LIKE tokens block; a plain prose "~" never does.
@@ -1120,9 +1307,14 @@ export function buildCommandSuggestions({ segments, catalogues }) {
 
   if (type === "activity") {
     if (segments.length === 2) {
-      const items = filterByLabel(catalogues.activityCategories, query, (c) => c.name).slice(0, 8).map((c) => ({ insert: c.name, terminal: false }));
-      return { header: "Activity", icon, canFinish: false, items };
+      const found = filterByLabel(catalogues.activityCategories, query, (c) => c.name).slice(0, 8).map((c) => ({ insert: c.name, terminal: false }));
+      const newRow = !q || "new".startsWith(q) ? [{ insert: "new", terminal: false, label: "new \u2014 make an activity" }] : [];
+      // Nothing like it yet: keep going, and saving will offer to create it.
+      const exact = catalogues.activityCategories.some((c) => lc(c.name) === q);
+      const make = q && !exact && !found.length ? [{ insert: query.trim(), terminal: false, label: `\uFF0B New: \u201c${query.trim()}\u201d` }] : [];
+      return { header: "Activity", icon, canFinish: false, items: [...newRow, ...found, ...make] };
     }
+    if (isNewWord(segments[1])) return activityNewSuggestions(segments, catalogues, icon, query);
     // After "start" (or mid time-spec): day words, a date, military times.
     const prev = lc(segments[segments.length - 2] || "");
     const midSpec = prev === "start" || prev in DAY_WORDS || /^\d{4}$/.test(prev) || /\[.*\]\s*\d{0,4}$/.test(prev);
@@ -1163,6 +1355,47 @@ export function buildCommandSuggestions({ segments, catalogues }) {
   if (type === "template") return templateSuggestions(segments, catalogues, icon, query);
   return null;
 }
+
+// ~activity:new:… — step down from the top-level activities one level at a
+// time (any activity can hold a new one), or type to search. Whatever is
+// typed last is the new activity's name.
+function activityNewSuggestions(segments, catalogues, icon, query) {
+  const cats = catalogues.activityCategories || [];
+  let path = segments.slice(2, -1);
+  if (path.length && PARENT_WORDS.has(lc(path[0])) && !resolveActivityPath([path[0]], cats)) path = path.slice(1);
+  const parent = path.length ? resolveActivityPath(path, cats) : null;
+  if (path.length && !parent) return { header: `No activity called \u201c${path[path.length - 1]}\u201d`, icon, canFinish: false, items: [] };
+  const q = lc(query);
+  const hasKids = (c) => activityChildren(c.id, cats).length > 0;
+  const step = (c, insert) => ({ insert, terminal: false, label: `${insert.split(":").join(" \u203a ")}${hasKids(c) ? " \u203a" : ""}` });
+  let items;
+  if (q) {
+    // Search: everything at the top, or everything inside this one (the
+    // insert is the path from here, so the parser can walk it).
+    const pool = [];
+    const walk = (id, prefix, depth) => {
+      if (depth > MAX_PATH_DEPTH) return;
+      for (const c of activityChildren(id, cats)) {
+        if (pool.some((p) => p.c.id === c.id)) continue;
+        const rel = prefix ? `${prefix}:${c.name}` : c.name;
+        pool.push({ c, rel });
+        walk(c.id, rel, depth + 1);
+      }
+    };
+    walk(parent?.id || null, "", 0);
+    const hits = filterByLabel(pool, query, (p) => p.c.name);
+    items = hits.slice(0, 7).map((p) => step(p.c, p.rel));
+    const twin = activityChildren(parent?.id || null, cats).some((c) => lc(c.name) === q);
+    if (!twin) items.push({ insert: query.trim(), terminal: true, label: `\uFF0B New: \u201c${query.trim()}\u201d` });
+  } else {
+    items = activityChildren(parent?.id || null, cats).slice(0, 30).map((c) => step(c, c.name));
+  }
+  return {
+    header: parent ? `In ${activityTrail(parent, cats)}` : "Where? Or type its name",
+    icon, canFinish: !!q, items,
+  };
+}
+const MAX_PATH_DEPTH = 8;
 
 // ~template:… — pick new/load, then (for load) folders to step into and
 // templates to paste. A template pick carries `replaceWith` (its HTML): the
