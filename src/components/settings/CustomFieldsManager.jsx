@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, FileText, CalendarDays, MoreVertical, GripVertical, Pencil, Check, Search, X as XIcon, ChevronDown, ListFilter, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { useTerms } from "@/lib/useTerms";
@@ -27,6 +26,11 @@ import { CSS } from "@dnd-kit/utilities";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import { sharedList } from "@/lib/sharedLists";
+import { toast } from "sonner";
+import WysiwygEditor from "@/components/shared/WysiwygEditor";
+import FieldTitle from "@/components/shared/FieldTitle";
+import { titlePatchFromMarkup, editableTitleOf } from "@/lib/fieldTitle";
+import { addSharedEntry, updateSharedEntry } from "@/lib/alterInfoEntries";
 
 const TYPE_ICONS = {
   text: Type,
@@ -61,6 +65,35 @@ function isFilled(v) {
   return true;
 }
 
+// The title box (v0.372.2): the same rich editor a Long text answer uses, so
+// a title can hold fancy text and pictures. The plain name is worked out
+// from it on save (fieldTitle.js). data-vaul-no-drag keeps a sheet host
+// from reading a touch in it as a drag.
+function TitleEditor({ value, onChange }) {
+  return (
+    <div data-vaul-no-drag="" className="rounded-lg border border-input bg-background text-sm [&_[contenteditable]]:min-h-[2.5rem]">
+      <WysiwygEditor value={value} onChange={onChange} placeholder="Field name…" />
+    </div>
+  );
+}
+
+function TypePicker({ value, onChange }) {
+  return (
+    <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Kind of answer">
+      {Object.entries(TYPE_LABELS).map(([key, label]) => {
+        const TypeIcon = TYPE_ICONS[key];
+        const selected = value === key;
+        return (
+          <button key={key} type="button" role="radio" aria-checked={selected} onClick={() => onChange(key)}
+            className={`flex items-center gap-1.5 text-xs min-h-[36px] px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
+            <TypeIcon className="w-3 h-3" /> {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SortableFieldRow({ field, usedBy, usedLabel, canDrag, isEditing, editName, editType, setEditName, setEditType, onStartEdit, onSaveEdit, onCancelEdit, onDelete }) {
   const Icon = TYPE_ICONS[field.field_type] || Type;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: !canDrag });
@@ -73,28 +106,11 @@ function SortableFieldRow({ field, usedBy, usedLabel, canDrag, isEditing, editNa
   if (isEditing) {
     return (
       <div ref={setNodeRef} style={style} className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
-        <Input
-          value={editName}
-          onChange={e => setEditName(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
-          autoFocus
-          placeholder="Field name…"
-        />
-        <div className="flex gap-2 flex-wrap">
-          {Object.entries(TYPE_LABELS).map(([key, label]) => {
-            const TypeIcon = TYPE_ICONS[key];
-            const selected = editType === key;
-            return (
-              <button key={key} type="button" onClick={() => setEditType(key)}
-                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
-                <TypeIcon className="w-3 h-3" /> {label}
-              </button>
-            );
-          })}
-        </div>
+        <TitleEditor value={editName} onChange={setEditName} />
+        <TypePicker value={editType} onChange={setEditType} />
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={onCancelEdit}>Cancel</Button>
-          <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={onSaveEdit} disabled={!editName.trim()}>
+          <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={onSaveEdit} disabled={!titlePatchFromMarkup(editName).name}>
             <Check className="w-3.5 h-3.5 mr-1" /> Save
           </Button>
         </div>
@@ -119,7 +135,7 @@ function SortableFieldRow({ field, usedBy, usedLabel, canDrag, isEditing, editNa
         </button>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
+        <FieldTitle field={field} as="p" className="text-sm font-medium text-foreground truncate" />
         <div className="flex items-center gap-2 mt-1">
           <span className="flex items-center gap-1 text-xs text-muted-foreground border border-border/50 rounded-md px-2 py-0.5">
             <Icon className="w-3 h-3" />
@@ -257,19 +273,27 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
     }
   };
 
+  // Through the one custom-field write path (alterInfoEntries), which
+  // reads fresh and refuses a second field with the same name.
   const addField = async () => {
-    if (!newName.trim()) return;
+    const { name, name_rich } = titlePatchFromMarkup(newName);
+    if (!name) return;
+    if (fields.some((f) => String(f?.name || "").trim().toLowerCase() === name.toLowerCase())) {
+      toast.error(`There's already a custom field called “${name}”`);
+      return;
+    }
     setSaving(true);
-    await base44.entities.CustomField.create({
-      name: newName.trim(),
-      field_type: newType,
-      order: sortedFields.length,
-    });
-    queryClient.invalidateQueries({ queryKey: ["customFields"] });
-    setNewName("");
-    setNewType("text");
-    setAdding(false);
-    setSaving(false);
+    try {
+      await addSharedEntry({ name, kind: newType, nameRich: name_rich });
+      queryClient.invalidateQueries({ queryKey: ["customFields"] });
+      setNewName("");
+      setNewType("text");
+      setAdding(false);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't add that custom field");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteField = async (field) => {
@@ -280,7 +304,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
 
   const startEdit = (field) => {
     setEditingId(field.id);
-    setEditName(field.name);
+    setEditName(editableTitleOf(field));
     setEditType(field.field_type);
   };
 
@@ -291,17 +315,38 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
   };
 
   const saveEdit = async () => {
-    if (!editName.trim()) return;
-    await base44.entities.CustomField.update(editingId, {
-      name: editName.trim(),
-      field_type: editType,
-    });
-    queryClient.invalidateQueries({ queryKey: ["customFields"] });
-    cancelEdit();
+    const { name, name_rich } = titlePatchFromMarkup(editName);
+    if (!name) return;
+    try {
+      await updateSharedEntry(editingId, { name, kind: editType, nameRich: name_rich });
+      queryClient.invalidateQueries({ queryKey: ["customFields"] });
+      cancelEdit();
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save that custom field");
+    }
   };
 
   const body = (
     <div className="space-y-3">
+        {/* Adding comes first (v0.372.2) — no scrolling past a long list
+            to start a new field. */}
+        {adding ? (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
+            <TitleEditor value={newName} onChange={setNewName} />
+            <TypePicker value={newType} onChange={setNewType} />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewName(""); }}>Cancel</Button>
+              <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={addField} disabled={saving || !titlePatchFromMarkup(newName).name}>
+                Add custom field
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="gap-1.5 w-full min-h-[44px]" onClick={() => setAdding(true)}>
+            <Plus className="w-4 h-4" /> Add a custom field
+          </Button>
+        )}
+
         {/* The field LAYOUT moved onto each profile (the chip next to the
             Info heading) — every {alter}'s page keeps its own arrangement
             now, so a system-wide switch here would only fight it. */}
@@ -402,42 +447,6 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
           </DndContext>
         </div>
 
-        {adding ? (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
-            <Input
-              placeholder="Field name…"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addField()}
-              autoFocus
-              className="text-sm"
-            />
-            <div className="flex gap-2">
-              {["text", "number", "boolean", "list", "date"].map((t) => {
-                const Icon = TYPE_ICONS[t];
-                return (
-                  <button key={t} onClick={() => setNewType(t)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                      newType === t ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"
-                    }`}>
-                    <Icon className="w-3.5 h-3.5" />
-                    {TYPE_LABELS[t]}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewName(""); }}>Cancel</Button>
-              <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={addField} disabled={saving || !newName.trim()}>
-                Add custom field
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setAdding(true)}>
-            <Plus className="w-4 h-4" /> Add a custom field
-          </Button>
-        )}
     </div>
   );
 

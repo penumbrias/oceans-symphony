@@ -26,7 +26,6 @@ import {
   respondToRequest,
   removeFriend,
   toggleNotify,
-  pushFrontStatus,
   saveFriendVisibility,
   setFriendVerified,
   deleteIdentity,
@@ -40,8 +39,10 @@ import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
 import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
+import FrontShareNotice from "@/components/friends/FrontShareNotice";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { pushCurrentFront } from "@/lib/friendsApi";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -582,6 +583,18 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                             </div>
                           );
                         })()}
+                        {(() => {
+                          // Levels share profiles, not the front status — say so
+                          // when some of these won't show up as fronting.
+                          const n = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } })
+                            .filter(({ alter }) => alter.friends_visible === false).length;
+                          if (!n) return null;
+                          return (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              {n} of them won't show as {terms?.fronting || "fronting"}: "Show when {terms?.fronting || "fronting"}" is off in their profile → Options. Levels only share profiles.
+                            </p>
+                          );
+                        })()}
                         <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
                       </>
                     )}
@@ -604,7 +617,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                               disabled={globallyHidden}
                               onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
                               className={`flex-shrink-0 p-1 rounded transition-colors ${globallyHidden ? 'cursor-not-allowed opacity-40' : isVisible ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
-                              title={globallyHidden ? 'Hidden from all friends' : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
+                              title={globallyHidden ? `Hidden from all friends: "Show when ${terms?.fronting || 'fronting'}" is off in their profile → Options` : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
                             >
                               {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                             </button>
@@ -990,32 +1003,7 @@ export default function FriendsPage() {
     syncedRef.current = true;
     (async () => {
       try {
-        const [activeSessions, alters] = await Promise.all([
-          base44.entities.FrontingSession.filter({ is_active: true }),
-          base44.entities.Alter.filter({}),
-        ]);
-        const primaryAlterId = activeSessions.find(s => s.is_primary)?.alter_id
-          || activeSessions[0]?.alter_id;
-        const visibleFronters = activeSessions
-          .map(s => alters.find(a => a.id === s.alter_id))
-          .filter(a => a && !a.is_archived && a.friends_visible !== false)
-          .map(a => ({
-            id: a.id,
-            name: a.name,
-            initial: a.name?.[0] || '?',
-            color: a.color || null,
-            isPrimary: a.id === primaryAlterId,
-            isCofronter: a.id !== primaryAlterId,
-          }));
-        await pushFrontStatus({
-          fronters: visibleFronters,
-          terms: {
-            fronting: terms.fronting,
-            front: terms.front,
-            alter: terms.alter,
-            system: terms.system,
-          },
-        });
+        await pushCurrentFront(terms);
       } catch (_) {}
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
@@ -1140,25 +1128,10 @@ export default function FriendsPage() {
     // Refresh identity so visibility changes are reflected in the UI
     await refetchIdentity();
     // Re-push front status so this friend immediately sees the change
-    const primaryAlterId = activeFront.find(s => s.is_primary)?.alter_id || activeFront[0]?.alter_id;
-    const fronters = activeFront
-      .map(s => alters.find(a => a.id === s.alter_id))
-      .filter(a => a && !a.is_archived && a.friends_visible !== false)
-      .map(a => ({
-        id: a.id,
-        name: a.name,
-        initial: a.name?.[0] || '?',
-        color: a.color || null,
-        isPrimary: a.id === primaryAlterId,
-        isCofronter: a.id !== primaryAlterId,
-      }));
-    pushFrontStatus({
-      fronters,
-      terms: { fronting: terms.fronting, front: terms.front, alter: terms.alter, system: terms.system },
-    }).catch(() => {});
+    pushCurrentFront(terms).catch(() => {});
     // Re-push the encrypted member-list share so the level change takes effect.
     pushAlterShares().catch(() => {});
-  }, [activeFront, alters, terms, refetchIdentity]);
+  }, [terms, refetchIdentity]);
 
   if (identityLoading) {
     return (
@@ -1334,6 +1307,9 @@ export default function FriendsPage() {
           </div>
         </div>
       )}
+
+      {/* Someone up front that friends can't see — and why. */}
+      <FrontShareNotice />
 
       {/* Friends list */}
       <div>
