@@ -7,7 +7,9 @@ import { apiBase } from "@/lib/apiBase";
 import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
 import { getSharedFriendIdentity, setSharedFriendIdentity, clearSharedFriendIdentity } from "@/lib/friendIdentityStore";
 import { sanitizeFriendsListResponse, sanitizeFrontBlob } from "@/lib/remoteSanitize";
-import { buildFriendFronters, friendTerms } from "@/lib/friendFronters";
+import { buildFriendFronters, friendTerms, friendFrontersFor, friendUsesLevels } from "@/lib/friendFronters";
+import { getPrivacyLevels } from "@/lib/privacyLevels";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Where the Friends relay lives. Relative on web/TWA (same origin as the
 // deploy that hosts the API); absolute in the packaged app targets, whose
@@ -353,35 +355,40 @@ export async function pushFrontStatus({ fronters: rawFronters, terms, systemName
     return rest; // "name" — strip everything new
   });
 
-  // Compute per-friend fronter overrides from local visibility settings
+  // Per-friend lists (src/lib/friendFronters.js): a friend granted sharing
+  // levels sees exactly the alters those levels show them; everyone else sees
+  // alters whose "Show when fronting" switch is on. Read here, at the single
+  // chokepoint, so no caller can forget the levels.
   const perFriendVisibility = identity.perFriendVisibility || {};
+  const usesLevels = Object.values(perFriendVisibility).some(friendUsesLevels);
+  let levels = [];
+  if (usesLevels) {
+    try { levels = getPrivacyLevels(pickPrimarySystemSettings(await localEntities.SystemSettings.list())); }
+    catch { levels = null; }
+  }
+  const basePrivacy = privacyLevel || identity.privacyLevel || 'names';
   const perFriendFronters = {};
 
   for (const [friendId, vis] of Object.entries(perFriendVisibility)) {
     if (!vis) continue;
-
-    if (vis.privacyOverride === 'hidden') {
+    if (vis.privacyOverride === 'hidden' || (friendUsesLevels(vis) && levels === null)) {
+      // Hidden by choice — or levels couldn't be read, so share nothing rather than guess.
       perFriendFronters[friendId] = { fronters: [], privacyLevel: 'hidden' };
-    } else if (vis.privacyOverride === 'count_only') {
+      continue;
+    }
+    const theirs = friendFrontersFor(fronters, vis, levels || []);
+    if (vis.privacyOverride === 'count_only') {
       perFriendFronters[friendId] = {
-        fronters: fronters.map(({ id: _, ...rest }) => ({ ...rest, name: '?', initial: '?', color: null })),
+        fronters: theirs.map((f) => ({ ...f, name: '?', initial: '?', color: null, pronouns: undefined, preferences: undefined })),
         privacyLevel: 'count_only',
       };
-    } else {
-      // Filter by hidden alter IDs (fronters include local `id` for this purpose)
-      const hiddenIds = new Set(vis.hiddenAlterIds || []);
-      if (hiddenIds.size > 0) {
-        const filtered = fronters.filter(f => !hiddenIds.has(f.id));
-        perFriendFronters[friendId] = {
-          fronters: filtered.map(({ id: _, ...rest }) => rest),
-          privacyLevel: vis.privacyOverride || privacyLevel || identity.privacyLevel || 'names',
-        };
-      }
+    } else if (friendUsesLevels(vis) || (vis.hiddenAlterIds || []).length) {
+      perFriendFronters[friendId] = { fronters: theirs, privacyLevel: vis.privacyOverride || basePrivacy };
     }
   }
 
-  // Strip local IDs from default fronters before sending
-  const cleanFronters = fronters.map(({ id: _, ...rest }) => rest);
+  // Friends with no settings of their own: the "Show when fronting" switch.
+  const cleanFronters = friendFrontersFor(fronters, undefined);
 
   // Resolves true only when the relay stored it, so callers can retry a
   // push that never arrived (offline at launch, relay hiccup).
