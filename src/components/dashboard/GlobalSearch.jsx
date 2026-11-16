@@ -41,6 +41,7 @@ const TYPE_ICONS = {
   emotion:   "💜",
   status:    "💬",
   therapy:   "🛋️",
+  template:  "📑",
   symptom:   "💊",
   group:     "👥",
   diarycard: "📖",
@@ -81,6 +82,7 @@ function getTypeLabels(t) {
     emotion:   "Emotions",
     status:    "Custom Statuses",
     therapy:   "To Bring Up",
+    template:  "Text Templates",
     symptom:   "Symptoms",
     group:     "Groups",
     diarycard: "Diary Cards",
@@ -308,6 +310,16 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     queryKey: ["therapyNotes"],
     queryFn: () => safeList(localEntities.TherapyNote),
   });
+  const { data: textTemplates = [] } = useQuery({
+    queryKey: ["textTemplates"],
+    queryFn: () => safeList(localEntities.TextTemplate),
+    staleTime: stale, enabled,
+  });
+  const { data: textTemplateFolders = [] } = useQuery({
+    queryKey: ["textTemplateFolders"],
+    queryFn: () => safeList(localEntities.TextTemplateFolder),
+    staleTime: stale, enabled,
+  });
   const { data: statusNotes = [] } = useQuery({
     queryKey: ["statusNotes"],
     queryFn: () => safeList(localEntities.StatusNote),
@@ -405,6 +417,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
+    textTemplates, textTemplateFolders,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -438,6 +451,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
+    textTemplates, textTemplateFolders,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -521,7 +535,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
 
   const TYPE_ORDER = [
     "page", "setting", "alter", "journal", "status", "therapy", "emotion", "bulletin", "note", "wish", "goal", "turn", "medication",
-    "activity", "event", "task", "reminder", "checkin", "diarycard",
+    "template", "activity", "event", "task", "reminder", "checkin", "diarycard",
     "front", "location", "syschange", "symptom", "group", "groupnote", "contact", "contactnote", "relationship", "chat", "grounding", "innerworld", "grocery", "presence", "system", "asset", "mod",
   ];
 

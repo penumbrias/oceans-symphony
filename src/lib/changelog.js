@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 16, 2026",
     changes: [
+      { type: "feature", text: "Text templates: save any text as a template, formatting and all, and paste it into any box from the new templates button on the formatting bar. Keep them in folders under Settings → Text templates (they're in backups too)." },
       { type: "feature", text: "Import from Florality: its OpenPlural .json and its data-export .html page, with {{alters}}, folders, custom fields, {{front}} history and notes. Imported {{alters}} stay hidden from friends until you choose which privacy buckets to share." },
       { type: "improve", text: "{{Alter}} profiles can hold more than one role: separate them with commas and each shows as its own tag, and the role filter lists each one." },
     ],

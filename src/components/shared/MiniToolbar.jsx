@@ -6,8 +6,10 @@ import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
   CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff, Eraser,
-  ImagePlus, Images, Brush,
+  ImagePlus, Images, Brush, FileStack,
 } from "lucide-react";
+import TemplatePickerSheet from "@/components/templates/TemplatePickerSheet";
+import { fieldTextToHtml, htmlToFieldText } from "@/lib/textTemplateModel";
 import DrawingPad from "@/components/shared/DrawingPad";
 import InternalLinkPicker from "@/components/shared/InternalLinkPicker";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -130,6 +132,7 @@ export function useTextareaInsert(ref, value, onChange) {
 // buttons; `glyph` is used for the text/emoji buttons (which already match).
 const MORE_HELP = [
   { icons: [Brush], d: "Draw — ink that sits in your text, or a picture in colour" },
+  { icons: [FileStack], d: "Templates — paste saved text, or highlight text and save it as a template" },
   { icons: [Heading1, Heading2, Heading3], d: "Headings (largest → smallest)" },
   { icons: [List, ListOrdered], d: "Bullet list / numbered list" },
   { icons: [Quote], d: "Block quote" },
@@ -328,6 +331,8 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const [showMentionCompose, setShowMentionCompose] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showDraw, setShowDraw] = useState(false);
+  // Templates sheet: { selectionHtml, boxHtml, kind } captured when opened.
+  const [templates, setTemplates] = useState(null);
   // Which toggle commands are active for the current selection, so the
   // matching toolbar buttons light up (bold on → Bold button highlighted).
   // Only meaningful on a live contentEditable host (onCommand present); the
@@ -449,7 +454,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPicker(true);
   };
 
-  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose || showDraw);
+  const anyModalOpen = !!(showLinkPicker || showLinkPrompt || colorModal || showHelp || showMentionCompose || showDraw || templates);
   useEffect(() => {
     onModalChange?.(anyModalOpen);
      
@@ -466,6 +471,43 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const insertDrawing = (html) => {
     restoreSel();
     if (onCommand) onCommand("insertHTML", html);
+    else onInsert(html, "");
+    savedSelection.current = null;
+  };
+
+  // Templates (v0.373.0): capture what's highlighted (and the whole box) as
+  // HTML before the sheet takes focus, so "Save as a template" keeps the
+  // formatting. A plain box's newlines become <br>; pasting back into a
+  // plain box turns them into newlines again.
+  const openTemplates = () => {
+    saveSel();
+    const s = savedSelection.current;
+    let selectionHtml = "";
+    let boxHtml = "";
+    let kind = "range";
+    try {
+      if (s?.kind === "input") {
+        kind = "input";
+        selectionHtml = fieldTextToHtml(s.el.value.slice(s.start, s.end));
+        boxHtml = fieldTextToHtml(s.el.value);
+      } else if (s?.kind === "range") {
+        const holder = document.createElement("div");
+        holder.appendChild(s.range.cloneContents());
+        selectionHtml = s.range.collapsed ? "" : holder.innerHTML;
+        boxHtml = s.el.innerHTML;
+      }
+    } catch { /* detached node — nothing to save, picking still works */ }
+    setTemplates({ selectionHtml, boxHtml, kind });
+  };
+  const insertTemplate = (html) => {
+    const kind = templates?.kind;
+    const s = savedSelection.current;
+    // Paste AFTER a highlighted passage, never over it.
+    if (s?.kind === "input") s.start = s.end;
+    else if (s?.kind === "range") { try { s.range.collapse(false); } catch { /* detached */ } }
+    restoreSel();
+    if (kind === "input" || !s) onInsert(kind === "input" ? htmlToFieldText(html) : html, "");
+    else if (onCommand) onCommand("insertHTML", html);
     else onInsert(html, "");
     savedSelection.current = null;
   };
@@ -596,6 +638,11 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           onMouseDown={e => e.preventDefault()} onClick={() => { saveSel(); setShowMentionCompose(true); }}
           className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
           <AtSign className="w-3.5 h-3.5" />
+        </button>
+        <button type="button" title="Templates — paste one, or save the highlighted text as one" aria-label="Templates"
+          onMouseDown={e => e.preventDefault()} onClick={openTemplates}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+          <FileStack className="w-3.5 h-3.5" />
         </button>
         {(onClearFormat || onCommand) && (
           <button type="button" title="Clear formatting — back to plain text"
@@ -765,6 +812,14 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           editor focused), so none of their inputs could ever take focus. */}
       {showHelp && createPortal(<HelpPopup onClose={() => setShowHelp(false)} />, document.body)}
       {showDraw && <DrawingPad onInsert={insertDrawing} onClose={() => setShowDraw(false)} />}
+      {templates && (
+        <TemplatePickerSheet
+          selectionHtml={templates.selectionHtml}
+          boxHtml={templates.boxHtml}
+          onInsert={insertTemplate}
+          onClose={() => setTemplates(null)}
+        />
+      )}
       {showLinkPrompt && createPortal(
         <LinkPromptModal
           onApply={applyLink}

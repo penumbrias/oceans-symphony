@@ -22,7 +22,7 @@ export const PERSONAL_DATA_ENTITIES = [
   "AlterNote", "AlterMessage", "Bulletin", "BulletinComment", "Poll", "Group",
   "Activity", "PlannerEvent", "Sleep", "Task", "Location", "SystemChangeEvent",
   "SystemChatMessage", "Contact", "Medication", "EmergencyInfo", "Goal", "Wish",
-  "TherapyNote", "InnerWorldLocation",
+  "TherapyNote", "InnerWorldLocation", "TextTemplate",
 ];
 
 // Unknown (database not open yet, or a read error) answers "yes": missing

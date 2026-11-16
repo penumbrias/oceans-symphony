@@ -627,6 +627,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/journals", target: "journals-new-entry",
     }),
     s("journals", {
+      emoji: "📑", title: "Templates",
+      body: `The templates button on the toolbar pastes text you saved, formatting and all. Highlight some text first and the same button saves it as a new template.`,
+      route: "/journals", target: "journals-new-entry",
+    }),
+    s("journals", {
       emoji: "🖼️", title: "Pictures in your writing",
       body: `Pick several pictures at once and show them one after another, as a carousel or as a slideshow. Drag each one into place like a profile picture; tap a picture later to change it.`,
       route: "/journals", target: "journals-new-entry",
@@ -1244,6 +1249,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "🧩", title: t.Alters,
       body: `Custom fields for every profile, relationship types, archived ${t.alters} and contacts, a duplicate finder, ${t.alter} order, list labels, and profile layouts and songs.`,
       route: "/settings", target: "settings-alters", look: `the highlighted ${t.Alters} group`,
+    }),
+    s("settings", {
+      emoji: "📑", title: "Text templates",
+      body: `Every template you saved, in folders you can nest. Make new ones here, rename them, move them between folders, or delete them.`,
+      route: "/settings#text-templates", target: ["settings-text-templates", "settings-alters"], look: `the Text templates page, under ${t.Alters}`,
     }),
     s("settings", {
       emoji: "🎵", title: "Profile songs",

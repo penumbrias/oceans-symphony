@@ -13,7 +13,7 @@ import {
   ListPlus, GitBranch, LayoutTemplate, Music, ArrowUpDown, Archive, Contact, Copy, Heart, Smile, Zap, Layers,
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
-  MessageSquareHeart, ClipboardList, Package,
+  MessageSquareHeart, ClipboardList, Package, FileStack,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -27,6 +27,7 @@ import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeat
 import { openDisplayOptions } from "@/components/settings/AppearanceSection";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
+import TextTemplatesSettings from "@/components/settings/TextTemplatesSettings";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import ProfileLayoutSettings from "@/components/settings/ProfileLayoutSettings";
 import ProfileSongsSettings from "@/components/settings/ProfileSongsSettings";
@@ -56,7 +57,7 @@ import QuickJumpSettings from "@/components/settings/QuickJumpSettings";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
-import { Group } from "@/components/shared/SettingRows";
+import { Group, LinkRow } from "@/components/shared/SettingRows";
 import SetupSettings from "@/components/settings/SetupSettings";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 
@@ -137,7 +138,18 @@ export function buildSettingsGroups(ctx) {
       id: "alters", label: t.Alters, tour: "settings-alters",
       pages: [
         { id: "custom-fields", label: "Custom fields", hint: `Fields every ${t.alter} can fill in`, icon: ListPlus,
-          keywords: `custom fields entries schema ${t.alter} info text number yes no list date`, render: () => <CustomFieldsManager embedded /> },
+          keywords: `custom fields entries schema ${t.alter} info text number yes no list date`,
+          render: () => (
+            <>
+              <CustomFieldsManager embedded />
+              <Group title="Text templates">
+                <LinkRow label="Text templates" hint="Saved text you can paste into any box" icon={FileStack}
+                  onClick={() => navigate("/Settings#text-templates")} />
+              </Group>
+            </>
+          ) },
+        { id: "text-templates", label: "Text templates", hint: "Saved text you can paste into any box", icon: FileStack, tour: "settings-text-templates",
+          keywords: "templates text template snippets saved text paste reuse canned replies folders boilerplate", render: () => <TextTemplatesSettings /> },
         { id: "relationship-types", label: "Relationship types", hint: "The catalogue of relationships", icon: GitBranch,
           keywords: "relationship types lineage inverse catalogue", render: () => <RelationshipTypesManager /> },
         { id: "profile-layouts", label: "Profile layouts", hint: "Hold to edit, the classic edit form, default layouts", icon: LayoutTemplate,

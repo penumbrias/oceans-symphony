@@ -148,6 +148,9 @@ const ENTITY_NAMES = [
   // location that has had its page arranged. Holds layout only, never the
   // record's own fields.
   "ProfileBoard",
+  // Text templates (v0.373.0): saved text to paste anywhere, and the
+  // folders that hold them.
+  "TextTemplate", "TextTemplateFolder",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -194,6 +197,7 @@ export const EXPORT_CATEGORIES = [
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
   { id: "needs",         label: "Wishes & Needs",           entities: ["Wish", "Goal", "GoalStep", "TurnAgreement"],                         desc: "Wishlists, goals and turn agreements: wishes, goals and their steps, who they belong to, and why they matter" },
   { id: "health",        label: "Health",                   entities: ["Medication", "MedicationDose", "EmergencyInfo"],                     desc: "Medications (doses, schedules, refills, notes), every dose marked taken or skipped, and your emergency info" },
+  { id: "templates",     label: "Text Templates",           entities: ["TextTemplate", "TextTemplateFolder"],                             desc: "Saved text you paste into any box, and the folders that hold it" },
   { id: "mods",          label: "Mods",                     entities: ["ModPackage", "ModData"],                                             desc: "Installed mods (other people's add-ons), their settings, and everything they saved" },
   { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
