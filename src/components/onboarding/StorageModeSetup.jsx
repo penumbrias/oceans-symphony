@@ -28,6 +28,7 @@ const DataRescuePanel = React.lazy(() => import("@/components/settings/DataRescu
 const SimplyPluralFileImport = React.lazy(() => import("@/components/settings/SimplyPluralFileImport"));
 const OpenPluralConnect = React.lazy(() => import("@/components/settings/OpenPluralConnect"));
 const OctoconConnect = React.lazy(() => import("@/components/settings/OctoconConnect"));
+const FloralityFileImport = React.lazy(() => import("@/components/settings/FloralityFileImport"));
 const ImportLoading = () => (
   <p className="text-sm text-muted-foreground py-2" role="status">Loading…</p>
 );
@@ -247,6 +248,12 @@ function FirstRunSetup({ onComplete, onSupport, allowOrphans = false }) {
       // Text formats. Detect another app's export (Simply Plural / Octocon /
       // PluralSpace .json) BEFORE the Symphony parse.
       const text = new TextDecoder("utf-8").decode(bytes);
+      const { isFloralityHtml } = await import("@/lib/florality");
+      if (isFloralityHtml(text)) {
+        setImporting(false);
+        if (await setupLocalStorage()) setExternalImport({ file, type: "florality" });
+        return;
+      }
       let probe = null;
       try { probe = JSON.parse(text); } catch {}
       const { externalKindFromJson } = await import("@/components/settings/DataBackupRestore");
@@ -546,6 +553,7 @@ function FirstRunSetup({ onComplete, onSupport, allowOrphans = false }) {
                 {externalImport.type === "simplyplural" ? "Simply Plural"
                   : externalImport.type === "octocon" ? "Octocon"
                   : externalImport.type === "openplural" ? "OpenPlural"
+                  : externalImport.type === "florality" ? "Florality"
                   : "an external app"}
                 {" — "}
                 <span className="text-foreground">{externalImport.file.name}</span>
@@ -593,6 +601,9 @@ function FirstRunSetup({ onComplete, onSupport, allowOrphans = false }) {
                 )}
                 {externalImport.type === "openplural" && (
                   <OpenPluralConnect presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
+                )}
+                {externalImport.type === "florality" && (
+                  <FloralityFileImport presetFile={externalImport.file} onSettingsChange={() => {}} />
                 )}
                 </React.Suspense>
                 <Button

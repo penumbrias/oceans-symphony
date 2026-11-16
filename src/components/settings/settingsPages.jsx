@@ -211,7 +211,7 @@ export function buildSettingsGroups(ctx) {
         { id: "privacy-notice", label: "Privacy & Data Notice", hint: "Where your data lives and what can leave", icon: ShieldCheck, tour: "settings-privacy-notice",
           keywords: "privacy notice data local storage encryption what leaves device transparency", render: () => <PrivacyNotice /> },
         { id: "import", label: "Import", hint: "A backup, or another app's export", icon: Upload,
-          keywords: "import restore backup file simply plural pluralkit octocon pluralspace openplural ampersand",
+          keywords: "import restore backup file simply plural pluralkit octocon pluralspace openplural ampersand florality plural star",
           render: () => <ImportDataSection settings={ctx.settings} onChanged={onChanged} /> },
         { id: "export", label: "Export & automatic backups", hint: "Save your data as a file, on a schedule too", icon: Download,
           keywords: "export backup save download share copy paste zip automatic auto-backup schedule password lock",

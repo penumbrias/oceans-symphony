@@ -7,6 +7,7 @@ import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OctoconConnect from "@/components/settings/OctoconConnect";
 import PluralStarFileImport from "@/components/settings/PluralStarFileImport";
+import FloralityFileImport from "@/components/settings/FloralityFileImport";
 
 // The full "Import" experience — the backup-file importer (Symphony / Ampersand
 // .ampar / OpenPlural .zip, Add-new vs Replace-all, native file picker, paste
@@ -58,6 +59,8 @@ export default function ImportDataSection({ settings, onChanged }) {
                 ? "Octocon"
                 : externalImport.type === "pluralstar"
                 ? "Plural Star"
+                : externalImport.type === "florality"
+                ? "Florality"
                 : "OpenPlural / PluralSpace"}
               .
             </span>
@@ -73,6 +76,9 @@ export default function ImportDataSection({ settings, onChanged }) {
           )}
           {externalImport.type === "openplural" && (
             <OpenPluralConnect presetFile={externalImport.file} settings={settings} onSettingsChange={changed} />
+          )}
+          {externalImport.type === "florality" && (
+            <FloralityFileImport presetFile={externalImport.file} settings={settings} onSettingsChange={changed} />
           )}
           {externalImport.type === "pluralstar" && (
             <PluralStarFileImport presetFile={externalImport.file} settings={settings} onSettingsChange={changed} />
