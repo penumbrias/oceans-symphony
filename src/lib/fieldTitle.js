@@ -1,4 +1,4 @@
-// A custom field's title can carry formatting and pictures (v0.372.1) —
+// A custom field's title can carry formatting and pictures (v0.372.2) —
 // the same fancy text and text-plus-picture abilities a field's answer has.
 //
 // The CustomField record keeps TWO spellings of its title:

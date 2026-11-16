@@ -65,7 +65,7 @@ function isFilled(v) {
   return true;
 }
 
-// The title box (v0.372.1): the same rich editor a Long text answer uses, so
+// The title box (v0.372.2): the same rich editor a Long text answer uses, so
 // a title can hold fancy text and pictures. The plain name is worked out
 // from it on save (fieldTitle.js). data-vaul-no-drag keeps a sheet host
 // from reading a touch in it as a drag.
@@ -328,7 +328,7 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
 
   const body = (
     <div className="space-y-3">
-        {/* Adding comes first (v0.372.1) — no scrolling past a long list
+        {/* Adding comes first (v0.372.2) — no scrolling past a long list
             to start a new field. */}
         {adding ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">

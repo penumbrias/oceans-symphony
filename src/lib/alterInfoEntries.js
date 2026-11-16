@@ -132,7 +132,7 @@ const sameName = (a, b) => String(a || "").trim().toLowerCase() === String(b || 
 
 // A new entry every alter has (a custom field), made from a widget. Returns
 // its id. A field with the same name is reused, never duplicated.
-// `nameRich` (v0.372.1) is the formatted title (see fieldTitle.js), or null.
+// `nameRich` (v0.372.2) is the formatted title (see fieldTitle.js), or null.
 export async function addSharedEntry({ name, kind = "text", nameRich = null }) {
   const clean = String(name || "").trim();
   if (!clean) throw new Error("The custom field needs a name");
@@ -162,7 +162,7 @@ export async function setSharedEntryHidden(fieldId, hidden) {
 }
 
 // Rename a shared entry or change its kind, for every alter. Values are
-// kept by the field's id, so nothing moves. `nameRich` (v0.372.1): a
+// kept by the field's id, so nothing moves. `nameRich` (v0.372.2): a
 // string or null sets the formatted title; left out, it is kept as it is
 // (and shows again only while it still reads as the name — fieldTitle.js).
 export async function updateSharedEntry(fieldId, { name, kind, nameRich }) {

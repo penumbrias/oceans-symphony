@@ -21,6 +21,8 @@ export const CHANGELOG = [
     date: "November 16, 2026",
     changes: [
       { type: "improve", text: "Custom fields: \"Add a custom field\" is now at the top of the list, and a field's title can have fancy text and pictures, just like its answers." },
+      { type: "fix", text: "Friends page: says who's {{fronting}} but hidden from friends and why, with a one-tap way to share them. Sharing levels and \"Show when {{fronting}}\" are now explained side by side." },
+      { type: "fix", text: "{{Alters}} in a group hidden from friends could briefly show in your {{front}} status after opening the Friends page; a {{front}} update that failed to send now retries." },
       { type: "feature", text: "Import from Florality: its OpenPlural .json and its data-export .html page, with {{alters}}, folders, custom fields, {{front}} history and notes. Imported {{alters}} stay hidden from friends until you choose which privacy buckets to share." },
       { type: "improve", text: "{{Alter}} profiles can hold more than one role: separate them with commas and each shows as its own tag, and the role filter lists each one." },
     ],

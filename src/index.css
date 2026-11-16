@@ -1302,7 +1302,7 @@ html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-feeling-row { flex-d
 html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating { border-left: 0; padding-left: 0; border-top: 1px solid hsl(var(--border) / 0.4); padding-top: 0.5rem; }
 html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating > button { max-width: none; }
 
-/* A custom field's formatted title (FieldTitle.jsx, v0.372.1) sits in a
+/* A custom field's formatted title (FieldTitle.jsx, v0.372.2) sits in a
    label, heading or tab: the editor's line wrappers flow inline there, and
    a picture lines up with the words around it. */
 .field-title-rich > div,

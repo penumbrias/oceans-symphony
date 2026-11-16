@@ -1,4 +1,4 @@
-// A custom field's title as a person sees it (v0.372.1): the formatted
+// A custom field's title as a person sees it (v0.372.2): the formatted
 // title (fancy text, pictures) when the field has one, else the plain name.
 // See src/lib/fieldTitle.js for how the two spellings are kept.
 //
