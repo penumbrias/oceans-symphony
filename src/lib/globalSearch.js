@@ -400,7 +400,7 @@ export function buildTherapyNoteRecords({ items = [] }) {
   }));
 }
 
-// Text templates (v0.373.0) — open on their own page in Settings.
+// Text templates (v0.374.0) — open on their own page in Settings.
 export function buildTextTemplateRecords({ items = [], folders = [] }) {
   const names = new Map((folders || []).map((f) => [f.id, f.name || ""]));
   return items.map((t) => {

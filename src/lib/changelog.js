@@ -21,6 +21,8 @@ export const CHANGELOG = [
     date: "November 16, 2026",
     changes: [
       { type: "feature", text: "Text templates: save any text as a template, formatting and all, and paste it into any box from the new templates button on the formatting bar. Keep them in folders under Settings → Text templates (they're in backups too)." },
+      { type: "feature", text: "Nature sounds: a sleep timer, an Up next queue (tap + beside a sound), and pause, skip and stop from the notification and lock screen." },
+      { type: "improve", text: "Friends: privacy levels now decide {{fronting}} too, like buckets. A friend you've given levels sees only the {{alters}} in those levels when they're {{fronting}}, with only the details those levels share." },
       { type: "improve", text: "Custom fields: \"Add a custom field\" is now at the top of the list, and a field's title can have fancy text and pictures, just like its answers." },
       { type: "fix", text: "Friends page: says who's {{fronting}} but hidden from friends and why, with a one-tap way to share them. Sharing levels and \"Show when {{fronting}}\" are now explained side by side." },
       { type: "fix", text: "{{Alters}} in a group hidden from friends could briefly show in your {{front}} status after opening the Friends page; a {{front}} update that failed to send now retries." },

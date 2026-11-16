@@ -475,7 +475,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     savedSelection.current = null;
   };
 
-  // Templates (v0.373.0): capture what's highlighted (and the whole box) as
+  // Templates (v0.374.0): capture what's highlighted (and the whole box) as
   // HTML before the sheet takes focus, so "Save as a template" keeps the
   // formatting. A plain box's newlines become <br>; pasting back into a
   // plain box turns them into newlines again.

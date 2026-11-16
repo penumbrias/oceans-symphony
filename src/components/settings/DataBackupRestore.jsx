@@ -148,7 +148,7 @@ const ENTITY_NAMES = [
   // location that has had its page arranged. Holds layout only, never the
   // record's own fields.
   "ProfileBoard",
-  // Text templates (v0.373.0): saved text to paste anywhere, and the
+  // Text templates (v0.374.0): saved text to paste anywhere, and the
   // folders that hold them.
   "TextTemplate", "TextTemplateFolder",
 ];

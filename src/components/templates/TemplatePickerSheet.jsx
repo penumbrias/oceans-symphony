@@ -1,4 +1,4 @@
-// The Templates sheet the mini toolbar opens (v0.373.0). Two jobs:
+// The Templates sheet the mini toolbar opens (v0.374.0). Two jobs:
 //   - paste a saved template where the caret is (browse folders, or search),
 //   - save what's selected (or the whole box) as a new template, keeping
 //     its formatting.

@@ -1,4 +1,4 @@
-// Settings → Text templates (v0.373.0): every saved template, in folders.
+// Settings → Text templates (v0.374.0): every saved template, in folders.
 //
 // Built to docs/inspector-design-guide.md like CustomEmotionsManager:
 // flat rows, and drill-in pages kept in the URL (`?tt=…`) so the phone's
