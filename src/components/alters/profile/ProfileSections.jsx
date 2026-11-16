@@ -35,6 +35,7 @@ import { needsHalo, getPageBackground, adjustForContrast } from "@/lib/contrast"
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
+import { alterRoles } from "@/lib/alterRoles";
 import { alterPictureStyle, framedBackgroundStyle } from "@/lib/imageFraming";
 
 
@@ -162,7 +163,9 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
 
   if (hideHeader) return null;
 
-  const rolePill = alter.role ? (() => {
+  // Several roles (v0.371.13) show as one pill each.
+  const roles = alterRoles(alter);
+  const rolePill = roles.length ? (() => {
     // Soft tint pill is the default look. When the alter's color is too
     // close to the rendered header backdrop, fall back to a solid pill so
     // the role stays readable. WCAG AA-large = 3:1.
@@ -171,22 +174,18 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
     // Over a user-uploaded header image the role sits on arbitrary pixels;
     // a soft outline is always worth it there.
     const textShadow = headerImage ? "0 0 4px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85)" : undefined;
-    if (lowContrast) {
-      return (
-        <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-          style={{ backgroundColor: pillColor, color: getContrastColor(pillColor), textShadow }}>
-          {alter.role}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-        style={{
+    const style = lowContrast
+      ? { backgroundColor: pillColor, color: getContrastColor(pillColor), textShadow }
+      : {
           backgroundColor: headerText ? `${headerText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
           color: headerText || alter.color || "hsl(var(--muted-foreground))",
           textShadow,
-        }}>
-        {alter.role}
+        };
+    return (
+      <span className="flex flex-wrap gap-1 mt-1" data-alter-roles="">
+        {roles.map((r, i) => (
+          <span key={`${r}-${i}`} className="inline-block text-xs font-medium px-2.5 py-1 rounded-full" style={style}>{r}</span>
+        ))}
       </span>
     );
   })() : null;

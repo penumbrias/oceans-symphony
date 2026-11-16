@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 16, 2026",
+    changes: [
+      { type: "improve", text: "{{Alter}} profiles can hold more than one role: separate them with commas and each shows as its own tag, and the role filter lists each one." },
+    ],
+  },
+  {
     date: "November 15, 2026",
+    version: "0.371.12",
     changes: [
       { type: "fix", text: "iPhone and iPad (Safari): {{alter}} profiles no longer jump up and down below the name, on every tab." },
       { type: "improve", text: "The phone apps now ask for your screen's fastest refresh rate, so scrolling is as smooth as the rest of your phone on 90 and 120 Hz screens (iPhone ProMotion too)." },

@@ -541,6 +541,7 @@ useEffect(() => {
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Role</label>
           <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
+          <p className="text-xs text-muted-foreground">More than one? Separate them with commas.</p>
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">First appearance</label>

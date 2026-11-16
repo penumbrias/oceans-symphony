@@ -21,6 +21,7 @@
 // stay quiet than to penalise an alter for missing data.
 
 import { colorDistance, ANSWER_DELTA, ANSWER_PENALTY } from "./unblendScoring";
+import { alterRoles, hasRole } from "./alterRoles.js";
 
 // ───────────────────────────────────────────────────────────────────
 // Split a free-text custom-field value into individual items.
@@ -323,9 +324,9 @@ export function buildDynamicQuestions(alters, customFields = []) {
   // have it set with at least 2 distinct values, offer it.
   const roleSet = new Map();
   for (const a of active) {
-    if (typeof a.role === "string" && a.role.trim()) roleSet.set(a.id, a.role.trim());
+    if (alterRoles(a).length) roleSet.set(a.id, alterRoles(a));
   }
-  const roleOptions = uniqueStringValues([...roleSet.values()]);
+  const roleOptions = uniqueStringValues([...roleSet.values()].flat());
   if (roleSet.size >= 1 && roleOptions.length >= 1 && roleOptions.length <= 24) {
     questions.push({
       id: "dyn_role",
@@ -333,10 +334,8 @@ export function buildDynamicQuestions(alters, customFields = []) {
       kind: "choice",
       options: roleOptions.map((r) => ({ id: r, label: r, value: r })),
       score: (alter, ans) => {
-        if (!ans || typeof alter?.role !== "string") return 0;
-        return alter.role.trim().toLowerCase() === ans.value.toLowerCase()
-          ? ANSWER_DELTA
-          : 0;
+        if (!ans) return 0;
+        return hasRole(alter, ans.value) ? ANSWER_DELTA : 0;
       },
     });
   }
@@ -615,7 +614,7 @@ function matchRole(alter, wantedRoles) {
 function collectTags(alter) {
   const out = [];
   if (Array.isArray(alter?.tags)) out.push(...alter.tags);
-  if (alter?.role) out.push(alter.role);
+  out.push(...alterRoles(alter));
   // Fold preset_answers into the match pool. Each entry is a
   // comma-separated list-style string (matching how InfoTab
   // renders custom-field list values), so split + push each
