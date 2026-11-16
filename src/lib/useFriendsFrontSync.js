@@ -1,11 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { isPreviewActive } from "@/lib/previewMode";
-import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
-import { sharedPreferences } from "@/lib/alterPreferences";
+import { buildFriendFronters, friendTerms } from "@/lib/friendFronters";
 
 // Whenever the local front state changes — regardless of WHICH UI mutated it
 // (Set Fronters modal, dashboard chip swipe, Alters page long-press, etc.) —
@@ -18,6 +17,22 @@ import { sharedPreferences } from "@/lib/alterPreferences";
 export function useFriendsFrontSync() {
   const lastSigRef = useRef(null);
   const terms = useTerms();
+  const [retryTick, setRetryTick] = useState(0);
+
+  // Retry a failed push when the connection or the app comes back.
+  useEffect(() => {
+    const retry = () => {
+      if (lastSigRef.current !== null) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      setRetryTick((n) => n + 1);
+    };
+    window.addEventListener("online", retry);
+    document.addEventListener("visibilitychange", retry);
+    return () => {
+      window.removeEventListener("online", retry);
+      document.removeEventListener("visibilitychange", retry);
+    };
+  }, []);
 
   const { data: activeSessions = [], isSuccess: sessionsReady } = useQuery({
     queryKey: ["activeFront"],
@@ -27,7 +42,7 @@ export function useFriendsFrontSync() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [], isSuccess: groupsFetched } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
@@ -42,60 +57,12 @@ export function useFriendsFrontSync() {
     // the corrected push lands / if it fails) sees "no one fronting" even
     // though someone is up front. This was the intermittent "blank front"
     // friends kept hitting.
-    if (!sessionsReady || !altersReady) return;
+    // Groups too: a push before they load would skip the "hide from
+    // friends" groups and briefly share those members.
+    if (!sessionsReady || !altersReady || !groupsFetched) return;
 
-    const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
-
-    // Build a list of alter ids that are currently up front. Handles both
-    // schemas:
-    //   - new: each FrontingSession row has `alter_id` and `is_primary`
-    //   - legacy: a single FrontingSession row carries `primary_alter_id`
-    //     and `co_fronter_ids[]` (one row per group of fronters). A
-    //     long-running legacy session would otherwise push an empty
-    //     fronters list to friends — which is what users see when their
-    //     friend's view goes blank despite an actively-fronting alter.
-    const collected = []; // [{alterId, isPrimary}]
-    let seenPrimary = false;
-    for (const s of activeSessions) {
-      if (s.alter_id) {
-        collected.push({ alterId: s.alter_id, isPrimary: !!s.is_primary });
-        if (s.is_primary) seenPrimary = true;
-      } else if (s.primary_alter_id) {
-        collected.push({ alterId: s.primary_alter_id, isPrimary: true });
-        seenPrimary = true;
-        for (const coId of s.co_fronter_ids || []) {
-          collected.push({ alterId: coId, isPrimary: false });
-        }
-      }
-    }
-    // Fallback: if no row was flagged primary, treat the first as primary
-    // so the friend's display still has a name to lead with.
-    if (!seenPrimary && collected.length > 0) {
-      collected[0].isPrimary = true;
-    }
-
-    const primaryId = collected.find((c) => c.isPrimary)?.alterId || collected[0]?.alterId || null;
-
-    // Group config: alters in a group flagged "hide_from_friends" are never
-    // shared with friend systems.
-    const hiddenFromFriends = getAlterIdsByGroupFlag(groups, alters, "hide_from_friends");
-
-    const fronters = collected
-      .map((c) => ({ entry: c, alter: altersById[c.alterId] }))
-      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false && !hiddenFromFriends.has(alter.id))
-      .map(({ entry, alter }) => ({
-        id: alter.id,
-        name: alter.name,
-        initial: alter.name?.[0] || "?",
-        color: alter.color || null,
-        isPrimary: alter.id === primaryId,
-        isCofronter: alter.id !== primaryId,
-        // Included in the payload only when the identity's share mode says
-        // so — pushFrontStatus is the single chokepoint that strips or
-        // keeps these per the user's Friends-page setting.
-        pronouns: alter.pronouns || "",
-        preferences: sharedPreferences(alter),
-      }));
+    // One rule for who a friend may see (src/lib/friendFronters.js).
+    const fronters = buildFriendFronters({ activeSessions, alters, groups });
 
     // Deterministic signature so we only push when the front actually
     // changed. Pronouns + preferences are part of the signature so editing
@@ -108,14 +75,14 @@ export function useFriendsFrontSync() {
     if (sig === lastSigRef.current) return;
     lastSigRef.current = sig;
 
-    pushFrontStatus({
-      fronters,
-      terms: {
-        fronting: terms.fronting,
-        front: terms.front,
-        alter: terms.alter,
-        system: terms.system,
-      },
-    }).catch(() => {});
-  }, [activeSessions, alters, groups, terms.fronting, terms.front, terms.alter, terms.system]);
+    pushFrontStatus({ fronters, terms: friendTerms(terms) })
+      .then((ok) => {
+        // A push that never reached the relay (offline at launch, a relay
+        // hiccup) used to be forgotten until the next switch, so friends
+        // kept seeing an old or empty front. Forget the signature and try
+        // again when the device is back online or the app comes forward.
+        if (!ok && lastSigRef.current === sig) lastSigRef.current = null;
+      })
+      .catch(() => { if (lastSigRef.current === sig) lastSigRef.current = null; });
+  }, [activeSessions, alters, groups, sessionsReady, altersReady, groupsFetched, retryTick, terms.fronting, terms.front, terms.alter, terms.system]);
 }

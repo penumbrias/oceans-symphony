@@ -23,6 +23,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { base44 } from "@/api/base44Client";
 import { withBatch } from "@/lib/localDb";
 import { pushFrontStatus } from "@/lib/friendsApi";
+import { pushCurrentFront } from "@/lib/friendsApi";
 import { getSessionLevel } from "@/lib/frontLevels";
 import { levelChangeEntry, levelChangesOf } from "@/lib/frontLevelSpans";
 
@@ -155,7 +156,7 @@ async function applyFrontSelectionInner({
   triggered = null,
   levelsEnabled = false,
   levelCfg = null,          // pass the resolved config to auto-derive primary
-  alters = [],
+  alters: _alters = [], // unused since v0.371.14: the friends push reads fresh
   terms = {},
   queryClient = null,
 }) {
@@ -281,29 +282,9 @@ async function applyFrontSelectionInner({
   try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
   queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
 
-  // Push front status to friends server (fire-and-forget); id included so
-  // pushFrontStatus can apply per-friend visibility filtering.
-  const primaryId = Object.entries(desired).find(([, w]) => w.isPrimary)?.[0] || null;
-  const visibleFronters = Object.keys(desired)
-    .map((id) => alters.find((a) => a.id === id))
-    .filter((a) => a && a.friends_visible !== false)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      initial: a.name?.[0] || "?",
-      color: a.color || null,
-      isPrimary: a.id === primaryId,
-      isCofronter: a.id !== primaryId,
-    }));
-  pushFrontStatus({
-    fronters: visibleFronters,
-    terms: {
-      fronting: terms.fronting,
-      front: terms.front,
-      alter: terms.alter,
-      system: terms.system,
-    },
-  }).catch(() => {});
+  // Push front status to friends server (fire-and-forget), through the one
+  // sharing rule (archived, "Show when fronting", hide-from-friends groups).
+  pushCurrentFront(terms).catch(() => {});
 
   return { firstSessionId };
 }

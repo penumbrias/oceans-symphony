@@ -97,8 +97,8 @@ export default function OptionsTab({ alter }) {
             disabled={saving}
           />
           <SettingRow
-            label={`Visible to friends`}
-            description={`When enabled, this ${terms.alter} can appear in your front status shared with friends. Disable to keep them private.`}
+            label={`Show to friends when ${terms.fronting}`}
+            description={`When on, friends see this ${terms.alter} in your ${terms.front} status while they're ${terms.fronting}. This is separate from the sharing levels below, which decide who can see their profile. New ${terms.alters} start with it off.`}
             checked={friendsVisible}
             onCheckedChange={toggleFriendsVisible}
             disabled={saving}
@@ -134,7 +134,7 @@ export default function OptionsTab({ alter }) {
             </div>
             <p className="text-[0.6875rem] mt-1.5">
               {levelIds.length === 0
-                ? <span className="text-muted-foreground">🔒 Private — in no levels, so no friend can see this {terms.alter}.</span>
+                ? <span className="text-muted-foreground">🔒 In no levels, so no friend can see this {terms.alter}'s profile.{friendsVisible ? ` They can still show in your ${terms.front} status while ${terms.fronting} (switch above).` : ""}</span>
                 : <span className="text-primary">Shared in {levelIds.length} level{levelIds.length === 1 ? "" : "s"} — filled pills are on.</span>}
             </p>
           </>

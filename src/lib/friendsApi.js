@@ -7,6 +7,7 @@ import { apiBase } from "@/lib/apiBase";
 import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
 import { getSharedFriendIdentity, setSharedFriendIdentity, clearSharedFriendIdentity } from "@/lib/friendIdentityStore";
 import { sanitizeFriendsListResponse, sanitizeFrontBlob } from "@/lib/remoteSanitize";
+import { buildFriendFronters, friendTerms } from "@/lib/friendFronters";
 
 // Where the Friends relay lives. Relative on web/TWA (same origin as the
 // deploy that hosts the API); absolute in the packaged app targets, whose
@@ -329,7 +330,7 @@ export async function pushFrontStatus({ fronters: rawFronters, terms, systemName
   // for cloud reminder / FCM delivery). This is the single chokepoint for all
   // outgoing front data, so it protects every caller (Friends page + the
   // always-mounted useFriendsFrontSync hook).
-  if (!identity || identity.push_only) return;
+  if (!identity || identity.push_only) return false;
 
   // v0.87.9: what rides along with each fronter, per the user's share mode
   // (Friends page → sharing settings; stored locally on FriendIdentity):
@@ -382,7 +383,9 @@ export async function pushFrontStatus({ fronters: rawFronters, terms, systemName
   // Strip local IDs from default fronters before sending
   const cleanFronters = fronters.map(({ id: _, ...rest }) => rest);
 
-  await fetch(`${BASE}/update-front`, {
+  // Resolves true only when the relay stored it, so callers can retry a
+  // push that never arrived (offline at launch, relay hiccup).
+  return fetch(`${BASE}/update-front`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -395,7 +398,21 @@ export async function pushFrontStatus({ fronters: rawFronters, terms, systemName
       privacyLevel: privacyLevel ?? identity.privacyLevel ?? 'names',
       perFriendFronters,
     }),
-  }).catch(() => {});  // fire and forget
+  }).then((res) => !!res?.ok).catch(() => false);
+}
+
+// Read the front fresh and push it through the one sharing rule
+// (src/lib/friendFronters.js). Resolves true when the relay took it.
+export async function pushCurrentFront(terms) {
+  const [activeSessions, alters, groups] = await Promise.all([
+    localEntities.FrontingSession.filter({ is_active: true }),
+    localEntities.Alter.list(),
+    localEntities.Group.list(),
+  ]);
+  return pushFrontStatus({
+    fronters: buildFriendFronters({ activeSessions, alters, groups }),
+    terms: friendTerms(terms),
+  });
 }
 
 // Persist the fronter share mode ("name" | "name_prefs" | "prefs_only") on
