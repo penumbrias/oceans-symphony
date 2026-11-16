@@ -13,12 +13,10 @@ import { toast } from "sonner";
 const listNames = (names) =>
   names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
-// Friends page: says plainly when someone is up front but friends can't see
-// them, and why (v0.371.14). Front status and sharing levels are two separate
-// choices — levels decide whose PROFILE a friend can open, "Show when
-// fronting" decides who appears in the front status — and new or imported
-// profiles start with front sharing off. Without this, a friend just saw
-// "No one fronting" and nobody could tell why.
+// Friends page: says plainly when someone is up front but some or all friends
+// can't see them, and why (v0.371.14, levels v0.372.2). Friends given sharing
+// levels see exactly the alters in those levels; other friends see whoever has
+// "Show when fronting" on — and new or imported profiles start with it off.
 export default function FrontShareNotice() {
   const t = useTerms();
   const formatAlter = useAlterLabel();
@@ -39,7 +37,7 @@ export default function FrontShareNotice() {
     for (const { alterId } of collectFronting(activeFront)) {
       const alter = byId.get(alterId);
       const why = frontShareBlock(alter, hiddenByGroup);
-      if (why === "off") out.off.push(alter);
+      if (why === "off") out.off.push(alter); // in levels or not, see below
       else if (why === "group") out.byGroup.push(alter);
     }
     return out;
@@ -47,14 +45,17 @@ export default function FrontShareNotice() {
 
   if (!off.length && !byGroup.length) return null;
 
+  const inLevels = (a) => Array.isArray(a.privacy_levels) && a.privacy_levels.length > 0;
   const offNames = off.map((a) => formatAlter(a));
+  const offNowhere = off.filter((a) => !inLevels(a)).map((a) => formatAlter(a));
+  const offLevelled = off.filter(inLevels).map((a) => formatAlter(a));
   const groupNames = byGroup.map((a) => formatAlter(a));
   const one = off.length === 1;
 
   const shareThem = async () => {
     const ok = await confirm({
-      title: one ? `Show ${offNames[0]} to friends when ${t.fronting}?` : `Show these ${t.alters} to friends when ${t.fronting}?`,
-      body: `Every friend will see ${listNames(offNames)} in your ${t.front} status from now on (a friend you set to "Hidden" or "Count only" still won't). You can turn this off again in ${one ? "their" : "each"} profile → Options.`,
+      title: `Turn on "Show when ${t.fronting}" for ${one ? offNames[0] : `these ${t.alters}`}?`,
+      body: `Friends you haven't given sharing levels will see ${listNames(offNames)} in your ${t.front} status from now on (friends with levels still see only their levels, and a friend set to "Hidden" or "Count only" still won't). You can turn this off again in ${one ? "their" : "each"} profile → Options.`,
       confirmLabel: `Show when ${t.fronting}`,
     });
     if (!ok) return;
@@ -76,9 +77,14 @@ export default function FrontShareNotice() {
       <div className="flex items-start gap-2.5">
         <EyeOff className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <div className="space-y-1.5 text-xs text-foreground/90">
-          {off.length > 0 && (
+          {offNowhere.length > 0 && (
             <p>
-              <span className="font-medium">{listNames(offNames)}</span> {one ? "is" : "are"} {t.fronting}, but friends can't see them: "Show when {t.fronting}" is off in their profile.
+              <span className="font-medium">{listNames(offNowhere)}</span> {offNowhere.length === 1 ? "is" : "are"} {t.fronting}, but no friend can see them: "Show when {t.fronting}" is off and they're in no sharing level.
+            </p>
+          )}
+          {offLevelled.length > 0 && (
+            <p>
+              <span className="font-medium">{listNames(offLevelled)}</span> {offLevelled.length === 1 ? "is" : "are"} {t.fronting}. Only friends you've given one of their sharing levels can see them, because "Show when {t.fronting}" is off.
             </p>
           )}
           {byGroup.length > 0 && (
@@ -87,7 +93,7 @@ export default function FrontShareNotice() {
             </p>
           )}
           <p className="text-muted-foreground">
-            Sharing levels only decide whose profile a friend can see. Who shows as {t.fronting} is a separate switch on each {t.alter}.
+            Friends you've given sharing levels see the {t.alters} in those levels. Other friends see whoever has "Show when {t.fronting}" on.
           </p>
         </div>
       </div>
