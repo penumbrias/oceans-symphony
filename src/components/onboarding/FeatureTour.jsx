@@ -1124,6 +1124,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/grounding?view=nature", target: ["grounding-nature-timer", "grounding-nature-view"],
     }),
     s("grounding", {
+      emoji: "🚩", title: "Report a startling sound",
+      body: `Heard a dog bark or a siren in a recording? Tap the flag on the player to email where it is, so the sound can get a heads-up note.`,
+      route: "/grounding?view=nature", target: ["grounding-nature-report", "grounding-nature-view"],
+    }),
+    s("grounding", {
       emoji: "🎙️", title: "Your own sounds",
       body: `Add recordings from your device or your Assets under "Your sounds". Keep the file as it is, or make it smaller to save space in backups.`,
       route: "/grounding?view=nature", target: ["grounding-nature-add", "grounding-nature-view"],

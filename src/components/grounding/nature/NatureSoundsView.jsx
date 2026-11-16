@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Dices, Sparkles, Heart, Download, Check, Trash2, Search, Loader2, ScrollText, Music,
-  SlidersHorizontal, ListPlus, ListMusic, Timer,
+  SlidersHorizontal, ListPlus, ListMusic, Timer, Flag, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Group, SwitchRow, ChoiceRow, StackedRow, Chips, SliderRow, LinkRow } from "@/components/shared/SettingRows";
-import { NATURE_SOUNDS, NATURE_TAGS, natureSoundById } from "@/lib/natureSounds/catalog";
+import { NATURE_SOUNDS, NATURE_TAGS, natureSoundById, startleNote } from "@/lib/natureSounds/catalog";
 import { writeNaturePrefs, toggleFavorite, filterSounds } from "@/lib/natureSounds/naturePrefs";
 import {
   playNature, toggleNature, nextNature, prevNature, seekNature, jumpToRandomPoint, playRandomNature,
@@ -19,6 +19,10 @@ import MySoundsPage from "./MySoundsPage";
 import RecordingShaper from "./RecordingShaper";
 import { SleepTimerPage, UpNextPage, useSleepLeft, sleepLabel } from "./NaturePlaybackPages";
 import { isDefaultShape } from "@/lib/natureSounds/recordingShape";
+import ReportSoundSheet from "./ReportSoundSheet";
+
+// The player card's "Report this sound" button, found by the notice's link.
+const REPORT_BUTTON_ID = "nature-report-sound";
 
 // Soundscape → Nature sounds (the recording layer): field recordings streamed from the
 // project's release (nothing extra in the app download), with favourites,
@@ -61,7 +65,7 @@ function SaveButton({ id, offline }) {
   );
 }
 
-function NowPlaying({ player, prefs, offline, list, onOpen }) {
+function NowPlaying({ player, prefs, offline, list, onOpen, onReport }) {
   const sleepLeft = useSleepLeft(player.sleep);
   const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
   const yours = sound && isOwnSoundId(sound.id);
@@ -75,9 +79,17 @@ function NowPlaying({ player, prefs, offline, list, onOpen }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">{sound ? sound.title : "Pick a sound"}</p>
           {sound && <p className="text-xs text-muted-foreground truncate">{yours ? "Your sound" : [sound.place, sound.by].filter(Boolean).join(" · ")}</p>}
+          {sound && startleNote(sound.id) && <StartleNote id={sound.id} />}
         </div>
         {sound && (
           <>
+            {!yours && (
+              <button type="button" id={REPORT_BUTTON_ID} onClick={onReport} data-tour="grounding-nature-report"
+                aria-label="Report a startling noise in this sound" title="Report a startling noise in this sound"
+                className="h-11 w-11 -mt-2 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
+                <Flag className="w-4 h-4" />
+              </button>
+            )}
             <button type="button" onClick={() => toggleFavorite(sound.id)} aria-pressed={fav}
               aria-label={fav ? "Remove from favourites" : "Add to favourites"}
               className={`h-11 w-11 -mt-2 inline-flex items-center justify-center rounded-full hover:bg-muted ${fav ? "text-primary" : "text-muted-foreground"}`}>
@@ -162,6 +174,38 @@ export function NowPlayingStrip({ player, prefs, offline }) {
   );
 }
 
+// A heads-up for a sound with something sudden in it.
+function StartleNote({ id }) {
+  return (
+    <span className="flex items-start gap-1 text-xs text-amber-700 dark:text-amber-300">
+      <TriangleAlert className="w-3 h-3 mt-0.5 flex-shrink-0" aria-hidden="true" />
+      <span>Has {startleNote(id)}</span>
+    </span>
+  );
+}
+
+// The creator's request for help finding startling sounds. Its two links
+// open the report and point at the player's report button.
+function ReportNotice({ onReport, onShowButton }) {
+  const link = "underline underline-offset-2 font-medium text-foreground hover:text-primary";
+  return (
+    <div className="relative rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 pr-11 text-sm leading-relaxed" role="note">
+      <button type="button" onClick={() => writeNaturePrefs({ reportNoticeSeen: true })} aria-label="Close this message"
+        className="absolute top-0.5 right-0.5 h-11 w-11 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50">
+        <X className="w-4 h-4" />
+      </button>
+      <p>
+        Hi! These sounds were sourced from the website FreeSound.org; I'm trying to track down any sounds with
+        unexpected barking/startling noise so they can have adequate disclaimers. I've already spooked myself
+        but I skipped the recording so idk which it is T-T please{" "}
+        <button type="button" onClick={onReport} className={link}>click here</button> or on{" "}
+        <button type="button" onClick={onShowButton} className={link}>this button</button>{" "}
+        <Flag className="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> in the sound selection player.
+      </p>
+    </div>
+  );
+}
+
 export function SoundRow({ sound, current, playing, fav, offline }) {
   const isSaved = offline.saved?.has(sound.id);
   return (
@@ -178,6 +222,7 @@ export function SoundRow({ sound, current, playing, fav, offline }) {
             {[sound.own ? "Yours" : sound.place, sound.seconds ? fmtLength(sound.seconds) : ""].filter(Boolean).join(" · ")}
             {isSaved && <Check className="inline w-3 h-3 ml-1 -mt-0.5" aria-label="Saved on this device" />}
           </span>
+          {startleNote(sound.id) && <StartleNote id={sound.id} />}
         </span>
       </button>
       <button type="button" aria-label={`Play ${sound.title} next`}
@@ -215,6 +260,17 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
   const offline = useNatureOffline();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(initialPage);
+  const [reporting, setReporting] = useState(false);
+  // Bring the player's report button into view and make it pulse.
+  const showReportButton = () => {
+    const el = document.getElementById(REPORT_BUTTON_ID);
+    if (!el) { setReporting(true); return; }
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.remove("alter-bar-jump-halo");
+    void el.offsetWidth;
+    el.classList.add("alter-bar-jump-halo");
+    setTimeout(() => el.classList.remove("alter-bar-jump-halo"), 3200);
+  };
   const mine = useMySounds();
 
   const list = useMemo(
@@ -264,7 +320,11 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
         <h2 className="text-lg font-semibold text-foreground">Nature sounds</h2>
       </div>
 
-      <NowPlaying player={player} prefs={prefs} offline={offline} list={ids} onOpen={setPage} />
+      {!prefs.reportNoticeSeen && <ReportNotice onReport={() => setReporting(true)} onShowButton={showReportButton} />}
+
+      <NowPlaying player={player} prefs={prefs} offline={offline} list={ids} onOpen={setPage} onReport={() => setReporting(true)} />
+      <ReportSoundSheet open={reporting} onClose={() => setReporting(false)}
+        soundId={player.id || prefs.lastId} position={player.id ? player.position : 0} />
 
       <div className="px-1">
         <SliderRow label="Volume" value={prefs.volume} min={0} max={100} unit="%" onChange={(v) => setNatureVolume(Math.round(v))} />
