@@ -27,6 +27,7 @@
 // { saved: false, reason } so the page can show a friendly "this
 // question type doesn't save data yet" hint.
 import { base44, localEntities } from "@/api/base44Client";
+import { alterRoles, joinRoles } from "./alterRoles.js";
 import { migrateAlterCustomFieldsObject } from "@/lib/alterCustomFieldsMigration";
 
 function isListField(fieldDef) {
@@ -161,7 +162,10 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       if (question.id === "dyn_role" || question.id?.startsWith("user_") && /role/i.test(question.prompt || "")) {
         for (const id of alterIds) {
           if (!byId[id]) continue;
-          await base44.entities.Alter.update(id, { role: answer.label || writeValue });
+          // An alter can hold several roles (v0.371.13): the answer joins
+          // the roles already there instead of replacing them.
+          const role = joinRoles([...alterRoles(byId[id]), answer.label || writeValue]);
+          if (role !== (byId[id].role || "")) await base44.entities.Alter.update(id, { role });
         }
         return { saved: true, count: alterIds.length, field: "role" };
       }

@@ -289,8 +289,8 @@ export function BasicsSection({ alter, info }) {
         framing={alter ? undefined : form.image_framing?.[form.avatar_url]}
         onFraming={alter ? undefined : (f) => set("image_framing", withImageFraming(form.image_framing, form.avatar_url, f))}
         rotation={form.avatar_rotation_mode} onRotation={(m) => set("avatar_rotation_mode", m)} />
-      <Row label="Role">
-        <DebouncedText key={k("role")} value={form.role} onCommit={(v) => set("role", v)} maxLength={120} ariaLabel="Role" placeholder="Protector, host…" className={`${inputBase} w-[12rem]`} />
+      <Row label="Role" hint="More than one? Separate them with commas">
+        <DebouncedText key={k("role")} value={form.role} onCommit={(v) => set("role", v)} maxLength={300} ariaLabel="Role" placeholder="Protector, host…" className={`${inputBase} w-[12rem]`} />
       </Row>
       <Row label="First appearance" hint={`Feeds the ${t.Alter} History timeline — a year is enough`}>
         <DebouncedText key={k("birthday")} value={form.birthday || ""} ariaLabel="First appearance" maxLength={60}

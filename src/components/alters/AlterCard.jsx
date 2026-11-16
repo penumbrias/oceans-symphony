@@ -16,6 +16,7 @@ import { shapeLayerStyles } from "@/lib/avatarShapes";
 import { useFrontLook } from "@/lib/frontLook";
 import { IconSlot } from "@/components/shared/LucideByName";
 import { alterPictureStyle } from "@/lib/imageFraming";
+import { alterRoles, rolesText } from "@/lib/alterRoles";
 
 function getContrastColor(hex) {
   if (!hex) return "var(--color-text-secondary)";
@@ -172,7 +173,10 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </p>
             {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={hl.textColor ? { color: hl.textColor, opacity: 0.8 } : undefined}>{alter.pronouns}</p>}
           </div>
-          {alter.role && (() => {
+          {alterRoles(alter).length > 0 && (() => {
+            // Several roles (v0.371.13): the first shows, the rest count as
+            // "+N"; the tooltip lists them all.
+            const roles = alterRoles(alter);
             // The role chip sits on bg-card (the surface colour). If the
             // alter's chosen colour is so close to that surface that the
             // soft tint + text disappear, drop a thin neutral ring around
@@ -186,12 +190,12 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             // couldn't shrink). It now yields: capped width, ellipsis, the
             // full text in the tooltip.
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink min-w-0 max-w-[45%] truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
-              title={alter.role}
+              title={rolesText(alter)}
               style={{
                 backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "var(--color-muted)",
                 color: halo ? "var(--color-text-primary)" : (bgColor || "var(--color-text-secondary)"),
               }}>
-              {alter.role}
+              {roles[0]}{roles.length > 1 ? ` +${roles.length - 1}` : ""}
             </span>
             );
           })()}
