@@ -42,6 +42,8 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { AlterPictureFramer, PictureFramingRow } from "@/components/v2/pictureFramingFields";
 import { withImageFraming, framedImageStyle, pictureStyle } from "@/lib/imageFraming";
 import { sharedList } from "@/lib/sharedLists";
+import FieldTitle from "@/components/shared/FieldTitle";
+import { richTitleOf } from "@/lib/fieldTitle";
 
 const splitList = (raw) => (typeof raw === "string" ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : []);
 
@@ -63,12 +65,12 @@ function MoveButtons({ index, count, onMove, label }) {
 // A labelled entry: name (+ kind) on top, the value under it. `menu` is
 // the entry's ⋯ actions (rename, hide, delete…); `badge` a short state
 // like "Hidden".
-export function EntryRow({ name, kind, shared, children, onMove, index, count, onRemove, menu = null, badge = null }) {
+export function EntryRow({ name, richName = null, kind, shared, children, onMove, index, count, onRemove, menu = null, badge = null }) {
   return (
     <div className="py-2 border-b border-border/30 last:border-b-0" data-info-entry={name}>
       <div className="flex items-center gap-1.5 min-h-[28px]">
         {onMove && <MoveButtons index={index} count={count} onMove={onMove} label={name} />}
-        <span className="text-sm font-medium flex-1 min-w-0 truncate">{name}</span>
+        <FieldTitle label={name} rich={richName} className="text-sm font-medium flex-1 min-w-0 truncate" />
         {badge && <span className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground flex-shrink-0">{badge}</span>}
         <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{KIND_LABEL[kind] || "Text"}{shared ? ` · ${shared}` : ""}</span>
         {onRemove && !menu && (
@@ -531,7 +533,7 @@ export function EntriesSection({ alter, info, bio = true }) {
       {orderedFields.map((field, i) => {
         const hidden = hiddenIds.includes(field.id);
         return (
-          <EntryRow key={field.id} name={field.name} kind={field.field_type || "text"} shared={`every ${t.alter}`}
+          <EntryRow key={field.id} name={field.name} richName={richTitleOf(field)} kind={field.field_type || "text"} shared={`every ${t.alter}`}
             index={i} count={orderedFields.length} onMove={moveField} badge={hidden ? "Hidden" : null}
             menu={[
               { label: "Rename or change kind", onClick: () => setEditing({ key: `field:${field.id}`, name: field.name || "", kind: field.field_type || "text" }) },
