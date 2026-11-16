@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 16, 2026",
     changes: [
+      { type: "feature", text: "Activity commands: ~activity:new:name makes a new activity, and ~activity:new: lets you pick where it goes, one level at a time. Logging an activity you don't have yet now asks to create it instead of failing." },
       { type: "fix", text: "Nature sounds: Up next now moves on when a sound ends with the screen off, and pressing play on a finished sound plays the next one instead of starting it over." },
       { type: "fix", text: "Pictures no longer all disappear after using the app for a while; any that stop showing now load again on their own." },
       { type: "improve", text: "Nature sounds: report a startling noise in a recording (the flag on the player), and sounds known to have barking or sirens now say so." },
