@@ -56,6 +56,12 @@
 // the WHOLE note. The word is user-set (src/lib/therapyCommand.js), so this
 // type is not in COMMAND_TYPES; it is matched against the current keyword.
 //
+// Text templates (v0.374.1): ~template:new:title:text saves the text as a
+// template (the title is optional and defaults to the first line) and keeps
+// the text where it was written. ~template:load:name pastes the template
+// with that exact name (or Folder/Name) in place of the command; while
+// typing, the autocomplete lists templates and folders to pick from.
+//
 // Examples:
 //   ~symptom:amnesia:4            ~symptom:anxiety:3:active     ~symptom:anxiety:inactive
 //   ~feeling:good:happy:cheerful  ~feeling:body:flight:on edge  ~feeling:on edge
@@ -76,6 +82,10 @@ import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getTherapyKeyword, THERAPY_NOTES_EVENT } from "@/lib/therapyCommand";
 import { isBipolarScale, formatSeverityForSymptom } from "@/lib/trackingModel";
 import { getCommandSign, getCommandWord, getCustomCommandWord } from "@/lib/commandTerms";
+import {
+  resolveTemplateByName, searchTemplates, childFolders, templatesIn, templateTitle, templatePlainText,
+  fieldTextToHtml, indexFolders, effectiveParentId,
+} from "@/lib/textTemplateModel";
 
 // ── Type catalogue ──────────────────────────────────────────────────────────
 export const COMMAND_TYPES = [
@@ -85,6 +95,7 @@ export const COMMAND_TYPES = [
   { key: "company",  aliases: ["company", "with", "contact", "contacts"],     label: "Company",  icon: "👤", hint: "Log who you're with" },
   { key: "activity", aliases: ["activity", "activities", "act"],              label: "Activity", icon: "🎯", hint: "Log an activity" },
   { key: "journal",  aliases: ["journal", "journals", "entry", "j"],          label: "Journal",  icon: "📓", hint: "Write a journal entry" },
+  { key: "template", aliases: ["template", "templates", "tpl"],              label: "Template", icon: "📑", hint: "Save or paste a text template" },
 ];
 
 const THERAPY_ICON = "\u{1F6CB}\uFE0F"; // couch
@@ -302,7 +313,7 @@ function buildEmotionLabels(customEmotions = []) {
   return out.map((label) => ({ label }));
 }
 
-export function buildCatalogues({ symptoms = [], contacts = [], activityCategories = [], customEmotions = [], journalEntries = [] } = {}) {
+export function buildCatalogues({ symptoms = [], contacts = [], activityCategories = [], customEmotions = [], journalEntries = [], templates = [], templateFolders = [] } = {}) {
   // Journal folders: the user's saved folder list plus every folder any
   // entry actually lives in (same union the journal widgets use).
   const folderSet = new Set();
@@ -318,6 +329,8 @@ export function buildCatalogues({ symptoms = [], contacts = [], activityCategori
       .map((c) => ({ id: c.id, name: contactDisplayName(c) })),
     activityCategories: (activityCategories || []).map((c) => ({ id: c.id, name: c.name || "", color: c.color || null })),
     emotions: buildEmotionLabels(customEmotions),
+    templates: (templates || []).filter(Boolean),
+    templateFolders: (templateFolders || []).filter(Boolean),
   };
 }
 
@@ -326,14 +339,16 @@ async function safeList(entity) {
 }
 
 export async function fetchCatalogues() {
-  const [symptoms, contacts, activityCategories, customEmotions, journalEntries] = await Promise.all([
+  const [symptoms, contacts, activityCategories, customEmotions, journalEntries, templates, templateFolders] = await Promise.all([
     safeList(base44.entities.Symptom),
     safeList(base44.entities.Contact),
     safeList(base44.entities.ActivityCategory),
     safeList(base44.entities.CustomEmotion),
     safeList(base44.entities.JournalEntry),
+    safeList(base44.entities.TextTemplate),
+    safeList(base44.entities.TextTemplateFolder),
   ]);
-  return buildCatalogues({ symptoms, contacts, activityCategories, customEmotions, journalEntries });
+  return buildCatalogues({ symptoms, contacts, activityCategories, customEmotions, journalEntries, templates, templateFolders });
 }
 
 // per-type match helpers on a built catalogue
@@ -385,6 +400,56 @@ export function detectCommandToken(value, caret) {
 }
 
 // ── resolution ──────────────────────────────────────────────────────────────
+// ~template:new:[title:]text and ~template:load:name. Free text runs to the
+// end of the line (or a closing ~). Square brackets around a title, text or
+// name are allowed and dropped ("new:[Morning]:[how did we sleep?]").
+const unbracket = (x) => { const t = String(x || "").trim(); return /^\[.*\]$/.test(t) ? t.slice(1, -1).trim() : t; };
+
+function resolveTemplateAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues, icon) {
+  const action = lc(segs[1]?.text || "").trim();
+  const end = hadClose ? bodyEnd + 1 : bodyEnd;
+  const base = { start: tildeIndex, type: "template", isActive: undefined, icon };
+  if (action === "new" || action === "save") {
+    const rest = segs.slice(2);
+    if (!rest.length) return null;
+    let title = "";
+    let bodyStart;
+    if (rest.length >= 2) { title = unbracket(rest[0].text); bodyStart = rest[1].absStart; }
+    else bodyStart = rest[0].absStart;
+    const raw = text.slice(bodyStart, bodyEnd);
+    const body = unbracket(raw);
+    if (!body) return null;
+    return { ...base, end, plan: { kind: "templateNew", title, text: body }, label: `Saved as a template`, replaceText: body };
+  }
+  if (action === "load" || action === "paste" || action === "use") {
+    if (segs.length < 3) return null;
+    const nameStart = segs[2].absStart;
+    const raw = text.slice(nameStart, bodyEnd);
+    const templates = catalogues.templates || [];
+    const folders = catalogues.templateFolders || [];
+    // Bracketed or closed with ~: the whole name. Otherwise the longest run
+    // of words that names a template, so prose after it stays prose.
+    const bracket = /^\s*\[([^\]]*)\]/.exec(raw);
+    if (bracket) {
+      const t = resolveTemplateByName(bracket[1], templates, folders);
+      return t ? { ...base, end: nameStart + bracket[0].length, plan: { kind: "templateLoad", id: t.id }, label: templateTitle(t), replaceHtml: t.content || "" } : null;
+    }
+    if (hadClose) {
+      const t = resolveTemplateByName(raw, templates, folders);
+      return t ? { ...base, end, plan: { kind: "templateLoad", id: t.id }, label: templateTitle(t), replaceHtml: t.content || "" } : null;
+    }
+    const words = [...raw.matchAll(/\S+/g)];
+    for (let n = words.length; n > 0; n -= 1) {
+      const last = words[n - 1];
+      const candidate = raw.slice(0, last.index + last[0].length);
+      const t = resolveTemplateByName(candidate, templates, folders);
+      if (t) return { ...base, end: nameStart + last.index + last[0].length, plan: { kind: "templateLoad", id: t.id }, label: templateTitle(t), replaceHtml: t.content || "" };
+    }
+    return null;
+  }
+  return null;
+}
+
 // Resolve the command starting at `tildeIndex`. Returns
 //   { start, end, type, isActive, plan, label, icon }  or null.
 // `end` is where the resolved command stops in `text` (chip replaces
@@ -419,6 +484,8 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
   const type = normalizeType(segs[0].text);
   if (!type) return null;
   const icon = ICON[type];
+
+  if (type === "template") return resolveTemplateAt(text, tildeIndex, bodyEnd, hadClose, segs, catalogues, icon);
 
   let rest = segs.slice(1);
   // trailing is_active keyword (must be an exact whole segment)
@@ -706,6 +773,15 @@ function explainFailure(text, tildeIndex, catalogues) {
     if (!matchActivity(name, catalogues)) return `No activity called \u201c${name}\u201d \u2014 it has to match one of your activity categories`;
   }
   if (type === "journal") return `${cmd} needs title[\u2026] or body[\u2026] \u2014 like ${cmd}:body[dear diary]`;
+  if (type === "template") {
+    const action = lc(rest[0] || "");
+    if (action === "new" || action === "save") return `${cmd}:new needs some text \u2014 like ${cmd}:new:Morning:how did we sleep?`;
+    if (action === "load" || action === "paste" || action === "use") {
+      const nm = unbracket(segs.slice(2).join(":"));
+      return nm ? `No template called \u201c${nm.slice(0, 40)}\u201d (two with the same name? use Folder/Name)` : `${cmd}:load needs a template's name \u2014 like ${cmd}:load:morning check`;
+    }
+    return `${cmd} is ${cmd}:new:text or ${cmd}:load:name`;
+  }
   return `\u201c${S}${body.slice(0, 30)}\u201d isn\u2019t a complete ${cmd} command`;
 }
 
@@ -861,6 +937,14 @@ async function executePlan(plan, ctx) {
       });
       return r?.id || null;
     }
+    case "templateNew": {
+      // Loaded on use: the write path pulls in the database layer.
+      const { createTextTemplate } = await import("@/lib/textTemplates");
+      const r = await createTextTemplate({ title: plan.title, content: fieldTextToHtml(plan.text) });
+      try { window.dispatchEvent(new Event("symphony-templates-changed")); } catch { /* SSR */ }
+      return r?.id || null;
+    }
+    case "templateLoad": return plan.id || null;
     default: return null;
   }
 }
@@ -909,6 +993,16 @@ export async function applyLogCommands(content, { isRich = true, chips = true, s
   for (const m of matches) {
     let entityId = null;
     try { entityId = await executePlan(m.plan, ctx); } catch { entityId = null; }
+    // Templates put text in place of the command, never a chip: the text
+    // that was saved, or the template that was asked for.
+    if (m.replaceText != null || m.replaceHtml != null) {
+      out += chips ? passthrough(content.slice(cursor, m.start), isRich) : content.slice(cursor, m.start);
+      if (m.replaceText != null) out += chips ? passthrough(m.replaceText, isRich) : m.replaceText;
+      else out += chips ? m.replaceHtml : templatePlainText(m.replaceHtml);
+      cursor = m.end;
+      logged.push({ type: m.type, label: m.label, entityId });
+      continue;
+    }
     if (chips) {
       out += passthrough(content.slice(cursor, m.start), isRich);
       out += chipHtml({ icon: m.icon, label: m.label, type: m.type, entityId });
@@ -1066,5 +1160,58 @@ export function buildCommandSuggestions({ segments, catalogues }) {
   }
 
   if (type === "feeling") return feelingSuggestions(segments, catalogues, icon, query);
+  if (type === "template") return templateSuggestions(segments, catalogues, icon, query);
   return null;
+}
+
+// ~template:… — pick new/load, then (for load) folders to step into and
+// templates to paste. A template pick carries `replaceWith` (its HTML): the
+// host swaps the whole command for it.
+function templateSuggestions(segments, catalogues, icon, query) {
+  const q = lc(query);
+  if (segments.length === 2) {
+    const items = [{ insert: "load", terminal: false, label: "load — paste a template" }, { insert: "new", terminal: false, label: "new — save text as a template" }]
+      .filter((it) => !q || it.insert.startsWith(q));
+    return { header: "Template", icon, canFinish: false, items };
+  }
+  const action = lc(segments[1]).trim();
+  if (action === "new" || action === "save") {
+    return { header: segments.length === 3 ? "Type a title, then : and the text (or just the text)" : "Type the text", icon, canFinish: true, items: [] };
+  }
+  if (!["load", "paste", "use"].includes(action)) return null;
+  const templates = catalogues.templates || [];
+  const folders = catalogues.templateFolders || [];
+  const fmap = indexFolders(folders);
+  // Folders already stepped into: segments between "load" and the query.
+  let folderId = null;
+  for (const name of segments.slice(2, -1)) {
+    const next = childFolders(folderId, folders).find((f) => lc(f.name).trim() === lc(name).trim());
+    if (!next) { folderId = undefined; break; }
+    folderId = next.id;
+  }
+  const folderItem = (f) => ({ insert: f.name, terminal: false, label: `\u{1F4C1} ${f.name}` });
+  const templateItem = (t) => ({ insert: templateTitle(t), terminal: true, label: templateTitle(t), replaceWith: t.content || "" });
+  if (folderId === undefined) {
+    // A path that isn't folders (a name with a colon in it) — search instead.
+    const found = searchTemplates(segments.slice(2).join(":"), templates, folders);
+    return { header: "Paste a template", icon, canFinish: false, items: found.templates.slice(0, 8).map(templateItem) };
+  }
+  if (q) {
+    const found = searchTemplates(query, templates, folders);
+    const inside = (id) => {
+      if (!folderId) return true;
+      let cur = id; let guard = 0;
+      while (cur && guard++ < 20) { if (cur === folderId) return true; cur = fmap.has(cur) ? effectiveParentId(fmap.get(cur), fmap) : null; }
+      return false;
+    };
+    const fItems = found.folders.filter((f) => inside(effectiveParentId(f, fmap)) && (!folderId || f.id !== folderId)).slice(0, 3).map(folderItem);
+    const tItems = found.templates.filter((t) => inside(fmap.has(t.folder_id) ? t.folder_id : null)).map(templateItem);
+    return { header: "Paste a template", icon, canFinish: false, items: [...fItems, ...tItems].slice(0, 8) };
+  }
+  const here = folderId ? fmap.get(folderId) : null;
+  const items = [...childFolders(folderId, folders).map(folderItem), ...templatesIn(folderId, templates, folders).map(templateItem)];
+  return {
+    header: here ? here.name : (items.length ? "Paste a template" : "No templates yet"),
+    icon, canFinish: false, items: items.slice(0, 30),
+  };
 }

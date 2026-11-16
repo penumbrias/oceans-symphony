@@ -11,7 +11,7 @@
 //   lost by a mis-tap. Deleting a folder never deletes what is inside it:
 //   its templates and folders move up to where the folder was.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { localEntities } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
 import {
@@ -38,6 +38,11 @@ export function useTextTemplates({ enabled = true } = {}) {
     qc.invalidateQueries({ queryKey: TEMPLATES_KEY });
     qc.invalidateQueries({ queryKey: TEMPLATE_FOLDERS_KEY });
   }, [qc]);
+  // ~template:new saves from inside a note's save; pick it up here.
+  useEffect(() => {
+    window.addEventListener("symphony-templates-changed", refresh);
+    return () => window.removeEventListener("symphony-templates-changed", refresh);
+  }, [refresh]);
   return { templates, folders, loading: l1 || l2, refresh };
 }
 
