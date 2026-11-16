@@ -1109,6 +1109,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/grounding?view=nature", target: ["grounding-nature-view", "grounding-soundscape"],
     }),
     s("grounding", {
+      emoji: "⏭️", title: "Up next",
+      body: `Tap the + beside any sound to queue it. Up next plays in your order before the list carries on, and you can reorder or remove sounds there.`,
+      route: "/grounding?view=nature", target: ["grounding-nature-upnext", "grounding-nature-view"],
+    }),
+    s("grounding", {
+      emoji: "⏲️", title: "Sleep timer",
+      body: `Stop the sound after a set time, at the end of this sound, or when Up next runs out. It fades out gently, and pause and skip also work from the notification and lock screen.`,
+      route: "/grounding?view=nature", target: ["grounding-nature-timer", "grounding-nature-view"],
+    }),
+    s("grounding", {
       emoji: "🎙️", title: "Your own sounds",
       body: `Add recordings from your device or your Assets under "Your sounds". Keep the file as it is, or make it smaller to save space in backups.`,
       route: "/grounding?view=nature", target: ["grounding-nature-add", "grounding-nature-view"],

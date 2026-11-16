@@ -21,6 +21,8 @@ import { readNaturePrefs, writeNaturePrefs } from "./naturePrefs";
 import { isOwnSoundId, listMySounds } from "./ownSounds";
 import { clampShape, makeRoomImpulse } from "./recordingShape";
 import { motionValue } from "@/lib/soundscape/soundMath";
+import { getSoundscapeState, stopSoundscape } from "@/lib/soundscape/engine";
+import { initNowPlaying, showNowPlaying, clearNowPlaying } from "./nowPlaying";
 import {
   canRouteSrc, isLocalSrc, getAudioContext, createLayer, attachElement, holdBus, releaseBus,
 } from "@/lib/audio/soundBus";
@@ -35,9 +37,10 @@ const END_MARGIN = 30;
 const listeners = new Set();
 // shapeable: the current sound goes through the sound bus, so the shaping
 // knobs and the live visual work on it.
-let state = { id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false };
+// sleep: the sleep timer, or null — { mode: "time", endsAt } | { mode: "track" } | { mode: "queue" }.
+let state = { id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false, sleep: null };
 const emit = () => { for (const fn of listeners) { try { fn(state); } catch { /* listener */ } } };
-const setState = (patch) => { state = { ...state, ...patch }; emit(); };
+const setState = (patch) => { state = { ...state, ...patch }; emit(); syncControls(); };
 export const subscribeNature = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 export const getNatureState = () => state;
 // A recording is sounding through the sound bus (the visuals can see it).
@@ -108,6 +111,13 @@ function recover() {
 }
 
 const targetVolume = () => readNaturePrefs().volume / 100;
+// The volume, eased down while the sleep timer's closing fade runs.
+function levelNow() {
+  const sl = state.sleep;
+  if (sl?.mode !== "time") return targetVolume();
+  const left = sl.endsAt - Date.now();
+  return left < SLEEP_FADE_MS ? targetVolume() * Math.max(0, left / SLEEP_FADE_MS) : targetVolume();
+}
 
 // The level the person hears: the routed chain's level gain (iPhones ignore
 // an element's own volume), else the element's volume.
@@ -127,9 +137,15 @@ function setLevel(v) {
   }
 }
 
+// The app is off screen (another app, the lock screen). The phone slows
+// timers down there, so a fade would leave the sound silent or playing for
+// far too long: jump straight to the level instead.
+const away = () => typeof document !== "undefined" && document.visibilityState === "hidden";
+
 function fadeTo(to, ms, done) {
   clearInterval(fadeTimer);
   if (!audio) return;
+  if (away()) { setLevel(to); done?.(); return; }
   const from = getLevel();
   const t0 = Date.now();
   fadeTimer = setInterval(() => {
@@ -230,6 +246,99 @@ function pickElement(routable, src) {
   return want;
 }
 
+// ── controls outside the app (notification, lock screen, media keys) ───────
+
+let seeks = 0; // bumps on a seek so the controls pick up the new spot
+
+function syncControls() {
+  if (!state.id) { clearNowPlaying(); return; }
+  const sound = natureSoundById(state.id);
+  if (!sound) return;
+  showNowPlaying({
+    title: sound.title,
+    subtitle: sound.own ? "Your sound" : (sound.place || sound.by || ""),
+    // The person's intent, so changing sounds doesn't flash "paused".
+    playing: wantPlaying && !state.error,
+    position: state.position,
+    duration: state.duration,
+    seeked: seeks,
+  });
+}
+
+initNowPlaying({
+  play: () => toggleNature(true),
+  pause: () => toggleNature(false),
+  next: () => nextNature(),
+  previous: () => prevNature(),
+  stop: () => stopNature(),
+  seek: (t) => { if (Number.isFinite(t)) seekNature(t); },
+});
+
+// ── sleep timer ────────────────────────────────────────────────────────────
+// Stops the sound after a set time (fading out over the last half minute),
+// at the end of this sound, or once Up next runs out. When it ends, the
+// made-from-math Soundscape stops too, so the room goes quiet.
+
+const SLEEP_FADE_MS = 30000;
+let sleepTick = null;
+let soundscapeFading = false;
+
+export function setNatureSleepTimer(choice) {
+  clearInterval(sleepTick);
+  sleepTick = null;
+  soundscapeFading = false;
+  let sleep = null;
+  if (typeof choice === "number" && choice > 0) {
+    sleep = { mode: "time", endsAt: Date.now() + choice * 60000, minutes: choice };
+    sleepTick = setInterval(checkSleep, 1000);
+  } else if (choice === "track" || choice === "queue") {
+    sleep = { mode: choice };
+  }
+  // A timer moved out of its closing fade comes back up to full.
+  if (audio && wantPlaying && state.playing) { clearInterval(fadeTimer); setLevel(targetVolume()); }
+  setState({ sleep });
+}
+
+// Also run from the element's timeupdate, which keeps going in the
+// background where a phone slows timers down.
+function checkSleep() {
+  const sl = state.sleep;
+  if (!sl || sl.mode !== "time") return;
+  const left = sl.endsAt - Date.now();
+  if (left <= 0) { finishSleep(); return; }
+  if (left > SLEEP_FADE_MS) return;
+  if (!soundscapeFading && getSoundscapeState().playing) {
+    soundscapeFading = true;
+    stopSoundscape({ fade: left / 1000 });
+  }
+  if (audio && wantPlaying && !audio.paused) {
+    clearInterval(fadeTimer);
+    setLevel(targetVolume() * (left / SLEEP_FADE_MS));
+  }
+}
+
+function finishSleep() {
+  clearInterval(sleepTick);
+  sleepTick = null;
+  if (!soundscapeFading && getSoundscapeState().playing) stopSoundscape({ fade: 3 });
+  soundscapeFading = false;
+  wantPlaying = false;
+  clearRecovery();
+  clearInterval(fadeTimer);
+  if (audio && !audio.paused) { try { audio.pause(); } catch { /* gone */ } }
+  setState({ sleep: null, playing: false, loading: false });
+}
+
+// A sound came to its end on its own.
+function onEnded() {
+  const sl = state.sleep;
+  if (sl?.mode === "track" || (sl?.mode === "queue" && !readNaturePrefs().upNext.length)) {
+    finishSleep();
+    return;
+  }
+  nextNature();
+}
+
 function makeEl() {
   const audio = new Audio();
   audio.preload = "metadata";
@@ -240,6 +349,7 @@ function makeEl() {
     // A minute of good playback since the last recovery earns the tries back.
     if (retries && !audio.paused && t > lastPos + 60) retries = 0;
     if (!audio.paused && t > 0) lastPos = t;
+    checkSleep();
     setState({ position: t });
   });
   audio.addEventListener("durationchange", () => {
@@ -264,7 +374,7 @@ function makeEl() {
     releaseBus(BUS_KEY);
     setState({ playing: false });
   });
-  audio.addEventListener("ended", () => { if (mine()) nextNature(); });
+  audio.addEventListener("ended", () => { if (mine()) onEnded(); });
   audio.addEventListener("error", () => {
     if (!mine() || !state.id) return;
     // A file of your own isn't on the network: retrying won't help.
@@ -303,19 +413,6 @@ function waitForDuration(a) {
 
 const randomTime = (duration) => Math.random() * Math.max(0, duration - END_MARGIN);
 
-function mediaSession(sound) {
-  const ms = typeof navigator !== "undefined" ? navigator.mediaSession : null;
-  if (!ms || !sound) return;
-  try {
-    ms.metadata = new window.MediaMetadata({ title: sound.title, artist: sound.place || sound.by, album: "Nature sounds" });
-    ms.setActionHandler("play", () => toggleNature(true));
-    ms.setActionHandler("pause", () => toggleNature(false));
-    ms.setActionHandler("nexttrack", () => nextNature());
-    ms.setActionHandler("previoustrack", () => prevNature());
-    ms.setActionHandler("stop", () => stopNature());
-  } catch { /* not supported */ }
-}
-
 // at: "start" | "random" | a time in seconds. resuming: a recovery after a
 // drop (keeps the try count and the spot on screen).
 export async function playNature(id, { at = "start", resuming = false } = {}) {
@@ -335,7 +432,6 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
     duration: (resuming && state.duration) || sound.seconds || 0,
   });
   writeNaturePrefs({ lastId: id });
-  mediaSession(sound);
   try {
     a.pause();
     const src = await natureSoundSrc(id);
@@ -355,7 +451,7 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
     }
     await b.play();
     if (my !== token) return;
-    fadeTo(targetVolume(), resuming ? 600 : FADE_MS);
+    fadeTo(levelNow(), resuming ? 600 : FADE_MS);
   } catch (e) {
     if (my !== token || e?.name === "AbortError") return;
     // A load that failed on the network is the error listener's to retry.
@@ -383,12 +479,14 @@ export function toggleNature(force) {
     }
     wantPlaying = true;
     setLevel(0);
-    a.play().then(() => fadeTo(targetVolume(), FADE_MS)).catch(() => {
+    syncControls();
+    a.play().then(() => fadeTo(levelNow(), FADE_MS)).catch(() => {
       playNature(state.id, { at: state.position || lastPos || "start" });
     });
   } else {
     wantPlaying = false;
     clearRecovery();
+    syncControls();
     fadeTo(0, 400, () => a.pause());
   }
 }
@@ -404,7 +502,9 @@ export function stopNature() {
   }
   clearInterval(motionTimer);
   motionTimer = null;
-  setState({ id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false });
+  // "After this sound" / "When Up next runs out" have nothing left to wait for.
+  const sleep = state.sleep?.mode === "time" ? state.sleep : null;
+  setState({ id: null, playing: false, loading: false, error: null, position: 0, duration: 0, shapeable: false, sleep });
 }
 
 export function seekNature(seconds) {
@@ -412,6 +512,7 @@ export function seekNature(seconds) {
   const d = Number.isFinite(audio.duration) ? audio.duration : state.duration;
   audio.currentTime = Math.max(0, Math.min(seconds, d || seconds));
   lastPos = audio.currentTime; // a drop right after a seek resumes here
+  seeks++;
   setState({ position: audio.currentTime });
 }
 
@@ -434,6 +535,14 @@ export function playRandomNature(ids = queue) {
 }
 
 export function nextNature() {
+  // Up next comes first, in the order the person queued it.
+  const up = readNaturePrefs().upNext;
+  if (up.length) {
+    const [id, ...rest] = up;
+    writeNaturePrefs({ upNext: rest });
+    playNature(id);
+    return;
+  }
   if (!queue.length) { stopNature(); return; }
   if (readNaturePrefs().shuffle) { playRandomNature(); return; }
   const i = queue.indexOf(state.id);
@@ -450,7 +559,45 @@ export function prevNature() {
 
 export function setNatureVolume(v) {
   writeNaturePrefs({ volume: v });
-  if (audio && state.playing) { clearInterval(fadeTimer); setLevel(targetVolume()); }
+  if (audio && state.playing) { clearInterval(fadeTimer); setLevel(levelNow()); }
+}
+
+// ── Up next ────────────────────────────────────────────────────────────────
+// Sounds the person queued. Next (or a sound ending) takes the first one;
+// once it's empty the list carries on as before.
+
+const upNext = () => readNaturePrefs().upNext;
+
+// Returns false when the sound is already waiting in Up next.
+export function addToUpNext(id) {
+  if (!id || upNext().includes(id)) return false;
+  writeNaturePrefs({ upNext: [...upNext(), id] });
+  return true;
+}
+
+export function removeFromUpNext(index) {
+  const list = [...upNext()];
+  list.splice(index, 1);
+  writeNaturePrefs({ upNext: list });
+}
+
+export function moveInUpNext(index, by) {
+  const list = [...upNext()];
+  const to = index + by;
+  if (index < 0 || index >= list.length || to < 0 || to >= list.length) return;
+  [list[index], list[to]] = [list[to], list[index]];
+  writeNaturePrefs({ upNext: list });
+}
+
+export function clearUpNext() { writeNaturePrefs({ upNext: [] }); }
+
+// Play one now; the ones before it stay queued.
+export function playFromUpNext(index) {
+  const list = [...upNext()];
+  const [id] = list.splice(index, 1);
+  if (!id) return;
+  writeNaturePrefs({ upNext: list });
+  playNature(id);
 }
 
 // Change the recording's shape (any subset of recordingShape's fields) and

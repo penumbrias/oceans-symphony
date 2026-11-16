@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Dices, Sparkles, Heart, Download, Check, Trash2, Search, Loader2, ScrollText, Music,
-  SlidersHorizontal,
+  SlidersHorizontal, ListPlus, ListMusic, Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Group, SwitchRow, ChoiceRow, StackedRow, Chips, SliderRow, LinkRow } from "@/components/shared/SettingRows";
@@ -9,7 +9,7 @@ import { NATURE_SOUNDS, NATURE_TAGS, natureSoundById } from "@/lib/natureSounds/
 import { writeNaturePrefs, toggleFavorite, filterSounds } from "@/lib/natureSounds/naturePrefs";
 import {
   playNature, toggleNature, nextNature, prevNature, seekNature, jumpToRandomPoint, playRandomNature,
-  setNatureQueue, setNatureVolume,
+  setNatureQueue, setNatureVolume, addToUpNext,
 } from "@/lib/natureSounds/naturePlayer";
 import { canSaveNatureSounds, saveNatureSound, removeSavedNatureSound } from "@/lib/natureSounds/natureOffline";
 import { isOwnSoundId } from "@/lib/natureSounds/ownSounds";
@@ -17,6 +17,7 @@ import { useNatureState, useNaturePrefs, useNatureOffline, useMySounds, fmtLengt
 import NatureCreditsPage from "./NatureCreditsPage";
 import MySoundsPage from "./MySoundsPage";
 import RecordingShaper from "./RecordingShaper";
+import { SleepTimerPage, UpNextPage, useSleepLeft, sleepLabel } from "./NaturePlaybackPages";
 import { isDefaultShape } from "@/lib/natureSounds/recordingShape";
 
 // Soundscape → Nature sounds (the recording layer): field recordings streamed from the
@@ -60,7 +61,8 @@ function SaveButton({ id, offline }) {
   );
 }
 
-function NowPlaying({ player, prefs, offline, list }) {
+function NowPlaying({ player, prefs, offline, list, onOpen }) {
+  const sleepLeft = useSleepLeft(player.sleep);
   const sound = natureSoundById(player.id) || natureSoundById(prefs.lastId);
   const yours = sound && isOwnSoundId(sound.id);
   const fav = sound && prefs.favorites.includes(sound.id);
@@ -126,6 +128,14 @@ function NowPlaying({ player, prefs, offline, list }) {
         <button type="button" onClick={jumpToRandomPoint} disabled={!active} className={`${small} text-muted-foreground`}>
           <Sparkles className="w-4 h-4" /> Random spot
         </button>
+        <button type="button" onClick={() => onOpen("upnext")} className={`${small} ${prefs.upNext.length ? "text-primary" : "text-muted-foreground"}`}
+          data-tour="grounding-nature-upnext">
+          <ListMusic className="w-4 h-4" /> {prefs.upNext.length ? `Up next · ${prefs.upNext.length}` : "Up next"}
+        </button>
+        <button type="button" onClick={() => onOpen("timer")} className={`${small} tabular-nums ${player.sleep ? "text-primary" : "text-muted-foreground"}`}
+          aria-label={player.sleep ? `Sleep timer: ${sleepLabel(player.sleep, sleepLeft)}` : "Sleep timer"} data-tour="grounding-nature-timer">
+          <Timer className="w-4 h-4" /> {sleepLabel(player.sleep, sleepLeft)}
+        </button>
       </div>
       {player.error && <p className="text-xs text-destructive">{player.error}</p>}
     </div>
@@ -169,6 +179,11 @@ export function SoundRow({ sound, current, playing, fav, offline }) {
             {isSaved && <Check className="inline w-3 h-3 ml-1 -mt-0.5" aria-label="Saved on this device" />}
           </span>
         </span>
+      </button>
+      <button type="button" aria-label={`Play ${sound.title} next`}
+        onClick={() => (addToUpNext(sound.id) ? toast.success(`${sound.title} is up next`) : toast(`${sound.title} is already in Up next`))}
+        className="h-11 w-11 flex-shrink-0 inline-flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground/60">
+        <ListPlus className="w-4 h-4" />
       </button>
       <button type="button" onClick={() => toggleFavorite(sound.id)} aria-pressed={fav}
         aria-label={fav ? `Remove ${sound.title} from favourites` : `Add ${sound.title} to favourites`}
@@ -215,6 +230,22 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
 
   if (page === "credits") return <NatureCreditsPage onBack={() => setPage("main")} />;
   if (page === "yours") return <MySoundsPage onBack={() => setPage("main")} />;
+  if (page === "upnext") {
+    return (
+      <SubPage title="Up next" onBack={() => setPage("main")}>
+        <NowPlayingStrip player={player} prefs={prefs} offline={offline} />
+        <UpNextPage prefs={prefs} />
+      </SubPage>
+    );
+  }
+  if (page === "timer") {
+    return (
+      <SubPage title="Sleep timer" onBack={() => setPage("main")}>
+        <NowPlayingStrip player={player} prefs={prefs} offline={offline} />
+        <SleepTimerPage player={player} />
+      </SubPage>
+    );
+  }
   if (page === "shape") {
     return (
       <SubPage title="Shape the sound" onBack={() => setPage("main")}>
@@ -233,7 +264,7 @@ export default function NatureSoundsView({ onBack, backLabel = "Back to Soundsca
         <h2 className="text-lg font-semibold text-foreground">Nature sounds</h2>
       </div>
 
-      <NowPlaying player={player} prefs={prefs} offline={offline} list={ids} />
+      <NowPlaying player={player} prefs={prefs} offline={offline} list={ids} onOpen={setPage} />
 
       <div className="px-1">
         <SliderRow label="Volume" value={prefs.volume} min={0} max={100} unit="%" onChange={(v) => setNatureVolume(Math.round(v))} />

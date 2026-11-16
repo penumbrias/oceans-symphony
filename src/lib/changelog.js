@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 16, 2026",
     changes: [
+      { type: "feature", text: "Nature sounds: a sleep timer, an Up next queue (tap + beside a sound), and pause, skip and stop from the notification and lock screen." },
       { type: "feature", text: "Import from Florality: its OpenPlural .json and its data-export .html page, with {{alters}}, folders, custom fields, {{front}} history and notes. Imported {{alters}} stay hidden from friends until you choose which privacy buckets to share." },
       { type: "improve", text: "{{Alter}} profiles can hold more than one role: separate them with commas and each shows as its own tag, and the role filter lists each one." },
     ],
