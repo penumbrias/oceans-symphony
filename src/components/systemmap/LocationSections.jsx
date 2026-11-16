@@ -6,7 +6,8 @@
 // "Alters here"   — alters whose inner_world_location_id === this location.
 // "Sub-locations" — locations on the SAME map whose box sits inside this one
 //                   (the existing coordinate-overlap nesting; cycle-safe).
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Map as MapIcon, Lock, CornerDownRight, ExternalLink } from "lucide-react";
@@ -14,7 +15,6 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { isValidHexColor } from "@/lib/colorUtils";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import AlterCard from "@/components/alters/AlterCard";
@@ -34,8 +34,8 @@ function getContrastColor(hex) {
 // Location "avatar" — the colour swatch with a map-pin, or its on-map
 // background image. Mirrors GroupAvatar's role in the header.
 export function LocationAvatar({ color, image, framing = null }) {
-  const [resolved, setResolved] = useState(null);
-  useEffect(() => { if (image) resolveImageUrl(image).then(setResolved).catch(() => setResolved(null)); else setResolved(null); }, [image]);
+  // Through the hook so a picture that goes dead mid-session reads again.
+  const resolved = useResolvedAvatarUrl(image || null);
   const textColor = isValidHexColor(color) ? getContrastColor(color) : "#ffffff";
   return (
     <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
@@ -109,8 +109,7 @@ export function LocationHeaderSection({ location }) {
   const headerBgColor = ps.headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
   const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
   const headerOpacity = ps.headerOpacity;
-  const [resolvedHeader, setResolvedHeader] = useState(null);
-  useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
+  const resolvedHeader = useResolvedAvatarUrl(headerImage || null);
   const hasHeader = !!(headerImage && resolvedHeader);
   const nameColor = headerTextColor || (hasHeader ? "#ffffff" : groupNameColor(location.color));
   const memberCount = altersHere.length;

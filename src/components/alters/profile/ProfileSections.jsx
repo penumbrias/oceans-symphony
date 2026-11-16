@@ -10,7 +10,7 @@
 // reads custom fields) and resolves what it needs itself, so a widget can
 // mount any one of them alone.
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -27,7 +27,6 @@ import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
 import { useCustomFieldsLayout, fieldLayoutClasses, FIELD_LAYOUTS } from "@/lib/customFieldsLayout";
@@ -145,11 +144,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
   // hook (local-image:// can't be fed to <img src> raw).
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const avatar = useResolvedAvatarUrl(rotatingAvatarUrl);
-  const [resolvedHeaderImage, setResolvedHeaderImage] = useState("");
-  useEffect(() => {
-    if (!headerImage) { setResolvedHeaderImage(""); return; }
-    resolveImageUrl(headerImage).then((r) => setResolvedHeaderImage(r || "")).catch(() => setResolvedHeaderImage(""));
-  }, [headerImage]);
+  const resolvedHeaderImage = useResolvedAvatarUrl(headerImage || null) || "";
 
   const handleArchive = async () => {
     setSaving(true);

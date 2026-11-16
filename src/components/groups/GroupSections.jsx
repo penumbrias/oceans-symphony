@@ -28,7 +28,6 @@ import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, headerThemeStyleVars, PS } from "@/lib/profileStyle";
 import { parentGroupOf, childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { framedImageStyle, framingFor, framedBackgroundStyle } from "@/lib/imageFraming";
 import RichText from "@/components/shared/RichText";
 
@@ -99,8 +98,7 @@ export function GroupHeaderSection({ group }) {
   const headerTextColor = cf[PS.HEADER_TEXT] || "";
   const headerFont = fontStackFor(cf[PS.HEADER_FONT]);
   const headerOpacity = ps.headerOpacity;
-  const [resolvedHeader, setResolvedHeader] = useState(null);
-  React.useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
+  const resolvedHeader = useResolvedAvatarUrl(headerImage || null);
   if (cf[PS.HIDE_HEADER]) return null;
   const hasHeader = !!(headerImage && resolvedHeader);
   // Header text colour: the user's override wins; otherwise white over a

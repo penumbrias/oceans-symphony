@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { resolveImageUrl, IMAGE_CACHE_STALE_EVENT } from "@/lib/imageUrlResolver";
 import { spoilersToHtml } from "@/lib/renderBulletinContent";
 import { safeInternalRoute } from "@/lib/safeRoute";
 import { scopeBioStyles, bioHasStyle, rewriteInlineAnimations, sanitizeInlineStyleAttrs } from "@/lib/scopedBioStyle";
@@ -47,10 +47,24 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false,
   const [editValue, setEditValue] = useState("");
   // Map of local-image:// URL -> resolved data URL for rendering
   const [resolvedImages, setResolvedImages] = useState({});
+  const resolvedImagesRef = useRef(resolvedImages);
+  resolvedImagesRef.current = resolvedImages;
 
   // Both local forms need resolving — the /local-image/ SW path 404s on iOS
   // native (no service worker there), so never render it raw.
   const isLocalSrc = (s) => s?.startsWith("local-image://") || s?.startsWith("/local-image/");
+
+  // A picture that went dead mid-session (its store closed under us) is
+  // dropped from the resolver's cache; read the bio's pictures again.
+  const [healTick, setHealTick] = useState(0);
+  useEffect(() => {
+    const onStale = (e) => {
+      const urls = e?.detail?.urls || [];
+      if (urls.some((u) => resolvedImagesRef.current[u])) setHealTick((n) => n + 1);
+    };
+    window.addEventListener(IMAGE_CACHE_STALE_EVENT, onStale);
+    return () => window.removeEventListener(IMAGE_CACHE_STALE_EVENT, onStale);
+  }, []);
 
   useEffect(() => {
     // Collect all image srcs from blocks that need resolution
@@ -73,7 +87,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false,
       });
     });
     return () => { cancelled = true; };
-  }, [blocks]);
+  }, [blocks, healTick]);
 
   // Resolve a src for rendering (falls back to original if not yet resolved)
   const resolveSrc = (src) => (isLocalSrc(src) ? resolvedImages[src] || "" : src);

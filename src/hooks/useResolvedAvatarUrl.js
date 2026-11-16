@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { resolveImageUrl, peekResolvedImageUrl } from '@/lib/imageUrlResolver';
+import { resolveImageUrl, peekResolvedImageUrl, IMAGE_CACHE_STALE_EVENT } from '@/lib/imageUrlResolver';
 import { isLocalImageUrl, getLocalImageId } from '@/lib/localImageStorage';
 
 // When a picture stored on this device can't be read yet (IDB busy or
@@ -15,10 +15,11 @@ export function useResolvedAvatarUrl(avatarUrl) {
     if (!avatarUrl) { setResolvedUrl(null); return; }
 
     const cached = peekResolvedImageUrl(avatarUrl);
-    if (cached) { setResolvedUrl(cached); return; }
+    if (cached) setResolvedUrl(cached);
 
     let cancelled = false;
-    let gotIt = false;
+    let gotIt = !!cached;
+    let shown = cached || null;
     let retryTimer = null;
     let attempt = 0;
     const isLocal = typeof avatarUrl === 'string' && isLocalImageUrl(avatarUrl);
@@ -27,6 +28,7 @@ export function useResolvedAvatarUrl(avatarUrl) {
       .then((url) => {
         if (cancelled) return;
         setResolvedUrl(url);
+        shown = url || null;
         gotIt = !!url;
         if (!url && isLocal) scheduleRetry();
       })
@@ -41,13 +43,21 @@ export function useResolvedAvatarUrl(avatarUrl) {
       retryTimer = setTimeout(() => { retryTimer = null; run(); }, RETRY_DELAYS_MS[attempt++]);
     }
 
-    run();
+    if (!cached) run();
 
     // A local picture that drew a blank tries again when it lands on the
     // device and when the app comes back to the foreground.
     const imageId = isLocal ? getLocalImageId(avatarUrl) : null;
     const onSaved = (e) => { if (!gotIt && e?.detail?.id === imageId) run(); };
     const onVisible = () => { if (!gotIt && document.visibilityState === 'visible') run(); };
+    // The picture we showed went dead (its store was closed under us) and
+    // was dropped from the cache: read it again (v0.374.3).
+    const onStale = (e) => {
+      const urls = e?.detail?.urls || [];
+      const blobs = e?.detail?.blobs || [];
+      if (urls.includes(avatarUrl) || (shown && blobs.includes(shown))) { gotIt = false; attempt = 0; run(); }
+    };
+    window.addEventListener(IMAGE_CACHE_STALE_EVENT, onStale);
     if (isLocal) {
       window.addEventListener('symphony-local-image-saved', onSaved);
       document.addEventListener('visibilitychange', onVisible);
@@ -63,6 +73,7 @@ export function useResolvedAvatarUrl(avatarUrl) {
     }
     return () => {
       cancelled = true;
+      window.removeEventListener(IMAGE_CACHE_STALE_EVENT, onStale);
       if (retryTimer) clearTimeout(retryTimer);
       if (timer) clearInterval(timer);
       if (live) window.removeEventListener('symphony-front-changed', run);
