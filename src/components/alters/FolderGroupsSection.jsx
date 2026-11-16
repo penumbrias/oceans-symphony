@@ -22,6 +22,7 @@ import SubsystemAlterList from "./SubsystemAlterList";
 import AlterGridView from "./AlterGridView";
 import GroupActionMenu from "./GroupActionMenu";
 import GroupIcon from "@/components/shared/GroupIcon";
+import { alterRoles, rolesText } from "@/lib/alterRoles";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -69,7 +70,8 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
             <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">{alter.name}</p>
             {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
           </div>
-          {alter.role && (() => {
+          {alterRoles(alter).length > 0 && (() => {
+            const roles = alterRoles(alter);
             // Role chip sits on bg-card (surface) — add a thin halo when
             // the alter colour is too close to the surface to read on its
             // own. Preserves the user's chosen colour, only adds a ring.
@@ -78,11 +80,12 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
             const fillColor = halo ? adjustForContrast(bgColor, surfaceBg) : bgColor;
             return (
             <span className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+            title={rolesText(alter)}
             style={{
               backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "hsl(var(--muted))",
               color: halo ? "hsl(var(--foreground))" : (bgColor || "hsl(var(--muted-foreground))"),
             }}>
-              {alter.role}
+              {roles[0]}{roles.length > 1 ? ` +${roles.length - 1}` : ""}
             </span>
             );
           })()}

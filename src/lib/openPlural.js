@@ -33,6 +33,7 @@
 //                           banner_asset_id, extensions:{...terminology...}}
 
 import { settleOpenFront, countOpenFrontAlters } from "./openFrontsAtExport.js";
+import { joinRoles } from "./alterRoles.js";
 
 // Same normalisation as simplyPlural.js — coerce a colour to a leading "#".
 export function normalizeColor(raw) {
@@ -108,8 +109,8 @@ export function buildMemberCustomFields(customFieldValues = [], fieldIdMap = {})
 // OpenPlural v0.1 treats role as a taxonomy assignment of kind "role" (NOT a
 // member field — this is the main reason roles/tags "didn't come over" before).
 // Other identity-ish kinds (tag/identity/topic/status/custom) all collapse into
-// the local `alter.tags` string array; the FIRST kind:"role" term becomes
-// `alter.role`, and any extra role terms are appended to tags so nothing drops.
+// the local `alter.tags` string array; every kind:"role" term goes into
+// `alter.role`, comma-separated (an alter can hold several roles, v0.371.13).
 //
 // `kind` matching is case-insensitive. Terms with an unknown/blank kind that are
 // still assigned to a member are treated as tags (better surfaced than dropped).
@@ -139,13 +140,12 @@ export function buildMemberTaxonomy(taxonomyTerms = [], taxonomyAssignments = []
       byMember[memberId].tags.push(name);
     }
   }
-  // Collapse to { role, tags }: first role becomes alter.role, extra roles join
-  // the tags list. Dedup tags case-insensitively while preserving first casing.
+  // Collapse to { role, tags }: every role joins alter.role, comma-separated.
+  // Dedup tags case-insensitively while preserving first casing.
   const result = {};
   for (const [memberId, { roles, tags }] of Object.entries(byMember)) {
-    const role = roles[0] || "";
-    const extraRoles = roles.slice(1);
-    const merged = [...tags, ...extraRoles];
+    const role = joinRoles(roles);
+    const merged = [...tags];
     const seen = new Set();
     const deduped = [];
     for (const tag of merged) {

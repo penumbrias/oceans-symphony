@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { alterRoles, hasRole } from "@/lib/alterRoles";
 import { Input } from "@/components/ui/input";
 import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, EyeOff, Plus, TrendingDown, TrendingUp, Filter, MoreHorizontal, SlidersHorizontal, ChevronDown
 } from "lucide-react";
@@ -194,7 +195,7 @@ export default function AlterGrid({ alters }) {
   filter(
     (a) =>
     !a.is_archived &&
-    (filters.roles.length === 0 || filters.roles.includes((a.role || "").trim())) &&
+    (filters.roles.length === 0 || filters.roles.some((r) => hasRole(a, r) || (a.role || "").trim() === r)) &&
     (!hideGrouped || !groupedAlterIds.has(a.id)) && (
     a.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.role?.toLowerCase().includes(search.toLowerCase()) ||
@@ -239,11 +240,13 @@ export default function AlterGrid({ alters }) {
 
   const regularGroups = allGroups.filter((g) => !g.owner_alter_id);
   const subsystemGroups = allGroups.filter((g) => g.owner_alter_id);
-  // Distinct, non-empty roles across the system — drives the role filter pills.
-  const allRoles = useMemo(
-    () => [...new Set(effectiveAlters.map((a) => (a.role || "").trim()).filter(Boolean))].sort((x, y) => x.localeCompare(y)),
-    [effectiveAlters]
-  );
+  // Distinct roles across the system — drives the role filter pills. An
+  // alter with several roles (v0.371.13) adds each one.
+  const allRoles = useMemo(() => {
+    const byKey = new Map();
+    for (const a of effectiveAlters) for (const r of alterRoles(a)) if (!byKey.has(r.toLowerCase())) byKey.set(r.toLowerCase(), r);
+    return [...byKey.values()].sort((x, y) => x.localeCompare(y));
+  }, [effectiveAlters]);
 
   // Selected group/subsystem ids → the set of alter ids that match, using
   // Any (union) or All (intersection) of the selected memberships.

@@ -23,7 +23,7 @@ export const BASIC_ENTRIES = [
   { id: "basic:name", key: "name", label: "Name", kind: "text" },
   { id: "basic:alias", key: "alias", label: "Alias", kind: "text" },
   { id: "basic:pronouns", key: "pronouns", label: "Pronouns", kind: "text" },
-  { id: "basic:role", key: "role", label: "Role", kind: "text" },
+  { id: "basic:role", key: "role", label: "Role", kind: "list" }, // several roles, comma-separated (v0.371.13)
   { id: "basic:birthday", key: "birthday", label: "First appearance", kind: "text" },
 ];
 

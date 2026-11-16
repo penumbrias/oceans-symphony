@@ -14,6 +14,7 @@
 // unit-tested without the browser image stack.
 
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { alterRoles } from "@/lib/alterRoles";
 import { shareFile } from "@/lib/shareFile";
 import { APP_VERSION } from "@/lib/appVersion";
 import { journalEntryDate } from "@/lib/journalDate";
@@ -304,9 +305,12 @@ export function buildOpenPluralDocument({
       extensions: {},
     });
 
-    // role → kind:"role" taxonomy term; tags[] → kind:"tag" terms.
-    const roleId = referenceTerm("role", alter.role);
-    if (roleId) assignTerm(roleId, memberId);
+    // each role → a kind:"role" taxonomy term (an alter can hold several,
+    // comma-separated, v0.371.13); tags[] → kind:"tag" terms.
+    for (const role of alterRoles(alter)) {
+      const roleId = referenceTerm("role", role);
+      if (roleId) assignTerm(roleId, memberId);
+    }
     const alterTags = Array.isArray(alter.tags) ? alter.tags : [];
     for (const tag of alterTags) {
       const tagId = referenceTerm("tag", tag);

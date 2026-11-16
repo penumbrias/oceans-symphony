@@ -39,6 +39,7 @@ import { saveAlterNote, deleteAlterNote, alterNotesKey } from "@/lib/alterNotes"
 import { boxStyle, valignBoxStyle } from "@/v2/primitives";
 import { useTerms } from "@/lib/useTerms";
 import { useInfoAlter, EditableValue } from "@/v2/infoWidgets";
+import { alterRoles } from "@/lib/alterRoles";
 import { infoEditorField } from "@/components/v2/profileInfoEditors";
 import { useAlterGroups, presetAnswerRowsOf } from "@/components/alters/profile/ProfileSections";
 import GroupIcon from "@/components/shared/GroupIcon";
@@ -136,10 +137,14 @@ export function IdentityWidget({ settings, mode = "normal" }) {
           )}
           {!minimal && line("alias", "opacity-80")}
           {!minimal && line("pronouns", "opacity-80")}
-          {!minimal && alter.role && (
+          {!minimal && alterRoles(alter).length > 0 && (
             <div>
               <EditableValue alter={alter} entry={{ ...basic("role"), id: "basic:role" }} value={alter.role} editable={editable}>
-                <span className={chipCls} style={chipStyle(alter.color)}>{alter.role}</span>
+                <span className={`inline-flex flex-wrap gap-[0.3em] ${center ? "justify-center" : ""}`}>
+                  {alterRoles(alter).map((r, i) => (
+                    <span key={`${r}-${i}`} className={chipCls} style={chipStyle(alter.color)}>{r}</span>
+                  ))}
+                </span>
               </EditableValue>
             </div>
           )}
