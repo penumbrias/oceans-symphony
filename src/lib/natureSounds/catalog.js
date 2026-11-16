@@ -109,5 +109,18 @@ export const NATURE_SOUNDS = [
 
 ];
 
+// Sounds known to have something sudden in them (from the recordists' own
+// notes, or a listener's report). Shown beside the sound as a heads-up.
+// Add to this when a report comes in (Report this sound → email).
+export const STARTLE_NOTES = {
+  "519519": "a dog barking",
+  "150175": "coyotes howling",
+  "530123": "foxes barking and screaming",
+  "383506": "a distant siren and children yelling, around 12 minutes in",
+  "446212": "a deer barking and a train horn",
+  "159321": "car alarms",
+};
+export const startleNote = (id) => STARTLE_NOTES[id] || null;
+
 // Built-in sounds, then the person's own (ownSounds.js — "own-…" ids).
 export const natureSoundById = (id) => NATURE_SOUNDS.find((s) => s.id === id) || mySoundById(id);

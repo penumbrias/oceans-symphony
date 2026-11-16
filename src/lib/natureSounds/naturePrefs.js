@@ -24,6 +24,7 @@ const DEFAULTS = {
   addQuality: "balanced", // size chosen last when adding your own sound
   shape: DEFAULT_SHAPE, // "Shape the sound" for recordings (recordingShape.js)
   upNext: [], // sounds queued to play next, in order (naturePlayer.js)
+  reportNoticeSeen: false, // the "help find startling sounds" notice was closed
 };
 
 const MAX_UP_NEXT = 200;
@@ -53,6 +54,7 @@ export function readNaturePrefs() {
     shape: clampShape(raw.shape),
     // Ids this version doesn't know are kept (a newer pack, your own sounds
     // that load later); the player skips one it can't find.
+    reportNoticeSeen: !!raw.reportNoticeSeen,
     upNext: Array.isArray(raw.upNext) ? raw.upNext.filter((x) => typeof x === "string").slice(0, MAX_UP_NEXT) : [],
     // Your own sounds load after this is first read, so their ids are
     // kept as they are; the player skips one that's gone.
