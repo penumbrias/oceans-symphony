@@ -23,7 +23,7 @@ register(`data:text/javascript,${encodeURIComponent(`
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
 
-const { buildFriendFronters, collectFronting, frontShareBlock } = await import("../src/lib/friendFronters.js");
+const { buildFriendFronters, collectFronting, frontShareBlock, friendFrontersFor } = await import("../src/lib/friendFronters.js");
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log(`ok  ${name}`); };
@@ -38,11 +38,37 @@ const alters = [
 const groups = [{ id: "g", name: "Private", hide_from_friends: true, member_sp_ids: ["e"] }];
 const sessions = (ids) => ids.map((id, i) => ({ id: `s${i}`, alter_id: id, is_active: true, is_primary: i === 0 }));
 
-test("only shareable fronters are sent", () => {
+test("archived and hidden-group fronters never leave the device", () => {
   const out = buildFriendFronters({ activeSessions: sessions(["a", "b", "c", "d", "e"]), alters, groups });
-  assert.deepEqual(out.map((f) => f.id), ["a", "b"]);
+  assert.deepEqual(out.map((f) => f.id), ["a", "b", "c"]);
   assert.equal(out[0].isPrimary, true);
   assert.equal(out[1].isCofronter, true);
+});
+
+test("friends without levels: the Show when fronting switch decides", () => {
+  const all = buildFriendFronters({ activeSessions: sessions(["a", "b", "c"]), alters, groups });
+  const out = friendFrontersFor(all, undefined);
+  assert.deepEqual(out.map((f) => f.name), ["Ash", "Bea"]);
+  assert.ok(out.every((f) => !("id" in f) && !("levelIds" in f) && !("friendsVisible" in f)), "local keys stripped");
+  assert.deepEqual(friendFrontersFor(all, { hiddenAlterIds: ["a"] }).map((f) => f.name), ["Bea"]);
+});
+
+test("friends given levels see exactly those levels, with only their fields", () => {
+  const lv = [
+    { id: "L0", number: 0, name: "Close", fields: { name: true, color: true, pronouns: true } },
+    { id: "L1", number: 1, name: "Anon", fields: { name: false, color: false } },
+  ];
+  const withLevels = alters.map((a) => (a.id === "c" ? { ...a, privacy_levels: ["L0"] } : a.id === "a" ? { ...a, privacy_levels: ["L1"] } : a));
+  const all = buildFriendFronters({ activeSessions: sessions(["a", "b", "c"]), alters: withLevels, groups });
+  // Cy has the switch off (imported) but is in a granted level → shown. Bea is in no level → not shown.
+  assert.deepEqual(friendFrontersFor(all, { allowedLevelIds: ["L0"] }, lv).map((f) => f.name), ["Cy"]);
+  const anon = friendFrontersFor(all, { allowedLevelIds: ["L1"] }, lv);
+  assert.equal(anon.length, 1);
+  assert.equal(anon[0].name, "?");
+  assert.equal(anon[0].color, null);
+  assert.equal("pronouns" in anon[0], false);
+  assert.deepEqual(friendFrontersFor(all, { allowedLevelIds: ["L0"], hiddenAlterIds: ["c"] }, lv), [], "per-friend hide still wins");
+  assert.deepEqual(friendFrontersFor(all, { shownAlterIds: ["b"] }, lv).map((f) => f.name), ["Bea"], "a reveal counts as levels");
 });
 
 test("why someone is held back", () => {
@@ -54,15 +80,15 @@ test("why someone is held back", () => {
 });
 
 test("a hidden primary never leaks, and no one else is promoted to primary in its place", () => {
-  const out = buildFriendFronters({ activeSessions: sessions(["c", "b"]), alters, groups });
-  assert.deepEqual(out.map((f) => f.id), ["b"]);
+  const out = friendFrontersFor(buildFriendFronters({ activeSessions: sessions(["c", "b"]), alters, groups }));
+  assert.deepEqual(out.map((f) => f.name), ["Bea"]);
   assert.equal(out[0].isPrimary, false);
 });
 
 test("legacy grouped rows count, without duplicates", () => {
   const legacy = [{ id: "L", is_active: true, primary_alter_id: "a", co_fronter_ids: ["b", "a"] }];
   assert.deepEqual(collectFronting(legacy).map((c) => c.alterId), ["a", "b"]);
-  assert.deepEqual(buildFriendFronters({ activeSessions: legacy, alters, groups }).map((f) => f.id), ["a", "b"]);
+  assert.deepEqual(friendFrontersFor(buildFriendFronters({ activeSessions: legacy, alters, groups })).map((f) => f.name), ["Ash", "Bea"]);
 });
 
 test("no one fronting sends an empty list", () => {

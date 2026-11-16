@@ -5,6 +5,8 @@ import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { isPreviewActive } from "@/lib/previewMode";
 import { buildFriendFronters, friendTerms } from "@/lib/friendFronters";
+import { getPrivacyLevels } from "@/lib/privacyLevels";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Whenever the local front state changes — regardless of WHICH UI mutated it
 // (Set Fronters modal, dashboard chip swipe, Alters page long-press, etc.) —
@@ -47,6 +49,11 @@ export function useFriendsFrontSync() {
     queryFn: () => base44.entities.Group.list(),
   });
 
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+
   useEffect(() => {
     // Don't leak preview-mode mock fronters to real friends.
     if (isPreviewActive()) return;
@@ -64,14 +71,18 @@ export function useFriendsFrontSync() {
     // One rule for who a friend may see (src/lib/friendFronters.js).
     const fronters = buildFriendFronters({ activeSessions, alters, groups });
 
+    // Levels decide what a friend granted them sees, so a change to a
+    // level's fields (name/colour shown or not) re-pushes too.
+    const levelsSig = getPrivacyLevels(pickPrimarySystemSettings(settingsList)).map((l) => [l.id, l.fields]);
+
     // Deterministic signature so we only push when the front actually
     // changed. Pronouns + preferences are part of the signature so editing
     // them re-pushes on the next evaluation instead of waiting for a switch.
     const sig = JSON.stringify(
       fronters
-        .map((f) => [f.id, f.isPrimary, f.pronouns, f.preferences])
+        .map((f) => [f.id, f.isPrimary, f.pronouns, f.preferences, f.friendsVisible, f.levelIds])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-    );
+    ) + JSON.stringify(levelsSig);
     if (sig === lastSigRef.current) return;
     lastSigRef.current = sig;
 
@@ -84,5 +95,5 @@ export function useFriendsFrontSync() {
         if (!ok && lastSigRef.current === sig) lastSigRef.current = null;
       })
       .catch(() => { if (lastSigRef.current === sig) lastSigRef.current = null; });
-  }, [activeSessions, alters, groups, sessionsReady, altersReady, groupsFetched, retryTick, terms.fronting, terms.front, terms.alter, terms.system]);
+  }, [activeSessions, alters, groups, settingsList, sessionsReady, altersReady, groupsFetched, retryTick, terms.fronting, terms.front, terms.alter, terms.system]);
 }

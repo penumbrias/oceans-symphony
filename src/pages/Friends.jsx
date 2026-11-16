@@ -583,18 +583,15 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                             </div>
                           );
                         })()}
-                        {(() => {
-                          // Levels share profiles, not the front status — say so
-                          // when some of these won't show up as fronting.
-                          const n = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } })
-                            .filter(({ alter }) => alter.friends_visible === false).length;
-                          if (!n) return null;
-                          return (
-                            <p className="text-xs text-amber-600 dark:text-amber-400">
-                              {n} of them won't show as {terms?.fronting || "fronting"}: "Show when {terms?.fronting || "fronting"}" is off in their profile → Options. Levels only share profiles.
-                            </p>
-                          );
-                        })()}
+                        {allowedLevelIds.length > 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            When {terms?.fronting || "fronting"}, this friend sees only these {terms?.alters || "alters"}, with the fields their levels share.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            With no levels, this friend sees whoever has "Show when {terms?.fronting || "fronting"}" on.
+                          </p>
+                        )}
                         <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
                       </>
                     )}
@@ -609,7 +606,9 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                       <AlterTreeSelect
                         controlPosition="right"
                         renderControl={(alter) => {
-                          const globallyHidden = alter.friends_visible === false;
+                          // With levels granted, the levels decide — the profile switch only
+                          // covers friends without levels.
+                          const globallyHidden = alter.friends_visible === false && allowedLevelIds.length === 0;
                           const locallyHidden = hiddenAlterIds.includes(alter.id);
                           const isVisible = !globallyHidden && !locallyHidden;
                           return (
