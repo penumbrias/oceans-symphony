@@ -132,7 +132,7 @@ export function useTextareaInsert(ref, value, onChange) {
 // buttons; `glyph` is used for the text/emoji buttons (which already match).
 const MORE_HELP = [
   { icons: [Brush], d: "Draw — ink that sits in your text, or a picture in colour" },
-  { icons: [FileStack], d: "Templates — paste saved text, or highlight text and save it as a template" },
+  { icons: [FileStack], d: "Text templates — paste saved text, or highlight text and save it as a template" },
   { icons: [Heading1, Heading2, Heading3], d: "Headings (largest → smallest)" },
   { icons: [List, ListOrdered], d: "Bullet list / numbered list" },
   { icons: [Quote], d: "Block quote" },
@@ -639,7 +639,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
           className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
           <AtSign className="w-3.5 h-3.5" />
         </button>
-        <button type="button" title="Templates — paste one, or save the highlighted text as one" aria-label="Templates"
+        <button type="button" title="Text templates — paste one, or save the highlighted text as one" aria-label="Text templates"
           onMouseDown={e => e.preventDefault()} onClick={openTemplates}
           className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
           <FileStack className="w-3.5 h-3.5" />

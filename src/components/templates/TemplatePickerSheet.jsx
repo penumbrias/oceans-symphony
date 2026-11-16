@@ -113,7 +113,7 @@ export default function TemplatePickerSheet({ selectionHtml = "", boxHtml = "", 
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} autoFocus
               placeholder={firstLine(saving.content) || "Untitled template"}
               className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-            <span className="text-[0.6875rem] text-muted-foreground">Leave it empty to use the first line.</span>
+            <span className="text-xs text-muted-foreground">Leave it empty to use the first line.</span>
           </label>
           <div>
             <span className="text-xs font-medium text-muted-foreground">Folder</span>
@@ -138,7 +138,7 @@ export default function TemplatePickerSheet({ selectionHtml = "", boxHtml = "", 
     const empty = !templates.length && !folders.length;
     body = (
       <>
-        {header(here ? here.name || "Folder" : "Templates", here ? () => setFolderId(here.parent_id && fmap.has(here.parent_id) ? here.parent_id : null) : null)}
+        {header(here ? here.name || "Folder" : "Text templates", here ? () => setFolderId(here.parent_id && fmap.has(here.parent_id) ? here.parent_id : null) : null)}
         <div className="px-3 pt-2.5 pb-2 flex-shrink-0">
           <div className="relative">
             <Search className="w-4 h-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />

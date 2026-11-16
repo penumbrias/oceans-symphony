@@ -20,6 +20,7 @@ const ids = (list) => list.map((x) => x.id);
 test("first line is the default title", () => {
   assert.equal(firstLine("<div><b>Morning</b> check</div><div>second</div>"), "Morning check");
   assert.equal(firstLine("\n\n  hello there\nmore"), "hello there");
+  assert.equal(firstLine("Morning check-in<div>How did we sleep?</div>"), "Morning check-in");
   assert.equal(templateTitle({ title: "  ", content: "<p>From text</p>" }), "From text");
   assert.equal(templateTitle({ title: "Mine", content: "x" }), "Mine");
   assert.equal(templateTitle({ content: "" }), "Untitled template");

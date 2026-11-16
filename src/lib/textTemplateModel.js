@@ -28,10 +28,11 @@ export function templatePlainText(content) {
   return String(content || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, "\n")
+    .replace(/<\/?(p|div|li|h[1-6]|blockquote|ul|ol)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, "")
     .replace(/&(nbsp|lt|gt|quot|#39|amp);/g, (m) => ENTITIES[m] ?? m)
     .replace(/ /g, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
