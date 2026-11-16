@@ -226,6 +226,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BackupCopyPlugin.class);
         registerPlugin(SystemSettingsPlugin.class);
         registerPlugin(LaunchScreenPlugin.class);
+        registerPlugin(NowPlayingPlugin.class);
         super.onCreate(savedInstanceState);
 
         if (bridge != null) {

@@ -23,7 +23,10 @@ const DEFAULTS = {
   lastId: null,
   addQuality: "balanced", // size chosen last when adding your own sound
   shape: DEFAULT_SHAPE, // "Shape the sound" for recordings (recordingShape.js)
+  upNext: [], // sounds queued to play next, in order (naturePlayer.js)
 };
+
+const MAX_UP_NEXT = 200;
 
 const QUALITY_IDS = ["original", "high", "balanced", "small"];
 
@@ -48,6 +51,9 @@ export function readNaturePrefs() {
     keepPlaying: raw.keepPlaying !== false,
     addQuality: QUALITY_IDS.includes(raw.addQuality) ? raw.addQuality : DEFAULTS.addQuality,
     shape: clampShape(raw.shape),
+    // Ids this version doesn't know are kept (a newer pack, your own sounds
+    // that load later); the player skips one it can't find.
+    upNext: Array.isArray(raw.upNext) ? raw.upNext.filter((x) => typeof x === "string").slice(0, MAX_UP_NEXT) : [],
     // Your own sounds load after this is first read, so their ids are
     // kept as they are; the player skips one that's gone.
     lastId: typeof raw.lastId === "string" && (natureSoundById(raw.lastId) || isOwnSoundId(raw.lastId)) ? raw.lastId : null,
