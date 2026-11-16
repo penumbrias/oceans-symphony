@@ -38,6 +38,7 @@ import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/mul
 import pako from "pako";
 import { base64ToBytes } from "@/lib/base64";
 import { compressBackup } from "@/lib/backupCompress";
+import { isFloralityJson, isFloralityHtml } from "@/lib/florality";
 
 // Single source of truth for the localStorage keys that belong in a
 // backup lives in src/lib/backupKeys.js — keep the rules and the list
@@ -58,6 +59,9 @@ export function externalKindFromJson(j) {
   // Detect before the generic members-array branch so PS never falls into "ask".
   if (j._meta && typeof j._meta === "object" && String(j._meta.app || "").toLowerCase() === "plural star") return "pluralstar";
   if (Array.isArray(j.alters) && ("fronts" in j || "tags" in j || "user" in j)) return "octocon";
+  // Florality's "OpenPlural" JSON has members + privacy buckets + folders —
+  // and a `customFields` key, so it must be caught before the Simply Plural test.
+  if (isFloralityJson(j)) return "florality";
   if (Array.isArray(j.members)) {
     if (j.frontHistory !== undefined || j.channelCategories !== undefined || j.customFields !== undefined || j.chatMessages !== undefined) return "simplyplural";
     if (j.front_periods !== undefined || j.custom_fields !== undefined || j.relationships !== undefined || j.conversations !== undefined) return "openplural";
@@ -1885,6 +1889,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           return;
         }
       }
+      // Florality's data-export page (.html) — handed to its importer.
+      if (onExternalFile && isFloralityHtml(innerJsonText)) {
+        traceStep("handoff", "florality html");
+        traceEnd("handed to external importer panel");
+        onExternalFile(file, "florality");
+        return;
+      }
       if (onExternalFile) {
         let probe = null;
         try { probe = JSON.parse(innerJsonText); } catch {}
@@ -2652,7 +2663,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup (.json / .txt / .zip), Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip), Florality (.json / .html) or Ampersand (.ampar / .json) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">
