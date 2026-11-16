@@ -82,6 +82,10 @@ function clearRecovery() {
 
 function recover() {
   if (!state.id || !wantPlaying || retryTimer || onlineWait) return;
+  // A drop in the last few seconds is the sound finishing (a phone can
+  // stall or fail on the very end of a stream instead of saying "ended"):
+  // move on rather than loading the end again.
+  if (state.duration > 0 && lastPos >= state.duration - END_SLACK) { finishedSound(); return; }
   clearTimeout(stallTimer); stallTimer = null;
   const id = state.id;
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -265,6 +269,14 @@ function syncControls() {
   });
 }
 
+// Coming back to the app (or the screen turning on) and finding the sound
+// finished while it was meant to be playing: carry on with the next one.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && state.id && wantPlaying && audio && atEnd(audio)) finishedSound();
+  });
+}
+
 initNowPlaying({
   play: () => toggleNature(true),
   pause: () => toggleNature(false),
@@ -329,7 +341,24 @@ function finishSleep() {
   setState({ sleep: null, playing: false, loading: false });
 }
 
-// A sound came to its end on its own.
+// A sound came to its end on its own. Several signals can say so (the
+// element's "ended", a pause or stall right at the end, coming back to the
+// app and finding it finished, pressing play on a finished sound); the
+// first one moves on, once per load.
+const END_SLACK = 15; // seconds from the end that count as "finished"
+let endHandledFor = -1;
+function atEnd(a) {
+  if (!a) return false;
+  if (a.ended) return true;
+  const d = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : 0;
+  return d > 0 && a.currentTime >= d - 1.5;
+}
+function finishedSound() {
+  if (endHandledFor === token) return;
+  endHandledFor = token;
+  onEnded();
+}
+
 function onEnded() {
   const sl = state.sleep;
   if (sl?.mode === "track" || (sl?.mode === "queue" && !readNaturePrefs().upNext.length)) {
@@ -366,6 +395,8 @@ function makeEl() {
     if (!mine()) return;
     clearTimeout(stallTimer); stallTimer = null;
     if (isRouted(audio)) holdBus(BUS_KEY);
+    // Played again from earlier on (a seek back): its end counts again.
+    if (!atEnd(audio)) endHandledFor = -1;
     setState({ loading: false, playing: true, error: null });
   });
   audio.addEventListener("pause", () => {
@@ -373,8 +404,10 @@ function makeEl() {
     clearTimeout(stallTimer); stallTimer = null;
     releaseBus(BUS_KEY);
     setState({ playing: false });
+    // Some phones pause at the very end without an "ended".
+    if (wantPlaying && atEnd(audio)) finishedSound();
   });
-  audio.addEventListener("ended", () => { if (mine()) onEnded(); });
+  audio.addEventListener("ended", () => { if (mine()) finishedSound(); });
   audio.addEventListener("error", () => {
     if (!mine() || !state.id) return;
     // A file of your own isn't on the network: retrying won't help.
@@ -421,6 +454,8 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
   if (!sound && isOwnSoundId(id)) { await listMySounds(); sound = natureSoundById(id); }
   if (!sound) return;
   const my = ++token;
+  // Nothing about the old sound "finishing" counts until this one plays.
+  endHandledFor = my;
   const a = el();
   clearInterval(fadeTimer);
   if (!resuming) { clearRecovery(); retries = 0; }
@@ -436,7 +471,12 @@ export async function playNature(id, { at = "start", resuming = false } = {}) {
     a.pause();
     const src = await natureSoundSrc(id);
     if (my !== token) return;
-    const routable = await canRouteSrc(src);
+    // The check is a small network request; with the screen off it can hang,
+    // so after a few seconds the sound plays the plain way instead.
+    const routable = await Promise.race([
+      canRouteSrc(src),
+      new Promise((r) => setTimeout(() => r(false), 5000)),
+    ]);
     if (my !== token) return;
     let b = a;
     try { b = pickElement(routable, src); } catch { b = pickElement(false, src); }
@@ -471,6 +511,13 @@ export function toggleNature(force) {
   }
   const a = el();
   if (want) {
+    // A sound that already finished (the app was asleep when it ended)
+    // moves on to the next one, like a music player, instead of starting over.
+    if (state.id && audio && atEnd(audio) && !a.error) {
+      wantPlaying = true;
+      onEnded();
+      return;
+    }
     // After a drop the element is dead; load it again from the same spot
     // instead of asking a broken element to play.
     if (!a.src || a.error || state.error || retryTimer || onlineWait) {
@@ -535,8 +582,9 @@ export function playRandomNature(ids = queue) {
 }
 
 export function nextNature() {
-  // Up next comes first, in the order the person queued it.
-  const up = readNaturePrefs().upNext;
+  // Up next comes first, in the order the person queued it. A sound that
+  // isn't on this device any more is skipped, not left to stop the queue.
+  const up = readNaturePrefs().upNext.filter((x) => natureSoundById(x) || isOwnSoundId(x));
   if (up.length) {
     const [id, ...rest] = up;
     writeNaturePrefs({ upNext: rest });

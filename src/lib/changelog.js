@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 16, 2026",
     changes: [
+      { type: "fix", text: "Nature sounds: Up next now moves on when a sound ends with the screen off, and pressing play on a finished sound plays the next one instead of starting it over." },
       { type: "fix", text: "Pictures no longer all disappear after using the app for a while; any that stop showing now load again on their own." },
       { type: "improve", text: "Nature sounds: report a startling noise in a recording (the flag on the player), and sounds known to have barking or sirens now say so." },
       { type: "feature", text: "Template commands: type ~template:load: to pick a template and paste it in place, or ~template:new:title:text to save what you wrote as a template." },
