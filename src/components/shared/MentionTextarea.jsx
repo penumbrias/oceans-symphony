@@ -12,6 +12,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
 import { getCommandSign } from "@/lib/commandTerms";
+import { htmlToFieldText } from "@/lib/textTemplateModel";
 import useFieldToolbar from "@/components/shared/useFieldToolbar";
 import { an } from "@/lib/articles";
 
@@ -97,9 +98,13 @@ const MentionTextarea = forwardRef(function MentionTextarea(
   const { data: cmdContacts = [] } = useQuery({ queryKey: ["logcmd", "contacts"], queryFn: () => base44.entities.Contact.list(), enabled: commands });
   const { data: cmdActivityCats = [] } = useQuery({ queryKey: ["logcmd", "activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: commands });
   const { data: cmdCustomEmotions = [] } = useQuery({ queryKey: ["logcmd", "customEmotions"], queryFn: () => base44.entities.CustomEmotion.list(), enabled: commands });
+  // Text templates for ~template:load (the same query keys every template
+  // surface uses — src/lib/textTemplates.js).
+  const { data: cmdTemplates = [] } = useQuery({ queryKey: ["textTemplates"], queryFn: () => base44.entities.TextTemplate.list().catch(() => []), enabled: commands });
+  const { data: cmdTemplateFolders = [] } = useQuery({ queryKey: ["textTemplateFolders"], queryFn: () => base44.entities.TextTemplateFolder.list().catch(() => []), enabled: commands });
   const catalogues = useMemo(
-    () => buildCatalogues({ symptoms: cmdSymptoms, contacts: cmdContacts, activityCategories: cmdActivityCats, customEmotions: cmdCustomEmotions }),
-    [cmdSymptoms, cmdContacts, cmdActivityCats, cmdCustomEmotions]
+    () => buildCatalogues({ symptoms: cmdSymptoms, contacts: cmdContacts, activityCategories: cmdActivityCats, customEmotions: cmdCustomEmotions, templates: cmdTemplates, templateFolders: cmdTemplateFolders }),
+    [cmdSymptoms, cmdContacts, cmdActivityCats, cmdCustomEmotions, cmdTemplates, cmdTemplateFolders]
   );
 
   const sysToken = terms.system || "system";
@@ -176,6 +181,17 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     const caret = ta ? (ta.selectionStart ?? value.length) : value.length;
     const cmd = detectCommandToken(value, caret);
     if (!cmd) { setMenu(null); return; }
+    // A picked template takes the command's place (~template:load:…).
+    if (pick.replaceWith != null) {
+      const before = value.slice(0, cmd.start);
+      const pasted = htmlToFieldText(pick.replaceWith);
+      onChange(before + pasted + value.slice(caret));
+      setMenu(null);
+      const at = before.length + pasted.length;
+      ta?.focus();
+      requestAnimationFrame(() => { ta?.focus(); try { ta?.setSelectionRange(at, at); } catch { /* detached */ } });
+      return;
+    }
     const body = [...cmd.segments.slice(0, -1), pick.insert].join(":");
     const before = value.slice(0, cmd.start);
     const after = value.slice(caret);
@@ -320,7 +336,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
                   onMouseDown={(e) => { e.preventDefault(); insertCommand(it); }}
                   className="w-full flex items-center px-3 py-1.5 text-left hover:bg-muted/50 transition-colors text-sm"
                 >
-                  <span className="truncate">{it.insert}</span>
+                  <span className="truncate">{it.label || it.insert}</span>
                 </button>
               ))}
             </>

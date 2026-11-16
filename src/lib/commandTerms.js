@@ -28,6 +28,7 @@ export const COMMAND_WORD_TYPES = [
   { key: "company", label: "Company", example: "emma" },
   { key: "activity", label: "Activity", example: "reading:30m" },
   { key: "journal", label: "Journal", example: "body[dear diary]" },
+  { key: "template", label: "Template", example: "load:morning check" },
 ];
 
 // Built-in words, kept here too so the settings form can refuse a custom
@@ -40,6 +41,7 @@ export const BUILT_IN_COMMAND_WORDS = {
   company: ["company", "with", "contact", "contacts"],
   activity: ["activity", "activities", "act"],
   journal: ["journal", "journals", "entry", "j"],
+  template: ["template", "templates", "tpl"],
 };
 export const BUILT_IN_WHISPER_WORDS = ["w", "whisper"];
 
